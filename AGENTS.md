@@ -70,7 +70,10 @@
 ## 4. Sistema de Diseño UI (WAPPY 14-Group Design System)
 
 - **Componentes:** Diseño 100% responsive (`md:flex-row`), 0px horizontal overflow, defensivo ante nulos (`x?.trim() || ''`, `Array.isArray(arr) ? arr : []`).
-- **Botones e Insignias:** Usar `client/src/components/Common/ExpandableButton.tsx` (inclinación `sm:hover:-rotate-3 sm:hover:scale-105`, bordes `/30`, fondos `/10`, evitar `rounded-full` excesivo o rellenos sólidos opacos).
+- **Botones e Insignias (`ExpandableButton.tsx` — Regla Inquebrantable de Expansión/Contracción):**
+  - Usar siempre `client/src/components/Common/ExpandableButton.tsx` con los 14 grupos semánticos de color (bordes `/30`, fondos `/10`, inclinación `sm:hover:-rotate-3 sm:hover:scale-105`).
+  - **OBLIGATORIO:** Todo botón WAPPY (`ExpandableButton`) **DEBE mantenerse compacto en reposo y expandirse suavemente al pasar el cursor (`group-hover:max-w-[280px] group-hover:opacity-100 group-hover:ml-2`) y contraerse al quitar el cursor (`max-w-0 opacity-0`)**.
+  - **PROHIBIDO** desactivar la animación de expansión/contracción al pasar el cursor o forzar `w-full` que deforme el botón o desborde su tarjeta contenedora.
 - **Colores Oficiales:**
   - `#C7F303` Verde Lima Eléctrico (texto oscuro `#0E1300`).
   - `#0D9488` Turquesa SST.
@@ -105,9 +108,9 @@
 > [!CRITICAL]
 > No programar ni renderizar MP4 a ciegas. Seguir las 7 Piezas del Brandbook (`docs/WAPPY_IA_BRANDBOOK_OFICIAL.md`) y validar propuesta antes de renderizar:
 > 1. **Pieza 1 — Enfoque de Dirección de Arte:** Formato y propósito (Reel 9:16, Tutorial, Lanzamiento, etc.).
-> 2. **Pieza 2 — Identidad WAPPY IA:** Paleta oficial, tipografías (`Plus Jakarta Sans`/`Outfit ExtraBold` + `Inter` + `JetBrains Mono`), avatar Chibi/Voxel 3D en zona segura.
+> 2. **Pieza 2 — Identidad WAPPY IA:** Paleta oficial, tipografías (`Plus Jakarta Sans`/`Outfit ExtraBold` + `Inter` + `JetBrains Mono`), `Avatar 3D` en zona segura (nombrarlo siempre `Avatar 3D` en la interfaz, sin usar nombres propios como "Félix" ni etiquetas promocionales como "¡GRATIS!" salvo petición explícita del usuario).
 > 3. **Pieza 3 — Audiencia y Mensaje Técnico:** Público objetivo y normativa verificada (GTC 45, Res. 0312, Dec. 1072).
-> 4. **Pieza 4 — Guión Segundo a Segundo + Portada Magnética:** Incluir **de 0.00s a 2.00s la miniatura** con avatar, hasta 3 insignias clave y el badge **`🔥 ¡GRATIS!`**.
+> 4. **Pieza 4 — Guión Segundo a Segundo + Portada Magnética:** Incluir **de 0.00s a 2.00s la Portada Magnética (2s)** con Avatar 3D e insignias técnicas del tema.
 > 5. **Pieza 5 — Motion Graphics:** Suavizado elástico (`spring`), 60 fps, mínimo 4 transiciones de `animaciones-17-efectos-reels`.
 > 6. **Pieza 6 — Diseño Sonoro:** Locución limpia + SFX sutiles (`whoosh`, `pop`, `ding`).
 > 7. **Pieza 7 — Render y Vistas Previas:** Mostrar 3 capturas previas (inicio/miniatura, mitad y cierre) antes de entregar el MP4 final.

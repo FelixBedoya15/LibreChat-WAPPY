@@ -7024,11 +7024,217 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             </div>
 
             {/* ================================================================ */}
-            {/* MÓDULO HORIZONTAL 2 (100% ANCHO): MONITOR EN VIVO & EDITOR       */}
-            {/* INTERACTIVO CON GRAN ESPACIO + CONSOLA DE TRANSPORTE & EXPORT    */}
+            {/* BLOQUE 2 (POR ENCIMA DEL MONITOR): GENERADOR DE VIDEO CON IA Y   */}
+            {/* ANTIGRAVITY EN 3 PASOS                                           */}
+            {/* ================================================================ */}
+            <div className="relative overflow-hidden rounded-2xl border border-purple-500/35 dark:border-purple-500/40 bg-gradient-to-r from-indigo-50/50 via-purple-50/40 to-cyan-50/40 dark:from-[#0a1324] dark:via-[#11122c] dark:to-[#091c29] p-4 sm:p-5 shadow-md space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-800 dark:text-purple-200 font-mono text-[10px] font-extrabold uppercase tracking-wider">
+                    ✨ GENERADOR DE VIDEO CON IA Y ANTIGRAVITY • 3 PASOS
+                  </span>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                    De tu Guion y Efectos al Video HTML5 + GSAP en Vivo
+                  </h3>
+                </div>
+                <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
+                  PASO 01 (Super-Prompt) → PASO 02 (Generar Video) → PASO 03 (Correcciones en Vivo)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+                {/* TARJETA 1: PASO 01 - SUPER-PROMPT TÉCNICO */}
+                <div className="rounded-2xl border border-indigo-500/35 bg-white/90 dark:bg-slate-900/90 p-4 flex flex-col justify-between gap-3 shadow-xs min-w-0 overflow-hidden">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 font-mono text-[10px] font-extrabold">
+                        PASO 01 • ARQUITECTURA 7 PIEZAS
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                        {selectedSkillEffects.length} FX • {scriptSteps.length} escenas
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      Construir Super-Prompt Técnico (Timings + Efectos)
+                    </h4>
+                    <textarea
+                      rows={4}
+                      value={aiScenePrompt}
+                      onChange={(e) => setAiScenePrompt(e.target.value)}
+                      placeholder="Haz clic en '1. Generar Super-Prompt' para ensamblar las 7 Piezas, tiempos y efectos seleccionados..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-indigo-500/30 rounded-xl p-2.5 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-y font-mono leading-relaxed"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-indigo-500/15">
+                    <span className="text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 truncate">
+                      {isGeneratingSuperPrompt
+                        ? 'Construyendo Super-Prompt...'
+                        : '1. Generar Super-Prompt'}
+                    </span>
+                    <ExpandableButton
+                      size="sm"
+                      icon={
+                        isGeneratingSuperPrompt ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Wand2 />
+                        )
+                      }
+                      label={
+                        isGeneratingSuperPrompt
+                          ? 'Construyendo Super-Prompt...'
+                          : '1. Generar Super-Prompt'
+                      }
+                      variant="indigo"
+                      disabled={isGeneratingSuperPrompt}
+                      onClick={handleBuildAntigravitySuperPrompt}
+                    />
+                  </div>
+                </div>
+
+                {/* TARJETA 2: PASO 02 - COMPILAR VIDEO CON ANTIGRAVITY */}
+                <div className="rounded-2xl border border-purple-500/45 bg-gradient-to-b from-purple-500/10 via-white/95 to-teal-500/10 dark:from-purple-950/35 dark:via-slate-900/95 dark:to-teal-950/25 p-4 flex flex-col justify-between gap-3 shadow-xs ring-1 ring-purple-500/20 min-w-0 overflow-hidden">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 border border-purple-500/40 text-purple-800 dark:text-[#C7F303] font-mono text-[10px] font-extrabold">
+                        PASO 02 • MOTOR 60-FPS + VOZ
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-teal-600 dark:text-teal-300">
+                        {(videoDuration || 20).toFixed(1)}s sincronizados
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      Programar Video HTML5 + GSAP y Enviar al Lienzo
+                    </h4>
+                    <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-950/80 border border-purple-500/25 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500 dark:text-slate-400">Formato & Arte:</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white truncate">
+                          {aspectRatio} • {selectedArtDirection}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500 dark:text-slate-400">Audio vinculado:</span>
+                        <span className="font-bold text-teal-700 dark:text-teal-300 truncate max-w-[160px]">
+                          {customAudioName || currentAudio?.title || `Voz ${selectedVoice}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500 dark:text-slate-400">Destino automático:</span>
+                        <span className="font-bold text-purple-700 dark:text-purple-300 truncate">
+                          Lienzo en Vivo + Biblioteca
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-purple-500/20">
+                    <span className="text-[11px] font-extrabold text-purple-800 dark:text-purple-300 truncate">
+                      {isGeneratingHtmlAi
+                        ? 'Antigravity Programando...'
+                        : '2. Enviar al Generador de Video'}
+                    </span>
+                    <ExpandableButton
+                      size="sm"
+                      icon={
+                        isGeneratingHtmlAi ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Sparkles />
+                        )
+                      }
+                      label={
+                        isGeneratingHtmlAi
+                          ? 'Antigravity Programando...'
+                          : '2. Enviar al Generador de Video'
+                      }
+                      variant="purple"
+                      disabled={isGeneratingHtmlAi}
+                      onClick={handleGenerateHtmlWithAi}
+                    />
+                  </div>
+                </div>
+
+                {/* TARJETA 3: PASO 03 - CORRECCIONES EN VIVO CON ANTIGRAVITY */}
+                <div className="rounded-2xl border border-cyan-500/35 bg-white/90 dark:bg-slate-900/90 p-4 flex flex-col justify-between gap-3 shadow-xs min-w-0 overflow-hidden">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-800 dark:text-cyan-300 font-mono text-[10px] font-extrabold">
+                        PASO 03 • REFINAMIENTO EN VIVO
+                      </span>
+                      <RefreshCw className="w-3.5 h-3.5 text-cyan-500" />
+                    </div>
+                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      ¿Deseas ajustar algo del video? Pide correcciones
+                    </h4>
+
+                    {/* Chips rápidos de corrección */}
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        'Agranda los títulos en verde lima #C7F303',
+                        'Añade Giro 3D en la escena 2',
+                        'Fondo Dark Tech HUD #0C192E',
+                        'Resalta más el titular de portada',
+                      ].map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setVideoCorrectionPrompt(chip)}
+                          className="px-2 py-0.5 rounded-md bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 text-[10px] font-semibold text-cyan-800 dark:text-cyan-300 cursor-pointer transition"
+                        >
+                          + {chip}
+                        </button>
+                      ))}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={videoCorrectionPrompt}
+                      onChange={(e) => setVideoCorrectionPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendCorrectionsToAntigravity();
+                        }
+                      }}
+                      placeholder="Escribe qué quieres cambiar y presiona Enter..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-cyan-500/30 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-cyan-500/15">
+                    <span className="text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300 truncate">
+                      {isApplyingCorrection
+                        ? 'Aplicando Correcciones...'
+                        : '3. Enviar Correcciones a Antigravity'}
+                    </span>
+                    <ExpandableButton
+                      size="sm"
+                      icon={
+                        isApplyingCorrection ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Wand2 />
+                        )
+                      }
+                      label={
+                        isApplyingCorrection
+                          ? 'Aplicando Correcciones...'
+                          : '3. Enviar Correcciones a Antigravity'
+                      }
+                      variant="cyan"
+                      disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
+                      onClick={handleSendCorrectionsToAntigravity}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ================================================================ */}
+            {/* BLOQUE 3: MONITOR EN VIVO & LIENZO INTERACTIVO                   */}
             {/* ================================================================ */}
             <div className="w-full bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
-              {/* Cabecera Horizontal Completa del Monitor & Editor (Cero Truncamiento + Botones WAPPY) */}
+              {/* Cabecera del Monitor & Editor (Botones Oficiales WAPPY que se expanden al pasar el cursor) */}
               <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
                 <div className="flex flex-wrap items-center gap-2.5 min-w-0">
                   <span
@@ -7051,7 +7257,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </span>
                 </div>
 
-                {/* Botonera Oficial WAPPY (100% ExpandableButton alwaysExpanded) */}
+                {/* Botonera Oficial WAPPY (ExpandableButton con hover expand/contract) */}
                 <div className="flex flex-wrap items-center gap-2">
                   <ExpandableButton
                     size="sm"
@@ -7064,7 +7270,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     }
                     label="Sincronizar Voz IA"
                     variant="purple"
-                    alwaysExpanded
                     disabled={isSyncingVoiceToVideo}
                     onClick={handleSyncVoiceToVideo}
                   />
@@ -7074,7 +7279,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Edit3 />}
                     label={isVisualEditMode ? 'Salir de Edición' : 'Editar Lienzo'}
                     variant="orange"
-                    alwaysExpanded
                     isActive={isVisualEditMode}
                     onClick={toggleVisualEditMode}
                   />
@@ -7084,7 +7288,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={isRenderingServerMp4 ? <Loader2 className="animate-spin" /> : <Film />}
                     label="Renderizar .MP4"
                     variant="teal"
-                    alwaysExpanded
                     disabled={isRenderingServerMp4}
                     onClick={handleRenderServerMp4}
                   />
@@ -7094,7 +7297,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={isBuildingAcademyHtml ? <Loader2 className="animate-spin" /> : <Download />}
                     label="Descargar .HTML"
                     variant="green"
-                    alwaysExpanded
                     disabled={isBuildingAcademyHtml}
                     onClick={handleDownloadHtmlBundle}
                   />
@@ -7104,7 +7306,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Save />}
                     label="Guardar en Biblioteca"
                     variant="indigo"
-                    alwaysExpanded
                     onClick={() => saveVideoProjectToLibrary({}, false)}
                   />
 
@@ -7113,7 +7314,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Maximize2 />}
                     label="Pantalla Completa"
                     variant="cyan"
-                    alwaysExpanded
                     onClick={toggleStageFullscreen}
                   />
                 </div>
@@ -7133,7 +7333,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Type />}
                       label="+ Texto"
                       variant="teal"
-                      alwaysExpanded
                       onClick={() =>
                         iframeRef.current?.contentWindow?.postMessage(
                           { type: 'STUDIO_ADD_ELEMENT', kind: 'text' },
@@ -7147,7 +7346,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Layers />}
                       label="+ Caja / Tarjeta"
                       variant="purple"
-                      alwaysExpanded
                       onClick={() =>
                         iframeRef.current?.contentWindow?.postMessage(
                           { type: 'STUDIO_ADD_ELEMENT', kind: 'card' },
@@ -7161,7 +7359,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Move />}
                       label="Caja Padre"
                       variant="cyan"
-                      alwaysExpanded
                       disabled={!selectedCanvasElement}
                       onClick={() =>
                         iframeRef.current?.contentWindow?.postMessage(
@@ -7176,7 +7373,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Copy />}
                       label="Duplicar"
                       variant="indigo"
-                      alwaysExpanded
                       disabled={!selectedCanvasElement}
                       onClick={() =>
                         iframeRef.current?.contentWindow?.postMessage(
@@ -7191,7 +7387,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Trash2 />}
                       label="Eliminar"
                       variant="danger"
-                      alwaysExpanded
                       disabled={!selectedCanvasElement}
                       onClick={() =>
                         iframeRef.current?.contentWindow?.postMessage(
@@ -7206,14 +7401,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Check />}
                       label="Guardar Cambios"
                       variant="emerald"
-                      alwaysExpanded
                       onClick={handleSaveVisualEdits}
                     />
                   </div>
                 </div>
               )}
 
-              {/* Cuerpo Horizontal del Estudio: Escenario Amplio (7 cols) + Consola Transporte & Exportación (5 cols) */}
+              {/* Cuerpo del Estudio: Escenario Amplio (7 cols) + Consola Transporte & Exportación (5 cols) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
                 {/* IZQUIERDA/CENTRO (7 cols): Escenario Cinematográfico Amplio sin recortes */}
                 <div className="lg:col-span-7 flex justify-center items-center bg-[#060d18] rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-inner overflow-hidden min-h-[480px]">
@@ -7382,7 +7576,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={isVideoPlaying ? <Pause /> : <Play />}
                           label={isVideoPlaying ? 'Pausar' : 'Play'}
                           variant="teal"
-                          alwaysExpanded
                           onClick={toggleStagePlayback}
                         />
 
@@ -7391,7 +7584,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={<RotateCcw />}
                           label="Reiniciar"
                           variant="cyan"
-                          alwaysExpanded
                           onClick={restartStagePlayback}
                         />
 
@@ -7414,7 +7606,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={<Edit3 />}
                           label={isVisualEditMode ? 'Editando' : 'Editar'}
                           variant="orange"
-                          alwaysExpanded
                           isActive={isVisualEditMode}
                           onClick={toggleVisualEditMode}
                         />
@@ -7424,7 +7615,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={<Minimize2 />}
                           label="Salir"
                           variant="danger"
-                          alwaysExpanded
                           onClick={toggleStageFullscreen}
                         />
                       </div>
@@ -7452,7 +7642,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={isVideoPlaying ? <Pause /> : <Play />}
                         label={isVideoPlaying ? 'Pausar Video' : 'Reproducir Video'}
                         variant="teal"
-                        alwaysExpanded
                         onClick={toggleStagePlayback}
                       />
 
@@ -7461,7 +7650,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={<RotateCcw />}
                         label="Reiniciar"
                         variant="cyan"
-                        alwaysExpanded
                         onClick={restartStagePlayback}
                       />
 
@@ -7471,7 +7659,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={muteBaseVideo ? <VolumeX /> : <Volume2 />}
                           label={muteBaseVideo ? 'Audio Base OFF' : 'Audio Base ON'}
                           variant={muteBaseVideo ? 'danger' : 'emerald'}
-                          alwaysExpanded
                           onClick={() => setMuteBaseVideo(!muteBaseVideo)}
                         />
                       )}
@@ -7519,26 +7706,31 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Envía la composición a Antigravity / FFmpeg para ensamblar el archivo .MP4 final listo para redes.
                       </p>
                     </div>
-                    <ExpandableButton
-                      size="sm"
-                      icon={
-                        isRenderingServerMp4 ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Film />
-                        )
-                      }
-                      label={
-                        isRenderingServerMp4
-                          ? 'Renderizando Video .MP4 con Antigravity...'
-                          : 'Descargar Video .MP4 (Todo Unido)'
-                      }
-                      variant="teal"
-                      alwaysExpanded
-                      disabled={isRenderingServerMp4}
-                      onClick={handleRenderServerMp4}
-                      className="w-full justify-center"
-                    />
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-teal-500/20">
+                      <span className="text-xs font-extrabold text-teal-800 dark:text-teal-200 truncate">
+                        {isRenderingServerMp4
+                          ? 'Renderizando Video .MP4...'
+                          : 'Descargar Video .MP4 (Todo Unido)'}
+                      </span>
+                      <ExpandableButton
+                        size="sm"
+                        icon={
+                          isRenderingServerMp4 ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Film />
+                          )
+                        }
+                        label={
+                          isRenderingServerMp4
+                            ? 'Renderizando Video .MP4...'
+                            : 'Descargar Video .MP4 (Todo Unido)'
+                        }
+                        variant="teal"
+                        disabled={isRenderingServerMp4}
+                        onClick={handleRenderServerMp4}
+                      />
+                    </div>
                   </div>
 
                   {/* 3. Tarjeta de Exportación Instantánea HTML5 (Sin esperar a Antigravity) */}
@@ -7557,32 +7749,34 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Descarga inmediata en 1 clic sin re-renderizar, lista para abrir en cualquier navegador o incrustar en LMS.
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ExpandableButton
-                        size="sm"
-                        icon={
-                          isBuildingAcademyHtml ? (
-                            <Loader2 className="animate-spin" />
-                          ) : (
-                            <Download />
-                          )
-                        }
-                        label="Descargar .HTML Inmediato"
-                        variant="green"
-                        alwaysExpanded
-                        disabled={isBuildingAcademyHtml}
-                        onClick={handleDownloadHtmlBundle}
-                        className="flex-1 justify-center"
-                      />
-                      <ExpandableButton
-                        size="sm"
-                        icon={<Copy />}
-                        label="Copiar LMS"
-                        variant="fuchsia"
-                        alwaysExpanded
-                        disabled={isBuildingAcademyHtml}
-                        onClick={handleCopyLmsEmbed}
-                      />
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-500/20">
+                      <span className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200 truncate">
+                        Descargar .HTML Inmediato
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <ExpandableButton
+                          size="sm"
+                          icon={
+                            isBuildingAcademyHtml ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <Download />
+                            )
+                          }
+                          label="Descargar .HTML Inmediato"
+                          variant="green"
+                          disabled={isBuildingAcademyHtml}
+                          onClick={handleDownloadHtmlBundle}
+                        />
+                        <ExpandableButton
+                          size="sm"
+                          icon={<Copy />}
+                          label="Copiar LMS"
+                          variant="fuchsia"
+                          disabled={isBuildingAcademyHtml}
+                          onClick={handleCopyLmsEmbed}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -7599,7 +7793,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={<RotateCcw />}
                           label="Restablecer"
                           variant="teal"
-                          alwaysExpanded
                           onClick={() => updateSelectedCanvasElement({ dx: 0, dy: 0, scale: 1 })}
                         />
                       </div>
@@ -7622,7 +7815,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               icon={<Minimize2 />}
                               label="A-"
                               variant="neutral"
-                              alwaysExpanded
                               onClick={() =>
                                 updateSelectedCanvasElement({
                                   fontSize: Math.max(10, selectedCanvasElement.fontSize - 2),
@@ -7634,7 +7826,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               icon={<Maximize2 />}
                               label="A+"
                               variant="neutral"
-                              alwaysExpanded
                               onClick={() =>
                                 updateSelectedCanvasElement({
                                   fontSize: Math.min(96, selectedCanvasElement.fontSize + 2),
@@ -7654,7 +7845,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               icon={<Minimize2 />}
                               label="-"
                               variant="neutral"
-                              alwaysExpanded
                               onClick={() =>
                                 updateSelectedCanvasElement({
                                   scale: Math.max(
@@ -7669,7 +7859,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               icon={<Plus />}
                               label="+"
                               variant="neutral"
-                              alwaysExpanded
                               onClick={() =>
                                 updateSelectedCanvasElement({
                                   scale: Math.min(
@@ -7710,197 +7899,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
-
-            {/* ================================================================ */}
-            {/* BLOQUE 3: PIPELINE HORIZONTAL DE 3 PASOS CON ANTIGRAVITY         */}
-            {/* ================================================================ */}
-            <div className="relative overflow-hidden rounded-2xl border border-purple-500/35 dark:border-purple-500/40 bg-gradient-to-r from-indigo-50/50 via-purple-50/40 to-cyan-50/40 dark:from-[#0a1324] dark:via-[#11122c] dark:to-[#091c29] p-4 sm:p-5 shadow-md space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-800 dark:text-purple-200 font-mono text-[10px] font-extrabold uppercase tracking-wider">
-                    🚀 PIPELINE HORIZONTAL ANTIGRAVITY • 3 PASOS
-                  </span>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
-                    De tu Guion y Efectos al Video HTML5 + GSAP en Vivo
-                  </h3>
-                </div>
-                <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
-                  PASO 01 (Super-Prompt) → PASO 02 (Generar Video) → PASO 03 (Correcciones en Vivo)
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-                {/* TARJETA HORIZONTAL 1: PASO 01 - SUPER-PROMPT TÉCNICO */}
-                <div className="rounded-2xl border border-indigo-500/35 bg-white/90 dark:bg-slate-900/90 p-4 flex flex-col justify-between gap-3 shadow-xs">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 font-mono text-[10px] font-extrabold">
-                        PASO 01 • ARQUITECTURA 7 PIEZAS
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                        {selectedSkillEffects.length} FX • {scriptSteps.length} escenas
-                      </span>
-                    </div>
-                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
-                      Construir Super-Prompt Técnico (Timings + Efectos)
-                    </h4>
-                    <textarea
-                      rows={4}
-                      value={aiScenePrompt}
-                      onChange={(e) => setAiScenePrompt(e.target.value)}
-                      placeholder="Haz clic en '1. Generar Super-Prompt' para ensamblar las 7 Piezas, tiempos y efectos seleccionados..."
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-indigo-500/30 rounded-xl p-2.5 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-y font-mono leading-relaxed"
-                    />
-                  </div>
-                  <ExpandableButton
-                    size="sm"
-                    icon={
-                      isGeneratingSuperPrompt ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <Wand2 />
-                      )
-                    }
-                    label={
-                      isGeneratingSuperPrompt
-                        ? 'Construyendo Super-Prompt...'
-                        : '1. Generar Super-Prompt'
-                    }
-                    variant="indigo"
-                    alwaysExpanded
-                    disabled={isGeneratingSuperPrompt}
-                    onClick={handleBuildAntigravitySuperPrompt}
-                    className="w-full justify-center"
-                  />
-                </div>
-
-                {/* TARJETA HORIZONTAL 2: PASO 02 - COMPILAR VIDEO CON ANTIGRAVITY */}
-                <div className="rounded-2xl border border-purple-500/45 bg-gradient-to-b from-purple-500/10 via-white/95 to-teal-500/10 dark:from-purple-950/35 dark:via-slate-900/95 dark:to-teal-950/25 p-4 flex flex-col justify-between gap-3 shadow-xs ring-1 ring-purple-500/20">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 border border-purple-500/40 text-purple-800 dark:text-[#C7F303] font-mono text-[10px] font-extrabold">
-                        PASO 02 • MOTOR 60-FPS + VOZ
-                      </span>
-                      <span className="text-[10px] font-mono font-bold text-teal-600 dark:text-teal-300">
-                        {(videoDuration || 20).toFixed(1)}s sincronizados
-                      </span>
-                    </div>
-                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
-                      Programar Video HTML5 + GSAP y Enviar al Lienzo
-                    </h4>
-                    <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-950/80 border border-purple-500/25 space-y-1.5 text-[11px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Formato & Arte:</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          {aspectRatio} • {selectedArtDirection}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Audio vinculado:</span>
-                        <span className="font-bold text-teal-700 dark:text-teal-300 truncate max-w-[160px]">
-                          {customAudioName || currentAudio?.title || `Voz ${selectedVoice}`}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Destino automático:</span>
-                        <span className="font-bold text-purple-700 dark:text-purple-300">
-                          Lienzo en Vivo + Biblioteca
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <ExpandableButton
-                    size="md"
-                    icon={
-                      isGeneratingHtmlAi ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <Sparkles />
-                      )
-                    }
-                    label={
-                      isGeneratingHtmlAi
-                        ? 'Antigravity Programando Video...'
-                        : '2. Enviar al Generador de Video (Antigravity)'
-                    }
-                    variant="purple"
-                    alwaysExpanded
-                    disabled={isGeneratingHtmlAi}
-                    onClick={handleGenerateHtmlWithAi}
-                    className="w-full justify-center"
-                  />
-                </div>
-
-                {/* TARJETA HORIZONTAL 3: PASO 03 - CORRECCIONES EN VIVO CON ANTIGRAVITY */}
-                <div className="rounded-2xl border border-cyan-500/35 bg-white/90 dark:bg-slate-900/90 p-4 flex flex-col justify-between gap-3 shadow-xs">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-800 dark:text-cyan-300 font-mono text-[10px] font-extrabold">
-                        PASO 03 • REFINAMIENTO EN VIVO
-                      </span>
-                      <RefreshCw className="w-3.5 h-3.5 text-cyan-500" />
-                    </div>
-                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">
-                      ¿Deseas ajustar algo del video? Pide correcciones
-                    </h4>
-
-                    {/* Chips rápidos de corrección */}
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        'Agranda los títulos en verde lima #C7F303',
-                        'Añade Giro 3D en la escena 2',
-                        'Fondo Dark Tech HUD #0C192E',
-                        'Resalta más el badge 🔥 ¡GRATIS!',
-                      ].map((chip) => (
-                        <button
-                          key={chip}
-                          type="button"
-                          onClick={() => setVideoCorrectionPrompt(chip)}
-                          className="px-2 py-0.5 rounded-md bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 text-[10px] font-semibold text-cyan-800 dark:text-cyan-300 cursor-pointer transition"
-                        >
-                          + {chip}
-                        </button>
-                      ))}
-                    </div>
-
-                    <input
-                      type="text"
-                      value={videoCorrectionPrompt}
-                      onChange={(e) => setVideoCorrectionPrompt(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendCorrectionsToAntigravity();
-                        }
-                      }}
-                      placeholder="Escribe qué quieres cambiar y presiona Enter..."
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-cyan-500/30 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
-                    />
-                  </div>
-
-                  <ExpandableButton
-                    size="sm"
-                    icon={
-                      isApplyingCorrection ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <Wand2 />
-                      )
-                    }
-                    label={
-                      isApplyingCorrection
-                        ? 'Aplicando Correcciones...'
-                        : '3. Enviar Correcciones a Antigravity'
-                    }
-                    variant="cyan"
-                    alwaysExpanded
-                    disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
-                    onClick={handleSendCorrectionsToAntigravity}
-                    className="w-full justify-center"
-                  />
                 </div>
               </div>
             </div>
@@ -8765,7 +8763,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     {[
                       {
                         id: 'protocolo-produccion-videos',
-                        desc: 'Sistema de las 7 Piezas + Portada Magnética 2s 🔥 ¡GRATIS!',
+                        desc: 'Sistema de las 7 Piezas + Portada Magnética (2s)',
                       },
                       {
                         id: 'animaciones-17-efectos-reels',
@@ -8773,7 +8771,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       },
                       {
                         id: 'animaciones-wappy-brand',
-                        desc: 'Identidad WAPPY Lima #C7F303, Félix Voxel 3D y Tenshi',
+                        desc: 'Identidad WAPPY Lima #C7F303, Avatar 3D y Tenshi',
                       },
                       {
                         id: 'animaciones-dark-tech-hud',

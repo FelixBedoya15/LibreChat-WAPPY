@@ -364,7 +364,7 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
           : stepPrefix
             ? `REGLA DE ORO #${idx} • ${stepPrefix}`
             : isFirst
-              ? `🔥 ¡GRATIS! • ${companyName}`
+              ? `PORTADA MAGNÉTICA • ${companyName}`
               : isLast
                 ? `CULTURA PREVENTIVA • ${companyName}`
                 : `ESTÁNDAR TÉCNICO • PASO 0${idx + 1}`),

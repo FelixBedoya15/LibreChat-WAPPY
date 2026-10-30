@@ -2057,7 +2057,7 @@ const ANTIGRAVITY_VIDEO_SKILLS_CATALOG = [
     name: 'Sistema de las 7 Piezas + Brandbook WAPPY IA',
     category: 'Producción & Dirección',
     description:
-      'Portada magnética de 0.00s a 2.00s con badge 🔥 ¡GRATIS!, guión segundo a segundo, Avatar 3D Voxel y 3 vistas previas.',
+      'Portada magnética de 0.00s a 2.00s, guión segundo a segundo, Avatar 3D y 3 vistas previas.',
   },
   {
     id: 'animaciones-17-efectos-reels',
@@ -2380,7 +2380,7 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
       },
       fonts: ['Outfit ExtraBold', 'Plus Jakarta Sans', 'JetBrains Mono'],
       sevenPiecesRule:
-        '1. Dirección de Arte (9:16 o 16:9), 2. Identidad WAPPY + Avatar 3D Voxel, 3. Normativa SST verificada, 4. Portada Magnética 0-2s con badge 🔥 ¡GRATIS!, 5. Motion Graphics 60-FPS E.spring, 6. Diseño Sonoro Lip-Sync PCM16, 7. Vistas Previas y Render MP4.',
+        '1. Dirección de Arte (9:16 o 16:9), 2. Identidad WAPPY + Avatar 3D, 3. Normativa SST verificada, 4. Portada Magnética 0-2s, 5. Motion Graphics 60-FPS E.spring, 6. Diseño Sonoro Lip-Sync PCM16, 7. Vistas Previas y Render MP4.',
     },
     installInstructions: {
       quickOneLineCommand: `curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node`,
@@ -2677,7 +2677,7 @@ router.post('/antigravity/super-prompt', studioAuth, async (req, res) => {
       effects = [],
       aspectRatio = '9:16',
       durationSeconds = 30,
-      badgeText = '🔥 ¡GRATIS!',
+      badgeText = 'CÁPSULA INTERACTIVA WAPPY',
       headlineText = '',
       subtitleText = '',
       voiceName = 'Puck',
@@ -2771,23 +2771,31 @@ Reglas obligatorias:
       subtitleText,
     });
 
-    const normalizedSteps = scenesBreakdown.map((sc, idx) => ({
-      id: `step-${idx + 1}`,
-      stepNumber: idx + 1,
-      type: idx === 0 ? 'HOOK' : idx === scenesBreakdown.length - 1 ? 'CTA' : 'BODY',
-      tag: sc.eyebrow,
-      badgeText: idx === 0 ? badgeText || '🔥 ¡GRATIS!' : sc.eyebrow,
-      headlineText: `${sc.titleBefore} ${sc.titleHighlight}`.trim(),
-      titleBefore: sc.titleBefore,
-      titleHighlight: sc.titleHighlight,
-      voiceover: sc.subtitle,
-      text: sc.subtitle,
-      startSec: sc.startSec,
-      endSec: sc.endSec,
-      durationSec: sc.durationSec,
-      archetype: sc.archetype,
-      effect: chosenEffects[idx % chosenEffects.length] || sc.archetype,
-    }));
+    const normalizedSteps = scenesBreakdown.map((sc, idx) => {
+      const effectId = chosenEffects[idx % chosenEffects.length] || sc.archetype;
+      return {
+        id: `step-${idx + 1}`,
+        stepNumber: idx + 1,
+        type: idx === 0 ? 'HOOK' : idx === scenesBreakdown.length - 1 ? 'CTA' : 'BODY',
+        tag: sc.eyebrow,
+        badgeText: idx === 0 ? badgeText || 'CÁPSULA INTERACTIVA WAPPY' : sc.eyebrow,
+        headlineText: `${sc.titleBefore} ${sc.titleHighlight}`.trim(),
+        titleBefore: sc.titleBefore,
+        titleHighlight: sc.titleHighlight,
+        voiceover: sc.subtitle,
+        text: sc.subtitle,
+        narration: sc.subtitle,
+        timeRange: `${Number(sc.startSec || 0).toFixed(1)}s - ${Number(sc.endSec || 0).toFixed(1)}s`,
+        title: `${sc.titleBefore} ${sc.titleHighlight}`.trim(),
+        pauseTag: idx === 0 ? '[pausa 0.5s]' : '[respiración]',
+        visualEffect: effectId,
+        startSec: sc.startSec,
+        endSec: sc.endSec,
+        durationSec: sc.durationSec,
+        archetype: sc.archetype,
+        effect: effectId,
+      };
+    });
 
     const sevenPieces = {
       piece1_artDirection: {
@@ -2802,7 +2810,7 @@ Reglas obligatorias:
         sstTeal: '#0D9488',
         cyberDark: '#0C192E',
         typography: 'Outfit ExtraBold + Plus Jakarta Sans + JetBrains Mono',
-        avatar: 'Félix / Mauricio 3D Minecraft Voxel (WappyAvatarVoxel3D Three.js)',
+        avatar: 'Avatar 3D (WappyAvatarVoxel3D Three.js)',
       },
       piece3_audienceAndNorms: {
         audience: 'Líderes SG-SST, Ingenieros HSEQ, Prevencionistas y Gerentes',
@@ -2810,7 +2818,7 @@ Reglas obligatorias:
       },
       piece4_magneticCoverAndScript: {
         coverWindow: '0.00s - 2.00s',
-        badgeText: badgeText || '🔥 ¡GRATIS!',
+        badgeText: badgeText || 'CÁPSULA INTERACTIVA WAPPY',
         headlineText: headlineText || normalizedSteps[0]?.headlineText || 'BLINDAJE SG-SST EN VIVO',
         subtitleText: subtitleText || normalizedSteps[0]?.voiceover || '',
         totalScenes: normalizedSteps.length,
