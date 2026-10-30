@@ -76,7 +76,72 @@ function sanitizeScriptText(rawText: string): string {
   clean = clean.replace(/^(?:(?:por\s+favor\s+)?(?:lee|habla|locuta|interpreta|recita|say|read|speak)\s+(?:esto\s+)?(?:en\s+voz\s+alta\s+)?(?:con\s+el\s+siguiente\s+estilo|con\s+estilo)?[^:\n]*:[^\n]*(?:\n+|$))/i, '');
   clean = clean.replace(/^(?:directrices?\s+de\s+estilo|estilo|style|tono|tone|director['’]?s\s*notes?)[\s:—–-]+(?:[^\n]+(?:\n+|$))/i, '');
   clean = clean.replace(/^\[(?:estilo|style|instrucciones|director|notas?):[^\]]+\]\s*/i, '');
+
+  // Convertir etiquetas crudas de efectos/pausas en puntuación prosódica natural
+  // para evitar que Gemini TTS sintetice ráfagas de ruido blanco o interferencia de micrófono
+  clean = clean
+    .replace(/\[pausa\s*1(?:\.0)?s\]/gi, '... ')
+    .replace(/\[pausa\s*0\.5s\]/gi, ', ')
+    .replace(/\[pausa[^\]]*\]/gi, '... ')
+    .replace(/\[[eé]nfasis\]/gi, '')
+    .replace(/<\s*(?:breath|sigh|gasp|pant|yawn)\s*>/gi, ', ')
+    .replace(/<\s*(?:laugh|chuckle|giggle)\s*>/gi, '¡Ja, ja! ')
+    .replace(/\|\s*mhm\s*\|/gi, 'Mmm, ')
+    .replace(/\|\s*yeah\s*\|/gi, 'Así es, ')
+    .replace(/\|\s*(?:uh-huh|aha|hmm)\s*\|/gi, 'Claro, ')
+    .replace(/<[a-z_]+>/gi, ' ')
+    .replace(/\|[a-z_-]+\|/gi, ' ');
+
+  clean = clean
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\s*,\s*,+/g, ', ')
+    .replace(/\s*\.\.\.\s*\.\.\.+/g, '... ')
+    .replace(/\n{3,}/g, '\n\n');
+
   return clean.trim();
+}
+
+interface SpeakerTurn {
+  speaker: string;
+  isSpeaker2: boolean;
+  text: string;
+}
+
+function parseSpeakerTurns(text: string, s1Name = 'Alex', s2Name = 'Sam'): SpeakerTurn[] {
+  const clean = sanitizeScriptText(text);
+  if (!clean) return [];
+  const s1 = (s1Name || 'Alex').trim();
+  const s2 = (s2Name || 'Sam').trim();
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const turnRegex = new RegExp(
+    `(?:^|\\n)\\s*(?:\\*\\*\\s*)?(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2|Host\\s*1|Host\\s*2)(?:\\s*\\*\\*)?\\s*:\\s*`,
+    'gi',
+  );
+  const matches = Array.from(clean.matchAll(turnRegex));
+  if (matches.length === 0) return [];
+
+  const turns: SpeakerTurn[] = [];
+  const firstIdx = matches[0].index || 0;
+  const leading = clean.slice(0, firstIdx).trim();
+  if (leading) {
+    turns.push({ speaker: s1, isSpeaker2: false, text: leading });
+  }
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    const rawSpeaker = (m[1] || '').trim().toLowerCase();
+    const isSpeaker2 = rawSpeaker === s2.toLowerCase() || rawSpeaker.endsWith('2');
+    const speaker = isSpeaker2 ? s2 : s1;
+    const start = (m.index || 0) + m[0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index || clean.length : clean.length;
+    const segText = clean
+      .slice(start, end)
+      .replace(new RegExp(`^\\s*(${esc(s1)}|${esc(s2)})\\s*:\\s*`, 'i'), '')
+      .trim();
+    if (segText) {
+      turns.push({ speaker, isSpeaker2, text: segText });
+    }
+  }
+  return turns;
 }
 
 interface Chunk {
@@ -84,12 +149,78 @@ interface Chunk {
   text: string;
   wordCount: number;
   snippet: string;
+  speaker?: string | null;
+  voiceName?: string | null;
 }
 
-function splitTextIntoChunks(text: string, maxWordsPerChunk = 150): Chunk[] {
+function splitTextIntoChunks(
+  text: string,
+  maxWordsPerChunk = 150,
+  speakerOpts: {
+    multiSpeaker?: boolean;
+    speaker1Name?: string;
+    speaker2Name?: string;
+    speaker1Voice?: string;
+    speaker2Voice?: string;
+  } = {},
+): Chunk[] {
   const clean = sanitizeScriptText(text);
   if (!clean) return [];
-  const safeLimit = Math.max(40, Math.min(300, Number(maxWordsPerChunk) || 150));
+  const safeLimit = Math.max(40, Math.min(260, Number(maxWordsPerChunk) || 140));
+
+  const s1Name = speakerOpts.speaker1Name || 'Alex';
+  const s2Name = speakerOpts.speaker2Name || 'Sam';
+  const s1Voice = speakerOpts.speaker1Voice || 'Puck';
+  const s2Voice = speakerOpts.speaker2Voice || 'Kore';
+
+  const speakerTurns = parseSpeakerTurns(clean, s1Name, s2Name);
+  if (speakerTurns.length > 0) {
+    const chunks: Chunk[] = [];
+    for (const turn of speakerTurns) {
+      const voiceName = turn.isSpeaker2 ? s2Voice : s1Voice;
+      const words = turn.text.split(/\s+/).filter(Boolean);
+      if (words.length === 0) continue;
+      if (words.length <= safeLimit) {
+        chunks.push({
+          index: chunks.length,
+          text: turn.text,
+          speaker: turn.speaker,
+          voiceName,
+          wordCount: words.length,
+          snippet: `${turn.speaker}: ${turn.text}`.slice(0, 90),
+        });
+      } else {
+        const sentences = turn.text.split(/(?<=[.!?…])\s+/);
+        let accWords: string[] = [];
+        const flushTurn = () => {
+          if (accWords.length === 0) return;
+          const chunkText = accWords.join(' ').trim();
+          chunks.push({
+            index: chunks.length,
+            text: chunkText,
+            speaker: turn.speaker,
+            voiceName,
+            wordCount: accWords.length,
+            snippet: `${turn.speaker}: ${chunkText}`.slice(0, 90),
+          });
+          accWords = [];
+        };
+        for (const s of sentences) {
+          const sWords = s.trim().split(/\s+/).filter(Boolean);
+          if (!sWords.length) continue;
+          if (accWords.length + sWords.length <= safeLimit) {
+            accWords.push(...sWords);
+          } else {
+            flushTurn();
+            accWords.push(...sWords);
+          }
+        }
+        flushTurn();
+      }
+    }
+    if (chunks.length > 0) return chunks;
+  }
+
   const paragraphs = clean.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   const chunks: Chunk[] = [];
   let currentWords: string[] = [];
@@ -182,6 +313,25 @@ function extractPcm(raw: Uint8Array) {
   return { pcm: new Uint8Array(pcm), sampleRate };
 }
 
+function removeDcOffset(pcm: Uint8Array): Uint8Array {
+  const totalSamples = Math.floor(pcm.length / 2);
+  if (totalSamples < 64) return pcm;
+  const inView = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  let dcSum = 0;
+  for (let i = 0; i < totalSamples; i++) {
+    dcSum += inView.getInt16(i * 2, true);
+  }
+  const dcOffset = Math.round(dcSum / totalSamples);
+  if (Math.abs(dcOffset) <= 2) return pcm;
+  const out = new Uint8Array(pcm.length);
+  const outView = new DataView(out.buffer);
+  for (let i = 0; i < totalSamples; i++) {
+    const centered = Math.max(-32768, Math.min(32767, inView.getInt16(i * 2, true) - dcOffset));
+    outView.setInt16(i * 2, centered, true);
+  }
+  return out;
+}
+
 function microFade(pcm: Uint8Array, sampleRate = 24000, ms = 20, fadeIn = true): Uint8Array {
   const out = new Uint8Array(pcm);
   const v = new DataView(out.buffer);
@@ -243,108 +393,34 @@ interface SynthOpts {
   onFailover?: (n: any) => void;
 }
 
-function buildGeminiTtsPayloadParts(
-  cleanText: string,
-  opts: { multiSpeaker?: boolean; speaker1Name?: string; speaker2Name?: string; supportsMultiSpeaker?: boolean },
-) {
-  if (!opts.multiSpeaker || !opts.supportsMultiSpeaker) {
-    return { useMultiSpeaker: false, parts: [{ text: cleanText }], inlineText: cleanText };
-  }
-  const s1 = (opts.speaker1Name || 'Alex').trim();
-  const s2 = (opts.speaker2Name || 'Sam').trim();
-  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const turnRegex = new RegExp(
-    `(?:^|\\n)\\s*(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2)\\s*:\\s*`,
-    'gi',
-  );
-  const turns: { speaker: string; text: string }[] = [];
-  const matches = Array.from(cleanText.matchAll(turnRegex));
-
-  if (matches.length > 0) {
-    const firstIdx = matches[0].index || 0;
-    const leadingText = cleanText.slice(0, firstIdx).trim();
-    if (leadingText) turns.push({ speaker: s1, text: leadingText });
-    for (let i = 0; i < matches.length; i++) {
-      const m = matches[i];
-      const rawSpeaker = (m[1] || '').trim().toLowerCase();
-      const speaker = rawSpeaker === s2.toLowerCase() || rawSpeaker.endsWith('2') ? s2 : s1;
-      const start = (m.index || 0) + m[0].length;
-      const end = i + 1 < matches.length ? matches[i + 1].index || cleanText.length : cleanText.length;
-      const segmentText = cleanText.slice(start, end).trim();
-      if (segmentText) turns.push({ speaker, text: segmentText });
-    }
-  } else {
-    const sentences = cleanText
-      .split(/(?<=[.!?…])\s+|\n+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (sentences.length <= 1) {
-      return { useMultiSpeaker: false, parts: [{ text: cleanText }], inlineText: cleanText };
-    }
-    sentences.forEach((sentence, idx) => {
-      turns.push({ speaker: idx % 2 === 0 ? s1 : s2, text: sentence });
-    });
-  }
-
-  if (turns.length === 0) {
-    return { useMultiSpeaker: false, parts: [{ text: cleanText }], inlineText: cleanText };
-  }
-
-  return {
-    useMultiSpeaker: true,
-    parts: turns.map((t) => ({ text: t.text, speech_metadata: { speaker: t.speaker } })),
-    inlineText: turns.map((t) => `${t.speaker}: ${t.text}`).join('\n'),
-  };
-}
-
-async function synthesizeChunk(opts: SynthOpts) {
-  const keys = requireKeys();
+async function synthesizeSingleVoiceTurn(opts: {
+  text: string;
+  voiceName?: string;
+  modelsToTry: string[];
+  keys: string[];
+  preferredKeyOffset?: number;
+  onFailover?: (n: any) => void;
+}) {
   const cleanText = sanitizeScriptText(opts.text);
   if (!cleanText) throw new Error('El texto a sintetizar no contiene palabras válidas.');
-  const envIds = ttsModelIds();
-  const preferred = (opts.model || envIds[0]).replace('models/', '').trim();
-  const modelsToTry = [preferred, ...envIds.filter((m) => m !== preferred)];
   let lastError: Error | null = null;
 
-  for (const model of modelsToTry) {
-    for (let kStep = 0; kStep < keys.length; kStep++) {
-      const k = (Math.max(0, opts.preferredKeyOffset || 0) + kStep) % keys.length;
-      const s1Name = opts.speaker1?.name || 'Alex';
-      const s2Name = opts.speaker2?.name || 'Sam';
-      const payloadSpec = buildGeminiTtsPayloadParts(cleanText, {
-        multiSpeaker: opts.multiSpeaker,
-        speaker1Name: s1Name,
-        speaker2Name: s2Name,
-        supportsMultiSpeaker: !model.includes('lite'),
-      });
-      const speechConfig = payloadSpec.useMultiSpeaker
-        ? {
-            multiSpeakerVoiceConfig: {
-              speakerVoiceConfigs: [
-                { speaker: s1Name, voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker1?.voiceName || 'Puck', model) } } },
-                { speaker: s2Name, voiceConfig: { prebuiltVoiceConfig: { voiceName: compatibleVoice(opts.speaker2?.voiceName || 'Kore', model) } } },
-              ],
-            },
-          }
-        : {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: compatibleVoice((opts.multiSpeaker ? opts.speaker1?.voiceName : opts.voiceName) || 'Kore', model),
-              },
-            },
-          };
+  for (const model of opts.modelsToTry) {
+    for (let kStep = 0; kStep < opts.keys.length; kStep++) {
+      const k = (Math.max(0, opts.preferredKeyOffset || 0) + kStep) % opts.keys.length;
+      const speechConfig = {
+        voiceConfig: {
+          prebuiltVoiceConfig: {
+            voiceName: compatibleVoice(opts.voiceName || 'Kore', model),
+          },
+        },
+      };
 
       try {
-        let r = await geminiPost(model, keys[k], {
-          contents: [{ role: 'user', parts: payloadSpec.parts }],
+        const r = await geminiPost(model, opts.keys[k], {
+          contents: [{ role: 'user', parts: [{ text: cleanText }] }],
           generationConfig: { responseModalities: ['AUDIO'], speechConfig },
         });
-        if (!r.ok && r.status === 400 && payloadSpec.useMultiSpeaker) {
-          r = await geminiPost(model, keys[k], {
-            contents: [{ role: 'user', parts: [{ text: payloadSpec.inlineText }] }],
-            generationConfig: { responseModalities: ['AUDIO'], speechConfig },
-          });
-        }
         if (!r.ok) {
           const err: any = new Error(r.data?.error?.message || `Error ${r.status} en Gemini TTS`);
           err.status = r.status;
@@ -353,7 +429,7 @@ async function synthesizeChunk(opts: SynthOpts) {
         const audioPart = (r.data?.candidates?.[0]?.content?.parts || []).find((p: any) => p.inlineData?.data);
         if (!audioPart) throw new Error('La respuesta de Gemini no incluyó datos de audio.');
         const { pcm: rawPcm, sampleRate } = extractPcm(b64ToBytes(audioPart.inlineData.data));
-        const pcm = microFade(rawPcm, sampleRate, 18);
+        const pcm = microFade(removeDcOffset(rawPcm), sampleRate, 18);
         const wav = concatBytes([wavHeader(pcm.length, sampleRate), pcm]);
         return {
           pcm,
@@ -370,7 +446,14 @@ async function synthesizeChunk(opts: SynthOpts) {
         const keyErr = status === 429 || status === 403 || (status === 400 && (msg.includes('api_key') || msg.includes('key not valid')));
         const modelErr = status === 404 || status === 503 || msg.includes('not found') || msg.includes('overloaded') || msg.includes('not supported') || e?.name === 'AbortError';
         if (keyErr) {
-          if (kStep + 1 < keys.length) opts.onFailover?.({ fromIndex: k, toIndex: (k + 1) % keys.length, label: `Clave #${((k + 1) % keys.length) + 1}`, reason: status === 429 ? 'Límite de cuota 429 alcanzado' : `Estado ${status}` });
+          if (kStep + 1 < opts.keys.length) {
+            opts.onFailover?.({
+              fromIndex: k,
+              toIndex: (k + 1) % opts.keys.length,
+              label: `Clave #${((k + 1) % opts.keys.length) + 1}`,
+              reason: status === 429 ? 'Límite de cuota 429 alcanzado' : `Estado ${status}`,
+            });
+          }
           continue;
         }
         if (modelErr || (status === 400 && msg.includes('voice'))) break;
@@ -379,6 +462,82 @@ async function synthesizeChunk(opts: SynthOpts) {
     }
   }
   throw lastError || new Error('No se pudo sintetizar el audio con las claves y modelos disponibles.');
+}
+
+async function synthesizeChunk(opts: SynthOpts) {
+  const keys = requireKeys();
+  const cleanText = sanitizeScriptText(opts.text);
+  if (!cleanText) throw new Error('El texto a sintetizar no contiene palabras válidas.');
+  const envIds = ttsModelIds();
+  const preferred = (opts.model || envIds[0]).replace('models/', '').trim();
+  const modelsToTry = [preferred, ...envIds.filter((m) => m !== preferred)];
+
+  const s1Name = opts.speaker1?.name || 'Alex';
+  const s2Name = opts.speaker2?.name || 'Sam';
+  const s1Voice = opts.speaker1?.voiceName || 'Puck';
+  const s2Voice = opts.speaker2?.voiceName || 'Kore';
+
+  // Sintetizar cada turno en modo Single-Speaker puro para eliminar por completo
+  // el ruido de fondo e interferencias del modo multiSpeakerVoiceConfig
+  if (opts.multiSpeaker) {
+    const turns = parseSpeakerTurns(cleanText, s1Name, s2Name);
+    if (turns.length > 1) {
+      const pcmParts: Uint8Array[] = [];
+      let sampleRate = 24000;
+      let usedModel = modelsToTry[0];
+      let usedKeyIndex = 0;
+      const pauseSilence = new Uint8Array(Math.floor(24000 * 0.2) * 2);
+
+      for (let tIdx = 0; tIdx < turns.length; tIdx++) {
+        const turn = turns[tIdx];
+        const voiceForTurn = turn.isSpeaker2 ? s2Voice : s1Voice;
+        const turnRes = await synthesizeSingleVoiceTurn({
+          text: turn.text,
+          voiceName: voiceForTurn,
+          modelsToTry,
+          keys,
+          preferredKeyOffset: (opts.preferredKeyOffset || 0) + tIdx,
+          onFailover: opts.onFailover,
+        });
+        sampleRate = turnRes.sampleRate || 24000;
+        usedModel = turnRes.usedModel;
+        usedKeyIndex = turnRes.usedKeyIndex;
+        pcmParts.push(turnRes.pcm);
+        if (tIdx < turns.length - 1) pcmParts.push(pauseSilence);
+      }
+
+      const masterPcm = concatBytes(pcmParts);
+      const wav = concatBytes([wavHeader(masterPcm.length, sampleRate), masterPcm]);
+      return {
+        pcm: masterPcm,
+        sampleRate,
+        audioBase64: bytesToB64(wav),
+        durationSeconds: Math.max(1, Math.round((masterPcm.length / (sampleRate * 2)) * 10) / 10),
+        usedModel,
+        usedKeyIndex,
+      };
+    }
+
+    const singleVoice = turns.length === 1 ? (turns[0].isSpeaker2 ? s2Voice : s1Voice) : (opts.voiceName || s1Voice);
+    const singleText = turns.length === 1 ? turns[0].text : cleanText;
+    return synthesizeSingleVoiceTurn({
+      text: singleText,
+      voiceName: singleVoice,
+      modelsToTry,
+      keys,
+      preferredKeyOffset: opts.preferredKeyOffset,
+      onFailover: opts.onFailover,
+    });
+  }
+
+  return synthesizeSingleVoiceTurn({
+    text: cleanText,
+    voiceName: opts.voiceName || 'Kore',
+    modelsToTry,
+    keys,
+    preferredKeyOffset: opts.preferredKeyOffset,
+    onFailover: opts.onFailover,
+  });
 }
 
 // ─── Trabajos largos (hasta 60 min) con eventos estilo SSE ──────────────────
@@ -418,7 +577,19 @@ async function processJob(job: LocalJob) {
     chunk.status = 'processing';
     emit(job, 'chunk_start', { chunkIndex: i });
     try {
-      const r = await synthesizeChunk({ ...job.opts, text: chunk.text, preferredKeyOffset: i, onFailover: (n) => emit(job, 'api_key_failover', { ...n, timestamp: Date.now() }) });
+      const chunkVoice =
+        chunk.voiceName ||
+        (job.opts.multiSpeaker
+          ? job.opts.speaker1?.voiceName || 'Puck'
+          : job.opts.voiceName || 'Kore');
+      const r = await synthesizeChunk({
+        ...job.opts,
+        text: chunk.text,
+        voiceName: chunkVoice,
+        multiSpeaker: chunk.voiceName ? false : Boolean(job.opts.multiSpeaker),
+        preferredKeyOffset: i,
+        onFailover: (n) => emit(job, 'api_key_failover', { ...n, timestamp: Date.now() }),
+      });
       chunk.status = 'completed';
       chunk.durationSeconds = r.durationSeconds;
       chunk.pcm = r.pcm;
@@ -435,12 +606,12 @@ async function processJob(job: LocalJob) {
     }
   }
 
-  // Ensamblado del WAV maestro con micro-fades y pausas naturales de 220 ms
+  // Ensamblado del WAV maestro con pausas digitales puras de 220 ms (c.pcm ya trae microFade de 18ms)
   const silence = new Uint8Array(Math.floor(24000 * 0.22) * 2);
   const parts: Uint8Array[] = [];
   job.chunks.forEach((c, idx) => {
     if (!c.pcm) return;
-    parts.push(microFade(c.pcm, 24000, 20));
+    parts.push(c.pcm);
     if (idx < job.chunks.length - 1) parts.push(silence);
   });
   let pcm = concatBytes(parts);
@@ -818,7 +989,13 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
     if (path === '/tts/estimate') {
       const clean = String(body.text || '').trim();
       const words = clean ? clean.split(/\s+/).filter(Boolean) : [];
-      const chunks = splitTextIntoChunks(clean, body.maxWordsPerChunk);
+      const chunks = splitTextIntoChunks(clean, body.maxWordsPerChunk, {
+        multiSpeaker: Boolean(body.multiSpeaker),
+        speaker1Name: body.speaker1?.name || 'Alex',
+        speaker2Name: body.speaker2?.name || 'Sam',
+        speaker1Voice: body.speaker1?.voiceName || 'Puck',
+        speaker2Voice: body.speaker2?.voiceName || 'Kore',
+      });
       const estimatedSeconds = clean ? Math.max(2, Math.round((words.length / 145) * 60)) : 0;
       return json({
         totalWords: words.length,
@@ -831,18 +1008,48 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
     }
     if (path === '/tts/synthesize') {
       if (!String(body.text || '').trim()) return json({ error: 'El texto a sintetizar es obligatorio.' }, 400);
-      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
-        return nativeFetch(url.pathname + url.search, init);
+      if (await isServerAvailable()) {
+        try {
+          const localKeys = readPortableKeys();
+          const mergedHeaders = new Headers(init?.headers || {});
+          if (localKeys.length > 0 && !mergedHeaders.has('x-gemini-api-keys')) {
+            mergedHeaders.set('x-gemini-api-keys', localKeys.join(','));
+          }
+          const srvResp = await nativeFetch(url.pathname + url.search, { ...init, headers: mergedHeaders });
+          if (srvResp.ok || localKeys.length === 0) return srvResp;
+        } catch {
+          if (readPortableKeys().length === 0) {
+            return json({ error: 'Error de conexión con el servidor de síntesis.' }, 502);
+          }
+        }
       }
       const r = await synthesizeChunk({ ...body, text: String(body.text).slice(0, 4500) });
       return json({ success: true, audioBase64: r.audioBase64, durationSeconds: r.durationSeconds, usedModel: r.usedModel, usedKeyIndex: r.usedKeyIndex });
     }
     if (path === '/tts/jobs' && method === 'POST') {
-      if (readPortableKeys().length === 0 && (await isServerAvailable())) {
-        return nativeFetch(url.pathname + url.search, init);
+      if (await isServerAvailable()) {
+        try {
+          const localKeys = readPortableKeys();
+          const mergedHeaders = new Headers(init?.headers || {});
+          if (localKeys.length > 0 && !mergedHeaders.has('x-gemini-api-keys')) {
+            mergedHeaders.set('x-gemini-api-keys', localKeys.join(','));
+          }
+          const srvResp = await nativeFetch(url.pathname + url.search, { ...init, headers: mergedHeaders });
+          if (srvResp.ok || localKeys.length === 0) return srvResp;
+        } catch {
+          if (readPortableKeys().length === 0) {
+            return json({ error: 'Error de conexión con el servidor de trabajos de audio.' }, 502);
+          }
+        }
       }
       requireKeys();
-      const chunks = splitTextIntoChunks(String(body.text || ''), body.maxWordsPerChunk);
+      const chunks = splitTextIntoChunks(String(body.text || ''), body.maxWordsPerChunk, {
+        multiSpeaker: Boolean(body.multiSpeaker),
+        speaker1Name: body.speaker1?.name || 'Alex',
+        speaker2Name: body.speaker2?.name || 'Sam',
+        speaker1Voice: body.speaker1?.voiceName || 'Puck',
+        speaker2Voice: body.speaker2?.voiceName || 'Kore',
+      });
       if (!chunks.length) return json({ error: 'El texto no contiene palabras válidas.' }, 400);
       const totalWords = chunks.reduce((s, c) => s + c.wordCount, 0);
       const job: LocalJob = {

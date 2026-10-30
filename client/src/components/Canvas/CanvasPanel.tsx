@@ -651,10 +651,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           );
         });
 
-        // Pre-process: split squished numbered headings (e.g., "... (SURA)1. OBJETIVOEstablecer ...")
+        // Pre-process: split squished numbered headings ONLY if genuinely glued without spaces:
+        // 1. Separate squished number from preceding non-whitespace, non-digit, non-# character (e.g., "(SURA)1. OBJETIVO" -> "(SURA)\n\n1. OBJETIVO")
+        // 2. Separate all-caps heading from glued word starting with Capital + lowercase (e.g., "1. OBJETIVOEstablecer" -> "1. OBJETIVO\n\nEstablecer")
+        // NEVER match or break within words like "3. REGISTRO FOTOGRÁFICO" or numbers like "10. REGISTRO".
         parsed = parsed
-          .replace(/([a-zA-Z0-9\.\)])(\d+\.\s+[A-ZÁÉÍÓÚÑ]{3,})/g, '$1\n\n### $2\n\n')
-          .replace(/(\d+\.\s+[A-ZÁÉÍÓÚÑ]{3,})([A-ZÁÉÍÓÚÑa-záéíóúñ])/g, '$1\n\n$2');
+          .replace(/([^\s\d#])(\d+\.\s+)/g, '$1\n\n$2')
+          .replace(/(\d+\.\s+[A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})/g, '$1\n\n$2');
 
         // Parse remaining markdown
         return parsed

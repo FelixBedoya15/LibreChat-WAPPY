@@ -126,12 +126,12 @@ const DEFAULT_INTEGRATIONS: WappyDotsIntegrationInfo[] = [
     description: 'Producción audiovisual cinematográfica Veo e imágenes con IA',
   },
   {
-    id: 'wappy-sst',
-    label: 'Somos SST',
-    fullName: 'Wappy IA Cloud · Somos SST',
-    icon: 'shield',
+    id: 'github-devops',
+    label: 'GitHub & Cloud',
+    fullName: 'GitHub, Vercel, n8n, Notion, WhatsApp y Servicios de Wappy Dots',
+    icon: 'globe',
     badgeColor: '#10B981',
-    description: '41 herramientas operativas SG-SST, GTC-45, PESV y Resolución 0312',
+    description: 'Integraciones de Wappy Dots: GitHub, Vercel, n8n, Notion, Cal.com, Resend, Stripe, WhatsApp y Siigo',
   },
   {
     id: 'terminal-mac',
@@ -287,13 +287,20 @@ const DEFAULT_HERO_SUBTITLE =
 
 const GENERAL_TOOLS_CATALOG = [
   { id: 'web_search', label: 'Web Buscar', emoji: '🌐', defaultEnabled: true },
-  { id: 'mac_control', label: 'Control de Mi Mac y Pantalla', emoji: '💻', defaultEnabled: true },
-  { id: 'external_agents', label: 'Agentes Conectados (Claude / Codex / Gemini)', emoji: '🤖', defaultEnabled: true },
-  { id: 'consultar_agente_especializado', label: 'Consultar Especialista', emoji: '🧑‍⚕️', defaultEnabled: true },
-  { id: 'gestor_automatizaciones', label: 'Automatizaciones', emoji: '⚡', defaultEnabled: true },
-  { id: 'generar_documentos', label: 'Documentos (PDF, Word, Excel, QR)', emoji: '📄', defaultEnabled: true },
-  { id: 'somos_sst', label: 'Somos SST', emoji: '❤️', defaultEnabled: false },
-  { id: 'siigo_erp', label: 'Siigo Nube ERP', emoji: '💼', defaultEnabled: true },
+  { id: 'mac_control', label: 'Mi Mac y Pantalla', emoji: '💻', defaultEnabled: true },
+  { id: 'external_agents', label: 'Agentes (Claude, Cursor, Codex, Hermes)', emoji: '🤖', defaultEnabled: true },
+  { id: 'generar_documentos', label: 'Documentos y QR (PDF, Word, Excel)', emoji: '📄', defaultEnabled: true },
+  { id: 'whatsapp', label: 'WhatsApp', emoji: '💬', defaultEnabled: true },
+  { id: 'github', label: 'GitHub', emoji: '🐙', defaultEnabled: true },
+  { id: 'n8n', label: 'n8n Workflows', emoji: '⚡', defaultEnabled: true },
+  { id: 'vercel', label: 'Vercel', emoji: '▲', defaultEnabled: true },
+  { id: 'notion', label: 'Notion', emoji: '📝', defaultEnabled: true },
+  { id: 'calcom', label: 'Cal.com', emoji: '📅', defaultEnabled: true },
+  { id: 'resend_mail', label: 'Resend y Apple Mail', emoji: '✉️', defaultEnabled: true },
+  { id: 'stripe', label: 'Stripe', emoji: '💳', defaultEnabled: true },
+  { id: 'siigo_erp', label: 'Siigo Nube', emoji: '💼', defaultEnabled: true },
+  { id: 'music', label: 'Spotify y Apple Music', emoji: '🎵', defaultEnabled: true },
+  { id: 'crypto_portfolio', label: 'Crypto y Portfolio', emoji: '🪙', defaultEnabled: true },
 ] as const;
 
 const GOOGLE_TOOLS_CATALOG = [

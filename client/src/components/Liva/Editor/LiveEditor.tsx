@@ -1951,6 +1951,17 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
         </div>
         {/* Standardized report styles matching Diagnóstico/Auditoría */}
         <style>{`
+                .live-editor-content h1,
+                .live-editor-content h2,
+                .live-editor-content h3,
+                .live-editor-content h4,
+                .live-editor-content h5,
+                .live-editor-content h6 {
+                    word-break: keep-all !important;
+                    overflow-wrap: normal !important;
+                    hyphens: none !important;
+                    white-space: normal !important;
+                }
                 .live-editor-content h1 {
                     color: #004d99;
                     text-align: center;

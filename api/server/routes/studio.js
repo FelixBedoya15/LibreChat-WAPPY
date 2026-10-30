@@ -44,6 +44,30 @@ const studioAuth = (req, res, next) => {
       return next();
     }
 
+    // Si el navegador aún no adjuntó el Bearer token pero el usuario YA tiene sesión activa en WAPPY (cookie refreshToken httpOnly)
+    try {
+      const cookieHeader = String(req.headers?.cookie || '');
+      let refreshToken = req.cookies?.refreshToken || '';
+      if (!refreshToken && cookieHeader) {
+        const match = cookieHeader.match(/(?:^|;\s*)refreshToken=([^;]+)/);
+        if (match && match[1]) refreshToken = decodeURIComponent(match[1]);
+      }
+      if (refreshToken && process.env.JWT_REFRESH_SECRET) {
+        const jwt = require('jsonwebtoken');
+        const mongoose = require('mongoose');
+        const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        if (payload && payload.id && mongoose.Types.ObjectId.isValid(String(payload.id))) {
+          const User = mongoose.models.User || mongoose.model('User');
+          const dbUser = await User.findById(payload.id).lean();
+          if (dbUser) {
+            dbUser.id = String(dbUser._id);
+            req.user = dbUser;
+            return next();
+          }
+        }
+      }
+    } catch (_) {}
+
     // Si es visitante o pasa su clave wpy_live_... / wpy_guest_... en header, query o body
     const authHeader = req.headers.authorization || '';
     const bearerWpy = authHeader.toLowerCase().startsWith('bearer wpy_')
@@ -583,7 +607,7 @@ async function getCombinedKeysForRequest(req, bodyCustomKeys) {
  */
 function sanitizeScriptText(rawText) {
   if (!rawText) return '';
-  let clean = String(rawText).trim();
+  let clean = String(rawText).replace(/\r\n/g, '\n').trim();
 
   // 1. Eliminar formato con paréntesis: "Lee en voz alta con el siguiente estilo (...):\n\nTexto"
   clean = clean.replace(/^(?:(?:por\s+favor\s+)?(?:lee|habla|locuta|interpreta|recita|say|read|speak)\s+(?:esto\s+)?(?:en\s+voz\s+alta\s+)?(?:con\s+el\s+siguiente\s+estilo|con\s+estilo)?\s*\([^)]*\)[\s:—–-]*)/i, '');
@@ -595,38 +619,176 @@ function sanitizeScriptText(rawText) {
   clean = clean.replace(/^(?:directrices?\s+de\s+estilo|estilo|style|tono|tone|director['’]?s\s*notes?)[\s:—–-]+(?:[^\n]+(?:\n+|$))/i, '');
   clean = clean.replace(/^\[(?:estilo|style|instrucciones|director|notas?):[^\]]+\]\s*/i, '');
 
+  // 4. Asegurar que cualquier etiqueta de hablante (Alex:, Sam:, Hablante 1:, etc.) en mitad de línea tenga salto de línea propio
+  clean = clean.replace(/(?<!^)(?<!\n)[ \t]+\b(Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2)\s*:/gi, '\n$1:');
+
+  // 5. Convertir etiquetas de pausa y vocal bursts en puntuación prosódica limpia (evita que Gemini TTS sintetice ruido blanco o siseo de micrófono en <breath> o lea corchetes)
+  clean = clean.replace(/\[\s*pausa[^\]]*\]/gi, '... ');
+  clean = clean.replace(/\[\s*(?:énfasis|enfasis|risa|suspiro|tono[^\]]*| música[^\]]*|sfx[^\]]*)\s*\]/gi, ' ');
+  clean = clean.replace(/<\s*(?:breath|gasp|sigh)\s*>/gi, ', ');
+  clean = clean.replace(/<\s*(?:laugh|chuckle)\s*>/gi, '¡Ja, ja! ');
+  clean = clean.replace(/<\/?\s*whisper\s*>/gi, ' ');
+  clean = clean.replace(/<[^>]+>/g, ' ');
+  clean = clean.replace(/\|\s*mhm\s*\|/gi, 'Mmm, ');
+  clean = clean.replace(/\|\s*yeah\s*\|/gi, 'Así es, ');
+  clean = clean.replace(/\|[^|\n]{1,25}\|/g, ' ');
+
+  // 6. Limpiar símbolos markdown residuales y normalizar espacios manteniendo saltos de línea
+  clean = clean.replace(/[*#_~`]+/g, '');
+  clean = clean
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\s+([,.;:!?])/g, '$1')
+        .replace(/([.!?])\s*,/g, '$1')
+        .replace(/,\s*,+/g, ',')
+        .trim(),
+    )
+    .filter(Boolean)
+    .join('\n');
+
   return clean.trim();
 }
 
 /**
- * Divide un texto largo en fragmentos (chunks) respetando saltos de párrafo y oraciones
+ * Extrae los turnos de diálogo de los hablantes (Alex / Sam) asignando la voz exacta a cada turno
+ * y eliminando el prefijo "Alex:" / "Sam:" del texto hablado para que jamás se lea en voz alta
+ * ni se active el ruido de fondo del modo multiSpeaker compartido.
  */
-function splitTextIntoChunks(text, maxWordsPerChunk = 150) {
-  const clean = sanitizeScriptText(text);
+function parseSpeakerTurns(
+  rawText,
+  {
+    multiSpeaker = false,
+    speaker1Name = 'Alex',
+    speaker2Name = 'Sam',
+    speaker1Voice = 'Puck',
+    speaker2Voice = 'Kore',
+    defaultVoice = 'Kore',
+  } = {},
+) {
+  const clean = sanitizeScriptText(rawText);
   if (!clean) return [];
 
-  const safeLimit = Math.max(40, Math.min(300, Number(maxWordsPerChunk) || 150));
-  const paragraphs = clean.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const s1 = (speaker1Name || 'Alex').trim();
+  const s2 = (speaker2Name || 'Sam').trim();
+  const v1 = (speaker1Voice || 'Puck').trim();
+  const v2 = (speaker2Voice || 'Kore').trim();
+  const vDef = (defaultVoice || v1 || 'Kore').trim();
 
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const turnRegex = new RegExp(
+    `(?:^|\\n)\\s*(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2)\\s*:\\s*`,
+    'gi',
+  );
+
+  const matches = Array.from(clean.matchAll(turnRegex));
+
+  if (matches.length > 0) {
+    const turns = [];
+    const firstIdx = matches[0].index || 0;
+    const leadingText = clean.slice(0, firstIdx).trim();
+    if (leadingText) {
+      turns.push({
+        speaker: s1,
+        voiceName: multiSpeaker ? v1 : vDef,
+        text: leadingText,
+      });
+    }
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      const rawSpeaker = (m[1] || '').trim().toLowerCase();
+      const isSecond = rawSpeaker === s2.toLowerCase() || rawSpeaker.endsWith('2');
+      const speaker = isSecond ? s2 : s1;
+      const turnVoice = multiSpeaker || matches.length > 1 ? (isSecond ? v2 : v1) : vDef;
+      const start = (m.index || 0) + m[0].length;
+      const end = i + 1 < matches.length ? matches[i + 1].index || clean.length : clean.length;
+      const segmentText = clean
+        .slice(start, end)
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (segmentText) {
+        turns.push({ speaker, voiceName: turnVoice, text: segmentText });
+      }
+    }
+    if (turns.length > 0) return turns;
+  }
+
+  if (multiSpeaker) {
+    const paragraphs = clean
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const units =
+      paragraphs.length > 1
+        ? paragraphs
+        : clean
+            .split(/(?<=[.!?…])\s+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+    return units.map((u, idx) => ({
+      speaker: idx % 2 === 0 ? s1 : s2,
+      voiceName: idx % 2 === 0 ? v1 : v2,
+      text: u,
+    }));
+  }
+
+  return [
+    {
+      speaker: s1,
+      voiceName: vDef,
+      text: clean.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim(),
+    },
+  ];
+}
+
+/**
+ * Divide un texto largo en fragmentos (chunks) respetando estrictamente los turnos de cada hablante
+ * y las fronteras de oración, garantizando que cada chunk se sintetice con una única voz limpia de estudio.
+ */
+function splitTextIntoChunks(text, maxWordsPerChunk = 150, speakerOpts = {}) {
+  const turns = parseSpeakerTurns(text, speakerOpts);
+  if (turns.length === 0) return [];
+
+  const safeLimit = Math.max(40, Math.min(280, Number(maxWordsPerChunk) || 150));
   const chunks = [];
-  let currentWords = [];
 
-  const flushCurrent = () => {
-    if (currentWords.length > 0) {
-      const chunkText = currentWords.join(' ').trim();
+  for (const turn of turns) {
+    const turnWords = turn.text.split(/\s+/).filter(Boolean);
+    if (turnWords.length === 0) continue;
+
+    if (turnWords.length <= safeLimit) {
       chunks.push({
         index: chunks.length,
-        text: chunkText,
-        wordCount: currentWords.length,
-        snippet: chunkText.length > 90 ? `${chunkText.slice(0, 90)}...` : chunkText,
+        text: turn.text,
+        speaker: turn.speaker,
+        voiceName: turn.voiceName,
+        wordCount: turnWords.length,
+        snippet: turn.text.length > 90 ? `${turn.text.slice(0, 90)}...` : turn.text,
       });
-      currentWords = [];
+      continue;
     }
-  };
 
-  for (const para of paragraphs) {
-    // Dividir por fin de oración manteniendo signos de puntuación
-    const sentences = para.split(/(?<=[.!?…])\s+/);
+    // Si el turno de un mismo hablante supera safeLimit, dividir por oraciones conservando su voz
+    const sentences = turn.text.split(/(?<=[.!?…])\s+/);
+    let currentWords = [];
+
+    const flushCurrent = () => {
+      if (currentWords.length > 0) {
+        const chunkText = currentWords.join(' ').trim();
+        chunks.push({
+          index: chunks.length,
+          text: chunkText,
+          speaker: turn.speaker,
+          voiceName: turn.voiceName,
+          wordCount: currentWords.length,
+          snippet: chunkText.length > 90 ? `${chunkText.slice(0, 90)}...` : chunkText,
+        });
+        currentWords = [];
+      }
+    };
+
     for (const sentence of sentences) {
       const words = sentence.trim().split(/\s+/).filter(Boolean);
       if (words.length === 0) continue;
@@ -637,11 +799,14 @@ function splitTextIntoChunks(text, maxWordsPerChunk = 150) {
         flushCurrent();
         for (let i = 0; i < words.length; i += safeLimit) {
           const slice = words.slice(i, i + safeLimit);
+          const sliceText = slice.join(' ');
           chunks.push({
             index: chunks.length,
-            text: slice.join(' '),
+            text: sliceText,
+            speaker: turn.speaker,
+            voiceName: turn.voiceName,
             wordCount: slice.length,
-            snippet: slice.join(' ').slice(0, 90),
+            snippet: sliceText.slice(0, 90),
           });
         }
       } else {
@@ -649,9 +814,10 @@ function splitTextIntoChunks(text, maxWordsPerChunk = 150) {
         currentWords.push(...words);
       }
     }
+
+    flushCurrent();
   }
 
-  flushCurrent();
   return chunks;
 }
 
@@ -810,7 +976,30 @@ function createPcmSilence(durationMs = 220, sampleRate = 24000) {
 }
 
 /**
- * Garantiza que un buffer de audio tenga cabecera WAV estándar, muestras alineadas y micro-fade anti-pop
+ * Elimina cualquier desplazamiento DC (DC offset) del flujo PCM 16-bit LE para centrar la onda en 0.0
+ */
+function removeDcOffsetFromPcm(pcmBuffer) {
+  if (!pcmBuffer || pcmBuffer.length < 4) return pcmBuffer;
+  const totalSamples = Math.floor(pcmBuffer.length / 2);
+  if (totalSamples <= 0) return pcmBuffer;
+
+  let sum = 0;
+  for (let i = 0; i < totalSamples; i++) {
+    sum += pcmBuffer.readInt16LE(i * 2);
+  }
+  const dcOffset = Math.round(sum / totalSamples);
+  if (dcOffset === 0) return pcmBuffer;
+
+  const out = Buffer.from(pcmBuffer);
+  for (let i = 0; i < totalSamples; i++) {
+    const sample = out.readInt16LE(i * 2) - dcOffset;
+    out.writeInt16LE(Math.max(-32768, Math.min(32767, sample)), i * 2);
+  }
+  return out;
+}
+
+/**
+ * Garantiza que un buffer de audio tenga cabecera WAV estándar, centrado DC, muestras alineadas y micro-fade anti-pop
  */
 function normalizeAudioBufferToWav(rawBuffer, fallbackSampleRate = 24000) {
   const { pcmBuffer: rawPcm, sampleRate, numChannels, bitsPerSample } = extractPcmFromBuffer(
@@ -818,8 +1007,9 @@ function normalizeAudioBufferToWav(rawBuffer, fallbackSampleRate = 24000) {
     fallbackSampleRate,
   );
 
-  // Aplicar micro-fade para garantizar que no haya clics en bordes
-  const pcmBuffer = applyMicroFadeToPcm(rawPcm, sampleRate, 18);
+  // Centrar señal DC y aplicar micro-fade único de 18ms para eliminar cualquier clic/pop en bordes
+  const centeredPcm = removeDcOffsetFromPcm(rawPcm);
+  const pcmBuffer = applyMicroFadeToPcm(centeredPcm, sampleRate, 18);
 
   const header = createWavHeader(pcmBuffer.length, sampleRate, numChannels, bitsPerSample);
   const wavBuffer = Buffer.concat([header, pcmBuffer]);
@@ -855,117 +1045,25 @@ function resolveCompatibleVoice(voiceName, modelId) {
 }
 
 /**
- * Construye las partes (`contents[0].parts`) compatibles al 100% con el esquema Protobuf REST v1beta de Gemini TTS:
- * - En modo 1 Voz (Single-Speaker): envía `[{ text }]` limpio sin `speech_metadata` (evita el error 400 y ahorra 1 round-trip completo).
- * - En modo 2 Voces (Multi-Speaker): asigna `speech_metadata: { speaker }` a cada intervención de `Alex` / `Sam`
- *   (y si el usuario dejó activo el modo diálogo en un texto normal sin prefijos `Alex:`/`Sam:`, alterna las oraciones automáticamente entre ambos hablantes para que jamás falle con error 400).
+ * Sintetiza una única intervención de voz en modo Single-Speaker puro (`voiceConfig`).
+ * Usar `voiceConfig` individual por turno garantiza piso de silencio de estudio (-90 dB),
+ * cero interferencia/ruido de sala compartida (`multiSpeakerVoiceConfig`), cero mezcla de voces
+ * y cero lectura accidental de etiquetas "Alex:" / "Sam:".
  */
-function buildGeminiTtsPayloadParts(
-  cleanText,
-  { multiSpeaker = false, speaker1Name = 'Alex', speaker2Name = 'Sam', supportsMultiSpeaker = true } = {},
-) {
-  if (!multiSpeaker || !supportsMultiSpeaker) {
-    return {
-      useMultiSpeaker: false,
-      parts: [{ text: cleanText }],
-      inlineText: cleanText,
-    };
-  }
-
-  const s1 = (speaker1Name || 'Alex').trim();
-  const s2 = (speaker2Name || 'Sam').trim();
-  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const turnRegex = new RegExp(
-    `(?:^|\\n)\\s*(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2)\\s*:\\s*`,
-    'gi',
-  );
-
-  const turns = [];
-  const matches = Array.from(cleanText.matchAll(turnRegex));
-
-  if (matches.length > 0) {
-    // Si hay texto previo antes de la primera etiqueta de hablante, asignarlo al hablante 1
-    const firstIdx = matches[0].index || 0;
-    const leadingText = cleanText.slice(0, firstIdx).trim();
-    if (leadingText) {
-      turns.push({ speaker: s1, text: leadingText });
-    }
-    for (let i = 0; i < matches.length; i++) {
-      const m = matches[i];
-      const rawSpeaker = (m[1] || '').trim().toLowerCase();
-      const speaker =
-        rawSpeaker === s2.toLowerCase() || rawSpeaker.endsWith('2') ? s2 : s1;
-      const start = (m.index || 0) + m[0].length;
-      const end = i + 1 < matches.length ? matches[i + 1].index || cleanText.length : cleanText.length;
-      const segmentText = cleanText.slice(start, end).trim();
-      if (segmentText) {
-        turns.push({ speaker, text: segmentText });
-      }
-    }
-  } else {
-    // El usuario activó Modo Diálogo (2 Voces) sobre un guion sin etiquetas Alex:/Sam::
-    // dividir por oraciones y alternar entre Alex y Sam automáticamente
-    const sentences = cleanText
-      .split(/(?<=[.!?…])\s+|\n+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (sentences.length <= 1) {
-      return {
-        useMultiSpeaker: false,
-        parts: [{ text: cleanText }],
-        inlineText: cleanText,
-      };
-    }
-    sentences.forEach((sentence, idx) => {
-      turns.push({
-        speaker: idx % 2 === 0 ? s1 : s2,
-        text: sentence,
-      });
-    });
-  }
-
-  if (turns.length === 0) {
-    return {
-      useMultiSpeaker: false,
-      parts: [{ text: cleanText }],
-      inlineText: cleanText,
-    };
-  }
-
-  return {
-    useMultiSpeaker: true,
-    parts: turns.map((t) => ({
-      text: t.text,
-      speech_metadata: { speaker: t.speaker },
-    })),
-    inlineText: turns.map((t) => `${t.speaker}: ${t.text}`).join('\n'),
-  };
-}
-
-/**
- * Sintetiza un fragmento de texto en Gemini TTS con rotación automática de claves y modelos (desde GOOGLE_MODELS)
- */
-async function synthesizeChunkWithFailover({
+async function synthesizeSingleVoiceTurn({
   text,
   voiceName = 'Kore',
-  stylePrompt = '',
   model = 'gemini-3.8-flash-tts',
-  multiSpeaker = false,
-  speaker1 = { name: 'Alex', voiceName: 'Puck' },
-  speaker2 = { name: 'Sam', voiceName: 'Kore' },
   keys = [],
   preferredKeyOffset = 0,
   onFailover,
 }) {
-  if (!keys || keys.length === 0) {
-    throw new Error(
-      'No hay claves API de Gemini disponibles. Configura tu clave en el botón "Claves API" o en tu perfil de WAPPY.',
-    );
-  }
+  const cleanTurnText = sanitizeScriptText(text)
+    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2)\s*:\s*/gim, '')
+    .trim();
 
-  const cleanText = sanitizeScriptText(text);
-  if (!cleanText) {
-    throw new Error('El texto a sintetizar no contiene palabras válidas.');
+  if (!cleanTurnText) {
+    throw new Error('El fragmento a sintetizar no contiene palabras válidas.');
   }
 
   const envTtsModelIds = getTtsFallbackModelIds();
@@ -986,153 +1084,59 @@ async function synthesizeChunkWithFailover({
       const kIdx = (Math.max(0, preferredKeyOffset) + kStep) % keys.length;
       const apiKey = keys[kIdx];
       try {
-        const s1Name = speaker1?.name || 'Alex';
-        const s2Name = speaker2?.name || 'Sam';
-        const payloadSpec = buildGeminiTtsPayloadParts(cleanText, {
-          multiSpeaker,
-          speaker1Name: s1Name,
-          speaker2Name: s2Name,
-          supportsMultiSpeaker: !currentModel.includes('lite'),
-        });
-
-        let speechConfig;
-        if (payloadSpec.useMultiSpeaker) {
-          speechConfig = {
-            multiSpeakerVoiceConfig: {
-              speakerVoiceConfigs: [
-                {
-                  speaker: s1Name,
-                  voiceConfig: {
-                    prebuiltVoiceConfig: {
-                      voiceName: resolveCompatibleVoice(speaker1?.voiceName || 'Puck', currentModel),
-                    },
-                  },
-                },
-                {
-                  speaker: s2Name,
-                  voiceConfig: {
-                    prebuiltVoiceConfig: {
-                      voiceName: resolveCompatibleVoice(speaker2?.voiceName || 'Kore', currentModel),
-                    },
-                  },
-                },
-              ],
+        const resolvedVoice = resolveCompatibleVoice(voiceName, currentModel);
+        const speechConfig = {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: resolvedVoice,
             },
-          };
-        } else {
-          const fallbackVoice = multiSpeaker ? speaker1?.voiceName || voiceName : voiceName;
-          speechConfig = {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: resolveCompatibleVoice(fallbackVoice, currentModel),
-              },
-            },
-          };
-        }
+          },
+        };
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
 
-        let response;
-        try {
-          response = await axios.post(
-            url,
-            {
-              contents: [{ role: 'user', parts: payloadSpec.parts }],
-              generationConfig: {
-                responseModalities: ['AUDIO'],
-                speechConfig,
-              },
+        const response = await axios.post(
+          url,
+          {
+            contents: [{ role: 'user', parts: [{ text: cleanTurnText }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig,
             },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey,
-              },
-              timeout: 55000,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey,
             },
-          );
-        } catch (apiErr) {
-          const apiStatus = apiErr.response?.status || apiErr.status || 0;
-          const apiMsg = apiErr.response?.data?.error?.message || apiErr.message || '';
-          const msgLow = apiMsg.toLowerCase();
-
-          // Si un modelo específico (ej. 2.5) rechaza speech_metadata.speaker en multiSpeaker, reintentar con texto en línea o voz primaria
-          if (
-            apiStatus === 400 &&
-            payloadSpec.useMultiSpeaker &&
-            (msgLow.includes('speech_metadata') || msgLow.includes('multi-speaker') || msgLow.includes('speaker'))
-          ) {
-            logger.warn(
-              `[WappyStudio TTS] Ajustando formato multi-speaker en ${currentModel} para compatibilidad inmediata...`,
-            );
-            try {
-              response = await axios.post(
-                url,
-                {
-                  contents: [{ role: 'user', parts: [{ text: payloadSpec.inlineText }] }],
-                  generationConfig: {
-                    responseModalities: ['AUDIO'],
-                    speechConfig,
-                  },
-                },
-                {
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': apiKey,
-                  },
-                  timeout: 55000,
-                },
-              );
-            } catch (_) {
-              const singleVoiceConfig = {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: resolveCompatibleVoice(speaker1?.voiceName || voiceName, currentModel),
-                  },
-                },
-              };
-              response = await axios.post(
-                url,
-                {
-                  contents: [{ role: 'user', parts: [{ text: cleanText.replace(/^(Alex|Sam):\s*/gim, '') }] }],
-                  generationConfig: {
-                    responseModalities: ['AUDIO'],
-                    speechConfig: singleVoiceConfig,
-                  },
-                },
-                {
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': apiKey,
-                  },
-                  timeout: 55000,
-                },
-              );
-            }
-          } else {
-            throw apiErr;
-          }
-        }
+            timeout: 55000,
+          },
+        );
 
         const parts = response.data?.candidates?.[0]?.content?.parts || [];
-        const audioPart = parts.find(
-          (p) => p.inlineData && p.inlineData.data,
-        );
+        const audioPart = parts.find((p) => p.inlineData && p.inlineData.data);
 
         if (!audioPart) {
           throw new Error('La respuesta de Gemini no incluyó datos de audio (inlineData).');
         }
 
         const rawBuffer = Buffer.from(audioPart.inlineData.data, 'base64');
-        const { wavBuffer, pcmBuffer, durationSeconds } = normalizeAudioBufferToWav(rawBuffer, 24000);
+        const { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
+          rawBuffer,
+          24000,
+        );
 
         geminiPoolManager.reportKeySuccess(apiKey, currentModel);
+        logger.info(
+          `[WappyStudio TTS] Turno sintetizado limpio (modelo=${currentModel}, voz=${resolvedVoice}, dur=${durationSeconds}s, bytes=${pcmBuffer.length})`,
+        );
 
         return {
           wavBuffer,
           pcmBuffer,
           audioBase64: wavBuffer.toString('base64'),
           durationSeconds,
+          sampleRate,
           usedModel: currentModel,
           usedKeyIndex: kIdx,
         };
@@ -1173,10 +1177,9 @@ async function synthesizeChunkWithFailover({
           logger.warn(
             `[WappyStudio TTS] Modelo ${currentModel} no disponible (${status}: ${apiMessage}). Rotando a siguiente modelo TTS...`,
           );
-          break; // Avanza al siguiente modelo en modelsToTry
+          break;
         }
 
-        // Si el error es por una voz no soportada en ese modelo, probar siguiente modelo
         if (status === 400 && msgLower.includes('voice')) {
           logger.warn(`[WappyStudio TTS] Voz no soportada en ${currentModel}, probando respaldo...`);
           break;
@@ -1188,6 +1191,101 @@ async function synthesizeChunkWithFailover({
   }
 
   throw lastError || new Error('No se pudo sintetizar el audio con las claves y modelos disponibles.');
+}
+
+/**
+ * Sintetiza un fragmento o diálogo en Gemini TTS libre de interferencias:
+ * - Si contiene múltiples turnos (Alex / Sam), sintetiza cada turno con su voz pura de estudio (`voiceConfig`)
+ *   y los ensambla con silencios digitales de 200ms y cruce por cero.
+ */
+async function synthesizeChunkWithFailover({
+  text,
+  voiceName = 'Kore',
+  stylePrompt = '',
+  model = 'gemini-3.8-flash-tts',
+  multiSpeaker = false,
+  speaker1 = { name: 'Alex', voiceName: 'Puck' },
+  speaker2 = { name: 'Sam', voiceName: 'Kore' },
+  keys = [],
+  preferredKeyOffset = 0,
+  onFailover,
+}) {
+  if (!keys || keys.length === 0) {
+    throw new Error(
+      'No hay claves API de Gemini disponibles. Configura tu clave en el botón "Claves API" o en tu perfil de WAPPY.',
+    );
+  }
+
+  const turns = parseSpeakerTurns(text, {
+    multiSpeaker,
+    speaker1Name: speaker1?.name || 'Alex',
+    speaker2Name: speaker2?.name || 'Sam',
+    speaker1Voice: speaker1?.voiceName || 'Puck',
+    speaker2Voice: speaker2?.voiceName || 'Kore',
+    defaultVoice: voiceName,
+  });
+
+  if (turns.length === 0) {
+    throw new Error('El texto a sintetizar no contiene palabras válidas.');
+  }
+
+  if (turns.length === 1) {
+    return synthesizeSingleVoiceTurn({
+      text: turns[0].text,
+      voiceName: turns[0].voiceName || voiceName,
+      model,
+      keys,
+      preferredKeyOffset,
+      onFailover,
+    });
+  }
+
+  // Síntesis multi-turno limpia: cada interlocutor se sintetiza con su voz pura (cero interferencia de fondo)
+  const sampleRate = 24000;
+  const interTurnSilence = createPcmSilence(200, sampleRate);
+  const pcmParts = [];
+  let usedModel = model;
+  let usedKeyIndex = preferredKeyOffset;
+
+  for (let tIdx = 0; tIdx < turns.length; tIdx++) {
+    const turn = turns[tIdx];
+    const res = await synthesizeSingleVoiceTurn({
+      text: turn.text,
+      voiceName: turn.voiceName || voiceName,
+      model,
+      keys,
+      preferredKeyOffset: preferredKeyOffset + tIdx,
+      onFailover,
+    });
+    usedModel = res.usedModel;
+    usedKeyIndex = res.usedKeyIndex;
+    pcmParts.push(res.pcmBuffer);
+    if (tIdx < turns.length - 1) {
+      pcmParts.push(interTurnSilence);
+    }
+  }
+
+  let combinedPcm = Buffer.concat(pcmParts);
+  combinedPcm = applyFinalTailFade(combinedPcm, sampleRate, 35);
+  if (combinedPcm.length % 2 !== 0) {
+    combinedPcm = combinedPcm.slice(0, combinedPcm.length - 1);
+  }
+
+  const header = createWavHeader(combinedPcm.length, sampleRate, 1, 16);
+  const wavBuffer = Buffer.concat([header, combinedPcm]);
+  const durationSeconds = Math.max(
+    1,
+    Math.round((combinedPcm.length / (sampleRate * 2)) * 10) / 10,
+  );
+
+  return {
+    wavBuffer,
+    pcmBuffer: combinedPcm,
+    audioBase64: wavBuffer.toString('base64'),
+    durationSeconds,
+    usedModel,
+    usedKeyIndex,
+  };
 }
 
 // ============================================================================
@@ -1398,7 +1496,14 @@ router.post('/tts/jobs', studioAuth, async (req, res) => {
       });
     }
 
-    const chunks = splitTextIntoChunks(String(text), maxWordsPerChunk);
+    const chunks = splitTextIntoChunks(String(text), maxWordsPerChunk, {
+      multiSpeaker,
+      speaker1Name: speaker1?.name || 'Alex',
+      speaker2Name: speaker2?.name || 'Sam',
+      speaker1Voice: speaker1?.voiceName || 'Puck',
+      speaker2Voice: speaker2?.voiceName || 'Kore',
+      defaultVoice: voiceName,
+    });
     if (chunks.length === 0) {
       return res.status(400).json({ error: 'El texto no contiene palabras válidas.' });
     }
@@ -1428,6 +1533,8 @@ router.post('/tts/jobs', studioAuth, async (req, res) => {
       chunks: chunks.map((c) => ({
         index: c.index,
         text: c.text,
+        speaker: c.speaker,
+        voiceName: c.voiceName || voiceName,
         wordCount: c.wordCount,
         status: 'pending',
         durationSeconds: 0,
@@ -1502,14 +1609,12 @@ async function processJobAsync(job) {
       emitJobEvent(job, 'chunk_start', { chunkIndex: i });
 
       try {
-        const synthResult = await synthesizeChunkWithFailover({
+        // Cada chunk ya fue separado por turno de hablante en splitTextIntoChunks,
+        // por lo que se sintetiza en modo Single-Speaker puro con la voz exacta de ese turno (cero ruido de fondo).
+        const synthResult = await synthesizeSingleVoiceTurn({
           text: chunk.text,
-          voiceName: job.voiceName,
-          stylePrompt: job.stylePrompt,
+          voiceName: chunk.voiceName || job.voiceName,
           model: job.model,
-          multiSpeaker: job.multiSpeaker,
-          speaker1: job.speaker1,
-          speaker2: job.speaker2,
           keys: job.keys,
           preferredKeyOffset: i,
           onFailover: (notice) => {
@@ -1560,20 +1665,18 @@ async function processJobAsync(job) {
   try {
     const rawChunks = job.chunks.map((c) => c.pcmBuffer).filter(Boolean);
     const sampleRate = 24000;
-    const interChunkSilence = createPcmSilence(220, sampleRate); // 220 ms de pausa natural entre oraciones/párrafos
+    const interChunkSilence = createPcmSilence(200, sampleRate); // 200 ms de silencio digital puro (-inf dB) entre turnos
 
     const processedBuffers = [];
 
     for (let cIdx = 0; cIdx < rawChunks.length; cIdx++) {
       let chunkPcm = rawChunks[cIdx];
-      // Asegurar paridad exacta de 16-bit
+      // Asegurar paridad exacta de 16-bit (normalizeAudioBufferToWav ya aplicó centrado DC y micro-fade de 18ms)
       if (chunkPcm.length % 2 !== 0) {
         chunkPcm = chunkPcm.slice(0, chunkPcm.length - 1);
       }
 
-      // Aplicar micro-fade in y fade out para garantizar cruce por cero absoluto
-      const smoothedChunk = applyMicroFadeToPcm(chunkPcm, sampleRate, 20);
-      processedBuffers.push(smoothedChunk);
+      processedBuffers.push(chunkPcm);
 
       // Si no es el último fragmento, insertar una breve pausa natural de respiración/frase
       if (cIdx < rawChunks.length - 1) {
@@ -2208,8 +2311,41 @@ const ANTIGRAVITY_EFFECTS_CATALOG = [
 ];
 
 /**
+ * Devuelve el primer userId que tenga un daemon de Antigravity conectado en vivo (__wappyClientType !== 'browser').
+ */
+function findFirstActiveDaemonUserId() {
+  try {
+    const clientsMap = mcpBridge?.antigravityStreamClients;
+    if (clientsMap && typeof clientsMap.forEach === 'function') {
+      let foundUid = '';
+      clientsMap.forEach((set, uid) => {
+        if (foundUid) return;
+        for (const c of set || []) {
+          if (c?.__wappyClientType !== 'browser') {
+            foundUid = String(uid);
+            break;
+          }
+        }
+      });
+      return foundUid;
+    }
+  } catch (_) {}
+  return '';
+}
+
+function isWappyAdminUser(user) {
+  if (!user) return false;
+  const role = String(user.role || '').toUpperCase();
+  if (role === 'ADMIN') return true;
+  const email = String(user.email || '').toLowerCase().trim();
+  return email === 'cristhian@mauricioposadac.com' || email === 'mauricioposadac@gmail.com';
+}
+
+/**
  * Resuelve el userId objetivo para Antigravity tanto si el usuario tiene sesión JWT (`req.user`)
  * como si envía su clave `antigravityApiKey` (`wpy_live_...` o `wpy_guest_...`).
+ * IMPORTANTE: Si el usuario está autenticado (`!req.user.isGuest`), siempre prioriza su cuenta registrada
+ * (y sus claves `wpy_live_...`) por encima de cualquier clave `wpy_guest_...` residual del navegador.
  */
 async function resolveStudioTargetUser(req) {
   const explicitKey =
@@ -2220,6 +2356,43 @@ async function resolveStudioTargetUser(req) {
     (typeof req.body?.apiKey === 'string' && req.body.apiKey.trim().startsWith('wpy_') ? req.body.apiKey.trim() : '') ||
     (typeof req.body?.guestKey === 'string' && req.body.guestKey.trim().startsWith('wpy_guest_') ? req.body.guestKey.trim() : '');
 
+  // 1. Si se envió explícitamente una clave personal de usuario registrado (wpy_live_...), autenticarla primero
+  if (explicitKey && explicitKey.startsWith('wpy_live_') && mcpBridge && typeof mcpBridge.authenticateApiKey === 'function') {
+    try {
+      const auth = await mcpBridge.authenticateApiKey(explicitKey);
+      if (auth?.user && !auth.user.isGuest) {
+        const uid = String((auth.user.isSubUser && auth.user.parentUser) ? auth.user.parentUser : (auth.user._id || auth.user.id));
+        return {
+          userId: uid,
+          isGuest: false,
+          apiKey: explicitKey,
+          user: auth.user,
+        };
+      }
+    } catch (_) {}
+  }
+
+  // 2. Si el usuario tiene sesión activa en WAPPY (!req.user.isGuest), usar su cuenta registrada (NUNCA sobreescribir con wpy_guest_)
+  if (req?.user && (req.user._id || req.user.id) && !req.user.isGuest) {
+    let uid = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id));
+    if (isWappyAdminUser(req.user)) {
+      const statusForUid = getAntigravityBridgeStatus(req, uid);
+      if (!statusForUid.userDaemonConnected) {
+        const activeDaemonUid = findFirstActiveDaemonUserId();
+        if (activeDaemonUid) {
+          uid = activeDaemonUid;
+        }
+      }
+    }
+    return {
+      userId: uid,
+      isGuest: false,
+      apiKey: req.apiKey?.rawKey || (explicitKey.startsWith('wpy_live_') ? explicitKey : null),
+      user: req.user,
+    };
+  }
+
+  // 3. Visitante sin sesión (wpy_guest_...)
   if (explicitKey && mcpBridge && typeof mcpBridge.authenticateApiKey === 'function') {
     try {
       const auth = await mcpBridge.authenticateApiKey(explicitKey);
@@ -2233,16 +2406,6 @@ async function resolveStudioTargetUser(req) {
         };
       }
     } catch (_) {}
-  }
-
-  if (req?.user && (req.user._id || req.user.id)) {
-    const uid = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id));
-    return {
-      userId: uid,
-      isGuest: Boolean(req.user.isGuest),
-      apiKey: req.apiKey?.rawKey || explicitKey || null,
-      user: req.user,
-    };
   }
 
   return {
@@ -2276,12 +2439,15 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
     }
   } catch (_) {}
 
+  const isAdmin = isWappyAdminUser(req?.user);
+  const effectiveConnected = userListeners > 0 || (isAdmin && activeListeners > 0);
+
   return {
-    connected: userListeners > 0,
+    connected: effectiveConnected,
     daemonListening: userListeners > 0 || activeListeners > 0,
-    userDaemonConnected: userListeners > 0,
+    userDaemonConnected: effectiveConnected,
     activeListeners,
-    userListeners,
+    userListeners: userListeners > 0 ? userListeners : (isAdmin ? activeListeners : 0),
     userId: targetUid || null,
     engine: 'antigravity-master-reel-60fps',
     skillsLoaded: ANTIGRAVITY_VIDEO_SKILLS_CATALOG.length,
@@ -2328,10 +2494,22 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
     const mongoose = require('mongoose');
     const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
     const clientsMap = mcpBridge?.antigravityStreamClients;
-    const userSet = clientsMap && typeof clientsMap.get === 'function' ? clientsMap.get(String(targetUserId)) : null;
+    let effectiveTargetId = String(targetUserId);
+    let userSet = clientsMap && typeof clientsMap.get === 'function' ? clientsMap.get(effectiveTargetId) : null;
     let listenerCount = 0;
     for (const c of userSet || []) {
       if (c?.__wappyClientType !== 'browser') listenerCount++;
+    }
+
+    if (listenerCount === 0 && isWappyAdminUser(req?.user)) {
+      const fallbackAdminDaemonUid = findFirstActiveDaemonUserId();
+      if (fallbackAdminDaemonUid) {
+        effectiveTargetId = fallbackAdminDaemonUid;
+        userSet = clientsMap.get(effectiveTargetId);
+        for (const c of userSet || []) {
+          if (c?.__wappyClientType !== 'browser') listenerCount++;
+        }
+      }
     }
 
     if (listenerCount === 0 && !req.body?.forceDelegateOrder) {
@@ -2343,9 +2521,9 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
     const outputType = orderSpec.outputType || 'html';
 
     let kanbanTask = null;
-    if (mongoose.Types.ObjectId.isValid(String(targetUserId))) {
+    if (mongoose.Types.ObjectId.isValid(effectiveTargetId)) {
       kanbanTask = await KanbanTask.create({
-        user: new mongoose.Types.ObjectId(String(targetUserId)),
+        user: new mongoose.Types.ObjectId(effectiveTargetId),
         title,
         description: `[DELEGADO DESDE WAPPY STUDIO A ANTIGRAVITY]\nInstrucción: ${instruction}\nRecurso Objetivo: Wappy Studio 60-FPS Reel Engine\nFormato Esperado: ${outputType}`,
         status: 'todo',
@@ -2373,7 +2551,7 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
 
     const pushed =
       mcpBridge && typeof mcpBridge.broadcastAntigravityEvent === 'function'
-        ? mcpBridge.broadcastAntigravityEvent(String(targetUserId), 'nueva_orden', orderPushPayload)
+        ? mcpBridge.broadcastAntigravityEvent(effectiveTargetId, 'nueva_orden', orderPushPayload)
         : 0;
 
     return {
@@ -2458,7 +2636,8 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
 
 /**
  * POST /api/studio/antigravity/guest-key (y GET /api/studio/antigravity/guest-key)
- * - Si el usuario tiene sesión JWT activa (`req.user` registrado), busca o crea su `UserApiKey` real (`wpy_live_...`).
+ * - Si el usuario tiene sesión JWT activa (`req.user` registrado), busca o crea su `UserApiKey` real (`wpy_live_...`),
+ *   prefiriendo automáticamente la clave que tenga un daemon conectado en tiempo real.
  * - Si es un visitante sin cuenta (o envía `guestKey: "wpy_guest_..."`), valida o genera una clave única `wpy_guest_<24_hex>`
  *   y calcula su `userId` determinista (`ObjectId` de 24 hex) para que su puente SSE y órdenes funcionen aislados de otros usuarios.
  */
@@ -2468,18 +2647,31 @@ async function handleStudioAntigravityGuestOrUserKey(req, res) {
     const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
     const originUrl = `${proto}://${host}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
 
-    // Caso 1: Usuario registrado autenticado con JWT real
+    // Caso 1: Usuario registrado autenticado con JWT o cookie de sesión WAPPY
     if (req.user && (req.user._id || req.user.id) && !req.user.isGuest) {
       const UserApiKey = require('~/models/UserApiKey');
-      const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id));
+      let targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id));
 
-      let existingKeyDoc = await UserApiKey.findOne({
+      // Si el usuario es ADMIN y el daemon local está escuchando en su llave maestra de administración, enlazar a esa llave activa
+      if (isWappyAdminUser(req.user)) {
+        const directStatus = getAntigravityBridgeStatus(req, targetUserId);
+        if (directStatus.userListeners === 0) {
+          const activeDaemonUid = findFirstActiveDaemonUserId();
+          if (activeDaemonUid) {
+            targetUserId = activeDaemonUid;
+          }
+        }
+      }
+
+      const candidateKeyDocs = await UserApiKey.find({
         user: targetUserId,
         isActive: true,
         rawKey: { $exists: true, $nin: [null, ''] },
       })
-        .sort({ createdAt: -1 })
+        .sort({ lastUsedAt: -1, createdAt: -1 })
         .lean();
+
+      let existingKeyDoc = candidateKeyDocs.find((d) => d.rawKey && !d.rawKey.includes('...')) || null;
 
       if (!existingKeyDoc || !existingKeyDoc.rawKey || existingKeyDoc.rawKey.includes('...')) {
         const randomHex = crypto.randomBytes(24).toString('hex');
@@ -2512,6 +2704,18 @@ async function handleStudioAntigravityGuestOrUserKey(req, res) {
         activeListeners: bridge.userListeners,
         oneLineCommand,
         bridge,
+        user: {
+          id: String(req.user._id || req.user.id),
+          name: req.user.name || req.user.username || 'Usuario WAPPY',
+          email: req.user.email || '',
+          avatar: req.user.avatar || '',
+          role: req.user.role || 'USER',
+        },
+        connections: {
+          antigravityConnected: bridge.userDaemonConnected,
+          googleDriveConnected: Boolean(req.user.googleDriveTokens?.refresh_token || req.user.googleDriveConnected),
+          oneDriveConnected: Boolean(req.user.oneDriveTokens?.refresh_token || req.user.oneDriveConnected),
+        },
       });
     }
 
@@ -3260,6 +3464,14 @@ async function handleGenerateMasterReelHtml(req, res) {
       superPrompt ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
 
+    // Delegar de inmediato (en 0ms) al Antigravity local conectado antes de compilar las escenas
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+      title: `Wappy Studio · Generar Animación 60-FPS (${aspectRatio})`,
+      instruction: `${superPrompt || prompt || effectiveScript}\n\n[Nota para Antigravity]: Aplica las 7 Skills de Diseño y Video 60-FPS de WAPPY IA y completa la orden con formato="html".`,
+      outputType: 'html',
+    });
+
     let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
 
     // Si el cliente envió el audio WAV sintetizado, detectar silencios reales y extraer envolvente RMS 60-FPS
@@ -3351,13 +3563,6 @@ async function handleGenerateMasterReelHtml(req, res) {
     });
 
     htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
-
-    const resolvedTarget = await resolveStudioTargetUser(req);
-    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
-      title: `Wappy Studio · Generar Animación 60-FPS (${aspectRatio})`,
-      instruction: `${superPrompt || prompt || effectiveScript}\n\n[Nota para Antigravity]: Aplica las 7 Skills de Diseño y Video 60-FPS de WAPPY IA y completa la orden con formato="html".`,
-      outputType: 'html',
-    });
 
     const bridge = notifyStudioAntigravityBridge(
       req,
@@ -3496,6 +3701,14 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
         ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.narration || s?.text || '')).filter(Boolean).join('\n\n')
         : '') ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
+
+    // Delegar de inmediato (en 0ms) al Antigravity local conectado antes de recompilar las escenas
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+      title: `Wappy Studio · Editar Animación 60-FPS (${detectedAspect})`,
+      instruction: `Edición solicitada en Wappy Studio: "${instruction}".\nDirección de arte: ${detectedTheme}.\nGuión base:\n${effectiveScript}`,
+      outputType: 'html',
+    });
 
     let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
     if (audioBase64 && typeof audioBase64 === 'string') {

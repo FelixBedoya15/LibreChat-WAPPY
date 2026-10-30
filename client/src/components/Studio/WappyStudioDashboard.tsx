@@ -10268,7 +10268,14 @@ function StudioAudioPlayer({
         ref={audioRef}
         src={src}
         preload="metadata"
-        onPlay={() => setIsPlaying(true)}
+        onPlay={(e) => {
+          document.querySelectorAll('audio, video').forEach((media) => {
+            if (media !== e.currentTarget && !(media as HTMLMediaElement).paused) {
+              (media as HTMLMediaElement).pause();
+            }
+          });
+          setIsPlaying(true);
+        }}
         onPause={() => setIsPlaying(false)}
         onEnded={() => setIsPlaying(false)}
         onTimeUpdate={() => {
