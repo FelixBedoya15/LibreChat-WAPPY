@@ -191,7 +191,11 @@ class GoogleAntigravity extends Tool {
         `[google_antigravity] Orden ${finalOrdenId} emitida por Push SSE a ${pushedListeners} cliente(s) (${daemonCount} computador(es)) para usuario ${targetUserId}.`,
       );
 
-      if (daemonCount === 0) {
+      if (daemonCount === 0 && finalOutputType !== 'copia_archivo' && mcpBridge.executeCloudFailoverForAntigravityOrder) {
+        await mcpBridge.executeCloudFailoverForAntigravityOrder(finalOrdenId, targetUserId, {
+          error: 'Computador desconectado (0 daemons SSE activos) al invocar herramienta google_antigravity desde un agente de chat',
+        });
+      } else if (daemonCount === 0) {
         return this.returnValue(
           `⚠️ **Orden Registrada para Google Antigravity (ID: \`${finalOrdenId}\`)**\n\nLa orden **"${finalTitle}"** quedó registrada, pero en este instante no se detectó el puente en vivo activo en el computador del usuario (\`0\` clientes SSE conectados). Tan pronto el computador del usuario esté encendido con el Puente Reactivo activo, Antigravity procesará la orden automáticamente.`,
         );
@@ -201,10 +205,31 @@ class GoogleAntigravity extends Tool {
       const maxWaitMs = 85000;
       const pollIntervalMs = 1000;
       const startTime = Date.now();
+      let failoverTriggered = false;
 
       while (Date.now() - startTime < maxWaitMs) {
         await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
         const updated = await KanbanTask.findById(finalOrdenId).lean();
+        const elapsedMs = Date.now() - startTime;
+
+        if (
+          !failoverTriggered &&
+          finalOutputType !== 'copia_archivo' &&
+          mcpBridge.executeCloudFailoverForAntigravityOrder &&
+          updated &&
+          ((elapsedMs >= 10000 && updated.status === 'todo') ||
+            (elapsedMs >= 45000 && updated.status === 'in-progress'))
+        ) {
+          failoverTriggered = true;
+          await mcpBridge.executeCloudFailoverForAntigravityOrder(finalOrdenId, targetUserId, {
+            error:
+              updated.status === 'todo'
+                ? 'Timeout de 10s: El daemon local del PC no reclamó la orden emitida desde el agente de chat.'
+                : 'Timeout de 45s: Antigravity local reclamó la orden pero no respondió a tiempo al agente de chat.',
+          });
+          continue;
+        }
+
         if (updated && updated.status === 'dismissed' && updated.deliverable?.formato === 'error') {
           return this.returnValue(
             `${updated.deliverable.resumen || 'Google Antigravity no pudo procesar la orden en el computador del usuario.'}\n\n*(INSTRUCCIÓN AL AGENTE: Informa al usuario de este inconveniente con honestidad y sugiérele abrir Antigravity en su computador y volver a intentarlo.)*`,

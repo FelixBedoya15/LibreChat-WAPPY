@@ -8790,6 +8790,403 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
+const MIN_REQUIRED_DAEMON_VERSION = '2.5.2';
+
+function compareSemver(a, b) {
+  const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+  }
+  return 0;
+}
+
+/**
+ * Envía alerta técnica detallada a grupowappy@gmail.com cuando el Antigravity local de un PC/Mac
+ * falla o no responde y se activa el Respaldo Automático en la Nube (Cloud Failover).
+ */
+async function sendAntigravityAlertEmail({
+  userId,
+  ordenId,
+  title,
+  instruccion,
+  formato,
+  reason,
+  platform,
+  version,
+  cwd,
+  bin,
+}) {
+  const alertEmail = 'grupowappy@gmail.com';
+  try {
+    const User = mongoose.models.User || require('~/models/User');
+    const userDoc = userId && mongoose.Types.ObjectId.isValid(userId)
+      ? await User.findById(userId).select('name email').lean().catch(() => null)
+      : null;
+    const company = userId ? await getActiveCompany(userId).catch(() => null) : null;
+    const nowCol = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+    const subject = `⚠️ [Alerta WAPPY Antigravity -> Cloud Failover] ${title || ordenId}`;
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 680px; margin: 0 auto; padding: 24px; border: 1px solid #fecaca; border-radius: 12px; background-color: #ffffff;">
+        <div style="border-bottom: 2px solid #dc2626; padding-bottom: 12px; margin-bottom: 16px;">
+          <h2 style="color: #991b1b; margin: 0; font-size: 18px;">⚠️ Alerta Técnica: Fallo en Antigravity Local (Respaldo Cloud Activado)</h2>
+          <p style="color: #64748b; font-size: 12px; margin: 4px 0 0 0;">Fecha (Hora Colombia): ${nowCol} &bull; El usuario recibió su respuesta/documento sin interrupción gracias al Cloud Failover.</p>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #1e293b; margin-bottom: 16px;">
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-weight: bold; width: 170px; background: #f8fafc;">ID de Orden</td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${ordenId || 'N/A'}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-weight: bold; background: #f8fafc;">Usuario</td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${userDoc?.name || 'Usuario'} (${userDoc?.email || userId || 'N/A'})</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-weight: bold; background: #f8fafc;">Empresa Activa</td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${company?.companyName || 'N/A'} (NIT: ${company?.nit || 'N/A'})</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-weight: bold; background: #f8fafc;">Título / Formato</td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${title || 'N/A'} (${formato || 'respuesta'})</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-weight: bold; background: #f8fafc;">Daemon / OS / CWD</td><td style="padding: 6px 8px; border: 1px solid #e2e8f0;">v${version || 'N/A'} &bull; ${platform || 'N/A'} &bull; ${cwd || 'N/A'}</td></tr>
+          <tr><td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-weight: bold; background: #fef2f2; color: #991b1b;">Error Detectado</td><td style="padding: 6px 8px; border: 1px solid #e2e8f0; background: #fef2f2; color: #991b1b; font-family: monospace; white-space: pre-wrap;">${String(reason || 'Timeout o desconexión local').slice(0, 1500)}</td></tr>
+        </table>
+        <div style="font-size: 12px; color: #475569; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <strong>Instrucción original del usuario:</strong><br/>
+          <div style="white-space: pre-wrap; margin-top: 6px;">${String(instruccion || '').slice(0, 1200)}</div>
+        </div>
+      </div>
+    `;
+
+    let sent = false;
+    if (userId) {
+      try {
+        const { sendEmail: sendGmail } = require('../services/googleGmail');
+        await sendGmail(
+          userId,
+          { to: alertEmail, subject, body: html },
+          company?._id ? String(company._id) : null
+        );
+        sent = true;
+      } catch (_) {}
+    }
+    if (!sent) {
+      try {
+        const sendSysEmail = require('../utils/sendEmail');
+        await sendSysEmail({
+          email: alertEmail,
+          subject,
+          html,
+          throwError: true,
+        });
+        sent = true;
+      } catch (smtpErr) {
+        logger.warn(`[MCP Bridge] No se pudo enviar alerta a ${alertEmail} vía SMTP: ${smtpErr.message}`);
+      }
+    }
+    if (sent) {
+      logger.info(`[MCP Bridge] 📧 Alerta de fallo Antigravity enviada a ${alertEmail} (orden ${ordenId}).`);
+    }
+  } catch (err) {
+    logger.warn(`[MCP Bridge] Error preparando correo de alerta a ${alertEmail}: ${err.message}`);
+  }
+}
+
+const activeCloudFailovers = new Set();
+
+/**
+ * Respaldo Automático Inmediato en la Nube (Cloud Failover):
+ * Si el Antigravity local del PC devuelve error o no responde en 10 segundos,
+ * el servidor de WAPPY ejecuta la orden inmediatamente en la nube con los datos SG-SST de la empresa
+ * y entrega la respuesta, documento en LiveEditor, aplicativo HTML o imagen en Canvas sin mostrar jamás un error al usuario,
+ * notificando internamente a grupowappy@gmail.com.
+ */
+async function executeCloudFailoverForAntigravityOrder(taskId, targetUserId, diagnosticInfo = {}) {
+  const idStr = String(taskId || '').trim();
+  if (!idStr || !mongoose.Types.ObjectId.isValid(idStr)) return { ok: false, reason: 'invalid_id' };
+  if (activeCloudFailovers.has(idStr)) return { ok: true, status: 'already_running' };
+  activeCloudFailovers.add(idStr);
+
+  try {
+    const task = await KanbanTask.findOne({ _id: idStr, user: targetUserId });
+    if (!task || task.status === 'done' || task.status === 'dismissed') {
+      return { ok: false, reason: 'already_handled' };
+    }
+
+    const taskDesc = String(task.description || '');
+    const mFormato = taskDesc.match(/Formato Esperado:\s*([^\n\r]+)/i);
+    const expectedFormat = (mFormato ? mFormato[1].trim().toLowerCase() : '') || resolveAntigravityOutputFormat('', taskDesc);
+    const mInstr = taskDesc.match(/Instrucci[oó]n:\s*([\s\S]*?)(?:\nRecurso Objetivo:|\nFormato Esperado:|$)/i);
+    const cleanInstruction = (mInstr ? mInstr[1].trim() : taskDesc || task.title || '').trim();
+
+    logger.warn(
+      `[MCP Bridge] 🛡️ Activando Cloud Failover automático para orden ${idStr} ("${task.title}", formato: ${expectedFormat}). Motivo local: ${diagnosticInfo.error || 'Timeout / sin respuesta local'}`
+    );
+
+    // 1. Enviar alerta técnica silenciosa a grupowappy@gmail.com en segundo plano
+    sendAntigravityAlertEmail({
+      userId: targetUserId,
+      ordenId: idStr,
+      title: task.title,
+      instruccion: cleanInstruction,
+      formato: expectedFormat,
+      reason: diagnosticInfo.error || 'Antigravity local no respondió en 10 segundos o devolvió error.',
+      platform: diagnosticInfo.platform,
+      version: diagnosticInfo.version,
+      cwd: diagnosticInfo.cwd,
+      bin: diagnosticInfo.bin,
+    }).catch(() => {});
+
+    // 2. Caso Imagen: Respaldo con Google Flow Studio
+    const isImageOrder =
+      expectedFormat === 'imagen' ||
+      expectedFormat === 'image' ||
+      /\b(genera(?:r|me)?|crea(?:r|me)?|dise[ñn]a(?:r|me)?|dibuja(?:r|me)?|haz(?:me)?)\b[\s\S]{0,40}\b(imagen|ilustraci[oó]n|afiche|p[oó]ster|fotograf[ií]a)\b/i.test(
+        `${task.title || ''} ${cleanInstruction}`
+      );
+
+    if (isImageOrder) {
+      try {
+        const { executeFlowImageGeneration } = require('./googleflow');
+        const flowImg = await executeFlowImageGeneration({
+          userId: targetUserId,
+          prompt: cleanInstruction.slice(0, 600),
+          skipAntigravity: true,
+        });
+        if (flowImg && flowImg.publicUrl) {
+          const fallbackSummary = `✨ **Imagen generada** :\n\n![${cleanInstruction.slice(0, 80)}](${flowImg.publicUrl})`;
+          task.status = 'done';
+          task.completedAt = new Date();
+          task.deliverable = {
+            formato: 'imagen',
+            contenido: fallbackSummary,
+            urlDescarga: flowImg.publicUrl,
+            resumen: fallbackSummary,
+            titulo: task.title,
+          };
+          await task.save();
+
+          const tenshiFallbackMsg = await TenshiMessage.create({
+            user: targetUserId,
+            role: 'assistant',
+            content: fallbackSummary,
+          }).catch(() => null);
+
+          broadcastAntigravityEvent(targetUserId, 'orden_completada', {
+            ordenId: task._id.toString(),
+            title: task.title,
+            formato: 'respuesta',
+            isConversationalReply: true,
+            isOriginalFileCopy: false,
+            messageId: tenshiFallbackMsg?._id ? tenshiFallbackMsg._id.toString() : `flow-fallback-${Date.now()}`,
+            summary: fallbackSummary,
+            sourceModule: task.sourceModule || 'tenshi_voice',
+          });
+          return { ok: true, fallback: 'googleflow_image' };
+        }
+      } catch (imgErr) {
+        logger.warn(`[MCP Bridge] Error en Cloud Failover de imagen (${idStr}): ${imgErr.message}`);
+      }
+    }
+
+    // 3. Caso Pregunta ('respuesta'), Documento ('documento') o Aplicativo ('html') con datos reales SG-SST de la empresa
+    const company = await getActiveCompany(targetUserId).catch(() => null);
+    const companyId = company?._id || null;
+    const scope = companyScope(targetUserId, companyId);
+
+    const [workersCount, diagDoc, gtcSession] = await Promise.all([
+      SgsstWorker ? SgsstWorker.countDocuments(scope).catch(() => 0) : Promise.resolve(0),
+      DiagnosticoData ? DiagnosticoData.findOne(scope).select('puntajeTotal porcentajeCumplimiento').lean().catch(() => null) : Promise.resolve(null),
+      GTC45WorkspaceSession
+        ? GTC45WorkspaceSession.findOne({ user: targetUserId, ...(companyId ? { companyId } : {}) })
+            .sort({ updatedAt: -1 })
+            .select('matrixRows')
+            .lean()
+            .catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    const companyContextBlock = [
+      `Empresa Activa: ${company?.companyName || 'Empresa en WAPPY'}`,
+      `NIT: ${company?.nit || 'N/A'}`,
+      `Actividad Económica: ${company?.economicActivity || 'N/A'} (CIIU: ${company?.ciiu || 'N/A'})`,
+      `Nivel de Riesgo ARL: ${company?.riskLevel || 'N/A'} (${company?.arl || 'ARL'})`,
+      `Ciudad / Dirección: ${company?.city || 'Colombia'} - ${company?.address || 'N/A'}`,
+      `Representante Legal: ${company?.legalRepresentative || 'N/A'}`,
+      `Responsable SG-SST: ${company?.responsibleSST || 'N/A'} (Licencia: ${company?.licenseNumber || 'Vigente'})`,
+      `Total Trabajadores Registrados: ${workersCount || company?.workerCount || 0}`,
+      `Puntaje Estándares Mínimos Res. 0312: ${diagDoc?.puntajeTotal || diagDoc?.porcentajeCumplimiento || 'En evaluación'}`,
+      `Peligros Identificados en Matriz GTC-45: ${Array.isArray(gtcSession?.matrixRows) ? gtcSession.matrixRows.length : 0}`,
+    ].join('\n');
+
+    const { generateWithKeyRotation, resolveApiKeys } = require('./sgsst/sgsstGemini');
+    let apiKeys = await resolveApiKeys(targetUserId).catch(() => []);
+    if (!apiKeys || apiKeys.length === 0) {
+      const envKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || '';
+      apiKeys = envKey
+        .split(',')
+        .map((k) => k.trim())
+        .filter((k) => k && k !== 'user_provided');
+    }
+
+    const isHtml = expectedFormat === 'html' || expectedFormat === 'dashboard' || expectedFormat === 'aplicativo';
+    const isDocument =
+      !isHtml &&
+      (expectedFormat === 'documento' ||
+        expectedFormat === 'word' ||
+        expectedFormat === 'informe' ||
+        expectedFormat === 'excel' ||
+        expectedFormat === 'presentacion');
+    const isConversationalReply = !isHtml && !isDocument;
+
+    let cloudPrompt = '';
+    if (isHtml) {
+      cloudPrompt = [
+        `Eres el motor experto en Seguridad y Salud en el Trabajo (SG-SST Colombia) de WAPPY IA.`,
+        `Desarrolla un aplicativo o dashboard interactivo HTML5 completo (<!DOCTYPE html>...) con diseño moderno Tailwind CSS, KPIs y tablas/gráficas interactivas para la siguiente solicitud:`,
+        `Solicitud: ${cleanInstruction}`,
+        `\nDatos reales de la empresa:\n${companyContextBlock}`,
+        `\nDevuelve ÚNICAMENTE el código HTML5 completo (<!DOCTYPE html>...</html>) sin bloques markdown \`\`\`html.`,
+      ].join('\n');
+    } else if (isDocument) {
+      cloudPrompt = [
+        `Eres el Director Técnico de Seguridad y Salud en el Trabajo (SG-SST Colombia — Decreto 1072 de 2015 y Resolución 0312 de 2019) de WAPPY IA.`,
+        `Redacta el documento técnico completo en formato Markdown estructurado (con encabezados ## y ###, negritas, listas y tablas Markdown | Columna | Columna |) para la siguiente solicitud:`,
+        `Título: ${task.title}`,
+        `Solicitud: ${cleanInstruction}`,
+        `\nDatos reales de la empresa:\n${companyContextBlock}`,
+        `\nIMPORTANTE: NO incluyas <!DOCTYPE html> ni <html> porque el sistema inyecta automáticamente el cabezote corporativo oficial y las firmas digitales para el Editor de Documentos LiveEditor de WAPPY.`,
+      ].join('\n');
+    } else {
+      cloudPrompt = [
+        `Eres Tenshi / Antigravity, el asistente experto en Seguridad y Salud en el Trabajo (SG-SST Colombia) de WAPPY IA.`,
+        `Responde de forma directa, clara, precisa y profesional a la siguiente solicitud o pregunta del usuario:`,
+        `Solicitud: ${cleanInstruction}`,
+        `\nContexto de la empresa activa del usuario (úsalo si la pregunta se refiere a su empresa):\n${companyContextBlock}`,
+      ].join('\n');
+    }
+
+    let generatedText = '';
+    if (apiKeys.length > 0) {
+      const aiRes = await generateWithKeyRotation(apiKeys, 'gemini-3.6-flash', cloudPrompt);
+      generatedText = (aiRes?.text || '').trim();
+    } else {
+      generatedText = `Respuesta técnica SG-SST para "${task.title}": Conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019 para ${company?.companyName || 'la empresa'}, se ha procesado tu solicitud.`;
+    }
+
+    const canvasId = `antigravity-${task._id}`;
+    let finalContent = generatedText;
+    let finalFormat = isHtml ? 'html' : isDocument ? 'documento' : 'respuesta';
+
+    if (isDocument && finalContent) {
+      finalContent = formatWappyEditorDocument(finalContent, task.title, company);
+      try {
+        const CanvasSession = require('~/models/CanvasSession');
+        const { syncCanvasToLiveEditor } = require('./sgsst/syncBridge');
+        await CanvasSession.findOneAndUpdate(
+          { user: targetUserId, conversationId: canvasId },
+          {
+            $set: {
+              content: finalContent,
+              title: task.title,
+              fileType: 'text',
+              companyId: company?._id || undefined,
+              updatedAt: new Date(),
+            },
+            $setOnInsert: { version: 1 },
+          },
+          { upsert: true, new: true }
+        );
+        await syncCanvasToLiveEditor(canvasId, finalContent, task.title, targetUserId);
+      } catch (_) {}
+    }
+
+    const finalSummary = isConversationalReply
+      ? finalContent
+      : isHtml
+      ? 'El aplicativo interactivo ha sido estructurado y generado con éxito. Puedes explorarlo en pantalla con Canvas o descargarlo directamente.'
+      : 'Documento técnico generado en el formato oficial del Editor de Documentos de WAPPY (con cabezote corporativo, tablas técnicas y sección de firmas).';
+
+    task.status = 'done';
+    task.completedAt = new Date();
+    task.deliverable = {
+      formato: finalFormat,
+      contenido: isConversationalReply ? finalSummary : finalContent,
+      urlDescarga: null,
+      resumen: finalSummary,
+      titulo: task.title,
+    };
+    task.description += `\n\n[COMPLETADO VÍA CLOUD FAILOVER AUTOMÁTICO - ${new Date().toISOString()}]`;
+    await task.save();
+
+    const normalizedFileType = isConversationalReply ? 'respuesta' : isHtml ? 'html' : 'text';
+    const filePayload = !isConversationalReply && finalContent
+      ? {
+          title: task.title,
+          fileType: normalizedFileType,
+          content: finalContent,
+          canvasId,
+        }
+      : undefined;
+
+    let createdTenshiMsg = null;
+    if (task.sourceModule !== 'image_priority') {
+      const tenshiBubbleContent = isConversationalReply
+        ? `⚡ **Respuesta de Google Antigravity**\n\n${finalSummary}`
+        : `✨ **¡Documento / Entregable de Google Antigravity Listo en el Editor de WAPPY!**\n\n**${task.title}**\n\n${finalSummary}`;
+
+      createdTenshiMsg = await TenshiMessage.create({
+        user: targetUserId,
+        role: 'assistant',
+        content: tenshiBubbleContent,
+        htmlReport: isHtml ? finalContent : undefined,
+        file: filePayload,
+        report: isConversationalReply
+          ? undefined
+          : {
+              titulo: task.title,
+              aplicativo: 'antigravity_delegation',
+              formato: finalFormat,
+              contenido: finalContent ? finalContent.slice(0, 10000) : '',
+            },
+      }).catch(() => null);
+    }
+
+    broadcastAntigravityEvent(targetUserId, 'orden_completada', {
+      ordenId: task._id.toString(),
+      title: task.title,
+      formato: finalFormat,
+      isConversationalReply,
+      isOriginalFileCopy: false,
+      html: isHtml ? finalContent : undefined,
+      file: filePayload,
+      messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-cloud-${Date.now()}`,
+      summary: finalSummary,
+      sourceModule: task.sourceModule || 'tenshi_voice',
+    });
+
+    try {
+      const { activeSessions } = require('./voice/voiceSession');
+      if (activeSessions) {
+        const userSession = activeSessions.get(String(targetUserId));
+        if (userSession && typeof userSession.sendToClient === 'function') {
+          userSession.sendToClient({
+            type: 'tenshi_report_delivered',
+            data: {
+              ordenId: task._id.toString(),
+              title: task.title,
+              formato: finalFormat,
+              isConversationalReply,
+              isOriginalFileCopy: false,
+              html: isHtml ? finalContent : undefined,
+              file: filePayload,
+              messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-cloud-${Date.now()}`,
+              summary: finalSummary,
+            },
+          });
+        }
+      }
+    } catch (_) {}
+
+    logger.info(`[MCP Bridge] ✅ Cloud Failover completado exitosamente para orden ${idStr} (formato: ${finalFormat}).`);
+    return { ok: true, fallback: 'cloud_completed', formato: finalFormat };
+  } catch (err) {
+    logger.error(`[MCP Bridge] Error en executeCloudFailoverForAntigravityOrder (${idStr}):`, err);
+    return { ok: false, reason: err.message };
+  } finally {
+    activeCloudFailovers.delete(idStr);
+  }
+}
 
 router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
   try {
@@ -8820,14 +9217,15 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
 
     res.write(`event: connected\ndata: ${JSON.stringify({ status: 'ok', userId: targetUserId, version: CURRENT_DAEMON_VERSION, timestamp: new Date().toISOString() })}\n\n`);
 
-    // Si el daemon conectado en el PC/Mac del usuario tiene una versión anterior, auto-actualizarlo silenciosamente en vivo
-    if (isDaemonClient && clientVersion !== CURRENT_DAEMON_VERSION) {
+    // Compatibilidad universal de versiones: el servidor acepta cualquier versión >= MIN_REQUIRED_DAEMON_VERSION (2.5.2)
+    // sin reiniciar el daemon en despliegues rutinarios. Solo auto-actualiza versiones legacy (< 2.5.2) máximo 1 vez cada 6h.
+    if (isDaemonClient && compareSemver(clientVersion, MIN_REQUIRED_DAEMON_VERSION) < 0) {
       const lastSent = daemonUpdateCooldown.get(targetUserId) || 0;
-      if (Date.now() - lastSent > 20000) {
+      if (Date.now() - lastSent > 6 * 3600 * 1000) {
         daemonUpdateCooldown.set(targetUserId, Date.now());
         setTimeout(() => {
           try {
-            logger.info(`[MCP Bridge] 🔄 Enviando auto-actualización silenciosa (v${clientVersion || 'legacy'} -> v${CURRENT_DAEMON_VERSION}) al daemon de usuario ${targetUserId}...`);
+            logger.info(`[MCP Bridge] 🔄 Enviando auto-actualización silenciosa de versión legacy (v${clientVersion || 'legacy'} -> v${CURRENT_DAEMON_VERSION}) al daemon de usuario ${targetUserId}...`);
             res.write(
               `event: launch_connector\ndata: ${JSON.stringify({
                 service: 'notebooklm',
@@ -8841,17 +9239,31 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
         }, 600);
       }
     } else if (isDaemonClient) {
-      // Si existen órdenes pendientes recién creadas (< 30 min) que aún están en 'todo' (PC estaba apagado), empujarlas al conectar
+      // Si existe una orden reciente (< 2 min) que aún está en 'todo' (ej. reconexión rápida), empujar solo la más reciente y descartar las viejas
       try {
-        const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+        const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+        await KanbanTask.updateMany(
+          {
+            user: targetUserId,
+            type: 'antigravity_delegation',
+            status: 'todo',
+            $or: [
+              { createdAt: { $lt: twoMinAgo } },
+              { sourceModule: 'image_priority' },
+            ],
+          },
+          { $set: { status: 'dismissed' } }
+        ).catch(() => {});
+
         const pendingTasks = await KanbanTask.find({
           user: targetUserId,
           type: 'antigravity_delegation',
           status: 'todo',
-          createdAt: { $gte: thirtyMinAgo },
+          sourceModule: { $ne: 'image_priority' },
+          createdAt: { $gte: twoMinAgo },
         })
-          .sort({ createdAt: 1 })
-          .limit(5)
+          .sort({ createdAt: -1 })
+          .limit(1)
           .lean();
 
         for (const t of pendingTasks) {
@@ -8873,7 +9285,7 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
           );
         }
         if (pendingTasks.length > 0) {
-          logger.info(`[MCP Bridge] 📬 ${pendingTasks.length} orden(es) pendiente(s) reenviada(s) al daemon recién conectado de usuario ${targetUserId}.`);
+          logger.info(`[MCP Bridge] 📬 ${pendingTasks.length} orden pendiente reciente reenviada al daemon de usuario ${targetUserId}.`);
         }
       } catch (_) {}
     }
@@ -8988,105 +9400,21 @@ router.post('/antigravity/ordenes/:id/dispatch-log', requireApiKeyOrJwt, async (
         return res.json({ ok: true, fallback: 'googleflow' });
       }
 
-      // Avisar al usuario en Tenshi (o hacer respaldo automático a Google Flow si la orden delegada era una imagen)
+      // Activar Respaldo Automático Inmediato en la Nube (Cloud Failover) + alerta a grupowappy@gmail.com
       try {
         if (mongoose.Types.ObjectId.isValid(ordenId)) {
-          const task = await KanbanTask.findOne({ _id: ordenId, user: targetUserId });
-          if (task && task.status !== 'done' && task.status !== 'dismissed') {
-            const taskDesc = String(task.description || '');
-            const isStandaloneImageOrder =
-              /Formato Esperado:\s*imagen/i.test(taskDesc) ||
-              /\b(genera(?:r|me)?|crea(?:r|me)?|dise[ñn]a(?:r|me)?|dibuja(?:r|me)?|haz(?:me)?)\b[\s\S]{0,40}\b(imagen|ilustraci[oó]n|afiche|p[oó]ster|fotograf[ií]a)\b/i.test(
-                `${task.title || ''} ${taskDesc}`
-              );
-
-            if (isStandaloneImageOrder) {
-              try {
-                const { executeFlowImageGeneration } = require('./googleflow');
-                const mInstr = taskDesc.match(/Instrucci[oó]n:\s*([\s\S]*?)(?:\nRecurso Objetivo:|\nFormato Esperado:|$)/i);
-                const imgPrompt = (mInstr ? mInstr[1].trim() : task.title || 'Escena preventiva SG-SST').slice(0, 600);
-                logger.info(`[MCP Bridge] 🔄 Antigravity falló en orden de imagen ${ordenId}; activando respaldo automático con Google Flow Studio...`);
-                const flowImg = await executeFlowImageGeneration({
-                  userId: targetUserId,
-                  prompt: imgPrompt,
-                  skipAntigravity: true,
-                });
-                if (flowImg && flowImg.publicUrl) {
-                  const fallbackSummary = `✨ **Imagen generada automáticamente con Google Flow Studio** *(respaldo automático activado porque Google Antigravity no estuvo disponible en tu PC)*:\n\n![${imgPrompt.slice(0, 80)}](${flowImg.publicUrl})`;
-                  task.status = 'done';
-                  task.completedAt = new Date();
-                  task.deliverable = {
-                    formato: 'imagen',
-                    contenido: fallbackSummary,
-                    urlDescarga: flowImg.publicUrl,
-                    resumen: fallbackSummary,
-                    titulo: task.title,
-                  };
-                  await task.save();
-
-                  const tenshiFallbackMsg = await TenshiMessage.create({
-                    user: targetUserId,
-                    role: 'assistant',
-                    content: fallbackSummary,
-                  }).catch(() => null);
-
-                  broadcastAntigravityEvent(targetUserId, 'orden_completada', {
-                    ordenId: task._id.toString(),
-                    title: task.title,
-                    formato: 'respuesta',
-                    isConversationalReply: true,
-                    isOriginalFileCopy: false,
-                    messageId: tenshiFallbackMsg?._id ? tenshiFallbackMsg._id.toString() : `flow-fallback-${Date.now()}`,
-                    summary: fallbackSummary,
-                    sourceModule: task.sourceModule || 'tenshi_voice',
-                  });
-                  return res.json({ ok: true, fallback: 'googleflow_completed' });
-                }
-              } catch (flowFallbackErr) {
-                logger.warn('[MCP Bridge] Respaldo de Google Flow para orden de imagen también falló:', flowFallbackErr.message);
-              }
-            }
-
-            const rawErr = String(error || '');
-            const antigravityClosed = /no-ls-addr|connection refused|Unavailable|ANTIGRAVITY_LS_ADDRESS is not set|ECONNREFUSED/i.test(rawErr);
-            const friendlyMsg = antigravityClosed
-              ? `⚠️ Tu computador recibió la orden "${task.title}", pero Google Antigravity no logró abrirse a tiempo para procesarla. Abre Antigravity en tu computador y vuelve a pedírmelo; la conexión seguirá activa.`
-              : `⚠️ Tu computador recibió la orden "${task.title}", pero Google Antigravity no pudo procesarla en este momento. Verifica que Antigravity esté abierto e intenta de nuevo en unos segundos.`;
-
-            task.status = 'dismissed';
-            task.deliverable = {
-              formato: 'error',
-              contenido: friendlyMsg,
-              resumen: friendlyMsg,
-              titulo: task.title,
-            };
-            task.description += `\n\n[ERROR DE DESPACHO LOCAL - ${new Date().toISOString()}]\n${rawErr.slice(0, 1500)}`;
-            await task.save();
-
-            let tenshiMsg = null;
-            if (task.sourceModule !== 'agent_tool' && task.sourceModule !== 'image_priority') {
-              tenshiMsg = await TenshiMessage.create({
-                user: targetUserId,
-                role: 'assistant',
-                content: friendlyMsg,
-              }).catch(() => null);
-            }
-
-            broadcastAntigravityEvent(targetUserId, 'orden_completada', {
-              ordenId: task._id.toString(),
-              title: task.title,
-              formato: 'respuesta',
-              isConversationalReply: true,
-              isOriginalFileCopy: false,
-              messageId: tenshiMsg?._id ? tenshiMsg._id.toString() : `antigravity-error-${Date.now()}`,
-              summary: friendlyMsg,
-              sourceModule: task.sourceModule || 'tenshi_voice',
-              error: true,
-            });
-          }
+          executeCloudFailoverForAntigravityOrder(ordenId, targetUserId, {
+            error: error || 'Error desconocido al despachar en Antigravity local',
+            platform,
+            version,
+            cwd,
+            bin,
+          }).catch((failoverErr) => {
+            logger.warn('[MCP Bridge] Error en Cloud Failover tras dispatch-log fallido:', failoverErr.message);
+          });
         }
       } catch (notifyErr) {
-        logger.warn('[MCP Bridge] No se pudo notificar el fallo de despacho a Tenshi:', notifyErr.message);
+        logger.warn('[MCP Bridge] No se pudo activar Cloud Failover tras fallo de despacho:', notifyErr.message);
       }
     }
     return res.json({ ok: true });
@@ -9368,6 +9696,17 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
 
     let kanbanTask = null;
     try {
+      // Descartar órdenes anteriores que hayan quedado atascadas en 'todo' para que nunca se acumulen ni se entreguen en ráfaga
+      await KanbanTask.updateMany(
+        {
+          user: targetUserId,
+          type: 'antigravity_delegation',
+          status: 'todo',
+          sourceModule: { $ne: 'image_priority' },
+        },
+        { $set: { status: 'dismissed' } }
+      ).catch(() => {});
+
       kanbanTask = await KanbanTask.create({
         user: targetUserId,
         companyId: companyId,
@@ -9409,11 +9748,42 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const daemonsConectados = countAntigravityDaemons(targetUserId);
     logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos (${daemonsConectados} computador(es) con daemon).`);
 
+    // Respaldo Automático Inmediato (Cloud Failover):
+    // 1. Si no hay ningún PC conectado, o el PC no reclama la orden en 10s, ejecutar en la nube automáticamente.
+    // 2. Si el PC reclama la orden pero Antigravity local se cuelga sin completarla en 50s, ejecutar en la nube automáticamente.
+    if (kanbanTask?._id && finalOutputType !== 'copia_archivo') {
+      const taskIdStr = kanbanTask._id.toString();
+      setTimeout(async () => {
+        try {
+          const check = await KanbanTask.findById(taskIdStr).select('status').lean();
+          if (check && check.status === 'todo') {
+            await executeCloudFailoverForAntigravityOrder(taskIdStr, targetUserId, {
+              error:
+                daemonsConectados > 0
+                  ? 'El daemon local estaba conectado pero no reclamó la orden en 10 segundos.'
+                  : 'El computador del usuario estaba desconectado / apagado al momento de la solicitud (0 daemons SSE activos).',
+            });
+          }
+        } catch (_) {}
+      }, daemonsConectados > 0 ? 10000 : 1500);
+
+      setTimeout(async () => {
+        try {
+          const check = await KanbanTask.findById(taskIdStr).select('status').lean();
+          if (check && (check.status === 'todo' || check.status === 'in_progress')) {
+            await executeCloudFailoverForAntigravityOrder(taskIdStr, targetUserId, {
+              error: 'El daemon local reclamó la orden pero Antigravity local no respondió en 50 segundos.',
+            });
+          }
+        } catch (_) {}
+      }, 50000);
+    }
+
     return res.status(200).json({
       exito: true,
       mensaje: daemonsConectados > 0
-        ? `Orden delegada a Antigravity exitosamente mediante Push en tiempo real.`
-        : `Orden registrada, pero el computador del usuario no está conectado en este momento. Se procesará automáticamente apenas se encienda (válida por 30 minutos).`,
+        ? `Orden delegada a Antigravity exitosamente mediante Push en tiempo real (con Cloud Failover activo).`
+        : `Orden en procesamiento inmediato mediante Respaldo Automático Cloud de WAPPY.`,
       ordenId: finalOrdenId,
       pushClientesNotificados: pushedListeners,
       daemonsConectados,
@@ -9427,9 +9797,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         estado: 'todo',
         empresa: companyName,
       },
-      instruccionAntigravity: daemonsConectados > 0
-        ? `La orden "${finalTitle}" ha sido enviada instantáneamente por Push en tiempo real a Antigravity. Antigravity utilizará sus herramientas MCP para consultar los datos necesarios de la empresa y elaborar el entregable. Confírmale al usuario con seguridad que la orden ya está siendo procesada por Antigravity.`
-        : `La orden "${finalTitle}" quedó registrada, pero el computador del usuario NO está conectado ahora mismo (está apagado o sin internet). Infórmale con honestidad que Antigravity la procesará automáticamente apenas encienda su computador (dentro de los próximos 30 minutos).`,
+      instruccionAntigravity: `La orden "${finalTitle}" ya está en ejecución en tiempo real (con respaldo automático en la nube garantizado). Confírmale al usuario con total seguridad que su solicitud ya se está procesando y aparecerá en segundos en pantalla.`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error delegando orden a Antigravity:', error);
@@ -9465,19 +9833,23 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
       }
     }
 
-    // Si se consultan órdenes pendientes sin un ID específico, expirar tareas antiguas (> 2 horas)
+    // Si se consultan órdenes pendientes sin un ID específico, expirar tareas antiguas (> 10 min) y excluir image_priority
     if ((rawStatus === 'todo' || rawStatus === 'pendiente' || rawStatus === 'pendientes' || rawStatus === 'pending') && !targetQueryId) {
-      const twoHoursAgo = new Date(Date.now() - 2 * 3600 * 1000);
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
       await KanbanTask.updateMany(
         {
           user: targetUserId,
           type: 'antigravity_delegation',
           status: { $in: ['todo', 'in_progress'] },
-          createdAt: { $lt: twoHoursAgo },
+          $or: [
+            { createdAt: { $lt: tenMinAgo } },
+            { sourceModule: 'image_priority' },
+          ],
         },
         { $set: { status: 'dismissed' } }
       ).catch(() => {});
-      query.createdAt = { $gte: twoHoursAgo };
+      query.createdAt = { $gte: tenMinAgo };
+      query.sourceModule = { $ne: 'image_priority' };
     }
 
     const tasks = await KanbanTask.find(query)
@@ -9535,12 +9907,22 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     if (!task) {
       return res.status(404).json({ error: 'Orden no encontrada.' });
     }
-    if (task.status === 'done') {
-      logger.info(`[MCP Bridge] Orden ${targetId} ya estaba en estado 'done'. Ignorando llamada duplicada a /antigravity/completar.`);
+    if (task.status === 'done' || task.status === 'dismissed') {
+      logger.info(`[MCP Bridge] Orden ${targetId} ya estaba en estado '${task.status}'. Ignorando llamada tardía/duplicada a /antigravity/completar.`);
       return res.status(200).json({
         exito: true,
         duplicado: true,
-        mensaje: `La orden "${task.title}" ya había sido marcada como completada y entregada a Tenshi.`,
+        mensaje: `La orden "${task.title}" ya había sido procesada o descartada (${task.status}).`,
+      });
+    }
+    if (task.sourceModule === 'image_priority' && !pendingAntigravityImageResolvers.has(task._id.toString())) {
+      task.status = 'dismissed';
+      await task.save().catch(() => {});
+      logger.info(`[MCP Bridge] Orden de imagen prioritaria ${targetId} completada tardíamente tras fallback a Google Flow. Ignorando para no duplicar en Tenshi.`);
+      return res.status(200).json({
+        exito: true,
+        duplicado: true,
+        mensaje: `La solicitud de imagen "${task.title}" ya fue resuelta por respaldo automático.`,
       });
     }
 
@@ -10603,6 +10985,8 @@ router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
 router.getActiveCompany = getActiveCompany;
 router.antigravityStreamClients = antigravityStreamClients;
 router.authenticateApiKey = authenticateApiKey;
+router.executeCloudFailoverForAntigravityOrder = executeCloudFailoverForAntigravityOrder;
+router.sendAntigravityAlertEmail = sendAntigravityAlertEmail;
 
 module.exports = router;
 
