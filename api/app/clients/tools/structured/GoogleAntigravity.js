@@ -91,8 +91,9 @@ class GoogleAntigravity extends Tool {
       }
 
       if (accion === 'estado_conexion') {
-        const listeners = mcpBridge.antigravityStreamClients?.get(String(targetUserId));
-        const count = listeners ? listeners.size : 0;
+        const count = mcpBridge.countAntigravityDaemons
+          ? mcpBridge.countAntigravityDaemons(String(targetUserId))
+          : mcpBridge.antigravityStreamClients?.get(String(targetUserId))?.size || 0;
         if (count > 0) {
           return this.returnValue(
             `✅ **Conexión con Google Antigravity Activa en Tiempo Real**\nEl puente reactivo Push SSE está conectado con **${count}** sesión(es) activa(s) en el computador del usuario (latencia 0 ms). Puedes delegar cualquier consulta, inspección de carpetas locales, solicitud de archivos o creación de documentos.`,
@@ -182,12 +183,15 @@ class GoogleAntigravity extends Tool {
       const pushedListeners = mcpBridge.broadcastAntigravityEvent
         ? mcpBridge.broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload)
         : 0;
+      const daemonCount = mcpBridge.countAntigravityDaemons
+        ? mcpBridge.countAntigravityDaemons(String(targetUserId))
+        : pushedListeners;
 
       logger.info(
-        `[google_antigravity] Orden ${finalOrdenId} emitida por Push SSE a ${pushedListeners} cliente(s) para usuario ${targetUserId}.`,
+        `[google_antigravity] Orden ${finalOrdenId} emitida por Push SSE a ${pushedListeners} cliente(s) (${daemonCount} computador(es)) para usuario ${targetUserId}.`,
       );
 
-      if (pushedListeners === 0) {
+      if (daemonCount === 0) {
         return this.returnValue(
           `⚠️ **Orden Registrada para Google Antigravity (ID: \`${finalOrdenId}\`)**\n\nLa orden **"${finalTitle}"** quedó registrada, pero en este instante no se detectó el puente en vivo activo en el computador del usuario (\`0\` clientes SSE conectados). Tan pronto el computador del usuario esté encendido con el Puente Reactivo activo, Antigravity procesará la orden automáticamente.`,
         );
@@ -201,6 +205,11 @@ class GoogleAntigravity extends Tool {
       while (Date.now() - startTime < maxWaitMs) {
         await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
         const updated = await KanbanTask.findById(finalOrdenId).lean();
+        if (updated && updated.status === 'dismissed' && updated.deliverable?.formato === 'error') {
+          return this.returnValue(
+            `${updated.deliverable.resumen || 'Google Antigravity no pudo procesar la orden en el computador del usuario.'}\n\n*(INSTRUCCIÓN AL AGENTE: Informa al usuario de este inconveniente con honestidad y sugiérele abrir Antigravity en su computador y volver a intentarlo.)*`,
+          );
+        }
         if (updated && updated.status === 'done') {
           const deliv = updated.deliverable || {};
           const fmt = String(deliv.formato || finalOutputType).toLowerCase();

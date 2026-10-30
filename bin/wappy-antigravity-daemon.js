@@ -33,7 +33,8 @@ const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
-const DAEMON_VERSION = '2.4.0';
+const DAEMON_VERSION = '2.5.0';
+const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 function ensureDirs() {
   try {
@@ -65,8 +66,15 @@ function captureAntigravityEnv() {
       '';
     const projectId = process.env.ANTIGRAVITY_PROJECT_ID || prev.projectId || '';
     const cwd = process.cwd();
+    const isUsableCwd =
+      cwd &&
+      cwd !== HOME_DIR &&
+      cwd !== '/' &&
+      !/^[a-zA-Z]:\\?$/.test(cwd) &&
+      !/[\\/](Windows|System32)$/i.test(cwd) &&
+      fs.existsSync(cwd);
     const workspaceCwd =
-      (cwd && cwd !== HOME_DIR && fs.existsSync(cwd) ? cwd : null) ||
+      (isUsableCwd ? cwd : null) ||
       prev.workspaceCwd ||
       cwd ||
       HOME_DIR;
@@ -273,6 +281,16 @@ function runLocalConnector(service, wappyUrl, token, detach = false, fallbackUrl
 
 function log(msg) {
   const line = `[${new Date().toISOString()}] [WAPPY Push Bridge] ${msg}\n`;
+  try {
+    // Rotar el log para que nunca crezca sin límite con el paso de los meses
+    if (fs.existsSync(LOG_FILE) && fs.statSync(LOG_FILE).size > LOG_MAX_BYTES) {
+      const oldLog = `${LOG_FILE}.old`;
+      try {
+        if (fs.existsSync(oldLog)) fs.unlinkSync(oldLog);
+      } catch (_) {}
+      fs.renameSync(LOG_FILE, oldLog);
+    }
+  } catch (_) {}
   try {
     fs.appendFileSync(LOG_FILE, line, 'utf8');
   } catch (_) {}
@@ -587,7 +605,7 @@ function discoverLiveLanguageServer() {
  * Si el usuario apagó el PC o cerró Antigravity, lo abre automáticamente y espera hasta 20 segundos
  * a que el `language_server` levante el puerto antes de despachar la orden de Tenshi.
  */
-function ensureLiveAntigravityRunning() {
+function ensureLiveAntigravityRunning(maxWaitSec = 30) {
   let live = discoverLiveLanguageServer();
   if (live.length > 0) {
     return live;
@@ -620,7 +638,7 @@ function ensureLiveAntigravityRunning() {
     } catch (_) {}
   }
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < maxWaitSec; i++) {
     sleepSync(1000);
     live = discoverLiveLanguageServer();
     if (live.length > 0) {
@@ -1240,53 +1258,89 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   }
 
   if (!dispatchedOk) {
-    try {
-      const convDir = path.join(AGY_DIR, 'conversations');
-      const beforeDbs = new Set(
-        fs.existsSync(convDir)
-          ? fs
-              .readdirSync(convDir)
-              .filter((f) => f.endsWith('.db'))
-              .map((f) => f.replace(/\.db$/, ''))
-          : []
-      );
+    const MAX_ATTEMPTS = 3;
+    let lastError = null;
+    let beforeDbsForAttempt = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !dispatchedOk; attempt++) {
+      try {
+        if (attempt > 1) {
+          log(`🔁 Reintento ${attempt}/${MAX_ATTEMPTS} de la orden ${ordenId} (verificando que Antigravity esté listo)...`);
+          cachedLiveLs = null;
+          ensureLiveAntigravityRunning(45);
+          sleepSync(4000);
+        }
 
-      const newArgs = [
-        'new-conversation',
-        `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
-        prompt,
-      ];
-      const stdout =
-        runAgentApi(bin, newArgs, {
-          timeout: 20000,
-          stdio: 'pipe',
-          cwd: workspaceCwd,
-          env: spawnEnv,
-          encoding: 'utf8',
-        }) || '';
-
-      const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
-      if (createdConvoId) {
-        saveTenshiThreadConversationId(createdConvoId, workspaceCwd);
-        log(
-          `✅ Orden ${ordenId} iniciada en NUEVO hilo dedicado de Tenshi (${createdConvoId}, workspace: ${workspaceCwd}). Las siguientes consultas continuarán en este mismo chat.`
+        const convDir = path.join(AGY_DIR, 'conversations');
+        const beforeDbs = new Set(
+          fs.existsSync(convDir)
+            ? fs
+                .readdirSync(convDir)
+                .filter((f) => f.endsWith('.db'))
+                .map((f) => f.replace(/\.db$/, ''))
+            : []
         );
-      } else {
-        log(`✅ Orden ${ordenId} iniciada en NUEVA conversación de Antigravity (workspace: ${workspaceCwd}).`);
+        beforeDbsForAttempt = beforeDbs;
+
+        const newArgs = [
+          'new-conversation',
+          `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
+          prompt,
+        ];
+        const stdout =
+          runAgentApi(bin, newArgs, {
+            timeout: 20000,
+            stdio: 'pipe',
+            cwd: workspaceCwd,
+            env: spawnEnv,
+            encoding: 'utf8',
+          }) || '';
+
+        dispatchedOk = true;
+        const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
+        if (createdConvoId) {
+          saveTenshiThreadConversationId(createdConvoId, workspaceCwd);
+          log(
+            `✅ Orden ${ordenId} iniciada en NUEVO hilo dedicado de Tenshi (${createdConvoId}, workspace: ${workspaceCwd}, intento ${attempt}). Las siguientes consultas continuarán en este mismo chat.`
+          );
+        } else {
+          log(`✅ Orden ${ordenId} iniciada en NUEVA conversación de Antigravity (workspace: ${workspaceCwd}, intento ${attempt}).`);
+        }
+        jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+          ok: true,
+          conversationId: createdConvoId || 'new',
+          cwd: workspaceCwd,
+          bin,
+          platform: process.platform,
+          version: DAEMON_VERSION,
+          attempt,
+        }).catch(() => {});
+      } catch (err) {
+        lastError = err;
+        // Si el comando expiró pero Antigravity sí alcanzó a crear la conversación, no duplicarla
+        const lateConvoId = beforeDbsForAttempt ? detectNewlyCreatedConversationId(beforeDbsForAttempt, '') : null;
+        if (lateConvoId) {
+          dispatchedOk = true;
+          saveTenshiThreadConversationId(lateConvoId, workspaceCwd);
+          log(`✅ Orden ${ordenId} sí fue creada en Antigravity (${lateConvoId}) pese al error de respuesta: ${err.message}`);
+          jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+            ok: true,
+            conversationId: lateConvoId,
+            cwd: workspaceCwd,
+            bin,
+            platform: process.platform,
+            version: DAEMON_VERSION,
+            attempt,
+          }).catch(() => {});
+          break;
+        }
+        log(`❌ Intento ${attempt}/${MAX_ATTEMPTS} fallido invocando agentapi new-conversation para orden ${ordenId}: ${err.message}`);
       }
-      jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
-        ok: true,
-        conversationId: createdConvoId || 'new',
-        cwd: workspaceCwd,
-        bin,
-        platform: process.platform,
-        version: DAEMON_VERSION,
-      }).catch(() => {});
-    } catch (err) {
-      log(`❌ Error invocando agentapi new-conversation para orden ${ordenId}: ${err.message}`);
+    }
+
+    if (!dispatchedOk) {
       jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
         ok: false,
-        error: err.message,
+        error: lastError?.message || 'Error desconocido',
         cwd: workspaceCwd,
         bin,
         platform: process.platform,
@@ -1296,36 +1350,177 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   }
 }
 
+const HEARTBEAT_FILE = path.join(AGY_DIR, 'wappy-push-daemon.heartbeat');
+const HEARTBEAT_STALE_MS = 5 * 60 * 1000;
+
+function xmlEscape(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function shSingleQuote(str) {
+  return `'${String(str).replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Genera el LaunchAgent de macOS con un lanzador /bin/sh que busca Node.js en varias rutas
+ * (ruta actual, Homebrew Apple Silicon/Intel, sistema, nvm, volta). Si ninguna existe espera 60s
+ * antes de salir para no saturar launchd con reintentos.
+ */
+function buildMacLaunchAgentPlist(nodeBin, scriptToRun) {
+  const q = shSingleQuote(scriptToRun);
+  const launcher = [
+    `for n in ${shSingleQuote(nodeBin)} /opt/homebrew/bin/node /usr/local/bin/node /usr/bin/node "$HOME"/.volta/bin/node "$HOME"/.nvm/versions/node/*/bin/node; do`,
+    `  if [ -x "$n" ]; then exec "$n" ${q} --worker --silent; fi;`,
+    'done;',
+    `echo "[WAPPY Push Bridge] Node.js no encontrado. Reintentando en 60s..." >&2;`,
+    'sleep 60; exit 1',
+  ].join(' ');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>club.wappy.antigravity.bridge</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>${xmlEscape(launcher)}</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>AbandonProcessGroup</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/dev/null</string>
+  <key>StandardErrorPath</key>
+  <string>${xmlEscape(LOG_FILE)}</string>
+</dict>
+</plist>`;
+}
+
+/**
+ * Devuelve el PID del worker si está vivo Y su latido (heartbeat) es reciente; si no, null.
+ */
+function readAliveWorkerPid() {
+  try {
+    if (!fs.existsSync(PID_FILE)) return null;
+    const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
+    if (!pid || pid === process.pid) return null;
+    process.kill(pid, 0);
+    // Verificar que el PID realmente sea un worker de WAPPY (no un proceso ajeno con PID reutilizado)
+    return listOurWorkerPids().includes(pid) ? pid : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function isWorkerHeartbeatFresh() {
+  try {
+    if (!fs.existsSync(HEARTBEAT_FILE)) return false;
+    const ts = parseInt(fs.readFileSync(HEARTBEAT_FILE, 'utf8').trim(), 10);
+    return Boolean(ts) && Date.now() - ts < HEARTBEAT_STALE_MS;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Modo vigilante (--ensure): si el worker está vivo y latiendo, no hace nada.
+ * Si murió o quedó colgado, lo reinicia. Seguro de ejecutar cada pocos minutos.
+ */
+function ensureWorkerRunning() {
+  ensureDirs();
+  const alivePid = readAliveWorkerPid();
+  if (alivePid && isWorkerHeartbeatFresh()) {
+    process.exit(0);
+  }
+  if (alivePid) {
+    // Tras suspender/despertar el equipo el latido puede estar atrasado: dar 70s de gracia antes de reiniciar
+    sleepSync(70000);
+    if (isWorkerHeartbeatFresh()) {
+      process.exit(0);
+    }
+    log(`Vigilante: worker PID ${alivePid} sin latido reciente. Reiniciándolo...`);
+    try {
+      process.kill(alivePid, 'SIGTERM');
+    } catch (_) {}
+  }
+  const scriptToRun = fs.existsSync(DAEMON_SCRIPT_DEST) ? DAEMON_SCRIPT_DEST : __filename;
+  const child = spawn(process.execPath, [scriptToRun, '--worker', '--silent'], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  child.unref();
+  log(`Vigilante: worker iniciado (PID: ${child.pid}).`);
+  process.exit(0);
+}
+
 /**
  * Termina de forma segura cualquier worker anterior para evitar procesos duplicados
  */
 function terminateOtherWorkers() {
-  try {
-    if (fs.existsSync(PID_FILE)) {
-      const oldPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
-      if (oldPid && oldPid !== process.pid) {
-        try {
-          process.kill(oldPid, 'SIGTERM');
-        } catch (_) {}
-      }
+  for (const p of listOurWorkerPids()) {
+    if (p && p !== process.pid) {
+      try {
+        process.kill(p, 'SIGTERM');
+      } catch (_) {}
     }
-  } catch (_) {}
+  }
+}
 
+/**
+ * Lista los PIDs de workers del puente WAPPY verificando su línea de comandos real
+ * (nunca mata un proceso ajeno aunque el sistema haya reutilizado el PID tras un reinicio).
+ */
+function listOurWorkerPids() {
+  const pids = new Set();
+  const workerRegex = /(wappy-push-daemon|wappy-tenshi-listener)\.js.*--worker/;
   if (process.platform === 'darwin' || process.platform === 'linux') {
     try {
-      const pgrepOut = execFileSync('pgrep', ['-f', '(wappy-push-daemon|wappy-tenshi-listener)\\.js.*--worker'], {
-        encoding: 'utf8',
-      });
-      for (const line of pgrepOut.split(/\r?\n/)) {
-        const p = parseInt(line.trim(), 10);
-        if (p && p !== process.pid) {
-          try {
-            process.kill(p, 'SIGTERM');
-          } catch (_) {}
+      const psBin = fs.existsSync('/bin/ps') ? '/bin/ps' : 'ps';
+      const out = execFileSync(psBin, ['-axww', '-o', 'pid=,command='], { encoding: 'utf8', timeout: 4000 });
+      for (const line of out.split(/\r?\n/)) {
+        const m = line.trim().match(/^(\d+)\s+(.*)$/);
+        if (!m) continue;
+        const cmd = m[2];
+        // Solo procesos node reales (excluye el lanzador /bin/sh mientras busca Node.js)
+        if (workerRegex.test(cmd) && !/^\/bin\/sh\b/.test(cmd)) pids.add(parseInt(m[1], 10));
+      }
+    } catch (_) {}
+  } else if (process.platform === 'win32') {
+    try {
+      const out = execFileSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress",
+        ],
+        { encoding: 'utf8', timeout: 8000, windowsHide: true }
+      );
+      if (out && out.trim()) {
+        const parsed = JSON.parse(out.trim());
+        for (const proc of Array.isArray(parsed) ? parsed : [parsed]) {
+          if (workerRegex.test(String(proc?.CommandLine || ''))) pids.add(parseInt(proc.ProcessId, 10));
         }
       }
     } catch (_) {}
   }
+  return Array.from(pids).filter(Boolean);
 }
 
 /**
@@ -1374,57 +1569,41 @@ function installAndStartDaemon(cliArgs) {
   const scriptToRun = fs.existsSync(DAEMON_SCRIPT_DEST) ? DAEMON_SCRIPT_DEST : __filename;
   const nodeBin = process.execPath;
 
-  // 3A. En macOS, registrar y cargar LaunchAgent para arranque automático inmortal (KeepAlive=true + AbandonProcessGroup=true)
+  // 3A. En macOS, registrar LaunchAgent inmortal (KeepAlive) con lanzador resiliente:
+  //     si Node.js se actualiza o cambia de ruta (Homebrew, nvm, instalador oficial), el puente sigue arrancando.
   let startedByLaunchd = false;
   if (process.platform === 'darwin') {
     try {
       const launchAgentsDir = path.join(HOME_DIR, 'Library', 'LaunchAgents');
       fs.mkdirSync(launchAgentsDir, { recursive: true });
       const plistPath = path.join(launchAgentsDir, 'club.wappy.antigravity.bridge.plist');
-      const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>club.wappy.antigravity.bridge</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>${nodeBin}</string>
-    <string>${scriptToRun}</string>
-    <string>--worker</string>
-    <string>--silent</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>KeepAlive</key>
-  <true/>
-  <key>AbandonProcessGroup</key>
-  <true/>
-  <key>StandardOutPath</key>
-  <string>/dev/null</string>
-  <key>StandardErrorPath</key>
-  <string>${LOG_FILE}</string>
-</dict>
-</plist>`;
+      const plistContent = buildMacLaunchAgentPlist(nodeBin, scriptToRun);
+      let previous = '';
+      try {
+        previous = fs.existsSync(plistPath) ? fs.readFileSync(plistPath, 'utf8') : '';
+      } catch (_) {}
       fs.writeFileSync(plistPath, plistContent, 'utf8');
+      // Recargar el trabajo para que launchd aplique la nueva configuración (este instalador corre fuera del grupo del job)
+      if (previous && previous !== plistContent) {
+        try {
+          execFileSync('launchctl', ['unload', plistPath], { stdio: 'ignore' });
+        } catch (_) {}
+      }
       try {
         execFileSync('launchctl', ['load', '-w', plistPath], { stdio: 'ignore' });
       } catch (_) {}
-      sleepSync(800);
-      if (fs.existsSync(PID_FILE)) {
-        const lPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
+      for (let i = 0; i < 10 && !startedByLaunchd; i++) {
+        sleepSync(500);
+        const lPid = readAliveWorkerPid();
         if (lPid) {
-          try {
-            process.kill(lPid, 0);
-            startedByLaunchd = true;
-            console.log(`✅ Puente Reactivo Push WAPPY <-> Antigravity v${DAEMON_VERSION} instalado y activo permanentemente (PID: ${lPid}).`);
-          } catch (_) {}
+          startedByLaunchd = true;
+          console.log(`✅ Puente Reactivo Push WAPPY <-> Antigravity v${DAEMON_VERSION} instalado y activo permanentemente (PID: ${lPid}).`);
         }
       }
     } catch (_) {}
   }
 
-  // 3B. En Windows, registrar lanzador silencioso en Startup y HKCU\...\Run para auto-arranque permanente
+  // 3B. En Windows: lanzador silencioso en Startup + HKCU\...\Run + vigilante del Programador de tareas (cada 10 min)
   if (process.platform === 'win32') {
     try {
       const appData = process.env.APPDATA || path.join(HOME_DIR, 'AppData', 'Roaming');
@@ -1432,8 +1611,11 @@ function installAndStartDaemon(cliArgs) {
       fs.mkdirSync(startupDir, { recursive: true });
       const vbsPath = path.join(startupDir, 'WappyAntigravityBridge.vbs');
       const vbsContent = [
+        'Set fso = CreateObject("Scripting.FileSystemObject")',
         'Set WshShell = CreateObject("WScript.Shell")',
-        `WshShell.Run """${nodeBin}"" ""${scriptToRun}"" --worker --silent", 0, False`,
+        `nodeBin = "${nodeBin}"`,
+        'If Not fso.FileExists(nodeBin) Then nodeBin = "node"',
+        `WshShell.Run """" & nodeBin & """ ""${scriptToRun}"" --ensure --silent", 0, False`,
       ].join('\r\n');
       fs.writeFileSync(vbsPath, vbsContent, 'utf8');
       try {
@@ -1453,10 +1635,29 @@ function installAndStartDaemon(cliArgs) {
           { stdio: 'ignore', windowsHide: true }
         );
       } catch (_) {}
+      // Vigilante: si el worker se cae o se cuelga, el Programador de tareas lo revive (--ensure no duplica procesos)
+      try {
+        execFileSync(
+          'schtasks',
+          [
+            '/Create',
+            '/F',
+            '/SC',
+            'MINUTE',
+            '/MO',
+            '10',
+            '/TN',
+            'WappyAntigravityBridgeWatchdog',
+            '/TR',
+            `wscript.exe "${vbsPath}"`,
+          ],
+          { stdio: 'ignore', windowsHide: true }
+        );
+      } catch (_) {}
     } catch (_) {}
   }
 
-  // 4. Si launchd aún no inició el worker (ej. en Windows/Linux o durante ThrottleInterval), lanzarlo desacoplado
+  // 4. Si launchd aún no inició el worker (Windows/Linux o arranque lento), lanzarlo desacoplado
   if (!startedByLaunchd) {
     const workerArgs = [scriptToRun, '--worker', '--silent'];
     if (wappyUrl) workerArgs.push(`--url=${wappyUrl}`);
@@ -1496,6 +1697,36 @@ function startSseWorker(cliArgs) {
   try {
     fs.writeFileSync(PID_FILE, String(process.pid), 'utf8');
   } catch (_) {}
+  log(`Worker v${DAEMON_VERSION} iniciado (PID: ${process.pid}, Node ${process.version}, ${process.platform}).`);
+
+  // Latido cada 60s: permite al vigilante (--ensure) detectar un worker colgado y reiniciarlo
+  const writeHeartbeat = () => {
+    try {
+      fs.writeFileSync(HEARTBEAT_FILE, String(Date.now()), 'utf8');
+    } catch (_) {}
+  };
+  writeHeartbeat();
+  setInterval(writeHeartbeat, 60000);
+
+  // Protección de memoria para procesos que corren durante semanas: si crece anormalmente, reiniciar limpio
+  setInterval(() => {
+    try {
+      const rssMb = process.memoryUsage().rss / (1024 * 1024);
+      if (rssMb > 400) {
+        log(`Memoria del worker en ${Math.round(rssMb)} MB (> 400 MB). Reiniciando worker de forma limpia...`);
+        if (process.platform !== 'darwin') {
+          const scriptToRun = fs.existsSync(DAEMON_SCRIPT_DEST) ? DAEMON_SCRIPT_DEST : __filename;
+          const child = spawn(process.execPath, [scriptToRun, '--worker', '--silent'], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true,
+          });
+          child.unref();
+        }
+        setTimeout(() => process.exit(0), 1500);
+      }
+    } catch (_) {}
+  }, 10 * 60 * 1000);
 
   if (cliArgs.conversation && /^[0-9a-fA-F-]{36}$/.test(String(cliArgs.conversation).trim())) {
     try {
@@ -1868,14 +2099,13 @@ if (require.main === module) {
       });
   } else if (cliArgs.stop) {
     try {
-      if (fs.existsSync(PID_FILE)) {
-        const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
-        if (pid) process.kill(pid, 'SIGTERM');
-        fs.unlinkSync(PID_FILE);
-      }
+      terminateOtherWorkers();
+      if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);
       console.log('🛑 Puente Reactivo Push WAPPY detenido.');
     } catch (_) {}
     process.exit(0);
+  } else if (cliArgs.ensure) {
+    ensureWorkerRunning();
   } else if (cliArgs.install || cliArgs.daemon || (!cliArgs.worker && !cliArgs.foreground)) {
     installAndStartDaemon(cliArgs);
   } else {
@@ -1890,4 +2120,6 @@ module.exports = {
   resolveAllCredentials,
   sendLocalFileCopyToWappy,
   completeOrderCli,
+  buildMacLaunchAgentPlist,
+  listOurWorkerPids,
 };

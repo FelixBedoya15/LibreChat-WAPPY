@@ -213,12 +213,32 @@ function getStudioTtsModelsFromEnv() {
 }
 
 function getStudioTextModelsFromEnv() {
+  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.6-flash'];
   const envTextIds = getEnvGoogleModelsList().filter(
-    (m) => !m.includes('live') && !m.includes('native-audio') && !m.includes('tts') && !m.includes('transcribe'),
+    (m) =>
+      !m.includes('live') &&
+      !m.includes('native-audio') &&
+      !m.includes('tts') &&
+      !m.includes('transcribe') &&
+      !m.includes('3.8-flash'),
   );
-  return envTextIds.length > 0
-    ? envTextIds
-    : ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+  return Array.from(new Set([...fastDefaults, ...envTextIds]));
+}
+
+function resolveStudioFastTextModels(preferredModel = '') {
+  const cleanPref = String(preferredModel || '')
+    .replace(/^models\//i, '')
+    .trim();
+  const isValidTextPref =
+    cleanPref &&
+    !cleanPref.includes('tts') &&
+    !cleanPref.includes('live') &&
+    !cleanPref.includes('native-audio') &&
+    !cleanPref.includes('transcribe') &&
+    !cleanPref.includes('3.8-flash');
+
+  const baseList = getStudioTextModelsFromEnv();
+  return isValidTextPref ? Array.from(new Set([cleanPref, ...baseList])) : baseList;
 }
 
 const STUDIO_VOICES = [
@@ -1696,17 +1716,17 @@ router.post('/script/enhance', studioAuth, async (req, res) => {
       stylePrompt = '',
       multiSpeaker = false,
       modelName,
+      customKeys,
+      apiKeys,
     } = req.body || {};
     const baseText = text || scriptText || '';
 
-    const envTextModels = getStudioTextModelsFromEnv();
-    const preferredTextModel =
-      (modelName || '').replace('models/', '').trim() ||
-      req.user?.personalization?.geminiModels?.sstManagement ||
-      envTextModels[0] ||
-      'gemini-3.8-flash';
+    const modelsToTry = resolveStudioFastTextModels(
+      modelName || req.user?.personalization?.geminiModels?.sstManagement,
+    );
+    const preferredTextModel = modelsToTry[0] || 'gemini-3.5-flash-lite';
 
-    const { allKeys } = await getCombinedKeysForRequest(req, []);
+    const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
     const promptInstruction = multiSpeaker
       ? `Eres un guionista experto en podcasts y locución neural para Gemini 3.8 Flash TTS.
 Convierte o mejora el siguiente texto en un diálogo dinámico entre dos interlocutores usando exactamente las etiquetas "Alex:" y "Sam:" al inicio de cada intervención.
@@ -1722,10 +1742,11 @@ Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni
     const inputContent = `${promptInstruction}\n\nTEXTO BASE:\n${baseText || 'Crea una introducción impactante sobre cómo la Inteligencia Artificial y la prevención transforman el aprendizaje y la seguridad.'}`;
 
     let enhancedText = '';
+    let usedModel = preferredTextModel;
     if (allKeys.length > 0) {
-      const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
       let lastErr = null;
-      outer: for (const key of allKeys) {
+      const keysToUse = allKeys.slice(0, 4);
+      outer: for (const key of keysToUse) {
         for (const mId of modelsToTry) {
           try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
@@ -1735,12 +1756,13 @@ Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni
                 contents: [{ role: 'user', parts: [{ text: inputContent }] }],
                 generationConfig: { temperature: 0.5 },
               },
-              { timeout: 30000 },
+              { timeout: 10000 },
             );
             const candidateText =
               resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
             if (candidateText.trim()) {
               enhancedText = candidateText.trim();
+              usedModel = mId;
               break outer;
             }
           } catch (e) {
@@ -1766,8 +1788,8 @@ Devuelve ÚNICAMENTE el texto del guion mejorado, sin comentarios adicionales ni
       success: true,
       text: enhancedText,
       scriptText: enhancedText,
-      model: preferredTextModel,
-      usedModel: preferredTextModel,
+      model: usedModel,
+      usedModel,
     });
   } catch (error) {
     logger.error('[WappyStudio Script] Error enhancing script:', error);
@@ -1995,7 +2017,14 @@ router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
   try {
     const {
       scriptText = '',
+      scriptSteps = [],
       headline = '',
+      headlineText = '',
+      badgeText = '',
+      subtitleText = '',
+      accentColor = '',
+      theme = 'dark-tech-hud',
+      effects = [],
       aspectRatio = '9:16',
       hasBaseVideo = false,
       showSubtitles = true,
@@ -2005,9 +2034,10 @@ router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
     } = req.body || {};
 
     const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
+    const effectiveHeadline = headlineText || headline || '';
     const effectiveScript =
       scriptText ||
-      headline ||
+      effectiveHeadline ||
       '¡Atención equipo! Antes de intervenir cualquier tablero o red eléctrica, recuerda que tu vida depende de las Cinco Reglas de Oro. Primero: Cortar de forma efectiva todas las fuentes de tensión. Segundo: Bloquear y etiquetar los aparatos de corte con tu candado personal LOTO. Tercero: Verificar la ausencia de tensión con un detector calibrado. Cuarto: Poner a tierra y en cortocircuito todas las posibles fuentes de corriente. Y quinto: Delimitar y señalizar la zona de trabajo. En WAPPY IA cuidamos lo más valioso: que regreses sano y salvo a casa.';
 
     let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
@@ -2022,6 +2052,12 @@ router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
 
     const scenePlan = buildSmartScenePlanFromScript(effectiveScript, timelineMap.beats, {
       companyName,
+      theme,
+      selectedEffects: Array.isArray(effects) ? effects : [],
+      scriptSteps: Array.isArray(scriptSteps) ? scriptSteps : [],
+      badgeText,
+      headlineText: effectiveHeadline,
+      subtitleText,
     });
 
     let htmlCode = compileAntigravityMasterReelHtml(scenePlan, timelineMap, {
@@ -2029,6 +2065,9 @@ router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
       hasBaseVideo,
       companyName,
       showSubtitles,
+      theme,
+      selectedArtDirection: theme,
+      accentColor,
     });
 
     htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
@@ -2127,25 +2166,35 @@ const ANTIGRAVITY_ART_DIRECTIONS = [
 ];
 
 const ANTIGRAVITY_EFFECTS_CATALOG = [
-  { id: '01-orbit-3d', name: '01 Orbit 3D Pentágono', archetype: 'pentagon-orbital' },
-  { id: '02-frame-break', name: '02 Frame Break 3D', archetype: 'tenshi-specialists-grid' },
-  { id: '03-ui-world', name: '03 UI World & Tenshi Grid', archetype: 'tenshi-specialists-grid' },
-  { id: '04-digital-zoom', name: '04 Digital Zoom con Retícula', archetype: 'chart-grow-math' },
-  { id: '05-phone-island', name: '05 iPhone Mockup Dynamic Island', archetype: 'iphone-split-showcase' },
-  { id: '06-headline-wall', name: '06 Headline Wall & VS Hook', archetype: 'hook-vs-wall' },
-  { id: '07-zoom-through', name: '07 Zoom-Through Inmersivo', archetype: 'pentagon-orbital' },
-  { id: '08-chart-grow', name: '08 Chart Grow & Motor Analítico', archetype: 'chart-grow-math' },
-  { id: '09-doodle-boil', name: '09 Doodle / Firma SVG en Vivo', archetype: 'signature-pad-live' },
-  { id: '10-glass-type', name: '10 Glass Type HUD', archetype: 'tenshi-specialists-grid' },
-  { id: '11-giro-3d', name: '11 Giro 3D Orbital', archetype: 'pentagon-orbital' },
-  { id: '12-couch-wall', name: '12 Social Bubbles & CTA Viral', archetype: 'cta-viral-bubbles' },
-  { id: '13-checklist-live', name: '13 Checklist & Pad LOTO', archetype: 'signature-pad-live' },
-  { id: '14-corte-zoom', name: '14 Corte con Zoom & Contraste', archetype: 'hook-vs-wall' },
-  { id: '15-zoom-out', name: '15 Zoom Out Panorámico', archetype: 'cta-viral-bubbles' },
-  { id: '16-green-screen', name: '16 Split Showcase & QR Scan', archetype: 'iphone-split-showcase' },
-  { id: '17-paper-cut', name: '17 Expediente Legal & Firma', archetype: 'signature-pad-live' },
-  { id: '18-vertigo-dolly', name: '18 Vértigo Dolly Zoom', archetype: 'pentagon-orbital' },
-  { id: '19-cover-story', name: '19 Portada Magnética 2s', archetype: 'hook-vs-wall' },
+  { id: '19-cover-2s', name: '19 Portada Magnética (2s)', archetype: 'hook-vs-wall', description: 'Miniatura de alto impacto (0.0s-2.0s) con titular gigante e insignias clave.' },
+  { id: 'felix-voxel-3d', name: 'Avatar 3D Lip-Sync', archetype: 'iphone-split-showcase', description: 'Presentador Avatar 3D con gestos y sincronía labial reactiva al audio.' },
+  { id: 'tenshi-3d', name: 'Tenshi 3D', archetype: 'tenshi-specialists-grid', description: 'Oráculo IA flotante con halo esmeralda/cyan y telemetría reactiva.' },
+  { id: '01-orbit', name: '01 Órbita 3D', archetype: 'pentagon-orbital', description: 'Anillo orbital 3D de insignias e iconos gravitatorios alrededor del concepto central.' },
+  { id: '02-frame-break', name: '02 Frame Break', archetype: 'tenshi-specialists-grid', description: 'Ruptura de marco con profundidad 3D y desborde fuera de la tarjeta.' },
+  { id: '04-digital-zoom', name: '04 Digital Zoom', archetype: 'chart-grow-math', description: 'Acercamiento táctico con retícula HUD y mira de precisión sobre datos críticos.' },
+  { id: '05-phone-mockup', name: '05 Mockup iPhone', archetype: 'iphone-split-showcase', description: 'Celular 3D con Dynamic Island mostrando alertas y controles SST en vivo.' },
+  { id: '07-zoom-through', name: '07 Zoom-Through', archetype: 'pentagon-orbital', description: 'Transición inmersiva sin corte atravesando la escena hacia el siguiente punto.' },
+  { id: '08-chart-grow', name: '08 Chart Grow', archetype: 'chart-grow-math', description: 'Barras e indicadores KPI que crecen dinámicamente con rebote spring.' },
+  { id: '10-glass-type', name: '10 Cristal 3D', archetype: 'tenshi-specialists-grid', description: 'Tipografía y tarjetas Glassmorphism con refracción translúcida y borde luminoso.' },
+  { id: '11-giro-3d', name: '11 Giro 3D', archetype: 'pentagon-orbital', description: 'Rotación en perspectiva Y/X con destello neón al cambiar de escena.' },
+  { id: '13-checklist-sst', name: '13 Checklist SST', archetype: 'signature-pad-live', description: 'Lista secuencial 1-2-3 con verificación animada y sello de cumplimiento.' },
+  { id: '17-paper-cut', name: '17 Paper Cut', archetype: 'signature-pad-live', description: 'Recorte editorial en capas con textura y sombra proyectada.' },
+  { id: '18-dolly-zoom', name: '18 Dolly Zoom', archetype: 'pentagon-orbital', description: 'Efecto vértigo cinematográfico contrayendo el fondo mientras destaca el titular.' },
+  { id: 'visor-normativo', name: 'Visor Normativo Subrayado', archetype: 'signature-pad-live', description: 'Expediente legal (Decreto 1072 / Res. 0312) con resaltador fluorescente en vivo.' },
+  { id: 'pentagono-gtc45', name: 'Pentágono GTC-45', archetype: 'pentagon-orbital', description: 'Radar pentagonal de peligros y valoración de riesgos GTC-45.' },
+  { id: 'sfx-pack', name: 'SFX Whoosh+Pop+Ding', archetype: 'cta-viral-bubbles', description: 'Diseño sonoro sincronizado: whoosh en transiciones, pop en tarjetas y ding en checks.' },
+  { id: '01-orbit-3d', name: '01 Orbit 3D Pentágono', archetype: 'pentagon-orbital', description: 'Órbita 3D pentagonal.' },
+  { id: '03-ui-world', name: '03 UI World & Tenshi Grid', archetype: 'tenshi-specialists-grid', description: 'Mundo de interfaz 3D.' },
+  { id: '05-phone-island', name: '05 iPhone Mockup Dynamic Island', archetype: 'iphone-split-showcase', description: 'Mockup iPhone Dynamic Island.' },
+  { id: '06-headline-wall', name: '06 Headline Wall & VS Hook', archetype: 'hook-vs-wall', description: 'Muro de titulares y contraste VS.' },
+  { id: '09-doodle-boil', name: '09 Doodle / Firma SVG en Vivo', archetype: 'signature-pad-live', description: 'Firma SVG animada.' },
+  { id: '12-couch-wall', name: '12 Social Bubbles & CTA Viral', archetype: 'cta-viral-bubbles', description: 'Burbujas sociales y CTA viral.' },
+  { id: '13-checklist-live', name: '13 Checklist & Pad LOTO', archetype: 'signature-pad-live', description: 'Checklist interactivo en vivo.' },
+  { id: '14-corte-zoom', name: '14 Corte con Zoom & Contraste', archetype: 'hook-vs-wall', description: 'Corte dinámico con zoom.' },
+  { id: '15-zoom-out', name: '15 Zoom Out Panorámico', archetype: 'cta-viral-bubbles', description: 'Zoom out panorámico.' },
+  { id: '16-green-screen', name: '16 Split Showcase & QR Scan', archetype: 'iphone-split-showcase', description: 'Pantalla dividida y QR.' },
+  { id: '18-vertigo-dolly', name: '18 Vértigo Dolly Zoom', archetype: 'pentagon-orbital', description: 'Efecto vértigo.' },
+  { id: '19-cover-story', name: '19 Portada Magnética 2s', archetype: 'hook-vs-wall', description: 'Portada magnética de 2s.' },
 ];
 
 /**
@@ -2205,7 +2254,10 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
     const clientsMap = mcpBridge?.antigravityStreamClients;
     if (clientsMap && typeof clientsMap.forEach === 'function') {
       clientsMap.forEach((set, uid) => {
-        const count = set?.size || 0;
+        let count = 0;
+        for (const c of set || []) {
+          if (c?.__wappyClientType !== 'browser') count++;
+        }
         activeListeners += count;
         if (targetUid && String(uid) === targetUid) {
           userListeners += count;
@@ -2267,7 +2319,10 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
     const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
     const clientsMap = mcpBridge?.antigravityStreamClients;
     const userSet = clientsMap && typeof clientsMap.get === 'function' ? clientsMap.get(String(targetUserId)) : null;
-    const listenerCount = userSet?.size || 0;
+    let listenerCount = 0;
+    for (const c of userSet || []) {
+      if (c?.__wappyClientType !== 'browser') listenerCount++;
+    }
 
     if (listenerCount === 0 && !req.body?.forceDelegateOrder) {
       return { delegated: false, listeners: 0 };
@@ -2660,17 +2715,20 @@ router.get('/antigravity/status', studioAuth, async (req, res) => {
 
 /**
  * POST /api/studio/antigravity/super-prompt
- * Construye el Super-Prompt Maestro de las 7 Piezas + Guión Estructurado por Escenas (60 FPS)
- * integrando las 5 Skills oficiales de video de WAPPY IA y Google Antigravity.
+ * Construye con Inteligencia Artificial (Gemini) el Super-Prompt Maestro de las 7 Piezas + Escaleta Estructurada por Escenas (60 FPS)
+ * integrando TODA la información recolectada en la interfaz (guion TTS, escaleta de tiempos y pausas, dirección de arte,
+ * efectos seleccionados, insignia, titular, subtítulo, color de acento, voz, estilo vocal e instrucciones del usuario).
  */
 router.post('/antigravity/super-prompt', studioAuth, async (req, res) => {
   try {
     const {
       idea = '',
       prompt = '',
+      userPrompt = '',
       scriptText = '',
       scriptSteps = [],
-      selectedArtDirection = 'dark-tech-hud',
+      selectedArtDirection = '',
+      artDirection: bodyArtDirection = '',
       theme = '',
       selectedSkillEffects = [],
       selectedEffects = [],
@@ -2680,14 +2738,21 @@ router.post('/antigravity/super-prompt', studioAuth, async (req, res) => {
       badgeText = 'CÁPSULA INTERACTIVA WAPPY',
       headlineText = '',
       subtitleText = '',
-      voiceName = 'Puck',
+      accentColor = '#14b8a6',
+      voiceName = 'Kore',
+      stylePrompt = '',
       companyName = 'WAPPY IA',
       modelName,
       customKeys,
       apiKeys,
     } = req.body || {};
 
-    const artDirection = selectedArtDirection || theme || 'dark-tech-hud';
+    const artDirection =
+      selectedArtDirection || bodyArtDirection || theme || 'dark-tech-hud';
+    const artMeta =
+      ANTIGRAVITY_ART_DIRECTIONS.find((a) => a.id === artDirection) ||
+      ANTIGRAVITY_ART_DIRECTIONS[0];
+
     const chosenEffects =
       Array.isArray(selectedSkillEffects) && selectedSkillEffects.length > 0
         ? selectedSkillEffects
@@ -2695,37 +2760,55 @@ router.post('/antigravity/super-prompt', studioAuth, async (req, res) => {
           ? selectedEffects
           : Array.isArray(effects) && effects.length > 0
             ? effects
-            : ['19-cover-story', '05-phone-island', '13-checklist-live', '08-chart-grow', '01-orbit-3d', '12-couch-wall'];
+            : [
+                '19-cover-2s',
+                'felix-voxel-3d',
+                '05-phone-mockup',
+                '07-zoom-through',
+                '13-checklist-sst',
+                'sfx-pack',
+              ];
 
-    const safeDuration = Math.max(8, Math.min(180, Number(durationSeconds) || 30));
+    const chosenEffectsDetailed = chosenEffects.map((effId) => {
+      const found = ANTIGRAVITY_EFFECTS_CATALOG.find(
+        (item) =>
+          item.id === effId ||
+          item.name.toLowerCase() === String(effId || '').toLowerCase(),
+      );
+      return found
+        ? `${found.name} (${found.id}: ${found.description || found.archetype})`
+        : String(effId);
+    });
+
+    const safeDuration = Math.max(8, Math.min(180, Number(durationSeconds) || 28));
+    const customUserDirective = String(userPrompt || idea || prompt || '').trim();
     const seedTopic =
-      String(scriptText || idea || prompt || headlineText || '').trim() ||
+      String(scriptText || customUserDirective || headlineText || '').trim() ||
       'Las 5 Reglas de Oro y prevención inteligente en Seguridad y Salud en el Trabajo con WAPPY IA';
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
-    const envTextModels = getStudioTextModelsFromEnv();
-    const preferredTextModel =
-      (modelName || '').replace('models/', '').trim() ||
-      req.user?.personalization?.geminiModels?.sstManagement ||
-      envTextModels[0] ||
-      'gemini-3.8-flash';
+    const modelsToTry = resolveStudioFastTextModels(
+      modelName || req.user?.personalization?.geminiModels?.sstManagement,
+    );
+    const keysToTry = allKeys.slice(0, 4);
 
     let structuredScript = String(scriptText || '').trim();
+    let usedModel = modelsToTry[0] || 'gemini-3.5-flash-lite';
+    let usedAi = false;
 
-    // Si el usuario solo dio una idea corta o aún no tiene un guión completo por pasos, generarlo con Gemini
+    // 1. Si el guión está vacío o es muy corto (< 18 palabras), pedir a Gemini que redacte la locución completa primero
     if (!structuredScript || structuredScript.split(/\s+/).length < 18) {
       const targetWords = Math.max(35, Math.round(safeDuration * 2.4));
       const scriptPrompt = `Eres el Director Creativo de WAPPY IA y Google Antigravity.
-Escribe un guión de locución en español de aproximadamente ${targetWords} palabras (para ${safeDuration} segundos), dividido en 5 a 6 párrafos cortos separados por salto de línea, sobre: "${seedTopic}".
+Escribe un guión de locución en español de aproximadamente ${targetWords} palabras (para ${safeDuration} segundos), dividido en 4 a 6 párrafos cortos separados por salto de línea, sobre: "${seedTopic}".
 Reglas obligatorias:
-1. El primer párrafo (0.00s - 3.50s) debe ser un gancho magnético de alto impacto.
-2. Los párrafos intermedios deben empezar con conectores claros ("Primero:", "Segundo:", "Tercero:", "Cuarto:") explicando acciones concretas y normativa verificada (SG-SST, Resolución 0312, Decreto 1072 o GTC 45).
-3. El último párrafo debe ser un cierre inspirador con llamado a la acción ("SOMOS SST con WAPPY IA").
-4. Devuelve ÚNICAMENTE el texto limpio de la locución separado por saltos de línea, sin títulos ni acotaciones entre corchetes.`;
+1. El primer párrafo (0.00s - 2.00s) debe ser un gancho magnético de alto impacto.
+2. Los párrafos intermedios deben desarrollar los puntos clave con lenguaje claro, preciso y profesional.
+3. El último párrafo debe ser un cierre inspirador con llamado a la acción.
+4. Devuelve ÚNICAMENTE el texto limpio de la locución separado por saltos de línea, sin títulos ni acotaciones.`;
 
-      if (allKeys.length > 0) {
-        const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
-        outerLoop: for (const key of allKeys) {
+      if (keysToTry.length > 0) {
+        outerScriptLoop: for (const key of keysToTry) {
           for (const mId of modelsToTry) {
             try {
               const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
@@ -2735,16 +2818,18 @@ Reglas obligatorias:
                   contents: [{ role: 'user', parts: [{ text: scriptPrompt }] }],
                   generationConfig: { temperature: 0.45 },
                 },
-                { timeout: 18000 },
+                { timeout: 8500 },
               );
               const candidate =
                 resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
               if (candidate.trim().length > 30) {
                 structuredScript = stripVoiceStyleLeakageFromScript(candidate.trim());
-                break outerLoop;
+                usedModel = mId;
+                usedAi = true;
+                break outerScriptLoop;
               }
             } catch (_) {
-              /* try next key/model */
+              /* try next */
             }
           }
         }
@@ -2762,7 +2847,7 @@ Reglas obligatorias:
     }
 
     const timelineMap = computeServerScriptTimelineMap(structuredScript, safeDuration);
-    const scenesBreakdown = buildSmartScenePlanFromScript(structuredScript, timelineMap.beats, {
+    const baseScenes = buildSmartScenePlanFromScript(structuredScript, timelineMap.beats, {
       companyName,
       selectedEffects: chosenEffects,
       scriptSteps,
@@ -2771,31 +2856,237 @@ Reglas obligatorias:
       subtitleText,
     });
 
+    // 2. SIEMPRE invocar a Gemini IA con TODA la información recolectada para diseñar el Super-Prompt de las 7 Piezas + Escaleta Cinematográfica
+    const currentStepsContext =
+      Array.isArray(scriptSteps) && scriptSteps.length > 0
+        ? scriptSteps
+            .map(
+              (s, i) =>
+                `  Tramo ${i + 1} [${s.timeRange || `${baseScenes[i]?.startSec || 0}s-${baseScenes[i]?.endSec || 5}s`}] | Título actual: "${s.title || ''}" | Efecto: "${s.visualEffect || s.effect || ''}" | Locución/Pausas: "${s.narration || s.voiceover || s.text || ''}"`,
+            )
+            .join('\n')
+        : '  (Sin tramos manuales previos; estructurar según los beats del guion)';
+
+    const beatsContext = timelineMap.beats
+      .map(
+        (b, idx) =>
+          `  Beat ${idx + 1} [${b.startSec}s - ${b.endSec}s] (Duración: ${b.durationSec}s | Efecto sugerido: ${chosenEffects[idx % chosenEffects.length]}): "${b.text}"`,
+      )
+      .join('\n');
+
+    const superPromptAiInstruction = `Eres el Director de Arte y Arquitecto Principal de Motion Graphics 60-FPS de WAPPY IA y Google Antigravity.
+Tu misión es analizar TODA la información recolectada del usuario en WAPPY Studio y generar un Super-Prompt Técnico Maestro (Sistema de las 7 Piezas) y la Escaleta Cinematográfica enriquecida para nuestro motor HTML5 + GSAP + Three.js a 60 FPS.
+
+DATOS RECOLECTADOS DE LA INTERFAZ DEL USUARIO:
+- Formato y Resolución: ${aspectRatio} (${aspectRatio === '16:9' ? '1920x1080 Horizontal YouTube/LMS' : '1080x1920 Vertical Reels/TikTok'}) a 60 FPS
+- Duración Total Sincronizada: ${safeDuration} segundos
+- Dirección de Arte Seleccionada: ${artMeta.name} (ID: ${artDirection} | Paleta: ${artMeta.palette.join(', ')})
+- Color de Acento Seleccionado: ${accentColor}
+- Insignia Superior (Badge): "${badgeText || 'CÁPSULA INTERACTIVA WAPPY'}"
+- Titular Principal de Portada: "${headlineText || ''}"
+- Subtítulo de Capa: "${subtitleText || ''}"
+- Voz Neural Seleccionada: ${voiceName} ${stylePrompt ? `(Estilo vocal: ${stylePrompt})` : ''}
+- Efectos Virales Antigravity Seleccionados (${chosenEffects.length}):
+  ${chosenEffectsDetailed.join('\n  ')}
+${customUserDirective ? `- Instrucción / Idea Adicional del Usuario: "${customUserDirective}"` : ''}
+
+GUION COMPLETO DE LOCUCIÓN:
+"""
+${structuredScript}
+"""
+
+ESCALETA DE TIEMPOS Y PAUSAS CONFIGURADA POR EL USUARIO:
+${currentStepsContext}
+
+BEATS ACÚSTICOS PONDERADOS (${timelineMap.beats.length} escenas):
+${beatsContext}
+
+REGLAS OBLIGATORIAS DE DIRECCIÓN DE ARTE WAPPY IA:
+1. NUNCA uses nombres propios como "Félix" ni etiquetas promocionales como "¡GRATIS!". Nombra siempre al presentador como "Avatar 3D".
+2. La Escena 1 debe iniciar con la Portada Magnética (0.0s - 2.0s) con titular de alto impacto e insignias técnicas coherentes con el guion.
+3. Adapta todos los títulos, tarjetas comparativas (riesgo vs solución), nodos e instrucciones de cámara 100% al tema real del guion (no uses textos genéricos si el guion habla de un tema específico).
+4. En cada escena incluye etiquetas de respiración y pausa vocal (\`[pausa 0.5s]\`, \`<breath>\`) para sincronía labial del Avatar 3D.
+
+Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) con esta estructura exacta:
+{
+  "conceptTitle": "Título creativo y técnico específico para esta producción",
+  "executiveCreativeDirection": "Párrafo detallado (3-4 líneas) explicando la atmósfera visual, iluminación, uso de la paleta ${artDirection}, tipografía y narrativa visual específica para este guion",
+  "avatarChoreography": "Instrucción precisa de cómo actúa el Avatar 3D, sincronía labial con la voz ${voiceName} y gestos hacia las tarjetas en cada cambio de escena",
+  "normativeAndTechnicalFocus": ["Concepto o norma clave 1 extraída del guion", "Concepto o norma clave 2", "Concepto o norma clave 3"],
+  "soundAndPacingDesign": "Estrategia de ritmo, pausas dramáticas y efectos sonoros (whoosh, pop, ding) para los ${safeDuration}s",
+  "scenes": [
+    {
+      "stepNumber": 1,
+      "timeRange": "0.0s-2.0s",
+      "title": "Título potente de la escena",
+      "eyebrow": "INSIGNIA CORTA EN MAYÚSCULAS (máx 28 chars)",
+      "titleBefore": "2-3 palabras iniciales (máx 22 chars)",
+      "titleHighlight": "Concepto clave resaltado (máx 20 chars)",
+      "highlightStyle": "lime",
+      "narration": "Texto exacto de locución de este tramo con [pausa 0.5s] y <breath>",
+      "visualEffect": "Nombre del efecto aplicado de la lista seleccionada",
+      "archetype": "hook-vs-wall | iphone-split-showcase | signature-pad-live | chart-grow-math | pentagon-orbital | tenshi-specialists-grid | cta-viral-bubbles",
+      "cameraAndMotion": "Descripción técnica de la transición GSAP, movimiento de cámara 3D, entrada elástica E.spring y elementos en pantalla en este tramo",
+      "badCardTitle": "Riesgo o problema específico de este tramo (máx 26 chars)",
+      "badCardDesc": "Consecuencia real en 1 línea (máx 58 chars)",
+      "goodCardTitle": "Solución o control clave (máx 26 chars)",
+      "goodCardDesc": "Beneficio concreto en 1 línea (máx 58 chars)",
+      "sideCards": [
+        { "icon": "⚡", "title": "Punto clave 1 (máx 24 chars)", "desc": "Detalle específico (máx 48 chars)" },
+        { "icon": "🔒", "title": "Punto clave 2 (máx 24 chars)", "desc": "Detalle específico (máx 48 chars)" },
+        { "icon": "🛡️", "title": "Punto clave 3 (máx 24 chars)", "desc": "Detalle específico (máx 48 chars)" }
+      ]
+    }
+  ]
+}`;
+
+    let aiParsed = null;
+    if (keysToTry.length > 0) {
+      outerAiLoop: for (const key of keysToTry) {
+        for (const mId of modelsToTry) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
+            const resp = await axios.post(
+              url,
+              {
+                contents: [{ role: 'user', parts: [{ text: superPromptAiInstruction }] }],
+                generationConfig: {
+                  temperature: 0.4,
+                  responseMimeType: 'application/json',
+                },
+              },
+              { timeout: 9500 },
+            );
+            const rawText =
+              resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+            const cleaned = rawText
+              .replace(/^```json\s*/i, '')
+              .replace(/^```\s*/i, '')
+              .replace(/\s*```$/i, '')
+              .trim();
+            const firstBrace = cleaned.indexOf('{');
+            const lastBrace = cleaned.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace > firstBrace) {
+              const candidateObj = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+              if (
+                candidateObj &&
+                (candidateObj.executiveCreativeDirection || Array.isArray(candidateObj.scenes))
+              ) {
+                aiParsed = candidateObj;
+                usedModel = mId;
+                usedAi = true;
+                break outerAiLoop;
+              }
+            }
+          } catch (_) {
+            /* try next model/key */
+          }
+        }
+      }
+    }
+
+    const aiScenes = Array.isArray(aiParsed?.scenes) ? aiParsed.scenes : [];
+
+    // 3. Combinar las escenas generadas por Gemini IA con las métricas de tiempo deterministas
+    const scenesBreakdown = baseScenes.map((sc, idx) => {
+      const aiSc = aiScenes[idx] || {};
+      const userStep =
+        Array.isArray(scriptSteps) && scriptSteps[idx] && typeof scriptSteps[idx] === 'object'
+          ? scriptSteps[idx]
+          : null;
+      const chosenEffId = chosenEffects[idx % chosenEffects.length];
+      const catalogEff = ANTIGRAVITY_EFFECTS_CATALOG.find((e) => e.id === chosenEffId);
+      const effectiveVisualEffect =
+        aiSc.visualEffect ||
+        userStep?.visualEffect ||
+        catalogEff?.name ||
+        chosenEffId ||
+        sc.archetype;
+      const resolvedArchetype = resolveArchetypeFromEffect(
+        aiSc.archetype || effectiveVisualEffect || chosenEffId,
+        idx,
+        idx === 0,
+        idx === baseScenes.length - 1,
+      );
+
+      return {
+        ...sc,
+        archetype: resolvedArchetype,
+        visualEffect: effectiveVisualEffect,
+        cameraAndMotion:
+          aiSc.cameraAndMotion ||
+          `Entrada elástica E.spring (60 FPS) con ${effectiveVisualEffect}, tarjetas Glassmorphism y Avatar 3D sincronizado al beat.`,
+        eyebrow: String(aiSc.eyebrow || sc.eyebrow).slice(0, 32),
+        titleBefore: String(aiSc.titleBefore || sc.titleBefore).slice(0, 26),
+        titleHighlight: String(aiSc.titleHighlight || sc.titleHighlight).slice(0, 26),
+        highlightStyle: ['lime', 'cyan', 'red'].includes(aiSc.highlightStyle)
+          ? aiSc.highlightStyle
+          : sc.highlightStyle,
+        badCardTitle: aiSc.badCardTitle || sc.badCardTitle,
+        badCardDesc: aiSc.badCardDesc || sc.badCardDesc,
+        goodCardTitle: aiSc.goodCardTitle || sc.goodCardTitle,
+        goodCardDesc: aiSc.goodCardDesc || sc.goodCardDesc,
+        sideCards:
+          Array.isArray(aiSc.sideCards) && aiSc.sideCards.length >= 3
+            ? aiSc.sideCards.slice(0, 3).map((c, cIdx) => ({
+                icon: c.icon || sc.sideCards[cIdx]?.icon || '⚡',
+                title: c.title || sc.sideCards[cIdx]?.title || 'Control Clave',
+                desc: c.desc || sc.sideCards[cIdx]?.desc || '',
+                color: sc.sideCards[cIdx]?.color || 'cyan',
+              }))
+            : sc.sideCards,
+      };
+    });
+
     const normalizedSteps = scenesBreakdown.map((sc, idx) => {
-      const effectId = chosenEffects[idx % chosenEffects.length] || sc.archetype;
+      const aiSc = aiScenes[idx] || {};
+      const startLabel = idx === 0 ? '0.0s' : `${Number(sc.startSec || 0).toFixed(1)}s`;
+      const endLabel =
+        idx === 0 && Number(sc.endSec || 0) < 2.2
+          ? '2.0s'
+          : `${Number(sc.endSec || 0).toFixed(1)}s`;
+      const rawNarration = String(aiSc.narration || sc.subtitle || '').trim();
+      const hasBreath = rawNarration.includes('<breath>');
+      const hasPause = rawNarration.includes('[pausa');
+      const enrichedNarration = `${idx > 0 && !hasPause ? '[pausa 0.5s] ' : ''}${rawNarration}${!hasBreath ? ' <breath>' : ''}`.trim();
+
       return {
         id: `step-${idx + 1}`,
         stepNumber: idx + 1,
         type: idx === 0 ? 'HOOK' : idx === scenesBreakdown.length - 1 ? 'CTA' : 'BODY',
         tag: sc.eyebrow,
-        badgeText: idx === 0 ? badgeText || 'CÁPSULA INTERACTIVA WAPPY' : sc.eyebrow,
+        eyebrow: sc.eyebrow,
+        badgeText: idx === 0 ? badgeText || sc.eyebrow : sc.eyebrow,
         headlineText: `${sc.titleBefore} ${sc.titleHighlight}`.trim(),
         titleBefore: sc.titleBefore,
         titleHighlight: sc.titleHighlight,
+        highlightStyle: sc.highlightStyle,
         voiceover: sc.subtitle,
         text: sc.subtitle,
-        narration: sc.subtitle,
-        timeRange: `${Number(sc.startSec || 0).toFixed(1)}s - ${Number(sc.endSec || 0).toFixed(1)}s`,
-        title: `${sc.titleBefore} ${sc.titleHighlight}`.trim(),
-        pauseTag: idx === 0 ? '[pausa 0.5s]' : '[respiración]',
-        visualEffect: effectId,
+        narration: enrichedNarration,
+        timeRange: aiSc.timeRange || `${startLabel}-${endLabel}`,
+        title: aiSc.title || `${sc.titleBefore} ${sc.titleHighlight}`.trim(),
+        pauseTag: idx === 0 ? '[pausa 0.5s]' : '<breath>',
+        visualEffect: sc.visualEffect,
+        cameraAndMotion: sc.cameraAndMotion,
+        badCardTitle: sc.badCardTitle,
+        badCardDesc: sc.badCardDesc,
+        goodCardTitle: sc.goodCardTitle,
+        goodCardDesc: sc.goodCardDesc,
+        sideCards: sc.sideCards,
         startSec: sc.startSec,
         endSec: sc.endSec,
         durationSec: sc.durationSec,
         archetype: sc.archetype,
-        effect: effectId,
+        effect: sc.visualEffect,
       };
     });
+
+    const normativeList =
+      Array.isArray(aiParsed?.normativeAndTechnicalFocus) &&
+      aiParsed.normativeAndTechnicalFocus.length > 0
+        ? aiParsed.normativeAndTechnicalFocus
+        : ['Resolución 0312 de 2019', 'Decreto 1072 de 2015', 'GTC 45', 'Estándar Técnico WAPPY IA'];
 
     const sevenPieces = {
       piece1_artDirection: {
@@ -2803,34 +3094,44 @@ Reglas obligatorias:
         resolution: aspectRatio === '16:9' ? '1920x1080' : '1080x1920',
         fps: 60,
         artDirection,
+        artDirectionName: artMeta.name,
+        accentColor,
       },
       piece2_brandIdentity: {
         primaryLime: '#C7F303',
         deepOlive: '#0E1300',
         sstTeal: '#0D9488',
         cyberDark: '#0C192E',
+        accentColor,
         typography: 'Outfit ExtraBold + Plus Jakarta Sans + JetBrains Mono',
-        avatar: 'Avatar 3D (WappyAvatarVoxel3D Three.js)',
+        avatar: 'Avatar 3D (Three.js Lip-Sync Reactivo)',
       },
       piece3_audienceAndNorms: {
-        audience: 'Líderes SG-SST, Ingenieros HSEQ, Prevencionistas y Gerentes',
-        regulations: ['Resolución 0312 de 2019', 'Decreto 1072 de 2015', 'GTC 45', 'Estándar LOTO / RETIE'],
+        audience: 'Equipos Operativos, Líderes SG-SST, Prevencionistas y Comunidad WAPPY IA',
+        regulations: normativeList,
       },
       piece4_magneticCoverAndScript: {
         coverWindow: '0.00s - 2.00s',
-        badgeText: badgeText || 'CÁPSULA INTERACTIVA WAPPY',
-        headlineText: headlineText || normalizedSteps[0]?.headlineText || 'BLINDAJE SG-SST EN VIVO',
+        badgeText: badgeText || normalizedSteps[0]?.eyebrow || 'CÁPSULA INTERACTIVA WAPPY',
+        headlineText:
+          headlineText ||
+          aiParsed?.conceptTitle ||
+          normalizedSteps[0]?.headlineText ||
+          'PRODUCCIÓN WAPPY STUDIO',
         subtitleText: subtitleText || normalizedSteps[0]?.voiceover || '',
         totalScenes: normalizedSteps.length,
       },
       piece5_motionGraphics60fps: {
         engine: 'Deterministic 60-FPS E.spring + GSAP Timeline + 7 Kinetic Archetypes',
-        selectedEffects: chosenEffects,
+        selectedEffects: chosenEffectsDetailed,
         archetypesSequence: scenesBreakdown.map((s) => s.archetype),
       },
       piece6_soundDesign: {
         voiceName,
-        lipSyncEngine: 'PCM16 RMS 60-FPS Envelope + Real Silence Boundary Alignment',
+        stylePrompt: stylePrompt || 'Narración profesional sincronizada',
+        pacingNotes:
+          aiParsed?.soundAndPacingDesign ||
+          'Sincronía palabra por palabra con envolvente PCM16 RMS a 60 FPS y SFX sutiles (whoosh, pop, ding).',
       },
       piece7_renderPreviews: {
         previewTimestampsSec: [
@@ -2842,17 +3143,22 @@ Reglas obligatorias:
     };
 
     const superPrompt = [
-      `# SUPER-PROMPT MAESTRO GOOGLE ANTIGRAVITY · WAPPY STUDIO (60 FPS)`,
-      `- **Formato:** ${aspectRatio} (${sevenPieces.piece1_artDirection.resolution} a 60 FPS deterministas)`,
-      `- **Dirección de Arte:** \`${artDirection}\` (Skills: \`protocolo-produccion-videos\`, \`animaciones-17-efectos-reels\`, \`animaciones-wappy-brand\`, \`animaciones-dark-tech-hud\`, \`animaciones-explicativas-sst\`)`,
-      `- **Portada Magnética (0.00s - 2.00s):** Badge \`${sevenPieces.piece4_magneticCoverAndScript.badgeText}\` | Titular: "${sevenPieces.piece4_magneticCoverAndScript.headlineText}"`,
-      `- **Avatar 3D:** \`WappyAvatarVoxel3D\` (Three.js Voxel 3D con Lip-Sync reactivo a envolvente PCM16 y gesto de apuntado a tarjetas en los primeros 3.6s de cada escena)`,
-      `- **Efectos Cinéticos Seleccionados:** ${chosenEffects.join(', ')}`,
+      `# SUPER-PROMPT MAESTRO IA · WAPPY STUDIO & GOOGLE ANTIGRAVITY (60 FPS)`,
+      `- **Proyecto:** ${aiParsed?.conceptTitle || sevenPieces.piece4_magneticCoverAndScript.headlineText}`,
+      `- **Motor IA & Formato:** Generado con \`${usedModel}\` • ${aspectRatio} (${sevenPieces.piece1_artDirection.resolution} a 60 FPS) • Duración: ${safeDuration}s`,
+      `- **Pieza 1 & 2 — Dirección de Arte e Identidad:** \`${artMeta.name}\` (\`${artDirection}\` | Paleta: ${artMeta.palette.join(', ')} | Acento: \`${accentColor}\`)`,
+      `  ${aiParsed?.executiveCreativeDirection || `Escenario cinematográfico ${artMeta.name} con tarjetas Glassmorphism de alto contraste, tipografía Outfit ExtraBold y jerarquía limpia sin desbordamiento.`}`,
+      `- **Pieza 3 — Enfoque Técnico y Conceptos Clave:** ${normativeList.join(' • ')}`,
+      `- **Pieza 4 — Portada Magnética (0.00s - 2.00s):** Insignia \`${sevenPieces.piece4_magneticCoverAndScript.badgeText}\` | Titular: "${sevenPieces.piece4_magneticCoverAndScript.headlineText}"${sevenPieces.piece4_magneticCoverAndScript.subtitleText ? ` | Subtítulo: "${sevenPieces.piece4_magneticCoverAndScript.subtitleText}"` : ''}`,
+      `- **Pieza 5 — Coreografía Avatar 3D & Efectos Activos (${chosenEffects.length} FX):**`,
+      `  • **Avatar 3D:** ${aiParsed?.avatarChoreography || `Presentador Avatar 3D en zona segura con sincronía labial PCM16 a 60 FPS con la voz ${voiceName} y gestos dinámicos hacia las tarjetas.`}`,
+      `  • **Efectos Inyectados:** ${chosenEffects.map((id) => ANTIGRAVITY_EFFECTS_CATALOG.find((e) => e.id === id)?.name || id).join(', ')}`,
+      `- **Pieza 6 — Diseño Sonoro y Prosodia (${voiceName}):** ${sevenPieces.piece6_soundDesign.pacingNotes}`,
       ``,
-      `## Escaleta Sincronizada Segundo a Segundo (${normalizedSteps.length} Escenas)`,
+      `## Escaleta Cinematográfica Sincronizada Segundo a Segundo (${normalizedSteps.length} Escenas)`,
       ...normalizedSteps.map(
         (st) =>
-          `${st.stepNumber}. **[${st.startSec}s - ${st.endSec}s | Arquetipo: \`${st.archetype}\` | Efecto: \`${st.effect}\`]**\n   - *Titular HUD:* ${st.tag} — ${st.headlineText}\n   - *Locución:* "${st.voiceover}"`,
+          `${st.stepNumber}. **[${st.timeRange} | Efecto: \`${st.visualEffect}\` | Arquetipo: \`${st.archetype}\`]** — *${st.title}*\n   - **Titular en Pantalla:** \`[${st.eyebrow}]\` ${st.titleBefore} **${st.titleHighlight}**\n   - **Cámara & Motion 60-FPS:** ${st.cameraAndMotion}\n   - **Tarjetas Clave:** ❌ *${st.badCardTitle}* vs ✅ *${st.goodCardTitle}* (${(st.sideCards || []).map((c) => `${c.icon} ${c.title}`).join(' · ')})\n   - **Locución Sincronizada:** "${st.narration}"`,
       ),
     ].join('\n');
 
@@ -2865,6 +3171,8 @@ Reglas obligatorias:
         artDirection,
         durationSeconds: safeDuration,
         scenesCount: normalizedSteps.length,
+        usedAi,
+        usedModel,
       },
       resolvedTarget.userId,
     );
@@ -2872,6 +3180,8 @@ Reglas obligatorias:
     return res.json({
       ok: true,
       success: true,
+      usedAi,
+      usedModel,
       superPrompt,
       structuredScript,
       scriptText: structuredScript,
@@ -2924,16 +3234,14 @@ async function handleGenerateMasterReelHtml(req, res) {
       apiKeys,
     } = req.body || {};
 
-    const envTextModels = getStudioTextModelsFromEnv();
-    const preferredTextModel =
-      (modelName || '').replace('models/', '').trim() ||
-      req.user?.personalization?.geminiModels?.sstManagement ||
-      envTextModels[0] ||
-      'gemini-3.8-flash';
+    const modelsToTry = resolveStudioFastTextModels(
+      modelName || req.user?.personalization?.geminiModels?.sstManagement,
+    );
+    const preferredTextModel = modelsToTry[0] || 'gemini-3.5-flash-lite';
 
     const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
     const stepsScript = Array.isArray(scriptSteps) && scriptSteps.length > 0
-      ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.text || '')).filter(Boolean).join('\n\n')
+      ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.narration || s?.text || '')).filter(Boolean).join('\n\n')
       : '';
     const effectiveScript =
       scriptText ||
@@ -2956,11 +3264,12 @@ async function handleGenerateMasterReelHtml(req, res) {
     }
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
+    const keysToUse = allKeys.slice(0, 4);
+    let usedModel = preferredTextModel;
 
     const aiGeneratorFn = async (planPrompt) => {
-      if (allKeys.length > 0) {
-        const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
-        for (const key of allKeys) {
+      if (keysToUse.length > 0) {
+        for (const key of keysToUse) {
           for (const mId of modelsToTry) {
             try {
               const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
@@ -2973,11 +3282,12 @@ async function handleGenerateMasterReelHtml(req, res) {
                     responseMimeType: 'application/json',
                   },
                 },
-                { timeout: 22000 },
+                { timeout: 9500 },
               );
               const candidateText =
                 resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
               if (candidateText.trim()) {
+                usedModel = mId;
                 return candidateText.trim();
               }
             } catch (_) {
@@ -3047,6 +3357,7 @@ async function handleGenerateMasterReelHtml(req, res) {
         theme: effectiveTheme,
         scenesCount: scenePlan.length,
         durationSeconds: timelineMap.totalDurationSeconds,
+        usedModel,
         ordenId: delegation?.ordenId || null,
       },
       resolvedTarget.userId,
@@ -3056,6 +3367,7 @@ async function handleGenerateMasterReelHtml(req, res) {
       ok: true,
       success: true,
       engine: 'antigravity-master-reel-60fps',
+      usedModel,
       htmlCode,
       timelineMap,
       scenePlan,
@@ -3145,7 +3457,7 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
 
     // Construir reglas CSS adicionales según la instrucción del usuario
     const customCssRules = [];
-    if (/grande|gigante|aumenta.*t[ií]tulo|m[aá]s grande/.test(lowerInst)) {
+    if (/grande|gigante|aumenta.*t[ií]tulo|m[aá]s grande|agranda/.test(lowerInst)) {
       customCssRules.push('.title-hero { font-size: 72px !important; } .sub-hero { font-size: 31px !important; }');
     }
     if (/peque[ñn]o|reduce.*t[ií]tulo/.test(lowerInst)) {
@@ -3171,7 +3483,7 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
     const effectiveScript =
       scriptText ||
       (Array.isArray(scriptSteps) && scriptSteps.length > 0
-        ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.text || '')).filter(Boolean).join('\n\n')
+        ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.narration || s?.text || '')).filter(Boolean).join('\n\n')
         : '') ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
 
@@ -3185,18 +3497,15 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
     }
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
-    const envTextModels = getStudioTextModelsFromEnv();
-    const preferredTextModel =
-      (modelName || '').replace('models/', '').trim() ||
-      req.user?.personalization?.geminiModels?.sstManagement ||
-      envTextModels[0] ||
-      'gemini-3.8-flash';
+    const keysToUse = allKeys.slice(0, 4);
+    const modelsToTry = resolveStudioFastTextModels(
+      modelName || req.user?.personalization?.geminiModels?.sstManagement,
+    );
 
     const aiGeneratorFn = async (planPrompt) => {
       const enrichedPrompt = `${planPrompt}\n\nINSTRUCCIÓN PRIORITARIA DE CORRECCIÓN DEL USUARIO: "${instruction}". Aplica exactamente este cambio en los textos, títulos, badges o datos de las escenas.`;
-      if (allKeys.length > 0) {
-        const modelsToTry = Array.from(new Set([preferredTextModel, ...envTextModels]));
-        for (const key of allKeys) {
+      if (keysToUse.length > 0) {
+        for (const key of keysToUse) {
           for (const mId of modelsToTry) {
             try {
               const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mId)}:generateContent?key=${encodeURIComponent(key)}`;
@@ -3209,7 +3518,7 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
                     responseMimeType: 'application/json',
                   },
                 },
-                { timeout: 22000 },
+                { timeout: 9500 },
               );
               const candidateText =
                 resp.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';

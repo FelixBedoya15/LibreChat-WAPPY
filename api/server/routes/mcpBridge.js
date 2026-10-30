@@ -8628,13 +8628,58 @@ function broadcastAntigravityEvent(userId, eventName, payload) {
   return sentCount;
 }
 
-const CURRENT_DAEMON_VERSION = '2.4.0';
+/**
+ * Cuenta solo los daemons locales reales (PC/Mac del usuario) conectados al stream,
+ * excluyendo las pestañas del navegador (Tenshi / Studio) que también escuchan `orden_completada`.
+ */
+function countAntigravityDaemons(userId) {
+  if (!userId) return 0;
+  const clients = antigravityStreamClients.get(String(userId));
+  if (!clients || clients.size === 0) return 0;
+  let count = 0;
+  for (const clientRes of clients) {
+    if (clientRes.__wappyClientType !== 'browser') count++;
+  }
+  return count;
+}
+
+/**
+ * Versión oficial del daemon leída directamente del archivo servido (bin/wappy-antigravity-daemon.js),
+ * para que el servidor y el daemon nunca queden desincronizados por un olvido manual.
+ */
+let cachedDaemonVersion = null;
+function getCurrentDaemonVersion() {
+  if (cachedDaemonVersion) return cachedDaemonVersion;
+  try {
+    const fs = require('fs');
+    const candidates = [
+      path.resolve(__dirname, '../../../bin/wappy-antigravity-daemon.js'),
+      path.resolve(process.cwd(), 'bin/wappy-antigravity-daemon.js'),
+      '/app/bin/wappy-antigravity-daemon.js',
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        const m = fs.readFileSync(p, 'utf8').match(/const DAEMON_VERSION = '([^']+)'/);
+        if (m) {
+          cachedDaemonVersion = m[1];
+          return cachedDaemonVersion;
+        }
+      }
+    }
+  } catch (_) {}
+  return 'unknown';
+}
+
 const daemonUpdateCooldown = new Map();
 
 router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
     const clientVersion = String(req.query.v || '').trim();
+    const CURRENT_DAEMON_VERSION = getCurrentDaemonVersion();
+    // Los daemons locales se autentican con API Key; el navegador (Tenshi/Studio) con token JWT
+    const isDaemonClient = Boolean(clientVersion || req.query.apiKey || req.headers['x-api-key']);
+    res.__wappyClientType = isDaemonClient ? 'daemon' : 'browser';
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -8651,19 +8696,19 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
     userSet.add(res);
 
     logger.info(
-      `[MCP Bridge] 🟢 Cliente SSE Antigravity conectado para usuario ${targetUserId} (versión: ${clientVersion || 'legacy'}, activos: ${userSet.size})`
+      `[MCP Bridge] 🟢 Cliente SSE Antigravity conectado para usuario ${targetUserId} (tipo: ${res.__wappyClientType}, versión: ${clientVersion || (isDaemonClient ? 'legacy' : 'navegador')}, daemons activos: ${countAntigravityDaemons(targetUserId)})`
     );
 
     res.write(`event: connected\ndata: ${JSON.stringify({ status: 'ok', userId: targetUserId, version: CURRENT_DAEMON_VERSION, timestamp: new Date().toISOString() })}\n\n`);
 
     // Si el daemon conectado en el PC/Mac del usuario tiene una versión anterior, auto-actualizarlo silenciosamente en vivo
-    if (clientVersion !== CURRENT_DAEMON_VERSION) {
+    if (isDaemonClient && clientVersion !== CURRENT_DAEMON_VERSION) {
       const lastSent = daemonUpdateCooldown.get(targetUserId) || 0;
       if (Date.now() - lastSent > 20000) {
         daemonUpdateCooldown.set(targetUserId, Date.now());
         setTimeout(() => {
           try {
-            logger.info(`[MCP Bridge] 🔄 Enviando auto-actualización silenciosa (v${CURRENT_DAEMON_VERSION}) al daemon de usuario ${targetUserId}...`);
+            logger.info(`[MCP Bridge] 🔄 Enviando auto-actualización silenciosa (v${clientVersion || 'legacy'} -> v${CURRENT_DAEMON_VERSION}) al daemon de usuario ${targetUserId}...`);
             res.write(
               `event: launch_connector\ndata: ${JSON.stringify({
                 service: 'notebooklm',
@@ -8676,8 +8721,8 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
           } catch (_) {}
         }, 600);
       }
-    } else {
-      // Si existen órdenes pendientes recién creadas (< 30 min) que aún están en 'todo', empujarlas al conectar
+    } else if (isDaemonClient) {
+      // Si existen órdenes pendientes recién creadas (< 30 min) que aún están en 'todo' (PC estaba apagado), empujarlas al conectar
       try {
         const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
         const pendingTasks = await KanbanTask.find({
@@ -8691,18 +8736,25 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
           .lean();
 
         for (const t of pendingTasks) {
+          const desc = String(t.description || '');
+          const mFormato = desc.match(/Formato Esperado:\s*([a-z_]+)/i);
+          const mInstr = desc.match(/Instrucci[oó]n:\s*([\s\S]*?)(?:\nRecurso Objetivo:|$)/i);
           res.write(
             `event: nueva_orden\ndata: ${JSON.stringify({
               id: t._id.toString(),
               ordenId: t._id.toString(),
               titulo: t.title,
-              instruccion: t.description,
-              descripcion: t.description,
+              instruccion: mInstr ? mInstr[1].trim() : desc,
+              descripcion: desc,
+              formatoEntregable: mFormato ? mFormato[1].toLowerCase() : 'respuesta',
               estado: t.status,
               prioridad: t.priority,
               fechaCreacion: t.createdAt,
             })}\n\n`
           );
+        }
+        if (pendingTasks.length > 0) {
+          logger.info(`[MCP Bridge] 📬 ${pendingTasks.length} orden(es) pendiente(s) reenviada(s) al daemon recién conectado de usuario ${targetUserId}.`);
         }
       } catch (_) {}
     }
@@ -8801,6 +8853,53 @@ router.post('/antigravity/ordenes/:id/dispatch-log', requireApiKeyOrJwt, async (
       logger.info(`[MCP Bridge] ✅ Orden ${ordenId} despachada en Antigravity local de usuario ${targetUserId} (v: ${version || 'legacy'}, convoId: ${conversationId || 'nuevo'}, cwd: ${cwd || 'N/A'}, bin: ${bin || 'N/A'}, OS: ${platform || 'N/A'})`);
     } else {
       logger.error(`[MCP Bridge] ❌ Falló despacho local de orden ${ordenId} en PC de usuario ${targetUserId} (v: ${version || 'legacy'}, OS: ${platform || 'N/A'}, bin: ${bin || 'N/A'}, cwd: ${cwd || 'N/A'}): ${error || 'Error desconocido'}`);
+
+      // Avisar al usuario en Tenshi en vez de quedarse en silencio (cierra el ciclo de la orden)
+      try {
+        if (mongoose.Types.ObjectId.isValid(ordenId)) {
+          const task = await KanbanTask.findOne({ _id: ordenId, user: targetUserId });
+          if (task && task.status !== 'done' && task.status !== 'dismissed') {
+            const rawErr = String(error || '');
+            const antigravityClosed = /no-ls-addr|connection refused|Unavailable|ANTIGRAVITY_LS_ADDRESS is not set|ECONNREFUSED/i.test(rawErr);
+            const friendlyMsg = antigravityClosed
+              ? `⚠️ Tu computador recibió la orden "${task.title}", pero Google Antigravity no logró abrirse a tiempo para procesarla. Abre Antigravity en tu computador y vuelve a pedírmelo; la conexión seguirá activa.`
+              : `⚠️ Tu computador recibió la orden "${task.title}", pero Google Antigravity no pudo procesarla en este momento. Verifica que Antigravity esté abierto e intenta de nuevo en unos segundos.`;
+
+            task.status = 'dismissed';
+            task.deliverable = {
+              formato: 'error',
+              contenido: friendlyMsg,
+              resumen: friendlyMsg,
+              titulo: task.title,
+            };
+            task.description += `\n\n[ERROR DE DESPACHO LOCAL - ${new Date().toISOString()}]\n${rawErr.slice(0, 1500)}`;
+            await task.save();
+
+            let tenshiMsg = null;
+            if (task.sourceModule !== 'agent_tool') {
+              tenshiMsg = await TenshiMessage.create({
+                user: targetUserId,
+                role: 'assistant',
+                content: friendlyMsg,
+              }).catch(() => null);
+            }
+
+            broadcastAntigravityEvent(targetUserId, 'orden_completada', {
+              ordenId: task._id.toString(),
+              title: task.title,
+              formato: 'respuesta',
+              isConversationalReply: true,
+              isOriginalFileCopy: false,
+              messageId: tenshiMsg?._id ? tenshiMsg._id.toString() : `antigravity-error-${Date.now()}`,
+              summary: friendlyMsg,
+              sourceModule: task.sourceModule || 'tenshi_voice',
+              error: true,
+            });
+          }
+        }
+      } catch (notifyErr) {
+        logger.warn('[MCP Bridge] No se pudo notificar el fallo de despacho a Tenshi:', notifyErr.message);
+      }
     }
     return res.json({ ok: true });
   } catch (e) {
@@ -9116,13 +9215,17 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
 
     // Emisión Push instantánea (0 ms) a todos los listeners SSE de Antigravity conectados
     const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload);
-    logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos.`);
+    const daemonsConectados = countAntigravityDaemons(targetUserId);
+    logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos (${daemonsConectados} computador(es) con daemon).`);
 
     return res.status(200).json({
       exito: true,
-      mensaje: `Orden delegada a Antigravity exitosamente mediante Push en tiempo real.`,
+      mensaje: daemonsConectados > 0
+        ? `Orden delegada a Antigravity exitosamente mediante Push en tiempo real.`
+        : `Orden registrada, pero el computador del usuario no está conectado en este momento. Se procesará automáticamente apenas se encienda (válida por 30 minutos).`,
       ordenId: finalOrdenId,
       pushClientesNotificados: pushedListeners,
+      daemonsConectados,
       estado: 'todo',
       detalles: {
         titulo: finalTitle,
@@ -9133,7 +9236,9 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         estado: 'todo',
         empresa: companyName,
       },
-      instruccionAntigravity: `La orden "${finalTitle}" ha sido enviada instantáneamente por Push en tiempo real a Antigravity. Antigravity utilizará sus herramientas MCP para consultar los datos necesarios de la empresa y elaborar el entregable. Confírmale al usuario con seguridad que la orden ya está siendo procesada por Antigravity.`,
+      instruccionAntigravity: daemonsConectados > 0
+        ? `La orden "${finalTitle}" ha sido enviada instantáneamente por Push en tiempo real a Antigravity. Antigravity utilizará sus herramientas MCP para consultar los datos necesarios de la empresa y elaborar el entregable. Confírmale al usuario con seguridad que la orden ya está siendo procesada por Antigravity.`
+        : `La orden "${finalTitle}" quedó registrada, pero el computador del usuario NO está conectado ahora mismo (está apagado o sin internet). Infórmale con honestidad que Antigravity la procesará automáticamente apenas encienda su computador (dentro de los próximos 30 minutos).`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error delegando orden a Antigravity:', error);
@@ -10271,6 +10376,7 @@ router.post('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
 });
 
 router.broadcastAntigravityEvent = broadcastAntigravityEvent;
+router.countAntigravityDaemons = countAntigravityDaemons;
 router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
 router.getActiveCompany = getActiveCompany;
 router.antigravityStreamClients = antigravityStreamClients;

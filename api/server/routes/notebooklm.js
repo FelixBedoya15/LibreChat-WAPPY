@@ -772,7 +772,7 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 const https = require('https');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const daemonUrl = ${JSON.stringify(effectiveOrigin)} + '/api/mcp-bridge/antigravity/daemon.js';
 const parsed = new URL(daemonUrl);
@@ -791,48 +791,26 @@ client.get(parsed, (res) => {
       fs.mkdirSync(agyDir, { recursive: true });
       const dest = path.join(agyDir, 'wappy-push-daemon.js');
       const listenerDest = path.join(agyDir, 'wappy-tenshi-listener.js');
-      const logFile = path.join(agyDir, 'wappy-push-daemon.log');
-      fs.writeFileSync(dest, code, { encoding: 'utf8', mode: 0o755 });
-      fs.writeFileSync(listenerDest, code, { encoding: 'utf8', mode: 0o755 });
+      const tmpDest = path.join(agyDir, 'wappy-push-daemon.update.js');
+      fs.writeFileSync(tmpDest, code, { encoding: 'utf8', mode: 0o755 });
 
-      if (process.platform === 'darwin') {
-        try {
-          const launchAgentsDir = path.join(homeDir, 'Library', 'LaunchAgents');
-          fs.mkdirSync(launchAgentsDir, { recursive: true });
-          const plistPath = path.join(launchAgentsDir, 'club.wappy.antigravity.bridge.plist');
-          const plistContent = \`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>club.wappy.antigravity.bridge</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>\${process.execPath}</string>
-    <string>\${dest}</string>
-    <string>--worker</string>
-    <string>--silent</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>KeepAlive</key>
-  <true/>
-  <key>AbandonProcessGroup</key>
-  <true/>
-  <key>StandardOutPath</key>
-  <string>/dev/null</string>
-  <key>StandardErrorPath</key>
-  <string>\${logFile}</string>
-</dict>
-</plist>\`;
-          fs.writeFileSync(plistPath, plistContent, 'utf8');
-        } catch (_) {}
+      // Validar que el archivo descargado sea JavaScript sintácticamente correcto antes de reemplazar nada
+      const check = spawnSync(process.execPath, ['--check', tmpDest], { stdio: 'ignore', windowsHide: true });
+      if (check.status !== 0) {
+        try { fs.unlinkSync(tmpDest); } catch (_) {}
+        process.exit(0);
       }
+      fs.copyFileSync(tmpDest, dest);
+      fs.copyFileSync(tmpDest, listenerDest);
+      try { fs.unlinkSync(tmpDest); } catch (_) {}
+      try { fs.chmodSync(dest, 0o755); fs.chmodSync(listenerDest, 0o755); } catch (_) {}
 
-      const child = spawn(process.execPath, [dest, '--worker', '--silent'], {
+      // Reinstalar con la lógica oficial del propio daemon (LaunchAgent / Startup / Programador de tareas)
+      const child = spawn(process.execPath, [dest, '--install', '--from-update'], {
         detached: true,
         stdio: 'ignore',
         windowsHide: true,
+        cwd: homeDir,
       });
       child.unref();
     } catch (_) {}
