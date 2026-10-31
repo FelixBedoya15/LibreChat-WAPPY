@@ -459,7 +459,7 @@ export default function WappyCassetteWalkmanPlayer({
             </span>
           </div>
           <div className="text-xs font-black tracking-tight leading-tight mt-1 truncate">
-            {title || '24kHz NEURAL STEREO • GEMINI 3.8 FLASH TTS'}
+            {title || '24kHz STEREO MASTER • SOMOS SST DAILY'}
           </div>
           <div className="flex items-center justify-between text-[9px] font-bold opacity-85 mt-1">
             <span className="truncate">
@@ -742,7 +742,6 @@ export default function WappyCassetteWalkmanPlayer({
             icon={<Download />}
             label="Descargar WAV"
             variant="green"
-            alwaysExpanded
             disabled={!src}
             onClick={handleDownload}
           />

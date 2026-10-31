@@ -269,7 +269,7 @@ export default function PublicConvivencia() {
               </div>
 
               {/* Modalidad Anónima o Identificada */}
-              <div className="p-3.5 bg-surface-secondary/50 dark:bg-slate-800/40 border border-border-medium rounded-2xl flex items-center justify-between">
+              <div className="p-3.5 bg-surface-secondary dark:bg-slate-800/40 border border-border-medium rounded-2xl flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-text-primary">¿Deseas radicar de forma anónima?</p>
                   <p className="text-[10px] text-text-secondary">Si activas esto, no se solicitará tu nombre ni cédula.</p>
@@ -312,7 +312,7 @@ export default function PublicConvivencia() {
                         value={denuncianteNombre}
                         onChange={e => setDenuncianteNombre(e.target.value)}
                         placeholder="Tu nombre completo"
-                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                       />
                     </div>
                     <div>
@@ -322,7 +322,7 @@ export default function PublicConvivencia() {
                         value={denuncianteCedula}
                         onChange={e => setDenuncianteCedula(e.target.value)}
                         placeholder="Número de documento"
-                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                       />
                     </div>
                   </div>
@@ -334,7 +334,7 @@ export default function PublicConvivencia() {
                         value={denuncianteCargo}
                         onChange={e => setDenuncianteCargo(e.target.value)}
                         placeholder="Tu cargo actual"
-                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                       />
                     </div>
                     <div>
@@ -344,7 +344,7 @@ export default function PublicConvivencia() {
                         value={denuncianteContacto}
                         onChange={e => setDenuncianteContacto(e.target.value)}
                         placeholder="Para notificar avances de forma confidencial"
-                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                        className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                       />
                     </div>
                   </div>
@@ -365,7 +365,7 @@ export default function PublicConvivencia() {
                       onChange={e => setPersonaReportada(e.target.value)}
                       placeholder="Nombre y apellido"
                       required
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     />
                   </div>
                   <div>
@@ -375,7 +375,7 @@ export default function PublicConvivencia() {
                       value={cargoPersonaReportada}
                       onChange={e => setCargoPersonaReportada(e.target.value)}
                       placeholder="Ej: Supervisor, Jefe Directo, Compañero"
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -394,7 +394,7 @@ export default function PublicConvivencia() {
                       type="date"
                       value={fechaHechos}
                       onChange={e => setFechaHechos(e.target.value)}
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     />
                   </div>
                   <div>
@@ -404,7 +404,7 @@ export default function PublicConvivencia() {
                       value={lugarHechos}
                       onChange={e => setLugarHechos(e.target.value)}
                       placeholder="Ej: Oficina 3, Pasillo, Vía pública"
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -417,7 +417,7 @@ export default function PublicConvivencia() {
                     onChange={e => setDescripcionHechos(e.target.value)}
                     placeholder="Describe claramente lo ocurrido, palabras expresadas, conductas observadas o actitudes manifestadas..."
                     required
-                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -428,7 +428,7 @@ export default function PublicConvivencia() {
                     value={testigos}
                     onChange={e => setTestigos(e.target.value)}
                     placeholder="Nombres de personas que presenciaron los hechos..."
-                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -439,7 +439,7 @@ export default function PublicConvivencia() {
                     value={peticionOProteccion}
                     onChange={e => setPeticionOProteccion(e.target.value)}
                     placeholder="Ej: Cambio de turno, reubicación de puesto, cese inmediato de hostigamiento"
-                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                   />
                 </div>
               </div>

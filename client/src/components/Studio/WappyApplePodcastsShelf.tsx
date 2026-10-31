@@ -7,6 +7,7 @@ import {
   Edit3,
   Trash2,
 } from 'lucide-react';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 export interface PodcastShowPreset {
   id: string;
@@ -461,22 +462,22 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
               🎧 Master WAV 24kHz · Mín. 5 Min
             </span>
             <div className="flex items-center gap-1.5">
-              <button
-                type="button"
+              <ExpandableButton
+                size="sm"
+                icon={<ChevronLeft />}
+                label="Anterior"
+                variant="neutral"
                 onClick={() => scrollCarousel('left')}
                 title="Desplazar cápsulas a la izquierda"
-                className="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-[#c7f303] text-slate-200 hover:text-[#0e1300] border border-slate-600/70 flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
+              />
+              <ExpandableButton
+                size="sm"
+                icon={<ChevronRight />}
+                label="Siguiente"
+                variant="neutral"
                 onClick={() => scrollCarousel('right')}
                 title="Desplazar cápsulas a la derecha"
-                className="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-[#c7f303] text-slate-200 hover:text-[#0e1300] border border-slate-600/70 flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -534,44 +535,44 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
                   <span className="px-2 py-0.5 rounded-md bg-[#0e1300]/85 text-[#c7f303] text-[9px] font-extrabold uppercase tracking-wider border border-[#c7f303]/40 truncate">
                     ★ TU PODCAST • 24KHZ
                   </span>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                     {onEditUserCapsule && (
-                      <button
-                        type="button"
+                      <ExpandableButton
+                        size="sm"
+                        icon={<Edit3 />}
+                        label="Editar"
+                        variant="amber"
                         onClick={(e) => {
                           e.stopPropagation();
                           onEditUserCapsule(cap);
                         }}
                         title="Editar título y guion de este podcast en el Estudio"
-                        className="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-amber-400 text-amber-300 hover:text-[#0e1300] border border-amber-400/50 flex items-center justify-center shadow transition-all cursor-pointer"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                      />
                     )}
                     {onDeleteUserCapsule && (
-                      <button
-                        type="button"
+                      <ExpandableButton
+                        size="sm"
+                        icon={<Trash2 />}
+                        label="Eliminar"
+                        variant="danger"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteUserCapsule(cap);
                         }}
                         title="Eliminar este podcast guardado"
-                        className="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-400/50 flex items-center justify-center shadow transition-all cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      />
                     )}
-                    <button
-                      type="button"
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Play />}
+                      label="Escuchar"
+                      variant="teal"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onPlayUserCapsule) onPlayUserCapsule(cap);
                       }}
                       title="Escuchar en el Walkman"
-                      className="w-8 h-8 rounded-full bg-[#c7f303] text-[#0e1300] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform shrink-0 cursor-pointer"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                    </button>
+                    />
                   </div>
                 </div>
 
@@ -586,34 +587,9 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
                     {cap.voiceName ? `Voz: ${cap.voiceName}` : 'Sintetizado en tu Estudio WAPPY'}
                   </p>
 
-                  {/* Explicit Edit / Delete / Play Footer Actions */}
+                  {/* Footer Metadata */}
                   <div className="mt-2.5 pt-2 border-t border-white/15 flex items-center justify-between text-[10px] font-bold">
-                    <div className="flex items-center gap-2">
-                      {onEditUserCapsule && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditUserCapsule(cap);
-                          }}
-                          className="text-amber-300 hover:text-[#c7f303] underline cursor-pointer"
-                        >
-                          ✏️ Editar
-                        </button>
-                      )}
-                      {onDeleteUserCapsule && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteUserCapsule(cap);
-                          }}
-                          className="text-rose-300 hover:text-rose-200 underline cursor-pointer"
-                        >
-                          🗑️ Eliminar
-                        </button>
-                      )}
-                    </div>
+                    <span className="text-teal-200/90">{cap.createdAt || 'Estudio 24kHz'}</span>
                     <span className="text-[#c7f303] font-mono">{durLabel}</span>
                   </div>
                 </div>
@@ -640,31 +616,31 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
                   >
                     {show.badgeText}
                   </span>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Edit3 />}
+                      label="Editar"
+                      variant="amber"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectShow(show, false);
                         if (onScrollToEditor) onScrollToEditor();
                       }}
                       title="Cargar y editar este guion de +5 minutos en el Estudio"
-                      className="w-7 h-7 rounded-full bg-black/45 hover:bg-black/75 text-white border border-white/25 flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Play />}
+                      label="Sintetizar"
+                      variant="teal"
                       disabled={isGenerating}
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectShow(show, true);
                       }}
                       title="Sintetizar episodio completo (+5 min) y sonar en el Walkman 24kHz"
-                      className={`w-8 h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shrink-0 cursor-pointer ${show.playBtnClass}`}
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                    </button>
+                    />
                   </div>
                 </div>
 
@@ -716,25 +692,26 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
         </div>
 
         <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-          <button
-            type="button"
+          <ExpandableButton
+            size="sm"
+            icon={<Edit3 />}
+            label="Editar Guion ↓"
+            variant="orange"
             onClick={() => {
               onSelectShow(selectedShow, false);
               if (onScrollToEditor) onScrollToEditor();
             }}
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-[11px] font-bold transition-all cursor-pointer"
-          >
-            ✏️ Editar Guion ↓
-          </button>
-          <button
-            type="button"
+            title="Cargar y editar este guion en el Estudio de Edición abajo"
+          />
+          <ExpandableButton
+            size="sm"
+            icon={<Wand2 />}
+            label={isGenerating ? 'Sintetizando...' : 'Sintetizar Podcast (+5 Min)'}
+            variant="teal"
             disabled={isGenerating}
             onClick={() => onSelectShow(selectedShow, true)}
-            className="px-3.5 py-1.5 rounded-xl bg-[#c7f303] hover:bg-[#d4ff1f] text-[#0e1300] font-extrabold text-[11px] shadow-md shadow-[#c7f303]/20 flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            <span>{isGenerating ? 'Sintetizando...' : 'Sintetizar Podcast (+5 Min)'}</span>
-          </button>
+            title="Sintetizar episodio completo (+5 min) y reproducir en el Walkman"
+          />
         </div>
       </div>
     </div>

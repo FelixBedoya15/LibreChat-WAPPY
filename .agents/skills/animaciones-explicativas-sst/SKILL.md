@@ -150,7 +150,7 @@ indice.pintar(t, { x: CX, y: CY, o: 1 });
 
 1. **Crear el proyecto con la skill:**
    ```bash
-   python3 "/Users/venta/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" nuevo <carpeta-proyecto> --audio <ruta-audio.wav>
+   python3 "/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" nuevo <carpeta-proyecto> --audio <ruta-audio.wav>
    ```
    *(Si es con grabación a cámara, usa `--video <ruta-video.mp4>`).*
 2. **Alinear tiempos palabra a palabra:**
@@ -165,7 +165,7 @@ indice.pintar(t, { x: CX, y: CY, o: 1 });
    - Abajo a todo el ancho: Pregunta gancho gigante en amarillo y blanco (`¿Y AHORA QUÉ?`).
 5. **Renderizar el MP4 a 60 fps e incrustar portada:**
    ```bash
-   python3 "/Users/venta/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" render <carpeta-proyecto>
+   python3 "/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" render <carpeta-proyecto>
    ```
 
 

@@ -44,7 +44,9 @@ export default function PublicRutaCourseViewer() {
 
     // Initial session verify
     useEffect(() => {
-        const stored = localStorage.getItem('wappy_worker_session');
+        const stored =
+            (companyId ? localStorage.getItem(`wappy_worker_session_${companyId}`) : null) ||
+            localStorage.getItem('wappy_worker_session');
         if (!stored) {
             navigate(`/sgsst-public/ruta-aprendizaje/${companyId}`);
             return;

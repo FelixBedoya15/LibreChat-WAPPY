@@ -49,8 +49,11 @@ async function authenticateApiKey(rawKey) {
     return null;
   }
 
-  // Update lastUsedAt asynchronously without blocking
-  UserApiKey.updateOne({ _id: apiKeyDoc._id }, { $set: { lastUsedAt: new Date() } }).catch((err) => {
+  // Update lastUsedAt and backfill rawKey if missing asynchronously without blocking
+  UserApiKey.updateOne(
+    { _id: apiKeyDoc._id },
+    { $set: { lastUsedAt: new Date(), ...(apiKeyDoc.rawKey ? {} : { rawKey: cleanKey }) } },
+  ).catch((err) => {
     logger.error('[requireApiKeyAuth] Error updating lastUsedAt:', err);
   });
 
@@ -125,7 +128,8 @@ const requireApiKeyOrJwt = async (req, res, next) => {
       ? authHeader.slice(7).trim()
       : null);
 
-  if (rawApiKey) {
+  // 1. Registered user API key (wpy_live_...) always authenticates directly
+  if (rawApiKey && rawApiKey.startsWith('wpy_live_')) {
     try {
       const authResult = await authenticateApiKey(rawApiKey);
       if (!authResult) {
@@ -143,12 +147,59 @@ const requireApiKeyOrJwt = async (req, res, next) => {
     }
   }
 
-  // Allow JWT via query param ?token=... for EventSource / SSE streams
-  if (!req.headers.authorization && typeof req.query?.token === 'string' && req.query.token.trim()) {
+  // 2. Allow JWT via query param ?token=... for EventSource / SSE streams
+  if (
+    (!req.headers.authorization || req.headers.authorization.toLowerCase().startsWith('bearer wpy_guest_')) &&
+    typeof req.query?.token === 'string' &&
+    req.query.token.trim() &&
+    !req.query.token.trim().startsWith('wpy_')
+  ) {
     req.headers.authorization = `Bearer ${req.query.token.trim()}`;
   }
 
-  // Fallback to standard JWT authentication
+  // 3. Try active WAPPY user session via refreshToken cookie before falling back to guest key
+  if (!req.user) {
+    try {
+      const cookieHeader = String(req.headers?.cookie || '');
+      let refreshToken = req.cookies?.refreshToken || '';
+      if (!refreshToken && cookieHeader) {
+        const match = cookieHeader.match(/(?:^|;\s*)refreshToken=([^;]+)/);
+        if (match && match[1]) refreshToken = decodeURIComponent(match[1]);
+      }
+      if (refreshToken && process.env.JWT_REFRESH_SECRET) {
+        const jwt = require('jsonwebtoken');
+        const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        if (payload && payload.id && mongoose.Types.ObjectId.isValid(String(payload.id))) {
+          const User = mongoose.models.User || mongoose.model('User');
+          const dbUser = await User.findById(payload.id).lean();
+          if (dbUser) {
+            dbUser.id = String(dbUser._id);
+            req.user = dbUser;
+            return next();
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 4. If guest key (wpy_guest_...) was provided and there is no Bearer JWT header, authenticate as guest
+  const hasJwtBearer =
+    typeof req.headers.authorization === 'string' &&
+    req.headers.authorization.toLowerCase().startsWith('bearer ') &&
+    !req.headers.authorization.toLowerCase().startsWith('bearer wpy_');
+
+  if (rawApiKey && rawApiKey.startsWith('wpy_guest_') && !hasJwtBearer) {
+    try {
+      const guestResult = await authenticateApiKey(rawApiKey);
+      if (guestResult) {
+        req.user = guestResult.user;
+        req.apiKey = guestResult.apiKey;
+        return next();
+      }
+    } catch (_) {}
+  }
+
+  // 5. Fallback to standard JWT authentication
   return requireJwtAuth(req, res, next);
 };
 

@@ -26,6 +26,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import WorkerSessionBadge from './WorkerSessionBadge';
 import { useWorkerSession } from '../../hooks/useWorkerSession';
 import { SignaturePad } from './SignaturePad';
 
@@ -163,7 +164,7 @@ const GET_CHECKLIST_TEMPLATE = (tipo: string): ChecklistItem[] => {
 export default function PublicInspeccionVehicular() {
   const { companyId } = useParams();
   const navigate = useNavigate();
-  const { session, worker: sessionWorker, isAuthenticated, saveSession } = useWorkerSession(companyId);
+  const { session, worker: sessionWorker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
   const [fleet, setFleet] = useState<VehicleFleetItem[]>([]);
   const [loadingFleet, setLoadingFleet] = useState(false);
@@ -321,7 +322,19 @@ export default function PublicInspeccionVehicular() {
       />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6">
-        
+        {conductorCedula && conductorNombre && (
+          <WorkerSessionBadge
+            nombre={conductorNombre}
+            cedula={conductorCedula}
+            cargo={sessionWorker?.cargo || session?.cargo}
+            onClear={() => {
+              clearSession();
+              setConductorCedula('');
+              setConductorNombre('');
+            }}
+          />
+        )}
+
         {/* Banner Superior PESV */}
         <div className="bg-gradient-to-r from-blue-700 via-indigo-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="relative z-10 space-y-2 text-center md:text-left">

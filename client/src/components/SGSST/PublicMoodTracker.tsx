@@ -595,7 +595,7 @@ export default function PublicMoodTracker() {
               <p className="text-xs text-text-secondary">Tu reporte de bienestar fue recibido correctamente</p>
             </div>
             
-            <div className="bg-surface-secondary/50 dark:bg-slate-800/40 border border-border-medium rounded-2xl p-5 text-xs text-text-secondary leading-relaxed text-left space-y-3">
+            <div className="bg-surface-secondary dark:bg-slate-800/40 border border-border-medium rounded-2xl p-5 text-xs text-text-secondary leading-relaxed text-left space-y-3">
               <p>
                 Para garantizar la objetividad estadística y evitar la fatiga por encuestas repetitivas, este termómetro psicosocial se realiza de forma periódica (cada 7 días).
               </p>
@@ -650,9 +650,9 @@ export default function PublicMoodTracker() {
                 </div>
 
                 {/* Department input */}
-                <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-2">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                    <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                <div className="bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-2">
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     Área o Departamento (Opcional)
                   </label>
                   <input
@@ -660,7 +660,7 @@ export default function PublicMoodTracker() {
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     placeholder="Ej: Operaciones, Administración, Ventas..."
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                   />
                 </div>
 
@@ -729,10 +729,10 @@ export default function PublicMoodTracker() {
 
             {/* STEP 2: STRESSORS & CHAT OPTION */}
             {step === 2 && (
-              <div className="w-full bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm shadow-slate-200/50 space-y-6 animate-fadeIn">
+              <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-sm shadow-slate-200/50 space-y-6 animate-fadeIn">
                 <div className="text-center space-y-1">
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">¿Qué factores influyen hoy?</h2>
-                  <p className="text-xs text-slate-500">
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">¿Qué factores influyen hoy?</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Selecciona las razones principales de tu estado de ánimo (opcional):
                   </p>
                 </div>
@@ -812,7 +812,7 @@ export default function PublicMoodTracker() {
 
             {/* STEP 3: PRIVATE CHAT */}
             {step === 3 && (
-              <div className="w-full h-[78vh] flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-md animate-fadeIn">
+              <div className="w-full h-[78vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-md animate-fadeIn">
                 {/* Chat Header */}
                 <div className="p-3.5 bg-emerald-700 text-white flex justify-between items-center shrink-0 shadow-xs">
                   <div className="flex items-center gap-2.5">
@@ -900,13 +900,13 @@ export default function PublicMoodTracker() {
 
             {/* STEP 4: SUCCESS */}
             {step === 4 && (
-              <div className="w-full bg-white rounded-3xl border border-slate-200/80 p-7 text-center space-y-5 shadow-sm shadow-slate-200/50 animate-fadeIn">
-                <div className="inline-flex p-4 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 mb-1 shadow-xs">
+              <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-7 text-center space-y-5 shadow-sm shadow-slate-200/50 animate-fadeIn">
+                <div className="inline-flex p-4 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 mb-1 shadow-xs">
                   <CheckCircle className="w-12 h-12" />
                 </div>
                 <div className="space-y-1">
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">¡Gracias por participar!</h2>
-                  <p className="text-xs text-slate-500">Tu respuesta fue registrada con éxito</p>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">¡Gracias por participar!</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Tu respuesta fue registrada con éxito</p>
                 </div>
                 
                 <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-2xl p-5 text-xs text-slate-700 leading-relaxed max-w-sm mx-auto space-y-2">

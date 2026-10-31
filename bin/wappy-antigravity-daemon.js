@@ -783,7 +783,7 @@ function watchDirectTrajectoryCompletion({
 }) {
   let completed = false;
   let ticks = 0;
-  const maxTicks = 45; // 45 * 2s = 90s
+  const maxTicks = 120; // 120 * 2s = 240s
 
   const timer = setInterval(async () => {
     ticks += 1;
@@ -1157,12 +1157,34 @@ function runAgentApi(bin, subArgs, opts = {}) {
       } else {
         delete mergedEnv.ANTIGRAVITY_PROJECT_ID;
       }
-      const out = execFileSync(bin, fullArgs, {
-        windowsHide: true,
-        ...execOpts,
-        env: mergedEnv,
-        ...(isBatch ? { shell: true } : {}),
-      });
+      let out;
+      try {
+        out = execFileSync(bin, fullArgs, {
+          windowsHide: true,
+          ...execOpts,
+          env: mergedEnv,
+          ...(isBatch ? { shell: true } : {}),
+        });
+      } catch (innerErr) {
+        const innerDetail = [
+          innerErr?.stderr ? String(innerErr.stderr).trim() : '',
+          innerErr?.stdout ? String(innerErr.stdout).trim() : '',
+          innerErr?.message || '',
+        ]
+          .filter(Boolean)
+          .join(' | ');
+        const mSrc = innerDetail.match(/source project_id\s+"([0-9a-fA-F-]+)"/);
+        if (mSrc && mSrc[1]) {
+          out = execFileSync(bin, fullArgs, {
+            windowsHide: true,
+            ...execOpts,
+            env: { ...mergedEnv, ANTIGRAVITY_PROJECT_ID: mSrc[1] },
+            ...(isBatch ? { shell: true } : {}),
+          });
+        } else {
+          throw innerErr;
+        }
+      }
       const text = typeof out === 'string' ? out : (out ? out.toString('utf8') : '');
       if (
         text &&
@@ -1193,9 +1215,9 @@ function runAgentApi(bin, subArgs, opts = {}) {
 /**
  * Obtiene el ID del hilo dedicado de Tenshi activo (creado en la primera consulta de la sesión).
  * - Si el usuario pide explícitamente abrir un nuevo chat (`forceNewChat = true`), devuelve `null`.
- * - Si existe un hilo dedicado de Tenshi en `wappy-tenshi-thread.json` con menos de 2 horas de inactividad
- *   y su base `.db` sigue existiendo en `~/.gemini/antigravity/conversations/`, reutiliza ese mismo chat.
- * - De lo contrario devuelve `null` para crear el primer chat limpio del hilo (`new-conversation`).
+ * - Si existe un hilo dedicado de Tenshi en `wappy-tenshi-thread.json` con `uiVisible === true`, menos de 2 horas
+ *   de inactividad y su base `.db` sigue existiendo en `~/.gemini/antigravity/conversations/`, reutiliza ese mismo chat.
+ * - De lo contrario devuelve `null` para crear el primer chat limpio visible en la UI (`new-conversation`).
  */
 function findTargetConversationId(preferredId, forceNewChat = false) {
   if (forceNewChat) {
@@ -1217,7 +1239,9 @@ function findTargetConversationId(preferredId, forceNewChat = false) {
       const raw = JSON.parse(fs.readFileSync(TENSHI_THREAD_FILE, 'utf8'));
       const convoId = String(raw?.conversationId || '').trim();
       const lastUsedAt = Number(raw?.lastUsedAt || raw?.createdAt || 0);
+      const isUiVisible = raw?.uiVisible === true;
       if (
+        isUiVisible &&
         /^[0-9a-fA-F-]{36}$/.test(convoId) &&
         lastUsedAt > 0 &&
         Date.now() - lastUsedAt <= TENSHI_THREAD_TTL_MS
@@ -1236,15 +1260,17 @@ function findTargetConversationId(preferredId, forceNewChat = false) {
 /**
  * Guarda o actualiza el ID de conversación del hilo dedicado de Tenshi
  */
-function saveTenshiThreadConversationId(convoId, workspaceCwd) {
+function saveTenshiThreadConversationId(convoId, workspaceCwd, uiVisible = false) {
   if (!convoId || !/^[0-9a-fA-F-]{36}$/.test(String(convoId).trim())) return;
   const cleanId = String(convoId).trim();
   let createdAt = Date.now();
+  let prevUiVisible = false;
   try {
     if (fs.existsSync(TENSHI_THREAD_FILE)) {
       const prev = JSON.parse(fs.readFileSync(TENSHI_THREAD_FILE, 'utf8'));
-      if (prev?.conversationId === cleanId && prev?.createdAt) {
-        createdAt = prev.createdAt;
+      if (prev?.conversationId === cleanId) {
+        if (prev?.createdAt) createdAt = prev.createdAt;
+        if (prev?.uiVisible === true) prevUiVisible = true;
       }
     }
   } catch (_) {}
@@ -1255,6 +1281,7 @@ function saveTenshiThreadConversationId(convoId, workspaceCwd) {
         {
           conversationId: cleanId,
           workspaceCwd: workspaceCwd || '',
+          uiVisible: Boolean(uiVisible || prevUiVisible),
           createdAt,
           lastUsedAt: Date.now(),
         },
@@ -1547,17 +1574,20 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   if (dispatchedSet.has(ordenId)) {
     return;
   }
+  markOrderDispatched(ordenId, dispatchedSet);
 
-  // Reclamo atómico en el servidor para evitar ejecución duplicada si hay múltiples listeners
+  // Reclamo en el servidor para marcar la orden en progreso (solo aborta si ya está completada/descartada)
   const claimUrl = `${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/claim`;
-  const claimRes = await jsonRequest(claimUrl, 'POST', apiKey, { source: 'push_daemon' });
-  if (claimRes.status === 200 && claimRes.data && claimRes.data.claimed === false) {
-    markOrderDispatched(ordenId, dispatchedSet);
-    log(`Orden ${ordenId} ya fue reclamada previamente (${claimRes.data.reason || 'skip'}).`);
+  const claimRes = await jsonRequest(claimUrl, 'POST', apiKey, { source: 'push_daemon', host: os.hostname() });
+  if (
+    claimRes.status === 200 &&
+    claimRes.data &&
+    claimRes.data.claimed === false &&
+    claimRes.data.reason === 'invalid_id'
+  ) {
+    log(`Orden ${ordenId} inválida (${claimRes.data.reason}).`);
     return;
   }
-
-  markOrderDispatched(ordenId, dispatchedSet);
 
   const titulo = orden.titulo || orden.title || 'Consulta Delegada por Tenshi';
   const instruccion = orden.instruccion || orden.descripcion || orden.description || '';
@@ -1662,6 +1692,18 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `   - resultado: Tu respuesta en texto plano, clara, directa y bien explicada para el usuario (sin crear archivos ni documentos de ningún tipo).`,
       `   (Respaldo directo: si la herramienta MCP no aparece disponible en esta sesión, ejecuta con run_command: node "${helperScript}" --complete-order="${ordenId}" --formato="respuesta" --resultado="<TU_RESPUESTA_AQUI>")`,
     ];
+  } else if (isHtmlApp && (/wappy studio/i.test(titulo) || /wappy studio/i.test(recurso) || /SUPER-PROMPT/i.test(instruccion))) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO WAPPY STUDIO VIDEO 60-FPS — LIENZO DE VIDEO PURO):`,
+      `1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos, dirección de arte y textos ya vienen en la instrucción de arriba).`,
+      `2. Desarrolla ÚNICAMENTE la composición de video animado HTML5 + GSAP a 60 FPS ocupando el 100% del viewport dentro de <div id="stage" data-wappy-master-reel="true"> (sin paneles laterales, sin tablas ni dashboards externos al video).`,
+      `3. Al finalizar, invoca OBLIGATORIAMENTE 'wappy_completar_orden_delegada_tenshi' enviando:`,
+      `   - ordenId: "${ordenId}"`,
+      `   - formato: "html"`,
+      `   - resultado: Resumen breve de la animación 60-FPS compilada`,
+      `   - contenido: El código HTML5 completo (<!DOCTYPE html>...)`,
+      `   (Respaldo directo: si la herramienta MCP no aparece disponible, guarda el HTML en un archivo temporal y ejecuta con run_command: node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Video HTML 60-FPS generado" --contenido-file="<RUTA_ARCHIVO_HTML>")`,
+    ];
   } else if (isHtmlApp) {
     executionInstructions = [
       `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO APLICATIVO / DASHBOARD HTML EN CANVAS):`,
@@ -1733,6 +1775,23 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   // Reutilizar el hilo dedicado de Tenshi (si ya fue creado en esta sesión) o abrir el primero
   const targetConvoId = findTargetConversationId(preferredConvoId, forceNewChat);
+  const isInternalHelperThread =
+    preferredConvoId === 'c6e3ecd3-bd9f-465a-9664-4572b7e7da50' ||
+    /^Execute local terminal/i.test(String(titulo || '').trim());
+
+  // Traer la ventana de Antigravity al frente en macOS para que el usuario vea el chat abrirse y trabajar en tiempo real
+  if (!isInternalHelperThread && process.platform === 'darwin') {
+    try {
+      const appCandidates = [
+        '/Applications/Antigravity.app',
+        path.join(HOME, 'Applications', 'Antigravity.app'),
+      ];
+      const appPath = appCandidates.find((p) => fs.existsSync(p));
+      if (appPath) {
+        execFileSync('/usr/bin/open', ['-a', appPath], { stdio: 'ignore', timeout: 4000 });
+      }
+    } catch (_) {}
+  }
 
   log(
     `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato}) hacia Antigravity (Destino: ${
@@ -1742,41 +1801,71 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   let dispatchedOk = false;
 
-  // CANAL #1 (PRIORIDAD MÁXIMA): Canal Directo ConnectRPC hacia `LanguageServerService`
-  // (El mismo canal interno que usa el QR de "Remote Control" de Antigravity, sin pasar por el CLI `agentapi`).
-  try {
-    const directRes = await dispatchViaDirectLanguageServer({
-      prompt,
-      workspaceCwd,
-      targetConvoId: forceNewChat ? null : targetConvoId,
-      ordenId,
-      rawFormato,
-      wappyUrl,
-      apiKey,
-    });
-    if (directRes && directRes.ok && directRes.cascadeId) {
-      dispatchedOk = true;
-      saveTenshiThreadConversationId(directRes.cascadeId, workspaceCwd);
-      log(
-        `✅ [Canal Directo QR / LanguageServerService] Orden ${ordenId} inyectada directo al motor de Antigravity (Hilo: ${directRes.cascadeId}, Puerto: ${directRes.port}, Modelo: ${directRes.model}).`
-      );
-      jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
-        ok: true,
-        channel: 'direct_language_server_rpc',
-        conversationId: directRes.cascadeId,
-        port: directRes.port,
-        model: directRes.model,
-        cwd: workspaceCwd,
-        platform: process.platform,
-        version: DAEMON_VERSION,
-      }).catch(() => {});
-    }
-  } catch (directErr) {
-    log(`Aviso: Canal Directo LanguageServerService no disponible (${directErr.message}). Usando respaldo CLI agentapi...`);
+  // Helper para enganchar el recolector directo de la trayectoria cuando se despacha por `agentapi`
+  const attachWatcherForConversation = async (convoId, prevStepsCount = 0) => {
+    if (!convoId) return;
+    try {
+      const liveCands = discoverLiveLanguageServer();
+      if (liveCands && liveCands.length > 0) {
+        watchDirectTrajectoryCompletion({
+          candidate: liveCands[0],
+          cascadeId: convoId,
+          initialStepCount: prevStepsCount,
+          ordenId,
+          rawFormato,
+          wappyUrl,
+          apiKey,
+        });
+      }
+    } catch (_) {}
+  };
+
+  // Si es el hilo auxiliar interno de terminal, despachar por Canal Directo RPC silencioso primero
+  if (isInternalHelperThread) {
+    try {
+      const directRes = await dispatchViaDirectLanguageServer({
+        prompt,
+        workspaceCwd,
+        targetConvoId: forceNewChat ? null : targetConvoId,
+        ordenId,
+        rawFormato,
+        wappyUrl,
+        apiKey,
+      });
+      if (directRes && directRes.ok && directRes.cascadeId) {
+        dispatchedOk = true;
+        log(
+          `✅ [Canal Directo RPC] Orden auxiliar ${ordenId} inyectada (Hilo: ${directRes.cascadeId}, Puerto: ${directRes.port}).`
+        );
+        jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+          ok: true,
+          channel: 'direct_language_server_rpc',
+          conversationId: directRes.cascadeId,
+          port: directRes.port,
+          model: directRes.model,
+          cwd: workspaceCwd,
+          platform: process.platform,
+          version: DAEMON_VERSION,
+        }).catch(() => {});
+      }
+    } catch (_) {}
   }
 
+  // CANAL #1 (PRIORIDAD VISUAL UI): `agentapi send-message` / `agentapi new-conversation`
+  // Abre y enfoca visiblemente la pestaña del chat en la ventana de Antigravity para que el usuario vea el progreso en vivo.
   if (!dispatchedOk && targetConvoId) {
     try {
+      let prevStepCount = 0;
+      try {
+        const liveCands = discoverLiveLanguageServer();
+        if (liveCands.length > 0) {
+          const prevTraj = await callLanguageServerRpc(liveCands[0], 'GetCascadeTrajectory', { cascadeId: targetConvoId }, 3000);
+          if (prevTraj.status === 200 && Array.isArray(prevTraj.data?.trajectory?.steps)) {
+            prevStepCount = prevTraj.data.trajectory.steps.length;
+          }
+        }
+      } catch (_) {}
+
       const sendArgs = [
         'send-message',
         `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
@@ -1785,10 +1874,12 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       ];
       runAgentApi(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd, env: spawnEnv });
       dispatchedOk = true;
-      saveTenshiThreadConversationId(targetConvoId, workspaceCwd);
-      log(`✅ Orden ${ordenId} continuada en el mismo hilo de Tenshi (${targetConvoId}).`);
+      saveTenshiThreadConversationId(targetConvoId, workspaceCwd, true);
+      attachWatcherForConversation(targetConvoId, prevStepCount);
+      log(`✅ Orden ${ordenId} continuada y abierta en pantalla en el hilo de Tenshi (${targetConvoId}).`);
       jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
         ok: true,
+        channel: 'agentapi_send_message_ui',
         conversationId: targetConvoId,
         cwd: workspaceCwd,
         bin,
@@ -1801,7 +1892,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   }
 
   if (!dispatchedOk) {
-    const MAX_ATTEMPTS = 3;
+    const MAX_ATTEMPTS = 2;
     let lastError = null;
     let beforeDbsForAttempt = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS && !dispatchedOk; attempt++) {
@@ -1809,8 +1900,8 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         if (attempt > 1) {
           log(`🔁 Reintento ${attempt}/${MAX_ATTEMPTS} de la orden ${ordenId} (verificando que Antigravity esté listo)...`);
           cachedLiveLs = null;
-          ensureLiveAntigravityRunning(45);
-          sleepSync(4000);
+          ensureLiveAntigravityRunning(30);
+          sleepSync(2000);
         }
 
         const convDir = path.join(AGY_DIR, 'conversations');
@@ -1829,51 +1920,29 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
           `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
           prompt,
         ];
-        let stdout = '';
-        try {
-          stdout =
-            runAgentApi(bin, newArgs, {
-              timeout: 20000,
-              stdio: 'pipe',
-              cwd: workspaceCwd,
-              env: spawnEnv,
-              encoding: 'utf8',
-            }) || '';
-        } catch (firstErr) {
-          const msg = String(firstErr?.message || '');
-          if (msg.includes('PermissionDenied') || msg.includes('project_id')) {
-            const mSrc = msg.match(/source project_id\s+"([0-9a-fA-F-]+)"/);
-            const fallbackEnv = { ...cleanAntigravitySessionEnv(spawnEnv) };
-            if (mSrc && mSrc[1]) {
-              fallbackEnv.ANTIGRAVITY_PROJECT_ID = mSrc[1];
-            } else {
-              delete fallbackEnv.ANTIGRAVITY_PROJECT_ID;
-            }
-            stdout =
-              runAgentApi(bin, newArgs, {
-                timeout: 20000,
-                stdio: 'pipe',
-                cwd: workspaceCwd,
-                env: fallbackEnv,
-                encoding: 'utf8',
-              }) || '';
-          } else {
-            throw firstErr;
-          }
-        }
+        const stdout =
+          runAgentApi(bin, newArgs, {
+            timeout: 20000,
+            stdio: 'pipe',
+            cwd: workspaceCwd,
+            env: spawnEnv,
+            encoding: 'utf8',
+          }) || '';
 
         dispatchedOk = true;
         const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
         if (createdConvoId) {
-          saveTenshiThreadConversationId(createdConvoId, workspaceCwd);
+          saveTenshiThreadConversationId(createdConvoId, workspaceCwd, true);
+          attachWatcherForConversation(createdConvoId, 0);
           log(
-            `✅ Orden ${ordenId} iniciada en NUEVO hilo dedicado de Tenshi (${createdConvoId}, workspace: ${workspaceCwd}, intento ${attempt}). Las siguientes consultas continuarán en este mismo chat.`
+            `✅ Orden ${ordenId} iniciada y abierta en pantalla en NUEVO hilo dedicado de Tenshi (${createdConvoId}, workspace: ${workspaceCwd}, intento ${attempt}).`
           );
         } else {
           log(`✅ Orden ${ordenId} iniciada en NUEVA conversación de Antigravity (workspace: ${workspaceCwd}, intento ${attempt}).`);
         }
         jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
           ok: true,
+          channel: 'agentapi_new_conversation_ui',
           conversationId: createdConvoId || 'new',
           cwd: workspaceCwd,
           bin,
@@ -1883,14 +1952,15 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         }).catch(() => {});
       } catch (err) {
         lastError = err;
-        // Si el comando expiró pero Antigravity sí alcanzó a crear la conversación, no duplicarla
         const lateConvoId = beforeDbsForAttempt ? detectNewlyCreatedConversationId(beforeDbsForAttempt, '') : null;
         if (lateConvoId) {
           dispatchedOk = true;
-          saveTenshiThreadConversationId(lateConvoId, workspaceCwd);
+          saveTenshiThreadConversationId(lateConvoId, workspaceCwd, true);
+          attachWatcherForConversation(lateConvoId, 0);
           log(`✅ Orden ${ordenId} sí fue creada en Antigravity (${lateConvoId}) pese al error de respuesta: ${err.message}`);
           jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
             ok: true,
+            channel: 'agentapi_new_conversation_ui',
             conversationId: lateConvoId,
             cwd: workspaceCwd,
             bin,
@@ -1901,6 +1971,40 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
           break;
         }
         log(`❌ Intento ${attempt}/${MAX_ATTEMPTS} fallido invocando agentapi new-conversation para orden ${ordenId}: ${err.message}`);
+      }
+    }
+
+    // CANAL #2 (RESPALDO DIRECTO RPC): Si `agentapi` falló por cualquier motivo, inyectar por ConnectRPC directo
+    if (!dispatchedOk) {
+      try {
+        const directRes = await dispatchViaDirectLanguageServer({
+          prompt,
+          workspaceCwd,
+          targetConvoId: forceNewChat ? null : targetConvoId,
+          ordenId,
+          rawFormato,
+          wappyUrl,
+          apiKey,
+        });
+        if (directRes && directRes.ok && directRes.cascadeId) {
+          dispatchedOk = true;
+          saveTenshiThreadConversationId(directRes.cascadeId, workspaceCwd, false);
+          log(
+            `✅ [Canal Directo QR / LanguageServerService] Orden ${ordenId} inyectada directo al motor de Antigravity (Hilo: ${directRes.cascadeId}, Puerto: ${directRes.port}, Modelo: ${directRes.model}).`
+          );
+          jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
+            ok: true,
+            channel: 'direct_language_server_rpc',
+            conversationId: directRes.cascadeId,
+            port: directRes.port,
+            model: directRes.model,
+            cwd: workspaceCwd,
+            platform: process.platform,
+            version: DAEMON_VERSION,
+          }).catch(() => {});
+        }
+      } catch (directErr) {
+        lastError = directErr;
       }
     }
 

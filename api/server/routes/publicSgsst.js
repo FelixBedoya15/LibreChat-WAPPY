@@ -864,7 +864,7 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
       { upsert: true, new: true },
     );
 
-    // ─── Crear notificación de sistema ───
+    // ─── Crear notificación de sistema y acreditar gamificación (+50 pts) ───
     try {
       await Notification.create({
         user: new mongoose.Types.ObjectId(company.user),
@@ -875,6 +875,24 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
       });
     } catch (notifErr) {
       logger.warn('[Public AltaDireccion] Could not create notification:', notifErr.message);
+    }
+
+    if (company.user && worker?.identificacion) {
+      try {
+        const feedWorkerEvent = require('./sgsst/feedWorkerHelper');
+        const todayStr = new Date().toISOString().slice(0, 10);
+        await feedWorkerEvent(
+          company.user,
+          String(worker.identificacion).trim(),
+          'comites',
+          'Revisión Anual del SG-SST por la Alta Dirección (Dec. 1072 Art. 2.2.4.6.31)',
+          50,
+          `ALTA-DIR-${String(worker.identificacion).trim()}-${todayStr}`,
+          { companyId: company._id, nombre: worker.nombre, cargo: worker.cargo }
+        );
+      } catch (gErr) {
+        logger.warn('[Public AltaDireccion] Gamification error:', gErr.message);
+      }
     }
 
     res.json({

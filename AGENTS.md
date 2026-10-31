@@ -7,34 +7,43 @@
 
 ---
 
-## 0. Regla de Velocidad y Eficiencia Proporcional (3 Niveles)
+## 0. Regla de Activación Obligatoria de Subagentes según la Tarea
 
-1. ⚡ **Nivel 1 — Respuesta Instantánea (Consultas conceptuales, normativas o preguntas rápidas, ej. "¿Qué es SST?", dudas legales o ideas):**
-   - **Responde directamente en el acto (< 2 segundos en un solo turno).**
-   - **PROHIBIDO** invocar subagentes, leer archivos `SKILL.md`, navegar el repositorio o correr comandos de terminal cuando el usuario solo hace una consulta conceptual o conversacional.
-2. 🛠️ **Nivel 2 — Ejecución Directa Ligera (Ajustes puntuales en 1 solo archivo, textos, typos, refactors menores):**
-   - Resuélvelo tú mismo directamente sin sobrecarga de subagentes, validando sintaxis (`node -c`) o compilando (`npm run build:client`) según corresponda.
-3. 🚀 **Nivel 3 — Orquestación Multi-Agente en Paralelo (Desarrollo Full-Stack, Rediseño UI/UX, Tenshi Voice, Producción de Video o Auditoría Completa):**
-   - Invoca automáticamente a los subagentes especialistas pertinentes en paralelo vía `invoke_subagent` (`Model: "inherit"`).
+> [!CRITICAL]
+> **OBLIGACIÓN ESTRICTA DE DELEGACIÓN MULTI-AGENTE (`invoke_subagent`):**
+> Tienes **PROHIBIDO** resolver tareas técnicas, de diseño, frontend, backend, integraciones, voz, video o QA en solitario saltándote a tu equipo de especialistas.
+
+1. ⚡ **Excepción Única — Consultas Conceptuales Puras (Sin tocar código ni servidor):**
+   - Solo cuando el usuario haga una pregunta puramente teórica o conversacional (ej. *"¿Qué es SST?"*, dudas normativas rápidas sin pedir cambios en el sistema), responde directamente en el acto.
+2. 🚀 **Regla General Obligatoria — Activación Automática de Subagentes por Especialidad (`invoke_subagent`):**
+   - **En TODA tarea operativa, de código, diseño, integración, video, auditoría o despliegue**, **DEBES** invocar obligatoriamente vía `invoke_subagent` (`Model: "inherit"`) al subagente o dupla de subagentes especialistas que corresponda según la matriz de la **Sección 1**:
+     * **UI / Estilos / Layout / Botones:** Invocar a `wappy-design-director` y/o `wappy-frontend-ui`.
+     * **Componentes React / Hitos SG-SST / Estado:** Invocar a `wappy-frontend-ui` (en dupla con `wappy-design-director` si hay cambios visuales).
+     * **API Express / Mongoose / Herramientas MCP:** Invocar a `wappy-backend-api`.
+     * **Conectores (Antigravity Daemon, Google Flow, NotebookLM, Drive, OneDrive):** Invocar a `wappy-integrations-hub`.
+     * **Tenshi Voice / Gemini Live / Push SSE:** Invocar a `wappy-tenshi-voice`.
+     * **Videos / Reels / Motion Graphics (7 Piezas):** Invocar a `wappy-video-studio`.
+     * **Auditoría / Build / Deploy Dokploy:** Invocar a `wappy-qa-devops`.
+     * **Verificación E2E en Vivo (Post-cambio o Post-deploy):** Invocar **SIEMPRE** a `wappy-live-tester`.
 
 ---
 
 ## 1. Equipo de Subagentes Especialistas (`invoke_subagent`)
 
 - 🔌 **`wappy-integrations-hub`** (*Arquitecto de Integraciones*):
-  - **Uso:** Conectar, depurar o ampliar el Puente Reactivo WAPPY <-> Antigravity (`wappy-push-daemon.js`, `mcpBridge.js`, `agentapi`), Google Flow & Studio (`googleflow.js` — Veo/Imagen), Google NotebookLM (`notebooklm.js`), Google Drive/Calendar/Gmail (`googleDrive.js`, `hito1DriveService.js`, `sociodemograficoDriveService.js`) o Microsoft OneDrive (`oneDrive.js`).
+  - **Uso OBLIGATORIO en:** Conectar, depurar o ampliar el Puente Reactivo WAPPY <-> Antigravity (`wappy-push-daemon.js`, `mcpBridge.js`, `agentapi`), Google Flow & Studio (`googleflow.js` — Veo/Imagen), Google NotebookLM (`notebooklm.js`), Google Drive/Calendar/Gmail (`googleDrive.js`, `hito1DriveService.js`, `sociodemograficoDriveService.js`) o Microsoft OneDrive (`oneDrive.js`).
 - 🎨 **`wappy-design-director`** (*Director de Arte & UI/UX*):
-  - **Uso:** Pulir interfaces, crear vistas con estética premium, auditar espaciado sin desbordamiento (0px horizontal overflow), Glassmorphism, micro-animaciones SVG, paletas semánticas y tablas de `LiveEditor`.
+  - **Uso OBLIGATORIO en:** Pulir interfaces, crear vistas con estética premium, auditar espaciado sin desbordamiento (0px horizontal overflow), Glassmorphism, micro-animaciones SVG, paletas semánticas y tablas de `LiveEditor`.
 - ⚛️ **`wappy-frontend-ui`** (*Ingeniero Frontend React & TypeScript*):
-  - **Uso:** Programar lógica en `client/src/**/*`, formularios de Hitos SG-SST, hooks, gestión de estado y componentes responsive. Trabaja habitualmente en dupla con `wappy-design-director`.
+  - **Uso OBLIGATORIO en:** Programar lógica en `client/src/**/*`, formularios de Hitos SG-SST, hooks, gestión de estado y componentes responsive. Trabaja habitualmente en dupla con `wappy-design-director`.
 - ⚙️ **`wappy-backend-api`** (*Arquitecto Backend & MCP*):
-  - **Uso:** Crear/modificar rutas Express (`api/server/routes/**/*.js`), modelos Mongoose, controladores, endpoints seguros y conectores de herramientas MCP (`wappy` / `wappy-cloud`).
+  - **Uso OBLIGATORIO en:** Crear/modificar rutas Express (`api/server/routes/**/*.js`), modelos Mongoose, controladores, endpoints seguros y conectores de herramientas MCP (`wappy` / `wappy-cloud`).
 - 🎙️ **`wappy-tenshi-voice`** (*Especialista en Tenshi Voice & Push SSE*):
-  - **Uso:** Auditoría y cambios en `geminiLive.js`, `voiceSession.js`, continuidad multiturno de voz, prevención de errores `1011`/`1007` y puente Push SSE.
+  - **Uso OBLIGATORIO en:** Auditoría y cambios en `geminiLive.js`, `voiceSession.js`, continuidad multiturno de voz, prevención de errores `1011`/`1007` y puente Push SSE.
 - 🎬 **`wappy-video-studio`** (*Productor Audiovisual & Motion Graphics*):
-  - **Uso:** Diseñar guiones y producir vídeos/reels aplicando el Sistema de las 7 Piezas + Brandbook WAPPY IA (`docs/WAPPY_IA_BRANDBOOK_OFICIAL.md`), miniatura de 2s, avatares Chibi/Voxel 3D y transiciones de `animaciones-17-efectos-reels`.
+  - **Uso OBLIGATORIO en:** Diseñar guiones y producir vídeos/reels aplicando el Sistema de las 7 Piezas + Brandbook WAPPY IA (`docs/WAPPY_IA_BRANDBOOK_OFICIAL.md`), miniatura de 2s, avatares Chibi/Voxel 3D y transiciones de `animaciones-17-efectos-reels`.
 - 🛡️ **`wappy-qa-devops`** (*Auditor QA, Build & Release*):
-  - **Uso:** Auditar código, verificar sintaxis (`node -c`), validar 0 duplicados en herramientas, compilar `client/dist` y preparar despliegues en Dokploy/VPS (`srv999875`).
+  - **Uso OBLIGATORIO en:** Auditar código, verificar sintaxis (`node -c`), validar 0 duplicados en herramientas, compilar `client/dist` y preparar despliegues en Dokploy/VPS (`srv999875`).
 - 🌐 **`wappy-live-tester`** (*Inspector E2E en Vivo en Navegador + Logs Post-Deploy*):
   - **Uso OBLIGATORIO:**
     1. Siempre después de compilar/desplegar a desarrollo (`localhost:3080`) o producción (`app.wappy.club` / `wappy.club`).
@@ -52,7 +61,7 @@
    - **Paso B:** Si se modificó `client/src/**/*`, compilar `npm run build:client` y agregar `git add client/src client/dist`.
    - **Paso C:** Commit / Despliegue al servidor/VPS.
    - **Paso D:** Verificación en vivo con `wappy-live-tester`.
-   - **Paso E:** Registro de aprendizaje procedural en `/Users/venta/.gemini/teams/wappy-dev-agency/memory/` con formato `❌ Anti-patrón -> ✅ Solución Procedural`.
+   - **Paso E:** Registro de aprendizaje procedural en `/Users/felixbedoya/.gemini/config/plugins/wappy-dev-agency/memory/` con formato `❌ Anti-patrón -> ✅ Solución Procedural`.
 
 ---
 
@@ -132,6 +141,7 @@
 >    - **Si el usuario NO ha iniciado sesión:** Mostrar `Ir a WAPPY` apuntando a `/login`.
 > 3. **Hidratación Automática de Todas las Conexiones del Usuario Registrado vs. Visitante:**
 >    - **Usuario Registrado (`isAuthenticated: true`):** Traer automáticamente todas las conexiones de su cuenta: su clave personal `wpy_live_...` (`UserApiKey`), su conexión activa al daemon de Google Antigravity (`antigravityStreamClients`), sus claves API de Gemini y sus integraciones (Google Drive, NotebookLM, Google Flow).
+>    - **Prioridad Estricta en `requireApiKeyOrJwt` y Puente Antigravity (`mcpBridge.js`):** La jerarquía de autenticación **DEBE** ser siempre: `1) wpy_live_...` ➔ `2) JWT (Authorization / ?token=)` ➔ `3) Cookie refreshToken` ➔ `4) wpy_guest_...`. Una clave `wpy_guest_...` residual en `localStorage` o query string **JAMÁS** debe degradar a un usuario autenticado en WAPPY a visitante.
 >    - **Visitante No Registrado (`isGuest: true`):** Permitirle conectarse directamente desde la app generando su clave local `wpy_guest_...` y guardando sus claves en `localStorage`.
 > 4. **Datos de Empresa Obligatorios y Sincronización Cross-App / Somos SST:**
 >    - Ninguna función operativa de la app debe ejecutarse si los datos obligatorios de la empresa no están creados.

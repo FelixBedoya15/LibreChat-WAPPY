@@ -576,7 +576,7 @@ export default function PublicParticipacionIPEVAR() {
                                     </label>
                                     <input 
                                         type="text" 
-                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
                                         placeholder="Ej: Carlos Alberto Ramírez"
                                         value={nombre}
                                         onChange={(e) => setNombre(e.target.value)}
@@ -588,7 +588,7 @@ export default function PublicParticipacionIPEVAR() {
                                     </label>
                                     <input 
                                         type="number" 
-                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
                                         placeholder="Número de documento sin puntos"
                                         value={cedula}
                                         onChange={(e) => setCedula(e.target.value)}
@@ -604,7 +604,7 @@ export default function PublicParticipacionIPEVAR() {
                                         <select
                                             value={centroTrabajo}
                                             onChange={(e) => setCentroTrabajo(e.target.value)}
-                                            className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all font-medium appearance-none cursor-pointer"
+                                            className="w-full rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all font-medium appearance-none cursor-pointer"
                                         >
                                             {CIUDADES_COLOMBIA.map((ciudad) => (
                                                 <option key={ciudad} value={ciudad}>
@@ -621,7 +621,7 @@ export default function PublicParticipacionIPEVAR() {
                                             placeholder="Escribe el nombre de la ciudad o sede"
                                             value={otraCiudad}
                                             onChange={(e) => setOtraCiudad(e.target.value)}
-                                            className="w-full mt-2 rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 text-text-primary px-4 py-2.5 text-sm font-medium"
+                                            className="w-full mt-2 rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 text-text-primary px-4 py-2.5 text-sm font-medium"
                                         />
                                     )}
                                 </div>
@@ -633,7 +633,7 @@ export default function PublicParticipacionIPEVAR() {
                                     </label>
                                     <input 
                                         type="text" 
-                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
                                         placeholder="Ej: Administración, Operaciones, Ventas, Mantenimiento..."
                                         value={area}
                                         onChange={(e) => setArea(e.target.value)}
@@ -647,7 +647,7 @@ export default function PublicParticipacionIPEVAR() {
                                     </label>
                                     <input 
                                         type="text" 
-                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
+                                        className="w-full rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium" 
                                         placeholder="Ej: Auditor Senior, Auxiliar Administrativo, Analista..."
                                         value={cargo}
                                         onChange={(e) => setCargo(e.target.value)}
@@ -725,7 +725,7 @@ export default function PublicParticipacionIPEVAR() {
                                         placeholder="Ej: Oficina 402, Archivo central, Bodega, Taller..." 
                                         value={zona} 
                                         onChange={e => setZona(e.target.value)} 
-                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
+                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
                                     />
                                 </div>
 
@@ -740,7 +740,7 @@ export default function PublicParticipacionIPEVAR() {
                                         placeholder="Ej: Administrativa, Operativa, Logística, etc..." 
                                         value={actividad} 
                                         onChange={e => setActividad(e.target.value)} 
-                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
+                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
                                     />
                                 </div>
 
@@ -755,12 +755,12 @@ export default function PublicParticipacionIPEVAR() {
                                         placeholder="Ej: Digitar informes, operar maquinaria, archivar, atender clientes..." 
                                         value={tarea} 
                                         onChange={e => setTarea(e.target.value)} 
-                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary/40 px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
+                                        className="w-full h-11 border border-border-medium rounded-xl text-xs bg-surface-secondary px-3.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary font-medium transition-all" 
                                     />
                                 </div>
 
                                 {/* ¿Es Rutinaria? */}
-                                <div className="p-2.5 bg-surface-secondary/50 rounded-xl border border-border-medium flex items-center justify-between gap-2">
+                                <div className="p-2.5 bg-surface-secondary rounded-xl border border-border-medium flex items-center justify-between gap-2">
                                     <span className="text-[11px] font-bold text-text-secondary">
                                         ¿Haces este trabajo frecuentemente?
                                     </span>
@@ -809,7 +809,7 @@ export default function PublicParticipacionIPEVAR() {
                                                     className={`p-2 rounded-xl border text-left transition-all active:scale-95 flex items-center justify-between cursor-pointer ${
                                                         isSelected
                                                             ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-800 dark:text-teal-200 font-bold shadow-xs'
-                                                            : 'bg-surface-secondary/40 border-border-medium text-text-secondary hover:bg-surface-hover'
+                                                            : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'
                                                     }`}
                                                 >
                                                     <span className="flex items-center gap-1.5 truncate">
@@ -890,7 +890,7 @@ export default function PublicParticipacionIPEVAR() {
                                     </div>
                                     <textarea 
                                         rows={3} 
-                                        className="w-full border border-border-medium rounded-xl bg-surface-secondary/40 text-xs p-3 focus:ring-2 focus:ring-teal-500 text-text-primary resize-none font-medium leading-relaxed placeholder:text-text-tertiary" 
+                                        className="w-full border border-border-medium rounded-xl bg-surface-secondary text-xs p-3 focus:ring-2 focus:ring-teal-500 text-text-primary resize-none font-medium leading-relaxed placeholder:text-text-tertiary" 
                                         placeholder="Ej: La silla de trabajo tiene el espaldar vencido y la pantalla del computador genera reflejos molestos en los ojos..."
                                         value={peligros}
                                         onChange={e => setPeligros(e.target.value)}
@@ -922,7 +922,7 @@ export default function PublicParticipacionIPEVAR() {
                                                     className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 flex items-center gap-1 cursor-pointer ${
                                                         isSelected
                                                             ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
-                                                            : 'bg-surface-secondary/80 border-border-medium text-text-secondary hover:border-teal-400'
+                                                            : 'bg-surface-secondary border-border-medium text-text-secondary hover:border-teal-400'
                                                     }`}
                                                 >
                                                     <span>{icon}</span>
@@ -936,7 +936,7 @@ export default function PublicParticipacionIPEVAR() {
                                         placeholder="O escribe otras consecuencias: ej: Fatiga visual, dolor en cuello y hombros..." 
                                         value={consecuencias} 
                                         onChange={e => setConsecuencias(e.target.value)} 
-                                        className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary/40 py-2 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium" 
+                                        className="w-full border border-border-medium rounded-xl text-xs bg-surface-secondary py-2 px-3 focus:ring-2 focus:ring-teal-500 text-text-primary font-medium" 
                                     />
                                 </div>
 
@@ -965,7 +965,7 @@ export default function PublicParticipacionIPEVAR() {
                                                             : sev.id === 'Media'
                                                             ? 'bg-amber-500 border-amber-500 text-white shadow-sm'
                                                             : 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                                                        : 'bg-surface-secondary/60 border-border-medium text-text-secondary hover:bg-surface-hover'
+                                                        : 'bg-surface-secondary border-border-medium text-text-secondary hover:bg-surface-hover'
                                                 }`}
                                             >
                                                 {sev.label}
@@ -981,7 +981,7 @@ export default function PublicParticipacionIPEVAR() {
                                     </label>
                                     <div className="grid grid-cols-3 gap-2">
                                         {['foto1', 'foto2', 'foto3'].map((imgKey, idx) => (
-                                            <div key={imgKey} className="relative w-full h-20 rounded-xl overflow-hidden border-2 border-dashed border-border-medium bg-surface-secondary/40 hover:bg-teal-50/20 hover:border-teal-400 transition-colors flex items-center justify-center group">
+                                            <div key={imgKey} className="relative w-full h-20 rounded-xl overflow-hidden border-2 border-dashed border-border-medium bg-surface-secondary hover:bg-teal-50/20 hover:border-teal-400 transition-colors flex items-center justify-center group">
                                                 {images[imgKey] ? (
                                                     <div className="relative w-full h-full">
                                                         <img src={images[imgKey] as string} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
@@ -1049,7 +1049,7 @@ export default function PublicParticipacionIPEVAR() {
                             <div className="space-y-4 overflow-y-auto pr-1 flex-1 pb-2 text-xs">
                                 
                                 {/* 18. CONTROLES EXISTENTES */}
-                                <div className="space-y-1.5 p-3.5 bg-surface-secondary/40 border border-border-medium rounded-2xl">
+                                <div className="space-y-1.5 p-3.5 bg-surface-secondary border border-border-medium rounded-2xl">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className="block text-xs font-bold text-text-primary uppercase tracking-wider">
                                             18. Controles Existentes *

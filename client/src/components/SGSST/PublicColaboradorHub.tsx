@@ -119,11 +119,11 @@ const PercepcionScore = ({ score }: { score: number }) => {
 
   return (
     <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-          <Award className="h-4 w-4 text-teal-600" /> Percepción del Riesgo
+          <Award className="h-4 w-4 text-teal-600 shrink-0" /> Percepción del Riesgo
         </span>
-        <span className={`text-xl font-black ${level.color}`}>{safeScore} pts</span>
+        <span className={`text-xl font-black whitespace-nowrap shrink-0 ${level.color}`}>{safeScore} pts</span>
       </div>
       <div className="w-full bg-surface-secondary dark:bg-slate-800 rounded-full h-2 mb-2 overflow-hidden border border-border-light/60">
         <div
@@ -131,7 +131,7 @@ const PercepcionScore = ({ score }: { score: number }) => {
           style={{ width: `${Math.min((safeScore / 500) * 100, 100)}%`, backgroundColor: level.barColor }}
         />
       </div>
-      <div className="flex items-center justify-between text-[11px] text-text-tertiary">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-text-tertiary">
         <span>Estado: <strong className="text-text-primary">{level.label}</strong></span>
         {safeScore > 0 ? (
           <span className="font-bold text-teal-600 dark:text-teal-400">
@@ -250,14 +250,25 @@ export default function PublicColaboradorHub() {
   const navigate = useNavigate();
 
   const getInitialCedula = () => {
-    if (paramCedula) return paramCedula;
-    const directCed = localStorage.getItem('wappy_worker_cedula');
-    if (directCed) return directCed;
+    if (paramCedula) return paramCedula.trim();
     try {
+      const qCed = new URLSearchParams(window.location.search).get('cedula');
+      if (qCed && qCed.trim()) return qCed.trim();
+      if (companyId) {
+        const scopedRaw = localStorage.getItem(`wappy_worker_session_${companyId}`);
+        if (scopedRaw) {
+          const parsed = JSON.parse(scopedRaw);
+          if (parsed?.cedula) return String(parsed.cedula).trim();
+        }
+        const scopedCed = localStorage.getItem(`wappy_worker_cedula_${companyId}`);
+        if (scopedCed && scopedCed.trim()) return scopedCed.trim();
+      }
       const rawSession = localStorage.getItem('wappy_worker_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
-        if (parsed?.cedula) return parsed.cedula;
+        const matchesCompany =
+          !companyId || parsed?.companyId === companyId || parsed?.urlCompanyId === companyId;
+        if (matchesCompany && parsed?.cedula) return String(parsed.cedula).trim();
       }
     } catch (e) {}
     return '';
@@ -311,18 +322,27 @@ export default function PublicColaboradorHub() {
       const res = await axios.get(`/api/public-sgsst/colaborador-info/${companyId}/${ced.trim()}`);
       setData(res.data);
       setActiveCedula(ced.trim());
-      localStorage.setItem('wappy_worker_cedula', ced.trim());
+      const cleanCed = String(res.data?.worker?.documento || ced).trim();
+      localStorage.setItem('wappy_worker_cedula', cleanCed);
+      if (companyId) {
+        localStorage.setItem(`wappy_worker_cedula_${companyId}`, cleanCed);
+      }
       if (res.data?.worker) {
         const fullSession = {
-          companyId,
+          companyId: res.data.company?.id || companyId,
+          urlCompanyId: companyId,
           companyName: res.data.company?.companyName || 'Somos SST',
           nombre: res.data.worker.nombre,
-          cedula: res.data.worker.documento || ced.trim(),
+          cedula: cleanCed,
+          identificacion: cleanCed,
           cargo: res.data.worker.cargo,
           fitScore: res.data.worker.fitScore,
           nivel: res.data.worker.nivel,
         };
         localStorage.setItem('wappy_worker_session', JSON.stringify(fullSession));
+        if (companyId) {
+          localStorage.setItem(`wappy_worker_session_${companyId}`, JSON.stringify(fullSession));
+        }
       }
       // Consultar citaciones pendientes como testigo en ATEL
       fetchLlamadosAtel(ced.trim());
@@ -354,6 +374,10 @@ export default function PublicColaboradorHub() {
   const handleLogout = () => {
     localStorage.removeItem('wappy_worker_cedula');
     localStorage.removeItem('wappy_worker_session');
+    if (companyId) {
+      localStorage.removeItem(`wappy_worker_cedula_${companyId}`);
+      localStorage.removeItem(`wappy_worker_session_${companyId}`);
+    }
     setData(null);
     setActiveCedula(null);
     setInputCedula('');
@@ -679,7 +703,7 @@ export default function PublicColaboradorHub() {
                   value={inputCedula}
                   onChange={e => setInputCedula(e.target.value)}
                   placeholder="Número de cédula sin puntos"
-                  className="w-full text-center text-lg font-bold tracking-wider px-4 py-3.5 rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:outline-hidden transition-all"
+                  className="w-full text-center text-lg font-bold tracking-wider px-4 py-3.5 rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:outline-hidden transition-all"
                   autoFocus
                 />
               </div>
@@ -1004,7 +1028,7 @@ export default function PublicColaboradorHub() {
                   return (
                     <div
                       key={title}
-                      className="bg-surface-secondary/60 dark:bg-slate-800/50 border border-border-light dark:border-white/5 rounded-2xl p-3 flex flex-col justify-between shadow-2xs hover:shadow-sm transition-all"
+                      className="bg-surface-secondary dark:bg-slate-800/50 border border-border-light dark:border-white/5 rounded-2xl p-3 flex flex-col justify-between shadow-2xs hover:shadow-sm transition-all"
                     >
                       <div>
                         <div className="flex items-center justify-between gap-1 mb-1">

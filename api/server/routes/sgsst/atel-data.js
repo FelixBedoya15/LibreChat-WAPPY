@@ -169,6 +169,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
                                 -50, // Penalización de gamificación preventiva
                                 ev.id,
                                 {
+                                    companyId,
                                     tipo: ev.tipo === 'AT' ? 'Accidente de Trabajo' : (ev.tipo === 'EL' ? 'Enfermedad Laboral' : 'Ausentismo Médico'),
                                     diasIncapacidad: ev.diasIncapacidad || 0,
                                     diasCargados: ev.diasCargados || 0,

@@ -24,7 +24,7 @@ export default function PublicVotaciones() {
   const { companyId } = useParams<{ companyId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { worker, isAuthenticated, saveSession } = useWorkerSession(companyId);
+  const { worker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);

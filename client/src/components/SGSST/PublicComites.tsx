@@ -401,7 +401,7 @@ export default function PublicComites() {
               <button
                 type="button"
                 onClick={() => setSubmittedResult(null)}
-                className="flex-1 py-3 rounded-2xl font-semibold border border-border-medium bg-surface-secondary/60 hover:bg-surface-hover text-text-primary transition-colors"
+                className="flex-1 py-3 rounded-2xl font-semibold border border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-primary transition-colors"
               >
                 Registrar otra persona
               </button>
@@ -419,7 +419,25 @@ export default function PublicComites() {
 
         {/* Selector de Pestañas: Actas Convocadas vs Registro Manual */}
         {!submittedResult && (
-          <div className="flex p-1.5 rounded-2xl bg-surface-primary dark:bg-zinc-900 border border-border-medium shadow-sm">
+          <>
+            {(nombre || cedula) && (
+              <WorkerSessionBadge
+                companyId={companyId || ''}
+                nombre={nombre || worker?.nombre || 'Colaborador'}
+                cedula={cedula}
+                cargo={cargo || worker?.cargo}
+                companyName={company?.companyName}
+                onClear={() => {
+                  clearSession();
+                  setNombre('');
+                  setCedula('');
+                  setCargo('');
+                  setActasPendientes([]);
+                  setActasFirmadas([]);
+                }}
+              />
+            )}
+            <div className="flex p-1.5 rounded-2xl bg-surface-primary dark:bg-zinc-900 border border-border-medium shadow-sm">
             <button
               type="button"
               onClick={() => setActiveTab('actas')}
@@ -433,19 +451,20 @@ export default function PublicComites() {
               <span>Actas por Firmar {actasPendientes.length > 0 ? `(${actasPendientes.length})` : ''}</span>
               {actasPendientes.length > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />}
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('general')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black transition-all ${
-                activeTab === 'general'
-                  ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 shadow-sm border border-teal-200 dark:border-teal-800'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              <Users className="w-4 h-4 text-teal-600" />
-              <span>Asistencia Manual</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('general')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black transition-all ${
+                  activeTab === 'general'
+                    ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 shadow-sm border border-teal-200 dark:border-teal-800'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Users className="w-4 h-4 text-teal-600" />
+                <span>Asistencia Manual</span>
+              </button>
+            </div>
+          </>
         )}
 
         {/* ═══ VISTA DE ACTAS PENDIENTES DE FIRMA ═══ */}
@@ -468,7 +487,7 @@ export default function PublicComites() {
                     type="text"
                     id="cedula-input-search"
                     placeholder="Número de cédula sin puntos"
-                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-bold focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-bold focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         const val = (e.target as HTMLInputElement).value.trim();
@@ -518,7 +537,7 @@ export default function PublicComites() {
                     </span>
                     <div className="space-y-1.5">
                       {actasFirmadas.map((af: any) => (
-                        <div key={af._id} className="p-3 rounded-2xl bg-surface-secondary/40 border border-border-medium/30 flex items-center justify-between text-xs">
+                        <div key={af._id} className="p-3 rounded-2xl bg-surface-secondary border border-border-medium/30 flex items-center justify-between text-xs">
                           <div>
                             <span className="font-bold text-text-primary">{af.consecutivo}</span>
                             <span className="text-[10px] text-text-tertiary block">{af.tituloComite} • {af.periodo}</span>
@@ -578,7 +597,7 @@ export default function PublicComites() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[11px] p-3 rounded-2xl bg-surface-secondary/40 border border-border-medium/40">
+                    <div className="grid grid-cols-2 gap-2 text-[11px] p-3 rounded-2xl bg-surface-secondary border border-border-medium/40">
                       <div className="flex items-center gap-1.5 text-text-secondary">
                         <Calendar className="w-3.5 h-3.5 text-teal-600" />
                         <span>{new Date(acta.fecha).toLocaleDateString('es-CO')}</span>
@@ -635,21 +654,6 @@ export default function PublicComites() {
               </p>
             </div>
 
-            {nombre && cedula && (
-              <WorkerSessionBadge
-                nombre={nombre}
-                cedula={cedula}
-                cargo={cargo}
-                companyName={company?.companyName}
-                onClear={() => {
-                  clearSession();
-                  setNombre('');
-                  setCedula('');
-                  setCargo('');
-                }}
-              />
-            )}
-
             {/* Selector de Comité */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-text-secondary uppercase tracking-wide">1. Selecciona el Comité</label>
@@ -680,7 +684,7 @@ export default function PublicComites() {
                 })}
               </div>
 
-              <div className="flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-surface-secondary/40 border border-border-medium/60 text-xs">
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-surface-secondary border border-border-medium/60 text-xs">
                 <span className="text-text-secondary font-medium truncate">{activeMeta.fullName}</span>
                 <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-[10px] font-bold">
                   {activeMeta.norm}
@@ -697,7 +701,7 @@ export default function PublicComites() {
                 <select
                   value={accion}
                   onChange={e => setAccion(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                 >
                   <option value="asistencia_reunion">Reunión Mensual / Ordinaria</option>
                   <option value="inspeccion_seguridad">Inspección Periódica de Seguridad</option>
@@ -720,7 +724,7 @@ export default function PublicComites() {
                       onChange={e => setNombre(e.target.value)}
                       placeholder="Ej: Laura Gómez"
                       required
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     />
                   </div>
 
@@ -732,7 +736,7 @@ export default function PublicComites() {
                       onChange={e => setCedula(e.target.value)}
                       placeholder="Número sin puntos"
                       required
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -745,7 +749,7 @@ export default function PublicComites() {
                       value={cargo}
                       onChange={e => setCargo(e.target.value)}
                       placeholder="Ej: Operario de Ensamble"
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     />
                   </div>
 
@@ -754,7 +758,7 @@ export default function PublicComites() {
                     <select
                       value={rolEnComite}
                       onChange={e => setRolEnComite(e.target.value)}
-                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      className="w-full mt-1 px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                     >
                       {activeMeta.roles.map(r => (
                         <option key={r} value={r}>{r}</option>
@@ -774,7 +778,7 @@ export default function PublicComites() {
                   value={temasTratados}
                   onChange={e => setTemasTratados(e.target.value)}
                   placeholder="Resumen de puntos abordados en la reunión..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-border-medium bg-surface-secondary/40 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  className="w-full px-3.5 py-2 rounded-xl border border-border-medium bg-surface-secondary text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                 />
               </div>
 
@@ -864,7 +868,7 @@ export default function PublicComites() {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-2xl bg-surface-secondary/50 border border-border-medium/60 space-y-1">
+              <div className="p-3 rounded-2xl bg-surface-secondary border border-border-medium/60 space-y-1">
                 <div className="flex justify-between text-text-secondary">
                   <span>Participante Convocado:</span>
                   <strong className="text-text-primary">{selectedActaForSign.miNombre}</strong>
@@ -886,7 +890,7 @@ export default function PublicComites() {
                   </span>
                   <div className="max-h-28 overflow-y-auto space-y-1">
                     {selectedActaForSign.compromisos.map((c: any, idx: number) => (
-                      <div key={idx} className="p-2 rounded-xl bg-surface-secondary/40 border border-border-medium/40 text-[11px] flex justify-between gap-2">
+                      <div key={idx} className="p-2 rounded-xl bg-surface-secondary border border-border-medium/40 text-[11px] flex justify-between gap-2">
                         <span className="text-text-primary font-medium">{c.accion}</span>
                         <span className="text-text-tertiary shrink-0 font-bold">{c.responsable}</span>
                       </div>
@@ -903,7 +907,7 @@ export default function PublicComites() {
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto">
                     {selectedActaForSign.asistentes.map((asist: any, aIdx: number) => (
-                      <div key={aIdx} className="p-2 rounded-xl bg-surface-secondary/40 border border-border-medium/30 flex items-center justify-between text-[11px]">
+                      <div key={aIdx} className="p-2 rounded-xl bg-surface-secondary border border-border-medium/30 flex items-center justify-between text-[11px]">
                         <div className="min-w-0 truncate">
                           <p className="font-bold truncate">{asist.nombre}</p>
                           <p className="text-[9px] text-text-tertiary truncate">{asist.rol}</p>

@@ -564,7 +564,7 @@ export default function PublicBrigadistas() {
 
               {/* DETALLES MÉDICOS Y COBERTURA EN TERRENO */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                <div className="p-4 rounded-2xl bg-surface-secondary/60 border border-border-light space-y-3">
+                <div className="p-4 rounded-2xl bg-surface-secondary border border-border-light space-y-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-text-primary flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-teal-600" /> Cobertura Inmediata
                   </h3>
@@ -575,7 +575,7 @@ export default function PublicBrigadistas() {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-surface-secondary/60 border border-border-light space-y-3">
+                <div className="p-4 rounded-2xl bg-surface-secondary border border-border-light space-y-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5" /> Contacto de Emergencia Familiar
                   </h3>
@@ -700,7 +700,7 @@ export default function PublicBrigadistas() {
                   className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
                     item.entregado
                       ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800'
-                      : 'bg-surface-secondary/40 border-border-light hover:border-border-medium'
+                      : 'bg-surface-secondary border-border-light hover:border-border-medium'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -756,7 +756,7 @@ export default function PublicBrigadistas() {
               </div>
               {capacitaciones.length > 0 ? (
                 capacitaciones.map((c, i) => (
-                  <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary/60 border border-border-light flex items-center justify-between gap-3 text-xs">
+                  <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary border border-border-light flex items-center justify-between gap-3 text-xs">
                     <div>
                       <p className="font-bold text-text-primary">{c.tema}</p>
                       <p className="text-[11px] text-text-secondary">{c.institucion} • {c.horas} Horas</p>
@@ -767,7 +767,7 @@ export default function PublicBrigadistas() {
                   </div>
                 ))
               ) : (
-                <div className="p-6 rounded-2xl bg-surface-secondary/30 border border-dashed border-border-medium text-center space-y-3">
+                <div className="p-6 rounded-2xl bg-surface-secondary border border-dashed border-border-medium text-center space-y-3">
                   <div className="w-12 h-12 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
                     <Award className="w-6 h-6" />
                   </div>
@@ -798,7 +798,7 @@ export default function PublicBrigadistas() {
               </div>
               {simulacros.length > 0 ? (
                 simulacros.map((s, i) => (
-                  <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary/60 border border-border-light flex items-center justify-between gap-3 text-xs">
+                  <div key={i} className="p-3.5 rounded-2xl bg-surface-secondary border border-border-light flex items-center justify-between gap-3 text-xs">
                     <div>
                       <p className="font-bold text-text-primary">{s.nombre}</p>
                       <p className="text-[11px] text-text-secondary">Rol asignado: {s.rolDesempenado}</p>
@@ -809,7 +809,7 @@ export default function PublicBrigadistas() {
                   </div>
                 ))
               ) : (
-                <div className="p-4 rounded-2xl bg-surface-secondary/30 border border-dashed border-border-medium text-center space-y-1">
+                <div className="p-4 rounded-2xl bg-surface-secondary border border-dashed border-border-medium text-center space-y-1">
                   <p className="text-xs font-bold text-text-primary">Sin Registro de Participación en Simulacros</p>
                   <p className="text-[11px] text-text-secondary max-w-md mx-auto">
                     La participación en simulacros periódicos se registrará una vez se ejecute y evalúe la jornada de evacuación en la empresa.
@@ -877,7 +877,7 @@ export default function PublicBrigadistas() {
                   onTouchStart={startDrawing}
                   onTouchMove={draw}
                   onTouchEnd={stopDrawing}
-                  className="w-full h-36 bg-surface-secondary/40 border-2 border-dashed border-teal-400/50 rounded-2xl touch-none cursor-crosshair"
+                  className="w-full h-36 bg-surface-secondary border-2 border-dashed border-teal-400/50 rounded-2xl touch-none cursor-crosshair"
                 />
               </div>
             )}

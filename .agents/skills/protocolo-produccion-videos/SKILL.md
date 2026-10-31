@@ -39,8 +39,8 @@ Está **ESTRICTAMENTE PROHIBIDO** lanzar renders completos en MP4 sin antes estr
    - **Imagotipo Oficial Completo (`Gato SST + WAPPY`):** Vertical Verde Esmeralda (`client/public/wappy-official-logo.png`) y Horizontal Negro (`client/public/assets/wappy_horizontal_black_logo.png`).
    - **Wordmark 3D Comic (`WAPPY`) y Mascota `Tenshi 3D`:** `client/public/marketing/wappy-wordmark.png` y `client/public/assets/tenshi.png`.
    - **Avatares Oficiales de Mauricio (Fundador):**
-     * **`avatar2.png` (Chibi 3D con camisa de cuadros amarilla y logo `W` en el bolsillo):** `/Users/venta/Downloads/avatar2.png` y `client/public/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png` (Protagonista obligatorio de las miniaturas/portadas de `0.00s a 2.00s`).
-     * **2 Avatares Voxel Minecraft 3D (con camisa de cuadros amarilla y logo `W` en el bolsillo):** Cuerpo Completo (`client/public/assets/brandbook/avatar_mauricio_voxel_cuerpo_completo.png`) y Señalando (`client/public/assets/brandbook/avatar_mauricio_voxel_senalando.jpg` / `/Users/venta/Downloads/Mauricio_Avatar_Minecraft_Senalando.jpg`).
+     * **`avatar2.png` (Chibi 3D con camisa de cuadros amarilla y logo `W` en el bolsillo):** `/Users/felixbedoya/Downloads/avatar2.png` y `client/public/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png` (Protagonista obligatorio de las miniaturas/portadas de `0.00s a 2.00s`).
+     * **2 Avatares Voxel Minecraft 3D (con camisa de cuadros amarilla y logo `W` en el bolsillo):** Cuerpo Completo (`client/public/assets/brandbook/avatar_mauricio_voxel_cuerpo_completo.png`) y Señalando (`client/public/assets/brandbook/avatar_mauricio_voxel_senalando.jpg` / `/Users/felixbedoya/Downloads/Mauricio_Avatar_Minecraft_Senalando.jpg`).
      * **Variantes adicionales Chibi 3D:** `Avatar1.png` (Deportivo azul con `W` naranja: `client/public/assets/brandbook/avatar1_mauricio_deportivo_azul.png`) y `avatar3.png` (Ejecutivo traje gris con corbata: `client/public/assets/brandbook/avatar3_mauricio_ejecutivo_traje.png`).
    - **Prohibido** incluir barras de navegación web falsas (`Inicio · Funciones · Precios · Entrar`) dentro de los vídeos.
    - **Prohibido** que el logo o el avatar 3D tapen textos, fórmulas o tarjetas.
@@ -89,7 +89,7 @@ Presentar siempre una tabla cronológica segundo a segundo donde:
 ### Pieza 7 · Tamaño, 3 Vistas Previas y Entrega Final
 1. Mostrar **3 imágenes de vista previa (Inicio/Miniatura, Mitad y Cierre)** para confirmar que ningún texto se corta ni se solapa.
 2. Exportar el video en **MP4 (`1080x1920` o `1920x1080`, `60 fps`, H.264 `crf 18`, AAC `192k`)** usando Remotion o el motor determinista HTML 60fps + FFmpeg.
-3. Dejar copia lista en `/Users/venta/Downloads/` (o `/Users/venta/Desktop/` si el usuario lo solicita).
+3. Dejar copia lista en `/Users/felixbedoya/Downloads/` (o `/Users/felixbedoya/Desktop/` si el usuario lo solicita).
 
 ---
 

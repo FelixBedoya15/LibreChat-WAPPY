@@ -336,7 +336,7 @@ export default function PublicReporteActos() {
                   </label>
                   <input
                     type="text"
-                    className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium"
+                    className="w-full rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium"
                     placeholder="Ej. Juan Pérez"
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
@@ -348,7 +348,7 @@ export default function PublicReporteActos() {
                   </label>
                   <input
                     type="number"
-                    className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium"
+                    className="w-full rounded-2xl border border-border-medium bg-surface-secondary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-text-primary px-4 py-3 text-sm transition-all placeholder:text-text-tertiary font-medium"
                     placeholder="Número sin puntos ni comas"
                     value={cedula}
                     onChange={(e) => setCedula(e.target.value)}
@@ -364,7 +364,7 @@ export default function PublicReporteActos() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 rounded-2xl border border-border-medium bg-surface-secondary/50 p-3.5 transition-all hover:bg-surface-hover">
+                <div className="flex items-center gap-3 rounded-2xl border border-border-medium bg-surface-secondary p-3.5 transition-all hover:bg-surface-hover">
                   <input
                     type="checkbox"
                     id="esTercero"
@@ -424,10 +424,10 @@ export default function PublicReporteActos() {
               <div className="mb-6 flex items-center gap-3 text-orange-500">
                 <AlertTriangle className="h-8 w-8" />
                 <div>
-                  <h2 className="text-xl font-black leading-tight text-gray-900">
+                  <h2 className="text-xl font-black leading-tight text-gray-900 dark:text-white">
                     Acto / Condición Insegura
                   </h2>
-                  <p className="text-xs text-gray-500">¿Qué observaste de peligro?</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">¿Qué observaste de peligro?</p>
                 </div>
               </div>
               <div className="space-y-4">
@@ -440,7 +440,7 @@ export default function PublicReporteActos() {
                       type="date"
                       value={fecha}
                       onChange={(e) => setFecha(e.target.value)}
-                      className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 px-4 py-3 text-sm font-medium text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                      className="w-full rounded-2xl border border-border-medium bg-surface-secondary px-4 py-3 text-sm font-medium text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                   <div>
@@ -451,7 +451,7 @@ export default function PublicReporteActos() {
                       type="time"
                       value={hora}
                       onChange={(e) => setHora(e.target.value)}
-                      className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 px-4 py-3 text-sm font-medium text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                      className="w-full rounded-2xl border border-border-medium bg-surface-secondary px-4 py-3 text-sm font-medium text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                 </div>
@@ -464,7 +464,7 @@ export default function PublicReporteActos() {
                     placeholder="Ej: Bodega 2, Pasillo A"
                     value={ubicacion}
                     onChange={(e) => setUbicacion(e.target.value)}
-                    className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 px-4 py-3 text-sm font-medium text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                    className="w-full rounded-2xl border border-border-medium bg-surface-secondary px-4 py-3 text-sm font-medium text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
                 <div>
@@ -473,7 +473,7 @@ export default function PublicReporteActos() {
                   </label>
                   <textarea
                     rows={4}
-                    className="w-full resize-none rounded-2xl border border-border-medium bg-surface-secondary/40 px-4 py-3 text-sm font-medium leading-relaxed text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                    className="w-full resize-none rounded-2xl border border-border-medium bg-surface-secondary px-4 py-3 text-sm font-medium leading-relaxed text-text-primary focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
                     placeholder="Describe el acto o condición insegura con la mayor cantidad de detalles posible..."
                     value={descripcion}
                     onChange={(e) => setDescripcion(e.target.value)}
@@ -483,7 +483,7 @@ export default function PublicReporteActos() {
               <div className="mt-auto flex gap-3 pt-6">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-5 py-3 rounded-2xl font-bold border border-border-medium bg-surface-secondary/60 hover:bg-surface-hover text-text-secondary transition-all text-xs"
+                  className="px-5 py-3 rounded-2xl font-bold border border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary transition-all text-xs"
                 >
                   Atrás
                 </button>
@@ -552,7 +552,7 @@ export default function PublicReporteActos() {
                           setActivePhotoField(item.id);
                           fileInputRef.current?.click();
                         }}
-                        className="group flex h-24 w-full items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border-medium bg-surface-secondary/40 transition-colors hover:border-teal-500 hover:bg-teal-50/20"
+                        className="group flex h-24 w-full items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border-medium bg-surface-secondary transition-colors hover:border-teal-500 hover:bg-teal-50/20"
                       >
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-primary shadow-xs transition-transform group-hover:scale-105">
                           <Camera className="h-5 w-5 text-teal-600 opacity-80" />
@@ -592,7 +592,7 @@ export default function PublicReporteActos() {
                     setStep(2);
                     setSubmitResult(null);
                   }}
-                  className="px-5 py-3 rounded-2xl font-bold border border-border-medium bg-surface-secondary/60 hover:bg-surface-hover text-text-secondary transition-all text-xs"
+                  className="px-5 py-3 rounded-2xl font-bold border border-border-medium bg-surface-secondary hover:bg-surface-hover text-text-secondary transition-all text-xs"
                   disabled={isSubmitting}
                 >
                   Atrás
@@ -655,7 +655,7 @@ export default function PublicReporteActos() {
                     setFoto3Desc('');
                     setSubmitResult(null);
                   }}
-                  className="w-full rounded-2xl border border-border-medium bg-surface-secondary/40 py-2.5 font-bold text-text-secondary transition-colors hover:bg-surface-hover text-xs"
+                  className="w-full rounded-2xl border border-border-medium bg-surface-secondary py-2.5 font-bold text-text-secondary transition-colors hover:bg-surface-hover text-xs"
                 >
                   Iniciar un nuevo reporte
                 </button>

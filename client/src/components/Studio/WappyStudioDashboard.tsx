@@ -1855,15 +1855,21 @@ function buildDefaultHtmlComposition({
       }
 
       window.__wappyRenderTick = function(tSec) {
-        drawSceneFrame(tSec || 0);
+        window.__wappyCurrentTime = Number(tSec || 0);
+        drawSceneFrame(window.__wappyCurrentTime);
       };
 
-      var startPerf = performance.now();
+      var lastPerf = performance.now();
+      var internalTime = 0;
       function loop(now) {
-        var t = typeof window.__wappyCurrentTime === 'number'
-          ? window.__wappyCurrentTime
-          : (now - startPerf) / 1000;
-        drawSceneFrame(t);
+        var dt = Math.max(0, (now - lastPerf) / 1000);
+        lastPerf = now;
+        if (typeof window.__wappyCurrentTime === 'number') {
+          internalTime = window.__wappyCurrentTime;
+        } else if (!window.__wappyPaused) {
+          internalTime += dt;
+        }
+        drawSceneFrame(internalTime);
         requestAnimationFrame(loop);
       }
       requestAnimationFrame(loop);
@@ -2123,26 +2129,67 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 
     if (data.type === 'STUDIO_PLAY') {
       window.__wappyVoicePlaying = true;
+      window.__wappyPaused = false;
       if (window.mainTimeline) window.mainTimeline.play();
       if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.play();
+      try {
+        if (typeof document.getAnimations === 'function') {
+          document.getAnimations().forEach(function(a) { try { a.play(); } catch (e) {} });
+        }
+        Array.prototype.forEach.call(document.querySelectorAll('audio, video'), function(m) {
+          try { m.play(); } catch (e) {}
+        });
+      } catch (e) {}
     } else if (data.type === 'STUDIO_PAUSE') {
       window.__wappyVoicePlaying = false;
+      window.__wappyPaused = true;
       if (window.mainTimeline) window.mainTimeline.pause();
       if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.pause();
+      try {
+        if (typeof document.getAnimations === 'function') {
+          document.getAnimations().forEach(function(a) { try { a.pause(); } catch (e) {} });
+        }
+        Array.prototype.forEach.call(document.querySelectorAll('audio, video'), function(m) {
+          try { m.pause(); } catch (e) {}
+        });
+      } catch (e) {}
     } else if (data.type === 'STUDIO_RESTART') {
       window.__wappyVoicePlaying = true;
+      window.__wappyPaused = false;
       window.__wappyCurrentTime = 0;
       if (window.mainTimeline) window.mainTimeline.restart();
       else if (window.gsap && window.gsap.globalTimeline) window.gsap.globalTimeline.restart();
+      try {
+        if (typeof document.getAnimations === 'function') {
+          document.getAnimations().forEach(function(a) {
+            try { a.currentTime = 0; a.play(); } catch (e) {}
+          });
+        }
+        Array.prototype.forEach.call(document.querySelectorAll('audio, video'), function(m) {
+          try { m.currentTime = 0; m.play(); } catch (e) {}
+        });
+      } catch (e) {}
       if (typeof window.__wappyRenderTick === 'function') window.__wappyRenderTick(0);
     } else if (data.type === 'STUDIO_SEEK') {
       var p = Math.max(0, Math.min(1, Number(data.progress || 0)));
       if (typeof data.time === 'number') window.__wappyCurrentTime = data.time;
       if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
-        window.mainTimeline.progress(p);
+        window.mainTimeline.progress(p, false);
       } else if (window.gsap && window.gsap.globalTimeline && typeof data.time === 'number') {
         window.gsap.globalTimeline.time(data.time);
       }
+      try {
+        if (typeof data.time === 'number' && typeof document.getAnimations === 'function') {
+          document.getAnimations().forEach(function(a) {
+            try { a.currentTime = data.time * 1000; } catch (e) {}
+          });
+        }
+        if (typeof data.time === 'number') {
+          Array.prototype.forEach.call(document.querySelectorAll('audio, video'), function(m) {
+            try { m.currentTime = data.time; } catch (e) {}
+          });
+        }
+      } catch (e) {}
       if (typeof window.__wappyRenderTick === 'function' && typeof data.time === 'number') {
         window.__wappyRenderTick(data.time);
       }
@@ -2394,6 +2441,11 @@ export default function WappyStudioDashboard({
   });
   const [antigravityStreamConnected, setAntigravityStreamConnected] = useState<boolean>(false);
   const [antigravityDaemonConnected, setAntigravityDaemonConnected] = useState<boolean>(false);
+  const [activeAntigravityOrderId, setActiveAntigravityOrderId] = useState<string>('');
+  const [antigravityOrderStatus, setAntigravityOrderStatus] = useState<
+    'idle' | 'delegated' | 'completed'
+  >('idle');
+  const antigravityPollTimerRef = useRef<any>(null);
   const [copiedBridgeItem, setCopiedBridgeItem] = useState<
     'key' | 'prompt' | 'terminal' | null
   >(null);
@@ -3481,13 +3533,20 @@ export default function WappyStudioDashboard({
   }, [podcastOnly]);
 
   // ============================================================================
-  // ESTADO Y MANEJADORES DE CLONACIÓN DE VOZ & DISEÑO VOCAL (GEMINI 3.8 VOICES API)
+  // ESTADO Y MANEJADORES DE CLONACIÓN DE VOZ & DISEÑO VOCAL
   // ============================================================================
   const [clonedVoices, setClonedVoices] = useState<StudioVoice[]>(() => {
     try {
       const raw = localStorage.getItem('wappy_studio_cloned_voices_v1');
       const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (v: any) =>
+              v &&
+              v.id !== 'voice_d1mpq6dowjz7' &&
+              !/f[eé]lix/i.test(String(v.name || v.displayName || '')),
+          )
+        : [];
     } catch {
       return [];
     }
@@ -3526,6 +3585,8 @@ export default function WappyStudioDashboard({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
+  const sourceFileInputRef = useRef<HTMLInputElement | null>(null);
+  const consentFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     try {
@@ -3543,15 +3604,20 @@ export default function WappyStudioDashboard({
           setClonedVoices((prev) => {
             const map = new Map<string, StudioVoice>();
             for (const v of [...prev, ...data.voices]) {
-              if (v && v.id) {
+              if (
+                v &&
+                v.id &&
+                v.id !== 'voice_d1mpq6dowjz7' &&
+                !/f[eé]lix/i.test(String(v.name || v.displayName || ''))
+              ) {
                 map.set(v.id, {
                   id: v.id,
                   name: v.name || `🧬 ${v.displayName || v.id}`,
                   gender: v.gender === 'Femenino' ? 'Femenino' : 'Masculino',
                   tone: v.tone || 'Voz Clonada 24kHz',
                   recommendedFor:
-                    v.description || v.recommendedFor || 'Clon vocal Gemini 3.8 para Somos SST Daily',
-                  tag: 'Clonada IA',
+                    v.description || v.recommendedFor || 'Clon vocal 24kHz para Somos SST Daily',
+                  tag: 'Clonada',
                   isCustomClone: true,
                   baseVoice: v.baseVoice,
                   styleDirective: v.styleDirective,
@@ -3727,8 +3793,8 @@ export default function WappyStudioDashboard({
         gender: vRaw.gender === 'Femenino' ? 'Femenino' : 'Masculino',
         tone: vRaw.tone || 'Voz Clonada 24kHz',
         recommendedFor:
-          vRaw.description || 'Voz clonada con Gemini 3.8 para episodios de Somos SST Daily',
-        tag: 'Clonada IA',
+          vRaw.description || 'Voz clonada a 24kHz para episodios de Somos SST Daily',
+        tag: 'Clonada',
         isCustomClone: true,
         baseVoice: vRaw.baseVoice,
         styleDirective: vRaw.styleDirective,
@@ -3766,7 +3832,7 @@ export default function WappyStudioDashboard({
     } catch (err: any) {
       setStatusBanner({
         type: 'error',
-        text: err?.message || 'Error al clonar la voz con Gemini 3.8.',
+        text: err?.message || 'Error al procesar la clonación de voz.',
       });
     } finally {
       setIsCloningVoice(false);
@@ -3879,7 +3945,7 @@ export default function WappyStudioDashboard({
         body: JSON.stringify({
           voiceName: selectedVoice,
           model: selectedModel,
-          text: '¡Conexión verificada con éxito! El motor de voz Gemini 3.8 Flash TTS en WAPPY Studio está listo.',
+          text: '¡Conexión verificada con éxito! El motor de voz 24kHz en WAPPY Studio está listo.',
         }),
       });
       const data = await parseStudioJson(resp);
@@ -3894,10 +3960,10 @@ export default function WappyStudioDashboard({
       });
       setStatusBanner({
         type: 'success',
-        text: `¡Conexión activa con ${data.usedModel || selectedModel}! Audio sintetizado correctamente.`,
+        text: '¡Conexión de estudio 24kHz verificada! Audio sintetizado correctamente.',
       });
     } catch (err: any) {
-      setStatusBanner({ type: 'error', text: err.message || 'Error de conexión con Gemini TTS.' });
+      setStatusBanner({ type: 'error', text: err.message || 'Error de conexión con el motor de audio.' });
     } finally {
       setIsTestingConnection(false);
     }
@@ -4758,6 +4824,159 @@ export default function WappyStudioDashboard({
     }
   };
 
+  const resolveEffectiveAntigravityKey = () => {
+    const clean = (antigravityBridgeKey || '').trim();
+    const isUserLoggedIn = Boolean(
+      token ||
+        isAuthenticated ||
+        (typeof window !== 'undefined' && (window as any)?.isPlatformLoggedIn) ||
+        localStorage.getItem('wappy_auth_token'),
+    );
+    if (isUserLoggedIn && clean.startsWith('wpy_guest_')) {
+      return '';
+    }
+    return clean;
+  };
+
+  const loadLatestCompletedAntigravityOrder = async (silent = false) => {
+    try {
+      const effKey = resolveEffectiveAntigravityKey();
+      const keyParam = effKey ? `?apiKey=${encodeURIComponent(effKey)}` : '';
+      const ordResp = await fetch(`/api/mcp-bridge/antigravity/ordenes${keyParam}`, {
+        headers: getAuthHeaders(token),
+        credentials: 'include',
+      });
+      if (!ordResp.ok) return false;
+      const ordData = await ordResp.json();
+      const ordersList = Array.isArray(ordData?.ordenes) ? ordData.ordenes : [];
+      const validHtmlOrder = ordersList.find((o: any) => {
+        if (o?.estado !== 'done' && o?.estado !== 'completed') return false;
+        const raw = String(o?.entregable?.contenido || '').trim();
+        const cleaned = raw
+          .replace(/^```html\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/```\s*$/i, '')
+          .trim();
+        return cleaned.length > 80 && /<!doctype html|<html\b|<div[^>]+id=["']stage["']/i.test(cleaned);
+      });
+      if (!validHtmlOrder) {
+        if (!silent) {
+          setStatusBanner({
+            type: 'info',
+            text: 'Aún no hay ningún video HTML completado recientemente en tu cola de Antigravity.',
+          });
+        }
+        return false;
+      }
+      const deliveredHtml = String(validHtmlOrder.entregable?.contenido || '')
+        .trim()
+        .replace(/^```html\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+      latestEditedHtmlRef.current = '';
+      setHtmlCode(deliveredHtml);
+      setAntigravityOrderStatus('completed');
+      setActiveAntigravityOrderId('');
+      await saveVideoProjectToLibrary({ htmlOverride: deliveredHtml }, true);
+      setVideoCurrentTime(0);
+      setIsVideoPlaying(true);
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+        stageAudioRef.current?.play().catch(() => {});
+        document
+          .getElementById('wappy-studio-live-monitor')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+      if (!silent) {
+        setStatusBanner({
+          type: 'success',
+          text: `🚀 ¡Video de la orden #${String(validHtmlOrder.id || '').slice(-6)} cargado desde Antigravity en el Monitor en Vivo!`,
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const startPollingAntigravityOrder = (delegatedOrderId?: string) => {
+    if (!delegatedOrderId) return;
+    if (antigravityPollTimerRef.current) {
+      clearInterval(antigravityPollTimerRef.current);
+      antigravityPollTimerRef.current = null;
+    }
+    setActiveAntigravityOrderId(delegatedOrderId);
+    setAntigravityOrderStatus('delegated');
+    setAntigravityDaemonConnected(true);
+
+    let attempts = 0;
+    const pollTimer = setInterval(async () => {
+      attempts++;
+      if (attempts > 120) {
+        clearInterval(pollTimer);
+        if (antigravityPollTimerRef.current === pollTimer) {
+          antigravityPollTimerRef.current = null;
+        }
+        setAntigravityOrderStatus((prev) => (prev === 'delegated' ? 'idle' : prev));
+        return;
+      }
+      try {
+        const effKey = resolveEffectiveAntigravityKey();
+        const keyParam = effKey ? `&apiKey=${encodeURIComponent(effKey)}` : '';
+        const ordResp = await fetch(
+          `/api/mcp-bridge/antigravity/ordenes?id=${encodeURIComponent(delegatedOrderId)}&ordenId=${encodeURIComponent(delegatedOrderId)}${keyParam}`,
+          { headers: getAuthHeaders(token), credentials: 'include' },
+        );
+        if (!ordResp.ok) return;
+        const ordData = await ordResp.json();
+        const ordersList = Array.isArray(ordData?.ordenes) ? ordData.ordenes : [];
+        const foundOrder =
+          ordersList.find((o: any) => String(o?.id || o?._id || '') === String(delegatedOrderId)) ||
+          ordersList[0] ||
+          null;
+        if (foundOrder && (foundOrder.estado === 'done' || foundOrder.estado === 'completed')) {
+          const rawDelivered = String(foundOrder.entregable?.contenido || '').trim();
+          const deliveredHtml = rawDelivered
+            .replace(/^```html\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+          if (
+            deliveredHtml.length > 80 &&
+            /<!doctype html|<html\b|<div[^>]+id=["']stage["']/i.test(deliveredHtml)
+          ) {
+            clearInterval(pollTimer);
+            if (antigravityPollTimerRef.current === pollTimer) {
+              antigravityPollTimerRef.current = null;
+            }
+            setAntigravityOrderStatus('completed');
+            setActiveAntigravityOrderId('');
+            latestEditedHtmlRef.current = '';
+            setHtmlCode(deliveredHtml);
+            await saveVideoProjectToLibrary({ htmlOverride: deliveredHtml }, true);
+            setVideoCurrentTime(0);
+            setIsVideoPlaying(true);
+            setTimeout(() => {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+              stageAudioRef.current?.play().catch(() => {});
+              document
+                .getElementById('wappy-studio-live-monitor')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+            setStatusBanner({
+              type: 'success',
+              text: '🚀 ¡Orden completada en Antigravity! El video HTML 60-FPS compilado por Antigravity ya está en el Monitor en Vivo (abajo) y en tu Biblioteca, listo para descargar en .MP4 o .HTML.',
+            });
+          }
+        }
+      } catch {
+        /* ignore poll error */
+      }
+    }, 3000);
+    antigravityPollTimerRef.current = pollTimer;
+  };
+
   // PASO 2: Enviar Super-Prompt + Audio + Escenas IA al Generador de Video (Antigravity)
   const handleGenerateHtmlWithAi = async () => {
     if (!requireActiveCompany('generar el video HTML5 + GSAP con Antigravity')) return;
@@ -4773,9 +4992,11 @@ export default function WappyStudioDashboard({
         6,
         Math.round(currentAudio?.durationSeconds || videoDuration || 25),
       );
+      const effBridgeKey = resolveEffectiveAntigravityKey();
       const resp = await fetch('/api/studio/video/generate-html', {
         method: 'POST',
         headers: getAuthHeaders(token),
+        credentials: 'include',
         body: JSON.stringify({
           prompt: effectivePrompt,
           scriptText,
@@ -4794,7 +5015,7 @@ export default function WappyStudioDashboard({
           companyName: activeCompanyInfo?.companyName || user?.name || 'WAPPY IA',
           modelName: selectedAiModel,
           audioBase64: audioBase64 || undefined,
-          antigravityApiKey: antigravityBridgeKey,
+          antigravityApiKey: effBridgeKey || undefined,
           customKeys: activeUserGeminiKeys,
         }),
       });
@@ -4820,58 +5041,19 @@ export default function WappyStudioDashboard({
           monitorEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 140);
-      setStatusBanner({
-        type: 'success',
-        text: '¡Paso 2 completado! El video ya está reproduciéndose abajo en el "Monitor en Vivo & Lienzo Interactivo" y guardado en tu Biblioteca. Desde el Monitor puedes darle Play, editarlo o pulsar "Descargar Video .MP4 (Todo Unido)".',
-      });
 
-      // Si se delegó orden en vivo a Antigravity, vigilar su finalización como respaldo al SSE para inyectar el HTML final de Antigravity apenas termine
       const delegatedOrderId = data.delegation?.ordenId;
-      if (delegatedOrderId && antigravityBridgeKey) {
-        let attempts = 0;
-        const pollTimer = setInterval(async () => {
-          attempts++;
-          if (attempts > 45) {
-            clearInterval(pollTimer);
-            return;
-          }
-          try {
-            const ordResp = await fetch(
-              `/api/mcp-bridge/antigravity/ordenes?ordenId=${encodeURIComponent(delegatedOrderId)}&apiKey=${encodeURIComponent(antigravityBridgeKey)}`,
-              { headers: getAuthHeaders(token), credentials: 'include' },
-            );
-            if (!ordResp.ok) return;
-            const ordData = await ordResp.json();
-            const foundOrder = Array.isArray(ordData?.ordenes) ? ordData.ordenes[0] : null;
-            if (foundOrder && (foundOrder.estado === 'done' || foundOrder.estado === 'completed')) {
-              clearInterval(pollTimer);
-              const deliveredHtml = String(foundOrder.entregable?.contenido || '').trim();
-              if (
-                deliveredHtml.length > 100 &&
-                /<!doctype html|<html\b|<div[^>]+id=["']stage["']/i.test(deliveredHtml)
-              ) {
-                latestEditedHtmlRef.current = '';
-                setHtmlCode(deliveredHtml);
-                await saveVideoProjectToLibrary({ htmlOverride: deliveredHtml }, true);
-                setVideoCurrentTime(0);
-                setIsVideoPlaying(true);
-                setTimeout(() => {
-                  iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
-                  stageAudioRef.current?.play().catch(() => {});
-                  document
-                    .getElementById('wappy-studio-live-monitor')
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 150);
-                setStatusBanner({
-                  type: 'success',
-                  text: '🚀 ¡Orden completada en Antigravity! El video HTML 60-FPS compilado por Antigravity ya está en el Monitor en Vivo (abajo) y en tu Biblioteca, listo para descargar en .MP4 o .HTML.',
-                });
-              }
-            }
-          } catch {
-            /* ignore poll error */
-          }
-        }, 4000);
+      if (delegatedOrderId) {
+        startPollingAntigravityOrder(delegatedOrderId);
+        setStatusBanner({
+          type: 'success',
+          text: `⚡ ¡Paso 2 enviado a Antigravity (Orden #${String(delegatedOrderId).slice(-6)})! El lienzo base ya está activo abajo en el Monitor en Vivo y se actualizará automáticamente en cuanto Antigravity termine de compilar.`,
+        });
+      } else {
+        setStatusBanner({
+          type: 'success',
+          text: '¡Paso 2 completado! El video ya está reproduciéndose abajo en el "Monitor en Vivo & Lienzo Interactivo" y guardado en tu Biblioteca. Desde el Monitor puedes darle Play, editarlo o pulsar "Descargar Video .MP4 (Todo Unido)".',
+        });
       }
     } catch (err: any) {
       setStatusBanner({
@@ -4903,11 +5085,14 @@ export default function WappyStudioDashboard({
       );
       const currentHtml = latestEditedHtmlRef.current || htmlCode;
       let updatedHtml = '';
+      let delegatedOrderId = '';
+      const effBridgeKey = resolveEffectiveAntigravityKey();
 
       try {
         const editResp = await fetch('/api/studio/antigravity/edit-html', {
           method: 'POST',
           headers: getAuthHeaders(token),
+          credentials: 'include',
           body: JSON.stringify({
             currentHtml,
             correctionPrompt: videoCorrectionPrompt.trim(),
@@ -4924,12 +5109,15 @@ export default function WappyStudioDashboard({
             effects: selectedSkillEffects,
             modelName: selectedAiModel,
             audioBase64: audioBase64 || undefined,
-            antigravityApiKey: antigravityBridgeKey,
+            antigravityApiKey: effBridgeKey || undefined,
             customKeys: activeUserGeminiKeys,
           }),
         });
         if (editResp.ok) {
           const editData = await parseStudioJson(editResp);
+          if (editData?.delegation?.ordenId) {
+            delegatedOrderId = editData.delegation.ordenId;
+          }
           if (editData?.success && editData.htmlCode) {
             updatedHtml = editData.htmlCode;
             if (
@@ -4949,6 +5137,7 @@ export default function WappyStudioDashboard({
         const genResp = await fetch('/api/studio/video/generate-html', {
           method: 'POST',
           headers: getAuthHeaders(token),
+          credentials: 'include',
           body: JSON.stringify({
             prompt: combinedPrompt,
             scriptText,
@@ -4967,13 +5156,16 @@ export default function WappyStudioDashboard({
             companyName: activeCompanyInfo?.companyName || user?.name || 'WAPPY IA',
             modelName: selectedAiModel,
             audioBase64: audioBase64 || undefined,
-            antigravityApiKey: antigravityBridgeKey,
+            antigravityApiKey: effBridgeKey || undefined,
             customKeys: activeUserGeminiKeys,
           }),
         });
         const genData = await parseStudioJson(genResp);
         if (!genResp.ok || !genData.success || !genData.htmlCode) {
           throw new Error(genData.error || 'No se pudieron aplicar las correcciones al HTML.');
+        }
+        if (genData?.delegation?.ordenId) {
+          delegatedOrderId = genData.delegation.ordenId;
         }
         updatedHtml = genData.htmlCode;
       }
@@ -4988,6 +5180,9 @@ export default function WappyStudioDashboard({
         stageAudioRef.current?.play().catch(() => {});
         baseVideoRef.current?.play().catch(() => {});
       }, 140);
+      if (delegatedOrderId) {
+        startPollingAntigravityOrder(delegatedOrderId);
+      }
       setStatusBanner({
         type: 'success',
         text: '¡Paso 3 completado! Correcciones aplicadas por Antigravity sobre el HTML manteniendo la sincronía con el audio y actualizadas en la Biblioteca.',
@@ -5146,18 +5341,30 @@ export default function WappyStudioDashboard({
   };
 
   const handleStageSeek = (newTime: number) => {
-    setVideoCurrentTime(newTime);
-    const progress = videoDuration > 0 ? newTime / videoDuration : 0;
+    const dur = Math.max(1, videoDuration || 20);
+    const clamped = Math.max(0, Math.min(dur, newTime));
+    setVideoCurrentTime(clamped);
+    const progress = dur > 0 ? clamped / dur : 0;
     iframeRef.current?.contentWindow?.postMessage(
-      { type: 'STUDIO_SEEK', progress, time: newTime },
+      { type: 'STUDIO_SEEK', progress, time: clamped },
       '*',
     );
     if (baseVideoRef.current) {
-      baseVideoRef.current.currentTime = newTime;
+      baseVideoRef.current.currentTime = clamped;
     }
     if (stageAudioRef.current && activeStageAudioSrc) {
-      stageAudioRef.current.currentTime = newTime;
+      stageAudioRef.current.currentTime = clamped;
     }
+  };
+
+  const stepStagePlayback = (deltaSeconds: number) => {
+    const dur = Math.max(1, videoDuration || 20);
+    const current =
+      stageAudioRef.current && activeStageAudioSrc && !stageAudioRef.current.paused
+        ? stageAudioRef.current.currentTime
+        : videoCurrentTime;
+    const nextTime = Math.max(0, Math.min(dur, current + deltaSeconds));
+    handleStageSeek(nextTime);
   };
 
   const toggleVisualEditMode = () => {
@@ -5629,6 +5836,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 </div>
 <div id="wappy-capsule-controls">
   <button type="button" id="wappy-btn-play">⏸ Pausar</button>
+  <button type="button" id="wappy-btn-rw" class="secondary" title="Retroceder 5 segundos">⏪ -5s</button>
+  <button type="button" id="wappy-btn-ff" class="secondary" title="Adelantar 5 segundos">+5s ⏩</button>
   <button type="button" id="wappy-btn-restart" class="secondary" title="Reiniciar">↺</button>
   <input type="range" id="wappy-seek" min="0" max="${dur}" step="0.1" value="0" />
   <span id="wappy-time-label" style="font-size:10px;font-family:monospace;font-weight:700;color:#cbd5e1;white-space:nowrap;">0.0s / ${dur}s</span>
@@ -5643,6 +5852,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   var playing = true;
   var audioEl = document.getElementById('wappy-capsule-audio');
   var btnPlay = document.getElementById('wappy-btn-play');
+  var btnRw = document.getElementById('wappy-btn-rw');
+  var btnFf = document.getElementById('wappy-btn-ff');
   var btnRestart = document.getElementById('wappy-btn-restart');
   var seekEl = document.getElementById('wappy-seek');
   var timeLabel = document.getElementById('wappy-time-label');
@@ -5863,14 +6074,27 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     btnRestart.addEventListener('click', startCapsuleWithSound);
   }
 
+  function stepCapsuleTime(delta) {
+    var base = (audioEl && !audioEl.paused) ? audioEl.currentTime : currentTime;
+    var nextVal = Math.max(0, Math.min(duration, base + delta));
+    updateUi(nextVal);
+    if (audioEl) audioEl.currentTime = nextVal;
+    syncTimelineToTime(nextVal, playing);
+  }
+
+  if (btnRw) {
+    btnRw.addEventListener('click', function() { stepCapsuleTime(-5); });
+  }
+  if (btnFf) {
+    btnFf.addEventListener('click', function() { stepCapsuleTime(5); });
+  }
+
   if (seekEl) {
     seekEl.addEventListener('input', function(e) {
       var val = parseFloat(e.target.value) || 0;
       updateUi(val);
       if (audioEl) audioEl.currentTime = val;
-      if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
-        window.mainTimeline.progress(Math.max(0, Math.min(0.9999, val / Math.max(0.5, duration))), false);
-      }
+      syncTimelineToTime(val, playing);
     });
   }
 
@@ -5972,14 +6196,22 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   // ENLACE PERSONAL ANTIGRAVITY (USUARIO wpy_... O VISITANTE wpy_guest_...) + SSE
   // ============================================================================
   const syncAntigravityBridgeKey = async (forceRefresh = false) => {
+    const isUserLoggedIn = Boolean(
+      token ||
+        isAuthenticated ||
+        (typeof window !== 'undefined' && (window as any)?.isPlatformLoggedIn) ||
+        localStorage.getItem('wappy_auth_token'),
+    );
     try {
       const storedKey = localStorage.getItem('wappy_antigravity_bridge_key') || '';
+      const effectiveGuestSeed =
+        forceRefresh || (isUserLoggedIn && storedKey.startsWith('wpy_guest_')) ? '' : storedKey;
       const resp = await fetch('/api/studio/antigravity/guest-key', {
         method: 'POST',
         credentials: 'include',
         headers: getAuthHeaders(token),
         body: JSON.stringify({
-          guestKey: forceRefresh ? '' : storedKey,
+          guestKey: effectiveGuestSeed,
         }),
       });
       if (resp.ok) {
@@ -6003,9 +6235,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       /* Fallback local */
     }
     const existing = localStorage.getItem('wappy_antigravity_bridge_key') || '';
-    if (existing && !forceRefresh) {
+    if (existing && !forceRefresh && !(isUserLoggedIn && existing.startsWith('wpy_guest_'))) {
       setAntigravityBridgeKey(existing);
       return existing;
+    }
+    if (isUserLoggedIn) {
+      return '';
     }
     const generated = `wpy_guest_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
     setAntigravityBridgeKey(generated);
@@ -6022,8 +6257,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     const onAuthUpdated = () => {
       syncAntigravityBridgeKey(true);
     };
+    const statusInterval = setInterval(() => {
+      syncAntigravityBridgeKey(false);
+    }, 15000);
     window.addEventListener('wappy-auth-updated', onAuthUpdated);
     return () => {
+      clearInterval(statusInterval);
       window.removeEventListener('wappy-auth-updated', onAuthUpdated);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6031,13 +6270,23 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   // Conexión reactiva en vivo (EventSource) al Antigravity personal del usuario o visitante
   useEffect(() => {
-    const cleanKey = (antigravityBridgeKey || '').trim();
-    if (!cleanKey) return;
+    const effKey = resolveEffectiveAntigravityKey();
+    const isUserLoggedIn = Boolean(
+      token ||
+        isAuthenticated ||
+        (typeof window !== 'undefined' && (window as any)?.isPlatformLoggedIn) ||
+        localStorage.getItem('wappy_auth_token'),
+    );
+    if (!effKey && !isUserLoggedIn) return;
 
     let es: EventSource | null = null;
     try {
-      const streamUrl = `/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(cleanKey)}&clientType=browser`;
-      es = new EventSource(streamUrl);
+      const qs = new URLSearchParams({ clientType: 'browser' });
+      if (effKey) qs.set('apiKey', effKey);
+      const authToken = token || localStorage.getItem('wappy_auth_token') || '';
+      if (authToken) qs.set('token', authToken);
+      const streamUrl = `/api/mcp-bridge/antigravity/stream?${qs.toString()}`;
+      es = new EventSource(streamUrl, { withCredentials: true } as any);
 
       const handleCompletedOrderPayload = async (rawPayload: any) => {
         if (!rawPayload || typeof rawPayload !== 'object') return;
@@ -6054,6 +6303,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             payload.resultado ||
             '',
         ).trim();
+
+        if (antigravityPollTimerRef.current) {
+          clearInterval(antigravityPollTimerRef.current);
+          antigravityPollTimerRef.current = null;
+        }
+        setAntigravityOrderStatus('completed');
+        setActiveAntigravityOrderId('');
 
         // 1) Si Antigravity envió un video HTML5 / GSAP directo al Estudio:
         if (
@@ -6144,7 +6400,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       setAntigravityStreamConnected(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [antigravityBridgeKey]);
+  }, [antigravityBridgeKey, token, isAuthenticated]);
 
   const studioOriginUrl =
     typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club';
@@ -6381,7 +6637,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <span>
                       {podcastOnly
                         ? 'NUEVOS & DESTACADOS · Apple Podcasts × WAPPY Walkman 24kHz'
-                        : 'Estudio Multimodal • Gemini 3.8 Flash TTS & HyperFrames'}
+                        : 'Estudio Multimodal • Audio 24kHz WAV & HyperFrames'}
                     </span>
                   </span>
                 </div>
@@ -6405,7 +6661,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </h1>
                   {!podcastOnly && (
                     <p className="text-xs text-slate-600 dark:text-slate-300 hidden sm:block">
-                      Síntesis de voz neural de hasta 1 hora continua y creación de videos animados en HTML/GSAP con Antigravity.
+                      Síntesis de voz de hasta 1 hora continua y creación de videos animados en HTML/GSAP con Antigravity.
                     </p>
                   )}
                 </div>
@@ -6430,7 +6686,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 variant={
                   antigravityDaemonConnected || antigravityStreamConnected ? 'emerald' : 'purple'
                 }
-                alwaysExpanded
                 onClick={() => {
                   setKeyValidationMsg('');
                   setApiKeyModalTab('antigravity');
@@ -6441,39 +6696,37 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               <ExpandableButton
                 icon={<Key />}
-                label={`Claves IA (${activeCustomKeyCount})`}
+                label={`Claves API (${activeCustomKeyCount})`}
                 variant="fuchsia"
-                alwaysExpanded
                 onClick={() => {
                   setKeyValidationMsg('');
                   setApiKeyModalTab('keys');
                   setIsApiKeyModalOpen(true);
                 }}
-                title="Configurar hasta 3 claves Google Gemini con rotación inteligente"
+                title="Configurar hasta 3 claves API con rotación inteligente"
               />
 
               <ExpandableButton
                 icon={isTestingConnection ? <Loader2 className="animate-spin" /> : <Zap />}
-                label="Probar Audio IA"
+                label="Probar Audio"
                 variant="emerald"
-                alwaysExpanded
                 disabled={isTestingConnection}
                 onClick={handleTestConnection}
               />
 
               {podcastOnly && (
-                <button
-                  type="button"
+                <ExpandableButton
+                  icon={<Sliders />}
+                  label="Ir al Estudio de Edición ↓"
+                  variant="teal"
                   onClick={() => {
                     handleTabChange('tts');
                     document
                       .getElementById('podcast-script-editor-anchor')
                       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#c7f303] hover:bg-[#d4ff1f] text-[#0e1300] font-extrabold text-xs shadow-lg shadow-[#c7f303]/20 transition-all cursor-pointer"
-                >
-                  <span>🎧 Ir al Estudio de Edición ↓</span>
-                </button>
+                  title="Ir al Estudio de Edición abajo"
+                />
               )}
 
               {!portable && (
@@ -6481,7 +6734,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<ExternalLink />}
                   label="App Portable"
                   variant="cyan"
-                  alwaysExpanded
                   onClick={() =>
                     window.open(
                       podcastOnly ? '/wappypodcast.html' : '/wappystudio.html',
@@ -6502,7 +6754,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 icon={<MicVocal />}
                 label={podcastOnly ? '1. Estudio de Podcast & Voz' : 'Estudio de Voz (TTS)'}
                 variant="teal"
-                alwaysExpanded
                 isActive={activeTab === 'tts'}
                 onClick={() => handleTabChange('tts')}
               />
@@ -6512,7 +6763,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<Film />}
                   label="Video HTML & Capas"
                   variant="purple"
-                  alwaysExpanded
                   isActive={activeTab === 'video'}
                   onClick={() => handleTabChange('video')}
                 />
@@ -6522,7 +6772,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 icon={<Layers />}
                 label={podcastOnly ? '2. Voces Duales & Bursts' : 'Voces & Bursts'}
                 variant="amber"
-                alwaysExpanded
                 isActive={activeTab === 'lab'}
                 onClick={() => handleTabChange('lab')}
               />
@@ -6535,31 +6784,24 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     : `Biblioteca (${libraryItems.length})`
                 }
                 variant="indigo"
-                alwaysExpanded
                 isActive={activeTab === 'library'}
                 onClick={() => handleTabChange('library')}
               />
             </div>
 
             <div className="hidden lg:flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              <button
-                type="button"
-                onClick={openHostCompanyModal}
-                className={cn(
-                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border font-bold transition cursor-pointer',
-                  isCompanyReady
-                    ? 'bg-teal-500/10 border-teal-500/30 text-teal-800 dark:text-teal-300 hover:bg-teal-500/20'
-                    : 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300 animate-pulse hover:bg-amber-500/25',
-                )}
-                title="Configurar o cambiar la empresa activa"
-              >
-                <span>🏢</span>
-                <span>
-                  {isCompanyReady && activeCompanyInfo?.companyName
+              <ExpandableButton
+                size="sm"
+                icon={<span>🏢</span>}
+                label={
+                  isCompanyReady && activeCompanyInfo?.companyName
                     ? `${activeCompanyInfo.companyName} (${activeCompanyInfo.nit || 'Activa'})`
-                    : '⚠️ Sin Empresa Creada (Sistema Bloqueado)'}
-                </span>
-              </button>
+                    : 'Sin Empresa Creada (Sistema Bloqueado)'
+                }
+                variant={isCompanyReady ? 'teal' : 'amber'}
+                onClick={openHostCompanyModal}
+                title="Configurar o cambiar la empresa activa"
+              />
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold">
                 <span className="w-2 h-2 rounded-full bg-[#C7F303] animate-pulse" />
                 {podcastOnly ? '🎙️ Motor Multi-Voz 24 kHz WAV Activo' : 'Motor 60-FPS + Voz Activo'}
@@ -6593,16 +6835,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </span>
                 </div>
                 <p className="text-xs text-amber-900/90 dark:text-amber-200/80 leading-relaxed max-w-3xl">
-                  Para generar locuciones neurales, podcasts o videos con Antigravity debes crear y guardar los datos de tu empresa. Si no estás registrado en WAPPY, la empresa que crees aquí se pasará automáticamente a Wappy Podcast y a la Matriz IPEVR GTC-45; si tienes sesión activa en WAPPY, se sincroniza directamente con tus empresas de Somos SST.
+                  Para generar locuciones, podcasts o videos con Antigravity debes crear y guardar los datos de tu empresa. Si no estás registrado en WAPPY, la empresa que crees aquí se pasará automáticamente a Wappy Podcast y a la Matriz IPEVR GTC-45; si tienes sesión activa en WAPPY, se sincroniza directamente con tus empresas de Somos SST.
                 </p>
               </div>
             </div>
             <div className="shrink-0 flex items-center gap-2">
               <ExpandableButton
                 icon={<Sparkles />}
-                label="🏢 Crear / Configurar Datos de la Empresa"
+                label="Crear / Configurar Datos de la Empresa"
                 variant="amber"
-                alwaysExpanded
                 onClick={openHostCompanyModal}
               />
             </div>
@@ -6769,17 +7010,23 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
                   <div>
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#c7f303] block">
-                      CONSOLA DE PRODUCCIÓN & EDICIÓN · GEMINI 24KHZ WAV
+                      CONSOLA DE PRODUCCIÓN & EDICIÓN · MASTER 24KHZ WAV
                     </span>
                     <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
                       Estudio para Crear, Editar y Pasar tus Audios al Walkman & Cápsulas
                     </h3>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-400/30 text-teal-200 text-[11px] font-bold shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-[#c7f303] animate-pulse" />
-                  <span>Pasa directo a tu Walkman y Carrusel arriba ↑</span>
-                </span>
+                <ExpandableButton
+                  size="sm"
+                  icon={<Radio />}
+                  label="Pasa directo a tu Walkman y Carrusel arriba ↑"
+                  variant="teal"
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  title="Subir al Walkman y Carrusel de Cápsulas"
+                />
               </div>
             )}
             {/* Monitor de Trabajo Asíncrono por Capas (Justo debajo del Reproductor Maestro, idéntico al diseño de referencia) */}
@@ -6821,10 +7068,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
                 <div className="min-w-0">
                   <div className="text-[11px] font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300">
-                    Motor & Voz Neural
+                    Canales & Voces 24kHz
                   </div>
                   <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {activeModelObj?.name} •{' '}
+                    Estudio 24kHz •{' '}
                     <span className="text-teal-600 dark:text-teal-400">
                       {multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice}
                     </span>
@@ -6878,7 +7125,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* COLUMNA IZQUIERDA (5 cols): Modelos, Presets, Modo Diálogo y Catálogo de 14 Voces */}
               <div className="lg:col-span-5 space-y-5 bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
-                {/* 1. Selector de Modelo Gemini TTS */}
+                {/* 1. Selector de Modelo Oficial (Único lugar con selección de modelos) */}
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-1.5">
                     <label className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -6886,7 +7133,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       Modelo Oficial Gemini TTS
                     </label>
                     <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                      ✓ GOOGLE_MODELS Activo
+                      ✓ Motor 24kHz Activo
                     </span>
                   </div>
 
@@ -6950,62 +7197,27 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     })}
                   </div>
 
-                  {/* Barra de voces activas para el modelo seleccionado */}
+                  {/* Barra de voces activas */}
                   <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-2 text-[11px]">
                     <span className="text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-teal-500 shrink-0" />
-                      <span>
-                        Voces activas para{' '}
-                        <strong className="text-slate-900 dark:text-white">
-                          {activeModelObj?.name}
-                        </strong>
-                        :
-                      </span>
+                      <span>Voces de estudio habilitadas:</span>
                     </span>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="font-extrabold text-emerald-700 dark:text-emerald-400">
                         {activeVoicesCount} de {voices.length} disponibles
                       </span>
                       {activeVoicesCount < voices.length && (
-                        <button
-                          type="button"
+                        <ExpandableButton
+                          size="sm"
+                          icon={<Sparkles />}
+                          label="Activar las 14 Voces"
+                          variant="indigo"
                           onClick={() => setSelectedModel('gemini-3.8-flash-tts')}
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 cursor-pointer"
-                        >
-                          Activar las 14 →
-                        </button>
+                        />
                       )}
                     </div>
                   </div>
-
-                  {/* Alerta Ámbar Explicativa cuando está seleccionado Gemini 2.5 Flash TTS */}
-                  {selectedModel === 'gemini-2.5-flash-preview-tts' && (
-                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2 animate-in fade-in duration-150">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <p className="font-extrabold text-amber-900 dark:text-amber-200">
-                            ¿Por qué algunas voces aparecen desactivadas en Gemini 2.5 Flash TTS?
-                          </p>
-                          <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
-                            <span className="font-bold">Gemini 2.5 Pro Preview TTS</span> no posee cuota activa en API (0 RPM / 0 RPD). Su reemplazo oficial funcional es{' '}
-                            <span className="font-bold">Gemini 2.5 Flash TTS</span>, el cual habilita únicamente las{' '}
-                            <span className="font-bold">5 voces fundamentales</span> (Kore, Puck, Charon, Fenrir y Aoede). Para usar las 14 voces y Vocal Bursts, cambia a{' '}
-                            <span className="font-bold">Gemini 3.8 Flash TTS</span>.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedModel('gemini-3.8-flash-tts')}
-                          className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-900 dark:text-amber-200 font-extrabold text-[11px] transition cursor-pointer"
-                        >
-                          Cambiar a Gemini 3.8 Flash TTS (14 voces) →
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* 2. Plantillas Rápidas de Estilo (Lista Desplegable con Estilo Consola WAPPY) */}
@@ -7050,21 +7262,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <option value="" disabled className="bg-slate-950 text-slate-400">
                         🎙️ Seleccionar estilo vocal y emoción del podcast...
                       </option>
-                      {presets.map((preset) => {
-                        const needsUpgrade =
-                          !preset.multiSpeaker && !isVoiceSupported(preset.voiceName);
-                        return (
-                          <option
-                            key={preset.id}
-                            value={preset.id}
-                            className="bg-slate-950 text-white py-1.5 font-semibold"
-                          >
-                            {preset.multiSpeaker ? '👥 ' : '🎙️ '}
-                            {preset.name}
-                            {needsUpgrade ? ' (Auto Gemini 3.8)' : ''}
-                          </option>
-                        );
-                      })}
+                      {presets.map((preset) => (
+                        <option
+                          key={preset.id}
+                          value={preset.id}
+                          className="bg-slate-950 text-white py-1.5 font-semibold"
+                        >
+                          {preset.multiSpeaker ? '👥 ' : '🎙️ '}
+                          {preset.name}
+                        </option>
+                      ))}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#c7f303]">
                       <ChevronDown className="w-4 h-4" />
@@ -7109,50 +7316,47 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </button>
                 </div>
 
-                {/* 3.5. Tarjeta de Clonación de Voz & Diseño Vocal Personalizado (Gemini 3.8 Voices API) */}
+                {/* 3.5. Tarjeta de Clonación de Voz & Diseño Vocal Personalizado */}
                 <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-[#101c16] to-slate-950 border border-[#c7f303]/45 shadow-md space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-2 py-0.5 rounded-md bg-[#c7f303]/20 border border-[#c7f303]/50 text-[#c7f303] text-[10px] font-black uppercase tracking-wider">
-                          🧬 NUEVO • GEMINI 3.8 VOICES API
-                        </span>
-                        <h3 className="text-xs font-black text-white uppercase tracking-wide">
-                          Clonar mi Propia Voz o Crear Voz Personalizada
-                        </h3>
-                      </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xs font-black text-white uppercase tracking-wide flex items-center gap-1.5">
+                        <span className="text-[#c7f303]">🧬</span>
+                        <span>Clonar mi Propia Voz o Crear Voz Personalizada</span>
+                      </h3>
                       <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">
                         Graba 15 seg con tu micrófono (o sube un audio) para clonar tu timbre a 24kHz y usarlo en{' '}
                         <strong className="text-[#c7f303]">Alex (Host 1)</strong>,{' '}
                         <strong className="text-purple-300">Sam (Host 2)</strong> o locución individual.
                       </p>
                     </div>
-                    <button
-                      type="button"
+                    <ExpandableButton
+                      size="sm"
+                      icon={<MicVocal />}
+                      label={`Clonar mi Voz / Crear Voz${clonedVoices.length > 0 ? ` (${clonedVoices.length})` : ''}`}
+                      variant="emerald"
                       onClick={() => setIsVoiceCloneModalOpen(true)}
-                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-[#c7f303] hover:bg-[#d8ff2a] text-[#0e1300] text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0"
-                    >
-                      <MicVocal className="w-4 h-4" />
-                      <span>
-                        🧬 Clonar mi Voz / Crear Voz IA
-                        {clonedVoices.length > 0 ? ` (${clonedVoices.length})` : ''}
-                      </span>
-                    </button>
+                      title="Abrir Estudio de Clonación de Voz y Diseño Vocal 24kHz"
+                    />
                   </div>
 
                   {clonedVoices.length > 0 && (
-                    <div className="pt-2 border-t border-slate-800/90 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-extrabold text-[#c7f303] mr-1">
+                    <div className="pt-2.5 border-t border-slate-800/90 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-extrabold text-[#c7f303]">
                         Tus voces clonadas:
                       </span>
                       {clonedVoices.map((cv) => (
                         <div
                           key={cv.id}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/95 border border-[#c7f303]/35 text-[10px] text-white"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/95 border border-[#c7f303]/35 text-[10px] text-white"
                         >
-                          <span className="font-extrabold text-[#c7f303]">{cv.name}</span>
-                          <button
-                            type="button"
+                          <span className="font-extrabold text-[#c7f303] mr-0.5">{cv.name}</span>
+                          <ExpandableButton
+                            size="sm"
+                            icon={<MicVocal />}
+                            label="Alex (Host 1)"
+                            variant="teal"
+                            isActive={multiSpeaker && speaker1Voice === cv.id}
                             onClick={() => {
                               setMultiSpeaker(true);
                               setSpeaker1Voice(cv.id);
@@ -7161,18 +7365,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 text: `🎙️ Voz clonada "${cv.name}" asignada a Alex (Host 1).`,
                               });
                             }}
-                            className={cn(
-                              'px-1.5 py-0.5 rounded font-bold transition cursor-pointer',
-                              multiSpeaker && speaker1Voice === cv.id
-                                ? 'bg-teal-500 text-slate-950'
-                                : 'bg-teal-500/15 hover:bg-teal-500/30 text-teal-300',
-                            )}
                             title="Asignar esta voz clonada a Alex (Host 1)"
-                          >
-                            Alex
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Users />}
+                            label="Sam (Host 2)"
+                            variant="purple"
+                            isActive={multiSpeaker && speaker2Voice === cv.id}
                             onClick={() => {
                               setMultiSpeaker(true);
                               setSpeaker2Voice(cv.id);
@@ -7181,32 +7381,24 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 text: `🎧 Voz clonada "${cv.name}" asignada a Sam (Host 2).`,
                               });
                             }}
-                            className={cn(
-                              'px-1.5 py-0.5 rounded font-bold transition cursor-pointer',
-                              multiSpeaker && speaker2Voice === cv.id
-                                ? 'bg-purple-400 text-slate-950'
-                                : 'bg-purple-500/15 hover:bg-purple-500/30 text-purple-300',
-                            )}
                             title="Asignar esta voz clonada a Sam (Host 2)"
-                          >
-                            Sam
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Play />}
+                            label="Oír"
+                            variant="amber"
                             onClick={(e) => handleAuditionVoice(cv.id, e)}
-                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold transition cursor-pointer"
                             title="Escuchar muestra 24kHz de esta voz clonada"
-                          >
-                            ▶ Oír
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Trash2 />}
+                            label="Eliminar"
+                            variant="danger"
                             onClick={(e) => handleDeleteClonedVoice(cv.id, e)}
-                            className="text-rose-400 hover:text-rose-300 px-1 cursor-pointer"
                             title="Eliminar voz clonada"
-                          >
-                            ✕
-                          </button>
+                          />
                         </div>
                       ))}
                     </div>
@@ -7215,80 +7407,91 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                 {multiSpeaker ? (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <Radio className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-                        Cabina de Transmisión Dual (Estudio ON AIR)
+                    {/* Cabecera 100% Responsive de la Cabina de Transmisión Dual */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5 min-w-0">
+                        <Radio className="w-3.5 h-3.5 text-rose-500 animate-pulse shrink-0" />
+                        <span className="truncate">Cabina de Transmisión Dual (Estudio ON AIR)</span>
                       </span>
-                      <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                        ● 2 CANALES ACTIVOS
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                        <span>2 CANALES ACTIVOS</span>
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {/* CANAL 1: Alex (Host 1) */}
-                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-[#0e161a] to-slate-950 border border-teal-500/40 shadow-md text-white space-y-3">
-                        <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-[#C7F303]">
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-[#0e161a] to-slate-950 border border-teal-500/40 shadow-md text-white flex flex-col justify-between gap-3">
+                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-[#C7F303] shrink-0">
                               <MicVocal className="w-4 h-4" />
                             </div>
-                            <div>
-                              <div className="text-xs font-black tracking-tight text-white flex items-center gap-1">
-                                <span>Alex</span>
-                                <span className="text-[10px] font-mono text-teal-400 font-bold">
-                                  (Host 1)
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-nowrap">
+                                <span className="text-xs font-black tracking-tight text-white">
+                                  Alex
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded bg-teal-500/15 border border-teal-500/30 text-[9px] font-mono text-teal-300 font-extrabold whitespace-nowrap shrink-0">
+                                  HOST 1
                                 </span>
                               </div>
-                              <p className="text-[10px] text-slate-400">Conductor Principal</p>
+                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                Conductor Principal
+                              </p>
                             </div>
                           </div>
-                          {/* Indicador Luminoso ON AIR CH 01 */}
-                          <div className="px-2 py-0.5 rounded-md bg-rose-950/80 border border-rose-500 text-rose-300 text-[9px] font-mono font-black flex items-center gap-1.5 shadow-[0_0_8px_rgba(244,63,94,0.4)]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                            <span>ON AIR • CH 01</span>
+                          {/* Indicador Luminoso ON AIR CH 01 (1 sola línea limpia) */}
+                          <div className="px-2 py-0.5 rounded-md bg-rose-950/85 border border-rose-500/80 text-rose-300 text-[9px] font-mono font-black inline-flex items-center gap-1 shadow-[0_0_8px_rgba(244,63,94,0.35)] whitespace-nowrap shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                            <span>CH 01</span>
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-teal-300 mb-1">
-                            Voz Neural Gemini 24kHz:
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-extrabold text-teal-300">
+                            Voz de Estudio 24kHz:
                           </label>
-                          <select
-                            value={speaker1Voice}
-                            onChange={(e) => setSpeaker1Voice(e.target.value)}
-                            className="w-full bg-slate-800/90 border border-teal-500/40 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer"
-                          >
-                            {clonedVoices.length > 0 && (
-                              <optgroup
-                                label="🧬 Mis Voces Clonadas y Personalizadas (Gemini 3.8)"
-                                className="bg-slate-950 text-[#c7f303]"
-                              >
-                                {clonedVoices.map((cv) => (
-                                  <option
-                                    key={cv.id}
-                                    value={cv.id}
-                                    className="bg-slate-900 text-white"
-                                  >
-                                    {cv.name} ({cv.gender} - {cv.tone})
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                            <optgroup
-                              label="🎙️ 14 Voces Neurales de Estudio Gemini 24kHz"
-                              className="bg-slate-950 text-teal-300"
+                          <div className="relative">
+                            <select
+                              value={speaker1Voice}
+                              onChange={(e) => setSpeaker1Voice(e.target.value)}
+                              className="w-full appearance-none bg-slate-900/95 border border-teal-500/40 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer truncate"
                             >
-                              {(activeModelObj?.supportedVoices || []).map((vId) => {
-                                const vObj = voices.find((v) => v.id === vId);
-                                return (
-                                  <option key={vId} value={vId} className="bg-slate-900 text-white">
-                                    {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          </select>
+                              {clonedVoices.length > 0 && (
+                                <optgroup
+                                  label="🧬 Mis Voces Clonadas y Personalizadas"
+                                  className="bg-slate-950 text-[#c7f303]"
+                                >
+                                  {clonedVoices.map((cv) => (
+                                    <option
+                                      key={cv.id}
+                                      value={cv.id}
+                                      className="bg-slate-900 text-white"
+                                    >
+                                      {cv.name} ({cv.gender} - {cv.tone})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              <optgroup
+                                label="🎙️ 14 Voces de Estudio 24kHz"
+                                className="bg-slate-950 text-teal-300"
+                              >
+                                {(activeModelObj?.supportedVoices || []).map((vId) => {
+                                  const vObj = voices.find((v) => v.id === vId);
+                                  return (
+                                    <option key={vId} value={vId} className="bg-slate-900 text-white">
+                                      {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-teal-300">
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-snug">
                           Apertura, moderación del caso y preguntas a los especialistas.
@@ -7296,68 +7499,77 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </div>
 
                       {/* CANAL 2: Sam (Host 2) */}
-                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-[#181124] to-slate-950 border border-purple-500/40 shadow-md text-white space-y-3">
-                        <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-[#181124] to-slate-950 border border-purple-500/40 shadow-md text-white flex flex-col justify-between gap-3">
+                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
                               <MicVocal className="w-4 h-4" />
                             </div>
-                            <div>
-                              <div className="text-xs font-black tracking-tight text-white flex items-center gap-1">
-                                <span>Sam</span>
-                                <span className="text-[10px] font-mono text-purple-400 font-bold">
-                                  (Host 2)
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-nowrap">
+                                <span className="text-xs font-black tracking-tight text-white">
+                                  Sam
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded bg-purple-500/15 border border-purple-500/30 text-[9px] font-mono text-purple-300 font-extrabold whitespace-nowrap shrink-0">
+                                  HOST 2
                                 </span>
                               </div>
-                              <p className="text-[10px] text-slate-400">Especialista Técnico</p>
+                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                Especialista Técnico
+                              </p>
                             </div>
                           </div>
-                          {/* Indicador Luminoso ON AIR CH 02 */}
-                          <div className="px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500 text-cyan-300 text-[9px] font-mono font-black flex items-center gap-1.5 shadow-[0_0_8px_rgba(6,182,212,0.4)]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                            <span>ON AIR • CH 02</span>
+                          {/* Indicador Luminoso ON AIR CH 02 (1 sola línea limpia) */}
+                          <div className="px-2 py-0.5 rounded-md bg-cyan-950/85 border border-cyan-500/80 text-cyan-300 text-[9px] font-mono font-black inline-flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.35)] whitespace-nowrap shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+                            <span>CH 02</span>
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-purple-300 mb-1">
-                            Voz Neural Gemini 24kHz:
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-extrabold text-purple-300">
+                            Voz de Estudio 24kHz:
                           </label>
-                          <select
-                            value={speaker2Voice}
-                            onChange={(e) => setSpeaker2Voice(e.target.value)}
-                            className="w-full bg-slate-800/90 border border-purple-500/40 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500/30 cursor-pointer"
-                          >
-                            {clonedVoices.length > 0 && (
-                              <optgroup
-                                label="🧬 Mis Voces Clonadas y Personalizadas (Gemini 3.8)"
-                                className="bg-slate-950 text-[#c7f303]"
-                              >
-                                {clonedVoices.map((cv) => (
-                                  <option
-                                    key={cv.id}
-                                    value={cv.id}
-                                    className="bg-slate-900 text-white"
-                                  >
-                                    {cv.name} ({cv.gender} - {cv.tone})
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                            <optgroup
-                              label="🎙️ 14 Voces Neurales de Estudio Gemini 24kHz"
-                              className="bg-slate-950 text-purple-300"
+                          <div className="relative">
+                            <select
+                              value={speaker2Voice}
+                              onChange={(e) => setSpeaker2Voice(e.target.value)}
+                              className="w-full appearance-none bg-slate-900/95 border border-purple-500/40 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/30 cursor-pointer truncate"
                             >
-                              {(activeModelObj?.supportedVoices || []).map((vId) => {
-                                const vObj = voices.find((v) => v.id === vId);
-                                return (
-                                  <option key={vId} value={vId} className="bg-slate-900 text-white">
-                                    {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          </select>
+                              {clonedVoices.length > 0 && (
+                                <optgroup
+                                  label="🧬 Mis Voces Clonadas y Personalizadas"
+                                  className="bg-slate-950 text-[#c7f303]"
+                                >
+                                  {clonedVoices.map((cv) => (
+                                    <option
+                                      key={cv.id}
+                                      value={cv.id}
+                                      className="bg-slate-900 text-white"
+                                    >
+                                      {cv.name} ({cv.gender} - {cv.tone})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              <optgroup
+                                label="🎙️ 14 Voces de Estudio 24kHz"
+                                className="bg-slate-950 text-purple-300"
+                              >
+                                {(activeModelObj?.supportedVoices || []).map((vId) => {
+                                  const vObj = voices.find((v) => v.id === vId);
+                                  return (
+                                    <option key={vId} value={vId} className="bg-slate-900 text-white">
+                                      {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-purple-300">
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-snug">
                           Análisis normativo, causas raíz y soluciones de ingeniería en terreno.
@@ -7489,26 +7701,29 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                       </span>
                                     ) : (
                                       <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
-                                        Requiere 3.8/3.1
+                                        Catálogo 14 Voces
                                       </span>
                                     )}
                                   </div>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleAuditionVoice(v.id, e)}
-                                  disabled={isAuditioning}
-                                  title={`Escuchar muestra de ${v.name}`}
-                                  className="px-2 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 transition shrink-0 cursor-pointer flex items-center gap-1 text-[10px] font-extrabold"
-                                >
-                                  {isAuditioning ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Play className="w-3 h-3 fill-current" />
-                                  )}
-                                  <span>Oír</span>
-                                </button>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <ExpandableButton
+                                    size="sm"
+                                    icon={
+                                      isAuditioning ? (
+                                        <Loader2 className="animate-spin" />
+                                      ) : (
+                                        <Play />
+                                      )
+                                    }
+                                    label="Oír"
+                                    variant="teal"
+                                    disabled={isAuditioning}
+                                    onClick={(e) => handleAuditionVoice(v.id, e)}
+                                    title={`Escuchar muestra de ${v.name}`}
+                                  />
+                                </div>
                               </div>
 
                               <p className="text-[11px] text-teal-700 dark:text-teal-300 font-bold mt-2 leading-snug">
@@ -7521,17 +7736,19 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 {v.recommendedFor}
                               </p>
                               {!supported && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedModel('gemini-3.8-flash-tts');
-                                    setSelectedVoice(v.id);
-                                  }}
-                                  className="text-[9px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 px-1.5 py-0.5 rounded shrink-0 cursor-pointer"
-                                >
-                                  Usar con 3.8 →
-                                </button>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <ExpandableButton
+                                    size="sm"
+                                    icon={<Check />}
+                                    label="Activar Voz"
+                                    variant="indigo"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedModel('gemini-3.8-flash-tts');
+                                      setSelectedVoice(v.id);
+                                    }}
+                                  />
+                                </div>
                               )}
                             </div>
                           </div>
@@ -7547,8 +7764,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <label className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
                       Directiva de Estilo y Emoción
                     </label>
-                    <span className="text-[10px] font-mono text-slate-500 dark:text-zinc-400">
-                      speechMetadata.style
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400">
+                      Tono y ritmo vocal
                     </span>
                   </div>
                   <textarea
@@ -7659,7 +7876,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         ) : (
                           <>
                             <span>
-                              Motor Multi-Key Gemini TTS (Almacenamiento Local + Respaldo WAPPY)
+                              Motor Multi-Clave de Estudio 24kHz (Almacenamiento Local + Respaldo WAPPY)
                             </span>
                           </>
                         )}
@@ -7667,13 +7884,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <p className="text-[11px] text-slate-600 dark:text-zinc-400">
                         {activeCustomKeyCount > 0
                           ? 'Si una clave alcanza el límite de cuota (429), WAPPY Studio salta instantáneamente a la siguiente sin interrumpir tu audio.'
-                          : 'Puedes agregar hasta 3 claves gratuitas de Google AI Studio para multiplicar tu cuota de síntesis de 60 min.'}
+                          : 'Puedes agregar hasta 3 claves API adicionales para multiplicar tu cuota de síntesis de 60 min.'}
                       </p>
                     </div>
                   </div>
                   <ExpandableButton
                     size="sm"
-                    alwaysExpanded
                     icon={<Key />}
                     label={activeCustomKeyCount > 0 ? 'Administrar Claves' : 'Configurar Claves'}
                     variant="fuchsia"
@@ -7702,16 +7918,19 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       />
                       {editingLibraryItemId && (
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Save />}
+                            label="Guardar Cambios"
+                            variant="teal"
                             onClick={handleSaveEditedLibraryMetadata}
-                            className="px-3 py-1.5 rounded-xl bg-[#c7f303] hover:bg-[#d8ff2a] text-[#0e1300] text-[11px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm"
                             title="Guardar nuevo título, Instagram, voces y guion sin volver a sintetizar"
-                          >
-                            💾 Guardar Cambios
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Plus />}
+                            label="Nuevo"
+                            variant="neutral"
                             onClick={() => {
                               setEditingLibraryItemId(null);
                               setStatusBanner({
@@ -7719,11 +7938,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 text: 'Modo creación de nuevo podcast activado.',
                               });
                             }}
-                            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold transition cursor-pointer"
                             title="Salir del modo edición para crear un podcast nuevo"
-                          >
-                            + Nuevo
-                          </button>
+                          />
                         </div>
                       )}
                     </div>
@@ -7745,8 +7961,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           className="flex-1 bg-transparent px-3 py-1.5 text-xs font-bold text-white focus:outline-none"
                         />
                       </div>
-                      <button
-                        type="button"
+                      <ExpandableButton
+                        size="sm"
+                        icon={<Check />}
+                        label={
+                          podcastInstagramHandle.trim()
+                            ? `Dirá: Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}`
+                            : 'Aplicar Marca & IG al Guion'
+                        }
+                        variant="fuchsia"
                         onClick={() => {
                           const updated = ensurePodcastBrandAndInstagram(scriptText);
                           setScriptText(updated);
@@ -7757,13 +7980,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               : '✅ Sello oficial "Somos SST Daily" aplicado al guion.',
                           });
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/40 text-pink-300 text-[10px] font-extrabold uppercase tracking-wider transition cursor-pointer shrink-0"
                         title="Inyectar ahora mismo la marca Somos SST Daily y el cierre de Instagram en el guion actual"
-                      >
-                        {podcastInstagramHandle.trim()
-                          ? `✓ Dirá: Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}`
-                          : '+ Aplicar Marca & IG al Guion'}
-                      </button>
+                      />
                     </div>
 
                     {/* Fila 3: Selector de Tiempo del Podcast (5 min | 7.5 min | 10 min) */}
@@ -7771,37 +7989,25 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-300 flex items-center gap-1.5">
                         ⏱️ Tiempo del Podcast (Duración Meta):
                       </span>
-                      <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                      <div className="flex flex-wrap items-center gap-2">
                         {(
                           [
-                            { min: 5 as const, label: '5 Minutos', words: '~750 palabras' },
-                            { min: 7.5 as const, label: '7.5 Minutos', words: '~1,125 palabras' },
-                            { min: 10 as const, label: '10 Minutos', words: '~1,500 palabras' },
+                            { min: 5 as const, label: '5 Minutos (~750 pal.)' },
+                            { min: 7.5 as const, label: '7.5 Minutos (~1,125 pal.)' },
+                            { min: 10 as const, label: '10 Minutos (~1,500 pal.)' },
                           ]
                         ).map((opt) => {
                           const isSelected = podcastTargetMinutes === opt.min;
                           return (
-                            <button
+                            <ExpandableButton
                               key={opt.min}
-                              type="button"
+                              size="sm"
+                              icon={<span className="text-[11px] font-mono font-black">{opt.min}m</span>}
+                              label={opt.label}
+                              variant={isSelected ? 'teal' : 'neutral'}
+                              isActive={isSelected}
                               onClick={() => setPodcastTargetMinutes(opt.min)}
-                              className={cn(
-                                'px-3 py-1.5 rounded-xl border text-left sm:text-center transition cursor-pointer flex flex-col items-center justify-center',
-                                isSelected
-                                  ? 'bg-[#c7f303] text-[#0e1300] border-[#c7f303] shadow-md font-black'
-                                  : 'bg-slate-900/90 hover:bg-slate-800 text-slate-200 border-slate-700 font-bold',
-                              )}
-                            >
-                              <span className="text-xs leading-tight">{opt.label}</span>
-                              <span
-                                className={cn(
-                                  'text-[9px] font-mono',
-                                  isSelected ? 'text-[#0e1300]/80 font-extrabold' : 'text-slate-400',
-                                )}
-                              >
-                                {opt.words}
-                              </span>
-                            </button>
+                            />
                           );
                         })}
                       </div>
@@ -7837,43 +8043,43 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         </span>
                         {[
                           {
-                            label: '+ Exceso de Confianza',
+                            label: 'Exceso de Confianza',
                             prompt:
                               'Analizar cómo el exceso de confianza en tareas rutinarias causa accidentes graves, con un caso real en planta y 3 hábitos para romper el piloto automático.',
                           },
                           {
-                            label: '+ Bloqueo LOTO (5 Reglas)',
+                            label: 'Bloqueo LOTO (5 Reglas)',
                             prompt:
                               'Explicar de forma práctica el control de energías peligrosas y bloqueo/etiquetado LOTO con preguntas y respuestas entre Alex y Sam.',
                           },
                           {
-                            label: '+ Alturas Res. 4272',
+                            label: 'Alturas Res. 4272',
                             prompt:
                               'Debatir sobre inspección de arnés, puntos de anclaje certificados y permiso de trabajo en alturas según la Resolución 4272 de 2021.',
                           },
                           {
-                            label: '+ Investigación ATEL',
+                            label: 'Investigación ATEL',
                             prompt:
                               'Reconstruir un cuasi-accidente laboral aplicando metodología de los 5 Porqués sin buscar culpables sino causas raíz reales.',
                           },
                           {
-                            label: '+ Salud Mental & Fatiga',
+                            label: 'Salud Mental & Fatiga',
                             prompt:
                               'Conversar con empatía sobre fatiga laboral, pausas activas reales, sueño reparador y cuidado mutuo en turnos rotativos.',
                           },
                         ].map((chip) => (
-                          <button
+                          <ExpandableButton
                             key={chip.label}
-                            type="button"
+                            size="sm"
+                            icon={<Plus />}
+                            label={chip.label}
+                            variant="teal"
                             onClick={() =>
                               setPodcastTopicInstruction((prev) =>
                                 prev.trim() ? `${prev.trim()} ${chip.prompt}` : chip.prompt,
                               )
                             }
-                            className="px-2 py-0.5 rounded-lg bg-slate-900 hover:bg-teal-500/20 border border-slate-700 hover:border-teal-500/40 text-[10px] font-semibold text-slate-300 hover:text-teal-200 transition cursor-pointer"
-                          >
-                            {chip.label}
-                          </button>
+                          />
                         ))}
                       </div>
 
@@ -7906,28 +8112,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           )}
                         </div>
 
-                        <button
-                          type="button"
+                        <ExpandableButton
+                          size="sm"
+                          icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                          label={
+                            isEnhancingScript
+                              ? `Redactando Guion de ${podcastTargetMinutes} Minutos...`
+                              : `✨ Crear / Redactar Guion (${podcastTargetMinutes} Min) Uniendo Todo`
+                          }
+                          variant="teal"
                           disabled={isEnhancingScript}
                           onClick={handleEnhanceScriptWithAi}
-                          className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-[#c7f303] via-lime-400 to-emerald-400 hover:brightness-110 disabled:opacity-60 text-[#0e1300] text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                        >
-                          {isEnhancingScript ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>
-                                Redactando Guion de {podcastTargetMinutes} Minutos con IA...
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Wand2 className="w-4 h-4" />
-                              <span>
-                                ✨ Crear / Redactar Guion ({podcastTargetMinutes} Min) Uniendo Todo con IA
-                              </span>
-                            </>
-                          )}
-                        </button>
+                        />
                       </div>
                     </div>
                   </div>
@@ -7987,19 +8183,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                     <ExpandableButton
                       size="sm"
-                      alwaysExpanded
                       icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
                       label={
                         isEnhancingScript
                           ? `Redactando (${podcastTargetMinutes} Min)...`
                           : podcastOnly
-                            ? `✨ Expandir a ${podcastTargetMinutes} Min con IA`
-                            : 'Mejorar Guion con IA'
+                            ? `✨ Expandir a ${podcastTargetMinutes} Min`
+                            : 'Mejorar Guion'
                       }
                       variant="purple"
                       disabled={isEnhancingScript}
                       onClick={handleEnhanceScriptWithAi}
-                      title={`Generar o expandir guion completo de ${podcastTargetMinutes} minutos (~${Math.round(podcastTargetMinutes * 150)} palabras) con Somos SST Daily e Instagram usando ${selectedAiModel}`}
+                      title={`Generar o expandir guion completo de ${podcastTargetMinutes} minutos (~${Math.round(podcastTargetMinutes * 150)} palabras) con Somos SST Daily e Instagram`}
                     />
 
                     {scriptText && (
@@ -8022,7 +8217,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       Insertar Pausas, Énfasis y Efectos Vocales (Vocal Bursts) en el cursor:
                     </span>
                     <span className="font-mono text-[10px] text-teal-700 dark:text-teal-400 font-bold">
-                      {selectedModel}
+                      24 kHz PCM WAV
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -8140,7 +8335,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {/* Botones de Acción Principales (WAPPY 14-Group Design System) */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
                   <ExpandableButton
-                    alwaysExpanded
                     icon={isPreviewing ? <Loader2 className="animate-spin" /> : <Zap />}
                     label={
                       podcastOnly
@@ -8155,7 +8349,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   />
 
                   <ExpandableButton
-                    alwaysExpanded
                     icon={
                       activeJob?.status === 'processing' ? (
                         <Loader2 className="animate-spin" />
@@ -8249,7 +8442,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Film />}
                     label="Vertical 9:16 (Reels/TikTok)"
                     variant="teal"
-                    alwaysExpanded
                     isActive={aspectRatio === '9:16'}
                     onClick={() => {
                       setAspectRatio('9:16');
@@ -8262,7 +8454,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Clapperboard />}
                     label="Horizontal 16:9 (YouTube/LMS)"
                     variant="cyan"
-                    alwaysExpanded
                     isActive={aspectRatio === '16:9'}
                     onClick={() => {
                       setAspectRatio('16:9');
@@ -8283,7 +8474,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         ? 'emerald'
                         : 'purple'
                     }
-                    alwaysExpanded
                     onClick={() => {
                       setKeyValidationMsg('');
                       setApiKeyModalTab('antigravity');
@@ -8390,7 +8580,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Sparkles />}
                     label={`🎨 Estilo & Efectos (${selectedSkillEffects.length} FX)`}
                     variant="purple"
-                    alwaysExpanded
                     isActive={videoStudioSubTab === 'style'}
                     onClick={() => setVideoStudioSubTab('style')}
                   />
@@ -8399,7 +8588,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Layers />}
                     label={`⏱️ Escaleta & Tiempos (${scriptSteps.length} escenas)`}
                     variant="amber"
-                    alwaysExpanded
                     isActive={videoStudioSubTab === 'timeline'}
                     onClick={() => setVideoStudioSubTab('timeline')}
                   />
@@ -8408,7 +8596,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<MicVocal />}
                     label={`🎙️ Capas, Audio & Textos (${showDynamicSubtitles ? 'Subs ON' : 'Capas'})`}
                     variant="teal"
-                    alwaysExpanded
                     isActive={videoStudioSubTab === 'layers'}
                     onClick={() => setVideoStudioSubTab('layers')}
                   />
@@ -8417,7 +8604,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Code2 />}
                     label="</> Código HTML5 & GSAP"
                     variant="cyan"
-                    alwaysExpanded
                     isActive={videoStudioSubTab === 'code'}
                     onClick={() => setVideoStudioSubTab('code')}
                   />
@@ -8434,7 +8620,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={isGeneratingSuperPrompt ? <Loader2 className="animate-spin" /> : <Wand2 />}
                     label="Actualizar Super-Prompt"
                     variant="indigo"
-                    alwaysExpanded
                     disabled={isGeneratingSuperPrompt}
                     onClick={handleBuildAntigravitySuperPrompt}
                   />
@@ -8541,7 +8726,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               : 'Seleccionar todos'
                           }
                           variant="indigo"
-                          alwaysExpanded
                           onClick={() => {
                             if (selectedSkillEffects.length === ANTIGRAVITY_EFFECTS_CATALOG.length) {
                               setSelectedSkillEffects(['19-cover-2s']);
@@ -8556,7 +8740,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={<Sparkles />}
                           label="Laboratorio FX →"
                           variant="amber"
-                          alwaysExpanded
                           onClick={() => handleTabChange('lab')}
                         />
                       </div>
@@ -8629,7 +8812,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={<Wand2 />}
                         label="Auto-Dividir Guion"
                         variant="amber"
-                        alwaysExpanded
                         onClick={handleAutoStructureScriptSteps}
                       />
                       <ExpandableButton
@@ -8637,7 +8819,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={<Check />}
                         label="Sincronizar al Guion TTS"
                         variant="teal"
-                        alwaysExpanded
                         onClick={applyScriptStepsToScriptText}
                       />
                       <ExpandableButton
@@ -8645,7 +8826,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={<Plus />}
                         label="Añadir Escena"
                         variant="emerald"
-                        alwaysExpanded
                         onClick={() =>
                           setScriptSteps((prev) => [
                             ...prev,
@@ -8674,7 +8854,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={<Plus />}
                         label={p.tag}
                         variant="amber"
-                        alwaysExpanded
                         title={p.desc}
                         onClick={() => {
                           setScriptSteps((prev) =>
@@ -8823,7 +9002,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={<Trash2 />}
                           label="Quitar"
                           variant="danger"
-                          alwaysExpanded
                           onClick={() => {
                             URL.revokeObjectURL(baseVideoUrl);
                             setBaseVideoUrl(null);
@@ -8867,7 +9045,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           icon={<Trash2 />}
                           label="Quitar"
                           variant="danger"
-                          alwaysExpanded
                           onClick={() => {
                             URL.revokeObjectURL(customAudioUrl);
                             setCustomAudioUrl(null);
@@ -8963,7 +9140,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={<RefreshCw />}
                         label="Aplicar al Lienzo"
                         variant="cyan"
-                        alwaysExpanded
                         onClick={() =>
                           handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))
                         }
@@ -8993,7 +9169,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<RefreshCw />}
                       label="Restaurar Plantilla Actual"
                       variant="amber"
-                      alwaysExpanded
                       onClick={() =>
                         handleRebuildDefaultTemplate(
                           aspectRatio,
@@ -9063,10 +9238,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       className="text-left text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 hover:text-indigo-500 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
                     >
                       {isGeneratingSuperPrompt
-                        ? '⚡ Consultando IA Gemini...'
-                        : lastSuperPromptAiModel
-                          ? `⚡ IA Activa (${lastSuperPromptAiModel})`
-                          : '⚡ IA Gemini + 7 Piezas'}
+                        ? '⚡ Consultando Motor de Estudio...'
+                        : '⚡ Motor de Estudio + 7 Piezas'}
                     </button>
                     <ExpandableButton
                       size="sm"
@@ -9122,6 +9295,40 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           Lienzo en Vivo + Biblioteca
                         </span>
                       </div>
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-purple-500/15">
+                        <span className="text-slate-500 dark:text-slate-400">Puente Antigravity:</span>
+                        {antigravityOrderStatus === 'delegated' ? (
+                          <span className="inline-flex items-center gap-1 font-extrabold text-amber-600 dark:text-amber-300 truncate">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Chat abierto • Orden #{activeAntigravityOrderId.slice(-6)}...
+                          </span>
+                        ) : antigravityOrderStatus === 'completed' ? (
+                          <span className="inline-flex items-center gap-1 font-extrabold text-emerald-600 dark:text-[#C7F303] truncate">
+                            ✅ Recibido en Monitor en Vivo
+                          </span>
+                        ) : antigravityDaemonConnected || antigravityStreamConnected ? (
+                          <span className="inline-flex items-center gap-1 font-extrabold text-emerald-600 dark:text-emerald-400 truncate">
+                            🟢 Conectado (Chat + Push 0ms)
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => syncAntigravityBridgeKey(true)}
+                            className="inline-flex items-center gap-1 font-bold text-teal-600 dark:text-teal-300 hover:underline truncate cursor-pointer"
+                          >
+                            🔗 Sincronizar con Antigravity
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => loadLatestCompletedAntigravityOrder(false)}
+                          className="text-[10px] font-bold text-purple-700 dark:text-purple-300 hover:underline cursor-pointer"
+                        >
+                          📥 Traer último video compilado en Antigravity
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-purple-500/20">
@@ -9132,13 +9339,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       className="text-left text-[11px] font-extrabold text-purple-800 dark:text-purple-300 hover:text-purple-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
                     >
                       {isGeneratingHtmlAi
-                        ? '🎬 Programando 60-FPS...'
-                        : '🎬 Compilar al Lienzo en Vivo'}
+                        ? '🎬 Enviando a Antigravity...'
+                        : antigravityOrderStatus === 'delegated'
+                          ? '⚡ Compilando en Antigravity...'
+                          : '🎬 Compilar al Lienzo en Vivo'}
                     </button>
                     <ExpandableButton
                       size="sm"
                       icon={
-                        isGeneratingHtmlAi ? (
+                        isGeneratingHtmlAi || antigravityOrderStatus === 'delegated' ? (
                           <Loader2 className="animate-spin" />
                         ) : (
                           <Sparkles />
@@ -9146,8 +9355,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       }
                       label={
                         isGeneratingHtmlAi
-                          ? 'Antigravity Programando...'
-                          : '2. Enviar al Generador de Video'
+                          ? 'Enviando a Antigravity...'
+                          : antigravityOrderStatus === 'delegated'
+                            ? 'Antigravity Programando...'
+                            : '2. Enviar al Generador de Video'
                       }
                       variant="purple"
                       disabled={isGeneratingHtmlAi}
@@ -9341,6 +9552,41 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
               </div>
 
+              {/* Banner en Vivo del Puente Google Antigravity */}
+              {(isGeneratingHtmlAi || antigravityOrderStatus === 'delegated') && (
+                <div className="p-3.5 rounded-xl bg-purple-500/15 border border-purple-500/40 flex flex-wrap items-center justify-between gap-3 animate-pulse">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Loader2 className="w-4 h-4 text-purple-500 dark:text-[#C7F303] animate-spin shrink-0" />
+                    <span className="text-xs font-extrabold text-purple-900 dark:text-purple-100">
+                      ⚡ Conectado con Google Antigravity (Orden #{activeAntigravityOrderId ? activeAntigravityOrderId.slice(-6) : 'en vivo'}) — El chat se abrió en tu ventana de Antigravity y está programando las escenas HTML5 + GSAP 60-FPS. Al terminar (~45-90s) aparecerá aquí automáticamente.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadLatestCompletedAntigravityOrder(false)}
+                    className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold cursor-pointer shrink-0 transition"
+                  >
+                    🔄 Verificar / Cargar Ahora
+                  </button>
+                </div>
+              )}
+
+              {antigravityOrderStatus === 'completed' && !isGeneratingHtmlAi && (
+                <div className="p-3 rounded-xl bg-emerald-500/12 border border-emerald-500/35 flex flex-wrap items-center justify-between gap-2.5">
+                  <span className="text-xs font-extrabold text-emerald-800 dark:text-[#C7F303] flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    ✅ Video HTML5 + GSAP 60-FPS recibido desde Google Antigravity y activo en el Monitor en Vivo.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => loadLatestCompletedAntigravityOrder(false)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-[11px] font-bold text-emerald-900 dark:text-[#C7F303] cursor-pointer transition"
+                  >
+                    📥 Recargar último entregable de Antigravity
+                  </button>
+                </div>
+              )}
+
               {/* Barra de Herramientas Rápidas del Modo Editor Visual (100% Botones WAPPY) */}
               {isVisualEditMode && (
                 <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-2.5 animate-in fade-in duration-150">
@@ -9431,30 +9677,40 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               {/* Cuerpo del Estudio: Escenario Amplio (7 cols) + Consola Transporte & Exportación (5 cols) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-                {/* IZQUIERDA/CENTRO (7 cols): Escenario Cinematográfico Amplio sin recortes */}
-                <div className="lg:col-span-7 flex justify-center items-center bg-[#060d18] rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-inner overflow-hidden min-h-[480px]">
+                {/* IZQUIERDA/CENTRO (7 cols): Escenario Cinematográfico Amplio + Barra de Reproducción Directa */}
+                <div className="lg:col-span-7 flex flex-col justify-between items-center bg-[#060d18] rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-inner overflow-hidden min-h-[520px] gap-3.5">
                   <div
                     ref={stageContainerRef}
                     className={cn(
-                      'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10 transition-all duration-300',
+                      'relative overflow-hidden transition-all duration-300 w-full flex flex-col items-center justify-between gap-3',
                       isStageFullscreen
-                        ? 'w-screen h-screen rounded-none border-0 flex flex-col items-center justify-between p-4 sm:p-6'
-                        : cn(
-                            'rounded-2xl mx-auto flex items-center justify-center',
-                            aspectRatio === '9:16'
-                              ? 'w-full max-w-[390px] aspect-[9/16] max-h-[640px]'
-                              : 'w-full max-w-[760px] aspect-[16/9] max-h-[520px] min-h-[300px]',
-                          ),
+                        ? 'w-screen h-screen rounded-none border-0 bg-[#060d18] p-4 sm:p-6'
+                        : 'mx-auto',
                     )}
                   >
                     <div
+                      onClick={() => {
+                        if (!isVisualEditMode) {
+                          toggleStagePlayback();
+                        }
+                      }}
+                      title={
+                        isVisualEditMode
+                          ? 'Modo edición visual activo'
+                          : isVideoPlaying
+                            ? 'Clic para pausar video'
+                            : 'Clic para reproducir video'
+                      }
                       className={cn(
-                        'relative overflow-hidden bg-slate-950',
+                        'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10 rounded-2xl mx-auto',
+                        !isVisualEditMode && 'cursor-pointer group/stage',
                         isStageFullscreen
                           ? aspectRatio === '9:16'
-                            ? 'h-[calc(100vh-100px)] aspect-[9/16] max-w-[95vw] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
-                            : 'w-[min(94vw,calc((100vh-100px)*1.7778))] aspect-[16/9] max-h-[calc(100vh-100px)] rounded-2xl border border-white/15 shadow-2xl mx-auto my-auto'
-                          : 'w-full h-full',
+                            ? 'h-[calc(100vh-125px)] aspect-[9/16] max-w-[95vw] border-white/15 my-auto'
+                            : 'w-[min(94vw,calc((100vh-125px)*1.7778))] aspect-[16/9] max-h-[calc(100vh-125px)] border-white/15 my-auto'
+                          : aspectRatio === '9:16'
+                            ? 'w-full max-w-[390px] aspect-[9/16] max-h-[600px]'
+                            : 'w-full max-w-[760px] aspect-[16/9] max-h-[500px] min-h-[280px]',
                       )}
                     >
                       {/* Pista de Audio Oculta para Locución */}
@@ -9554,6 +9810,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         )}
                       />
 
+                      {/* Indicador central de Play cuando el video está en pausa */}
+                      {!isVideoPlaying && !isVisualEditMode && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/25 backdrop-blur-[1px] pointer-events-none transition-opacity">
+                          <div className="w-16 h-16 rounded-full bg-teal-500/95 text-slate-950 flex items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.7)] border-2 border-white/80">
+                            <Play className="w-8 h-8 fill-current ml-1" />
+                          </div>
+                        </div>
+                      )}
+
                       {/* CAPA 3: Subtítulos Dinámicos Sincronizados Palabra a Palabra */}
                       {showDynamicSubtitles && currentSubtitleWindow && (
                         <div
@@ -9590,25 +9855,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       )}
                     </div>
 
-                    {/* BARRA DE CONTROL FLOTANTE EN PANTALLA COMPLETA */}
-                    {isStageFullscreen && (
-                      <div className="w-full max-w-3xl mx-auto mt-3 px-4 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-white/15 flex items-center gap-3 z-30 shadow-2xl">
-                        <ExpandableButton
-                          size="sm"
-                          icon={isVideoPlaying ? <Pause /> : <Play />}
-                          label={isVideoPlaying ? 'Pausar' : 'Play'}
-                          variant="teal"
-                          onClick={toggleStagePlayback}
-                        />
-
-                        <ExpandableButton
-                          size="sm"
-                          icon={<RotateCcw />}
-                          label="Reiniciar"
-                          variant="cyan"
-                          onClick={restartStagePlayback}
-                        />
-
+                    {/* BARRA DE CONTROL SIEMPRE VISIBLE DEBAJO DEL VIDEO (NORMAL Y PANTALLA COMPLETA) */}
+                    <div className="w-full max-w-[680px] mx-auto px-3.5 py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-white/15 flex flex-col gap-2 z-30 shadow-2xl">
+                      {/* Línea de tiempo deslizable (Scrubber) */}
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[11px] font-mono font-extrabold text-teal-400 tabular-nums shrink-0 min-w-[38px]">
+                          {videoCurrentTime.toFixed(1)}s
+                        </span>
                         <input
                           type="range"
                           min={0}
@@ -9616,31 +9869,111 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           step={0.1}
                           value={videoCurrentTime}
                           onChange={(e) => handleStageSeek(parseFloat(e.target.value))}
-                          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                          title="Arrastra para adelantar o retroceder el video"
+                          className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-400"
                         />
-
-                        <span className="text-xs font-mono font-bold text-slate-200 shrink-0">
-                          {videoCurrentTime.toFixed(1)}s / {(videoDuration || 20).toFixed(1)}s
+                        <span className="text-[11px] font-mono font-bold text-slate-300 tabular-nums shrink-0 min-w-[38px] text-right">
+                          {(videoDuration || 20).toFixed(1)}s
                         </span>
-
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Edit3 />}
-                          label={isVisualEditMode ? 'Editando' : 'Editar'}
-                          variant="orange"
-                          isActive={isVisualEditMode}
-                          onClick={toggleVisualEditMode}
-                        />
-
-                        <ExpandableButton
-                          size="sm"
-                          icon={<Minimize2 />}
-                          label="Salir"
-                          variant="danger"
-                          onClick={toggleStageFullscreen}
-                        />
                       </div>
-                    )}
+
+                      {/* Botones de Transporte: Reiniciar, Retroceder -5s, Play/Pausar, Adelantar +5s, Pantalla Completa */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={restartStagePlayback}
+                            title="Reiniciar desde 0.0s"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>0s</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => stepStagePlayback(-5)}
+                            title="Retroceder 5 segundos"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-extrabold transition cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 text-teal-400" />
+                            <span>-5s</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={toggleStagePlayback}
+                            title={isVideoPlaying ? 'Pausar reproducción' : 'Activar reproducción'}
+                            className={cn(
+                              'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer shadow-md',
+                              isVideoPlaying
+                                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                                : 'bg-teal-500 hover:bg-teal-400 text-slate-950',
+                            )}
+                          >
+                            {isVideoPlaying ? (
+                              <>
+                                <Pause className="w-3.5 h-3.5 fill-current" />
+                                <span>Pausar</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-3.5 h-3.5 fill-current" />
+                                <span>Play</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => stepStagePlayback(5)}
+                            title="Adelantar 5 segundos"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-extrabold transition cursor-pointer"
+                          >
+                            <span>+5s</span>
+                            <RotateCw className="w-3.5 h-3.5 text-teal-400" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={toggleVisualEditMode}
+                            title="Activar/Desactivar edición visual de textos"
+                            className={cn(
+                              'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer',
+                              isVisualEditMode
+                                ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                                : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300',
+                            )}
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">
+                              {isVisualEditMode ? 'Editando' : 'Editar'}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={toggleStageFullscreen}
+                            title={isStageFullscreen ? 'Salir de pantalla completa' : 'Ver en pantalla completa'}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition cursor-pointer"
+                          >
+                            {isStageFullscreen ? (
+                              <>
+                                <Minimize2 className="w-3.5 h-3.5 text-rose-400" />
+                                <span className="hidden sm:inline">Salir</span>
+                              </>
+                            ) : (
+                              <>
+                                <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
+                                <span className="hidden sm:inline">Expandir</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -9670,7 +10003,23 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <ExpandableButton
                         size="sm"
                         icon={<RotateCcw />}
-                        label="Reiniciar"
+                        label="-5s Retroceder"
+                        variant="indigo"
+                        onClick={() => stepStagePlayback(-5)}
+                      />
+
+                      <ExpandableButton
+                        size="sm"
+                        icon={<RotateCw />}
+                        label="+5s Adelantar"
+                        variant="indigo"
+                        onClick={() => stepStagePlayback(5)}
+                      />
+
+                      <ExpandableButton
+                        size="sm"
+                        icon={<RotateCcw />}
+                        label="Reiniciar (0s)"
                         variant="cyan"
                         onClick={restartStagePlayback}
                       />
@@ -9963,7 +10312,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<Volume2 />}
                   label="SFX Whoosh"
                   variant="cyan"
-                  alwaysExpanded
                   onClick={() => playStudioSfxPreview('whoosh')}
                 />
                 <ExpandableButton
@@ -9971,7 +10319,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<Volume2 />}
                   label="SFX Pop"
                   variant="amber"
-                  alwaysExpanded
                   onClick={() => playStudioSfxPreview('pop')}
                 />
                 <ExpandableButton
@@ -9979,41 +10326,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<Volume2 />}
                   label="SFX Ding"
                   variant="emerald"
-                  alwaysExpanded
                   onClick={() => playStudioSfxPreview('ding')}
                 />
-              </div>
-            </div>
-
-            {/* Selector de Modelo en el Laboratorio */}
-            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                Modelo en el Laboratorio:
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                {models.map((m) => {
-                  const isSelected = selectedModel === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedModel(m.id);
-                        if (!m.supportedVoices.includes(selectedVoice)) {
-                          setSelectedVoice(m.supportedVoices[0] || 'Kore');
-                        }
-                      }}
-                      className={cn(
-                        'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer',
-                        isSelected
-                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                          : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-teal-400',
-                      )}
-                    >
-                      {m.name} ({m.supportedVoices.length} voces)
-                    </button>
-                  );
-                })}
               </div>
             </div>
 
@@ -10129,7 +10443,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     }
                     label={`Escuchar ${selectedVoice}`}
                     variant="teal"
-                    alwaysExpanded
                     disabled={auditioningVoiceId === selectedVoice}
                     onClick={() => handleAuditionVoice(selectedVoice)}
                   />
@@ -10138,7 +10451,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               <div className="space-y-2">
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                  Selecciona la Voz ({activeVoicesCount} activas para {activeModelObj?.name})
+                  Selecciona la Voz ({activeVoicesCount} activas)
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {voices.map((v) => {
@@ -10172,7 +10485,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               <div>
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                  Prompt de Dirección (speechMetadata.style)
+                  Prompt de Dirección de Voz y Emoción
                 </label>
                 <input
                   type="text"
@@ -10230,7 +10543,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       : 'Sintetizar en el Laboratorio'
                   }
                   variant="indigo"
-                  alwaysExpanded
                   disabled={isSynthesizingLab || !labTestText.trim()}
                   onClick={handleSynthesizeInLab}
                 />
@@ -10240,7 +10552,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<MicVocal />}
                   label="Llevar Frase y Voz al Estudio TTS"
                   variant="teal"
-                  alwaysExpanded
                   onClick={() => {
                     setScriptText(labTestText);
                     setStylePrompt(labStylePrompt);
@@ -10254,7 +10565,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Film />}
                     label="Llevar al Editor de Video"
                     variant="purple"
-                    alwaysExpanded
                     onClick={() => {
                       setScriptText(labTestText);
                       setStylePrompt(labStylePrompt);
@@ -10283,7 +10593,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   icon={<Film />}
                   label={`Ir al Editor de Video (${selectedSkillEffects.length} efectos)`}
                   variant="purple"
-                  alwaysExpanded
                   onClick={() => handleTabChange('video')}
                 />
               </div>
@@ -10323,7 +10632,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={isSelected ? <Check /> : <Sparkles />}
                         label={isSelected ? 'Dirección Activa' : 'Usar Dirección de Arte'}
                         variant={isSelected ? 'teal' : 'purple'}
-                        alwaysExpanded
                         onClick={() => setSelectedArtDirection(art.id)}
                       />
                     </div>
@@ -10366,7 +10674,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             active ? 'Activo en Editor de Video' : 'Agregar al Editor de Video'
                           }
                           variant={active ? 'teal' : 'indigo'}
-                          alwaysExpanded
                           onClick={() => toggleSkillEffect(ef.id)}
                         />
                       </div>
@@ -10440,7 +10747,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={isMergingAudios ? <Loader2 className="animate-spin" /> : <Layers />}
                         label="🔗 Unir Audios y Usar en Video"
                         variant="purple"
-                        alwaysExpanded
                         disabled={isMergingAudios}
                         onClick={() => handleMergeLibraryAudios(true, false)}
                         title="Une todas las locuciones de la Biblioteca en una sola Pista Maestra WAV y la carga en el Estudio de Video"
@@ -10451,7 +10757,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={isMergingAudios ? <Loader2 className="animate-spin" /> : <Download />}
                       label="🔗 Unir y Descargar 1 Solo WAV"
                       variant="teal"
-                      alwaysExpanded
                       disabled={isMergingAudios}
                       onClick={() => handleMergeLibraryAudios(false, true)}
                       title="Une todas las locuciones en un único archivo .WAV continuo y lo descarga"
@@ -10465,7 +10770,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Trash2 />}
                     label="Limpiar Historial"
                     variant="danger"
-                    alwaysExpanded
                     onClick={() => {
                       if (!window.confirm('¿Borrar todos los audios y videos guardados?')) return;
                       setLibraryItems([]);
@@ -10542,7 +10846,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               icon={<Edit3 />}
                               label="Abrir en Editor"
                               variant="orange"
-                              alwaysExpanded
                               onClick={() => openLibraryVideo(item)}
                             />
                           ) : (
@@ -10552,7 +10855,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 icon={<Play />}
                                 label="Reproducir"
                                 variant="teal"
-                                alwaysExpanded
                                 onClick={() => openLibraryAudio(item)}
                               />
                               <ExpandableButton
@@ -10560,7 +10862,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 icon={<Edit3 />}
                                 label="Editar"
                                 variant="amber"
-                                alwaysExpanded
                                 onClick={() => handleEditLibraryAudio(item)}
                               />
                               {!podcastOnly && (
@@ -10569,7 +10870,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                   icon={<Film />}
                                   label="Usar en Video"
                                   variant="purple"
-                                  alwaysExpanded
                                   onClick={() => openLibraryAudio(item, true)}
                                 />
                               )}
@@ -10585,7 +10885,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 icon={<Download />}
                                 label="Descargar .HTML"
                                 variant="green"
-                                alwaysExpanded
                                 onClick={async () => {
                                   if (item.capsuleKey) {
                                     const b = await getMediaBlob(item.capsuleKey);
@@ -10612,7 +10911,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 icon={<Film />}
                                 label={item.mp4Key ? 'Descargar .MP4' : 'Renderizar .MP4'}
                                 variant="teal"
-                                alwaysExpanded
                                 onClick={async () => {
                                   if (item.mp4Key) {
                                     const b = await getMediaBlob(item.mp4Key);
@@ -10635,7 +10933,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               icon={<Download />}
                               label="Descargar WAV"
                               variant="green"
-                              alwaysExpanded
                               onClick={async () => {
                                 const b = await loadLibraryAudioBlob(item);
                                 if (!b) {
@@ -10796,7 +11093,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         icon={copiedBridgeItem === 'key' ? <Check /> : <Copy />}
                         label={copiedBridgeItem === 'key' ? '¡Copiada!' : 'Copiar Clave'}
                         variant="fuchsia"
-                        alwaysExpanded
                         onClick={() => {
                           navigator.clipboard.writeText(antigravityBridgeKey);
                           setCopiedBridgeItem('key');
@@ -10885,7 +11181,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Download />}
                       label="Descargar Pack de Skills (.JSON Importable)"
                       variant="green"
-                      alwaysExpanded
                       onClick={handleDownloadSkillsBundleJson}
                     />
 
@@ -10898,7 +11193,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           : 'Copiar Prompt para Enviar Skills a Antigravity'
                       }
                       variant="indigo"
-                      alwaysExpanded
                       onClick={() => {
                         navigator.clipboard.writeText(buildAntigravitySkillsChatPrompt());
                         setCopiedBridgeItem('prompt');
@@ -10915,7 +11209,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<Terminal />}
                       label="Descargar Instalador 1-Clic (.command Mac / .bat Windows)"
                       variant="teal"
-                      alwaysExpanded
                       onClick={handleDownloadAntigravitySkillsInstaller}
                     />
                   </div>
@@ -10956,7 +11249,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     icon={<Check />}
                     label="Listo"
                     variant="teal"
-                    alwaysExpanded
                     onClick={() => setIsApiKeyModalOpen(false)}
                   />
                 </div>
@@ -10985,7 +11277,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       <div className="flex items-center justify-between text-[11px] font-bold">
                         <div className="flex items-center gap-2">
                           <span className="text-slate-900 dark:text-white">
-                            {item.label || `Clave Google Gemini #${idx + 1}`}
+                            {item.label || `Clave API #${idx + 1}`}
                           </span>
                           <span
                             className={cn(
@@ -11158,7 +11450,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       )}
 
       {/* ========================================================================
-          MODAL DE CLONACIÓN DE VOZ & DISEÑO VOCAL (GEMINI 3.8 VOICES API)
+          MODAL DE CLONACIÓN DE VOZ & DISEÑO VOCAL (IMAGEN 2 - 100% ESTILO WAPPY)
          ======================================================================== */}
       {isVoiceCloneModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto">
@@ -11172,77 +11464,54 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-base sm:text-lg font-black text-white">
-                      🧬 Estudio de Clonación de Voz & Diseño Vocal (Gemini 3.8)
+                      🧬 Estudio de Clonación de Voz & Diseño Vocal
                     </h3>
                     <span className="px-2 py-0.5 rounded-full bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] text-[10px] font-black uppercase">
                       24 kHz PCM WAV
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Clona tu propia voz real con micrófono (`Voice Replication`) o diseña una voz única por descripción (`Voice Design`) para tus episodios de Somos SST Daily.
+                    Clona tu propia voz real con micrófono o diseña una voz única por descripción para tus episodios de Somos SST Daily.
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
+              <ExpandableButton
+                size="sm"
+                icon={<X />}
+                label="Cerrar"
+                variant="neutral"
                 onClick={() => {
                   if (recordingTarget) stopMicRecording();
                   setIsVoiceCloneModalOpen(false);
                 }}
-                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              />
             </div>
 
-            {/* Selector de Modalidad: Clonar mi Voz Real vs Diseñar Voz por Prompt */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setVoiceCloneMode('replicated')}
-                className={cn(
-                  'px-4 py-2.5 rounded-xl text-left transition cursor-pointer flex items-center gap-2.5',
-                  voiceCloneMode === 'replicated'
-                    ? 'bg-[#c7f303] text-[#0e1300] font-black shadow-md'
-                    : 'text-slate-300 hover:bg-slate-800 font-bold',
-                )}
-              >
-                <MicVocal className="w-4 h-4 shrink-0" />
-                <div>
-                  <div className="text-xs">🎙️ Clonar mi Propia Voz Real</div>
-                  <div
-                    className={cn(
-                      'text-[10px]',
-                      voiceCloneMode === 'replicated' ? 'text-[#0e1300]/80' : 'text-slate-400',
-                    )}
-                  >
-                    Graba 10-30s con micrófono o sube audio WAV/MP3
-                  </div>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setVoiceCloneMode('prompted')}
-                className={cn(
-                  'px-4 py-2.5 rounded-xl text-left transition cursor-pointer flex items-center gap-2.5',
-                  voiceCloneMode === 'prompted'
-                    ? 'bg-[#c7f303] text-[#0e1300] font-black shadow-md'
-                    : 'text-slate-300 hover:bg-slate-800 font-bold',
-                )}
-              >
-                <Wand2 className="w-4 h-4 shrink-0" />
-                <div>
-                  <div className="text-xs">✨ Diseñar Voz desde Cero (Prompt)</div>
-                  <div
-                    className={cn(
-                      'text-[10px]',
-                      voiceCloneMode === 'prompted' ? 'text-[#0e1300]/80' : 'text-slate-400',
-                    )}
-                  >
-                    Sin micrófono • Describe acento, edad y timbre
-                  </div>
-                </div>
-              </button>
+            {/* Selector de Modalidad con Botones Oficiales WAPPY (ExpandableButton) */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <ExpandableButton
+                  size="md"
+                  icon={<MicVocal />}
+                  label="🎙️ Clonar mi Propia Voz Real (10-30s Mic / Audio)"
+                  variant="teal"
+                  isActive={voiceCloneMode === 'replicated'}
+                  onClick={() => setVoiceCloneMode('replicated')}
+                />
+                <ExpandableButton
+                  size="md"
+                  icon={<Wand2 />}
+                  label="✨ Diseñar Voz desde Cero (Prompt)"
+                  variant="purple"
+                  isActive={voiceCloneMode === 'prompted'}
+                  onClick={() => setVoiceCloneMode('prompted')}
+                />
+              </div>
+              <span className="text-[11px] font-bold text-slate-400">
+                {voiceCloneMode === 'replicated'
+                  ? 'Graba 10-30s con micrófono o sube audio WAV/MP3'
+                  : 'Sin micrófono • Describe acento, edad y timbre'}
+              </span>
             </div>
 
             {/* Datos Básicos de la Voz Personalizada */}
@@ -11255,7 +11524,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   type="text"
                   value={cloneDisplayName}
                   onChange={(e) => setCloneDisplayName(e.target.value)}
-                  placeholder="Ej: Mi Voz (Félix SST)"
+                  placeholder="Ej: Mi Voz (Host Principal)"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
                 />
               </div>
@@ -11294,11 +11563,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
             {voiceCloneMode === 'replicated' ? (
               <div className="space-y-3">
-                {/* Paso 1: Audio de Referencia (10 a 30 seg) */}
+                {/* Paso 1: Audio de Referencia (20 a 30 seg recomendados, mín 10 seg) */}
                 <div className="p-4 rounded-2xl bg-slate-900/90 border border-teal-500/35 space-y-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-black uppercase tracking-wider text-teal-300">
-                      1️⃣ Muestra de tu Voz Real (10 a 30 segundos)
+                      1️⃣ Muestra de tu Voz Real (Graba de 20 a 30 segundos • Mínimo 10s)
                     </span>
                     <span className="text-[10px] font-mono text-slate-400">
                       Auto-conversión a WAV Mono 24kHz 16-bit
@@ -11306,45 +11575,43 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
-                    <strong className="text-[#c7f303]">📖 Texto sugerido para leer al grabar:</strong>{' '}
-                    &ldquo;Hola, bienvenidos a un nuevo episodio de Somos SST Daily. Hoy hablaremos sobre cómo proteger la vida y la salud de todo nuestro equipo en planta mediante la prevención inteligente y el liderazgo seguro.&rdquo;
+                    <strong className="text-[#c7f303]">📖 Texto extendido sugerido (20 a 30 seg con entonación natural, preguntas y cifras):</strong>{' '}
+                    &ldquo;¡Hola equipo! Bienvenidos a un nuevo episodio de Somos SST Daily, el espacio donde transformamos la seguridad y salud en el trabajo en una cultura viva. ¿Alguna vez te has preguntado cómo una pausa activa de solo cinco minutos puede prevenir un accidente grave en planta? Según nuestros indicadores del año 2026, aplicar controles preventivos en el 100 por ciento de las tareas críticas reduce los riesgos laborales en más de un 85 por ciento. Recuerda que en casa siempre nos esperan; cuidarnos hoy es nuestra mejor decisión. ¡Empecemos!&rdquo;
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <button
-                      type="button"
+                    <ExpandableButton
+                      size="md"
+                      icon={<MicVocal />}
+                      label={
+                        recordingTarget === 'source'
+                          ? `⏹ Detener Grabación (${recordingSeconds}s / 30s)`
+                          : '🔴 Grabar Muestra con mi Micrófono'
+                      }
+                      variant={recordingTarget === 'source' ? 'danger' : 'teal'}
                       onClick={() =>
                         recordingTarget === 'source'
                           ? stopMicRecording()
                           : startMicRecording('source')
                       }
-                      className={cn(
-                        'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-sm',
-                        recordingTarget === 'source'
-                          ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
-                          : 'bg-teal-500 hover:bg-teal-400 text-slate-950',
-                      )}
-                    >
-                      <MicVocal className="w-4 h-4" />
-                      <span>
-                        {recordingTarget === 'source'
-                          ? `⏹ Detener Grabación (${recordingSeconds}s / 30s)`
-                          : '🔴 Grabar Muestra con mi Micrófono'}
-                      </span>
-                    </button>
+                    />
 
-                    <label className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition flex items-center gap-2 cursor-pointer">
-                      <Upload className="w-3.5 h-3.5 text-[#c7f303]" />
-                      <span>Subir Archivo (.wav, .mp3, .m4a)</span>
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        className="hidden"
-                        onChange={(e) =>
-                          handleUploadCloneAudioFile('source', e.target.files?.[0] || null)
-                        }
-                      />
-                    </label>
+                    <input
+                      ref={sourceFileInputRef}
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleUploadCloneAudioFile('source', e.target.files?.[0] || null)
+                      }
+                    />
+                    <ExpandableButton
+                      size="md"
+                      icon={<Upload />}
+                      label="Subir Archivo (.wav, .mp3, .m4a)"
+                      variant="cyan"
+                      onClick={() => sourceFileInputRef.current?.click()}
+                    />
                   </div>
 
                   {sourceAudioData && (
@@ -11361,57 +11628,55 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   )}
                 </div>
 
-                {/* Paso 2: Audio de Consentimiento Biométrico (Opcional / Recomendado para /v1beta/voices) */}
+                {/* Paso 2: Audio de Consentimiento Biométrico */}
                 <div className="p-4 rounded-2xl bg-slate-900/90 border border-purple-500/35 space-y-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-black uppercase tracking-wider text-purple-300">
-                      2️⃣ Grabación de Consentimiento Biométrico (Verificación Google)
+                      2️⃣ Grabación de Consentimiento Biométrico (Verificación de Identidad)
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      Si lo omites, se usará tu muestra del Paso 1
+                      Léela literalmente con la misma voz del Paso 1 para clonación biométrica directa
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
-                    <strong className="text-purple-300">🔒 Frase oficial de consentimiento:</strong>{' '}
-                    &ldquo;Yo soy el propietario de esta voz y autorizo expresamente a Google Gemini y WAPPY Podcast IA a crear una versión sintética de mi voz.&rdquo;
+                    <strong className="text-purple-300">🔒 Frase oficial obligatoria de consentimiento (léela palabra por palabra):</strong>{' '}
+                    &ldquo;Soy el propietario de esta voz y doy mi consentimiento para que Google la utilice para crear un modelo de voz sintética.&rdquo;
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <button
-                      type="button"
+                    <ExpandableButton
+                      size="sm"
+                      icon={<MicVocal />}
+                      label={
+                        recordingTarget === 'consent'
+                          ? `⏹ Detener Consentimiento (${recordingSeconds}s)`
+                          : '🎙️ Grabar Consentimiento'
+                      }
+                      variant={recordingTarget === 'consent' ? 'danger' : 'purple'}
                       onClick={() =>
                         recordingTarget === 'consent'
                           ? stopMicRecording()
                           : startMicRecording('consent')
                       }
-                      className={cn(
-                        'px-3.5 py-1.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer',
-                        recordingTarget === 'consent'
-                          ? 'bg-rose-600 text-white animate-pulse'
-                          : 'bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-200',
-                      )}
-                    >
-                      <MicVocal className="w-3.5 h-3.5" />
-                      <span>
-                        {recordingTarget === 'consent'
-                          ? `⏹ Detener Consentimiento (${recordingSeconds}s)`
-                          : '🎙️ Grabar Consentimiento'}
-                      </span>
-                    </button>
+                    />
 
-                    <label className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-300 transition flex items-center gap-1.5 cursor-pointer">
-                      <Upload className="w-3.5 h-3.5 text-purple-300" />
-                      <span>Subir Audio Consentimiento</span>
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        className="hidden"
-                        onChange={(e) =>
-                          handleUploadCloneAudioFile('consent', e.target.files?.[0] || null)
-                        }
-                      />
-                    </label>
+                    <input
+                      ref={consentFileInputRef}
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleUploadCloneAudioFile('consent', e.target.files?.[0] || null)
+                      }
+                    />
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Upload />}
+                      label="Subir Audio Consentimiento"
+                      variant="indigo"
+                      onClick={() => consentFileInputRef.current?.click()}
+                    />
                   </div>
 
                   {consentAudioData && (
@@ -11428,36 +11693,28 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   )}
                 </div>
 
-                {/* Modo de Almacenamiento Stateful vs Stateless */}
+                {/* Modo de Almacenamiento de tu Voz Clonada */}
                 <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
                   <span className="font-bold text-slate-300">
-                    🔐 Modo de Almacenamiento en Gemini Voices API:
+                    🔐 Modo de Almacenamiento de tu Voz Clonada:
                   </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Save />}
+                      label="Persistente en Estudio (1 año)"
+                      variant="teal"
+                      isActive={cloneStoreMode}
                       onClick={() => setCloneStoreMode(true)}
-                      className={cn(
-                        'px-3 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer',
-                        cloneStoreMode
-                          ? 'bg-[#c7f303]/20 border-[#c7f303] text-[#c7f303]'
-                          : 'bg-slate-900 border-slate-700 text-slate-400',
-                      )}
-                    >
-                      Persistente (`store=true` • 1 año)
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Key />}
+                      label="Llave Encriptada Local (7 días)"
+                      variant="amber"
+                      isActive={!cloneStoreMode}
                       onClick={() => setCloneStoreMode(false)}
-                      className={cn(
-                        'px-3 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer',
-                        !cloneStoreMode
-                          ? 'bg-[#c7f303]/20 border-[#c7f303] text-[#c7f303]'
-                          : 'bg-slate-900 border-slate-700 text-slate-400',
-                      )}
-                    >
-                      Llave Encriptada Local (`store=false` • 7 días)
-                    </button>
+                    />
                   </div>
                 </div>
               </div>
@@ -11465,7 +11722,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               /* Pestaña 2: Diseñar Voz desde Cero por Prompt */
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-teal-500/35 space-y-3">
                 <label className="block text-xs font-black uppercase tracking-wider text-[#c7f303]">
-                  ✨ Describe cómo quieres que suene tu Voz Personalizada (`type=&quot;prompted&quot;`):
+                  ✨ Describe cómo quieres que suene tu Voz Personalizada:
                 </label>
                 <textarea
                   rows={3}
@@ -11489,14 +11746,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       text: 'Voz masculina grave y cinematográfica estilo documental de investigación de accidentes industriales, pausada y envolvente.',
                     },
                   ].map((p) => (
-                    <button
+                    <ExpandableButton
                       key={p.label}
-                      type="button"
+                      size="sm"
+                      icon={<Plus />}
+                      label={p.label.replace(/^\+\s*/, '')}
+                      variant="teal"
                       onClick={() => setClonePromptText(p.text)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-teal-500/20 border border-slate-700 text-[10px] font-bold text-slate-300 hover:text-teal-200 transition cursor-pointer"
-                    >
-                      {p.label}
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -11519,28 +11776,28 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
+                    <ExpandableButton
+                      size="sm"
+                      icon={<MicVocal />}
+                      label="🎙️ Usar en Alex (Host 1)"
+                      variant="teal"
                       onClick={() => {
                         setMultiSpeaker(true);
                         setSpeaker1Voice(lastClonedResult.voice.id);
                         setIsVoiceCloneModalOpen(false);
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-[11px] font-black cursor-pointer"
-                    >
-                      🎙️ Usar en Alex (Host 1)
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Users />}
+                      label="🎧 Usar en Sam (Host 2)"
+                      variant="purple"
                       onClick={() => {
                         setMultiSpeaker(true);
                         setSpeaker2Voice(lastClonedResult.voice.id);
                         setIsVoiceCloneModalOpen(false);
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-purple-400 hover:bg-purple-300 text-slate-950 text-[11px] font-black cursor-pointer"
-                    >
-                      🎧 Usar en Sam (Host 2)
-                    </button>
+                    />
                   </div>
                 </div>
                 {lastClonedResult.sampleAudioBase64 && (
@@ -11554,41 +11811,33 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
             )}
 
-            {/* Pie del Modal: Botón Principal de Clonación */}
+            {/* Pie del Modal: Botones Oficiales WAPPY (ExpandableButton) */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
-              <button
-                type="button"
+              <ExpandableButton
+                size="md"
+                icon={<X />}
+                label="Cerrar"
+                variant="neutral"
                 onClick={() => {
                   if (recordingTarget) stopMicRecording();
                   setIsVoiceCloneModalOpen(false);
                 }}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
-              >
-                Cerrar
-              </button>
+              />
 
-              <button
-                type="button"
+              <ExpandableButton
+                size="md"
+                icon={isCloningVoice ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                label={
+                  isCloningVoice
+                    ? 'Clonando Voz y Sintetizando Muestra 24kHz...'
+                    : voiceCloneMode === 'replicated'
+                      ? '🧬 Clonar mi Voz Ahora y Generar Muestra 24kHz'
+                      : '✨ Crear Voz Personalizada y Generar Muestra 24kHz'
+                }
+                variant="teal"
                 disabled={isCloningVoice}
                 onClick={handleExecuteVoiceClone}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#c7f303] via-lime-400 to-emerald-400 hover:brightness-110 disabled:opacity-60 text-[#0e1300] text-xs font-black uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-lg"
-              >
-                {isCloningVoice ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Clonando Voz y Sintetizando Muestra 24kHz...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>
-                      {voiceCloneMode === 'replicated'
-                        ? '🧬 Clonar mi Voz Ahora y Generar Muestra 24kHz'
-                        : '✨ Crear Voz Personalizada y Generar Muestra 24kHz'}
-                    </span>
-                  </>
-                )}
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -11769,7 +12018,6 @@ function StudioAudioPlayer({
               icon={<Film />}
               label="Llevar al Video"
               variant="purple"
-              alwaysExpanded
               onClick={onSendToVideo}
             />
           )}
@@ -11779,7 +12027,6 @@ function StudioAudioPlayer({
             icon={<Download />}
             label="Descargar WAV"
             variant="green"
-            alwaysExpanded
             onClick={handleDownload}
           />
         </div>
@@ -12018,7 +12265,6 @@ function AsyncJobMonitorCard({
               icon={<Pause />}
               label="Pausar"
               variant="amber"
-              alwaysExpanded
               onClick={onPause}
             />
           )}
@@ -12028,7 +12274,6 @@ function AsyncJobMonitorCard({
               icon={<Play />}
               label="Reanudar"
               variant="teal"
-              alwaysExpanded
               onClick={onResume}
             />
           )}
@@ -12048,7 +12293,6 @@ function AsyncJobMonitorCard({
                 icon={<Play />}
                 label="Cargar en Reproductor"
                 variant="indigo"
-                alwaysExpanded
                 onClick={onLoadMaster}
               />
               <a

@@ -24,6 +24,7 @@ import {
   Check
 } from 'lucide-react';
 import PublicWorkerHeader from './PublicWorkerHeader';
+import WorkerSessionBadge from './WorkerSessionBadge';
 import { useWorkerSession } from '../../hooks/useWorkerSession';
 
 interface EppCatalogItem {
@@ -62,7 +63,7 @@ const MOTIVOS_SOLICITUD = [
 export default function PublicSolicitudEpp() {
   const { companyId } = useParams();
   const navigate = useNavigate();
-  const { session, worker: sessionWorker, isAuthenticated, saveSession } = useWorkerSession(companyId);
+  const { session, worker: sessionWorker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
   const searchParams = new URLSearchParams(window.location.search);
   const initialTab = searchParams.get('tab') === 'historial' ? 'historial' : 'solicitar';
@@ -255,7 +256,21 @@ export default function PublicSolicitudEpp() {
       />
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 space-y-6">
-        
+        {documento && nombreTrabajador && (
+          <WorkerSessionBadge
+            nombre={nombreTrabajador}
+            cedula={documento}
+            cargo={cargo || sessionWorker?.cargo || session?.cargo}
+            onClear={() => {
+              clearSession();
+              setDocumento('');
+              setNombreTrabajador('');
+              setCargo('');
+              setSolicitudes([]);
+            }}
+          />
+        )}
+
         {/* Banner Superior con Puntos de Gamificación */}
         <div className="bg-gradient-to-r from-teal-700 via-teal-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="relative z-10 space-y-2 text-center md:text-left">

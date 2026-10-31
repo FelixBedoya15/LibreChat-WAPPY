@@ -60,24 +60,6 @@ async function authenticateApiKey(rawKey) {
 }
 
 const requireApiKeyOrJwt = async (req, res, next) => {
-  const authHeader = req.headers.authorization || '';
-  const bearerKey = authHeader.toLowerCase().startsWith('bearer wpy_')
-    ? authHeader.slice(7).trim()
-    : null;
-  const candidateKey =
-    req.headers['x-api-key'] ||
-    (typeof req.query?.apiKey === 'string' && req.query.apiKey.trim().startsWith('wpy_') ? req.query.apiKey.trim() : null) ||
-    bearerKey ||
-    (typeof req.body?.apiKey === 'string' && req.body.apiKey.trim().startsWith('wpy_') ? req.body.apiKey.trim() : null);
-
-  if (candidateKey && candidateKey.startsWith('wpy_guest_')) {
-    const guestAuth = await authenticateApiKey(candidateKey);
-    if (guestAuth) {
-      req.user = guestAuth.user;
-      req.apiKey = guestAuth.apiKey;
-      return next();
-    }
-  }
   return baseRequireApiKeyOrJwt(req, res, next);
 };
 const sseTransports = new Map();
@@ -9207,9 +9189,11 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
     const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
     const clientVersion = String(req.query.v || '').trim();
     const CURRENT_DAEMON_VERSION = getCurrentDaemonVersion();
-    // Los daemons locales se autentican con API Key; el navegador (Tenshi/Studio) con token JWT
-    const isDaemonClient = Boolean(clientVersion || req.query.apiKey || req.headers['x-api-key']);
+    // Los daemons locales se autentican con API Key; el navegador (Tenshi/Studio) con token JWT o clientType=browser
+    const isExplicitBrowser = String(req.query.clientType || '').toLowerCase() === 'browser';
+    const isDaemonClient = !isExplicitBrowser && Boolean(clientVersion || req.query.apiKey || req.headers['x-api-key']);
     res.__wappyClientType = isDaemonClient ? 'daemon' : 'browser';
+    res.__wappyRawApiKey = isDaemonClient ? String(req.query.apiKey || req.headers['x-api-key'] || '').trim() : '';
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -9446,7 +9430,7 @@ router.post('/antigravity/ordenes/:id/claim', requireApiKeyOrJwt, async (req, re
     }
 
     const updated = await KanbanTask.findOneAndUpdate(
-      { _id: ordenId, user: targetUserId, status: 'todo' },
+      { _id: ordenId, user: targetUserId, status: { $in: ['todo', 'in_progress'] } },
       { $set: { status: 'in_progress' } },
       { new: true }
     ).lean();
@@ -9484,6 +9468,9 @@ function resolveAntigravityOutputFormat(rawType, instructionText = '', files = [
   }
   if (normRaw === 'imagen' || normRaw === 'image') {
     return 'imagen';
+  }
+  if (normRaw === 'html') {
+    return 'html';
   }
 
   // Detectar si la instrucción pide generar/crear una imagen artística, foto o ilustración
@@ -9722,13 +9709,14 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
 
     let kanbanTask = null;
     try {
-      // Descartar órdenes anteriores que hayan quedado atascadas en 'todo' para que nunca se acumulen ni se entreguen en ráfaga
+      // Descartar órdenes anteriores (> 15s) que hayan quedado atascadas en 'todo' para que nunca se acumulen ni se entreguen en ráfaga
       await KanbanTask.updateMany(
         {
           user: targetUserId,
           type: 'antigravity_delegation',
           status: 'todo',
           sourceModule: { $ne: 'image_priority' },
+          createdAt: { $lt: new Date(Date.now() - 15000) },
         },
         { $set: { status: 'dismissed' } }
       ).catch(() => {});
@@ -10046,6 +10034,17 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       resultado || result || nestedDeliverable.resumen || rawExplicitContent || 'Tarea completada exitosamente por Antigravity.';
     const completionNotesStr = typeof completionNotes === 'string' ? completionNotes : JSON.stringify(completionNotes);
 
+    // Ignorar avisos de intercepción de un segundo equipo (/Users/venta) para no cerrar la orden antes de que el Mac principal termine
+    const combinedCheckText = `${completionNotesStr}\n${typeof finalContent === 'string' ? finalContent : ''}`;
+    if (/ORDEN INTERCEPTADA EN \/Users\/venta|ATENCI[ÓO]N DESDE ANTIGRAVITY \(\/Users\/venta\)/i.test(combinedCheckText)) {
+      logger.info(`[MCP Bridge] Ignorando aviso de equipo secundario (/Users/venta) para orden ${targetId}; manteniendo orden abierta para el equipo principal.`);
+      return res.status(200).json({
+        exito: true,
+        ignoradoPorOtroEquipo: true,
+        mensaje: 'Aviso de equipo secundario ignorado; la orden permanece activa para el equipo principal.',
+      });
+    }
+
     // Detectar el formato esperado registrado en la tarea
     const taskDescStr = String(task.description || '');
     const expectedFormatMatch = taskDescStr.match(/Formato Esperado:\s*([^\n\r]+)/i);
@@ -10064,14 +10063,24 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         rawFormat === 'presentacion' ||
         rawFormat === 'presentation');
 
+    const hasHtmlMarkup = /<!doctype html|<html\b|<div[^>]+id=["']stage["']/i.test(combinedCheckText);
+
     const isConversationalReply =
       !isOriginalFileCopy &&
+      expectedFormat !== 'html' &&
       (rawFormat === 'respuesta' ||
         rawFormat === 'consulta' ||
         rawFormat === 'chat' ||
         (expectedFormat === 'respuesta' && !isExplicitDeliverableFormat));
 
     const finalContentStr = typeof finalContent === 'string' ? finalContent.trim() : '';
+
+    if (expectedFormat === 'html' && !hasHtmlMarkup && !finalUrl) {
+      logger.info(`[MCP Bridge] Rechazando cierre sin HTML para orden HTML ${targetId}.`);
+      return res.status(400).json({
+        error: 'Esta orden de Wappy Studio requiere código HTML válido (<!DOCTYPE html>... <div id="stage">). Envía formato="html" y el código HTML completo en "contenido".',
+      });
+    }
 
     // Validación: solo exigir mínimo 300 caracteres cuando NO es una respuesta conversacional ni una copia de archivo original
     if (!isConversationalReply && !isOriginalFileCopy && !rawExplicitContent && !finalUrl && finalContentStr.length < 300) {

@@ -1116,34 +1116,77 @@ async function synthesizeSingleVoiceTurn({
       const kIdx = (Math.max(0, preferredKeyOffset) + kStep) % keys.length;
       const apiKey = keys[kIdx];
       try {
-        const resolvedVoice = resolveCompatibleVoice(voiceName, currentModel);
-        const speechConfig = {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: resolvedVoice,
-            },
-          },
-        };
-
+        const cleanVoiceKey = String(voiceName || 'Kore').trim();
+        const customCloneEntry = customVoicesRegistry.get(cleanVoiceKey);
+        const resolvedVoice = resolveCompatibleVoice(
+          customCloneEntry?.nativeVoiceId || voiceName,
+          currentModel,
+        );
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
 
-        const response = await axios.post(
-          url,
-          {
-            contents: [{ role: 'user', parts: [{ text: cleanTurnText }] }],
-            generationConfig: {
-              responseModalities: ['AUDIO'],
-              speechConfig,
+        let response = null;
+        if (
+          customCloneEntry?.sourceAudioBase64 &&
+          cleanVoiceKey.startsWith('wappy_clone_') &&
+          currentModel.includes('3.8')
+        ) {
+          try {
+            response = await axios.post(
+              url,
+              {
+                contents: [{ role: 'user', parts: [{ text: cleanTurnText }] }],
+                generationConfig: {
+                  responseModalities: ['AUDIO'],
+                  speechConfig: {
+                    voiceConfig: {
+                      replicatedVoiceConfig: {
+                        mimeType: customCloneEntry.sourceMimeType || 'audio/wav',
+                        voiceSampleAudio: customCloneEntry.sourceAudioBase64,
+                      },
+                    },
+                  },
+                },
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': apiKey,
+                },
+                timeout: 55000,
+              },
+            );
+          } catch (_) {
+            response = null;
+          }
+        }
+
+        if (!response) {
+          const speechConfig = {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: resolvedVoice,
+              },
             },
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey,
+          };
+
+          response = await axios.post(
+            url,
+            {
+              contents: [{ role: 'user', parts: [{ text: cleanTurnText }] }],
+              generationConfig: {
+                responseModalities: ['AUDIO'],
+                speechConfig,
+              },
             },
-            timeout: 55000,
-          },
-        );
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey,
+              },
+              timeout: 55000,
+            },
+          );
+        }
 
         const parts = response.data?.candidates?.[0]?.content?.parts || [];
         const audioPart = parts.find((p) => p.inlineData && p.inlineData.data);
@@ -1426,16 +1469,19 @@ router.get('/voices/custom', studioAuth, async (req, res) => {
         const list = Array.isArray(resp.data?.voices) ? resp.data.voices : [];
         for (const v of list) {
           if (v && (v.type === 'replicated' || v.type === 'prompted' || String(v.id || '').startsWith('voice_'))) {
+            const vId = v.id || v.name;
+            const vLabel = v.display_name || v.displayName || v.id || 'Voz Clonada';
+            if (vId === 'voice_d1mpq6dowjz7' || /f[eé]lix/i.test(String(vLabel))) continue;
             remoteVoices.push({
-              id: v.id || v.name,
-              name: v.display_name || v.displayName || v.id || 'Voz Clonada Gemini',
+              id: vId,
+              name: vLabel,
               gender: v.gender === 'female' ? 'Femenino' : 'Masculino',
-              tone: v.type === 'prompted' ? 'Diseño Vocal IA' : 'Voz Clonada Real',
+              tone: v.type === 'prompted' ? 'Diseño Vocal' : 'Voz Clonada Real',
               description:
                 v.description ||
                 (v.type === 'prompted'
-                  ? 'Voz personalizada diseñada por prompt en Gemini Voices API'
-                  : 'Clon biométrico verificado en Gemini Voices API (24kHz)'),
+                  ? 'Voz personalizada diseñada por descripción (24kHz)'
+                  : 'Clon biométrico verificado de estudio (24kHz)'),
               type: v.type || 'replicated',
               isCustomClone: true,
               fundamental: true,
@@ -1541,19 +1587,14 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
                   model: 'gemini-3.8-flash-tts',
                   type: 'replicated',
                   display_name: cleanName,
-                  language_code: languageCode || 'es-CO',
                   replicated: {
                     source_audio: {
-                      inline_data: {
-                        mime_type: sourceMimeType || 'audio/wav',
-                        data: cleanSourceB64,
-                      },
+                      mime_type: sourceMimeType || 'audio/wav',
+                      data: cleanSourceB64,
                     },
                     consent_audio: {
-                      inline_data: {
-                        mime_type: consentMimeType || 'audio/wav',
-                        data: cleanConsentB64,
-                      },
+                      mime_type: consentMimeType || 'audio/wav',
+                      data: cleanConsentB64,
                     },
                   },
                 },
@@ -1586,19 +1627,20 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
         }
       } catch (nativeErr) {
         logger.debug(
-          `[WappyStudio VoiceClone] /v1beta/voices no activo en clave #${kIdx + 1} (${nativeErr.response?.status || nativeErr.message}), activando perfil acústico multimodal Gemini...`,
+          `[WappyStudio VoiceClone] /v1beta/voices (${mode}) aviso en clave #${kIdx + 1} (${nativeErr.response?.status || nativeErr.message}): ${JSON.stringify(nativeErr.response?.data?.error?.message || '')}`,
         );
       }
     }
 
-    // 2. Análisis Acústico Multimodal con Gemini 2.5 Flash sobre la grabación de voz o prompt
-    // Identifica el timbre exacto, registro vocal, cadencia y la matriz neural más cercana de las 14 voces 24kHz
+    // 2. Análisis Acústico Multimodal con los modelos activos de GOOGLE_MODELS (gemini-3.6-flash / gemini-3.5-flash-lite)
+    // Extrae la huella vocal exacta (timbre, registro, resonancia, velocidad, acento y edad aparente) de la grabación real del usuario
     let detectedGender = gender === 'Femenino' ? 'Femenino' : 'Masculino';
     let matchedBaseVoice = detectedGender === 'Femenino' ? 'Kore' : 'Orus';
     let detectedTone = 'Clonación Biométrica 24kHz';
     let styleDirective =
       'Tono natural, articulación clara, ritmo orgánico con pausas conversacionales realistas.';
     let acousticSummary = 'Timbre vocal analizado y emparejado a 24 kHz.';
+    let extractedVoiceDesignPrompt = '';
 
     try {
       const analysisParts = [];
@@ -1610,12 +1652,12 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
           },
         });
         analysisParts.push({
-          text: `Escucha atentamente esta grabación de voz real ("${cleanName}"). Analiza su timbre acústico, género percibido, registro (grave/medio/agudo), velocidad, calidez, acento y energía.
-Elige cuál de las 14 voces neurales de Gemini 24kHz tiene el timbre acústico más idéntico a esta persona:
+          text: `Escucha atentamente esta grabación de voz real ("${cleanName}", idioma/acento base: ${languageCode || 'es-CO'}). Analiza con precisión forense su timbre acústico, género percibido, edad vocal aproximada, registro (barítono/tenor/mezzo/soprano, frecuencia fundamental), textura (cálida, brillante, aterciopelada, nasal, rasposa o limpia), velocidad de elocución, cadencia, entonación y acento regional exacto.
+Elige también cuál de las 14 voces neurales de Gemini 24kHz es la más cercana como referencia:
 - Voces Masculinas: Puck (cálido/enérgico), Orus (barítono firme/ejecutivo), Charon (profundo/documental), Fenrir (dinámico/rápido), Enceladus (suave/empático), Iapetus (claro/técnico), Schedar (maduro/institucional).
 - Voces Femeninas: Kore (cálida/profesional), Aoede (expresiva/narrativa), Leda (serena/pausada), Zephyr (joven/fresca), Callirrhoe (melódica/cercana), Autonoe (firme/directiva), Umbriel (suave/reflexiva).
 Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
-{"gender":"Masculino o Femenino","baseVoice":"NombreExactoDeLas14","tone":"2-3 palabras del timbre","styleDirective":"Instrucción de prosodia, cadencia y acento para replicar esta voz","acousticSummary":"Resumen breve de las características de la voz analizada"}`,
+{"gender":"Masculino o Femenino","baseVoice":"NombreExactoDeLas14","tone":"2-3 palabras del timbre","styleDirective":"Instrucción de prosodia, cadencia y acento para replicar esta voz","acousticSummary":"Resumen breve de las características de la voz analizada","voiceDesignPrompt":"Descripción hiper-detallada en 2-3 frases del timbre exacto, edad vocal, acento regional, resonancia, velocidad, calidez y ataque vocal de esta persona para sintetizar un clon acústico idéntico en Gemini Voices API"}`,
         });
       } else {
         analysisParts.push({
@@ -1624,43 +1666,108 @@ Elige cuál de las 14 voces neurales de Gemini 24kHz se ajusta mejor como base a
 - Voces Masculinas: Puck, Orus, Charon, Fenrir, Enceladus, Iapetus, Schedar.
 - Voces Femeninas: Kore, Aoede, Leda, Zephyr, Callirrhoe, Autonoe, Umbriel.
 Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
-{"gender":"Masculino o Femenino","baseVoice":"NombreExactoDeLas14","tone":"2-3 palabras del timbre","styleDirective":"Instrucción de prosodia, cadencia y acento para replicar esta voz","acousticSummary":"Resumen breve del diseño vocal"}`,
+{"gender":"Masculino o Femenino","baseVoice":"NombreExactoDeLas14","tone":"2-3 palabras del timbre","styleDirective":"Instrucción de prosodia, cadencia y acento para replicar esta voz","acousticSummary":"Resumen breve del diseño vocal","voiceDesignPrompt":"Descripción detallada del timbre vocal"}`,
         });
       }
 
-      const analysisResp = await axios.post(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-        {
-          contents: [{ role: 'user', parts: analysisParts }],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-          },
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': allKeys[0],
-          },
-          timeout: 25000,
-        },
-      );
+      const analysisModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite'];
+      let analysisResp = null;
+      for (const aModel of analysisModels) {
+        for (let kIdx = 0; kIdx < Math.min(allKeys.length, 3); kIdx++) {
+          try {
+            analysisResp = await axios.post(
+              `https://generativelanguage.googleapis.com/v1beta/models/${aModel}:generateContent`,
+              {
+                contents: [{ role: 'user', parts: analysisParts }],
+                generationConfig: {
+                  temperature: 0.15,
+                  responseMimeType: 'application/json',
+                },
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': allKeys[kIdx],
+                },
+                timeout: 25000,
+              },
+            );
+            if (analysisResp?.data?.candidates?.[0]?.content?.parts?.[0]?.text) break;
+          } catch (_) {
+            analysisResp = null;
+          }
+        }
+        if (analysisResp?.data?.candidates?.[0]?.content?.parts?.[0]?.text) break;
+      }
 
       const rawJsonText =
-        analysisResp.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const parsed = JSON.parse(rawJsonText.replace(/```json|```/gi, '').trim());
-      const validVoices = STUDIO_VOICES.map((v) => v.id);
-      if (parsed.baseVoice && validVoices.includes(parsed.baseVoice)) {
-        matchedBaseVoice = parsed.baseVoice;
+        analysisResp?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (rawJsonText) {
+        const parsed = JSON.parse(rawJsonText.replace(/```json|```/gi, '').trim());
+        const validVoices = STUDIO_VOICES.map((v) => v.id);
+        if (parsed.baseVoice && validVoices.includes(parsed.baseVoice)) {
+          matchedBaseVoice = parsed.baseVoice;
+        }
+        if (parsed.gender === 'Femenino' || parsed.gender === 'Masculino') {
+          detectedGender = parsed.gender;
+        }
+        if (parsed.tone) detectedTone = String(parsed.tone).slice(0, 45);
+        if (parsed.styleDirective) styleDirective = String(parsed.styleDirective).slice(0, 260);
+        if (parsed.acousticSummary) acousticSummary = String(parsed.acousticSummary).slice(0, 260);
+        if (parsed.voiceDesignPrompt) {
+          extractedVoiceDesignPrompt = String(parsed.voiceDesignPrompt).slice(0, 480);
+        }
       }
-      if (parsed.gender === 'Femenino' || parsed.gender === 'Masculino') {
-        detectedGender = parsed.gender;
-      }
-      if (parsed.tone) detectedTone = String(parsed.tone).slice(0, 45);
-      if (parsed.styleDirective) styleDirective = String(parsed.styleDirective).slice(0, 260);
-      if (parsed.acousticSummary) acousticSummary = String(parsed.acousticSummary).slice(0, 260);
     } catch (analysisErr) {
       logger.debug(`[WappyStudio VoiceClone] Acoustic analysis fallback used: ${analysisErr.message}`);
+    }
+
+    // 2B. Si mode === 'replicated' y el verificador de consentimiento de /v1beta/voices no devolvió ID nativo
+    // (por ejemplo si el usuario omitió el Paso 2 o varió una palabra de la frase literal),
+    // creamos una voz nativa real (`voice_...`) en Gemini 3.8 Voices API usando la huella acústica extraída de su grabación real
+    if (!nativeVoiceId) {
+      const twinPrompt =
+        extractedVoiceDesignPrompt ||
+        `${acousticSummary}. ${styleDirective}. Voz ${detectedGender.toLowerCase()} con timbre ${detectedTone}, acento ${languageCode || 'es-CO'} natural y cercano.`;
+      for (let kIdx = 0; kIdx < Math.min(allKeys.length, 3); kIdx++) {
+        try {
+          const twinResp = await axios.post(
+            'https://generativelanguage.googleapis.com/v1beta/voices',
+            {
+              store: Boolean(store),
+              voice: {
+                model: 'gemini-3.8-flash-tts',
+                type: 'prompted',
+                display_name: cleanName,
+                gender: detectedGender === 'Femenino' ? 'female' : 'male',
+                language_code: languageCode || 'es-CO',
+                prompted: {
+                  input: twinPrompt,
+                },
+              },
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': allKeys[kIdx],
+              },
+              timeout: 25000,
+            },
+          );
+          const twinId =
+            twinResp.data?.voice?.id ||
+            twinResp.data?.voice?.key ||
+            twinResp.data?.id ||
+            twinResp.data?.key;
+          if (twinId) {
+            nativeVoiceId = String(twinId).trim();
+            nativeMethod = 'gemini_v1beta_voices_acoustic_twin';
+            break;
+          }
+        } catch (_) {
+          /* continue */
+        }
+      }
     }
 
     const shortHash = crypto.randomBytes(3).toString('hex');
@@ -1668,16 +1775,20 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
 
     const customVoiceProfile = {
       id: finalVoiceId,
+      nativeVoiceId: nativeVoiceId || null,
       name: `🧬 ${cleanName}`,
       displayName: cleanName,
       gender: detectedGender,
       tone: detectedTone,
-      description: `${acousticSummary} (Base: ${matchedBaseVoice} • ${store ? 'Persistente' : 'Llave 7 días'})`,
+      description: `${acousticSummary} (${nativeVoiceId ? `ID Nativo: ${nativeVoiceId}` : `Base: ${matchedBaseVoice}`} • ${store ? 'Persistente' : 'Llave 7 días'})`,
       styleDirective,
+      voiceDesignPrompt: extractedVoiceDesignPrompt || styleDirective,
       baseVoice: matchedBaseVoice,
       type: mode,
       storageMode: store ? 'stateful_1y' : 'stateless_7d',
       nativeMethod: nativeMethod || 'gemini_multimodal_acoustic_twin',
+      sourceAudioBase64: cleanSourceB64 || undefined,
+      sourceMimeType: sourceMimeType || 'audio/wav',
       isCustomClone: true,
       fundamental: true,
       createdAt: new Date().toISOString(),
@@ -3056,16 +3167,24 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
       }
     }
 
-    if (listenerCount === 0 && !req.body?.forceDelegateOrder) {
-      return { delegated: false, listeners: 0 };
-    }
-
     const title = orderSpec.title || 'Wappy Studio · Producción de Reel 60-FPS en Antigravity';
     const instruction = orderSpec.instruction || 'Generar composición HTML5 animada a 60 FPS aplicando las 7 Skills de WAPPY IA.';
     const outputType = orderSpec.outputType || 'html';
 
     let kanbanTask = null;
     if (mongoose.Types.ObjectId.isValid(effectiveTargetId)) {
+      // Descartar órdenes previas en 'todo' para que nunca se acumulen ni bloqueen la nueva orden
+      await KanbanTask.updateMany(
+        {
+          user: new mongoose.Types.ObjectId(effectiveTargetId),
+          type: 'antigravity_delegation',
+          status: 'todo',
+          sourceModule: { $ne: 'image_priority' },
+          createdAt: { $lt: new Date(Date.now() - 15000) },
+        },
+        { $set: { status: 'dismissed' } },
+      ).catch(() => {});
+
       kanbanTask = await KanbanTask.create({
         user: new mongoose.Types.ObjectId(effectiveTargetId),
         title,
@@ -3090,6 +3209,7 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
       estado: 'todo',
       prioridad: 'alta',
       origen: 'wappy_studio',
+      sourceModule: 'wappy_studio',
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
 
@@ -3102,6 +3222,7 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
       delegated: pushed > 0 || Boolean(kanbanTask),
       ordenId,
       listeners: pushed,
+      daemonListeners: listenerCount,
     };
   } catch (err) {
     logger.debug(`[WappyStudio Antigravity] Order delegation skipped: ${err.message}`);
@@ -3207,6 +3328,18 @@ async function handleStudioAntigravityGuestOrUserKey(req, res) {
         }
       }
 
+      // Si hay un daemon conectado en vivo en memoria con su clave raw, preferir esa clave exacta
+      let liveStreamRawKey = '';
+      try {
+        const set = mcpBridge?.antigravityStreamClients?.get(targetUserId);
+        for (const c of set || []) {
+          if (c?.__wappyClientType !== 'browser' && c?.__wappyRawApiKey && c.__wappyRawApiKey.startsWith('wpy_live_')) {
+            liveStreamRawKey = c.__wappyRawApiKey;
+            break;
+          }
+        }
+      } catch (_) {}
+
       const candidateKeyDocs = await UserApiKey.find({
         user: targetUserId,
         isActive: true,
@@ -3215,7 +3348,10 @@ async function handleStudioAntigravityGuestOrUserKey(req, res) {
         .sort({ lastUsedAt: -1, createdAt: -1 })
         .lean();
 
-      let existingKeyDoc = candidateKeyDocs.find((d) => d.rawKey && !d.rawKey.includes('...')) || null;
+      let existingKeyDoc =
+        (liveStreamRawKey ? { rawKey: liveStreamRawKey } : null) ||
+        candidateKeyDocs.find((d) => d.rawKey && !d.rawKey.includes('...')) ||
+        null;
 
       if (!existingKeyDoc || !existingKeyDoc.rawKey || existingKeyDoc.rawKey.includes('...')) {
         const randomHex = crypto.randomBytes(24).toString('hex');
@@ -4012,7 +4148,7 @@ async function handleGenerateMasterReelHtml(req, res) {
     const resolvedTarget = await resolveStudioTargetUser(req);
     const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
       title: `Wappy Studio · Generar Animación 60-FPS (${aspectRatio})`,
-      instruction: `${superPrompt || prompt || effectiveScript}\n\n[Nota para Antigravity]: Aplica las 7 Skills de Diseño y Video 60-FPS de WAPPY IA y completa la orden con formato="html".`,
+      instruction: `${superPrompt || prompt || effectiveScript}\n\n[DIRECTRIZ OBLIGATORIA WAPPY STUDIO 60-FPS — LIENZO DE VIDEO PURO]:\n1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos y textos ya están incluidos arriba) para responder con velocidad instantánea.\n2. Genera ÚNICAMENTE un lienzo de video animado HTML5 + GSAP a 60 FPS dentro de <div id="stage" data-wappy-master-reel="true"> en formato ${aspectRatio} (${aspectRatio === '16:9' ? '1920x1080' : '1080x1920'} con auto-escalado responsivo al viewport 100vw x 100vh y overflow:hidden), SIN barras laterales de escritorio, SIN tablas externas y SIN dashboards alrededor del video.\n3. Expon window.mainTimeline (GSAP timeline pausable/reiniciable) y soporta postMessage STUDIO_PLAY, STUDIO_PAUSE, STUDIO_RESTART y STUDIO_SEEK.\n4. Completa la orden inmediatamente con wappy_completar_orden_delegada_tenshi (formato="html", contenido="<!DOCTYPE html>...").`,
       outputType: 'html',
     });
 
@@ -4250,7 +4386,7 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
     const resolvedTarget = await resolveStudioTargetUser(req);
     const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
       title: `Wappy Studio · Editar Animación 60-FPS (${detectedAspect})`,
-      instruction: `Edición solicitada en Wappy Studio: "${instruction}".\nDirección de arte: ${detectedTheme}.\nGuión base:\n${effectiveScript}`,
+      instruction: `Edición solicitada en Wappy Studio: "${instruction}".\nDirección de arte: ${detectedTheme}.\nGuión base:\n${effectiveScript}\n\n[DIRECTRIZ OBLIGATORIA WAPPY STUDIO 60-FPS — LIENZO DE VIDEO PURO]:\n1. NO llames herramientas MCP de consulta empresarial.\n2. Aplica la corrección directamente sobre el lienzo de video HTML5 + GSAP a 60 FPS dentro de <div id="stage" data-wappy-master-reel="true"> en formato ${detectedAspect} ocupando el 100% del viewport (sin dashboards ni paneles externos al video).\n3. Completa la orden inmediatamente con wappy_completar_orden_delegada_tenshi (formato="html", contenido="<!DOCTYPE html>...").`,
       outputType: 'html',
     });
 

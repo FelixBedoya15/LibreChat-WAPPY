@@ -223,7 +223,7 @@ export default function PublicRutaAprendizaje() {
                                     required
                                     value={nombre}
                                     onChange={(e) => setNombre(e.target.value)}
-                                    className="w-full bg-surface-secondary/40 border border-border-medium focus:border-teal-500 text-text-primary rounded-2xl px-4 py-3 outline-none transition-all text-sm font-semibold"
+                                    className="w-full bg-surface-secondary border border-border-medium focus:border-teal-500 text-text-primary rounded-2xl px-4 py-3 outline-none transition-all text-sm font-semibold"
                                     placeholder="Ej: Carlos Alberto Ramírez"
                                 />
                             </div>
@@ -237,7 +237,7 @@ export default function PublicRutaAprendizaje() {
                                     required
                                     value={cedula}
                                     onChange={(e) => setCedula(e.target.value)}
-                                    className="w-full bg-surface-secondary/40 border border-border-medium focus:border-teal-500 text-text-primary rounded-2xl px-4 py-3 outline-none transition-all text-sm font-mono font-bold"
+                                    className="w-full bg-surface-secondary border border-border-medium focus:border-teal-500 text-text-primary rounded-2xl px-4 py-3 outline-none transition-all text-sm font-mono font-bold"
                                     placeholder="Ej: 79845123"
                                 />
                             </div>
@@ -310,7 +310,7 @@ export default function PublicRutaAprendizaje() {
                                 Completa las lecciones de tus rutas asignadas y obtén tus certificados de asistencia válidos ante el Ministerio del Trabajo.
                             </p>
                         </div>
-                        <div className="bg-surface-secondary/70 dark:bg-slate-800/70 px-4 py-3 rounded-2xl border border-border-medium text-left shrink-0">
+                        <div className="bg-surface-secondary dark:bg-slate-800/70 px-4 py-3 rounded-2xl border border-border-medium text-left shrink-0">
                             <p className="text-[10px] text-text-tertiary font-bold uppercase tracking-wider">Organización</p>
                             <p className="text-sm font-extrabold text-text-primary">{session.companyName}</p>
                             <p className="text-xs text-text-secondary mt-0.5">{session.cargo}</p>
@@ -332,7 +332,7 @@ export default function PublicRutaAprendizaje() {
                     {loadingCourses ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {[1, 2, 3].map((i) => (
-                                <div key={i} className="bg-surface-secondary/50 border border-border-medium rounded-3xl h-56 animate-pulse" />
+                                <div key={i} className="bg-surface-secondary border border-border-medium rounded-3xl h-56 animate-pulse" />
                             ))}
                         </div>
                     ) : courses.length === 0 ? (

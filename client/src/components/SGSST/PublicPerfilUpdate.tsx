@@ -69,16 +69,16 @@ const AFP_OPTIONS = [
 // ─── Section component ─────────────────────────────────────────────
 const SectionTitle = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
     <div className="flex items-center gap-2 mb-3 mt-5 first:mt-0">
-        <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4 text-teal-600" />
+        <div className="w-7 h-7 rounded-lg bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
         </div>
-        <span className="text-xs font-bold uppercase tracking-widest text-teal-700">{label}</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-teal-700 dark:text-teal-300">{label}</span>
     </div>
 );
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <div className="flex flex-col gap-1">
-        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{label}</label>
+        <label className="text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{label}</label>
         {children}
     </div>
 );
@@ -86,7 +86,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
     <input
         {...props}
-        className="w-full border border-gray-200 rounded-xl text-sm bg-gray-50 px-3 py-2.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none transition-all font-medium placeholder-gray-300"
+        className="w-full border border-gray-200 dark:border-slate-700 rounded-xl text-sm bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-zinc-100 px-3 py-2.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none transition-all font-medium placeholder-gray-300 dark:placeholder-slate-500"
     />
 );
 
@@ -378,7 +378,7 @@ export default function PublicPerfilUpdate() {
 
                 {/* ─── STEP 2: Update Form ─────────────────────── */}
                 {step === 2 && workerData && (
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {/* Worker Session Badge */}
                         <WorkerSessionBadge
                             nombre={workerData.nombre}
@@ -774,7 +774,7 @@ export default function PublicPerfilUpdate() {
 
                 {/* ─── STEP 3: Success ─────────────────────────── */}
                 {step === 3 && (
-                    <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-4 flex flex-col items-center text-center animate-in zoom-in-95 duration-500">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-slate-800 mt-4 flex flex-col items-center text-center animate-in zoom-in-95 duration-500">
                         <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mb-5 shadow-inner">
                             <CheckCircle className="w-10 h-10 text-teal-600" />
                         </div>

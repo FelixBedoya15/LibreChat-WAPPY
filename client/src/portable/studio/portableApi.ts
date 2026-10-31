@@ -1526,12 +1526,25 @@ export function installPortableStudioApi() {
     if (url && url.pathname.startsWith('/api/studio/') && (raw.startsWith('/') || url.origin === location.origin || location.protocol === 'file:')) {
       return handleStudioRequest(url, init);
     }
+    if (url && url.pathname.startsWith('/api/mcp-bridge/') && (raw.startsWith('/') || url.origin === location.origin)) {
+      return nativeFetch(url.pathname + url.search, withAuthInit(init));
+    }
     return nativeFetch(input as any, init);
   };
 
   (window as any).EventSource = function PortableEventSource(this: any, url: string, cfg?: any) {
-    const m = String(url).match(/\/api\/studio\/tts\/jobs\/([^/?]+)\/stream/);
+    const rawUrl = String(url || '');
+    const m = rawUrl.match(/\/api\/studio\/tts\/jobs\/([^/?]+)\/stream/);
     if (m && localJobs.has(m[1])) return new PortableJobEventSource(localJobs.get(m[1]) as LocalJob);
+    if (rawUrl.includes('/api/mcp-bridge/antigravity/stream')) {
+      const win = typeof window !== 'undefined' ? (window as any) : {};
+      const tok = String(win.platformUserToken || win.platformAuthToken || localStorage.getItem('token') || '').trim();
+      let enrichedUrl = rawUrl;
+      if (tok && !enrichedUrl.includes('token=')) {
+        enrichedUrl += (enrichedUrl.includes('?') ? '&' : '?') + `token=${encodeURIComponent(tok)}`;
+      }
+      return new NativeEventSource(enrichedUrl, { ...(cfg || {}), withCredentials: true });
+    }
     return new NativeEventSource(url, cfg);
   } as any;
 

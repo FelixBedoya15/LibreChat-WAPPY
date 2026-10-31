@@ -427,16 +427,22 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
 
       for (const t of trabajadoresList) {
         if (t.cedula) {
+          const cleanCed = String(t.cedula).trim();
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const slug = shortDesc.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24);
           await feedWorkerEvent(
             req.user.id || req.user,
-            t.cedula,
+            cleanCed,
             'actos',
             `[Acto Inseguro Observado] ${shortDesc}`,
             -100, // Penalización en el historial de percepción
-            result.conversationId || 'generate',
+            `ACTO-OBS-${cleanCed}-${todayStr}-${slug}`,
             {
+              companyId: loadedCompanyInfo?._id,
               esObservado: true,
               esCritico: esActoCritico,
+              nombre: t.nombre,
+              cargo: t.cargo,
             },
           );
         }

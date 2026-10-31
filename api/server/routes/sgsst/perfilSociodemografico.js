@@ -2623,7 +2623,8 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
           'perfil_socio',
           `Actualización anual de perfil sociodemográfico aprobada por coordinador (${inboxType === 'social' ? 'Datos Generales/Vivienda' : 'Condiciones de Salud'})`,
           30,
-          updateId
+          updateId,
+          { companyId }
         );
       } catch (feedErr) {
         logger.warn('[PerfilSocio] Feed worker gamification error:', feedErr.message);

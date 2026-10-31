@@ -8,6 +8,7 @@ import {
 import axios from 'axios';
 import { ALTA_DIRECCION_ITEMS, CATEGORY_TITLES, GERENCIA_KEYWORDS } from '../SGSST/altaDireccionData';
 import { useWorkerSession } from '../../hooks/useWorkerSession';
+import PublicWorkerHeader from './PublicWorkerHeader';
 import WorkerSessionBadge from './WorkerSessionBadge';
 
 // Check if cargo is managerial
@@ -185,39 +186,17 @@ export default function PublicAltaDireccion() {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50/30 font-sans text-gray-800 flex flex-col">
-            {/* Header */}
-            <header className="bg-white shadow-sm sticky top-0 z-20 border-b border-gray-200 p-4 shrink-0">
-                <div className="flex items-center gap-3 max-w-3xl mx-auto">
-                    {company.logo ? (
-                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-200 shrink-0 bg-white">
-                            <img src={company.logo} alt="Logo" className="w-full h-full object-contain" />
-                        </div>
-                    ) : (
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-600 to-teal-800 flex items-center justify-center shrink-0 shadow-md">
-                            <Building2 className="w-5 h-5 text-white" />
-                        </div>
-                    )}
-                    <div>
-                        <h1 className="font-bold text-sm text-gray-900 leading-tight">{company.companyName}</h1>
-                        <p className="text-xs text-teal-600 font-semibold">Revisión por Alta Dirección · SG-SST</p>
-                    </div>
-                    <div className="ml-auto flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => navigate(`/sgsst-public/colaborador/${companyId}`)}
-                            title="Mi Pasaporte SST (Puntos & Perfil)"
-                            className="flex items-center gap-1.5 h-8 px-2.5 rounded-xl text-xs font-bold bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-all cursor-pointer"
-                        >
-                            <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                            <span className="font-bold">Mis Puntos</span>
-                        </button>
-                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold uppercase tracking-wide flex items-center gap-1">
-                            <Lock className="w-3 h-3" /> Acceso Restringido
-                        </span>
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-text-primary flex flex-col">
+            <PublicWorkerHeader
+                companyName={company.companyName}
+                companyLogo={company.logo}
+                companyId={company._id || companyId}
+                currentModule="comites"
+                title="Revisión por Alta Dirección"
+                subtitle="Evaluación anual del SG-SST (Dec. 1072/15 Art. 2.2.4.6.31)"
+                workerCedula={cedula || sessionWorker?.cedula || session?.cedula}
+                planTier={company.planTier}
+            />
 
             <main className="flex-1 p-4 overflow-y-auto w-full max-w-3xl mx-auto flex flex-col gap-4">
 

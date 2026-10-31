@@ -33,6 +33,7 @@ import {
 import axios from 'axios';
 import { PublicWorkerHeader } from './PublicWorkerHeader';
 import useWorkerSession from '~/hooks/useWorkerSession';
+import WorkerSessionBadge from './WorkerSessionBadge';
 import { SignaturePad } from './SignaturePad';
 
 // Helper de compresión y redimensionamiento de fotos para carga rápida en móviles
@@ -182,7 +183,7 @@ interface HallazgoItem {
 export default function PublicInspeccionesCopasst() {
   const { companyId, cedula: urlCedula } = useParams<{ companyId: string; cedula?: string }>();
   const navigate = useNavigate();
-  const { worker, isAuthenticated } = useWorkerSession(companyId);
+  const { worker, isAuthenticated, saveSession, clearSession } = useWorkerSession(companyId);
 
   // Estados de datos
   const [loadingContext, setLoadingContext] = useState(true);
@@ -429,6 +430,15 @@ export default function PublicInspeccionesCopasst() {
       };
 
       const res = await axios.post(`/api/public-sgsst/copasst-inspeccion/${companyId}`, payload);
+      if (inspectorCedula.trim()) {
+        saveSession({
+          companyId,
+          companyName: companyData?.companyName,
+          cedula: inspectorCedula.trim(),
+          nombre: inspectorNombre.trim(),
+          cargo: inspectorCargo.trim() || 'Miembro COPASST',
+        });
+      }
       setSubmittedConsecutivo(res.data?.consecutivo || 'INSP-COPASST-REGISTRADA');
       setStep(4);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -462,7 +472,7 @@ export default function PublicInspeccionesCopasst() {
         companyId={companyId || ''}
         companyName={companyData?.companyName || 'Somos SST'}
         companyLogo={companyData?.logo}
-        currentModule="comites"
+        currentModule="copasst-inspecciones"
         title="Inspecciones de Seguridad COPASST"
         subtitle="Rondas preventivas ágiles para miembros de comité y vigías"
         workerCedula={inspectorCedula}
@@ -480,6 +490,22 @@ export default function PublicInspeccionesCopasst() {
 
       {/* Contenedor Principal */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
+        {(inspectorNombre || inspectorCedula) && (
+          <WorkerSessionBadge
+            companyId={companyId || ''}
+            nombre={inspectorNombre || 'Inspector COPASST'}
+            cedula={inspectorCedula}
+            cargo={inspectorCargo || inspectorRol}
+            companyName={companyData?.companyName}
+            onClear={() => {
+              clearSession();
+              setInspectorNombre('');
+              setInspectorCedula('');
+              setInspectorCargo('');
+            }}
+            className="mb-4"
+          />
+        )}
         {/* Banner Superior con Puntos y Botón de Historial */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 shadow-sm">
           <div className="flex items-center gap-3">

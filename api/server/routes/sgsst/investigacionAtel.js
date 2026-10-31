@@ -872,6 +872,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
                 0,
                 refAtel,
                 {
+                    companyId: loadedCompanyInfo?._id,
                     tipo: tipoEvento || 'Accidente de Trabajo',
                     parteCuerpo: formData?.parteCuerpo || '',
                     consecuencia: naturalezaLesion || '',

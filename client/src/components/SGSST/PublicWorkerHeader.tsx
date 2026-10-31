@@ -50,16 +50,26 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [fetchedPlanTier, setFetchedPlanTier] = useState<string>('');
+  const [fetchedCompanyName, setFetchedCompanyName] = useState<string>('');
+  const [fetchedCompanyLogo, setFetchedCompanyLogo] = useState<string | null>(null);
 
   useEffect(() => {
-    if (planTier || !companyId) return;
+    if (!companyId) return;
     fetch(`/api/public-sgsst/company-plan/${companyId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.planTier) setFetchedPlanTier(d.planTier);
+        if (d?.companyName) setFetchedCompanyName(d.companyName);
+        if (d?.logo) setFetchedCompanyLogo(d.logo);
       })
       .catch(() => {});
-  }, [companyId, planTier]);
+  }, [companyId]);
+
+  const effectiveCompanyName =
+    companyName && companyName !== 'Somos SST'
+      ? companyName
+      : fetchedCompanyName || companyName || 'Somos SST';
+  const effectiveCompanyLogo = companyLogo || fetchedCompanyLogo || null;
 
   const isVitalPlan = (planTier || fetchedPlanTier) === 'vital';
 
@@ -294,10 +304,10 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           onClick={() => navigate(`/sgsst-public/colaborador/${companyId}${resolvedCedula ? `/${encodeURIComponent(resolvedCedula)}` : ''}`)}
           className="flex items-center gap-2.5 cursor-pointer group shrink-0"
         >
-          {companyLogo ? (
+          {effectiveCompanyLogo ? (
             <img 
-              src={companyLogo} 
-              alt={companyName} 
+              src={effectiveCompanyLogo} 
+              alt={effectiveCompanyName} 
               onError={(e) => {
                 (e.target as HTMLImageElement).src = '/assets/logo.png';
               }}
@@ -312,7 +322,7 @@ export const PublicWorkerHeader: React.FC<PublicWorkerHeaderProps> = ({
           )}
           <div className="flex flex-col">
             <span className="text-xs font-black text-text-primary group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors leading-tight line-clamp-1">
-              {companyName}
+              {effectiveCompanyName}
             </span>
             <span className="text-[10px] text-text-secondary flex items-center gap-1 font-medium">
               {isVitalPlan ? 'Huella Biocéntrica' : 'Somos SST'} <Sparkles className="w-2.5 h-2.5 text-teal-500" />

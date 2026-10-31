@@ -340,7 +340,7 @@ export default function PublicAtelTestimonio() {
           </div>
         )}
 
-        <div className="relative flex flex-1 flex-col overflow-hidden rounded-3xl border border-border-light dark:border-border-medium bg-surface-primary dark:bg-surface-secondary/60 p-6 shadow-xl shadow-slate-200/50 dark:shadow-none backdrop-blur-md">
+        <div className="relative flex flex-1 flex-col overflow-hidden rounded-3xl border border-border-light dark:border-border-medium bg-surface-primary dark:bg-surface-secondary p-6 shadow-xl shadow-slate-200/50 dark:shadow-none backdrop-blur-md">
           {/* Step 1: Identificación */}
           {step === 1 && (
             <div className="flex h-full flex-col duration-500 animate-in fade-in slide-in-from-right-4">
@@ -588,7 +588,7 @@ export default function PublicAtelTestimonio() {
                             setActivePhotoField(item.id);
                             fileInputRef.current?.click();
                           }}
-                          className="flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-border-medium hover:border-teal-500 bg-surface-secondary/40 hover:bg-surface-hover transition-colors"
+                          className="flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-border-medium hover:border-teal-500 bg-surface-secondary hover:bg-surface-hover transition-colors"
                         >
                           <Camera className="h-6 w-6 text-text-tertiary" />
                           <span className="text-[10px] font-bold text-text-secondary">{item.label}</span>
