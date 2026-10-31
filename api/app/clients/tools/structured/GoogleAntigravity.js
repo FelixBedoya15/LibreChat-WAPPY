@@ -263,6 +263,37 @@ class GoogleAntigravity extends Tool {
           }
 
           if (fmt === 'documento' || fmt === 'html') {
+            const activeConvoId = this.req?.body?.conversationId;
+            if (activeConvoId && activeConvoId !== 'new' && deliv.contenido) {
+              try {
+                const CanvasSession = require('~/models/CanvasSession');
+                const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
+                const canvasFileType = fmt === 'html' ? 'html' : 'text';
+                await CanvasSession.findOneAndUpdate(
+                  { user: targetUserId, conversationId: activeConvoId },
+                  {
+                    $set: {
+                      content: deliv.contenido,
+                      title: updated.title || finalTitle,
+                      fileType: canvasFileType,
+                      updatedAt: new Date(),
+                    },
+                    $setOnInsert: { version: 1 },
+                  },
+                  { upsert: true, new: true },
+                );
+                if (canvasFileType === 'text') {
+                  await syncCanvasToLiveEditor(
+                    activeConvoId,
+                    deliv.contenido,
+                    updated.title || finalTitle,
+                    targetUserId,
+                  );
+                }
+              } catch (syncErr) {
+                logger.warn('[google_antigravity] Error sincronizando Canvas del chat del agente:', syncErr.message);
+              }
+            }
             const summaryText =
               deliv.resumen ||
               'El entregable ha sido generado y abierto automáticamente en el Editor de Documentos / Canvas de WAPPY.';

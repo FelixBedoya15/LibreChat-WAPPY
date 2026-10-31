@@ -15,7 +15,7 @@ class GenerarImagenSST extends Tool {
   constructor(fields = {}) {
     super();
 
-    this.userId = fields.userId;
+    this.userId = fields.userId || fields.req?.user?.id;
     this.req = fields.req;
     this.isAgent = fields.isAgent ?? true;
     this.imageOutputType = fields.imageOutputType || EImageOutputType.PNG;
@@ -172,6 +172,7 @@ class GenerarImagenSST extends Tool {
           prompt: enhancedPrompt,
           aspectRatio: ratioMapFlow[aspecto] || '1:1',
           style: estilo,
+          skipAntigravity: false,
         });
         if (flowRes?.buffer) {
           imageBuffer = flowRes.buffer;

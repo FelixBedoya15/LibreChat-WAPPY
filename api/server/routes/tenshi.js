@@ -3543,7 +3543,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                                prompt: flowPrompt,
                                                aspectRatio: flowAspect,
                                                style: flowStyle,
-                                               skipAntigravity: true,
+                                               skipAntigravity: false,
                                            });
 
                                      const studioHtml = buildFlowStudioCanvasHtml(mediaRes);

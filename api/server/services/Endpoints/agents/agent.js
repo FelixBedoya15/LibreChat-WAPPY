@@ -153,6 +153,12 @@ IMPORTANTE:
     if (!agent.tools.includes('wappy_memoria_procedimental')) {
       agent.tools.push('wappy_memoria_procedimental');
     }
+    if (!agent.tools.includes('google_antigravity')) {
+      agent.tools.push('google_antigravity');
+    }
+    if (!agent.tools.includes('google_flow')) {
+      agent.tools.push('google_flow');
+    }
   }
   const {
     tools: structuredTools,
@@ -365,7 +371,10 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
 2. **Memoria Procedural y Hábitos de Empresa (\`wappy_memoria_procedimental\`)**:
    - Compartes una misma memoria procedimental corporativa con Tenshi y con los otros 21 especialistas.
    - Si el usuario te enseña una regla operativa, flujo de aprobación o costumbre de su empresa ("recuerda que siempre que...", "en esta empresa cuando..."), guárdala de inmediato usando \`wappy_memoria_procedimental\` con \`accion: "guardar"\`.
-   - Si el usuario pregunta qué reglas o hábitos recuerdas de la empresa, usa \`wappy_memoria_procedimental\` con \`accion: "listar"\`.${procMemBlock ? '\n' + procMemBlock : ''}`;
+   - Si el usuario pregunta qué reglas o hábitos recuerdas de la empresa, usa \`wappy_memoria_procedimental\` con \`accion: "listar"\`.
+3. **Conexión Bidireccional con Google Antigravity (\`google_antigravity\`) y Generación Visual (\`google_flow\`)**:
+   - Si el usuario te pide consultar o ejecutar una tarea en Google Antigravity, inspeccionar archivos/carpetas locales de su PC, enviar un archivo de su computador a este chat, o hacer que Antigravity cree un documento o aplicativo HTML, invoca de inmediato \`google_antigravity\` con \`accion: "delegar_orden"\` (se abrirá un chat visible en pantalla en el Antigravity del computador del usuario).
+   - Si el usuario te pide generar una imagen, ilustración o afiche visual, invoca \`google_flow\` (\`accion: "generar_imagen"\`) o \`generar_imagen_sst\`.${procMemBlock ? '\n' + procMemBlock : ''}`;
       agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + openBotAgentInstructions;
     } catch (openBotErr) {
       if (req?.log) {

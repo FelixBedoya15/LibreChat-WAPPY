@@ -8715,7 +8715,7 @@ async function tryGenerateImageViaAntigravity({
           ok: false,
           reason: 'Tiempo límite de generación en Antigravity agotado (respaldo automático a Google Flow)',
         });
-      }, 42000);
+      }, 75000);
 
       pendingAntigravityImageResolvers.set(ordenId, {
         resolve: finish,
@@ -9979,6 +9979,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
 
     let mediaPayload = undefined;
     let savedPublicUrl = null;
+    let savedBuffer = null;
     if (rawOriginalFile && (rawOriginalFile.dataUrl || rawOriginalFile.base64)) {
       const origName = String(rawOriginalFile.name || rawOriginalFile.fileName || 'archivo_original').trim();
       const origMime = String(rawOriginalFile.mimeType || 'application/octet-stream').trim();
@@ -10005,7 +10006,8 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         fs.mkdirSync(outputDir, { recursive: true });
         const safeName = origName.replace(/[^a-zA-Z0-9._-]/g, '_');
         const diskFileName = `antigravity_${Date.now()}_${safeName}`;
-        fs.writeFileSync(path.join(outputDir, diskFileName), Buffer.from(cleanBase64, 'base64'));
+        savedBuffer = Buffer.from(cleanBase64, 'base64');
+        fs.writeFileSync(path.join(outputDir, diskFileName), savedBuffer);
         savedPublicUrl = `/images/${diskFileName}`;
       } catch (diskErr) {
         logger.warn('[MCP Bridge] No se pudo guardar copia en /images:', diskErr.message);
@@ -10223,6 +10225,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
           publicUrl: resolvedUrl,
           filename: mediaPayload?.name || resolvedUrl.split('/').pop() || `antigravity_${Date.now()}.png`,
           mimeType: mediaPayload?.mimeType || 'image/png',
+          buffer: savedBuffer || null,
           model: 'Google Antigravity Studio (Prioridad #1)',
         });
       } else {
