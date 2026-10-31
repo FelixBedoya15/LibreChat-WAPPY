@@ -4748,7 +4748,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const cached = localMediaMap.get(textKey) || (item._id ? localMediaMap.get(String(item._id)) : null);
             const blobObj = item.media?.name ? liveMediaBlobsRef.current.get(item.media.name) : null;
 
-            if (cached) {
+            const hasMarkdownImageInContent =
+              item.role === 'assistant' &&
+              typeof item.content === 'string' &&
+              (/!\[[^\]]*\]\([^)]+\)/.test(item.content) ||
+                /\/images\/(?:flow_|nlm_|sst_|antigravity_)/i.test(item.content));
+
+            if (hasMarkdownImageInContent) {
+              item.media = undefined;
+            } else if (cached) {
               if (cached.image && !item.image) item.image = cached.image;
               if (cached.media) {
                 item.media = {
@@ -5100,23 +5108,59 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
           : undefined;
 
+      const isAntigravityImageWithPublicUrl =
+        isOriginalFileCopy &&
+        media?.type === 'image' &&
+        Boolean(media?.publicUrl);
+
       const bubbleText = isOriginalFileCopy
-        ? `📎 **Copia de Archivo Original desde tu PC (${media?.name || finalTitle})**\n\n${chatSummary}`
+        ? isAntigravityImageWithPublicUrl
+          ? `📎 **Imagen desde Google Antigravity (${media?.name || finalTitle})**\n\n${chatSummary}\n\n![${media?.name || finalTitle}](${media.publicUrl})`
+          : `📎 **Copia de Archivo Original desde tu PC (${media?.name || finalTitle})**\n\n${chatSummary}`
         : isConversationalReply
         ? `⚡ **Respuesta de Google Antigravity**\n\n${chatSummary}`
         : `✨ **${finalTitle} — Listo en el Editor de Documentos de WAPPY**\n\n${chatSummary}`;
 
+      const bubbleMedia =
+        isOriginalFileCopy && media && !isAntigravityImageWithPublicUrl
+          ? media
+          : undefined;
+
       setMessages((prev) => {
+        const mediaNameStr = String(media?.name || '').trim();
+        const mediaPublicUrlStr = String(media?.publicUrl || '').trim();
+
+        // 1. Si el historial de MongoDB (`/api/tenshi/history`) YA trajo este entregable (por _id, nombre de archivo o URL pública),
+        //    eliminar cualquier burbuja temporal `delegatedOrderId` y NO insertar una segunda burbuja duplicada.
+        const alreadyInHistory = prev.some((m) => {
+          if (m.delegatedOrderId === ordenId) return false;
+          if (messageId && m._id && String(m._id) === String(messageId) && !String(m._id).startsWith('antigravity-delegated-')) {
+            return true;
+          }
+          const c = String(m.content || '');
+          if (mediaNameStr && mediaNameStr.length > 4 && c.includes(mediaNameStr)) {
+            return true;
+          }
+          if (mediaPublicUrlStr && c.includes(mediaPublicUrlStr)) {
+            return true;
+          }
+          return false;
+        });
+
+        if (alreadyInHistory) {
+          return prev.filter((m) => !(ordenId && m.delegatedOrderId === ordenId && m.delegatedStatus === 'todo'));
+        }
+
         const hasPendingBubble = ordenId && prev.some((m) => m.delegatedOrderId === ordenId);
         if (hasPendingBubble) {
           return prev.map((m) => {
             if (m.delegatedOrderId === ordenId) {
               return {
                 ...m,
-                _id: messageId || m._id,
+                _id: messageId && !String(messageId).startsWith('antigravity-delegated-') ? messageId : m._id,
                 content: bubbleText,
                 file: fileObj,
-                media: isOriginalFileCopy && media ? media : m.media,
+                media: bubbleMedia,
                 htmlReport: isHtml ? contenido : undefined,
                 delegatedStatus: 'done',
               };
@@ -5131,7 +5175,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             role: 'assistant',
             content: bubbleText,
             file: fileObj,
-            media: isOriginalFileCopy && media ? media : undefined,
+            media: bubbleMedia,
             htmlReport: isHtml ? contenido : undefined,
             delegatedOrderId: ordenId,
             delegatedStatus: 'done',
