@@ -720,7 +720,7 @@ const DEFAULT_STUDIO_PRESETS: StudioPreset[] = [
   },
   {
     id: 'screenplay-dialogue',
-    name: 'Guion / Diálogo Alex & Sam',
+    name: 'Guion / Diálogo Dual',
     voiceName: 'Kore',
     multiSpeaker: true,
     speaker1: { name: 'Alex', voiceName: 'Puck', style: 'Entusiasta y curioso' },
@@ -843,7 +843,7 @@ El observatorio flotaba a trescientos kilómetros sobre la atmósfera terrestre.
 Durante años habíamos buscado señales de radio en frecuencias convencionales. Pero aquella madrugada, el sensor cuántico registró un pulso rítmico, casi musical, proveniente del cúmulo de Hércules. <gasp> No era ruido cósmico; era una invitación.`,
   },
   {
-    title: 'Podcast: IA y la Voz Humana (Diálogo Alex & Sam)',
+    title: 'Podcast: IA y la Voz Humana (Diálogo Dual)',
     text: `Alex: ¡Bienvenidos a un nuevo episodio de Futuro Sonoro! <breath> Hoy estamos probando en vivo la nueva generación de síntesis neuronal con expresiones humanas reales.
 
 Sam: ¡Hola Alex! |yeah| Es impresionante cómo ya no suena a lectura robótica. <laugh> Ahora la voz respira, hace pausas orgánicas y transmite intención en cada frase.
@@ -877,7 +877,7 @@ Mira cómo cambia todo cuando conectas Inteligencia Artificial en tiempo real. E
 Menos papeleo mecánico y más prevención real en planta. <laugh> Pruébalo hoy mismo en WAPPY Studio.`,
   },
   {
-    title: 'Podcast Dual (Alex & Sam): El Futuro de la Prevención',
+    title: 'Podcast Dual: El Futuro de la Prevención',
     text: `Alex: ¡Hola a todos y bienvenidos a un nuevo episodio de Pulso Preventivo! <breath> Hoy hablaremos sobre cómo las voces neuronales y el video interactivo están revolucionando las capacitaciones.
 
 Sam: Totalmente de acuerdo, Alex. |yeah| Lo más impresionante es que los trabajadores ya no se aburren con diapositivas estáticas. <laugh> Ahora reciben cápsulas dinámicas con voz natural.
@@ -3620,7 +3620,14 @@ export default function WappyStudioDashboard({
         if (!data) return;
         if (Array.isArray(data.models) && data.models.length > 0) setModels(data.models);
         if (Array.isArray(data.voices) && data.voices.length > 0) setVoices(data.voices);
-        if (Array.isArray(data.presets) && data.presets.length > 0) setPresets(data.presets);
+        if (Array.isArray(data.presets) && data.presets.length > 0) {
+          setPresets(
+            data.presets.map((p: any) => ({
+              ...p,
+              name: String(p.name || '').replace(/Alex\s*&\s*Sam/gi, 'Dual'),
+            })),
+          );
+        }
         if (Array.isArray(data.vocalBursts) && data.vocalBursts.length > 0) {
           setVocalBursts(data.vocalBursts);
         }
@@ -7864,17 +7871,17 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {/* CANAL 1: Host 1 */}
                       <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-[#0e161a] to-slate-950 border border-teal-500/40 shadow-md text-white flex flex-col justify-between gap-3">
                         <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-[#C7F303] shrink-0">
                               <MicVocal className="w-4 h-4" />
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-nowrap">
-                                <span className="text-xs font-black tracking-tight text-white truncate">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-black tracking-tight text-white">
                                   {allVoices.find((v) => v.id === speaker1Voice)?.name ||
                                     speaker1Voice}
                                 </span>
@@ -7882,7 +7889,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                   HOST 1
                                 </span>
                               </div>
-                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                              <p className="text-[10px] text-slate-400 mt-0.5">
                                 Conductor Principal
                               </p>
                             </div>
@@ -7947,13 +7954,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       {/* CANAL 2: Host 2 */}
                       <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-[#181124] to-slate-950 border border-purple-500/40 shadow-md text-white flex flex-col justify-between gap-3">
                         <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
                               <MicVocal className="w-4 h-4" />
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-nowrap">
-                                <span className="text-xs font-black tracking-tight text-white truncate">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-black tracking-tight text-white">
                                   {allVoices.find((v) => v.id === speaker2Voice)?.name ||
                                     speaker2Voice}
                                 </span>
@@ -7961,7 +7968,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                   HOST 2
                                 </span>
                               </div>
-                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                              <p className="text-[10px] text-slate-400 mt-0.5">
                                 Especialista Técnico
                               </p>
                             </div>
@@ -8552,7 +8559,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             )?.name || 'Personalizado'}
                           </span>
                           <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-300 font-bold">
-                            🎙️ {multiSpeaker ? `Alex (${speaker1Voice}) + Sam (${speaker2Voice})` : `Voz: ${selectedVoice}`}
+                            🎙️{' '}
+                            {multiSpeaker
+                              ? `${allVoices.find((v) => v.id === speaker1Voice)?.name || speaker1Voice} + ${allVoices.find((v) => v.id === speaker2Voice)?.name || speaker2Voice}`
+                              : `Voz: ${allVoices.find((v) => v.id === selectedVoice)?.name || selectedVoice}`}
                           </span>
                           {podcastInstagramHandle.trim() && (
                             <span className="px-2 py-0.5 rounded-md bg-pink-500/15 border border-pink-500/30 text-pink-300 font-bold">
