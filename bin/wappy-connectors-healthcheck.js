@@ -1334,7 +1334,14 @@ function generateBitacoraDocxBuffer(entries) {
   ]);
 }
 
-function updateWordBitacora({ trigger, initialResults, finalResults, hadInitialErrors, allHealthyNow }) {
+function updateWordBitacora({
+  trigger,
+  initialResults,
+  finalResults,
+  functionalResults = {},
+  hadInitialErrors,
+  allHealthyNow,
+}) {
   try {
     let entries = [];
     if (fs.existsSync(BITACORA_JSON_FILE)) {
@@ -1350,7 +1357,7 @@ function updateWordBitacora({ trigger, initialResults, finalResults, hadInitialE
 
     const notesList = [];
     if (!hadInitialErrors && allHealthyNow) {
-      notesList.push('Los 3 conectores (Antigravity, NotebookLM y Flow) respondieron OK al primer intento.');
+      notesList.push('Conectividad 3/3 OK.');
     } else {
       if (!initialResults.antigravity.ok) {
         notesList.push(
@@ -1375,6 +1382,22 @@ function updateWordBitacora({ trigger, initialResults, finalResults, hadInitialE
       }
     }
 
+    if (functionalResults.antigravity) {
+      notesList.push(
+        `[Antigravity E2E: ${functionalResults.antigravity.ok ? 'OK' : 'FALLO'} - ${String(functionalResults.antigravity.answer || functionalResults.antigravity.detail || '').slice(0, 90)}]`
+      );
+    }
+    if (functionalResults.notebooklm) {
+      notesList.push(
+        `[NotebookLM E2E (${functionalResults.notebooklm.notebookTitle || 'Cuaderno'}): ${functionalResults.notebooklm.ok ? 'OK' : 'FALLO'} - ${String(functionalResults.notebooklm.answer || functionalResults.notebooklm.detail || '').slice(0, 90)}]`
+      );
+    }
+    if (functionalResults.googleflow) {
+      notesList.push(
+        `[Flow Imagen E2E: ${functionalResults.googleflow.ok ? `OK (${functionalResults.googleflow.imageUrl})` : `FALLO (${functionalResults.googleflow.detail})`}]`
+      );
+    }
+
     const nowIso = new Date().toISOString();
     const newEntry = {
       isoDate: nowIso,
@@ -1385,16 +1408,19 @@ function updateWordBitacora({ trigger, initialResults, finalResults, hadInitialE
         initialOk: Boolean(initialResults.antigravity.ok),
         finalOk: Boolean(finalResults.antigravity.ok),
         detail: finalResults.antigravity.detail || '',
+        functional: functionalResults.antigravity || null,
       },
       notebooklm: {
         initialOk: Boolean(initialResults.notebooklm.ok),
         finalOk: Boolean(finalResults.notebooklm.ok),
         detail: finalResults.notebooklm.detail || '',
+        functional: functionalResults.notebooklm || null,
       },
       googleflow: {
         initialOk: Boolean(initialResults.googleflow.ok),
         finalOk: Boolean(finalResults.googleflow.ok),
         detail: finalResults.googleflow.detail || '',
+        functional: functionalResults.googleflow || null,
       },
       hadInitialErrors: Boolean(hadInitialErrors),
       allHealthyNow: Boolean(allHealthyNow),
@@ -1438,14 +1464,15 @@ function updateWordBitacora({ trigger, initialResults, finalResults, hadInitialE
 async function main() {
   const args = parseArgs();
   const trigger = String(args.trigger || 'manual');
-  const forceEmail = Boolean(args['force-email'] || args['test-email']);
+  const forceEmail = Boolean(args['force-email'] || args['test-email'] || args.force);
   const simulateError = Boolean(args['simulate-error']);
+  const isManualRun = trigger === 'manual' || trigger === 'cron-test' || forceEmail;
 
   // Evitar ejecuciones simultáneas (lock de 4 minutos)
   try {
     if (fs.existsSync(LOCK_FILE)) {
       const lockAge = Date.now() - fs.statSync(LOCK_FILE).mtimeMs;
-      if (lockAge < 4 * 60 * 1000 && !forceEmail) {
+      if (lockAge < 4 * 60 * 1000 && !isManualRun) {
         log(`⏳ Otra revisión está en curso (hace ${Math.round(lockAge / 1000)}s). Omitiendo duplicado (${trigger}).`);
         return;
       }
@@ -1455,12 +1482,17 @@ async function main() {
   } catch (_) {}
 
   try {
-    // Si el disparador es 'wake' (despertar de reposo), verificar si ya se ejecutó hace menos de 15 minutos sin errores
-    if (trigger === 'wake' && !forceEmail && fs.existsSync(STATE_FILE)) {
+    // Unificación de ejecuciones automáticas (boot, wake, schedule, cron):
+    // Evitar enviar múltiples correos en la mañana cuando coinciden el encendido del Mac (boot),
+    // LaunchAgent (schedule) y crontab (cron). Si ya se completó una prueba exitosa con correo en los últimos 90 minutos, omitir.
+    if (!isManualRun && fs.existsSync(STATE_FILE)) {
       try {
         const lastState = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-        if (lastState.allHealthyNow && Date.now() - (lastState.timestamp || 0) < 15 * 60 * 1000) {
-          log('ℹ️ Revisión reciente (<15 min) ya estaba 100% saludable tras despertar. Omitiendo.');
+        const elapsedMs = Date.now() - (lastState.timestamp || 0);
+        if (lastState.allHealthyNow && lastState.emailSent && elapsedMs < 90 * 60 * 1000) {
+          log(
+            `ℹ️ Reporte unificado ya fue ejecutado y enviado hace ${Math.round(elapsedMs / 60000)} min (trigger previo: ${lastState.trigger}). Omitiendo duplicado (${trigger}) para no enviar correos repetidos.`
+          );
           return;
         }
       } catch (_) {}
@@ -1472,7 +1504,7 @@ async function main() {
       return;
     }
 
-    log(`🔍 Iniciando pruebas de conexión (trigger=${trigger}) hacia ${wappyUrl}...`);
+    log(`🔍 Iniciando pruebas de conexión y funcionales E2E (trigger=${trigger}) hacia ${wappyUrl}...`);
     const online = await waitForInternetConnection(wappyUrl, 45000);
     if (!online) {
       log('⚠️ Sin conexión a internet tras esperar 45s (el equipo puede estar sin red Wi-Fi).');
@@ -1484,7 +1516,7 @@ async function main() {
       await new Promise((r) => setTimeout(r, 15000));
     }
 
-    // 1. Revisión inicial de los 3 conectores
+    // ── FASE 1: REVISIÓN DE CONECTIVIDAD Y AUTO-RECONEXIÓN ───────────────────
     const initAg = await checkAntigravity(wappyUrl, apiKey);
     const userId = initAg.userId || '';
     const initNb = await checkNotebookLM(wappyUrl, apiKey);
@@ -1502,17 +1534,17 @@ async function main() {
     };
 
     log(
-      `📊 Estado inicial -> Antigravity: ${initAg.ok ? 'OK' : 'FALLO'} | NotebookLM: ${initNb.ok ? 'OK' : 'FALLO'} | Google Flow: ${initFlow.ok ? 'OK' : 'FALLO'}`
+      `📊 Estado inicial conectividad -> Antigravity: ${initAg.ok ? 'OK' : 'FALLO'} | NotebookLM: ${initNb.ok ? 'OK' : 'FALLO'} | Google Flow: ${initFlow.ok ? 'OK' : 'FALLO'}`
     );
 
     const hadInitialErrors = !initAg.ok || !initNb.ok || !initFlow.ok;
     const finalResults = {
-      antigravity: initAg,
-      notebooklm: initNb,
-      googleflow: initFlow,
+      antigravity: { ...initAg },
+      notebooklm: { ...initNb },
+      googleflow: { ...initFlow },
     };
 
-    // 2. Si hay fallas, ejecutar protocolo de auto-reconexión
+    // Si hay fallas de conectividad, ejecutar protocolo de auto-reconexión antes de las pruebas funcionales
     if (!initAg.ok) {
       finalResults.antigravity = await reconnectAntigravity(wappyUrl, apiKey);
       log(`🔄 Resultado reconexión Antigravity: ${finalResults.antigravity.ok ? 'RECONECTADO' : 'SIGUE CON FALLO'}`);
@@ -1530,7 +1562,6 @@ async function main() {
       }
     }
 
-    // Si después de intentar en modo headless sigue fallando NotebookLM o Flow, lanzar conector visible para que tome la sesión activa de Chrome
     if (!finalResults.notebooklm.ok && fs.existsSync(DAEMON_SCRIPT)) {
       log('🚀 Lanzando conector local de NotebookLM para recuperar sesión...');
       try {
@@ -1555,12 +1586,84 @@ async function main() {
       } catch (_) {}
     }
 
+    // ── FASE 2: PRUEBAS FUNCIONALES E2E REALES (PREGUNTA ANTIGRAVITY + CUADERNO NOTEBOOKLM + IMAGEN FLOW) ──
+    const functionalResults = {
+      antigravity: null,
+      notebooklm: null,
+      googleflow: null,
+    };
+
+    if (finalResults.antigravity.ok) {
+      functionalResults.antigravity = await runFunctionalAntigravityQuestion(wappyUrl, apiKey);
+      if (!functionalResults.antigravity.ok) {
+        finalResults.antigravity.ok = false;
+        finalResults.antigravity.detail += ` | Fallo prueba funcional: ${functionalResults.antigravity.detail}`;
+      }
+    }
+
+    if (finalResults.notebooklm.ok) {
+      functionalResults.notebooklm = await runFunctionalNotebookLMQuestion(
+        wappyUrl,
+        apiKey,
+        finalResults.notebooklm.notebooks || []
+      );
+      if (!functionalResults.notebooklm.ok) {
+        finalResults.notebooklm.ok = false;
+        finalResults.notebooklm.detail += ` | Fallo prueba funcional: ${functionalResults.notebooklm.detail}`;
+      }
+    }
+
+    if (finalResults.googleflow.ok) {
+      functionalResults.googleflow = await runFunctionalFlowImageGeneration(wappyUrl, apiKey);
+      if (!functionalResults.googleflow.ok) {
+        finalResults.googleflow.ok = false;
+        finalResults.googleflow.detail += ` | Fallo prueba funcional: ${functionalResults.googleflow.detail}`;
+      }
+    }
+
     const allHealthyNow =
       Boolean(finalResults.antigravity.ok) &&
       Boolean(finalResults.notebooklm.ok) &&
       Boolean(finalResults.googleflow.ok);
 
-    // Guardar estado de la última revisión
+    // ── FASE 3: ACTUALIZAR BITÁCORA WORD EN EL ESCRITORIO Y ENVIAR 1 ÚNICO CORREO UNIFICADO AL FINAL ──
+    updateWordBitacora({
+      trigger,
+      initialResults,
+      finalResults,
+      functionalResults,
+      hadInitialErrors,
+      allHealthyNow,
+    });
+
+    if (process.platform === 'darwin') {
+      try {
+        const notifTitle = allHealthyNow
+          ? '🟢 WAPPY IA — Prueba E2E 3/3 OK'
+          : '🚨 WAPPY IA — Alerta en Prueba E2E';
+        const notifMsg = `Antigravity: ${finalResults.antigravity.ok ? 'OK' : 'FALLO'} | NotebookLM: ${finalResults.notebooklm.ok ? 'OK' : 'FALLO'} | Flow Imagen: ${finalResults.googleflow.ok ? 'OK' : 'FALLO'}`;
+        execFileSync(
+          '/usr/bin/osascript',
+          ['-e', `display notification "${notifMsg}" with title "${notifTitle}" sound name "Glass"`],
+          { timeout: 4000 }
+        );
+      } catch (_) {}
+    }
+
+    const isScheduledCut = ['schedule', 'cron', 'boot', 'manual', 'cron-test'].includes(trigger);
+    let emailSent = false;
+    if (hadInitialErrors || !allHealthyNow || forceEmail || isScheduledCut) {
+      emailSent = await sendHealthEmail(wappyUrl, apiKey, {
+        trigger,
+        initialResults,
+        finalResults,
+        functionalResults,
+        hadInitialErrors,
+        allHealthyNow,
+      });
+    }
+
+    // Guardar estado final (con emailSent=true para evitar correos repetidos en la misma ventana de 90 min)
     try {
       fs.writeFileSync(
         STATE_FILE,
@@ -1571,8 +1674,10 @@ async function main() {
             trigger,
             hadInitialErrors,
             allHealthyNow,
+            emailSent,
             initialResults,
             finalResults,
+            functionalResults,
           },
           null,
           2
@@ -1580,41 +1685,6 @@ async function main() {
         'utf8'
       );
     } catch (_) {}
-
-    // Actualizar documento Word de bitácora en el Escritorio en cada revisión
-    updateWordBitacora({
-      trigger,
-      initialResults,
-      finalResults,
-      hadInitialErrors,
-      allHealthyNow,
-    });
-
-    // Mostrar notificación nativa en macOS para visibilidad inmediata en pantalla
-    if (process.platform === 'darwin') {
-      try {
-        const notifTitle = allHealthyNow ? '🟢 WAPPY IA — Conectores OK' : '🚨 WAPPY IA — Alerta Conectores';
-        const notifMsg = `Antigravity: ${finalResults.antigravity.ok ? 'OK' : 'FALLO'} | NotebookLM: ${finalResults.notebooklm.ok ? 'OK' : 'FALLO'} | Flow: ${finalResults.googleflow.ok ? 'OK' : 'FALLO'}`;
-        execFileSync('/usr/bin/osascript', [
-          '-e',
-          `display notification "${notifMsg}" with title "${notifTitle}" sound name "Glass"`,
-        ], { timeout: 4000 });
-      } catch (_) {}
-    }
-
-    // 3. Enviar correo a grupowappy@gmail.com siempre en cortes programados (7am, 2pm, 6pm, arranque) o si hubo errores
-    const isScheduledCut = ['schedule', 'cron', 'boot', 'manual'].includes(trigger);
-    if (hadInitialErrors || !allHealthyNow || forceEmail || isScheduledCut) {
-      await sendHealthEmail(wappyUrl, apiKey, {
-        trigger,
-        initialResults,
-        finalResults,
-        hadInitialErrors,
-        allHealthyNow,
-      });
-    } else {
-      log('✅ Los 3 conectores (Antigravity, NotebookLM y Google Flow) están 100% operativos. Sin errores que reportar.');
-    }
   } finally {
     try {
       if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
