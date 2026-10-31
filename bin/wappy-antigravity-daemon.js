@@ -2488,6 +2488,37 @@ function startSseWorker(cliArgs) {
   syncStreams();
   // Revisar cada 20s si el usuario agregó o actualizó una clave en mcp_config.json
   setInterval(syncStreams, 20000);
+
+  // Detector de salida de reposo (Sleep/Wake Recovery): reconecta SSE al instante y dispara healthcheck
+  let lastWakeCheckAt = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    const elapsed = now - lastWakeCheckAt;
+    lastWakeCheckAt = now;
+    if (elapsed > 90000) {
+      log(`☀️ Detectado despertar del equipo tras reposo (${Math.round(elapsed / 1000)}s). Reconectando stream SSE y verificando conectores...`);
+      for (const [, st] of activeStreams.entries()) {
+        try {
+          st.stop();
+        } catch (_) {}
+      }
+      activeStreams.clear();
+      setTimeout(syncStreams, 2000);
+      const hcScript = path.join(AGY_DIR, 'wappy-connectors-healthcheck.js');
+      if (fs.existsSync(hcScript)) {
+        setTimeout(() => {
+          try {
+            const c = spawn(process.execPath, [hcScript, '--trigger=wake'], {
+              detached: true,
+              stdio: 'ignore',
+              windowsHide: true,
+            });
+            c.unref();
+          } catch (_) {}
+        }, 8000);
+      }
+    }
+  }, 15000);
 }
 
 /**
@@ -2667,16 +2698,16 @@ if (require.main === module) {
   } else if (cliArgs['send-file'] || cliArgs.sendFile) {
     sendLocalFileCopyToWappy(cliArgs);
   } else if (cliArgs.notebooklm || cliArgs.service === 'notebooklm') {
-    const { wappyUrl } = resolveCredentials(cliArgs);
-    runLocalConnector('notebooklm', cliArgs.url || wappyUrl, cliArgs.token || '', false)
+    const { wappyUrl, apiKey } = resolveCredentials(cliArgs);
+    runLocalConnector('notebooklm', cliArgs.url || wappyUrl, cliArgs.token || apiKey || '', false)
       .then(() => process.exit(0))
       .catch((err) => {
         console.error('❌ Error ejecutando conector NotebookLM:', err.message);
         process.exit(1);
       });
   } else if (cliArgs.googleflow || cliArgs.flow || cliArgs.service === 'googleflow') {
-    const { wappyUrl } = resolveCredentials(cliArgs);
-    runLocalConnector('googleflow', cliArgs.url || wappyUrl, cliArgs.token || '', false)
+    const { wappyUrl, apiKey } = resolveCredentials(cliArgs);
+    runLocalConnector('googleflow', cliArgs.url || wappyUrl, cliArgs.token || apiKey || '', false)
       .then(() => process.exit(0))
       .catch((err) => {
         console.error('❌ Error ejecutando conector Google Flow:', err.message);

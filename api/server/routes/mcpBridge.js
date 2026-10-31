@@ -7138,7 +7138,8 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
     let resolvedReportHtml = reportHtml || req.body.contenido_informe || req.body.htmlReport || null;
     let reportTitle = titulo || req.body.reportTitle || finalSubject;
 
-    const isReportEmail = Boolean(
+    const skipAutoReport = Boolean(req.body.skipAutoReport === true || req.body.adjuntar_informe === false);
+    const isReportEmail = !skipAutoReport && Boolean(
       resolvedReportHtml ||
       req.body.adjuntar_informe ||
       /informe|reporte|estudio|salud|dictamen|adjunto/i.test(finalSubject) ||

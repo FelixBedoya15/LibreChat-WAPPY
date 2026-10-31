@@ -8,7 +8,7 @@ const WebSocket = require('ws');
 const router = express.Router();
 const GoogleFlowSession = require('~/models/GoogleFlowSession');
 const NotebookSession = require('~/models/NotebookSession');
-const { requireJwtAuth } = require('~/server/middleware');
+const { requireApiKeyOrJwt: requireJwtAuth } = require('~/server/middleware/requireApiKeyAuth');
 const { logger } = require('~/config');
 const paths = require('~/config/paths');
 
