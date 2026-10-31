@@ -9703,6 +9703,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       files,
       adjuntos,
       media,
+      sourceModule,
     } = req.body;
 
     const rawFiles = archivos || files || adjuntos || media || [];
@@ -9712,6 +9713,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const finalDesc = instruccion || instruction || tarea || task || 'Procesar requerimiento delegado desde Tenshi.';
     const finalResource = carpeta_o_recurso || folderPath || 'Datos Empresariales WAPPY MCP';
     const finalOutputType = resolveAntigravityOutputFormat(tipo_entregable || outputType, finalDesc, finalFiles);
+    const finalSourceModule = String(sourceModule || 'tenshi_voice').trim();
 
     const rawPriority = String(prioridad || 'alta').toLowerCase();
     const finalPriority = (rawPriority === 'high' || rawPriority === 'alta') ? 'alta' : (rawPriority === 'low' || rawPriority === 'baja') ? 'baja' : 'media';
@@ -9744,7 +9746,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         dueDate: new Date(Date.now() + 2 * 3600 * 1000),
         type: 'antigravity_delegation',
         priority: finalPriority,
-        sourceModule: 'tenshi_voice',
+        sourceModule: finalSourceModule,
       });
       logger.info(`[MCP Bridge] Orden para Antigravity creada con instrucción limpia y ${finalFiles.length} archivos (ID: ${kanbanTask._id}, Estado: todo) para usuario ${targetUserId}.`);
     } catch (kErr) {
@@ -9763,6 +9765,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       archivos: finalFiles,
       estado: 'todo',
       prioridad: finalPriority,
+      sourceModule: finalSourceModule,
       empresa: companyName,
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
@@ -9775,7 +9778,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     // Respaldo Automático Inmediato (Cloud Failover):
     // 1. Si no hay ningún PC conectado, o el PC no reclama la orden en 10s, ejecutar en la nube automáticamente.
     // 2. Si el PC reclama la orden pero Antigravity local se cuelga sin completarla en 50s, ejecutar en la nube automáticamente.
-    if (kanbanTask?._id && finalOutputType !== 'copia_archivo') {
+    if (kanbanTask?._id && finalOutputType !== 'copia_archivo' && finalSourceModule !== 'healthcheck_e2e') {
       const taskIdStr = kanbanTask._id.toString();
       setTimeout(async () => {
         try {
@@ -10247,7 +10250,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         }
       : undefined;
 
-    if (task.sourceModule !== 'image_priority') {
+    if (task.sourceModule !== 'image_priority' && task.sourceModule !== 'healthcheck_e2e') {
       try {
         const tenshiBubbleContent = isOriginalFileCopy && mediaPayload
           ? mediaPayload.type === 'image' && savedPublicUrl
@@ -10281,21 +10284,23 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     }
 
     // ── EMISIÓN PUSH EN TIEMPO REAL AL STREAM SSE (NAVEGADOR / CELULAR / TENSHI) ─
-    try {
-      broadcastAntigravityEvent(targetUserId, 'orden_completada', {
-        ordenId: task._id.toString(),
-        title: task.title,
-        formato: finalFormat,
-        isConversationalReply,
-        isOriginalFileCopy,
-        media: mediaPayload,
-        html: isHtml ? finalContent : undefined,
-        file: filePayload,
-        messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
-        summary: finalSummary,
-        sourceModule: task.sourceModule || 'tenshi_voice',
-      });
-    } catch (_) {}
+    if (task.sourceModule !== 'healthcheck_e2e') {
+      try {
+        broadcastAntigravityEvent(targetUserId, 'orden_completada', {
+          ordenId: task._id.toString(),
+          title: task.title,
+          formato: finalFormat,
+          isConversationalReply,
+          isOriginalFileCopy,
+          media: mediaPayload,
+          html: isHtml ? finalContent : undefined,
+          file: filePayload,
+          messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
+          summary: finalSummary,
+          sourceModule: task.sourceModule || 'tenshi_voice',
+        });
+      } catch (_) {}
+    }
 
     // ── NOTIFICACIÓN EN TIEMPO REAL A SESIÓN DE TENSHI VOICE / LIVE ───────────
     try {

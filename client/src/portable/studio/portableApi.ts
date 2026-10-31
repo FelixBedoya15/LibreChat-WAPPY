@@ -357,8 +357,34 @@ function concatBytes(parts: Uint8Array[]): Uint8Array {
 }
 
 const FUNDAMENTAL_VOICES_2_5 = ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'];
-function compatibleVoice(voice: string, model: string) {
+const ALL_STUDIO_VOICES = [
+  'Kore',
+  'Puck',
+  'Charon',
+  'Fenrir',
+  'Aoede',
+  'Zephyr',
+  'Leda',
+  'Orus',
+  'Callirrhoe',
+  'Autonoe',
+  'Enceladus',
+  'Iapetus',
+  'Umbriel',
+  'Schedar',
+];
+
+function compatibleVoice(voice: string, model: string): string {
   const v = (voice || 'Kore').trim();
+  if (v.startsWith('wappy_clone_')) {
+    const parts = v.split('_');
+    const embeddedBase = parts[2] || 'Kore';
+    return compatibleVoice(embeddedBase, model);
+  }
+  if (v.startsWith('voice_') || v.startsWith('voicekey_')) {
+    if (model.includes('3.8')) return v;
+    return 'Kore';
+  }
   if (model.includes('2.5')) return FUNDAMENTAL_VOICES_2_5.includes(v) ? v : 'Kore';
   if (model.includes('lite')) return ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede'].includes(v) ? v : 'Kore';
   return v;
@@ -1121,6 +1147,187 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
         }
       }
       return json({ results, valid: Boolean(results[0]?.valid), error: results[0]?.error });
+    }
+    if (path === '/voices/custom' && method === 'GET') {
+      if (await isServerAvailable()) {
+        try {
+          const srvResp = await nativeFetch(url.pathname + url.search, authInit);
+          if (srvResp.ok) return srvResp;
+        } catch {
+          /* fallback to localStorage */
+        }
+      }
+      let stored: any[] = [];
+      try {
+        stored = JSON.parse(localStorage.getItem('wappy_studio_cloned_voices_v1') || '[]');
+      } catch {
+        stored = [];
+      }
+      return json({ success: true, voices: Array.isArray(stored) ? stored : [] });
+    }
+    if (path === '/voices/clone' && method === 'POST') {
+      if (await isServerAvailable()) {
+        try {
+          const srvResp = await nativeFetch(url.pathname + url.search, authInit);
+          if (srvResp.ok) return srvResp;
+        } catch {
+          /* fallback to portable Gemini execution */
+        }
+      }
+      const keys = requireKeys();
+      const mode = body.mode || 'replicated';
+      const cleanName = String(body.displayName || 'Mi Voz Clonada SST').trim().slice(0, 60);
+      const stripDataUrl = (b64 = '') => String(b64 || '').replace(/^data:[^;]+;base64,/, '').trim();
+      const cleanSourceB64 = stripDataUrl(body.sourceAudioBase64 || '');
+      const cleanConsentB64 = stripDataUrl(body.consentAudioBase64 || body.sourceAudioBase64 || '');
+
+      // 1. Intentar POST /v1beta/voices nativo
+      let nativeVoiceId: string | null = null;
+      for (const apiKey of keys.slice(0, 2)) {
+        try {
+          const vPayload =
+            mode === 'prompted'
+              ? {
+                  store: true,
+                  voice: {
+                    model: 'gemini-3.8-flash-tts',
+                    type: 'prompted',
+                    display_name: cleanName,
+                    gender: body.gender === 'Femenino' ? 'female' : 'male',
+                    language_code: body.languageCode || 'es-CO',
+                    prompted: { input: String(body.voicePrompt || '').trim() },
+                  },
+                }
+              : {
+                  store: Boolean(body.store ?? true),
+                  voice: {
+                    model: 'gemini-3.8-flash-tts',
+                    type: 'replicated',
+                    display_name: cleanName,
+                    language_code: body.languageCode || 'es-CO',
+                    replicated: {
+                      source_audio: {
+                        inline_data: {
+                          mime_type: body.sourceMimeType || 'audio/wav',
+                          data: cleanSourceB64,
+                        },
+                      },
+                      consent_audio: {
+                        inline_data: {
+                          mime_type: body.consentMimeType || 'audio/wav',
+                          data: cleanConsentB64,
+                        },
+                      },
+                    },
+                  },
+                };
+          const nr = await nativeFetch(`${GEMINI_BASE}/voices`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify(vPayload),
+          });
+          if (nr.ok) {
+            const nd = await nr.json().catch(() => ({}));
+            const cid = nd?.voice?.id || nd?.voice?.key || nd?.replicated_voice?.id || nd?.replicated_voice?.key || nd?.id || nd?.key;
+            if (cid) {
+              nativeVoiceId = String(cid).trim();
+              break;
+            }
+          }
+        } catch {
+          /* continue to multimodal acoustic twin */
+        }
+      }
+
+      // 2. Análisis acústico multimodal con Gemini 2.5 Flash
+      let detectedGender = body.gender === 'Femenino' ? 'Femenino' : 'Masculino';
+      let matchedBaseVoice = detectedGender === 'Femenino' ? 'Kore' : 'Orus';
+      let detectedTone = 'Clonación Biométrica 24kHz';
+      let styleDirective = 'Tono natural, articulación clara, ritmo orgánico con pausas conversacionales realistas.';
+      let acousticSummary = 'Timbre vocal analizado y emparejado a 24 kHz.';
+
+      try {
+        const parts: any[] = [];
+        if (mode === 'replicated' && cleanSourceB64) {
+          parts.push({
+            inlineData: { mimeType: body.sourceMimeType || 'audio/wav', data: cleanSourceB64 },
+          });
+          parts.push({
+            text: `Escucha esta grabación de voz ("${cleanName}"). Elige cuál de las 14 voces neurales de Gemini 24kHz (Masculinas: Puck, Orus, Charon, Fenrir, Enceladus, Iapetus, Schedar; Femeninas: Kore, Aoede, Leda, Zephyr, Callirrhoe, Autonoe, Umbriel) tiene el timbre más idéntico. Devuelve solo JSON: {"gender":"Masculino o Femenino","baseVoice":"NombreDeLas14","tone":"2-3 palabras","styleDirective":"Directriz de prosodia","acousticSummary":"Resumen breve"}`,
+          });
+        } else {
+          parts.push({
+            text: `Analiza este diseño de voz ("${cleanName}", ${detectedGender}): "${body.voicePrompt || ''}". Elige cuál de las 14 voces de Gemini 24kHz (Puck, Orus, Charon, Fenrir, Enceladus, Iapetus, Schedar, Kore, Aoede, Leda, Zephyr, Callirrhoe, Autonoe, Umbriel) es la base ideal. Devuelve solo JSON: {"gender":"Masculino o Femenino","baseVoice":"NombreDeLas14","tone":"2-3 palabras","styleDirective":"Directriz de prosodia","acousticSummary":"Resumen breve"}`,
+          });
+        }
+        const ar = await geminiPost('gemini-2.5-flash', keys[0], {
+          contents: [{ role: 'user', parts }],
+          generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
+        }, 20000);
+        if (ar.ok) {
+          const rawTxt = ar.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const parsed = JSON.parse(rawTxt.replace(/```json|```/gi, '').trim());
+          if (parsed.baseVoice && ALL_STUDIO_VOICES.includes(parsed.baseVoice)) matchedBaseVoice = parsed.baseVoice;
+          if (parsed.gender === 'Femenino' || parsed.gender === 'Masculino') detectedGender = parsed.gender;
+          if (parsed.tone) detectedTone = String(parsed.tone).slice(0, 45);
+          if (parsed.styleDirective) styleDirective = String(parsed.styleDirective).slice(0, 260);
+          if (parsed.acousticSummary) acousticSummary = String(parsed.acousticSummary).slice(0, 260);
+        }
+      } catch {
+        /* fallback */
+      }
+
+      const shortHash = Math.random().toString(16).slice(2, 8);
+      const finalVoiceId = nativeVoiceId || `wappy_clone_${matchedBaseVoice}_${shortHash}`;
+      const customVoiceProfile = {
+        id: finalVoiceId,
+        name: `🧬 ${cleanName}`,
+        displayName: cleanName,
+        gender: detectedGender,
+        tone: detectedTone,
+        description: `${acousticSummary} (Base: ${matchedBaseVoice} • ${body.store !== false ? 'Persistente' : 'Llave 7 días'})`,
+        styleDirective,
+        baseVoice: matchedBaseVoice,
+        type: mode,
+        storageMode: body.store !== false ? 'stateful_1y' : 'stateless_7d',
+        nativeMethod: nativeVoiceId ? 'gemini_v1beta_voices' : 'gemini_multimodal_acoustic_twin',
+        isCustomClone: true,
+        fundamental: true,
+        createdAt: new Date().toISOString(),
+      };
+
+      const previewText =
+        String(body.sampleScript || '').trim() ||
+        `¡Hola! Soy ${cleanName}. Esta es mi voz clonada en WAPPY Podcast IA para conducir nuestro episodio de Somos SST Daily con calidad de estudio a veinticuatro kilohertz.`;
+
+      let sampleAudioBase64: string | null = null;
+      let sampleDurationSeconds = 0;
+      try {
+        const sr = await synthesizeChunk({ text: previewText, voiceName: finalVoiceId });
+        sampleAudioBase64 = sr.audioBase64;
+        sampleDurationSeconds = sr.durationSeconds;
+      } catch {
+        /* ignore sample error */
+      }
+
+      return json({
+        success: true,
+        voice: customVoiceProfile,
+        sampleAudioBase64,
+        sampleDurationSeconds,
+      });
+    }
+    const delVoiceMatch = path.match(/^\/voices\/custom\/([^/]+)$/);
+    if (delVoiceMatch && method === 'DELETE') {
+      if (await isServerAvailable()) {
+        try {
+          const srvResp = await nativeFetch(url.pathname + url.search, authInit);
+          if (srvResp.ok) return srvResp;
+        } catch {
+          /* ignore */
+        }
+      }
+      return json({ success: true, deletedId: decodeURIComponent(delVoiceMatch[1]) });
     }
     if (path === '/tts/estimate') {
       const clean = String(body.text || '').trim();

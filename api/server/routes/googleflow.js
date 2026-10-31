@@ -1963,6 +1963,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         prompt,
         aspectRatio,
         style,
+        skipAntigravity: req.body?.skipAntigravity !== false,
       });
       return res.json({
         success: true,

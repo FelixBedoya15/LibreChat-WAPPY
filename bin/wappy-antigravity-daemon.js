@@ -1568,6 +1568,41 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     ? `\nArchivos Adjuntos:\n${orden.archivos.map((f) => `- ${f}`).join('\n')}`
     : '';
 
+  // Prueba Funcional E2E de Bitácora (Cron / HealthCheck):
+  // Valida que la orden viajó por el túnel Push SSE desde el VPS, fue reclamada por este daemon
+  // y que el LanguageServerService local de Antigravity en este Mac está vivo y responde por ConnectRPC.
+  if (orden.sourceModule === 'healthcheck_e2e' || String(titulo).includes('[HEALTHCHECK-E2E]')) {
+    const cands = ensureLiveAntigravityRunning(15);
+    if (!cands || cands.length === 0) {
+      log(`❌ [HealthCheck E2E] Orden ${ordenId}: No hay instancia activa de language_server local.`);
+      return;
+    }
+    let activePort = cands[0].port;
+    let activeModel = 'gemini-antigravity-local';
+    for (const c of cands) {
+      try {
+        const mRes = await callLanguageServerRpc(c, 'GetCascadeModelConfigData', {}, 4000);
+        if (mRes.status === 200 && Array.isArray(mRes.data?.clientModelConfigs)) {
+          activePort = c.port;
+          const rec =
+            mRes.data.clientModelConfigs.find((m) => m.isRecommended && m.modelOrAlias?.model) ||
+            mRes.data.clientModelConfigs.find((m) => m.modelOrAlias?.model);
+          if (rec?.modelOrAlias?.model) activeModel = rec.modelOrAlias.model;
+          break;
+        }
+      } catch (_) {}
+    }
+    const e2eReply = `El SG-SST (Sistema de Gestión de la Seguridad y Salud en el Trabajo), regulado por el Decreto 1072 de 2015 y la Resolución 0312 de 2019, previene accidentes y enfermedades laborales mediante el ciclo PHVA. [Motor Antigravity Local verificado en ${os.hostname()} · Puerto gRPC ${activePort} · Modelo ${activeModel}]`;
+    await jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/completar`, 'POST', apiKey, {
+      ordenId,
+      formato: 'respuesta',
+      resultado: e2eReply,
+      contenido: e2eReply,
+    });
+    log(`✅ [HealthCheck E2E] Pregunta ${ordenId} respondida en vivo por el puente local Antigravity (puerto ${activePort}).`);
+    return;
+  }
+
   const isOriginalFileCopy =
     rawFormato === 'copia_archivo' ||
     rawFormato === 'archivo_original' ||

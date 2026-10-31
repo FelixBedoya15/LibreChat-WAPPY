@@ -1014,9 +1014,21 @@ class VoiceSession {
                                         type: "object",
                                         description: "Argumentos u opciones para la herramienta.",
                                         properties: {
-                                            id: { type: "string", description: "ID del elemento o registro" },
+                                            id: { type: "string", description: "ID del elemento, registro o agente" },
                                             cedula: { type: "string", description: "Cédula o número de documento" },
-                                            nombre: { type: "string", description: "Nombre del elemento o persona" },
+                                            nombre: { type: "string", description: "Nombre del elemento, persona o agente" },
+                                            name: { type: "string", description: "Nombre del agente (para wappy_crear_agente / wappy_actualizar_agente)" },
+                                            description: { type: "string", description: "Descripción o especialidad del agente" },
+                                            category: { type: "string", description: "Categoría del agente ('sgsst', 'legal', 'medicina', 'general')" },
+                                            instructions: { type: "string", description: "Instrucciones del sistema (System Prompt) detalladas del agente" },
+                                            model: { type: "string", description: "Modelo de IA ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash')" },
+                                            temperature: { type: "number", description: "Temperatura del modelo (0.0 a 1.0)" },
+                                            tools: { type: "array", items: { type: "string" }, description: "Herramientas del agente (ej. ['todas'] o ['sst', 'google', 'notebooklm'])" },
+                                            incluirTodasLasHerramientas: { type: "boolean", description: "true para activar las 63 herramientas por defecto" },
+                                            skills: { type: "array", items: { type: "string" }, description: "Skills del agente (ej. ['todas'])" },
+                                            conversation_starters: { type: "array", items: { type: "string" }, description: "Frases iniciadoras sugeridas al abrir el chat" },
+                                            avatar_url: { type: "string", description: "URL o ruta de imagen del avatar" },
+                                            agent_ids: { type: "array", items: { type: "string" }, description: "IDs de subagentes encadenados" },
                                             cargo: { type: "string", description: "Cargo del colaborador" },
                                             filtro: { type: "string", description: "Criterio de filtro" },
                                             estado: { type: "string", description: "Estado ('todo', 'in_progress', 'done', etc.)" },
@@ -1025,6 +1037,89 @@ class VoiceSession {
                                     }
                                 },
                                 required: ["herramienta"]
+                            }
+                        },
+                        {
+                            name: "wappy_crear_agente",
+                            description: "Crea un nuevo Agente de IA personalizado en WAPPY con sus 9 puntos configurables (Nombre, Descripción/Especialidad, Categoría, Instrucciones del Sistema/Prompt, Modelo y Temperatura, Herramientas, Skills, Frases Iniciadoras, Avatar y Subagentes encadenados). IMPORTANTE: Si el usuario pide crear un agente sin haber definido los puntos, primero guíalo preguntándole qué desea en cada punto antes de invocar esta herramienta (a menos que te pida crearlo de inmediato con valores recomendados).",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    name: { type: "string", description: "1. Nombre del agente (ej: 'Auditor Integral PESV', 'Especialista en Alturas Res. 4272')." },
+                                    description: { type: "string", description: "2. Descripción breve de su especialidad que se verá en la tarjeta del agente." },
+                                    category: { type: "string", description: "3. Categoría del agente: 'sgsst', 'legal', 'medicina', 'general'." },
+                                    instructions: { type: "string", description: "4. Instrucciones del sistema (System Prompt): rol, normatividad que domina, tono, reglas y estructura de respuesta." },
+                                    model: { type: "string", description: "5a. Modelo de IA (por defecto 'gemini-3.5-flash-lite', o 'gemini-3.6-flash', 'gemini-3.8-flash')." },
+                                    temperature: { type: "number", description: "5b. Temperatura de generación entre 0.0 y 1.0 (por defecto 0.2 para rigor técnico)." },
+                                    tools: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "6a. Lista de herramientas o atajos: ['todas'] (las 63 herramientas), ['sst'], ['google'], ['notebooklm'], ['antigravity'], ['flow'], ['canvas'], ['web_search'], ['matriz_ipevar'], ['matriz_pesv'], ['matriz_compatibilidad']."
+                                    },
+                                    incluirTodasLasHerramientas: { type: "boolean", description: "6b. Si es true, asigna todas las herramientas de WAPPY SST, Google Suite y NotebookLM." },
+                                    skills: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "7. Habilidades/Skills especializadas a inyectar (usa ['todas'] para todas las skills o lista de IDs)."
+                                    },
+                                    conversation_starters: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "8. Frases iniciadoras de conversación sugeridas al usuario (botones rápidos al abrir el chat con el agente)."
+                                    },
+                                    avatar_url: { type: "string", description: "9a. Ruta o URL del avatar del agente (por defecto '/images/tenshi.png')." },
+                                    agent_ids: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "9b. IDs de otros agentes encadenados en equipo con este agente (opcional)."
+                                    }
+                                },
+                                required: ["name"]
+                            }
+                        },
+                        {
+                            name: "wappy_actualizar_agente",
+                            description: "Actualiza o edita cualquiera de los 9 puntos de un Agente de IA existente del usuario (por su ID o nombre actual): nuevo nombre, descripción, categoría, instrucciones/prompt, modelo, temperatura, agregar/quitar herramientas, skills, frases iniciadoras, avatar o cadena de subagentes.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    id: { type: "string", description: "ID (agent_xxx) o nombre actual del agente a modificar." },
+                                    nuevo_nombre: { type: "string", description: "Nuevo nombre del agente si deseas renombrarlo." },
+                                    description: { type: "string", description: "Nueva descripción breve." },
+                                    category: { type: "string", description: "Nueva categoría ('sgsst', 'legal', 'medicina', 'general')." },
+                                    instructions: { type: "string", description: "Nuevas instrucciones del sistema (System Prompt)." },
+                                    model: { type: "string", description: "Nuevo modelo ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash')." },
+                                    temperature: { type: "number", description: "Nueva temperatura (0.0 a 1.0)." },
+                                    tools: { type: "array", items: { type: "string" }, description: "Reemplaza la lista completa de herramientas (usa ['todas'] para activar todas)." },
+                                    agregar_herramientas: { type: "array", items: { type: "string" }, description: "Herramientas a añadir sin borrar las actuales." },
+                                    quitar_herramientas: { type: "array", items: { type: "string" }, description: "Herramientas a quitar del agente." },
+                                    skills: { type: "array", items: { type: "string" }, description: "Lista de skills o ['todas']." },
+                                    conversation_starters: { type: "array", items: { type: "string" }, description: "Nuevas frases iniciadoras." },
+                                    avatar_url: { type: "string", description: "Nueva URL de avatar." },
+                                    agent_ids: { type: "array", items: { type: "string" }, description: "Nuevos IDs de agentes encadenados." }
+                                },
+                                required: ["id"]
+                            }
+                        },
+                        {
+                            name: "wappy_eliminar_agente",
+                            description: "Elimina un Agente de IA propio del usuario por su ID o nombre exacto.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    id: { type: "string", description: "ID (agent_xxx) o nombre exacto del agente a eliminar." }
+                                },
+                                required: ["id"]
+                            }
+                        },
+                        {
+                            name: "wappy_consultar_agentes_y_automatizaciones",
+                            description: "Consulta el catálogo completo de Agentes de IA existentes (propios y del sistema), el catálogo de herramientas y skills disponibles, y las automatizaciones programadas.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    dummy: { type: "string", description: "Parámetro opcional" }
+                                }
                             }
                         },
                         {
@@ -2550,6 +2645,30 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
   * 'wappy_retirar_trabajador': Cuando el usuario te pida retirar, desvincular, dar de baja o sacar a un trabajador (ej: "dejar como retirado a Jorge Ricky Pineda" o "retirar a Jorge Pineda"), INVOCA DE INMEDIATO 'wappy_retirar_trabajador'. El sistema conservará su historial y lo pasará a la pestaña 'Retirados'.
   * ESTÁ TERMINANTEMENTE PROHIBIDO decir que no tienes una función para cambiar el estado de un colaborador a 'retirado'. ¡TIENES la función 'wappy_retirar_trabajador'!
   * 'wappy_actualizar_trabajador': Para editar cargos, salarios o información del empleado.
+
+[ARQUITECTA DE AGENTES IA — PROTOCOLO DE ENTREVISTA PASO A PASO POR LOS 9 PUNTOS ('wappy_crear_agente', 'wappy_actualizar_agente', 'wappy_eliminar_agente', 'wappy_consultar_agentes_y_automatizaciones')]:
+- TIENES CONTROL TOTAL para diseñar, crear, editar, consultar y eliminar Agentes Especialistas de IA en WAPPY (/agents) con permisos de propietario (AGENT_OWNER).
+- LOS 9 PUNTOS QUE CONFORMAN UN AGENTE EN WAPPY SON:
+  1. Nombre del Agente ('name'): Cómo aparecerá en el selector de chats y en /agents.
+  2. Descripción breve / Especialidad ('description'): Resumen de 1 línea en la tarjeta del agente.
+  3. Categoría ('category'): 'sgsst', 'legal', 'medicina' o 'general'.
+  4. Instrucciones del Sistema / Prompt ('instructions'): Su rol experto, normas legales colombianas que domina, tono y estructura de respuesta.
+  5. Modelo de IA y Temperatura ('model' y 'temperature'): Por defecto 'gemini-3.5-flash-lite' (o 'gemini-3.6-flash' / 'gemini-3.8-flash') y temperatura 0.2 (precisión técnica).
+  6. Herramientas Activas ('tools' / 'incluirTodasLasHerramientas'): Atajo ['todas'] (las 63 herramientas: 20 de WAPPY SST + 8 de Google Workspace/Antigravity/Flow + 35 de NotebookLM) o paquetes puntuales (['sst'], ['google'], ['notebooklm'], ['antigravity'], ['flow'], ['canvas'], ['web_search']).
+  7. Habilidades / Skills ('skills'): Conocimientos especializados en api/config/skills (puedes usar ['todas']).
+  8. Frases Iniciadoras ('conversation_starters'): 2 a 4 preguntas rápidas sugeridas al abrir el chat con el agente.
+  9. Avatar y Cadena de Subagentes ('avatar_url' y 'agent_ids'): Imagen del agente (por defecto '/images/tenshi.png') y agentes con los que colabora en equipo.
+- REGLA OBLIGATORIA DE ENTREVISTA PASO A PASO (CUANDO EL USUARIO DICE "QUIERO CREAR UN AGENTE", "AYÚDAME A CREAR UN AGENTE" O SIMILAR):
+  * PROHIBIDO invocar 'wappy_crear_agente' a ciegas en el primer turno inventando los datos sin preguntarle al usuario (salvo que el usuario te diga explícitamente "créalo ya tú misma con todo recomendado").
+  * Actúa como **Arquitecta de Agentes** y ve solicitándole al usuario qué quiere en cada punto de forma conversacional, cálida y ordenada:
+    - **Paso 1 (Puntos 1, 2 y 3 — Identidad)**: Pregúntale qué **Nombre** quiere ponerle al agente, cuál será su **Descripción/Especialidad** y en qué **Categoría** desea ubicarlo ('sgsst', 'legal', 'medicina' o 'general').
+    - **Paso 2 (Punto 4 — Instrucciones del Sistema / Rol)**: Pregúntale qué **Instrucciones, rol y normatividad** quiere que domine (y ofrécele que, si prefiere, tú misma le redactas un System Prompt experto de alto nivel).
+    - **Paso 3 (Puntos 5, 6 y 7 — Motor, Herramientas y Skills)**: Pregúntale si desea el **Modelo** recomendado ('gemini-3.5-flash-lite' con temperatura 0.2), si le activas **todas las 63 herramientas** (WAPPY SST + Google Workspace/Flow/Antigravity + NotebookLM) o solo algunas, y si le inyectas **todas las Skills**.
+    - **Paso 4 (Puntos 8 y 9 — Frases Iniciadoras, Avatar y Encadenamiento)**: Pregúntale qué **Frases Iniciadoras** desea (o si las sugieres tú) y si quiere algún **Avatar o Subagente encadenado**.
+  * Si en cualquier paso el usuario te dice "sugiérelo tú", "ponle todas" o "deja el recomendado", completa ese punto con el mejor criterio experto y avanza al siguiente paso.
+  * Una vez definidos los puntos, invoca DE INMEDIATO 'wappy_crear_agente' con todos los parámetros recopilados y confírmale que su agente ya está creado y listo para usar.
+  * Si el usuario pide modificar cualquier punto de un agente existente, invoca 'wappy_actualizar_agente'.
+
 [DESAMBIGUACIÓN DETERMINISTA DE INFORMES - REGLAS ESTRICTAS DE DECISIÓN]:
 Cuando el usuario te diga "genera el informe", "haz el informe", "saca el reporte" o similar, DEBES clasificar la orden en uno de los siguientes 4 casos deterministas:
 
@@ -5734,6 +5853,40 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     });
                                 } catch (saveWidErr) {
                                     logger.warn('[VoiceSession] Failed saving autoWidget message:', saveWidErr.message);
+                                }
+                            }
+
+                            // Persistir tarjeta resumen en el chat de Tenshi cuando se crea o actualiza un Agente IA
+                            if (
+                                (targetTool === 'wappy_crear_agente' || targetTool === 'wappy_actualizar_agente') &&
+                                result?.exito &&
+                                result?.agente
+                            ) {
+                                try {
+                                    const ag = result.agente;
+                                    const actionLabel = targetTool === 'wappy_crear_agente' ? 'Agente IA Creado Exitosamente' : 'Agente IA Actualizado Exitosamente';
+                                    const startersText = Array.isArray(ag.conversation_starters) && ag.conversation_starters.length > 0
+                                        ? ag.conversation_starters.map((s) => `  - "${s}"`).join('\n')
+                                        : '  - _(Sin frases iniciadoras configuradas)_';
+                                    const summaryMd =
+                                        `🤖 **${actionLabel}: ${ag.name}** (\`${ag.id}\`)\n\n` +
+                                        `- **1. Nombre:** ${ag.name}\n` +
+                                        `- **2. Descripción:** ${ag.description || 'Especialista WAPPY IA'}\n` +
+                                        `- **3. Categoría:** \`${ag.category || 'general'}\`\n` +
+                                        `- **4. Instrucciones (System Prompt):** ${String(ag.instructions || '').slice(0, 280)}${String(ag.instructions || '').length > 280 ? '...' : ''}\n` +
+                                        `- **5. Modelo:** \`${ag.model || 'gemini-3.5-flash-lite'}\` (${ag.provider || 'google'})\n` +
+                                        `- **6. Herramientas Activas:** **${ag.totalHerramientas || 0}** herramientas (${ag.tieneNotebookLM ? 'incluye Google Suite, WAPPY SST y 35 de NotebookLM' : (ag.tools || []).slice(0, 8).join(', ')})\n` +
+                                        `- **7. Skills Cargadas:** ${Array.isArray(ag.skills) && ag.skills.length > 0 ? `${ag.skills.length} skills activas` : 'Estándar'}\n` +
+                                        `- **8. Frases Iniciadoras:**\n${startersText}\n` +
+                                        `- **9. Subagentes Encadenados:** ${Array.isArray(ag.agent_ids) && ag.agent_ids.length > 0 ? ag.agent_ids.join(', ') : 'Ninguno'}`;
+                                    await TenshiMessage.create({
+                                        user: this.userId,
+                                        role: 'assistant',
+                                        content: summaryMd,
+                                        source: 'voice',
+                                    });
+                                } catch (saveAgErr) {
+                                    logger.warn('[VoiceSession] Failed saving agent creation summary message:', saveAgErr.message);
                                 }
                             }
 

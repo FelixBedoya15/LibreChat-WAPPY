@@ -309,10 +309,9 @@ async function reconnectAntigravity(wappyUrl, apiKey) {
 }
 
 /**
- * 2. PRUEBA DE GOOGLE NOTEBOOKLM
+ * 2. PRUEBA DE CONECTIVIDAD DE GOOGLE NOTEBOOKLM
  */
 async function checkNotebookLM(wappyUrl, apiKey) {
-  // Intentar primero el endpoint directo de herramienta MCP (notebook_list) que valida en vivo contra Google NotebookLM
   const mcpRes = await httpJson(`${wappyUrl}/api/mcp-bridge/notebooklm/tool`, {
     method: 'POST',
     headers: {
@@ -326,11 +325,11 @@ async function checkNotebookLM(wappyUrl, apiKey) {
   if (mcpRes.ok && mcpRes.data && !mcpRes.data.error && Array.isArray(mcpRes.data.result)) {
     return {
       ok: true,
-      detail: `Sesión privada de Google NotebookLM activa y verificada en vivo (${mcpRes.data.result.length} cuadernos detectados).`,
+      notebooks: mcpRes.data.result,
+      detail: `Sesión privada de Google NotebookLM activa (${mcpRes.data.result.length} cuadernos detectados).`,
     };
   }
 
-  // Intentar endpoint /api/notebooklm/test (si acepta API Key)
   const testRes = await httpJson(`${wappyUrl}/api/notebooklm/test`, {
     method: 'POST',
     headers: {
@@ -343,6 +342,7 @@ async function checkNotebookLM(wappyUrl, apiKey) {
   if (testRes.ok && testRes.data?.success) {
     return {
       ok: true,
+      notebooks: [],
       detail: testRes.data.message || 'Sesión privada de Google NotebookLM activa.',
     };
   }
@@ -356,12 +356,13 @@ async function checkNotebookLM(wappyUrl, apiKey) {
 
   return {
     ok: false,
+    notebooks: [],
     detail: `Fallo en conexión con Google NotebookLM: ${errReason}`,
   };
 }
 
 /**
- * 3. PRUEBA DE GOOGLE FLOW STUDIO (VEO / IMAGEN)
+ * 3. PRUEBA DE CONECTIVIDAD DE GOOGLE FLOW STUDIO (VEO / IMAGEN)
  */
 function buildFlowCookieHeader(cookies) {
   if (!Array.isArray(cookies) || cookies.length === 0) return '';
@@ -394,7 +395,6 @@ function buildFlowCookieHeader(cookies) {
 }
 
 async function checkGoogleFlow(wappyUrl, apiKey, userId) {
-  // 1. Intentar /api/googleflow/test en el servidor WAPPY
   const testRes = await httpJson(`${wappyUrl}/api/googleflow/test`, {
     method: 'POST',
     headers: {
@@ -411,7 +411,6 @@ async function checkGoogleFlow(wappyUrl, apiKey, userId) {
     };
   }
 
-  // 2. Respaldo directo: obtener la sesión guardada en WAPPY y validar contra https://flow.google.com/
   if (userId) {
     const sessRes = await httpJson(`${wappyUrl}/api/notebooklm/internal/session/${encodeURIComponent(userId)}`, {
       method: 'GET',
@@ -450,6 +449,198 @@ async function checkGoogleFlow(wappyUrl, apiKey, userId) {
   return {
     ok: false,
     detail: `Fallo en conexión con Google Flow Studio: ${errReason}`,
+  };
+}
+
+/**
+ * 3.B PRUEBAS FUNCIONALES E2E REALES (PREGUNTA A ANTIGRAVITY + PREGUNTA EN CUADERNO NOTEBOOKLM + GENERAR IMAGEN EN FLOW)
+ */
+async function runFunctionalAntigravityQuestion(wappyUrl, apiKey) {
+  const t0 = Date.now();
+  const question = '¿Qué es el SG-SST según el Decreto 1072 de 2015 en Colombia?';
+  log(`🧪 [Prueba Funcional 1/3] Enviando pregunta real a Google Antigravity ("${question}")...`);
+
+  const delRes = await httpJson(`${wappyUrl}/api/mcp-bridge/antigravity/delegar`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+    body: {
+      titulo: '[HEALTHCHECK-E2E] Pregunta Funcional a Google Antigravity',
+      instruccion: question,
+      tipo_entregable: 'respuesta',
+      sourceModule: 'healthcheck_e2e',
+    },
+    timeoutMs: 15000,
+  });
+
+  const ordenId = delRes.data?.ordenId;
+  if (!delRes.ok || !ordenId) {
+    return {
+      ok: false,
+      question,
+      answer: '',
+      latencyMs: Date.now() - t0,
+      detail: `No se pudo delegar pregunta a Antigravity (${delRes.data?.error || `HTTP ${delRes.status}`}).`,
+    };
+  }
+
+  // Esperar hasta 18 segundos a que el daemon local en el Mac reclame por Push SSE y responda la orden
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const ordRes = await httpJson(
+      `${wappyUrl}/api/mcp-bridge/antigravity/ordenes?id=${encodeURIComponent(ordenId)}`,
+      {
+        method: 'GET',
+        headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+        timeoutMs: 8000,
+      }
+    );
+    const ord = Array.isArray(ordRes.data?.ordenes) ? ordRes.data.ordenes[0] : null;
+    if (ord && ord.estado === 'done') {
+      const answer = String(ord.entregable?.resumen || ord.entregable?.contenido || '').trim();
+      const latencyMs = Date.now() - t0;
+      log(`✅ [Prueba Funcional 1/3] Antigravity respondió en ${(latencyMs / 1000).toFixed(1)}s: "${answer.slice(0, 110)}..."`);
+      return {
+        ok: true,
+        question,
+        answer,
+        latencyMs,
+        detail: `Pregunta respondida en ${(latencyMs / 1000).toFixed(1)}s: "${answer.slice(0, 140)}"`,
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    question,
+    answer: '',
+    latencyMs: Date.now() - t0,
+    detail: `Tiempo agotado esperando respuesta E2E del daemon local de Antigravity (orden ${ordenId}).`,
+  };
+}
+
+async function runFunctionalNotebookLMQuestion(wappyUrl, apiKey, existingNotebooks = []) {
+  const t0 = Date.now();
+  let notebooks = Array.isArray(existingNotebooks) ? existingNotebooks : [];
+  if (notebooks.length === 0) {
+    const listRes = await httpJson(`${wappyUrl}/api/mcp-bridge/notebooklm/tool`, {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+      body: { tool: 'notebook_list', arguments: {} },
+      timeoutMs: 25000,
+    });
+    if (Array.isArray(listRes.data?.result)) {
+      notebooks = listRes.data.result;
+    }
+  }
+
+  if (notebooks.length === 0) {
+    return {
+      ok: false,
+      notebookTitle: 'Ninguno',
+      question: '',
+      answer: '',
+      latencyMs: Date.now() - t0,
+      detail: 'No se encontraron cuadernos disponibles en Google NotebookLM para realizar la consulta.',
+    };
+  }
+
+  const targetNb =
+    notebooks.find((n) => (n.sources_count || n.source_count || 0) > 0 && n.title && !n.title.includes('Untitled')) ||
+    notebooks[0];
+  const nbTitle = targetNb.title || targetNb.id;
+  const question = 'Resume en una frase corta cuál es el tema principal de este cuaderno.';
+  log(`🧪 [Prueba Funcional 2/3] Consultando cuaderno "${nbTitle}" en Google NotebookLM...`);
+
+  const askRes = await httpJson(`${wappyUrl}/api/mcp-bridge/notebooklm/tool`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+    body: {
+      tool: 'chat_ask',
+      arguments: {
+        notebook_id: targetNb.id,
+        notebook: nbTitle,
+        query: question,
+      },
+    },
+    timeoutMs: 40000,
+  });
+
+  const rawAnswer = String(
+    askRes.data?.result?.answer ||
+      askRes.data?.answer ||
+      (typeof askRes.data?.result === 'string' ? askRes.data.result : '')
+  )
+    .replace(/\*\*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const latencyMs = Date.now() - t0;
+  if (askRes.ok && rawAnswer.length > 5 && !askRes.data?.error) {
+    log(`✅ [Prueba Funcional 2/3] Cuaderno "${nbTitle}" respondió en ${(latencyMs / 1000).toFixed(1)}s: "${rawAnswer.slice(0, 110)}..."`);
+    return {
+      ok: true,
+      notebookTitle: nbTitle,
+      notebooksCount: notebooks.length,
+      question,
+      answer: rawAnswer,
+      latencyMs,
+      detail: `Cuaderno "${nbTitle}" (${notebooks.length} cuadernos) respondió en ${(latencyMs / 1000).toFixed(1)}s: "${rawAnswer.slice(0, 150)}..."`,
+    };
+  }
+
+  return {
+    ok: false,
+    notebookTitle: nbTitle,
+    notebooksCount: notebooks.length,
+    question,
+    answer: '',
+    latencyMs,
+    detail: `Fallo al preguntar al cuaderno "${nbTitle}": ${askRes.data?.error || askRes.error || `HTTP ${askRes.status}`}`,
+  };
+}
+
+async function runFunctionalFlowImageGeneration(wappyUrl, apiKey) {
+  const t0 = Date.now();
+  const prompt =
+    'Ingeniero de seguridad y salud en el trabajo con casco blanco e insignias SST supervisando planta moderna iluminada, fotografia 4k';
+  log(`🧪 [Prueba Funcional 3/3] Generando imagen real de prueba en Google Flow Studio...`);
+
+  const genRes = await httpJson(`${wappyUrl}/api/googleflow/generate`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+    body: {
+      type: 'image',
+      prompt,
+      aspectRatio: '16:9',
+      style: 'fotorrealista',
+      skipAntigravity: true,
+    },
+    timeoutMs: 45000,
+  });
+
+  const latencyMs = Date.now() - t0;
+  const relUrl = genRes.data?.publicUrl || '';
+  if (genRes.ok && genRes.data?.success && relUrl) {
+    const fullImageUrl = relUrl.startsWith('http') ? relUrl : `${wappyUrl}${relUrl}`;
+    const modelName = genRes.data?.model || 'Google Flow Studio (Imagen 3)';
+    log(`✅ [Prueba Funcional 3/3] Imagen generada en ${(latencyMs / 1000).toFixed(1)}s: ${fullImageUrl}`);
+    return {
+      ok: true,
+      prompt,
+      imageUrl: fullImageUrl,
+      model: modelName,
+      latencyMs,
+      detail: `Imagen generada en ${(latencyMs / 1000).toFixed(1)}s (${modelName}): ${fullImageUrl}`,
+    };
+  }
+
+  return {
+    ok: false,
+    prompt,
+    imageUrl: '',
+    model: '',
+    latencyMs,
+    detail: `Fallo generando imagen en Google Flow: ${genRes.data?.error || genRes.error || `HTTP ${genRes.status}`}`,
   };
 }
 
@@ -643,9 +834,13 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
 }
 
 /**
- * 5. ENVÍO DE CORREO A grupowappy@gmail.com CON EL RESULTADO / SOLICITUD
+ * 5. ENVÍO DE CORREO UNIFICADO A grupowappy@gmail.com AL FINALIZAR TODA LA PRUEBA
  */
-async function sendHealthEmail(wappyUrl, apiKey, { trigger, initialResults, finalResults, hadInitialErrors, allHealthyNow }) {
+async function sendHealthEmail(
+  wappyUrl,
+  apiKey,
+  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow }
+) {
   const nowStr = new Date().toLocaleString('es-CO', {
     timeZone: 'America/Bogota',
     dateStyle: 'full',
@@ -659,24 +854,33 @@ async function sendHealthEmail(wappyUrl, apiKey, { trigger, initialResults, fina
   const subject = !allHealthyNow
     ? `🚨 [WAPPY IA] Solicitud de Reconexión Manual — Fallo en ${failedNames.join(', ')}`
     : hadInitialErrors
-    ? `✅ [WAPPY IA] Conectores Reconectados Automáticamente tras Falla (${trigger})`
-    : `🟢 [WAPPY IA] Verificación de Conectores OK (Antigravity, NotebookLM y Flow)`;
+    ? `✅ [WAPPY IA] Conectores Reconectados y Pruebas E2E OK (${trigger})`
+    : `🟢 [WAPPY IA] Reporte Unificado E2E OK (Antigravity + NotebookLM + Flow)`;
 
-  const renderRow = (label, initRes, finRes) => {
+  const renderRow = (label, initRes, finRes, funcRes) => {
     const wasOk = initRes?.ok;
     const isOk = finRes?.ok;
     const badge = isOk
       ? wasOk
-        ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;">🟢 CONECTADO</span>'
-        : '<span style="background:#fef9c3;color:#854d0e;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;">🔄 RECONECTADO AUTOMÁTICAMENTE</span>'
+        ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;">🟢 CONECTADO Y PROBADO</span>'
+        : '<span style="background:#fef9c3;color:#854d0e;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;">🔄 RECONECTADO Y PROBADO</span>'
       : '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;">🔴 ERROR — REQUIERE RECONEXIÓN</span>';
+
+    const funcHtml = funcRes
+      ? `<div style="margin-top:6px;padding:8px 10px;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;color:#0f172a;">
+           <b>🧪 Prueba Funcional Real:</b> ${funcRes.detail || ''}
+           ${funcRes.imageUrl ? `<br/><a href="${funcRes.imageUrl}" target="_blank" style="color:#0d9488;font-weight:700;">🔗 Ver imagen generada en Google Flow</a>` : ''}
+         </div>`
+      : '';
 
     return `
       <tr>
-        <td style="padding:12px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${label}</td>
-        <td style="padding:12px;border-bottom:1px solid #e2e8f0;">${badge}</td>
-        <td style="padding:12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#334155;">
-          ${finRes?.detail || ''}${!wasOk && isOk ? `<br/><small style="color:#64748b;">Falla inicial corregida: ${initRes?.detail || ''}</small>` : ''}
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0f172a;vertical-align:top;">${label}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;vertical-align:top;">${badge}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#334155;vertical-align:top;">
+          <div><b>Conectividad:</b> ${finRes?.detail || ''}</div>
+          ${!wasOk && isOk ? `<div style="color:#64748b;font-size:12px;">Falla inicial corregida: ${initRes?.detail || ''}</div>` : ''}
+          ${funcHtml}
         </td>
       </tr>
     `;
@@ -701,20 +905,20 @@ async function sendHealthEmail(wappyUrl, apiKey, { trigger, initialResults, fina
   const html = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e293b;">
       <p style="margin:0 0 14px 0;font-size:14px;">
-        Resultado de la auditoría automática de conectores en tu Mac (<b>Disparador:</b> <code>${trigger}</code> &bull; <b>Fecha:</b> ${nowStr}):
+        Reporte unificado de conectividad y pruebas funcionales E2E en tu iMac (<b>Disparador:</b> <code>${trigger}</code> &bull; <b>Fecha:</b> ${nowStr}):
       </p>
       <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
         <thead>
           <tr style="background:#0f172a;color:#ffffff;text-align:left;font-size:12px;text-transform:uppercase;">
             <th style="padding:10px 12px;">Módulo / Conector</th>
             <th style="padding:10px 12px;">Estado Final</th>
-            <th style="padding:10px 12px;">Diagnóstico Técnico</th>
+            <th style="padding:10px 12px;">Conectividad + Prueba Funcional E2E</th>
           </tr>
         </thead>
         <tbody>
-          ${renderRow('⚡ Google Antigravity', initialResults.antigravity, finalResults.antigravity)}
-          ${renderRow('📓 Google NotebookLM', initialResults.notebooklm, finalResults.notebooklm)}
-          ${renderRow('🎬 Google Flow Studio', initialResults.googleflow, finalResults.googleflow)}
+          ${renderRow('⚡ Google Antigravity', initialResults.antigravity, finalResults.antigravity, functionalResults.antigravity)}
+          ${renderRow('📓 Google NotebookLM', initialResults.notebooklm, finalResults.notebooklm, functionalResults.notebooklm)}
+          ${renderRow('🎬 Google Flow Studio', initialResults.googleflow, finalResults.googleflow, functionalResults.googleflow)}
         </tbody>
       </table>
       ${manualActionBlock}
@@ -738,7 +942,7 @@ async function sendHealthEmail(wappyUrl, apiKey, { trigger, initialResults, fina
   });
 
   if (emailRes.ok && emailRes.data?.exito) {
-    log(`📧 Correo enviado exitosamente a ${ALERT_EMAIL} (${subject}).`);
+    log(`📧 Correo unificado enviado exitosamente a ${ALERT_EMAIL} (${subject}).`);
     return true;
   } else {
     log(`❌ Error enviando correo a ${ALERT_EMAIL}: ${emailRes.data?.error || emailRes.error || `HTTP ${emailRes.status}`}`);

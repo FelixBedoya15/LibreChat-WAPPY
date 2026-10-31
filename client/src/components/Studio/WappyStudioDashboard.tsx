@@ -90,6 +90,87 @@ interface StudioVoice {
   tone: string;
   recommendedFor: string;
   tag?: string;
+  isCustomClone?: boolean;
+  baseVoice?: string;
+  styleDirective?: string;
+  storageMode?: string;
+}
+
+/**
+ * Convierte cualquier Blob de audio grabado con micrófono (webm/mp4/ogg) o subido (.mp3/.wav/.m4a)
+ * a formato estándar WAV PCM 16-bit Mono a 24,000 Hz (requerido por Gemini Voices API /v1beta/voices).
+ */
+async function convertAudioBlobToWav24kBase64(
+  blob: Blob,
+): Promise<{ base64: string; mimeType: string; durationSec: number }> {
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    const targetRate = 24000;
+    const lengthSamples = Math.max(1, Math.ceil(decoded.duration * targetRate));
+    const offlineCtx = new OfflineAudioContext(1, lengthSamples, targetRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+    const rendered = await offlineCtx.startRendering();
+    ctx.close().catch(() => {});
+
+    const channelData = rendered.getChannelData(0);
+    const pcmByteLength = channelData.length * 2;
+    const wavBuffer = new ArrayBuffer(44 + pcmByteLength);
+    const view = new DataView(wavBuffer);
+    const writeStr = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + pcmByteLength, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // 1 canal (Mono)
+    view.setUint32(24, targetRate, true); // 24000 Hz
+    view.setUint32(28, targetRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true); // 16-bit
+    writeStr(36, 'data');
+    view.setUint32(40, pcmByteLength, true);
+
+    for (let i = 0; i < channelData.length; i++) {
+      const s = Math.max(-1, Math.min(1, channelData[i]));
+      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+
+    const bytes = new Uint8Array(wavBuffer);
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+    }
+    return {
+      base64: btoa(binary),
+      mimeType: 'audio/wav',
+      durationSec: Math.round(decoded.duration * 10) / 10,
+    };
+  } catch {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = String(reader.result || '');
+        const b64 = res.replace(/^data:[^;]+;base64,/, '');
+        resolve({
+          base64: b64,
+          mimeType: blob.type || 'audio/wav',
+          durationSec: 15,
+        });
+      };
+      reader.onerror = () => reject(new Error('No se pudo leer el archivo de audio.'));
+      reader.readAsDataURL(blob);
+    });
+  }
 }
 
 interface StudioPreset {
@@ -3399,18 +3480,345 @@ export default function WappyStudioDashboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [podcastOnly]);
 
+  // ============================================================================
+  // ESTADO Y MANEJADORES DE CLONACIÓN DE VOZ & DISEÑO VOCAL (GEMINI 3.8 VOICES API)
+  // ============================================================================
+  const [clonedVoices, setClonedVoices] = useState<StudioVoice[]>(() => {
+    try {
+      const raw = localStorage.getItem('wappy_studio_cloned_voices_v1');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isVoiceCloneModalOpen, setIsVoiceCloneModalOpen] = useState<boolean>(false);
+  const [voiceCloneMode, setVoiceCloneMode] = useState<'replicated' | 'prompted'>('replicated');
+  const [cloneDisplayName, setCloneDisplayName] = useState<string>('Mi Voz (Host SST)');
+  const [cloneGender, setCloneGender] = useState<'Masculino' | 'Femenino'>('Masculino');
+  const [cloneLanguageCode, setCloneLanguageCode] = useState<string>('es-CO');
+  const [cloneStoreMode, setCloneStoreMode] = useState<boolean>(true);
+  const [clonePromptText, setClonePromptText] = useState<string>(
+    'Locutor colombiano de 36 años con acento cálido y cercano, voz firme de estudio de radio, ritmo conversacional fluido y entusiasta para Somos SST Daily.',
+  );
+  const [sourceAudioData, setSourceAudioData] = useState<{
+    base64: string;
+    mimeType: string;
+    durationSec: number;
+    label: string;
+    previewUrl: string;
+  } | null>(null);
+  const [consentAudioData, setConsentAudioData] = useState<{
+    base64: string;
+    mimeType: string;
+    durationSec: number;
+    label: string;
+    previewUrl: string;
+  } | null>(null);
+  const [recordingTarget, setRecordingTarget] = useState<'source' | 'consent' | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
+  const [isCloningVoice, setIsCloningVoice] = useState<boolean>(false);
+  const [lastClonedResult, setLastClonedResult] = useState<{
+    voice: StudioVoice;
+    sampleAudioBase64?: string | null;
+  } | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('wappy_studio_cloned_voices_v1', JSON.stringify(clonedVoices));
+    } catch {
+      /* ignore quota */
+    }
+  }, [clonedVoices]);
+
+  useEffect(() => {
+    fetch('/api/studio/voices/custom', { headers: getAuthHeaders(token) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.voices) && data.voices.length > 0) {
+          setClonedVoices((prev) => {
+            const map = new Map<string, StudioVoice>();
+            for (const v of [...prev, ...data.voices]) {
+              if (v && v.id) {
+                map.set(v.id, {
+                  id: v.id,
+                  name: v.name || `🧬 ${v.displayName || v.id}`,
+                  gender: v.gender === 'Femenino' ? 'Femenino' : 'Masculino',
+                  tone: v.tone || 'Voz Clonada 24kHz',
+                  recommendedFor:
+                    v.description || v.recommendedFor || 'Clon vocal Gemini 3.8 para Somos SST Daily',
+                  tag: 'Clonada IA',
+                  isCustomClone: true,
+                  baseVoice: v.baseVoice,
+                  styleDirective: v.styleDirective,
+                  storageMode: v.storageMode,
+                });
+              }
+            }
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const startMicRecording = async (target: 'source' | 'consent') => {
+    try {
+      if (recordingTarget) {
+        stopMicRecording();
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 24000,
+        },
+      });
+      recordingChunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+
+      mr.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) {
+          recordingChunksRef.current.push(ev.data);
+        }
+      };
+
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        const rawBlob = new Blob(recordingChunksRef.current, {
+          type: mr.mimeType || 'audio/webm',
+        });
+        const converted = await convertAudioBlobToWav24kBase64(rawBlob);
+        const wavBlob = base64ToBlob(converted.base64, 'audio/wav');
+        const previewUrl = URL.createObjectURL(wavBlob);
+        const payload = {
+          base64: converted.base64,
+          mimeType: converted.mimeType,
+          durationSec: converted.durationSec,
+          label: `Grabación de micrófono (${converted.durationSec}s • WAV 24kHz)`,
+          previewUrl,
+        };
+        if (target === 'source') {
+          setSourceAudioData(payload);
+        } else {
+          setConsentAudioData(payload);
+        }
+        setRecordingTarget(null);
+      };
+
+      mr.start(250);
+      setRecordingTarget(target);
+      setRecordingSeconds(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => {
+          if (prev >= 30) {
+            stopMicRecording();
+            return 30;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text:
+          'No se pudo acceder al micrófono. Verifica los permisos del navegador o sube un archivo de audio (.wav / .mp3 / .m4a).',
+      });
+    }
+  };
+
+  const stopMicRecording = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    } else {
+      setRecordingTarget(null);
+    }
+  };
+
+  const handleUploadCloneAudioFile = async (
+    target: 'source' | 'consent',
+    file?: File | null,
+  ) => {
+    if (!file) return;
+    try {
+      const converted = await convertAudioBlobToWav24kBase64(file);
+      const wavBlob = base64ToBlob(converted.base64, 'audio/wav');
+      const previewUrl = URL.createObjectURL(wavBlob);
+      const payload = {
+        base64: converted.base64,
+        mimeType: converted.mimeType,
+        durationSec: converted.durationSec,
+        label: `${file.name} (${converted.durationSec}s • WAV 24kHz)`,
+        previewUrl,
+      };
+      if (target === 'source') {
+        setSourceAudioData(payload);
+      } else {
+        setConsentAudioData(payload);
+      }
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err?.message || 'Error procesando el archivo de audio para clonación.',
+      });
+    }
+  };
+
+  const handleExecuteVoiceClone = async () => {
+    if (!requireActiveCompany('clonar o diseñar una voz personalizada con IA')) return;
+    if (voiceCloneMode === 'replicated' && !sourceAudioData?.base64) {
+      setStatusBanner({
+        type: 'error',
+        text: 'Primero graba con tu micrófono o sube un archivo de audio de referencia (10 a 30 seg).',
+      });
+      return;
+    }
+    if (voiceCloneMode === 'prompted' && !clonePromptText.trim()) {
+      setStatusBanner({
+        type: 'error',
+        text: 'Escribe una descripción de cómo quieres que suene tu voz personalizada.',
+      });
+      return;
+    }
+
+    try {
+      setIsCloningVoice(true);
+      setStatusBanner(null);
+      const resp = await fetch('/api/studio/voices/clone', {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          mode: voiceCloneMode,
+          displayName: cloneDisplayName.trim() || 'Mi Voz Clonada SST',
+          gender: cloneGender,
+          languageCode: cloneLanguageCode,
+          store: cloneStoreMode,
+          sourceAudioBase64: sourceAudioData?.base64 || '',
+          sourceMimeType: sourceAudioData?.mimeType || 'audio/wav',
+          consentAudioBase64: consentAudioData?.base64 || sourceAudioData?.base64 || '',
+          consentMimeType: consentAudioData?.mimeType || 'audio/wav',
+          voicePrompt: clonePromptText.trim(),
+          customKeys: customApiKeys.map((k) => k.key.trim()).filter((k) => k.length > 15),
+        }),
+      });
+      const data = await parseStudioJson(resp);
+      if (!resp.ok || !data.success || !data.voice) {
+        throw new Error(data.error || 'No se pudo completar la clonación de voz.');
+      }
+
+      const vRaw = data.voice;
+      const newVoice: StudioVoice = {
+        id: vRaw.id,
+        name: vRaw.name || `🧬 ${vRaw.displayName || cloneDisplayName}`,
+        gender: vRaw.gender === 'Femenino' ? 'Femenino' : 'Masculino',
+        tone: vRaw.tone || 'Voz Clonada 24kHz',
+        recommendedFor:
+          vRaw.description || 'Voz clonada con Gemini 3.8 para episodios de Somos SST Daily',
+        tag: 'Clonada IA',
+        isCustomClone: true,
+        baseVoice: vRaw.baseVoice,
+        styleDirective: vRaw.styleDirective,
+        storageMode: vRaw.storageMode,
+      };
+
+      setClonedVoices((prev) => [newVoice, ...prev.filter((item) => item.id !== newVoice.id)]);
+      setLastClonedResult({
+        voice: newVoice,
+        sampleAudioBase64: data.sampleAudioBase64 || null,
+      });
+
+      if (multiSpeaker) {
+        setSpeaker1Voice(newVoice.id);
+      } else {
+        setSelectedVoice(newVoice.id);
+      }
+      if (newVoice.styleDirective) {
+        setStylePrompt(newVoice.styleDirective);
+      }
+
+      if (data.sampleAudioBase64) {
+        setCurrentAudio({
+          base64: data.sampleAudioBase64,
+          title: `Muestra Voz Clonada: ${newVoice.name}`,
+          durationSeconds: data.sampleDurationSeconds || 8,
+          voiceName: newVoice.name,
+        });
+      }
+
+      setStatusBanner({
+        type: 'success',
+        text: `🧬 ¡Voz "${newVoice.name}" clonada con éxito (${newVoice.id})! Ya está seleccionada y lista para locutar tu podcast.`,
+      });
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: err?.message || 'Error al clonar la voz con Gemini 3.8.',
+      });
+    } finally {
+      setIsCloningVoice(false);
+    }
+  };
+
+  const handleDeleteClonedVoice = async (voiceId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setClonedVoices((prev) => prev.filter((v) => v.id !== voiceId));
+    if (selectedVoice === voiceId) setSelectedVoice('Kore');
+    if (speaker1Voice === voiceId) setSpeaker1Voice('Puck');
+    if (speaker2Voice === voiceId) setSpeaker2Voice('Kore');
+    try {
+      await fetch(`/api/studio/voices/custom/${encodeURIComponent(voiceId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token),
+      });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const allVoices = useMemo(() => {
+    const map = new Map<string, StudioVoice>();
+    for (const cv of clonedVoices) {
+      map.set(cv.id, cv);
+    }
+    for (const v of voices) {
+      if (!map.has(v.id)) map.set(v.id, v);
+    }
+    return Array.from(map.values());
+  }, [clonedVoices, voices]);
+
   const activeModelObj = useMemo(
     () => models.find((m) => m.id === selectedModel) || models[0],
     [models, selectedModel],
   );
 
   const isVoiceSupported = (voiceId: string) => {
+    if (
+      voiceId.startsWith('wappy_clone_') ||
+      voiceId.startsWith('voice_') ||
+      voiceId.startsWith('voicekey_')
+    ) {
+      return true;
+    }
     if (!activeModelObj?.supportedVoices) return true;
     return activeModelObj.supportedVoices.includes(voiceId);
   };
 
   const filteredVoices = useMemo(() => {
-    return voices.filter((v) => {
+    return allVoices.filter((v) => {
       const supported = isVoiceSupported(v.id);
       const matchesActive = voiceActiveFilter === 'all' || supported;
       const matchesGender = voiceGenderFilter === 'all' || v.gender === voiceGenderFilter;
@@ -3423,7 +3831,7 @@ export default function WappyStudioDashboard({
         (v.tag && v.tag.toLowerCase().includes(q));
       return matchesActive && matchesGender && matchesQuery;
     });
-  }, [voices, activeModelObj, voiceActiveFilter, voiceGenderFilter, voiceSearchQuery]);
+  }, [allVoices, activeModelObj, voiceActiveFilter, voiceGenderFilter, voiceSearchQuery]);
 
   // ============================================================================
   // ACCIONES DE SÍNTESIS DE VOZ (TTS)
@@ -6701,6 +7109,110 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </button>
                 </div>
 
+                {/* 3.5. Tarjeta de Clonación de Voz & Diseño Vocal Personalizado (Gemini 3.8 Voices API) */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-[#101c16] to-slate-950 border border-[#c7f303]/45 shadow-md space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-md bg-[#c7f303]/20 border border-[#c7f303]/50 text-[#c7f303] text-[10px] font-black uppercase tracking-wider">
+                          🧬 NUEVO • GEMINI 3.8 VOICES API
+                        </span>
+                        <h3 className="text-xs font-black text-white uppercase tracking-wide">
+                          Clonar mi Propia Voz o Crear Voz Personalizada
+                        </h3>
+                      </div>
+                      <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">
+                        Graba 15 seg con tu micrófono (o sube un audio) para clonar tu timbre a 24kHz y usarlo en{' '}
+                        <strong className="text-[#c7f303]">Alex (Host 1)</strong>,{' '}
+                        <strong className="text-purple-300">Sam (Host 2)</strong> o locución individual.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsVoiceCloneModalOpen(true)}
+                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-[#c7f303] hover:bg-[#d8ff2a] text-[#0e1300] text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shrink-0"
+                    >
+                      <MicVocal className="w-4 h-4" />
+                      <span>
+                        🧬 Clonar mi Voz / Crear Voz IA
+                        {clonedVoices.length > 0 ? ` (${clonedVoices.length})` : ''}
+                      </span>
+                    </button>
+                  </div>
+
+                  {clonedVoices.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800/90 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-extrabold text-[#c7f303] mr-1">
+                        Tus voces clonadas:
+                      </span>
+                      {clonedVoices.map((cv) => (
+                        <div
+                          key={cv.id}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/95 border border-[#c7f303]/35 text-[10px] text-white"
+                        >
+                          <span className="font-extrabold text-[#c7f303]">{cv.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMultiSpeaker(true);
+                              setSpeaker1Voice(cv.id);
+                              setStatusBanner({
+                                type: 'success',
+                                text: `🎙️ Voz clonada "${cv.name}" asignada a Alex (Host 1).`,
+                              });
+                            }}
+                            className={cn(
+                              'px-1.5 py-0.5 rounded font-bold transition cursor-pointer',
+                              multiSpeaker && speaker1Voice === cv.id
+                                ? 'bg-teal-500 text-slate-950'
+                                : 'bg-teal-500/15 hover:bg-teal-500/30 text-teal-300',
+                            )}
+                            title="Asignar esta voz clonada a Alex (Host 1)"
+                          >
+                            Alex
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMultiSpeaker(true);
+                              setSpeaker2Voice(cv.id);
+                              setStatusBanner({
+                                type: 'success',
+                                text: `🎧 Voz clonada "${cv.name}" asignada a Sam (Host 2).`,
+                              });
+                            }}
+                            className={cn(
+                              'px-1.5 py-0.5 rounded font-bold transition cursor-pointer',
+                              multiSpeaker && speaker2Voice === cv.id
+                                ? 'bg-purple-400 text-slate-950'
+                                : 'bg-purple-500/15 hover:bg-purple-500/30 text-purple-300',
+                            )}
+                            title="Asignar esta voz clonada a Sam (Host 2)"
+                          >
+                            Sam
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleAuditionVoice(cv.id, e)}
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold transition cursor-pointer"
+                            title="Escuchar muestra 24kHz de esta voz clonada"
+                          >
+                            ▶ Oír
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteClonedVoice(cv.id, e)}
+                            className="text-rose-400 hover:text-rose-300 px-1 cursor-pointer"
+                            title="Eliminar voz clonada"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {multiSpeaker ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
@@ -6747,14 +7259,35 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             onChange={(e) => setSpeaker1Voice(e.target.value)}
                             className="w-full bg-slate-800/90 border border-teal-500/40 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer"
                           >
-                            {(activeModelObj?.supportedVoices || []).map((vId) => {
-                              const vObj = voices.find((v) => v.id === vId);
-                              return (
-                                <option key={vId} value={vId} className="bg-slate-900 text-white">
-                                  {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
-                                </option>
-                              );
-                            })}
+                            {clonedVoices.length > 0 && (
+                              <optgroup
+                                label="🧬 Mis Voces Clonadas y Personalizadas (Gemini 3.8)"
+                                className="bg-slate-950 text-[#c7f303]"
+                              >
+                                {clonedVoices.map((cv) => (
+                                  <option
+                                    key={cv.id}
+                                    value={cv.id}
+                                    className="bg-slate-900 text-white"
+                                  >
+                                    {cv.name} ({cv.gender} - {cv.tone})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            <optgroup
+                              label="🎙️ 14 Voces Neurales de Estudio Gemini 24kHz"
+                              className="bg-slate-950 text-teal-300"
+                            >
+                              {(activeModelObj?.supportedVoices || []).map((vId) => {
+                                const vObj = voices.find((v) => v.id === vId);
+                                return (
+                                  <option key={vId} value={vId} className="bg-slate-900 text-white">
+                                    {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
                           </select>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-snug">
@@ -6795,14 +7328,35 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             onChange={(e) => setSpeaker2Voice(e.target.value)}
                             className="w-full bg-slate-800/90 border border-purple-500/40 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500/30 cursor-pointer"
                           >
-                            {(activeModelObj?.supportedVoices || []).map((vId) => {
-                              const vObj = voices.find((v) => v.id === vId);
-                              return (
-                                <option key={vId} value={vId} className="bg-slate-900 text-white">
-                                  {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
-                                </option>
-                              );
-                            })}
+                            {clonedVoices.length > 0 && (
+                              <optgroup
+                                label="🧬 Mis Voces Clonadas y Personalizadas (Gemini 3.8)"
+                                className="bg-slate-950 text-[#c7f303]"
+                              >
+                                {clonedVoices.map((cv) => (
+                                  <option
+                                    key={cv.id}
+                                    value={cv.id}
+                                    className="bg-slate-900 text-white"
+                                  >
+                                    {cv.name} ({cv.gender} - {cv.tone})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            <optgroup
+                              label="🎙️ 14 Voces Neurales de Estudio Gemini 24kHz"
+                              className="bg-slate-950 text-purple-300"
+                            >
+                              {(activeModelObj?.supportedVoices || []).map((vId) => {
+                                const vObj = voices.find((v) => v.id === vId);
+                                return (
+                                  <option key={vId} value={vId} className="bg-slate-900 text-white">
+                                    {vId} ({vObj?.gender || 'Voz'} - {vObj?.tone || 'Natural'})
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
                           </select>
                         </div>
                         <p className="text-[10px] text-slate-400 leading-snug">
@@ -10599,6 +11153,443 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================
+          MODAL DE CLONACIÓN DE VOZ & DISEÑO VOCAL (GEMINI 3.8 VOICES API)
+         ======================================================================== */}
+      {isVoiceCloneModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-3xl bg-slate-950 border border-[#c7f303]/45 shadow-2xl p-5 sm:p-6 space-y-4 text-white max-h-[92vh] overflow-y-auto">
+            {/* Cabecera del Modal */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-[#c7f303]/20 border border-[#c7f303]/50 flex items-center justify-center text-[#c7f303] shrink-0">
+                  <MicVocal className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      🧬 Estudio de Clonación de Voz & Diseño Vocal (Gemini 3.8)
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] text-[10px] font-black uppercase">
+                      24 kHz PCM WAV
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Clona tu propia voz real con micrófono (`Voice Replication`) o diseña una voz única por descripción (`Voice Design`) para tus episodios de Somos SST Daily.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (recordingTarget) stopMicRecording();
+                  setIsVoiceCloneModalOpen(false);
+                }}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Selector de Modalidad: Clonar mi Voz Real vs Diseñar Voz por Prompt */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setVoiceCloneMode('replicated')}
+                className={cn(
+                  'px-4 py-2.5 rounded-xl text-left transition cursor-pointer flex items-center gap-2.5',
+                  voiceCloneMode === 'replicated'
+                    ? 'bg-[#c7f303] text-[#0e1300] font-black shadow-md'
+                    : 'text-slate-300 hover:bg-slate-800 font-bold',
+                )}
+              >
+                <MicVocal className="w-4 h-4 shrink-0" />
+                <div>
+                  <div className="text-xs">🎙️ Clonar mi Propia Voz Real</div>
+                  <div
+                    className={cn(
+                      'text-[10px]',
+                      voiceCloneMode === 'replicated' ? 'text-[#0e1300]/80' : 'text-slate-400',
+                    )}
+                  >
+                    Graba 10-30s con micrófono o sube audio WAV/MP3
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceCloneMode('prompted')}
+                className={cn(
+                  'px-4 py-2.5 rounded-xl text-left transition cursor-pointer flex items-center gap-2.5',
+                  voiceCloneMode === 'prompted'
+                    ? 'bg-[#c7f303] text-[#0e1300] font-black shadow-md'
+                    : 'text-slate-300 hover:bg-slate-800 font-bold',
+                )}
+              >
+                <Wand2 className="w-4 h-4 shrink-0" />
+                <div>
+                  <div className="text-xs">✨ Diseñar Voz desde Cero (Prompt)</div>
+                  <div
+                    className={cn(
+                      'text-[10px]',
+                      voiceCloneMode === 'prompted' ? 'text-[#0e1300]/80' : 'text-slate-400',
+                    )}
+                  >
+                    Sin micrófono • Describe acento, edad y timbre
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Datos Básicos de la Voz Personalizada */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] mb-1">
+                  🏷️ Nombre de tu Voz:
+                </label>
+                <input
+                  type="text"
+                  value={cloneDisplayName}
+                  onChange={(e) => setCloneDisplayName(e.target.value)}
+                  placeholder="Ej: Mi Voz (Félix SST)"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-teal-300 mb-1">
+                  🚻 Registro Vocal:
+                </label>
+                <select
+                  value={cloneGender}
+                  onChange={(e) => setCloneGender(e.target.value as 'Masculino' | 'Femenino')}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-teal-400 cursor-pointer"
+                >
+                  <option value="Masculino">♂ Masculino (Host / Especialista)</option>
+                  <option value="Femenino">♀ Femenino (Host / Especialista)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-purple-300 mb-1">
+                  🌎 Idioma / Acento Base:
+                </label>
+                <select
+                  value={cloneLanguageCode}
+                  onChange={(e) => setCloneLanguageCode(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-400 cursor-pointer"
+                >
+                  <option value="es-CO">🇨🇴 Español (Colombia / Latino)</option>
+                  <option value="es-US">🌎 Español (Neutro Internacional)</option>
+                  <option value="es-MX">🇲🇽 Español (México)</option>
+                  <option value="es-ES">🇪🇸 Español (España)</option>
+                  <option value="en-US">🇺🇸 Inglés (US)</option>
+                </select>
+              </div>
+            </div>
+
+            {voiceCloneMode === 'replicated' ? (
+              <div className="space-y-3">
+                {/* Paso 1: Audio de Referencia (10 a 30 seg) */}
+                <div className="p-4 rounded-2xl bg-slate-900/90 border border-teal-500/35 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-teal-300">
+                      1️⃣ Muestra de tu Voz Real (10 a 30 segundos)
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Auto-conversión a WAV Mono 24kHz 16-bit
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
+                    <strong className="text-[#c7f303]">📖 Texto sugerido para leer al grabar:</strong>{' '}
+                    &ldquo;Hola, bienvenidos a un nuevo episodio de Somos SST Daily. Hoy hablaremos sobre cómo proteger la vida y la salud de todo nuestro equipo en planta mediante la prevención inteligente y el liderazgo seguro.&rdquo;
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        recordingTarget === 'source'
+                          ? stopMicRecording()
+                          : startMicRecording('source')
+                      }
+                      className={cn(
+                        'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-sm',
+                        recordingTarget === 'source'
+                          ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                          : 'bg-teal-500 hover:bg-teal-400 text-slate-950',
+                      )}
+                    >
+                      <MicVocal className="w-4 h-4" />
+                      <span>
+                        {recordingTarget === 'source'
+                          ? `⏹ Detener Grabación (${recordingSeconds}s / 30s)`
+                          : '🔴 Grabar Muestra con mi Micrófono'}
+                      </span>
+                    </button>
+
+                    <label className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition flex items-center gap-2 cursor-pointer">
+                      <Upload className="w-3.5 h-3.5 text-[#c7f303]" />
+                      <span>Subir Archivo (.wav, .mp3, .m4a)</span>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handleUploadCloneAudioFile('source', e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  {sourceAudioData && (
+                    <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-emerald-300">
+                        ✓ {sourceAudioData.label}
+                      </span>
+                      <audio
+                        src={sourceAudioData.previewUrl}
+                        controls
+                        className="h-8 max-w-[240px]"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Paso 2: Audio de Consentimiento Biométrico (Opcional / Recomendado para /v1beta/voices) */}
+                <div className="p-4 rounded-2xl bg-slate-900/90 border border-purple-500/35 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-300">
+                      2️⃣ Grabación de Consentimiento Biométrico (Verificación Google)
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Si lo omites, se usará tu muestra del Paso 1
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
+                    <strong className="text-purple-300">🔒 Frase oficial de consentimiento:</strong>{' '}
+                    &ldquo;Yo soy el propietario de esta voz y autorizo expresamente a Google Gemini y WAPPY Podcast IA a crear una versión sintética de mi voz.&rdquo;
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        recordingTarget === 'consent'
+                          ? stopMicRecording()
+                          : startMicRecording('consent')
+                      }
+                      className={cn(
+                        'px-3.5 py-1.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer',
+                        recordingTarget === 'consent'
+                          ? 'bg-rose-600 text-white animate-pulse'
+                          : 'bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-200',
+                      )}
+                    >
+                      <MicVocal className="w-3.5 h-3.5" />
+                      <span>
+                        {recordingTarget === 'consent'
+                          ? `⏹ Detener Consentimiento (${recordingSeconds}s)`
+                          : '🎙️ Grabar Consentimiento'}
+                      </span>
+                    </button>
+
+                    <label className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-300 transition flex items-center gap-1.5 cursor-pointer">
+                      <Upload className="w-3.5 h-3.5 text-purple-300" />
+                      <span>Subir Audio Consentimiento</span>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handleUploadCloneAudioFile('consent', e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  {consentAudioData && (
+                    <div className="p-2 rounded-xl bg-purple-950/40 border border-purple-500/40 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-purple-200">
+                        ✓ {consentAudioData.label}
+                      </span>
+                      <audio
+                        src={consentAudioData.previewUrl}
+                        controls
+                        className="h-8 max-w-[240px]"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Modo de Almacenamiento Stateful vs Stateless */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+                  <span className="font-bold text-slate-300">
+                    🔐 Modo de Almacenamiento en Gemini Voices API:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCloneStoreMode(true)}
+                      className={cn(
+                        'px-3 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer',
+                        cloneStoreMode
+                          ? 'bg-[#c7f303]/20 border-[#c7f303] text-[#c7f303]'
+                          : 'bg-slate-900 border-slate-700 text-slate-400',
+                      )}
+                    >
+                      Persistente (`store=true` • 1 año)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCloneStoreMode(false)}
+                      className={cn(
+                        'px-3 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer',
+                        !cloneStoreMode
+                          ? 'bg-[#c7f303]/20 border-[#c7f303] text-[#c7f303]'
+                          : 'bg-slate-900 border-slate-700 text-slate-400',
+                      )}
+                    >
+                      Llave Encriptada Local (`store=false` • 7 días)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Pestaña 2: Diseñar Voz desde Cero por Prompt */
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-teal-500/35 space-y-3">
+                <label className="block text-xs font-black uppercase tracking-wider text-[#c7f303]">
+                  ✨ Describe cómo quieres que suene tu Voz Personalizada (`type=&quot;prompted&quot;`):
+                </label>
+                <textarea
+                  rows={3}
+                  value={clonePromptText}
+                  onChange={(e) => setClonePromptText(e.target.value)}
+                  placeholder="Ej: Locutor colombiano de 38 años con acento paisa cálido, voz firme de radio, ritmo ágil y cercano para charlas de seguridad en planta..."
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-[#c7f303]"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    {
+                      label: '+ Host Paisa Cálido SST',
+                      text: 'Locutor colombiano de 35 años con acento paisa cálido, voz barítono cercana, entusiasta y muy natural para podcast.',
+                    },
+                    {
+                      label: '+ Especialista Bogotana Ejecutiva',
+                      text: 'Ingeniera colombiana de 34 años con dicción impecable, tono cálido, seguro y pedagógico para explicar normas SST.',
+                    },
+                    {
+                      label: '+ Narrador Documental Profundo',
+                      text: 'Voz masculina grave y cinematográfica estilo documental de investigación de accidentes industriales, pausada y envolvente.',
+                    },
+                  ].map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => setClonePromptText(p.text)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-teal-500/20 border border-slate-700 text-[10px] font-bold text-slate-300 hover:text-teal-200 transition cursor-pointer"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Resultado recién clonado con preescucha y asignación en 1 clic */}
+            {lastClonedResult && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-teal-950/70 border border-[#c7f303]/60 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-black text-[#c7f303] flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>¡Voz Lista!: {lastClonedResult.voice.name}</span>
+                      <span className="font-mono text-[10px] text-teal-300">
+                        ({lastClonedResult.voice.id})
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      {lastClonedResult.voice.recommendedFor}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMultiSpeaker(true);
+                        setSpeaker1Voice(lastClonedResult.voice.id);
+                        setIsVoiceCloneModalOpen(false);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-[11px] font-black cursor-pointer"
+                    >
+                      🎙️ Usar en Alex (Host 1)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMultiSpeaker(true);
+                        setSpeaker2Voice(lastClonedResult.voice.id);
+                        setIsVoiceCloneModalOpen(false);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-purple-400 hover:bg-purple-300 text-slate-950 text-[11px] font-black cursor-pointer"
+                    >
+                      🎧 Usar en Sam (Host 2)
+                    </button>
+                  </div>
+                </div>
+                {lastClonedResult.sampleAudioBase64 && (
+                  <audio
+                    src={`data:audio/wav;base64,${lastClonedResult.sampleAudioBase64}`}
+                    controls
+                    autoPlay
+                    className="w-full h-9"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Pie del Modal: Botón Principal de Clonación */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  if (recordingTarget) stopMicRecording();
+                  setIsVoiceCloneModalOpen(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
+              >
+                Cerrar
+              </button>
+
+              <button
+                type="button"
+                disabled={isCloningVoice}
+                onClick={handleExecuteVoiceClone}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#c7f303] via-lime-400 to-emerald-400 hover:brightness-110 disabled:opacity-60 text-[#0e1300] text-xs font-black uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-lg"
+              >
+                {isCloningVoice ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Clonando Voz y Sintetizando Muestra 24kHz...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>
+                      {voiceCloneMode === 'replicated'
+                        ? '🧬 Clonar mi Voz Ahora y Generar Muestra 24kHz'
+                        : '✨ Crear Voz Personalizada y Generar Muestra 24kHz'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

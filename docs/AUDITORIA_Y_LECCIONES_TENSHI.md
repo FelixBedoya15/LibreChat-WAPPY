@@ -891,3 +891,28 @@ Antes de dar por finalizada cualquier tarea relacionada con Tenshi, la voz o el 
   4. **Paso 4 — Reemplazo Único de la Burbuja en Vivo y Persistencia Sincronizada (`TenshiChat.tsx` + `TenshiMessage` + `/api/tenshi/transcribe-dictation`):**
      - Reemplaza en sitio la burbuja del usuario (`replaceLastUserBubble: true`), protege las burbujas `isLiveVoice` activas durante el polling de 3.5s de `historyData`, y espera (`await`) la transcripción multimodal antes de guardar `TenshiMessage` en MongoDB.
      - Además, expone el endpoint `POST /api/tenshi/transcribe-dictation` en `api/server/routes/tenshi.js`.
+
+---
+
+### LECCIÓN 35 (2026-10-31): Modo Arquitecta de Agentes IA — Entrevista Interactiva Paso a Paso por los 9 Puntos y Herramientas Dedicadas (`wappy_crear_agente`, `wappy_actualizar_agente`, `wappy_eliminar_agente`, `wappy_consultar_agentes_y_automatizaciones`)
+
+- **Requerimiento del Usuario:**
+  > *"quiero saber si tenshi tiene la capacidad para crear agentes y solicitarme que quiero en cada punto de esto ... si"*
+- **Diagnóstico:**
+  - Aunque las rutas backend (`POST /api/sgsst/mcp-bridge/agentes`, `PUT /agentes/:id`, `DELETE /agentes/:id`) ya existían en `mcpBridge.js` y `tenshiMcpDispatcher.js`, `wappy_crear_agente` estaba anidada dentro de `wappy_mcp_sst` con parámetros genéricos y Tenshi carecía de un protocolo de entrevista paso a paso, por lo que creaba el agente de inmediato con valores por defecto sin preguntarle al usuario qué deseaba en cada uno de los 9 apartados.
+- **Solución Implementada (`voiceSession.js` + `tenshi.js`):**
+  1. **Herramientas Dedicadas de Primer Nivel (`wappy_crear_agente`, `wappy_actualizar_agente`, `wappy_eliminar_agente`, `wappy_consultar_agentes_y_automatizaciones`):**
+     - Expuestas directamente tanto en el esquema de Gemini Live (`voiceSession.js`) como en el motor de chat de texto (`tenshi.js`) con los **9 puntos tipados explícitamente**:
+       1. `name` (Nombre del agente)
+       2. `description` (Descripción breve / Especialidad)
+       3. `category` (`sgsst`, `legal`, `medicina`, `general`)
+       4. `instructions` (Instrucciones del sistema / System Prompt)
+       5. `model` y `temperature` (`gemini-3.5-flash-lite` / `gemini-3.6-flash` / `gemini-3.8-flash`, temp `0.2`)
+       6. `tools` / `incluirTodasLasHerramientas` (`["todas"]` = las 63 herramientas: 20 de WAPPY SST + 8 de Google Workspace/Antigravity/Flow + 35 de NotebookLM, o selección puntual)
+       7. `skills` (`["todas"]` o lista de IDs en `api/config/skills`)
+       8. `conversation_starters` (Frases iniciadoras sugeridas al abrir el chat)
+       9. `avatar_url` y `agent_ids` (Avatar e IDs de subagentes encadenados)
+  2. **Protocolo de Entrevista Paso a Paso (Modo Arquitecta de Agentes):**
+     - Cuando el usuario pide crear un agente sin haber especificado los puntos, Tenshi **no invoca `wappy_crear_agente` a ciegas**: guía al usuario paso a paso solicitándole qué desea en cada punto (y ofreciéndole sugerencias expertas en cada paso si dice *"sugiérelo tú"* o *"ponle todas"*).
+  3. **Tarjeta Resumen Persistente en `TenshiMessage`:**
+     - Al crear o actualizar un agente en modo voz (`voiceSession.js`), se guarda automáticamente en `TenshiMessage` una tarjeta estructurada con los 9 puntos configurados del agente.
