@@ -333,12 +333,18 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
     }
 
     const bodyWords = bodyText.split(/\s+/).filter(Boolean);
+    const cleanWordSlice = (arr) =>
+      arr
+        .join(' ')
+        .replace(/^[,;:.!?-]+|[,;:.!?-]+$/g, '')
+        .trim();
+    const leadCount = Math.min(3, Math.max(1, Math.ceil(Math.min(bodyWords.length, 6) * 0.5)));
     const defaultTitleBefore = stepPrefix
-      ? `${idx}. ${bodyWords.slice(0, 2).join(' ')}`
-      : bodyWords.slice(0, Math.min(3, Math.max(1, Math.floor(bodyWords.length * 0.25)))).join(' ');
+      ? `${idx}. ${cleanWordSlice(bodyWords.slice(0, 2))}`
+      : cleanWordSlice(bodyWords.slice(0, leadCount));
     const defaultTitleHighlight = stepPrefix
-      ? bodyWords.slice(2, Math.min(5, bodyWords.length)).join(' ') || stepPrefix
-      : bodyWords.slice(-Math.min(3, bodyWords.length)).join(' ').replace(/[.,;:!?]+$/, '');
+      ? cleanWordSlice(bodyWords.slice(2, Math.min(6, bodyWords.length))) || stepPrefix
+      : cleanWordSlice(bodyWords.slice(leadCount, Math.min(leadCount + 4, bodyWords.length))) || 'WAPPY IA';
 
     let customTitleBefore = stepMeta?.titleBefore || '';
     let customTitleHighlight = stepMeta?.titleHighlight || '';
@@ -1169,10 +1175,7 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
     bodyBgColor = '#040b0d';
   }
 
-  const customLime =
-    typeof options.accentColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(options.accentColor.trim())
-      ? options.accentColor.trim()
-      : '#c7f303';
+  const customLime = '#c7f303';
   const customCssBlock = options.customCss ? `\n/* Custom Studio AI Edits */\n${options.customCss}\n` : '';
 
   const scenesMarkup = scenePlan.map((sc, idx) => renderSceneMarkup(sc, idx)).join('\n');
@@ -1338,9 +1341,9 @@ html, body {
   transform-origin: center center;
 }
 
-/* TERCIO SUPERIOR (y: 52 - 325) — TIPOGRAFÍA GIGANTE MÓVIL XL */
+/* TERCIO SUPERIOR (y: 40 - 300) — TIPOGRAFÍA GIGANTE MÓVIL XL */
 .header-box {
-  position: absolute; top: 52px; left: 38px; right: 38px;
+  position: absolute; top: 40px; left: 40px; right: 40px;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   z-index: 20;
 }
@@ -1363,7 +1366,7 @@ html, body {
 .title-hero {
   font-size: 64px; font-weight: 900; line-height: 1.06;
   letter-spacing: -0.03em; color: #ffffff;
-  max-width: 1000px;
+  max-width: min(1360px, 100%);
   text-shadow: 0 4px 22px rgba(0,0,0,0.85);
 }
 .hl-lime {
@@ -1387,14 +1390,14 @@ html, body {
 .sub-hero {
   font-size: 28px; font-weight: 700; line-height: 1.24;
   color: #e2e8f0; margin-top: 10px;
-  max-width: 960px;
+  max-width: min(1260px, 100%);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   text-shadow: 0 2px 12px rgba(0,0,0,0.7);
 }
 
-/* TERCIO MEDIO (y: 335 - 1185) — ESCENARIO DINÁMICO 60 FPS */
+/* TERCIO MEDIO — ESCENARIO DINÁMICO 60 FPS */
 .middle-container {
-  position: absolute; top: 335px; left: 35px; right: 35px; height: 845px;
+  position: absolute; top: 265px; left: 40px; right: 40px; height: 845px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   z-index: 15;
 }
@@ -1416,7 +1419,7 @@ html, body {
 
 /* ARQUETIPO 1: HOOK VS + HEADLINE WALL */
 .hook-box {
-  width: 1000px; display: flex; flex-direction: column; gap: 24px; margin-top: -32px;
+  width: min(1340px, 100%); display: flex; flex-direction: column; gap: 24px; margin-top: -16px;
 }
 .hook-card {
   padding: 28px 32px; border-radius: 28px;
@@ -1444,8 +1447,8 @@ html, body {
   font-family: var(--mono); font-size: 21px; font-weight: 900; flex-shrink: 0;
 }
 .headline-wall-wrap {
-  position: absolute; bottom: 16px; left: -80px; right: -80px;
-  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  position: absolute; bottom: 16px; left: -40px; right: -40px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
   transform: rotate(-1.5deg); z-index: 5; opacity: 0.92;
 }
 .headline-track {
@@ -1463,7 +1466,7 @@ html, body {
 
 /* ARQUETIPO 2: IPHONE 3D SPLIT SHOWCASE */
 .split-showcase {
-  width: 1005px; display: flex; align-items: center; gap: 26px;
+  width: min(1340px, 100%); display: flex; align-items: center; justify-content: center; gap: 26px;
 }
 .iphone-frame {
   width: 400px; height: 745px; border-radius: 52px;
@@ -1550,7 +1553,7 @@ html, body {
 
 /* ARQUETIPO 4: MOTOR ANALÍTICO & CHART GROW */
 .formula-banner {
-  width: 1005px; padding: 18px 28px; border-radius: 22px;
+  width: min(1340px, 100%); padding: 18px 28px; border-radius: 22px;
   background: linear-gradient(90deg, rgba(6, 182, 212, 0.25) 0%, rgba(199, 243, 3, 0.22) 100%);
   border: 2px solid var(--w-cyan-bright);
   display: flex; align-items: center; justify-content: space-between;
@@ -1647,7 +1650,7 @@ html, body {
 
 /* ARQUETIPO 6: TENSHI & ESPECIALISTAS GRID */
 .especialistas-box {
-  width: 1000px; display: flex; flex-direction: column; gap: 20px; perspective: 1200px;
+  width: min(1340px, 100%); display: flex; flex-direction: column; gap: 20px; perspective: 1200px;
 }
 .tenshi-header-card {
   padding: 24px 30px; border-radius: 28px;
@@ -1692,7 +1695,7 @@ html, body {
 
 /* ARQUETIPO 7: CTA VIRAL CON BURBUJAS SOCIALES */
 .cta-box {
-  width: 990px; padding: 34px 40px; border-radius: 36px;
+  width: min(1320px, 100%); padding: 34px 40px; border-radius: 36px;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   background: rgba(7, 13, 28, 0.96);
   border: 3px solid var(--w-lime);
@@ -1746,13 +1749,15 @@ html, body {
   display: flex; align-items: center; gap: 14px;
 }
 
-/* TERCIO INFERIOR (y: 1185 - 1920) — AVATAR MINECRAFT VOXEL 3D EN THREE.JS */
+/* TERCIO INFERIOR — AVATAR MINECRAFT VOXEL 3D EN THREE.JS */
 #avatar-host-container {
   position: absolute;
-  left: 180px;
-  top: 1175px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -22px;
+  top: auto;
   width: 720px;
-  height: 760px;
+  height: 750px;
   pointer-events: none;
   z-index: 30;
   background: transparent;
@@ -1772,7 +1777,7 @@ html[data-aspect-ratio="16:9"] .middle-container {
   top: 215px; left: 60px; right: 500px; height: 810px;
 }
 html[data-aspect-ratio="16:9"] #avatar-host-container {
-  left: auto; right: -30px; top: 340px; width: 640px; height: 740px;
+  left: auto; right: -30px; top: 340px; bottom: auto; transform: none; width: 640px; height: 740px;
 }
 ${customCssBlock}
 </style>
@@ -1848,15 +1853,41 @@ ${voxelAvatarJs}
   var STAGE_W = ${stageW};
   var STAGE_H = ${stageH};
 
-  // Escalar el escenario automáticamente al viewport de cualquier pantalla o iframe
+  // Escalar el escenario automáticamente al viewport de cualquier pantalla o iframe sin franjas negras
   function fitStageToViewport() {
     var vp = document.getElementById('viewport');
     var st = document.getElementById('stage');
     if (!vp || !st) return;
     var w = vp.clientWidth || window.innerWidth || STAGE_W;
     var h = vp.clientHeight || window.innerHeight || STAGE_H;
-    var scale = Math.min(w / STAGE_W, h / STAGE_H);
-    st.style.transform = 'scale(' + scale.toFixed(5) + ')';
+    var vpRatio = w / Math.max(1, h);
+    var baseRatio = STAGE_W / STAGE_H;
+    st.style.scale = '';
+    if (STAGE_H > STAGE_W && vpRatio > baseRatio * 1.02) {
+      var adaptH = vpRatio > 0.78 ? 1640 : 1760;
+      var adaptW = Math.max(STAGE_W, Math.round(adaptH * vpRatio));
+      st.style.width = adaptW + 'px';
+      st.style.height = adaptH + 'px';
+      var sAdapt = h / adaptH;
+      st.style.transform = 'scale(' + sAdapt.toFixed(5) + ')';
+    } else if (vpRatio > baseRatio * 1.01) {
+      var dynW = Math.round(STAGE_H * vpRatio);
+      st.style.width = dynW + 'px';
+      st.style.height = STAGE_H + 'px';
+      var sH = h / STAGE_H;
+      st.style.transform = 'scale(' + sH.toFixed(5) + ')';
+    } else if (vpRatio < baseRatio * 0.99) {
+      var dynH = Math.round(STAGE_W / Math.max(0.1, vpRatio));
+      st.style.width = STAGE_W + 'px';
+      st.style.height = dynH + 'px';
+      var sW = w / STAGE_W;
+      st.style.transform = 'scale(' + sW.toFixed(5) + ')';
+    } else {
+      st.style.width = STAGE_W + 'px';
+      st.style.height = STAGE_H + 'px';
+      var scale = Math.min(w / STAGE_W, h / STAGE_H);
+      st.style.transform = 'scale(' + scale.toFixed(5) + ')';
+    }
   }
   window.addEventListener('resize', fitStageToViewport);
   fitStageToViewport();

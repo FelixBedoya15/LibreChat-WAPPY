@@ -3342,7 +3342,7 @@ function computeServerScriptTimelineMap(scriptText, totalDurationSeconds = 30) {
 }
 
 function postProcessGeneratedVideoHtml(rawHtml, timelineMap) {
-  let html = inlineWappyPublicAssetsInHtml(rawHtml);
+  let html = inlineWappyPublicAssetsInHtml(rawHtml, { inlineVendorScripts: true });
   // Corregir bug común de LLMs: subtitles.reverse() muta el arreglo en cada frame de GSAP onUpdate
   html = html.replace(/subtitles\.reverse\(\)/g, 'subtitles.slice().reverse()');
   // Si el HTML aún no tiene el helper de sincronización, inyectarlo

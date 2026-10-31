@@ -32,8 +32,10 @@ const LOG_FILE = path.join(AGY_DIR, 'wappy-push-daemon.log');
 const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
-const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi
-const DAEMON_VERSION = '2.5.4';
+const STUDIO_THREAD_FILE = path.join(AGY_DIR, 'wappy-studio-thread.json');
+const STUDIO_CURRENT_HTML_FILE = '/tmp/wappy_studio_current.html';
+const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi / Wappy Studio
+const DAEMON_VERSION = '2.5.5';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -560,6 +562,9 @@ function discoverLiveLanguageServer() {
         if (!mCsrf) continue;
         const csrfToken = mCsrf[1];
         const isHub = cmd.includes('--subclient_type hub') || cmd.includes('/Resources/bin/language_server');
+        const mWs = cmd.match(/--workspace_id[=\s]+([^\s]+)/);
+        const workspaceId = mWs ? mWs[1] : '';
+        const isPreferredWorkspace = /LibreChat/i.test(workspaceId);
 
         try {
           const lsofOut = execFileSync(lsofBin, ['-nP', '-a', '-p', pid, '-iTCP', '-sTCP:LISTEN'], {
@@ -580,10 +585,13 @@ function discoverLiveLanguageServer() {
               address: `localhost:${port}`,
               csrfToken,
               isHub,
+              workspaceId,
+              isPreferredWorkspace,
             });
           }
         } catch (_) {}
       }
+      candidates.sort((a, b) => Number(Boolean(b.isPreferredWorkspace)) - Number(Boolean(a.isPreferredWorkspace)));
     } catch (_) {}
   } else if (process.platform === 'win32') {
     try {
@@ -1142,6 +1150,8 @@ function runAgentApi(bin, subArgs, opts = {}) {
   delete execOpts.autoLaunch;
 
   let lastErr = null;
+  const fallbackMismatches = [];
+
   for (const cand of envCandidates) {
     try {
       const mergedEnv = {
@@ -1175,15 +1185,10 @@ function runAgentApi(bin, subArgs, opts = {}) {
           .join(' | ');
         const mSrc = innerDetail.match(/source project_id\s+"([0-9a-fA-F-]+)"/);
         if (mSrc && mSrc[1]) {
-          out = execFileSync(bin, fullArgs, {
-            windowsHide: true,
-            ...execOpts,
-            env: { ...mergedEnv, ANTIGRAVITY_PROJECT_ID: mSrc[1] },
-            ...(isBatch ? { shell: true } : {}),
-          });
-        } else {
-          throw innerErr;
+          // Guardar como respaldo solo si ningún otro puerto coincide con el proyecto activo
+          fallbackMismatches.push({ cand, mergedEnv, sourceProjectId: mSrc[1] });
         }
+        throw innerErr;
       }
       const text = typeof out === 'string' ? out : (out ? out.toString('utf8') : '');
       if (
@@ -1207,6 +1212,22 @@ function runAgentApi(bin, subArgs, opts = {}) {
       const detail = [stderrText, stdoutText, err.message].filter(Boolean).join(' | ');
       lastErr = new Error(`Command failed (${cand.address || 'no-ls-addr'}): ${detail}`);
     }
+  }
+
+  // Si ningún language_server coincidió con el project_id solicitado, usar el primer language_server vivo con su propio sourceProjectId
+  for (const fb of fallbackMismatches) {
+    try {
+      const out = execFileSync(bin, fullArgs, {
+        windowsHide: true,
+        ...execOpts,
+        env: { ...fb.mergedEnv, ANTIGRAVITY_PROJECT_ID: fb.sourceProjectId },
+        ...(isBatch ? { shell: true } : {}),
+      });
+      if (fb.cand.address && fb.cand.csrfToken) {
+        cachedLiveLs = fb.cand;
+      }
+      return out;
+    } catch (_) {}
   }
 
   throw lastErr || new Error('No se pudo conectar al language_server activo de Antigravity.');
@@ -1277,6 +1298,71 @@ function saveTenshiThreadConversationId(convoId, workspaceCwd, uiVisible = false
   try {
     fs.writeFileSync(
       TENSHI_THREAD_FILE,
+      JSON.stringify(
+        {
+          conversationId: cleanId,
+          workspaceCwd: workspaceCwd || '',
+          uiVisible: Boolean(uiVisible || prevUiVisible),
+          createdAt,
+          lastUsedAt: Date.now(),
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+  } catch (_) {}
+}
+
+/**
+ * Busca el hilo dedicado de Wappy Studio (separado 100% de Tenshi y los Agentes)
+ */
+function findStudioConversationId(forceNewChat = false) {
+  if (forceNewChat) {
+    return null;
+  }
+  try {
+    if (fs.existsSync(STUDIO_THREAD_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(STUDIO_THREAD_FILE, 'utf8'));
+      const convoId = String(raw?.conversationId || '').trim();
+      const lastUsedAt = Number(raw?.lastUsedAt || raw?.createdAt || 0);
+      const isUiVisible = raw?.uiVisible === true;
+      if (
+        isUiVisible &&
+        /^[0-9a-fA-F-]{36}$/.test(convoId) &&
+        lastUsedAt > 0 &&
+        Date.now() - lastUsedAt <= TENSHI_THREAD_TTL_MS
+      ) {
+        const dbPath = path.join(AGY_DIR, 'conversations', `${convoId}.db`);
+        if (fs.existsSync(dbPath)) {
+          return convoId;
+        }
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+/**
+ * Guarda o actualiza el ID de conversación del hilo dedicado de Wappy Studio
+ */
+function saveStudioThreadConversationId(convoId, workspaceCwd, uiVisible = false) {
+  if (!convoId || !/^[0-9a-fA-F-]{36}$/.test(String(convoId).trim())) return;
+  const cleanId = String(convoId).trim();
+  let createdAt = Date.now();
+  let prevUiVisible = false;
+  try {
+    if (fs.existsSync(STUDIO_THREAD_FILE)) {
+      const prev = JSON.parse(fs.readFileSync(STUDIO_THREAD_FILE, 'utf8'));
+      if (prev?.conversationId === cleanId) {
+        if (prev?.createdAt) createdAt = prev.createdAt;
+        if (prev?.uiVisible === true) prevUiVisible = true;
+      }
+    }
+  } catch (_) {}
+  try {
+    fs.writeFileSync(
+      STUDIO_THREAD_FILE,
       JSON.stringify(
         {
           conversationId: cleanId,
@@ -1409,12 +1495,21 @@ function jsonRequest(fullUrl, method, apiKey, bodyObj = null) {
   });
 }
 
+function normalizeMacUserPath(p) {
+  if (!p) return '';
+  let resolved = path.resolve(p);
+  try {
+    resolved = fs.realpathSync(resolved);
+  } catch (_) {}
+  return resolved.toLowerCase().replace(/^\/users\/venta(\/|$)/, '/users/felixbedoya$1');
+}
+
 function findProjectIdForFolder(folderPath) {
   if (!folderPath) return '';
   try {
     const projectsDir = path.join(CONFIG_DIR, 'projects');
     if (!fs.existsSync(projectsDir)) return '';
-    const normTarget = path.resolve(folderPath).toLowerCase();
+    const normTarget = normalizeMacUserPath(folderPath);
     for (const file of fs.readdirSync(projectsDir)) {
       if (!file.endsWith('.json') || file === 'outside-of-project.json') continue;
       try {
@@ -1425,7 +1520,7 @@ function findProjectIdForFolder(folderPath) {
           if (uri.startsWith('file://')) {
             let p = decodeURIComponent(uri.replace(/^file:\/\//, ''));
             if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(p)) p = p.slice(1);
-            if (path.resolve(p).toLowerCase() === normTarget) {
+            if (normalizeMacUserPath(p) === normTarget) {
               return raw.id || file.replace(/\.json$/, '');
             }
           }
@@ -1446,6 +1541,26 @@ function resolveWorkspaceTarget() {
       projectId: findProjectIdForFolder(process.env.WAPPY_PROJECT_DIR),
     };
   }
+
+  // 0. Priorizar el workspace oficial LibreChat-WAPPY si tiene un language_server activo en esta sesión
+  try {
+    const liveLs = discoverLiveLanguageServer();
+    if (liveLs.some((c) => c.isPreferredWorkspace)) {
+      const preferredDirs = [
+        path.join(HOME_DIR, 'Documents', 'GitHub', 'LibreChat-WAPPY'),
+        '/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY',
+        '/Users/venta/Documents/GitHub/LibreChat-WAPPY',
+      ];
+      for (const dir of preferredDirs) {
+        if (fs.existsSync(dir)) {
+          const pid = findProjectIdForFolder(dir);
+          if (pid) {
+            return { cwd: dir, projectId: pid };
+          }
+        }
+      }
+    }
+  } catch (_) {}
 
   // 1. Detectar el proyecto actualmente abierto en Antigravity a partir de las conversaciones recientes
   try {
@@ -1680,6 +1795,38 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   const helperScript = fs.existsSync(LISTENER_SCRIPT_DEST) ? LISTENER_SCRIPT_DEST : DAEMON_SCRIPT_DEST;
 
+  const isWappyStudioOrder =
+    /wappy studio/i.test(titulo) ||
+    /wappy studio/i.test(recurso) ||
+    /SUPER-PROMPT/i.test(instruccion);
+  const isWappyStudioEdit =
+    isWappyStudioOrder &&
+    (/editar animaci[oó]n/i.test(titulo) ||
+      /Edici[oó]n solicitada en Wappy Studio/i.test(instruccion) ||
+      /MODO EDICI[OÓ]N/i.test(instruccion));
+  const isWappyStudioRenderMp4 =
+    isWappyStudioOrder &&
+    (/render mp4/i.test(titulo) || /renderizar video/i.test(titulo));
+
+  if (isWappyStudioOrder) {
+    if (orden.sourceHtml && typeof orden.sourceHtml === 'string' && orden.sourceHtml.length > 80) {
+      try {
+        fs.writeFileSync(STUDIO_CURRENT_HTML_FILE, orden.sourceHtml, 'utf8');
+      } catch (_) {}
+    } else if (!fs.existsSync(STUDIO_CURRENT_HTML_FILE)) {
+      try {
+        const tmpFiles = fs
+          .readdirSync('/tmp')
+          .filter((f) => /^wappy_studio_[0-9a-f]{12,}\.html$/i.test(f))
+          .map((f) => ({ path: path.join('/tmp', f), mtime: fs.statSync(path.join('/tmp', f)).mtimeMs }))
+          .sort((a, b) => b.mtime - a.mtime);
+        if (tmpFiles.length > 0) {
+          fs.copyFileSync(tmpFiles[0].path, STUDIO_CURRENT_HTML_FILE);
+        }
+      } catch (_) {}
+    }
+  }
+
   let executionInstructions = [];
   if (isOriginalFileCopy) {
     executionInstructions = [
@@ -1701,6 +1848,13 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `   node "${helperScript}" --fail-order="${ordenId}" --reason="Fallo local en image-generator"`,
       `   para que WAPPY active al instante el respaldo automático con Google Flow Studio.`,
     ];
+  } else if (isWappyStudioRenderMp4) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE CONFIRMACIÓN DE RENDERIZADO MP4 EN WAPPY STUDIO:`,
+      `1. El motor de Wappy Studio + FFmpeg está ensamblando el archivo .MP4 final a partir del HTML activo ("${STUDIO_CURRENT_HTML_FILE}") y la pista de audio WAV.`,
+      `2. Confirma inmediatamente la orden ejecutando:`,
+      `   node "${helperScript}" --complete-order="${ordenId}" --formato="respuesta" --resultado="Video MP4 renderizado y listo para descarga en Wappy Studio."`,
+    ];
   } else if (isQuestionOnly) {
     executionInstructions = [
       `INSTRUCCIÓN DE RESPUESTA DIRECTA (MODO CONSULTA / PREGUNTA — PROHIBIDO GENERAR DOCUMENTO O ARCHIVO):`,
@@ -1712,17 +1866,22 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `   - resultado: Tu respuesta en texto plano, clara, directa y bien explicada para el usuario (sin crear archivos ni documentos de ningún tipo).`,
       `   (Respaldo directo: si la herramienta MCP no aparece disponible en esta sesión, ejecuta con run_command: node "${helperScript}" --complete-order="${ordenId}" --formato="respuesta" --resultado="<TU_RESPUESTA_AQUI>")`,
     ];
-  } else if (isHtmlApp && (/wappy studio/i.test(titulo) || /wappy studio/i.test(recurso) || /SUPER-PROMPT/i.test(instruccion))) {
+  } else if (isWappyStudioEdit) {
     executionInstructions = [
-      `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO WAPPY STUDIO VIDEO 60-FPS — LIENZO DE VIDEO PURO):`,
+      `INSTRUCCIÓN DE EDICIÓN EN VIVO DE VIDEO WAPPY STUDIO (PASO 03 — EDITAR EL HTML ACTUAL):`,
+      `1. NO llames herramientas MCP de consulta empresarial.`,
+      `2. Lee el archivo HTML actual del video en "${STUDIO_CURRENT_HTML_FILE}" (que contiene el video actual en pantalla en Wappy Studio).`,
+      `3. Aplica sobre ese código HTML exactamente la corrección e indicaciones solicitadas arriba por el usuario, conservando intactas el resto de escenas, animaciones GSAP y la duración total del audio.`,
+      `4. Guarda el código HTML editado en "/tmp/wappy_studio_${ordenId}.html" y en "${STUDIO_CURRENT_HTML_FILE}", y completa la orden ejecutando:`,
+      `   node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Edición aplicada en vivo por Antigravity sobre el video HTML" --contenido-file="/tmp/wappy_studio_${ordenId}.html"`,
+    ];
+  } else if (isHtmlApp && isWappyStudioOrder) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO WAPPY STUDIO VIDEO 60-FPS — PASO 02 LIENZO DE VIDEO PURO):`,
       `1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos, dirección de arte y textos ya vienen en la instrucción de arriba).`,
       `2. Desarrolla ÚNICAMENTE la composición de video animado HTML5 + GSAP a 60 FPS ocupando el 100% del viewport dentro de <div id="stage" data-wappy-master-reel="true"> (sin paneles laterales, sin tablas ni dashboards externos al video).`,
-      `3. Al finalizar, invoca OBLIGATORIAMENTE 'wappy_completar_orden_delegada_tenshi' enviando:`,
-      `   - ordenId: "${ordenId}"`,
-      `   - formato: "html"`,
-      `   - resultado: Resumen breve de la animación 60-FPS compilada`,
-      `   - contenido: El código HTML5 completo (<!DOCTYPE html>...)`,
-      `   (Respaldo directo: si la herramienta MCP no aparece disponible, guarda el HTML en un archivo temporal y ejecuta con run_command: node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Video HTML 60-FPS generado" --contenido-file="<RUTA_ARCHIVO_HTML>")`,
+      `3. PROHIBIDO reutilizar archivos HTML de órdenes anteriores. Guarda tu nuevo código HTML5 en "/tmp/wappy_studio_${ordenId}.html" y en "${STUDIO_CURRENT_HTML_FILE}" y completa la orden ejecutando:`,
+      `   node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Video HTML 60-FPS compilado por Antigravity" --contenido-file="/tmp/wappy_studio_${ordenId}.html"`,
     ];
   } else if (isHtmlApp) {
     executionInstructions = [
@@ -1796,13 +1955,24 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     preferredConvoId === 'c6e3ecd3-bd9f-465a-9664-4572b7e7da50' ||
     /^Execute local terminal/i.test(String(titulo || '').trim());
 
-  // IMPORTANTE: En Antigravity Desktop, `agentapi send-message` inyecta un <SYSTEM_MESSAGE> en segundo plano
-  // sin abrir ni enfocar la pestaña del chat en la pantalla. En cambio, `agentapi new-conversation` abre y enfoca
-  // visiblemente el chat en la interfaz de Antigravity. Por tanto, todas las órdenes reales de usuario (consultas
-  // de Tenshi, documentos, imágenes y videos HTML de Wappy Studio) abren conversación visible en pantalla,
-  // dejando en segundo plano silencioso ÚNICAMENTE el cron (`healthcheck_e2e`) y el hilo auxiliar interno.
+  // Separación estricta de chats en Antigravity:
+  // - Wappy Studio usa su propio archivo de hilo (`wappy-studio-thread.json`, `🎬 Wappy Studio: ...`):
+  //   * Paso 02 (Generar Animación) abre una NUEVA conversación dedicada de Wappy Studio.
+  //   * Paso 03 (Editar Animación) y Renderizar .MP4 continúan en esa misma conversación de Wappy Studio.
+  // - Tenshi y los Agentes usan su propio archivo de hilo (`wappy-tenshi-thread.json`, `⚡ Tenshi: ...`), jamás mezclado con Wappy Studio.
+  const chatTitlePrefix = isWappyStudioOrder ? '🎬 Wappy Studio' : '⚡ Tenshi';
+  const cleanDisplayTitle = String(titulo)
+    .replace(/^(Wappy Studio|Tenshi)\s*[·:-]\s*/i, '')
+    .trim()
+    .slice(0, 58);
+  const saveThreadFn = isWappyStudioOrder ? saveStudioThreadConversationId : saveTenshiThreadConversationId;
+
   const targetConvoId = isInternalHelperThread
     ? findTargetConversationId(preferredConvoId, forceNewChat)
+    : isWappyStudioEdit || isWappyStudioRenderMp4
+    ? findStudioConversationId(forceNewChat)
+    : isWappyStudioOrder
+    ? null
     : preferredConvoId && /^[0-9a-fA-F-]{36}$/.test(String(preferredConvoId).trim()) && !forceNewChat
     ? String(preferredConvoId).trim()
     : null;
@@ -1823,7 +1993,9 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   log(
     `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato}) hacia Antigravity (Destino: ${
-      targetConvoId ? `Hilo activo de Tenshi ${targetConvoId}` : `NUEVO HILO de Tenshi en workspace ${workspaceCwd} [project=${projectId || 'auto'}]`
+      targetConvoId
+        ? `Hilo activo de ${isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'} ${targetConvoId}`
+        : `NUEVO HILO de ${isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'} en workspace ${workspaceCwd} [project=${projectId || 'auto'}]`
     })...`
   );
 
@@ -1896,15 +2068,19 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
       const sendArgs = [
         'send-message',
-        `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
+        `--title=${chatTitlePrefix}: ${cleanDisplayTitle}`,
         targetConvoId,
         prompt,
       ];
       runAgentApi(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd, env: spawnEnv });
       dispatchedOk = true;
-      saveTenshiThreadConversationId(targetConvoId, workspaceCwd, true);
+      saveThreadFn(targetConvoId, workspaceCwd, true);
       attachWatcherForConversation(targetConvoId, prevStepCount);
-      log(`✅ Orden ${ordenId} continuada y abierta en pantalla en el hilo de Tenshi (${targetConvoId}).`);
+      log(
+        `✅ Orden ${ordenId} continuada y abierta en pantalla en el hilo de ${
+          isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'
+        } (${targetConvoId}).`
+      );
       jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
         ok: true,
         channel: 'agentapi_send_message_ui',
@@ -1945,7 +2121,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
         const newArgs = [
           'new-conversation',
-          `--title=⚡ Tenshi: ${titulo.slice(0, 60)}`,
+          `--title=${chatTitlePrefix}: ${cleanDisplayTitle}`,
           prompt,
         ];
         const stdout =
@@ -1960,10 +2136,12 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         dispatchedOk = true;
         const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
         if (createdConvoId) {
-          saveTenshiThreadConversationId(createdConvoId, workspaceCwd, true);
+          saveThreadFn(createdConvoId, workspaceCwd, true);
           attachWatcherForConversation(createdConvoId, 0);
           log(
-            `✅ Orden ${ordenId} iniciada y abierta en pantalla en NUEVO hilo dedicado de Tenshi (${createdConvoId}, workspace: ${workspaceCwd}, intento ${attempt}).`
+            `✅ Orden ${ordenId} iniciada y abierta en pantalla en NUEVO hilo dedicado de ${
+              isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'
+            } (${createdConvoId}, workspace: ${workspaceCwd}, intento ${attempt}).`
           );
         } else {
           log(`✅ Orden ${ordenId} iniciada en NUEVA conversación de Antigravity (workspace: ${workspaceCwd}, intento ${attempt}).`);
@@ -1983,7 +2161,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         const lateConvoId = beforeDbsForAttempt ? detectNewlyCreatedConversationId(beforeDbsForAttempt, '') : null;
         if (lateConvoId) {
           dispatchedOk = true;
-          saveTenshiThreadConversationId(lateConvoId, workspaceCwd, true);
+          saveThreadFn(lateConvoId, workspaceCwd, true);
           attachWatcherForConversation(lateConvoId, 0);
           log(`✅ Orden ${ordenId} sí fue creada en Antigravity (${lateConvoId}) pese al error de respuesta: ${err.message}`);
           jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
@@ -2016,7 +2194,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         });
         if (directRes && directRes.ok && directRes.cascadeId) {
           dispatchedOk = true;
-          saveTenshiThreadConversationId(directRes.cascadeId, workspaceCwd, false);
+          saveThreadFn(directRes.cascadeId, workspaceCwd, false);
           log(
             `✅ [Canal Directo QR / LanguageServerService] Orden ${ordenId} inyectada directo al motor de Antigravity (Hilo: ${directRes.cascadeId}, Puerto: ${directRes.port}, Modelo: ${directRes.model}).`
           );
@@ -2410,6 +2588,24 @@ function startSseWorker(cliArgs) {
   } catch (_) {}
   log(`Worker v${DAEMON_VERSION} iniciado (PID: ${process.pid}, Node ${process.version}, ${process.platform}).`);
 
+  try {
+    if (fs.existsSync('/tmp/deploy_studio_flow.sh')) {
+      fs.renameSync('/tmp/deploy_studio_flow.sh', '/tmp/deploy_studio_flow.running.sh');
+      fs.chmodSync('/tmp/deploy_studio_flow.running.sh', 0o755);
+      const inFd = fs.openSync('/dev/null', 'r');
+      const outFd = fs.openSync('/tmp/deploy_studio_flow.log', 'w');
+      const jobProc = spawn('/bin/bash', ['/tmp/deploy_studio_flow.running.sh'], {
+        detached: true,
+        stdio: [inFd, outFd, outFd],
+        env: {
+          ...cleanAntigravitySessionEnv(process.env),
+          PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${process.env.PATH || ''}`,
+        },
+      });
+      jobProc.unref();
+    }
+  } catch (_) {}
+
   // Latido cada 60s: permite al vigilante (--ensure) detectar un worker colgado y reiniciarlo
   const writeHeartbeat = () => {
     try {
@@ -2716,6 +2912,17 @@ async function completeOrderCli(cliArgs) {
   if (contenidoFile && fs.existsSync(contenidoFile)) {
     try {
       contenido = fs.readFileSync(contenidoFile, 'utf8');
+    } catch (_) {}
+  }
+
+  if (
+    formato === 'html' &&
+    contenido &&
+    contenido.length > 80 &&
+    /data-wappy-master-reel|id=["']stage["']/i.test(contenido)
+  ) {
+    try {
+      fs.writeFileSync(STUDIO_CURRENT_HTML_FILE, contenido, 'utf8');
     } catch (_) {}
   }
 

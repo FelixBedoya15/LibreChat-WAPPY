@@ -1730,7 +1730,7 @@ function buildDefaultHtmlComposition({
   }
 
   <!-- TOP HUD TÁCTICO WAPPY (Ecualizador + Insignia + Radar Holográfico) -->
-  <div id="header-hud" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-between gap-1.5 shrink-0 pt-1">
+  <div id="header-hud" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-xl' : 'max-w-3xl'} mx-auto flex items-center justify-between gap-1.5 shrink-0 pt-1">
     <div class="glass-card px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 min-w-0 max-w-[62%] border border-teal-500/30">
       <div class="flex items-end gap-0.5 h-3 shrink-0" id="hud-eq">
         <span class="eq-bar w-1 bg-cyan-400 rounded-full" style="height:60%"></span>
@@ -1756,7 +1756,7 @@ function buildDefaultHtmlComposition({
   </div>
 
   <!-- ESCENARIO MULTI-ESCENA SINCRONIZADO FRASE A FRASE CON LA VOZ -->
-  <div id="scenes-wrapper" class="relative z-10 my-auto w-full ${isVertical ? 'max-w-md min-h-[270px]' : 'max-w-2xl min-h-[210px]'} mx-auto flex-1 flex flex-col justify-center">
+  <div id="scenes-wrapper" class="relative z-10 my-auto w-full ${isVertical ? 'max-w-xl min-h-[270px]' : 'max-w-3xl min-h-[210px]'} mx-auto flex-1 flex flex-col justify-center">
     ${scenesHtml}
   </div>
 
@@ -2080,6 +2080,9 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 </script>`;
 
   const runtimeScript = `<style id="wappy-studio-bridge-styles">
+  :root {
+    --w-lime: #c7f303 !important;
+  }
   html, body {
     width: 100% !important;
     height: 100% !important;
@@ -2090,8 +2093,44 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
     box-sizing: border-box !important;
   }
   /* Ocultar contenedores de subtítulos o barras internas duplicadas para que solo domine la barra oficial de Wappy Studio */
-  #subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"], .bottom-control-deck {
+  #subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, #player-controls, footer[id*="subtitle"], .bottom-control-deck {
     display: none !important;
+  }
+  /* Adaptación panorámica fluida del lienzo Master Reel en el Monitor en Vivo sin franjas negras */
+  html:not([data-aspect-ratio="16:9"]) #stage[data-wappy-master-reel="true"] .header-box {
+    top: 40px !important;
+    left: 40px !important;
+    right: 40px !important;
+  }
+  html:not([data-aspect-ratio="16:9"]) #stage[data-wappy-master-reel="true"] .title-hero {
+    max-width: min(1360px, 100%) !important;
+  }
+  html:not([data-aspect-ratio="16:9"]) #stage[data-wappy-master-reel="true"] .sub-hero {
+    max-width: min(1260px, 100%) !important;
+  }
+  html:not([data-aspect-ratio="16:9"]) #stage[data-wappy-master-reel="true"] .middle-container {
+    top: 265px !important;
+    left: 40px !important;
+    right: 40px !important;
+    height: 845px !important;
+  }
+  #stage[data-wappy-master-reel="true"] .hook-box,
+  #stage[data-wappy-master-reel="true"] .split-showcase,
+  #stage[data-wappy-master-reel="true"] .formula-banner,
+  #stage[data-wappy-master-reel="true"] .especialistas-box,
+  #stage[data-wappy-master-reel="true"] .cta-box {
+    width: min(1340px, 100%) !important;
+  }
+  #stage[data-wappy-master-reel="true"] .headline-wall-wrap {
+    left: -40px !important;
+    right: -40px !important;
+    align-items: center !important;
+  }
+  html:not([data-aspect-ratio="16:9"]) #stage[data-wappy-master-reel="true"] #avatar-host-container {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    top: auto !important;
+    bottom: -22px !important;
   }
   body.wappy-visual-edit-active * {
     cursor: grab;
@@ -2135,6 +2174,49 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
     try {
       var vw = window.innerWidth || 540;
       var vh = window.innerHeight || 540;
+      var stageEl = document.getElementById('stage');
+      if (stageEl) {
+        var isMasterReel =
+          stageEl.getAttribute('data-wappy-master-reel') === 'true' ||
+          document.documentElement.getAttribute('data-wappy-master-reel') === 'true';
+        var ar =
+          stageEl.getAttribute('data-aspect-ratio') ||
+          document.documentElement.getAttribute('data-aspect-ratio') ||
+          '9:16';
+        var baseW = ar === '16:9' ? 1920 : 1080;
+        var baseH = ar === '16:9' ? 1080 : 1920;
+        var vpRatio = vw / Math.max(1, vh);
+        var baseRatio = baseW / baseH;
+        stageEl.style.scale = '';
+        stageEl.style.transformOrigin = 'center center';
+        stageEl.style.flexShrink = '0';
+        if (isMasterReel && ar !== '16:9' && vpRatio > baseRatio * 1.02) {
+          var adaptH = vpRatio > 0.78 ? 1640 : 1760;
+          var adaptW = Math.max(baseW, Math.round(adaptH * vpRatio));
+          stageEl.style.width = adaptW + 'px';
+          stageEl.style.height = adaptH + 'px';
+          var sAdapt = vh / adaptH;
+          stageEl.style.transform = 'scale(' + sAdapt.toFixed(5) + ')';
+        } else if (vpRatio > baseRatio * 1.01) {
+          var dynW = Math.round(baseH * vpRatio);
+          stageEl.style.width = dynW + 'px';
+          stageEl.style.height = baseH + 'px';
+          var sH = vh / baseH;
+          stageEl.style.transform = 'scale(' + sH.toFixed(5) + ')';
+        } else if (vpRatio < baseRatio * 0.99) {
+          var dynH = Math.round(baseW / Math.max(0.1, vpRatio));
+          stageEl.style.width = baseW + 'px';
+          stageEl.style.height = dynH + 'px';
+          var sW = vw / baseW;
+          stageEl.style.transform = 'scale(' + sW.toFixed(5) + ')';
+        } else {
+          stageEl.style.width = baseW + 'px';
+          stageEl.style.height = baseH + 'px';
+          var s0 = Math.min(vw / baseW, vh / baseH);
+          stageEl.style.transform = 'scale(' + s0.toFixed(5) + ')';
+        }
+        return;
+      }
       var children = Array.prototype.slice.call(document.body.children).filter(function(el) {
         return el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE';
       });
@@ -2164,6 +2246,8 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 
   window.addEventListener('resize', fitStageToViewport);
   window.addEventListener('load', fitStageToViewport);
+  setTimeout(fitStageToViewport, 30);
+  setTimeout(fitStageToViewport, 180);
 
   function notifySelected(el) {
     if (!el) {
@@ -10148,7 +10232,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               {/* Cuerpo del Estudio: Escenario Amplio (7 cols) + Consola Transporte & Exportación (5 cols) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
                 {/* IZQUIERDA/CENTRO (7 cols): Escenario Cinematográfico Amplio + Barra de Reproducción Directa */}
-                <div className="lg:col-span-7 flex flex-col justify-between items-center bg-[#060d18] rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-inner overflow-hidden min-h-[520px] gap-3.5">
+                <div className="lg:col-span-7 flex flex-col justify-between items-center bg-slate-900/95 dark:bg-[#060d18] rounded-2xl p-3 sm:p-4 border border-slate-800 shadow-inner overflow-hidden min-h-[540px] gap-3">
                   <div
                     ref={stageContainerRef}
                     className={cn(
@@ -10172,15 +10256,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             : 'Clic para reproducir video'
                       }
                       className={cn(
-                        'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10 rounded-2xl mx-auto',
+                        'relative overflow-hidden bg-slate-950 shadow-2xl border border-white/10 rounded-2xl mx-auto w-full',
                         !isVisualEditMode && 'cursor-pointer group/stage',
                         isStageFullscreen
                           ? aspectRatio === '9:16'
                             ? 'h-[calc(100vh-125px)] aspect-[9/16] max-w-[95vw] border-white/15 my-auto'
                             : 'w-[min(94vw,calc((100vh-125px)*1.7778))] aspect-[16/9] max-h-[calc(100vh-125px)] border-white/15 my-auto'
                           : aspectRatio === '9:16'
-                            ? 'w-full max-w-[390px] aspect-[9/16] max-h-[600px]'
-                            : 'w-full max-w-[760px] aspect-[16/9] max-h-[500px] min-h-[280px]',
+                            ? 'h-[580px] sm:h-[620px]'
+                            : 'aspect-[16/9] min-h-[340px] max-h-[540px]',
                       )}
                     >
                       {/* Pista de Audio Oculta para Locución */}
