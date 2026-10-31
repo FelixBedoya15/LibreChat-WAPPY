@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "path": "/Users/venta/.gemini/teams",
+      "path": "~/.gemini/teams",
       "include_only": [
         "wappy-dev-agency"
       ]
