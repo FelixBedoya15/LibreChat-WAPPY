@@ -1459,6 +1459,7 @@ function resolveWorkspaceTarget() {
         const match = name.match(/^([0-9a-fA-F-]{36})\.db(?:-wal)?$/);
         if (!match) continue;
         const id = match[1];
+        if (id === 'c6e3ecd3-bd9f-465a-9664-4572b7e7da50') continue;
         const fullPath = path.join(convDir, name);
         try {
           const st = fs.statSync(fullPath);
@@ -1494,10 +1495,13 @@ function resolveWorkspaceTarget() {
                 folderPath = folderPath.slice(1);
               }
               if (fs.existsSync(folderPath)) {
-                return {
-                  cwd: folderPath,
-                  projectId: findProjectIdForFolder(folderPath),
-                };
+                const matchedProjId = findProjectIdForFolder(folderPath);
+                if (matchedProjId) {
+                  return {
+                    cwd: folderPath,
+                    projectId: matchedProjId,
+                  };
+                }
               }
             }
           }
@@ -1506,20 +1510,23 @@ function resolveWorkspaceTarget() {
     }
   } catch (_) {}
 
-  // 2. Respaldo prioritario: entorno explícito capturado en wappy-env.json al instalar el puente
+  // 2. Respaldo prioritario: entorno explícito capturado en wappy-env.json si pertenece a un proyecto registrado
   try {
     if (fs.existsSync(ENV_FILE)) {
       const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
       if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
-        return {
-          cwd: savedEnv.workspaceCwd,
-          projectId: savedEnv.projectId || findProjectIdForFolder(savedEnv.workspaceCwd) || 'outside-of-project',
-        };
+        const matchedProjId = findProjectIdForFolder(savedEnv.workspaceCwd);
+        if (matchedProjId) {
+          return {
+            cwd: savedEnv.workspaceCwd,
+            projectId: matchedProjId,
+          };
+        }
       }
     }
   } catch (_) {}
 
-  // 3. Respaldo secundario: proyecto más reciente en ~/.gemini/config/projects/*.json
+  // 3. Proyecto activo registrado en ~/.gemini/config/projects/*.json (ej. Wappy IA)
   try {
     const projectsDir = path.join(CONFIG_DIR, 'projects');
     if (fs.existsSync(projectsDir)) {
@@ -1553,6 +1560,19 @@ function resolveWorkspaceTarget() {
 
       if (bestFolder) {
         return { cwd: bestFolder, projectId: bestProjectId };
+      }
+    }
+  } catch (_) {}
+
+  // 4. Respaldo final de wappy-env.json aunque sea outside-of-project
+  try {
+    if (fs.existsSync(ENV_FILE)) {
+      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
+      if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
+        return {
+          cwd: savedEnv.workspaceCwd,
+          projectId: findProjectIdForFolder(savedEnv.workspaceCwd) || 'outside-of-project',
+        };
       }
     }
   } catch (_) {}
@@ -1767,24 +1787,32 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     ...(projectId ? { ANTIGRAVITY_PROJECT_ID: projectId } : {}),
   };
 
-  // Detectar si el usuario solicitó explícitamente abrir un nuevo chat desde cero
+  // Detectar si es el hilo auxiliar silencioso de terminal
   const combinedText = `${titulo} ${instruccion}`;
   const forceNewChat = /(nuevo chat|nueva conversaci[oó]n|otro chat|chat nuevo|empezar de cero|desde cero)/i.test(
     combinedText
   );
-
-  // Reutilizar el hilo dedicado de Tenshi (si ya fue creado en esta sesión) o abrir el primero
-  const targetConvoId = findTargetConversationId(preferredConvoId, forceNewChat);
   const isInternalHelperThread =
     preferredConvoId === 'c6e3ecd3-bd9f-465a-9664-4572b7e7da50' ||
     /^Execute local terminal/i.test(String(titulo || '').trim());
+
+  // IMPORTANTE: En Antigravity Desktop, `agentapi send-message` inyecta un <SYSTEM_MESSAGE> en segundo plano
+  // sin abrir ni enfocar la pestaña del chat en la pantalla. En cambio, `agentapi new-conversation` abre y enfoca
+  // visiblemente el chat en la interfaz de Antigravity. Por tanto, todas las órdenes reales de usuario (consultas
+  // de Tenshi, documentos, imágenes y videos HTML de Wappy Studio) abren conversación visible en pantalla,
+  // dejando en segundo plano silencioso ÚNICAMENTE el cron (`healthcheck_e2e`) y el hilo auxiliar interno.
+  const targetConvoId = isInternalHelperThread
+    ? findTargetConversationId(preferredConvoId, forceNewChat)
+    : preferredConvoId && /^[0-9a-fA-F-]{36}$/.test(String(preferredConvoId).trim()) && !forceNewChat
+    ? String(preferredConvoId).trim()
+    : null;
 
   // Traer la ventana de Antigravity al frente en macOS para que el usuario vea el chat abrirse y trabajar en tiempo real
   if (!isInternalHelperThread && process.platform === 'darwin') {
     try {
       const appCandidates = [
         '/Applications/Antigravity.app',
-        path.join(HOME, 'Applications', 'Antigravity.app'),
+        path.join(HOME_DIR, 'Applications', 'Antigravity.app'),
       ];
       const appPath = appCandidates.find((p) => fs.existsSync(p));
       if (appPath) {
@@ -2595,8 +2623,24 @@ function startSseWorker(cliArgs) {
     connectSingle();
   };
 
+  const initialScriptMtime = (() => {
+    try {
+      return fs.statSync(__filename).mtimeMs;
+    } catch (_) {
+      return 0;
+    }
+  })();
+
   const syncStreams = () => {
     try {
+      if (initialScriptMtime) {
+        const currentMtime = fs.statSync(__filename).mtimeMs;
+        if (currentMtime && Math.abs(currentMtime - initialScriptMtime) > 1000) {
+          log(`Actualización en disco detectada en ${path.basename(__filename)}. Reiniciando worker automáticamente...`);
+          cleanupAndExit();
+          return;
+        }
+      }
       if (fs.existsSync(PID_FILE)) {
         const ownerPid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
         if (ownerPid && ownerPid !== process.pid && listOurWorkerPids().includes(ownerPid)) {
