@@ -441,13 +441,13 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
   return (
     <div className="flex flex-col justify-between h-full min-w-0">
       <div>
-        {/* Header Bar with Left/Right Scroll Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div>
+        {/* Header Bar with Left/Right Scroll Controls (Texto arriba, botones debajo en su propia fila) */}
+        <div className="flex flex-col items-start gap-2.5 mb-3">
+          <div className="w-full">
             <span className="text-[10px] font-bold uppercase tracking-widest text-teal-400 block">
               TOP SERIES SST (+5 MIN) · APPLE PODCASTS EXPERIENCE
             </span>
-            <h4 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            <h4 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex flex-wrap items-center gap-2">
               <span>Series Originales & Cápsulas WAPPY</span>
               {userCapsules.length > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#c7f303] text-[#0e1300]">
@@ -457,28 +457,26 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
             </h4>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-flex text-[11px] font-bold text-teal-300 bg-teal-500/10 border border-teal-500/30 px-2.5 py-1 rounded-full">
+          <div className="flex flex-wrap items-center justify-start gap-2 w-full">
+            <span className="inline-flex text-[11px] font-bold text-teal-300 bg-teal-500/10 border border-teal-500/30 px-2.5 py-1 rounded-full">
               🎧 Master WAV 24kHz · Mín. 5 Min
             </span>
-            <div className="flex items-center gap-1.5">
-              <ExpandableButton
-                size="sm"
-                icon={<ChevronLeft />}
-                label="Anterior"
-                variant="neutral"
-                onClick={() => scrollCarousel('left')}
-                title="Desplazar cápsulas a la izquierda"
-              />
-              <ExpandableButton
-                size="sm"
-                icon={<ChevronRight />}
-                label="Siguiente"
-                variant="neutral"
-                onClick={() => scrollCarousel('right')}
-                title="Desplazar cápsulas a la derecha"
-              />
-            </div>
+            <ExpandableButton
+              size="sm"
+              icon={<ChevronLeft />}
+              label="Anterior"
+              variant="neutral"
+              onClick={() => scrollCarousel('left')}
+              title="Desplazar cápsulas a la izquierda"
+            />
+            <ExpandableButton
+              size="sm"
+              icon={<ChevronRight />}
+              label="Siguiente"
+              variant="neutral"
+              onClick={() => scrollCarousel('right')}
+              title="Desplazar cápsulas a la derecha"
+            />
           </div>
         </div>
 
@@ -530,12 +528,15 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
               >
                 <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-[#c7f303]/20 rounded-full blur-xl pointer-events-none" />
 
-                {/* Top Row: Badge + Action Buttons (Editar, Eliminar, Play) */}
-                <div className="flex items-center justify-between gap-1 relative z-10">
-                  <span className="px-2 py-0.5 rounded-md bg-[#0e1300]/85 text-[#c7f303] text-[9px] font-extrabold uppercase tracking-wider border border-[#c7f303]/40 truncate">
+                {/* Top Block: Badge arriba, Botones de Acción debajo en su propia fila dedicada */}
+                <div className="flex flex-col items-start gap-2 relative z-10 w-full">
+                  <span className="px-2 py-0.5 rounded-md bg-[#0e1300]/85 text-[#c7f303] text-[9px] font-extrabold uppercase tracking-wider border border-[#c7f303]/40 truncate max-w-full">
                     ★ TU PODCAST • 24KHZ
                   </span>
-                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex flex-wrap items-center justify-start gap-1.5 w-full"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {onEditUserCapsule && (
                       <ExpandableButton
                         size="sm"
@@ -610,13 +611,16 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
               >
                 <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl group-hover:scale-125 transition-transform pointer-events-none" />
 
-                <div className="flex items-center justify-between gap-1.5 relative z-10">
+                <div className="flex flex-col items-start gap-2 relative z-10 w-full">
                   <span
-                    className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider truncate ${show.badgeBgClass}`}
+                    className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider truncate max-w-full ${show.badgeBgClass}`}
                   >
                     {show.badgeText}
                   </span>
-                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex flex-wrap items-center justify-start gap-1.5 w-full"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <ExpandableButton
                       size="sm"
                       icon={<Edit3 />}
@@ -673,10 +677,10 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
         </div>
       </div>
 
-      {/* Bottom Selected Show Inspector & Direct Bridge to Editing Studio Below */}
-      <div className="mt-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-inner">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+      {/* Bottom Selected Show Inspector & Direct Bridge to Editing Studio Below (Texto arriba, botones debajo en su propia fila) */}
+      <div className="mt-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 p-3.5 flex flex-col items-start gap-2.5 shadow-inner">
+        <div className="min-w-0 w-full">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="px-2 py-0.5 rounded bg-[#c7f303]/15 text-[#c7f303] border border-[#c7f303]/30 text-[9px] font-extrabold uppercase tracking-wider">
               SERIE ACTIVA (+5 MIN): {selectedShow.title}
             </span>
@@ -691,7 +695,7 @@ export const WappyApplePodcastsShelf: React.FC<WappyApplePodcastsShelfProps> = (
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+        <div className="flex flex-wrap items-center justify-start gap-2.5 w-full pt-0.5">
           <ExpandableButton
             size="sm"
             icon={<Edit3 />}

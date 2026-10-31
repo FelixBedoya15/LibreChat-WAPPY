@@ -181,10 +181,11 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
         title={title || label}
         disabled={disabled}
         className={cn(
-          'group flex items-center justify-center shrink-0',
+          'wappy-expand-btn group relative flex items-center justify-center shrink-0',
           sizeClasses,
           'rounded-xl border outline-none cursor-pointer select-none',
-          'transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed',
+          'transition-all duration-300 ease-in-out sm:hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed',
+          'after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-2 hover:after:-inset-x-4 hover:after:pointer-events-auto',
           currentStyle,
           className,
         )}

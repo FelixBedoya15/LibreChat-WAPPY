@@ -1033,6 +1033,228 @@ function getTtsFallbackModelIds() {
 const FUNDAMENTAL_VOICES_2_5 = ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'];
 
 const customVoicesRegistry = new Map();
+const CUSTOM_VOICES_TMP_PATH = path.join(os.tmpdir(), 'wappy_custom_voices_registry.json');
+const CUSTOM_VOICES_DATA_PATH = path.resolve(
+  __dirname,
+  '../../../data/wappy_custom_voices_registry.json',
+);
+
+function loadCustomVoicesRegistryFromDisk() {
+  for (const filePath of [CUSTOM_VOICES_DATA_PATH, CUSTOM_VOICES_TMP_PATH]) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item && item.id) {
+              customVoicesRegistry.set(item.id, item);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logger.debug(`[WappyStudio VoiceClone] Aviso cargando registro de voces desde ${filePath}: ${err.message}`);
+    }
+  }
+}
+
+function saveCustomVoicesRegistryToDisk() {
+  const payload = JSON.stringify(Array.from(customVoicesRegistry.values()), null, 2);
+  try {
+    fs.writeFileSync(CUSTOM_VOICES_TMP_PATH, payload, 'utf8');
+  } catch (err) {
+    logger.debug(`[WappyStudio VoiceClone] No se pudo escribir en tmp (${CUSTOM_VOICES_TMP_PATH}): ${err.message}`);
+  }
+  try {
+    const dir = path.dirname(CUSTOM_VOICES_DATA_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(CUSTOM_VOICES_DATA_PATH, payload, 'utf8');
+  } catch (err) {
+    logger.debug(`[WappyStudio VoiceClone] No se pudo escribir en data (${CUSTOM_VOICES_DATA_PATH}): ${err.message}`);
+  }
+}
+
+loadCustomVoicesRegistryFromDisk();
+
+const OMNIVOICE_SPACES = [
+  'https://k2-fsa-omnivoice.hf.space',
+  'https://yoshinishii-omnivoice-personal.hf.space',
+  'https://d3vshoaib-omnivoice.hf.space',
+];
+
+const omnivoiceUploadCache = new Map();
+
+/**
+ * Motor Zero-Shot de Clonación Acústica Real (VoiceStudio / k2-fsa OmniVoice 24kHz)
+ * Clona directamente las cuerdas vocales, timbre, tono, resonancia y acento a partir de la forma de onda WAV real (`sourceAudioBase64`)
+ * y su transcripción de referencia (`refTranscript`), devolviendo audio WAV RIFF PCM 16-bit Mono a 24,000 Hz.
+ */
+async function synthesizeZeroShotVoiceStudioClone({
+  text,
+  sourceAudioBase64,
+  refTranscript = '',
+  languageCode = 'es-CO',
+}) {
+  const cleanTurnText = sanitizeScriptText(text)
+    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2)\s*:\s*/gim, '')
+    .replace(/\[Estilo Vocal:[^\]]*\]/gi, '')
+    .replace(/<(?:breath|laugh|sigh|cough|chuckle|gasp|yawn|clear_throat)>/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleanTurnText) {
+    throw new Error('Texto vacío para clonación Zero-Shot.');
+  }
+
+  const cleanB64 = String(sourceAudioBase64 || '')
+    .replace(/^data:[^;]+;base64,/, '')
+    .trim();
+  if (!cleanB64) {
+    throw new Error('No se encontró muestra de audio base (sourceAudioBase64) para clonar la voz.');
+  }
+
+  const rawRefBuf = Buffer.from(cleanB64, 'base64');
+  const { wavBuffer: refWavBuf } = normalizeAudioBufferToWav(rawRefBuf, 24000);
+  const refHash = crypto.createHash('sha256').update(refWavBuf).digest('hex').slice(0, 24);
+
+  const langStr = String(languageCode || 'es-CO').toLowerCase();
+  const omniLang = langStr.startsWith('en')
+    ? 'English'
+    : langStr.startsWith('pt')
+      ? 'Portuguese'
+      : langStr.startsWith('fr')
+        ? 'French'
+        : 'Spanish';
+
+  let lastOmniErr = null;
+
+  for (const spaceBase of OMNIVOICE_SPACES) {
+    const cacheKey = `${spaceBase}::${refHash}`;
+
+    const uploadRefWav = async () => {
+      const form = new FormData();
+      form.append('files', new Blob([refWavBuf], { type: 'audio/wav' }), `ref_${refHash}.wav`);
+      const upResp = await fetch(`${spaceBase}/gradio_api/upload`, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(25000),
+      });
+      if (!upResp.ok) {
+        throw new Error(`Upload HTTP ${upResp.status} en ${spaceBase}`);
+      }
+      const upData = await upResp.json();
+      const uploadedPath = Array.isArray(upData) ? upData[0] : upData?.path;
+      if (!uploadedPath) {
+        throw new Error(`Respuesta de upload sin path en ${spaceBase}`);
+      }
+      omnivoiceUploadCache.set(cacheKey, {
+        uploadedPath,
+        expiresAt: Date.now() + 15 * 60 * 1000,
+      });
+      return uploadedPath;
+    };
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const cached = omnivoiceUploadCache.get(cacheKey);
+        const uploadedPath =
+          attempt === 0 && cached && cached.expiresAt > Date.now()
+            ? cached.uploadedPath
+            : await uploadRefWav();
+
+        const callResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: [
+              cleanTurnText,
+              omniLang,
+              { path: uploadedPath, meta: { _type: 'gradio.FileData' } },
+              String(refTranscript || '').trim(),
+              '',
+              32,
+              2.5,
+              true,
+              1.0,
+              null,
+              true,
+              true,
+            ],
+          }),
+          signal: AbortSignal.timeout(25000),
+        });
+
+        if (!callResp.ok) {
+          throw new Error(`Call _clone_fn HTTP ${callResp.status}`);
+        }
+        const callData = await callResp.json();
+        const eventId = callData?.event_id;
+        if (!eventId) {
+          throw new Error('No se recibió event_id de OmniVoice');
+        }
+
+        const sseResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn/${eventId}`, {
+          signal: AbortSignal.timeout(65000),
+        });
+        if (!sseResp.ok) {
+          throw new Error(`SSE HTTP ${sseResp.status}`);
+        }
+        const sseText = await sseResp.text();
+        if (sseText.includes('event: error')) {
+          omnivoiceUploadCache.delete(cacheKey);
+          throw new Error(`OmniVoice devolvió event: error (${sseText.slice(0, 160)})`);
+        }
+
+        const completeMatch = sseText.match(/event:\s*complete\s*\ndata:\s*(\[[\s\S]*?\])\s*(?:\n|$)/);
+        if (!completeMatch || !completeMatch[1]) {
+          throw new Error(`Stream SSE incompleto en ${spaceBase}`);
+        }
+
+        const parsed = JSON.parse(completeMatch[1]);
+        const fileObj = parsed?.[0];
+        const audioUrl =
+          fileObj?.url ||
+          (fileObj?.path ? `${spaceBase}/gradio_api/file=${fileObj.path}` : null);
+        if (!audioUrl) {
+          throw new Error('OmniVoice no devolvió URL de audio WAV');
+        }
+
+        const wavResp = await fetch(audioUrl, {
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!wavResp.ok) {
+          throw new Error(`Descarga WAV HTTP ${wavResp.status}`);
+        }
+        const outBuf = Buffer.from(await wavResp.arrayBuffer());
+        const { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
+          outBuf,
+          24000,
+        );
+
+        return {
+          wavBuffer,
+          pcmBuffer,
+          audioBase64: wavBuffer.toString('base64'),
+          durationSeconds,
+          sampleRate,
+          usedModel: 'omnivoice-zero-shot-24khz',
+          usedKeyIndex: 0,
+        };
+      } catch (err) {
+        lastOmniErr = err;
+        omnivoiceUploadCache.delete(cacheKey);
+        if (attempt === 0) {
+          continue;
+        }
+      }
+    }
+  }
+
+  throw lastOmniErr || new Error('No se pudo sintetizar el clon acústico Zero-Shot en OmniVoice.');
+}
 
 function isCustomClonedVoiceId(voiceName = '') {
   const v = String(voiceName || '').trim();
@@ -1102,6 +1324,33 @@ async function synthesizeSingleVoiceTurn({
     throw new Error('El fragmento a sintetizar no contiene palabras válidas.');
   }
 
+  const cleanVoiceKey = String(voiceName || 'Kore').trim();
+  const customCloneEntry = customVoicesRegistry.get(cleanVoiceKey);
+
+  // 0. Si es una voz clonada con grabación real (sourceAudioBase64) y no tiene replicación nativa Tier 1 en Google,
+  // sintetizar directamente con el motor Zero-Shot de clonación por forma de onda (VoiceStudio OmniVoice 24kHz)
+  if (
+    customCloneEntry?.sourceAudioBase64 &&
+    customCloneEntry.nativeMethod !== 'gemini_v1beta_voices'
+  ) {
+    try {
+      const zeroShotRes = await synthesizeZeroShotVoiceStudioClone({
+        text: cleanTurnText,
+        sourceAudioBase64: customCloneEntry.sourceAudioBase64,
+        refTranscript: customCloneEntry.refTranscript || '',
+        languageCode: customCloneEntry.languageCode || 'es-CO',
+      });
+      logger.info(
+        `[WappyStudio TTS] Turno sintetizado con clon acústico real Zero-Shot OmniVoice (voz=${cleanVoiceKey}, dur=${zeroShotRes.durationSeconds}s, bytes=${zeroShotRes.pcmBuffer.length})`,
+      );
+      return zeroShotRes;
+    } catch (zeroErr) {
+      logger.warn(
+        `[WappyStudio TTS] Aviso en motor Zero-Shot OmniVoice para ${cleanVoiceKey} (${zeroErr.message}). Usando respaldo Gemini TTS...`,
+      );
+    }
+  }
+
   const envTtsModelIds = getTtsFallbackModelIds();
   const preferredModel = (model || envTtsModelIds[0] || 'gemini-3.8-flash-tts')
     .replace('models/', '')
@@ -1112,8 +1361,6 @@ async function synthesizeSingleVoiceTurn({
   ];
 
   let lastError = null;
-  const cleanVoiceKey = String(voiceName || 'Kore').trim();
-  const customCloneEntry = customVoicesRegistry.get(cleanVoiceKey);
   const effectiveKeyOffset =
     preferredKeyOffset > 0
       ? preferredKeyOffset
@@ -1128,10 +1375,12 @@ async function synthesizeSingleVoiceTurn({
       const kIdx = (Math.max(0, effectiveKeyOffset) + kStep) % keys.length;
       const apiKey = keys[kIdx];
       try {
-        let resolvedVoice = resolveCompatibleVoice(
-          customCloneEntry?.nativeVoiceId || voiceName,
-          currentModel,
-        );
+        const keySpecificVoiceId =
+          customCloneEntry?.voiceIdsByKeyIndex?.[kIdx] ||
+          customCloneEntry?.voiceIdsByKeyIndex?.[String(kIdx)] ||
+          customCloneEntry?.nativeVoiceId ||
+          voiceName;
+        let resolvedVoice = resolveCompatibleVoice(keySpecificVoiceId, currentModel);
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
 
         let response = null;
@@ -1624,11 +1873,13 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
     const cleanConsentB64 = stripDataUrl(consentAudioBase64 || sourceAudioBase64);
 
     // 1. Intentar registro nativo en Google Gemini Voices API (POST /v1beta/voices)
-    // Priorizar llaves que tengan cuota activa en gemini-3.8-flash-tts:generateContent para que el voice_... creado pertenezca al mismo proyecto
+    // Priorizar llaves que tengan cuota activa en gemini-3.8-flash-tts:generateContent
     let nativeVoiceId = null;
     let nativeMethod = null;
     let replicatedErrorDiag = null;
     let ownerKeyIndex = 0;
+    const voiceIdsByKeyIndex = {};
+    let promptedSampleB64 = null;
 
     const candidateKeyIndices = allKeys
       .map((_, idx) => idx)
@@ -1638,13 +1889,17 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
         return aAvail - bAvail || a - b;
       });
 
-    for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 4); cStep++) {
-      const kIdx = candidateKeyIndices[cStep];
-      const apiKey = allKeys[kIdx];
-      try {
-        const voicesPayload =
-          mode === 'prompted'
-            ? {
+    if (mode === 'prompted') {
+      // En modo 'prompted' Google exige siempre store: true (store: false arroja HTTP 400).
+      // Registramos en paralelo en las llaves disponibles para que la rotación multi-llave encuentre el voice_... en cada proyecto.
+      const keysToRegister = candidateKeyIndices.slice(0, 6);
+      await Promise.allSettled(
+        keysToRegister.map(async (kIdx) => {
+          const apiKey = allKeys[kIdx];
+          try {
+            const nativeResp = await axios.post(
+              'https://generativelanguage.googleapis.com/v1beta/voices',
+              {
                 store: true,
                 voice: {
                   model: 'gemini-3.8-flash-tts',
@@ -1656,72 +1911,126 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
                     input: String(voicePrompt).trim(),
                   },
                 },
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': apiKey,
+                },
+                timeout: 30000,
+              },
+            );
+
+            const createdId =
+              nativeResp.data?.voice?.id ||
+              nativeResp.data?.voice?.key ||
+              nativeResp.data?.id ||
+              nativeResp.data?.key;
+
+            if (createdId) {
+              const cleanId = String(createdId).trim();
+              voiceIdsByKeyIndex[kIdx] = cleanId;
+              if (!nativeVoiceId) {
+                nativeVoiceId = cleanId;
+                nativeMethod = 'gemini_v1beta_voices_prompted';
+                ownerKeyIndex = kIdx;
               }
-            : {
-                store: Boolean(store),
-                voice: {
-                  model: 'gemini-3.8-flash-tts',
-                  type: 'replicated',
-                  display_name: cleanName,
-                  replicated: {
-                    source_audio: {
-                      mime_type: sourceMimeType || 'audio/wav',
-                      data: cleanSourceB64,
-                    },
-                    consent_audio: {
-                      mime_type: consentMimeType || 'audio/wav',
-                      data: cleanConsentB64,
-                    },
+            }
+            const rawSample =
+              nativeResp.data?.sample_audio?.data ||
+              nativeResp.data?.voice?.sample_audio?.data;
+            if (rawSample && !promptedSampleB64) {
+              promptedSampleB64 = String(rawSample).trim();
+            }
+          } catch (nativeErr) {
+            replicatedErrorDiag = {
+              status: nativeErr.response?.status,
+              error: nativeErr.response?.data?.error || nativeErr.message,
+            };
+          }
+        }),
+      );
+    } else {
+      // Modo 'replicated': intentar primero POST /v1beta/voices (type: 'replicated').
+      // Si las llaves están en Free Tier (403 Paid Quota Tier 1), NO usar 'prompted' para fingir una clonación;
+      // se activará el motor Zero-Shot real por forma de onda (VoiceStudio OmniVoice 24kHz).
+      for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 2); cStep++) {
+        const kIdx = candidateKeyIndices[cStep];
+        const apiKey = allKeys[kIdx];
+        try {
+          const nativeResp = await axios.post(
+            'https://generativelanguage.googleapis.com/v1beta/voices',
+            {
+              store: Boolean(store),
+              voice: {
+                model: 'gemini-3.8-flash-tts',
+                type: 'replicated',
+                display_name: cleanName,
+                replicated: {
+                  source_audio: {
+                    mime_type: sourceMimeType || 'audio/wav',
+                    data: cleanSourceB64,
+                  },
+                  consent_audio: {
+                    mime_type: consentMimeType || 'audio/wav',
+                    data: cleanConsentB64,
                   },
                 },
-              };
-
-        const nativeResp = await axios.post(
-          'https://generativelanguage.googleapis.com/v1beta/voices',
-          voicesPayload,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey,
+              },
             },
-            timeout: 30000,
-          },
-        );
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey,
+              },
+              timeout: 25000,
+            },
+          );
 
-        const createdId =
-          nativeResp.data?.voice?.id ||
-          nativeResp.data?.voice?.key ||
-          nativeResp.data?.replicated_voice?.id ||
-          nativeResp.data?.replicated_voice?.key ||
-          nativeResp.data?.id ||
-          nativeResp.data?.key;
+          const createdId =
+            nativeResp.data?.voice?.id ||
+            nativeResp.data?.voice?.key ||
+            nativeResp.data?.replicated_voice?.id ||
+            nativeResp.data?.replicated_voice?.key ||
+            nativeResp.data?.id ||
+            nativeResp.data?.key;
 
-        if (createdId) {
-          nativeVoiceId = String(createdId).trim();
-          nativeMethod = 'gemini_v1beta_voices';
-          ownerKeyIndex = kIdx;
-          break;
+          if (createdId) {
+            nativeVoiceId = String(createdId).trim();
+            nativeMethod = 'gemini_v1beta_voices';
+            ownerKeyIndex = kIdx;
+            voiceIdsByKeyIndex[kIdx] = nativeVoiceId;
+            break;
+          }
+        } catch (nativeErr) {
+          const errStatus = nativeErr.response?.status;
+          const errMsg = String(nativeErr.response?.data?.error?.message || nativeErr.message || '');
+          replicatedErrorDiag = {
+            status: errStatus,
+            error: nativeErr.response?.data?.error || nativeErr.message,
+          };
+          logger.debug(
+            `[WappyStudio VoiceClone] /v1beta/voices (replicated) aviso en clave #${kIdx + 1} (${errStatus || nativeErr.message}): ${errMsg}`,
+          );
+          if (errStatus === 403 && /tier\s*1|paid\s*quota/i.test(errMsg)) {
+            break;
+          }
         }
-      } catch (nativeErr) {
-        replicatedErrorDiag = {
-          status: nativeErr.response?.status,
-          error: nativeErr.response?.data?.error || nativeErr.message,
-        };
-        logger.debug(
-          `[WappyStudio VoiceClone] /v1beta/voices (${mode}) aviso en clave #${kIdx + 1} (${nativeErr.response?.status || nativeErr.message}): ${JSON.stringify(nativeErr.response?.data?.error?.message || '')}`,
-        );
+      }
+      if (!nativeVoiceId) {
+        nativeMethod = 'voicestudio_omnivoice_zeroshot';
       }
     }
 
-    // 2. Análisis Acústico Multimodal con los modelos activos de GOOGLE_MODELS (gemini-3.6-flash / gemini-3.5-flash-lite)
-    // Extrae la huella vocal exacta (timbre, registro, resonancia, velocidad, acento y edad aparente) de la grabación real del usuario
+    // 2. Transcripción Exacta + Análisis Acústico Multimodal con nuestros modelos rápidos (gemini-3.5-flash-lite y gemini-3.8-flash primero)
     let detectedGender = gender === 'Femenino' ? 'Femenino' : 'Masculino';
     let matchedBaseVoice = detectedGender === 'Femenino' ? 'Kore' : 'Orus';
     let detectedTone = 'Clonación Biométrica 24kHz';
     let styleDirective =
       'Tono natural, articulación clara, ritmo orgánico con pausas conversacionales realistas.';
-    let acousticSummary = 'Timbre vocal analizado y emparejado a 24 kHz.';
+    let acousticSummary = 'Timbre vocal analizado y clonado por forma de onda a 24 kHz.';
     let extractedVoiceDesignPrompt = '';
+    let refTranscript = '';
 
     try {
       const analysisParts = [];
@@ -1733,12 +2042,14 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
           },
         });
         analysisParts.push({
-          text: `Escucha atentamente esta grabación de voz real ("${cleanName}", idioma/acento base: ${languageCode || 'es-CO'}). Analiza con precisión forense su timbre acústico, género percibido, edad vocal aproximada, registro (barítono/tenor/mezzo/soprano, frecuencia fundamental), textura (cálida, brillante, aterciopelada, nasal, rasposa o limpia), velocidad de elocución, cadencia, entonación y acento regional exacto.
-Elige también cuál de las 14 voces neurales de Gemini 24kHz es la más cercana como referencia:
-- Voces Masculinas: Puck (cálido/enérgico), Orus (barítono firme/ejecutivo), Charon (profundo/documental), Fenrir (dinámico/rápido), Enceladus (suave/empático), Iapetus (claro/técnico), Schedar (maduro/institucional).
-- Voces Femeninas: Kore (cálida/profesional), Aoede (expresiva/narrativa), Leda (serena/pausada), Zephyr (joven/fresca), Callirrhoe (melódica/cercana), Autonoe (firme/directiva), Umbriel (suave/reflexiva).
+          text: `Escucha atentamente esta grabación de voz real ("${cleanName}", idioma/acento base: ${languageCode || 'es-CO'}).
+1) Transcribe literalmente palabra por palabra todo lo que la persona dice en este audio en el campo "refTranscript".
+2) Analiza con precisión forense su timbre acústico, género percibido, edad vocal aproximada, registro (barítono/tenor/mezzo/soprano), textura, velocidad de elocución, cadencia y acento regional exacto.
+Elige también cuál de las 14 voces neurales de Gemini 24kHz es la más cercana como respaldo:
+- Voces Masculinas: Puck, Orus, Charon, Fenrir, Enceladus, Iapetus, Schedar.
+- Voces Femeninas: Kore, Aoede, Leda, Zephyr, Callirrhoe, Autonoe, Umbriel.
 Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
-{"gender":"Masculino o Femenino","baseVoice":"NombreExactoDeLas14","tone":"2-3 palabras del timbre","styleDirective":"Instrucción de prosodia, cadencia y acento para replicar esta voz","acousticSummary":"Resumen breve de las características de la voz analizada","voiceDesignPrompt":"Descripción hiper-detallada en 2-3 frases del timbre exacto, edad vocal, acento regional, resonancia, velocidad, calidez y ataque vocal de esta persona para sintetizar un clon acústico idéntico en Gemini Voices API"}`,
+{"refTranscript":"Transcripción literal exacta palabra por palabra de lo dicho en el audio","gender":"Masculino o Femenino","baseVoice":"NombreExactoDeLas14","tone":"2-3 palabras del timbre","styleDirective":"Instrucción de prosodia, cadencia y acento para replicar esta voz","acousticSummary":"Resumen breve de las características de la voz analizada","voiceDesignPrompt":"Descripción hiper-detallada en 2-3 frases del timbre exacto, edad vocal, acento regional, resonancia y velocidad de esta persona"}`,
         });
       } else {
         analysisParts.push({
@@ -1751,7 +2062,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
         });
       }
 
-      const analysisModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite'];
+      const analysisModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash'];
       let analysisResp = null;
       for (const aModel of analysisModels) {
         for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 4); cStep++) {
@@ -1762,7 +2073,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
               {
                 contents: [{ role: 'user', parts: analysisParts }],
                 generationConfig: {
-                  temperature: 0.15,
+                  temperature: 0.1,
                   responseMimeType: 'application/json',
                 },
               },
@@ -1771,7 +2082,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
                   'Content-Type': 'application/json',
                   'x-goog-api-key': allKeys[kIdx],
                 },
-                timeout: 25000,
+                timeout: 20000,
               },
             );
             if (analysisResp?.data?.candidates?.[0]?.content?.parts?.[0]?.text) break;
@@ -1799,59 +2110,12 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
         if (parsed.voiceDesignPrompt) {
           extractedVoiceDesignPrompt = String(parsed.voiceDesignPrompt).slice(0, 480);
         }
+        if (parsed.refTranscript && typeof parsed.refTranscript === 'string') {
+          refTranscript = parsed.refTranscript.trim();
+        }
       }
     } catch (analysisErr) {
       logger.debug(`[WappyStudio VoiceClone] Acoustic analysis fallback used: ${analysisErr.message}`);
-    }
-
-    // 2B. Si mode === 'replicated' y el verificador de consentimiento de /v1beta/voices no devolvió ID nativo
-    // (por ejemplo si el usuario omitió el Paso 2 o varió una palabra de la frase literal),
-    // creamos una voz nativa real (`voice_...`) en Gemini 3.8 Voices API usando la huella acústica extraída de su grabación real
-    if (!nativeVoiceId) {
-      const twinPrompt =
-        extractedVoiceDesignPrompt ||
-        `${acousticSummary}. ${styleDirective}. Voz ${detectedGender.toLowerCase()} con timbre ${detectedTone}, acento ${languageCode || 'es-CO'} natural y cercano.`;
-      for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 4); cStep++) {
-        const kIdx = candidateKeyIndices[cStep];
-        try {
-          const twinResp = await axios.post(
-            'https://generativelanguage.googleapis.com/v1beta/voices',
-            {
-              store: Boolean(store),
-              voice: {
-                model: 'gemini-3.8-flash-tts',
-                type: 'prompted',
-                display_name: cleanName,
-                gender: detectedGender === 'Femenino' ? 'female' : 'male',
-                language_code: languageCode || 'es-CO',
-                prompted: {
-                  input: twinPrompt,
-                },
-              },
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': allKeys[kIdx],
-              },
-              timeout: 25000,
-            },
-          );
-          const twinId =
-            twinResp.data?.voice?.id ||
-            twinResp.data?.voice?.key ||
-            twinResp.data?.id ||
-            twinResp.data?.key;
-          if (twinId) {
-            nativeVoiceId = String(twinId).trim();
-            nativeMethod = 'gemini_v1beta_voices_acoustic_twin';
-            ownerKeyIndex = kIdx;
-            break;
-          }
-        } catch (_) {
-          /* continue */
-        }
-      }
     }
 
     const shortHash = crypto.randomBytes(3).toString('hex');
@@ -1860,18 +2124,30 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
     const customVoiceProfile = {
       id: finalVoiceId,
       nativeVoiceId: nativeVoiceId || null,
+      voiceIdsByKeyIndex:
+        Object.keys(voiceIdsByKeyIndex).length > 0 ? voiceIdsByKeyIndex : undefined,
       ownerKeyIndex,
       name: `🧬 ${cleanName}`,
       displayName: cleanName,
       gender: detectedGender,
+      languageCode: languageCode || 'es-CO',
       tone: detectedTone,
-      description: `${acousticSummary} (${nativeVoiceId ? `ID Nativo: ${nativeVoiceId}` : `Base: ${matchedBaseVoice}`} • ${store ? 'Persistente' : 'Llave 7 días'})`,
+      description: `${acousticSummary} (${
+        nativeMethod === 'voicestudio_omnivoice_zeroshot'
+          ? 'Clon Zero-Shot 24kHz OmniVoice'
+          : nativeVoiceId
+            ? `ID Nativo: ${nativeVoiceId}`
+            : `Base: ${matchedBaseVoice}`
+      } • ${store ? 'Persistente' : 'Llave 7 días'})`,
       styleDirective,
       voiceDesignPrompt: extractedVoiceDesignPrompt || styleDirective,
+      refTranscript: refTranscript || '',
       baseVoice: matchedBaseVoice,
       type: mode,
       storageMode: store ? 'stateful_1y' : 'stateless_7d',
-      nativeMethod: nativeMethod || 'gemini_multimodal_acoustic_twin',
+      nativeMethod:
+        nativeMethod ||
+        (mode === 'replicated' ? 'voicestudio_omnivoice_zeroshot' : 'gemini_v1beta_voices_prompted'),
       replicatedErrorDiag: replicatedErrorDiag || undefined,
       sourceAudioBase64: cleanSourceB64 || undefined,
       sourceMimeType: sourceMimeType || 'audio/wav',
@@ -1881,6 +2157,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
     };
 
     customVoicesRegistry.set(finalVoiceId, customVoiceProfile);
+    saveCustomVoicesRegistryToDisk();
 
     // 3. Sintetizar muestra inmediata a 24kHz para que el usuario escuche su voz clonada al instante
     const previewText =
@@ -1901,6 +2178,14 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
       sampleDurationSeconds = synthResult.durationSeconds;
     } catch (synthErr) {
       logger.warn(`[WappyStudio VoiceClone] Sample synthesis warning: ${synthErr.message}`);
+      if (promptedSampleB64) {
+        try {
+          const rawBuf = Buffer.from(promptedSampleB64, 'base64');
+          const norm = normalizeAudioBufferToWav(rawBuf, 24000);
+          sampleAudioBase64 = norm.wavBuffer.toString('base64');
+          sampleDurationSeconds = norm.durationSeconds;
+        } catch (_) {}
+      }
     }
 
     return res.json({
@@ -1926,6 +2211,7 @@ router.delete('/voices/custom/:voiceId', studioAuth, async (req, res) => {
   try {
     const voiceId = String(req.params.voiceId || '').trim();
     customVoicesRegistry.delete(voiceId);
+    saveCustomVoicesRegistryToDisk();
 
     if (voiceId.startsWith('voice_')) {
       const { allKeys } = await getCombinedKeysForRequest(req);
@@ -3297,6 +3583,7 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
       prioridad: 'alta',
       origen: 'wappy_studio',
       sourceModule: 'wappy_studio',
+      sourceHtml: orderSpec.sourceHtml || undefined,
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
 
@@ -3310,6 +3597,7 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
       ordenId,
       listeners: pushed,
       daemonListeners: listenerCount,
+      daemonsConectados: listenerCount > 0 ? listenerCount : pushed,
     };
   } catch (err) {
     logger.debug(`[WappyStudio Antigravity] Order delegation skipped: ${err.message}`);
@@ -4262,6 +4550,30 @@ async function handleGenerateMasterReelHtml(req, res) {
       outputType: 'html',
     });
 
+    // Si Antigravity está conectado en vivo, responder de inmediato (<50ms) para que el Monitor en Vivo
+    // active el estado de espera en tiempo real y reciba el HTML compilado por Antigravity sin demora.
+    if (delegation?.delegated && Number(delegation?.daemonsConectados) > 0) {
+      const bridge = notifyStudioAntigravityBridge(
+        req,
+        'html_delegated',
+        {
+          aspectRatio,
+          durationSeconds: realTotalSec,
+          ordenId: delegation.ordenId,
+        },
+        resolvedTarget.userId,
+      );
+      return res.json({
+        ok: true,
+        success: true,
+        delegatedToAntigravity: true,
+        htmlCode: '',
+        timelineMap,
+        delegation,
+        bridge,
+      });
+    }
+
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
     const keysToUse = allKeys.slice(0, 4);
     let usedModel = preferredTextModel;
@@ -4479,14 +4791,6 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
         : '') ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
 
-    // Delegar de inmediato (en 0ms) al Antigravity local conectado antes de recompilar las escenas
-    const resolvedTarget = await resolveStudioTargetUser(req);
-    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
-      title: `Wappy Studio · Editar Animación 60-FPS (${detectedAspect})`,
-      instruction: `Edición solicitada en Wappy Studio: "${instruction}".\nDirección de arte: ${detectedTheme}.\nGuión base:\n${effectiveScript}\n\n[DIRECTRIZ OBLIGATORIA WAPPY STUDIO 60-FPS — LIENZO DE VIDEO PURO]:\n1. NO llames herramientas MCP de consulta empresarial.\n2. Aplica la corrección directamente sobre el lienzo de video HTML5 + GSAP a 60 FPS dentro de <div id="stage" data-wappy-master-reel="true"> en formato ${detectedAspect} ocupando el 100% del viewport (sin dashboards ni paneles externos al video).\n3. Completa la orden inmediatamente con wappy_completar_orden_delegada_tenshi (formato="html", contenido="<!DOCTYPE html>...").`,
-      outputType: 'html',
-    });
-
     let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
     if (audioBase64 && typeof audioBase64 === 'string') {
       try {
@@ -4494,6 +4798,39 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
         const wavBuf = Buffer.from(cleanB64, 'base64');
         timelineMap = alignTimelineMapWithWavBuffer(timelineMap, wavBuf);
       } catch (_) {}
+    }
+
+    // Delegar de inmediato (en 0ms) al Antigravity local conectado en el hilo de Wappy Studio
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+      title: `Wappy Studio · Editar Animación 60-FPS (${detectedAspect})`,
+      instruction: `Edición solicitada en Wappy Studio (Paso 03): "${instruction}".\nDirección de arte: ${detectedTheme}.\nGuión base:\n${effectiveScript}\n\n[DIRECTRIZ OBLIGATORIA WAPPY STUDIO PASO 03 — EDICIÓN EN VIVO SOBRE EL HTML ACTUAL]:\n1. NO llames herramientas MCP de consulta empresarial.\n2. Lee el archivo HTML actual del video en "/tmp/wappy_studio_current.html" y aplica directamente sobre ese código la corrección solicitada ("${instruction}"), preservando el resto de escenas, animaciones GSAP y tiempos.\n3. Guarda el código HTML editado y completa la orden inmediatamente con formato="html".`,
+      outputType: 'html',
+      sourceHtml: sourceHtml || undefined,
+    });
+
+    if (delegation?.delegated && Number(delegation?.daemonsConectados) > 0) {
+      const bridge = notifyStudioAntigravityBridge(
+        req,
+        'html_edit_delegated',
+        {
+          instruction,
+          theme: detectedTheme,
+          aspectRatio: detectedAspect,
+          ordenId: delegation.ordenId,
+        },
+        resolvedTarget.userId,
+      );
+      return res.json({
+        ok: true,
+        success: true,
+        delegatedToAntigravity: true,
+        htmlCode: sourceHtml,
+        summaryOfChanges: `Orden de edición enviada a Antigravity: "${instruction}"`,
+        timelineMap,
+        delegation,
+        bridge,
+      });
     }
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
@@ -4741,6 +5078,9 @@ async function handleRenderMasterReelMp4(req, res) {
       if (window.mainTimeline && typeof window.mainTimeline.progress === 'function') {
         window.mainTimeline.progress(progress, false);
       }
+      if (window.tl && typeof window.tl.progress === 'function') {
+        window.tl.progress(progress, false);
+      }
       if (window.gsap && window.gsap.globalTimeline) {
         const gDur = window.gsap.globalTimeline.duration() || window.__wappyDuration;
         window.gsap.globalTimeline.time(Math.min(timeSec, gDur), false);
@@ -4748,6 +5088,8 @@ async function handleRenderMasterReelMp4(req, res) {
       if (typeof window.__wappyRenderTick === 'function') {
         window.__wappyRenderTick(timeSec, window.__wappyDuration);
       }
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'wappy-studio-control', action: 'seek', time: timeSec } }));
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'STUDIO_SEEK', time: timeSec } }));
     } catch (e) {}
 
     if (window.__wappyShowSubs && window.__wappyWords.length > 0) {

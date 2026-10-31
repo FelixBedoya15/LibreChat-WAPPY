@@ -176,6 +176,45 @@ class GeminiPoolManager {
   }
 
   /**
+   * Verifica si una clave API está disponible inmediatamente (sin baneo temporal,
+   * sin cooldown de RPM/TPM y sin agotamiento diario para el modelo indicado).
+   * @param {string} key - Clave API a consultar
+   * @param {string} [model=''] - Nombre del modelo (ej. "gemini-3.8-flash-tts")
+   * @returns {boolean}
+   */
+  isKeyAvailable(key, model = '') {
+    if (!key || typeof key !== 'string') return false;
+    const cleanKey = this.extractCleanApiKey(key);
+    if (!cleanKey) return false;
+
+    const now = Date.now();
+    for (const [k, expiresAt] of this.invalidKeys.entries()) {
+      if (expiresAt <= now) this.invalidKeys.delete(k);
+    }
+    for (const [k, expiresAt] of this.keyCooldowns.entries()) {
+      if (expiresAt <= now) this.keyCooldowns.delete(k);
+    }
+    for (const [km, expiresAt] of this.dailyExhausted.entries()) {
+      if (expiresAt <= now) this.dailyExhausted.delete(km);
+    }
+
+    if (this.invalidKeys.has(cleanKey) || this.invalidKeys.has(key)) return false;
+    if (this.keyCooldowns.has(cleanKey) || this.keyCooldowns.has(key)) return false;
+
+    const cleanModel = (model || '').toLowerCase().trim();
+    if (cleanModel) {
+      if (
+        this.dailyExhausted.has(`${cleanKey}_${cleanModel}`) ||
+        this.dailyExhausted.has(`${key}_${cleanModel}`)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Retorna una lista priorizada y balanceada de claves API para el modelo y usuario actual.
    *
    * 1. Elimina llaves cuyos cooldowns ya hayan expirado.

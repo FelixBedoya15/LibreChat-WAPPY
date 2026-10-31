@@ -5135,6 +5135,66 @@ export default function WappyStudioDashboard({
     antigravityPollTimerRef.current = pollTimer;
   };
 
+  // Auto-recuperar en el arranque cualquier orden de Wappy Studio recién completada o en progreso en Antigravity
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        const effKey = resolveEffectiveAntigravityKey();
+        const keyParam = effKey ? `?apiKey=${encodeURIComponent(effKey)}` : '';
+        const ordResp = await fetch(`/api/mcp-bridge/antigravity/ordenes${keyParam}`, {
+          headers: getAuthHeaders(token),
+          credentials: 'include',
+        });
+        if (!ordResp.ok || cancelled) return;
+        const ordData = await ordResp.json();
+        const ordersList = Array.isArray(ordData?.ordenes) ? ordData.ordenes : [];
+        const studioOrders = ordersList.filter((o: any) =>
+          /wappy studio/i.test(`${o?.titulo || ''} ${o?.recursoObjetivo || ''} ${o?.instruccion || ''}`),
+        );
+        const inProgressOrder = studioOrders.find((o: any) => {
+          if (o?.estado !== 'in_progress' && o?.estado !== 'todo' && o?.estado !== 'pending') return false;
+          const createdMs = o?.fechaCreacion ? new Date(o.fechaCreacion).getTime() : Date.now();
+          return Date.now() - createdMs < 10 * 60 * 1000;
+        });
+        if (inProgressOrder && (inProgressOrder.id || inProgressOrder._id)) {
+          startPollingAntigravityOrder(String(inProgressOrder.id || inProgressOrder._id));
+          return;
+        }
+        const completedHtmlOrder = studioOrders.find((o: any) => {
+          if (o?.estado !== 'done' && o?.estado !== 'completed') return false;
+          const raw = String(o?.entregable?.contenido || '').trim();
+          const cleaned = raw
+            .replace(/^```html\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+          return cleaned.length > 80 && /<!doctype html|<html\b|<div[^>]+id=["']stage["']/i.test(cleaned);
+        });
+        if (completedHtmlOrder && /data-wappy-template=["']true["']/i.test(htmlCode)) {
+          const deliveredHtml = String(completedHtmlOrder.entregable?.contenido || '')
+            .trim()
+            .replace(/^```html\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+          latestEditedHtmlRef.current = '';
+          setHtmlCode(deliveredHtml);
+          setAntigravityOrderStatus('completed');
+          setActiveAntigravityOrderId('');
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, activeAntigravityKey]);
+
   // PASO 2: Enviar Super-Prompt + Audio + Escenas IA al Generador de Video (Antigravity)
   const handleGenerateHtmlWithAi = async () => {
     if (!requireActiveCompany('generar el video HTML5 + GSAP con Antigravity')) return;
@@ -5260,6 +5320,7 @@ export default function WappyStudioDashboard({
       const currentHtml = latestEditedHtmlRef.current || htmlCode;
       let updatedHtml = '';
       let delegatedOrderId = '';
+      let delegatedDaemonsCount = 0;
       const effBridgeKey = resolveEffectiveAntigravityKey();
 
       try {
@@ -5291,6 +5352,7 @@ export default function WappyStudioDashboard({
           const editData = await parseStudioJson(editResp);
           if (editData?.delegation?.ordenId) {
             delegatedOrderId = editData.delegation.ordenId;
+            delegatedDaemonsCount = Number(editData.delegation?.daemonsConectados ?? editData.delegation?.daemonListeners ?? 0);
           }
           if (editData?.success && editData.htmlCode) {
             updatedHtml = editData.htmlCode;
@@ -5304,6 +5366,24 @@ export default function WappyStudioDashboard({
         }
       } catch {
         /* Fallback al motor maestro generate-html con la corrección inyectada */
+      }
+
+      const hasLiveEditDaemon = Boolean(delegatedOrderId) && delegatedDaemonsCount > 0;
+      if (hasLiveEditDaemon && delegatedOrderId) {
+        setIsVideoPlaying(false);
+        stageAudioRef.current?.pause();
+        baseVideoRef.current?.pause();
+        startPollingAntigravityOrder(delegatedOrderId);
+        setTimeout(() => {
+          document
+            .getElementById('wappy-studio-live-monitor')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 140);
+        setStatusBanner({
+          type: 'success',
+          text: `⚡ ¡Paso 3 enviado al chat de Wappy Studio en Google Antigravity (Orden #${String(delegatedOrderId).slice(-6)})! Antigravity está editando el HTML actual con tu indicación ("${videoCorrectionPrompt.trim()}") y actualizará automáticamente el Monitor en Vivo al terminar.`,
+        });
+        return;
       }
 
       if (!updatedHtml) {
@@ -5669,6 +5749,7 @@ export default function WappyStudioDashboard({
       const resp = await fetch('/api/studio/video/render-mp4', {
         method: 'POST',
         headers: getAuthHeaders(token),
+        credentials: 'include',
         body: JSON.stringify({
           htmlCode: finalHtml,
           audioBase64,
@@ -5678,7 +5759,7 @@ export default function WappyStudioDashboard({
           aspectRatio,
           durationSeconds: targetDuration,
           fps: targetFps,
-          antigravityApiKey: antigravityBridgeKey,
+          antigravityApiKey: resolveEffectiveAntigravityKey() || undefined,
         }),
       });
 
@@ -6763,6 +6844,28 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             : 'bg-gradient-to-b from-slate-50 via-white to-teal-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-[100dvh] h-auto overflow-y-auto pb-16',
       )}
     >
+      {/* Estabilización Anti-Titileo (Zero-Flicker) para todos los botones .wappy-expand-btn */}
+      <style>{`
+        .wappy-expand-btn {
+          flex-shrink: 0;
+          position: relative;
+        }
+        .wappy-expand-btn::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+        }
+        .wappy-expand-btn:hover::after {
+          inset: -8px -16px;
+          pointer-events: auto;
+        }
+        @media (min-width: 640px) {
+          .wappy-expand-btn:hover {
+            transform: translateY(-1px) !important;
+          }
+        }
+      `}</style>
       {podcastOnly && (
         <>
           <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#c7f303]/10 rounded-full blur-3xl pointer-events-none" />
@@ -6783,10 +6886,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         )}
       >
         <div className="max-w-7xl mx-auto flex flex-col gap-3.5">
-          {/* Fila 1: Identidad WAPPY Studio (Izquierda) + Herramientas & Conexión Antigravity (Derecha) */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Izquierda: Botón Sidebar + Badge + Título en una sola línea limpia */}
-            <div className="flex items-start sm:items-center gap-3 min-w-0">
+          {/* Fila 1: Identidad WAPPY Studio arriba (w-full) + Herramientas & Conexión Antigravity debajo en su propia fila dedicada */}
+          <div className="flex flex-col items-start gap-3">
+            {/* Arriba: Botón Sidebar + Badge + Título + Descripción */}
+            <div className="flex items-start sm:items-center gap-3 min-w-0 w-full">
               {isAuthenticated && !navVisible && (
                 <div className="hidden md:block shrink-0">
                   <OpenSidebar setNavVisible={setNavVisible} />
@@ -6797,7 +6900,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   🎙️
                 </div>
               )}
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span
                     className={cn(
@@ -6815,10 +6918,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </span>
                   </span>
                 </div>
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <div className="flex flex-col items-start gap-1">
                   <h1
                     className={cn(
-                      'text-xl sm:text-2xl font-extrabold flex items-center gap-2 whitespace-nowrap',
+                      'text-xl sm:text-2xl font-extrabold flex items-center gap-2',
                       podcastOnly
                         ? 'text-white tracking-tight'
                         : 'bg-clip-text text-transparent bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400',
@@ -6834,7 +6937,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </span>
                   </h1>
                   {!podcastOnly && (
-                    <p className="text-xs text-slate-600 dark:text-slate-300 hidden sm:block">
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
                       Síntesis de voz de hasta 1 hora continua y creación de videos animados en HTML/GSAP con Antigravity.
                     </p>
                   )}
@@ -6842,8 +6945,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               </div>
             </div>
 
-            {/* Derecha: Botones de Acción WAPPY (14 Grupos Semánticos, 100% responsive con flex-wrap) */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Debajo en fila propia dedicada: Botones de Acción WAPPY (14 Grupos Semánticos, justify-start sin saltos) */}
+            <div className="w-full flex flex-wrap items-center justify-start gap-2.5 pt-0.5">
               <ModelSelector
                 selectedModel={selectedAiModel}
                 onSelectModel={setSelectedAiModel}
@@ -6921,66 +7024,63 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             </div>
           </div>
 
-          {/* Fila 2: Los Módulos Principales con Diseño Oficial de Botones WAPPY (ExpandableButton 14-Group System) */}
-          <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <ExpandableButton
-                icon={<MicVocal />}
-                label={podcastOnly ? '1. Estudio de Podcast & Voz' : 'Estudio de Voz (TTS)'}
-                variant="teal"
-                isActive={activeTab === 'tts'}
-                onClick={() => handleTabChange('tts')}
-              />
+          {/* Fila 2: Los Módulos Principales con Diseño Oficial de Botones WAPPY (ExpandableButton 14-Group System, justify-start) */}
+          <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800/80 flex flex-wrap items-center justify-start gap-2.5">
+            <ExpandableButton
+              icon={<MicVocal />}
+              label={podcastOnly ? '1. Estudio de Podcast & Voz' : 'Estudio de Voz (TTS)'}
+              variant="teal"
+              isActive={activeTab === 'tts'}
+              onClick={() => handleTabChange('tts')}
+            />
 
-              {!podcastOnly && (
-                <ExpandableButton
-                  icon={<Film />}
-                  label="Video HTML & Capas"
-                  variant="purple"
-                  isActive={activeTab === 'video'}
-                  onClick={() => handleTabChange('video')}
-                />
-              )}
-
+            {!podcastOnly && (
               <ExpandableButton
-                icon={<Layers />}
-                label={podcastOnly ? '2. Voces Duales & Bursts' : 'Voces & Bursts'}
-                variant="amber"
-                isActive={activeTab === 'lab'}
-                onClick={() => handleTabChange('lab')}
+                icon={<Film />}
+                label="Video HTML & Capas"
+                variant="purple"
+                isActive={activeTab === 'video'}
+                onClick={() => handleTabChange('video')}
               />
+            )}
 
-              <ExpandableButton
-                icon={<BookOpen />}
-                label={
-                  podcastOnly
-                    ? `3. Biblioteca de Podcasts (${libraryItems.filter((i) => i.kind !== 'video').length})`
-                    : `Biblioteca (${libraryItems.length})`
-                }
-                variant="indigo"
-                isActive={activeTab === 'library'}
-                onClick={() => handleTabChange('library')}
-              />
-            </div>
+            <ExpandableButton
+              icon={<Layers />}
+              label={podcastOnly ? '2. Voces Duales & Bursts' : 'Voces & Bursts'}
+              variant="amber"
+              isActive={activeTab === 'lab'}
+              onClick={() => handleTabChange('lab')}
+            />
 
-            <div className="hidden lg:flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              <ExpandableButton
-                size="sm"
-                icon={<span>🏢</span>}
-                label={
-                  isCompanyReady && activeCompanyInfo?.companyName
-                    ? `${activeCompanyInfo.companyName} (${activeCompanyInfo.nit || 'Activa'})`
-                    : 'Sin Empresa Creada (Sistema Bloqueado)'
-                }
-                variant={isCompanyReady ? 'teal' : 'amber'}
-                onClick={openHostCompanyModal}
-                title="Configurar o cambiar la empresa activa"
-              />
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold">
-                <span className="w-2 h-2 rounded-full bg-[#C7F303] animate-pulse" />
-                {podcastOnly ? '🎙️ Motor Multi-Voz 24 kHz WAV Activo' : 'Motor 60-FPS + Voz Activo'}
-              </span>
-            </div>
+            <ExpandableButton
+              icon={<BookOpen />}
+              label={
+                podcastOnly
+                  ? `3. Biblioteca de Podcasts (${libraryItems.filter((i) => i.kind !== 'video').length})`
+                  : `Biblioteca (${libraryItems.length})`
+              }
+              variant="indigo"
+              isActive={activeTab === 'library'}
+              onClick={() => handleTabChange('library')}
+            />
+
+            <ExpandableButton
+              size="sm"
+              icon={<span>🏢</span>}
+              label={
+                isCompanyReady && activeCompanyInfo?.companyName
+                  ? `${activeCompanyInfo.companyName} (${activeCompanyInfo.nit || 'Activa'})`
+                  : 'Sin Empresa Creada (Sistema Bloqueado)'
+              }
+              variant={isCompanyReady ? 'teal' : 'amber'}
+              onClick={openHostCompanyModal}
+              title="Configurar o cambiar la empresa activa"
+            />
+
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-700 dark:text-emerald-300 font-bold">
+              <span className="w-2 h-2 rounded-full bg-[#C7F303] animate-pulse" />
+              {podcastOnly ? '🎙️ Motor Multi-Voz 24 kHz WAV Activo' : 'Motor 60-FPS + Voz Activo'}
+            </span>
           </div>
         </div>
       </header>
@@ -6992,14 +7092,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
           podcastOnly ? 'pt-5 pb-2 px-0' : 'px-4 sm:px-6 py-6',
         )}
       >
-        {/* Bloqueo Estricto del Sistema si los Datos de la Empresa no están creados */}
+        {/* Bloqueo Estricto del Sistema si los Datos de la Empresa no están creados (Texto arriba, botón debajo en su propia fila) */}
         {!isCompanyReady && (
-          <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-500/10 dark:bg-amber-950/40 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md animate-in fade-in duration-200">
-            <div className="flex items-start gap-3.5">
+          <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-500/10 dark:bg-amber-950/40 p-4 sm:p-5 flex flex-col items-start gap-3 shadow-md animate-in fade-in duration-200">
+            <div className="flex items-start gap-3.5 w-full">
               <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shrink-0">
                 🔒
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs sm:text-sm font-black text-amber-950 dark:text-amber-200">
                     Sistema Bloqueado — Registra primero los Datos de tu Empresa para activar el Estudio
@@ -7008,12 +7108,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     Requisito Obligatorio WAPPY
                   </span>
                 </div>
-                <p className="text-xs text-amber-900/90 dark:text-amber-200/80 leading-relaxed max-w-3xl">
+                <p className="text-xs text-amber-900/90 dark:text-amber-200/80 leading-relaxed">
                   Para generar locuciones, podcasts o videos con Antigravity debes crear y guardar los datos de tu empresa. Si no estás registrado en WAPPY, la empresa que crees aquí se pasará automáticamente a Wappy Podcast y a la Matriz IPEVR GTC-45; si tienes sesión activa en WAPPY, se sincroniza directamente con tus empresas de Somos SST.
                 </p>
               </div>
             </div>
-            <div className="shrink-0 flex items-center gap-2">
+            <div className="w-full flex flex-wrap items-center justify-start gap-2.5 pt-1">
               <ExpandableButton
                 icon={<Sparkles />}
                 label="Crear / Configurar Datos de la Empresa"
@@ -7177,12 +7277,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             )}
           >
             {podcastOnly && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/90 border border-teal-500/30 rounded-2xl p-4 shadow-lg">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col items-start gap-3 bg-slate-900/90 border border-teal-500/30 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center gap-3 w-full">
                   <div className="w-10 h-10 rounded-xl bg-[#c7f303]/15 border border-[#c7f303]/40 flex items-center justify-center text-[#c7f303] shrink-0">
                     <Sliders className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#c7f303] block">
                       CONSOLA DE PRODUCCIÓN & EDICIÓN · MASTER 24KHZ WAV
                     </span>
@@ -7191,16 +7291,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </h3>
                   </div>
                 </div>
-                <ExpandableButton
-                  size="sm"
-                  icon={<Radio />}
-                  label="Pasa directo a tu Walkman y Carrusel arriba ↑"
-                  variant="teal"
-                  onClick={() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  title="Subir al Walkman y Carrusel de Cápsulas"
-                />
+                <div className="flex flex-wrap items-center justify-start gap-2.5">
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Radio />}
+                    label="Pasa directo a tu Walkman y Carrusel arriba ↑"
+                    variant="teal"
+                    onClick={() => {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    title="Subir al Walkman y Carrusel de Cápsulas"
+                  />
+                </div>
               </div>
             )}
             {/* Monitor de Trabajo Asíncrono por Capas (Justo debajo del Reproductor Maestro, idéntico al diseño de referencia) */}
@@ -7372,16 +7474,18 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
 
                   {/* Barra de voces activas */}
-                  <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-2 text-[11px]">
-                    <span className="text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-teal-500 shrink-0" />
-                      <span>Voces de estudio habilitadas:</span>
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
+                  <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 flex flex-col items-start gap-2 text-[11px]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+                      <span className="text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                        <span>Voces de estudio habilitadas:</span>
+                      </span>
                       <span className="font-extrabold text-emerald-700 dark:text-emerald-400">
                         {activeVoicesCount} de {voices.length} disponibles
                       </span>
-                      {activeVoicesCount < voices.length && (
+                    </div>
+                    {activeVoicesCount < voices.length && (
+                      <div className="flex flex-wrap items-center justify-start gap-2">
                         <ExpandableButton
                           size="sm"
                           icon={<Sparkles />}
@@ -7389,8 +7493,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           variant="indigo"
                           onClick={() => setSelectedModel('gemini-3.8-flash-tts')}
                         />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -7492,8 +7596,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                 {/* 3.5. Tarjeta de Clonación de Voz & Diseño Vocal Personalizado */}
                 <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-950 via-[#101c16] to-slate-950 border border-[#c7f303]/45 shadow-md space-y-2.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex flex-col items-start gap-2.5">
+                    <div className="w-full">
                       <h3 className="text-xs font-black text-white uppercase tracking-wide flex items-center gap-1.5">
                         <span className="text-[#c7f303]">🧬</span>
                         <span>Clonar mi Propia Voz o Crear Voz Personalizada</span>
@@ -7504,77 +7608,83 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         <strong className="text-purple-300">Sam (Host 2)</strong> o locución individual.
                       </p>
                     </div>
-                    <ExpandableButton
-                      size="sm"
-                      icon={<MicVocal />}
-                      label={`Clonar mi Voz / Crear Voz${clonedVoices.length > 0 ? ` (${clonedVoices.length})` : ''}`}
-                      variant="emerald"
-                      onClick={() => setIsVoiceCloneModalOpen(true)}
-                      title="Abrir Estudio de Clonación de Voz y Diseño Vocal 24kHz"
-                    />
+                    <div className="flex flex-wrap items-center justify-start gap-2">
+                      <ExpandableButton
+                        size="sm"
+                        icon={<MicVocal />}
+                        label={`Clonar mi Voz / Crear Voz${clonedVoices.length > 0 ? ` (${clonedVoices.length})` : ''}`}
+                        variant="emerald"
+                        onClick={() => setIsVoiceCloneModalOpen(true)}
+                        title="Abrir Estudio de Clonación de Voz y Diseño Vocal 24kHz"
+                      />
+                    </div>
                   </div>
 
                   {clonedVoices.length > 0 && (
-                    <div className="pt-2.5 border-t border-slate-800/90 flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-extrabold text-[#c7f303]">
+                    <div className="pt-2.5 border-t border-slate-800/90 space-y-2">
+                      <span className="text-[10px] font-extrabold text-[#c7f303] block">
                         Tus voces clonadas:
                       </span>
-                      {clonedVoices.map((cv) => (
-                        <div
-                          key={cv.id}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/95 border border-[#c7f303]/35 text-[10px] text-white"
-                        >
-                          <span className="font-extrabold text-[#c7f303] mr-0.5">{cv.name}</span>
-                          <ExpandableButton
-                            size="sm"
-                            icon={<MicVocal />}
-                            label="Alex (Host 1)"
-                            variant="teal"
-                            isActive={multiSpeaker && speaker1Voice === cv.id}
-                            onClick={() => {
-                              setMultiSpeaker(true);
-                              setSpeaker1Voice(cv.id);
-                              setStatusBanner({
-                                type: 'success',
-                                text: `🎙️ Voz clonada "${cv.name}" asignada a Alex (Host 1).`,
-                              });
-                            }}
-                            title="Asignar esta voz clonada a Alex (Host 1)"
-                          />
-                          <ExpandableButton
-                            size="sm"
-                            icon={<Users />}
-                            label="Sam (Host 2)"
-                            variant="purple"
-                            isActive={multiSpeaker && speaker2Voice === cv.id}
-                            onClick={() => {
-                              setMultiSpeaker(true);
-                              setSpeaker2Voice(cv.id);
-                              setStatusBanner({
-                                type: 'success',
-                                text: `🎧 Voz clonada "${cv.name}" asignada a Sam (Host 2).`,
-                              });
-                            }}
-                            title="Asignar esta voz clonada a Sam (Host 2)"
-                          />
-                          <ExpandableButton
-                            size="sm"
-                            icon={<Play />}
-                            label="Oír"
-                            variant="amber"
-                            onClick={(e) => handleAuditionVoice(cv.id, e)}
-                            title="Escuchar muestra 24kHz de esta voz clonada"
-                          />
-                          <ExpandableButton
-                            size="sm"
-                            icon={<Trash2 />}
-                            label="Eliminar"
-                            variant="danger"
-                            onClick={(e) => handleDeleteClonedVoice(cv.id, e)}
-                            title="Eliminar voz clonada"
-                          />
-                        </div>
-                      ))}
+                      <div className="space-y-2">
+                        {clonedVoices.map((cv) => (
+                          <div
+                            key={cv.id}
+                            className="flex flex-col items-start gap-1.5 px-2.5 py-2 rounded-xl bg-slate-900/95 border border-[#c7f303]/35 text-[10px] text-white"
+                          >
+                            <span className="font-extrabold text-[#c7f303]">{cv.name}</span>
+                            <div className="flex flex-wrap items-center justify-start gap-1.5">
+                              <ExpandableButton
+                                size="sm"
+                                icon={<MicVocal />}
+                                label="Alex (Host 1)"
+                                variant="teal"
+                                isActive={multiSpeaker && speaker1Voice === cv.id}
+                                onClick={() => {
+                                  setMultiSpeaker(true);
+                                  setSpeaker1Voice(cv.id);
+                                  setStatusBanner({
+                                    type: 'success',
+                                    text: `🎙️ Voz clonada "${cv.name}" asignada a Alex (Host 1).`,
+                                  });
+                                }}
+                                title="Asignar esta voz clonada a Alex (Host 1)"
+                              />
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Users />}
+                                label="Sam (Host 2)"
+                                variant="purple"
+                                isActive={multiSpeaker && speaker2Voice === cv.id}
+                                onClick={() => {
+                                  setMultiSpeaker(true);
+                                  setSpeaker2Voice(cv.id);
+                                  setStatusBanner({
+                                    type: 'success',
+                                    text: `🎧 Voz clonada "${cv.name}" asignada a Sam (Host 2).`,
+                                  });
+                                }}
+                                title="Asignar esta voz clonada a Sam (Host 2)"
+                              />
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Play />}
+                                label="Oír"
+                                variant="amber"
+                                onClick={(e) => handleAuditionVoice(cv.id, e)}
+                                title="Escuchar muestra 24kHz de esta voz clonada"
+                              />
+                              <ExpandableButton
+                                size="sm"
+                                icon={<Trash2 />}
+                                label="Eliminar"
+                                variant="danger"
+                                onClick={(e) => handleDeleteClonedVoice(cv.id, e)}
+                                title="Eliminar voz clonada"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -7845,84 +7955,80 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                               !supported && 'opacity-75 border-dashed',
                             )}
                           >
-                            <div>
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                                      {v.name}
+                            <div className="space-y-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                                    {v.name}
+                                  </span>
+                                  {v.tag && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25 shrink-0">
+                                      {v.tag}
                                     </span>
-                                    {v.tag && (
-                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25 shrink-0">
-                                        {v.tag}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                                    <span
-                                      className={cn(
-                                        'text-[9px] font-bold px-1.5 py-0.5 rounded',
-                                        v.gender === 'Femenino'
-                                          ? 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border border-pink-500/20'
-                                          : 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20',
-                                      )}
-                                    >
-                                      {v.gender === 'Femenino' ? '♀ Femenina' : '♂ Masculina'}
-                                    </span>
-                                    {supported ? (
-                                      <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                                        ✓ Activa
-                                      </span>
-                                    ) : (
-                                      <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
-                                        Catálogo 14 Voces
-                                      </span>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
-
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <ExpandableButton
-                                    size="sm"
-                                    icon={
-                                      isAuditioning ? (
-                                        <Loader2 className="animate-spin" />
-                                      ) : (
-                                        <Play />
-                                      )
-                                    }
-                                    label="Oír"
-                                    variant="teal"
-                                    disabled={isAuditioning}
-                                    onClick={(e) => handleAuditionVoice(v.id, e)}
-                                    title={`Escuchar muestra de ${v.name}`}
-                                  />
+                                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                  <span
+                                    className={cn(
+                                      'text-[9px] font-bold px-1.5 py-0.5 rounded',
+                                      v.gender === 'Femenino'
+                                        ? 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border border-pink-500/20'
+                                        : 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20',
+                                    )}
+                                  >
+                                    {v.gender === 'Femenino' ? '♀ Femenina' : '♂ Masculina'}
+                                  </span>
+                                  {supported ? (
+                                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                                      ✓ Activa
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                                      Catálogo 14 Voces
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
-                              <p className="text-[11px] text-teal-700 dark:text-teal-300 font-bold mt-2 leading-snug">
+                              <p className="text-[11px] text-teal-700 dark:text-teal-300 font-bold leading-snug">
                                 {v.tone}
                               </p>
-                            </div>
-
-                            <div className="mt-2 pt-1.5 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-2">
                               <p className="text-[10px] text-slate-600 dark:text-zinc-400 line-clamp-1 leading-tight">
                                 {v.recommendedFor}
                               </p>
+                            </div>
+
+                            <div
+                              className="mt-2 pt-2 border-t border-slate-200/70 dark:border-slate-800 flex flex-wrap items-center justify-start gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExpandableButton
+                                size="sm"
+                                icon={
+                                  isAuditioning ? (
+                                    <Loader2 className="animate-spin" />
+                                  ) : (
+                                    <Play />
+                                  )
+                                }
+                                label="Oír"
+                                variant="teal"
+                                disabled={isAuditioning}
+                                onClick={(e) => handleAuditionVoice(v.id, e)}
+                                title={`Escuchar muestra de ${v.name}`}
+                              />
                               {!supported && (
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <ExpandableButton
-                                    size="sm"
-                                    icon={<Check />}
-                                    label="Activar Voz"
-                                    variant="indigo"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedModel('gemini-3.8-flash-tts');
-                                      setSelectedVoice(v.id);
-                                    }}
-                                  />
-                                </div>
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Check />}
+                                  label="Activar Voz"
+                                  variant="indigo"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedModel('gemini-3.8-flash-tts');
+                                    setSelectedVoice(v.id);
+                                  }}
+                                />
                               )}
                             </div>
                           </div>
@@ -8022,13 +8128,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 {/* Banner Integrado de Estado de Claves API & Rotación Anti-429 */}
                 <div
                   className={cn(
-                    'p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all',
+                    'p-3.5 rounded-2xl border flex flex-col items-start gap-3 transition-all',
                     activeCustomKeyCount > 0
                       ? 'bg-emerald-500/10 border-emerald-500/30'
                       : 'bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-teal-500/10 border-indigo-500/25',
                   )}
                 >
-                  <div className="flex items-start sm:items-center gap-3">
+                  <div className="flex items-start sm:items-center gap-3 w-full">
                     <div
                       className={cn(
                         'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border',
@@ -8039,20 +8145,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     >
                       <Key className="w-4 h-4" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
                         {activeCustomKeyCount > 0 ? (
-                          <>
-                            <span>
-                              {activeCustomKeyCount} clave(s) API guardada(s) • Rotación y failover automático (429) activados
-                            </span>
-                          </>
+                          <span>
+                            {activeCustomKeyCount} clave(s) API guardada(s) • Rotación y failover automático (429) activados
+                          </span>
                         ) : (
-                          <>
-                            <span>
-                              Motor Multi-Clave de Estudio 24kHz (Almacenamiento Local + Respaldo WAPPY)
-                            </span>
-                          </>
+                          <span>
+                            Motor Multi-Clave de Estudio 24kHz (Almacenamiento Local + Respaldo WAPPY)
+                          </span>
                         )}
                       </p>
                       <p className="text-[11px] text-slate-600 dark:text-zinc-400">
@@ -8062,36 +8164,40 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </p>
                     </div>
                   </div>
-                  <ExpandableButton
-                    size="sm"
-                    icon={<Key />}
-                    label={activeCustomKeyCount > 0 ? 'Administrar Claves' : 'Configurar Claves'}
-                    variant="fuchsia"
-                    onClick={() => {
-                      setKeyValidationMsg('');
-                      setApiKeyModalTab('keys');
-                      setIsApiKeyModalOpen(true);
-                    }}
-                  />
+                  <div className="flex flex-wrap items-center justify-start gap-2">
+                    <ExpandableButton
+                      size="sm"
+                      icon={<Key />}
+                      label={activeCustomKeyCount > 0 ? 'Administrar Claves' : 'Configurar Claves'}
+                      variant="fuchsia"
+                      onClick={() => {
+                        setKeyValidationMsg('');
+                        setApiKeyModalTab('keys');
+                        setIsApiKeyModalOpen(true);
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Panel Maestro de Configuración del Episodio, Instagram, Duración (5 / 7.5 / 10 min) e Instrucción Temática (Exclusivo en podcastOnly) */}
                 {podcastOnly && (
                   <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-teal-500/35 space-y-3 shadow-lg">
                     {/* Fila 1: Título de tu Podcast */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] shrink-0 flex items-center gap-1.5">
-                        📻 {editingLibraryItemId ? 'Editando Podcast:' : 'Título de tu Podcast:'}
-                      </label>
-                      <input
-                        type="text"
-                        value={activePodcastEpisodeTitle}
-                        onChange={(e) => setActivePodcastEpisodeTitle(e.target.value)}
-                        placeholder="Ej: Somos SST Daily - Bloqueo LOTO en Planta..."
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
-                      />
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#c7f303] shrink-0 flex items-center gap-1.5">
+                          📻 {editingLibraryItemId ? 'Editando Podcast:' : 'Título de tu Podcast:'}
+                        </label>
+                        <input
+                          type="text"
+                          value={activePodcastEpisodeTitle}
+                          onChange={(e) => setActivePodcastEpisodeTitle(e.target.value)}
+                          placeholder="Ej: Somos SST Daily - Bloqueo LOTO en Planta..."
+                          className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-[#c7f303]"
+                        />
+                      </div>
                       {editingLibraryItemId && (
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex flex-wrap items-center justify-start gap-2">
                           <ExpandableButton
                             size="sm"
                             icon={<Save />}
@@ -8119,51 +8225,55 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
 
                     {/* Fila 2: Campo de Instagram (debajo del Título del Podcast) */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 pt-2 border-t border-slate-800/80">
-                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-pink-400 shrink-0 flex items-center gap-1.5">
-                        📸 Instagram del Podcast:
-                      </label>
-                      <div className="flex-1 flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-pink-400">
-                        <span className="px-2.5 py-1.5 text-xs font-black text-pink-400 bg-pink-500/10 border-r border-slate-700 select-none">
-                          @
-                        </span>
-                        <input
-                          type="text"
-                          value={podcastInstagramHandle.replace(/^@+/, '')}
-                          onChange={(e) => handleInstagramHandleChange(e.target.value.replace(/^@+/, ''))}
-                          placeholder="somossst (al final dirá: Síguenos en Instagram @...)"
-                          className="flex-1 bg-transparent px-3 py-1.5 text-xs font-bold text-white focus:outline-none"
+                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-pink-400 shrink-0 flex items-center gap-1.5">
+                          📸 Instagram del Podcast:
+                        </label>
+                        <div className="flex-1 flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-pink-400">
+                          <span className="px-2.5 py-1.5 text-xs font-black text-pink-400 bg-pink-500/10 border-r border-slate-700 select-none">
+                            @
+                          </span>
+                          <input
+                            type="text"
+                            value={podcastInstagramHandle.replace(/^@+/, '')}
+                            onChange={(e) => handleInstagramHandleChange(e.target.value.replace(/^@+/, ''))}
+                            placeholder="somossst (al final dirá: Síguenos en Instagram @...)"
+                            className="flex-1 bg-transparent px-3 py-1.5 text-xs font-bold text-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-start gap-2">
+                        <ExpandableButton
+                          size="sm"
+                          icon={<Check />}
+                          label={
+                            podcastInstagramHandle.trim()
+                              ? `Dirá: Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}`
+                              : 'Aplicar Marca & IG al Guion'
+                          }
+                          variant="fuchsia"
+                          onClick={() => {
+                            const updated = ensurePodcastBrandAndInstagram(scriptText);
+                            setScriptText(updated);
+                            setStatusBanner({
+                              type: 'success',
+                              text: podcastInstagramHandle.trim()
+                                ? `✅ Sello "Somos SST Daily" y cierre "Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}" aplicados al guion.`
+                                : '✅ Sello oficial "Somos SST Daily" aplicado al guion.',
+                            });
+                          }}
+                          title="Inyectar ahora mismo la marca Somos SST Daily y el cierre de Instagram en el guion actual"
                         />
                       </div>
-                      <ExpandableButton
-                        size="sm"
-                        icon={<Check />}
-                        label={
-                          podcastInstagramHandle.trim()
-                            ? `Dirá: Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}`
-                            : 'Aplicar Marca & IG al Guion'
-                        }
-                        variant="fuchsia"
-                        onClick={() => {
-                          const updated = ensurePodcastBrandAndInstagram(scriptText);
-                          setScriptText(updated);
-                          setStatusBanner({
-                            type: 'success',
-                            text: podcastInstagramHandle.trim()
-                              ? `✅ Sello "Somos SST Daily" y cierre "Síguenos en Instagram @${podcastInstagramHandle.replace(/^@+/, '').trim()}" aplicados al guion.`
-                              : '✅ Sello oficial "Somos SST Daily" aplicado al guion.',
-                          });
-                        }}
-                        title="Inyectar ahora mismo la marca Somos SST Daily y el cierre de Instagram en el guion actual"
-                      />
                     </div>
 
                     {/* Fila 3: Selector de Tiempo del Podcast (5 min | 7.5 min | 10 min) */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-800/80">
+                    <div className="flex flex-col items-start gap-2 pt-2 border-t border-slate-800/80">
                       <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-300 flex items-center gap-1.5">
                         ⏱️ Tiempo del Podcast (Duración Meta):
                       </span>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-start gap-2">
                         {(
                           [
                             { min: 5 as const, label: '5 Minutos (~750 pal.)' },
@@ -8211,55 +8321,57 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       />
 
                       {/* Chips de ideas rápidas para enriquecer la instrucción temática */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 mr-1">
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 block">
                           💡 Ideas rápidas:
                         </span>
-                        {[
-                          {
-                            label: 'Exceso de Confianza',
-                            prompt:
-                              'Analizar cómo el exceso de confianza en tareas rutinarias causa accidentes graves, con un caso real en planta y 3 hábitos para romper el piloto automático.',
-                          },
-                          {
-                            label: 'Bloqueo LOTO (5 Reglas)',
-                            prompt:
-                              'Explicar de forma práctica el control de energías peligrosas y bloqueo/etiquetado LOTO con preguntas y respuestas entre Alex y Sam.',
-                          },
-                          {
-                            label: 'Alturas Res. 4272',
-                            prompt:
-                              'Debatir sobre inspección de arnés, puntos de anclaje certificados y permiso de trabajo en alturas según la Resolución 4272 de 2021.',
-                          },
-                          {
-                            label: 'Investigación ATEL',
-                            prompt:
-                              'Reconstruir un cuasi-accidente laboral aplicando metodología de los 5 Porqués sin buscar culpables sino causas raíz reales.',
-                          },
-                          {
-                            label: 'Salud Mental & Fatiga',
-                            prompt:
-                              'Conversar con empatía sobre fatiga laboral, pausas activas reales, sueño reparador y cuidado mutuo en turnos rotativos.',
-                          },
-                        ].map((chip) => (
-                          <ExpandableButton
-                            key={chip.label}
-                            size="sm"
-                            icon={<Plus />}
-                            label={chip.label}
-                            variant="teal"
-                            onClick={() =>
-                              setPodcastTopicInstruction((prev) =>
-                                prev.trim() ? `${prev.trim()} ${chip.prompt}` : chip.prompt,
-                              )
-                            }
-                          />
-                        ))}
+                        <div className="flex flex-wrap items-center justify-start gap-2">
+                          {[
+                            {
+                              label: 'Exceso de Confianza',
+                              prompt:
+                                'Analizar cómo el exceso de confianza en tareas rutinarias causa accidentes graves, con un caso real en planta y 3 hábitos para romper el piloto automático.',
+                            },
+                            {
+                              label: 'Bloqueo LOTO (5 Reglas)',
+                              prompt:
+                                'Explicar de forma práctica el control de energías peligrosas y bloqueo/etiquetado LOTO con preguntas y respuestas entre Alex y Sam.',
+                            },
+                            {
+                              label: 'Alturas Res. 4272',
+                              prompt:
+                                'Debatir sobre inspección de arnés, puntos de anclaje certificados y permiso de trabajo en alturas según la Resolución 4272 de 2021.',
+                            },
+                            {
+                              label: 'Investigación ATEL',
+                              prompt:
+                                'Reconstruir un cuasi-accidente laboral aplicando metodología de los 5 Porqués sin buscar culpables sino causas raíz reales.',
+                            },
+                            {
+                              label: 'Salud Mental & Fatiga',
+                              prompt:
+                                'Conversar con empatía sobre fatiga laboral, pausas activas reales, sueño reparador y cuidado mutuo en turnos rotativos.',
+                            },
+                          ].map((chip) => (
+                            <ExpandableButton
+                              key={chip.label}
+                              size="sm"
+                              icon={<Plus />}
+                              label={chip.label}
+                              variant="teal"
+                              onClick={() =>
+                                setPodcastTopicInstruction((prev) =>
+                                  prev.trim() ? `${prev.trim()} ${chip.prompt}` : chip.prompt,
+                                )
+                              }
+                            />
+                          ))}
+                        </div>
                       </div>
 
                       {/* Resumen en Vivo del Engranaje antes de Redactar */}
-                      <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                      <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col items-start gap-2.5">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] w-full">
                           <span className="px-2 py-0.5 rounded-md bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] font-extrabold">
                             🏷️ Marca: Somos SST Daily
                           </span>
@@ -8286,26 +8398,28 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           )}
                         </div>
 
-                        <ExpandableButton
-                          size="sm"
-                          icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
-                          label={
-                            isEnhancingScript
-                              ? `Redactando Guion de ${podcastTargetMinutes} Minutos...`
-                              : `✨ Crear / Redactar Guion (${podcastTargetMinutes} Min) Uniendo Todo`
-                          }
-                          variant="teal"
-                          disabled={isEnhancingScript}
-                          onClick={handleEnhanceScriptWithAi}
-                        />
+                        <div className="flex flex-wrap items-center justify-start gap-2">
+                          <ExpandableButton
+                            size="sm"
+                            icon={isEnhancingScript ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                            label={
+                              isEnhancingScript
+                                ? `Redactando Guion de ${podcastTargetMinutes} Minutos...`
+                                : `✨ Crear / Redactar Guion (${podcastTargetMinutes} Min) Uniendo Todo`
+                            }
+                            variant="teal"
+                            disabled={isEnhancingScript}
+                            onClick={handleEnhanceScriptWithAi}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Cabecera del Editor + Botón Generar/Expandir Guion con IA */}
-                <div className="flex flex-wrap items-center justify-between gap-2.5">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col items-start gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2 w-full">
                     <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
                       <MicVocal className="w-4 h-4 text-teal-500" />
                       {podcastOnly
@@ -8328,7 +8442,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <div className="flex flex-wrap items-center justify-start gap-2 min-w-0">
                     {!podcastOnly && (
                       <select
                         defaultValue=""
@@ -8507,7 +8621,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
 
                 {/* Botones de Acción Principales (WAPPY 14-Group Design System) */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center justify-start gap-3 pt-1">
                   <ExpandableButton
                     icon={isPreviewing ? <Loader2 className="animate-spin" /> : <Zap />}
                     label={
@@ -8565,8 +8679,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               <div className="pointer-events-none absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-[#0D9488]/15 blur-3xl" />
 
               {/* Fila Superior: Identidad + Estado SSE + Selector 9:16 / 16:9 + Botón Antigravity */}
-              <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 pb-4 border-b border-slate-200/80 dark:border-white/10">
-                <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+              <div className="relative flex flex-col items-start gap-3.5 pb-4 border-b border-slate-200/80 dark:border-white/10">
+                <div className="flex items-start sm:items-center gap-3.5 min-w-0 w-full">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#C7F303]/25 via-emerald-500/15 to-teal-500/20 border border-emerald-500/40 dark:border-[#C7F303]/45 flex items-center justify-center shrink-0 shadow-inner">
                     <Film className="w-6 h-6 text-teal-700 dark:text-[#C7F303]" />
                   </div>
@@ -8609,8 +8723,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
                 </div>
 
-                {/* Controles Horizontales Derecha: Selector 9:16 vs 16:9 + Botón Antigravity (100% Botones WAPPY) */}
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {/* Controles Horizontales en Fila Propia Izquierda: Selector 9:16 vs 16:9 + Botón Antigravity */}
+                <div className="flex flex-wrap items-center justify-start gap-2.5 w-full">
                   <ExpandableButton
                     size="sm"
                     icon={<Film />}
@@ -8748,56 +8862,53 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             {/* ================================================================ */}
             <div className="w-full bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
               {/* Barra Superior Horizontal de los 4 Sub-Módulos con Botones Oficiales WAPPY */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
-                <div className="flex flex-wrap items-center gap-2">
-                  <ExpandableButton
-                    icon={<Sparkles />}
-                    label={`🎨 Estilo & Efectos (${selectedSkillEffects.length} FX)`}
-                    variant="purple"
-                    isActive={videoStudioSubTab === 'style'}
-                    onClick={() => setVideoStudioSubTab('style')}
-                  />
+              <div className="flex flex-wrap items-center justify-start gap-2.5 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
+                <ExpandableButton
+                  icon={<Sparkles />}
+                  label={`🎨 Estilo & Efectos (${selectedSkillEffects.length} FX)`}
+                  variant="purple"
+                  isActive={videoStudioSubTab === 'style'}
+                  onClick={() => setVideoStudioSubTab('style')}
+                />
 
-                  <ExpandableButton
-                    icon={<Layers />}
-                    label={`⏱️ Escaleta & Tiempos (${scriptSteps.length} escenas)`}
-                    variant="amber"
-                    isActive={videoStudioSubTab === 'timeline'}
-                    onClick={() => setVideoStudioSubTab('timeline')}
-                  />
+                <ExpandableButton
+                  icon={<Layers />}
+                  label={`⏱️ Escaleta & Tiempos (${scriptSteps.length} escenas)`}
+                  variant="amber"
+                  isActive={videoStudioSubTab === 'timeline'}
+                  onClick={() => setVideoStudioSubTab('timeline')}
+                />
 
-                  <ExpandableButton
-                    icon={<MicVocal />}
-                    label={`🎙️ Capas, Audio & Textos (${showDynamicSubtitles ? 'Subs ON' : 'Capas'})`}
-                    variant="teal"
-                    isActive={videoStudioSubTab === 'layers'}
-                    onClick={() => setVideoStudioSubTab('layers')}
-                  />
+                <ExpandableButton
+                  icon={<MicVocal />}
+                  label={`🎙️ Capas, Audio & Textos (${showDynamicSubtitles ? 'Subs ON' : 'Capas'})`}
+                  variant="teal"
+                  isActive={videoStudioSubTab === 'layers'}
+                  onClick={() => setVideoStudioSubTab('layers')}
+                />
 
-                  <ExpandableButton
-                    icon={<Code2 />}
-                    label="</> Código HTML5 & GSAP"
-                    variant="cyan"
-                    isActive={videoStudioSubTab === 'code'}
-                    onClick={() => setVideoStudioSubTab('code')}
-                  />
-                </div>
+                <ExpandableButton
+                  icon={<Code2 />}
+                  label="</> Código HTML5 & GSAP"
+                  variant="cyan"
+                  isActive={videoStudioSubTab === 'code'}
+                  onClick={() => setVideoStudioSubTab('code')}
+                />
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300">
-                    <span>{aspectRatio}</span>
-                    <span>•</span>
-                    <span>{selectedArtDirection}</span>
-                  </span>
-                  <ExpandableButton
-                    size="sm"
-                    icon={isGeneratingSuperPrompt ? <Loader2 className="animate-spin" /> : <Wand2 />}
-                    label="Actualizar Super-Prompt"
-                    variant="indigo"
-                    disabled={isGeneratingSuperPrompt}
-                    onClick={handleBuildAntigravitySuperPrompt}
-                  />
-                </div>
+                <ExpandableButton
+                  size="sm"
+                  icon={isGeneratingSuperPrompt ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                  label="Actualizar Super-Prompt"
+                  variant="indigo"
+                  disabled={isGeneratingSuperPrompt}
+                  onClick={handleBuildAntigravitySuperPrompt}
+                />
+
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                  <span>{aspectRatio}</span>
+                  <span>•</span>
+                  <span>{selectedArtDirection}</span>
+                </span>
               </div>
 
               {/* ============================================================ */}
@@ -8880,8 +8991,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                   {/* 2. Catálogo Interactivo de los 18 Efectos Virales en 6 Columnas Horizontales */}
                   <div className="space-y-3 pt-3 border-t border-slate-200/80 dark:border-slate-800">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
+                    <div className="flex flex-col items-start gap-2.5">
+                      <div className="w-full">
                         <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                           <Wand2 className="w-3.5 h-3.5 text-indigo-500" />
                           2. Catálogo de Efectos Virales Antigravity ({selectedSkillEffects.length} seleccionados)
@@ -8890,7 +9001,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           Activa los efectos 3D, avatares y transiciones que se inyectarán en el Super-Prompt.
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-start gap-2">
                         <ExpandableButton
                           size="sm"
                           icon={<Check />}
@@ -8970,8 +9081,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               {/* ============================================================ */}
               {videoStudioSubTab === 'timeline' && (
                 <div className="space-y-3.5 animate-in fade-in duration-150">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
+                  <div className="flex flex-col items-start gap-2.5">
+                    <div className="w-full">
                       <span className="text-xs font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
                         <Layers className="w-4 h-4 text-amber-500" />
                         Escaleta de Escenas por Tiempos ({scriptSteps.length} tramos)
@@ -8980,7 +9091,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Define qué suena y qué efecto visual aparece en cada tramo (`0.0s-2.0s` Portada Magnética, `2.0s-8.0s`, etc.).
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex flex-wrap items-center justify-start gap-2">
                       <ExpandableButton
                         size="sm"
                         icon={<Wand2 />}
@@ -9017,29 +9128,31 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
 
                   {/* Barra Rápida de Etiquetas de Pausa y Respiración */}
-                  <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/25 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] font-extrabold text-amber-800 dark:text-amber-300 mr-1">
+                  <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/25 space-y-1.5">
+                    <span className="text-[10px] font-extrabold text-amber-800 dark:text-amber-300 block">
                       Insertar en última escena:
                     </span>
-                    {PAUSE_AND_EMPHASIS_TAGS.map((p) => (
-                      <ExpandableButton
-                        key={p.tag}
-                        size="sm"
-                        icon={<Plus />}
-                        label={p.tag}
-                        variant="amber"
-                        title={p.desc}
-                        onClick={() => {
-                          setScriptSteps((prev) =>
-                            prev.map((st, idx) =>
-                              idx === prev.length - 1
-                                ? { ...st, narration: `${st.narration.trim()} ${p.tag}` }
-                                : st,
-                            ),
-                          );
-                        }}
-                      />
-                    ))}
+                    <div className="flex flex-wrap items-center justify-start gap-2">
+                      {PAUSE_AND_EMPHASIS_TAGS.map((p) => (
+                        <ExpandableButton
+                          key={p.tag}
+                          size="sm"
+                          icon={<Plus />}
+                          label={p.tag}
+                          variant="amber"
+                          title={p.desc}
+                          onClick={() => {
+                            setScriptSteps((prev) =>
+                              prev.map((st, idx) =>
+                                idx === prev.length - 1
+                                  ? { ...st, narration: `${st.narration.trim()} ${p.tag}` }
+                                  : st,
+                              ),
+                            );
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
 
                   {/* Filas Horizontales de Escenas a Todo lo Ancho */}
@@ -9123,7 +9236,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           />
                         </div>
 
-                        <div className="lg:col-span-1 flex justify-end">
+                        <div className="lg:col-span-1 flex justify-start">
                           <ExpandableButton
                             size="sm"
                             icon={<Trash2 />}
@@ -9290,7 +9403,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       />
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <div className="flex flex-col items-start gap-2 pt-1">
                       <div className="flex items-center gap-1.5">
                         {['#c7f303', '#14b8a6', '#10b981', '#6366f1', '#f59e0b', '#f43f5e'].map(
                           (col) => (
@@ -9309,15 +9422,17 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           ),
                         )}
                       </div>
-                      <ExpandableButton
-                        size="sm"
-                        icon={<RefreshCw />}
-                        label="Aplicar al Lienzo"
-                        variant="cyan"
-                        onClick={() =>
-                          handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))
-                        }
-                      />
+                      <div className="flex flex-wrap items-center justify-start gap-2">
+                        <ExpandableButton
+                          size="sm"
+                          icon={<RefreshCw />}
+                          label="Aplicar al Lienzo"
+                          variant="cyan"
+                          onClick={() =>
+                            handleRebuildDefaultTemplate(aspectRatio, Boolean(baseVideoUrl))
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -9328,8 +9443,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               {/* ============================================================ */}
               {videoStudioSubTab === 'code' && (
                 <div className="space-y-3 animate-in fade-in duration-150">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
+                  <div className="flex flex-col items-start gap-2.5">
+                    <div className="w-full">
                       <span className="text-xs font-extrabold uppercase tracking-wider text-cyan-700 dark:text-cyan-300 flex items-center gap-1.5">
                         <Code2 className="w-4 h-4 text-cyan-500" />
                         Código Fuente HTML5 / Tailwind / GSAP en Vivo
@@ -9338,19 +9453,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Cualquier cambio aquí actualiza inmediatamente el Monitor en Vivo de abajo.
                       </p>
                     </div>
-                    <ExpandableButton
-                      size="sm"
-                      icon={<RefreshCw />}
-                      label="Restaurar Plantilla Actual"
-                      variant="amber"
-                      onClick={() =>
-                        handleRebuildDefaultTemplate(
-                          aspectRatio,
-                          Boolean(baseVideoUrl),
-                          selectedSceneTemplate,
-                        )
-                      }
-                    />
+                    <div className="flex flex-wrap items-center justify-start gap-2">
+                      <ExpandableButton
+                        size="sm"
+                        icon={<RefreshCw />}
+                        label="Restaurar Plantilla Actual"
+                        variant="amber"
+                        onClick={() =>
+                          handleRebuildDefaultTemplate(
+                            aspectRatio,
+                            Boolean(baseVideoUrl),
+                            selectedSceneTemplate,
+                          )
+                        }
+                      />
+                    </div>
                   </div>
                   <textarea
                     rows={12}
@@ -9404,35 +9521,37 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       className="w-full bg-slate-50 dark:bg-slate-950 border border-indigo-500/30 rounded-xl p-2.5 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-y font-mono leading-relaxed"
                     />
                   </div>
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-indigo-500/15">
+                  <div className="flex flex-col items-start gap-2 pt-2 border-t border-indigo-500/15">
                     <button
                       type="button"
                       disabled={isGeneratingSuperPrompt}
                       onClick={handleBuildAntigravitySuperPrompt}
-                      className="text-left text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 hover:text-indigo-500 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                      className="text-left text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 hover:text-indigo-500 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60 w-full"
                     >
                       {isGeneratingSuperPrompt
                         ? '⚡ Consultando Motor de Estudio...'
                         : '⚡ Motor de Estudio + 7 Piezas'}
                     </button>
-                    <ExpandableButton
-                      size="sm"
-                      icon={
-                        isGeneratingSuperPrompt ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Wand2 />
-                        )
-                      }
-                      label={
-                        isGeneratingSuperPrompt
-                          ? 'Construyendo Super-Prompt...'
-                          : '1. Generar Super-Prompt'
-                      }
-                      variant="indigo"
-                      disabled={isGeneratingSuperPrompt}
-                      onClick={handleBuildAntigravitySuperPrompt}
-                    />
+                    <div className="flex flex-wrap items-center justify-start gap-2">
+                      <ExpandableButton
+                        size="sm"
+                        icon={
+                          isGeneratingSuperPrompt ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Wand2 />
+                          )
+                        }
+                        label={
+                          isGeneratingSuperPrompt
+                            ? 'Construyendo Super-Prompt...'
+                            : '1. Generar Super-Prompt'
+                        }
+                        variant="indigo"
+                        disabled={isGeneratingSuperPrompt}
+                        onClick={handleBuildAntigravitySuperPrompt}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -9505,12 +9624,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-purple-500/20">
+                  <div className="flex flex-col items-start gap-2 pt-2 border-t border-purple-500/20">
                     <button
                       type="button"
                       disabled={isGeneratingHtmlAi}
                       onClick={handleGenerateHtmlWithAi}
-                      className="text-left text-[11px] font-extrabold text-purple-800 dark:text-purple-300 hover:text-purple-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                      className="text-left text-[11px] font-extrabold text-purple-800 dark:text-purple-300 hover:text-purple-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60 w-full"
                     >
                       {isGeneratingHtmlAi
                         ? '🎬 Enviando a Antigravity...'
@@ -9518,26 +9637,28 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           ? '⚡ Compilando en Antigravity...'
                           : '🎬 Compilar al Lienzo en Vivo'}
                     </button>
-                    <ExpandableButton
-                      size="sm"
-                      icon={
-                        isGeneratingHtmlAi || antigravityOrderStatus === 'delegated' ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Sparkles />
-                        )
-                      }
-                      label={
-                        isGeneratingHtmlAi
-                          ? 'Enviando a Antigravity...'
-                          : antigravityOrderStatus === 'delegated'
-                            ? 'Antigravity Programando...'
-                            : '2. Enviar al Generador de Video'
-                      }
-                      variant="purple"
-                      disabled={isGeneratingHtmlAi}
-                      onClick={handleGenerateHtmlWithAi}
-                    />
+                    <div className="flex flex-wrap items-center justify-start gap-2">
+                      <ExpandableButton
+                        size="sm"
+                        icon={
+                          isGeneratingHtmlAi || antigravityOrderStatus === 'delegated' ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Sparkles />
+                          )
+                        }
+                        label={
+                          isGeneratingHtmlAi
+                            ? 'Enviando a Antigravity...'
+                            : antigravityOrderStatus === 'delegated'
+                              ? 'Antigravity Programando...'
+                              : '2. Enviar al Generador de Video'
+                        }
+                        variant="purple"
+                        disabled={isGeneratingHtmlAi}
+                        onClick={handleGenerateHtmlWithAi}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -9588,35 +9709,37 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     />
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-cyan-500/15">
+                  <div className="flex flex-col items-start gap-2 pt-2 border-t border-cyan-500/15">
                     <button
                       type="button"
                       disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
                       onClick={handleSendCorrectionsToAntigravity}
-                      className="text-left text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300 hover:text-cyan-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-50"
+                      className="text-left text-[11px] font-extrabold text-cyan-800 dark:text-cyan-300 hover:text-cyan-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-50 w-full"
                     >
                       {isApplyingCorrection
                         ? '✨ Aplicando Correcciones...'
                         : '✨ Edición Directa sobre Lienzo'}
                     </button>
-                    <ExpandableButton
-                      size="sm"
-                      icon={
-                        isApplyingCorrection ? (
-                          <Loader2 className="animate-spin" />
-                        ) : (
-                          <Wand2 />
-                        )
-                      }
-                      label={
-                        isApplyingCorrection
-                          ? 'Aplicando Correcciones...'
-                          : '3. Enviar Correcciones a Antigravity'
-                      }
-                      variant="cyan"
-                      disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
-                      onClick={handleSendCorrectionsToAntigravity}
-                    />
+                    <div className="flex flex-wrap items-center justify-start gap-2">
+                      <ExpandableButton
+                        size="sm"
+                        icon={
+                          isApplyingCorrection ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Wand2 />
+                          )
+                        }
+                        label={
+                          isApplyingCorrection
+                            ? 'Aplicando Correcciones...'
+                            : '3. Enviar Correcciones a Antigravity'
+                        }
+                        variant="cyan"
+                        disabled={isApplyingCorrection || !videoCorrectionPrompt.trim()}
+                        onClick={handleSendCorrectionsToAntigravity}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -9629,9 +9752,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               id="wappy-studio-live-monitor"
               className="w-full bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 scroll-mt-20"
             >
-              {/* Cabecera del Monitor & Editor (Botones Oficiales WAPPY que se expanden al pasar el cursor) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
-                <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+              {/* Cabecera del Monitor & Editor (Botones Oficiales WAPPY en fila propia inferior izquierda) */}
+              <div className="flex flex-col items-start gap-3 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
+                <div className="flex flex-wrap items-center gap-2.5 min-w-0 w-full">
                   <span
                     className={cn(
                       'w-3 h-3 rounded-full shrink-0',
@@ -9652,8 +9775,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </span>
                 </div>
 
-                {/* Botonera Oficial WAPPY (ExpandableButton con hover expand/contract) */}
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Botonera Oficial WAPPY (ExpandableButton con hover expand/contract en fila propia izquierda) */}
+                <div className="flex flex-wrap items-center justify-start gap-2.5 w-full">
                   <ExpandableButton
                     size="sm"
                     icon={
@@ -9761,15 +9884,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
               )}
 
-              {/* Barra de Herramientas Rápidas del Modo Editor Visual (100% Botones WAPPY) */}
+              {/* Barra de Herramientas Rápidas del Modo Editor Visual (100% Botones WAPPY en fila propia inferior) */}
               {isVisualEditMode && (
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-2.5 animate-in fade-in duration-150">
-                  <span className="text-xs font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col items-start gap-2.5 animate-in fade-in duration-150">
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5 w-full">
                     <Move className="w-4 h-4 text-amber-500 shrink-0" />
                     Arrastra cualquier elemento con el mouse • Doble clic sobre textos para editar en vivo
                   </span>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-start gap-2 w-full">
                     <ExpandableButton
                       size="sm"
                       icon={<Type />}
@@ -10093,7 +10216,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
                       {/* Botones de Transporte: Reiniciar, Retroceder -5s, Play/Pausar, Adelantar +5s, Pantalla Completa */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <button
                             type="button"
                             onClick={restartStagePlayback}
@@ -10101,17 +10224,17 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition cursor-pointer"
                           >
                             <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
-                            <span>0s</span>
+                            <span>0s Reiniciar</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => stepStagePlayback(-5)}
-                            title="Retroceder 5 segundos"
+                            title="Atrasar 5 segundos"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-extrabold transition cursor-pointer"
                           >
                             <RotateCcw className="w-3.5 h-3.5 text-teal-400" />
-                            <span>-5s</span>
+                            <span>-5s Atrasar</span>
                           </button>
 
                           <button
@@ -10144,7 +10267,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                             title="Adelantar 5 segundos"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-extrabold transition cursor-pointer"
                           >
-                            <span>+5s</span>
+                            <span>+5s Adelantar</span>
                             <RotateCw className="w-3.5 h-3.5 text-teal-400" />
                           </button>
                         </div>
@@ -10206,37 +10329,55 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <ExpandableButton
-                        size="sm"
-                        icon={isVideoPlaying ? <Pause /> : <Play />}
-                        label={isVideoPlaying ? 'Pausar Video' : 'Reproducir Video'}
-                        variant="teal"
+                      <button
+                        type="button"
                         onClick={toggleStagePlayback}
-                      />
+                        className={cn(
+                          'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs',
+                          isVideoPlaying
+                            ? 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                            : 'bg-teal-500 hover:bg-teal-400 text-slate-950',
+                        )}
+                      >
+                        {isVideoPlaying ? (
+                          <>
+                            <Pause className="w-3.5 h-3.5 fill-current" />
+                            <span>Pausar</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>Play</span>
+                          </>
+                        )}
+                      </button>
 
-                      <ExpandableButton
-                        size="sm"
-                        icon={<RotateCcw />}
-                        label="-5s Retroceder"
-                        variant="indigo"
+                      <button
+                        type="button"
                         onClick={() => stepStagePlayback(-5)}
-                      />
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-200/90 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 text-xs font-extrabold transition cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>-5s Atrasar</span>
+                      </button>
 
-                      <ExpandableButton
-                        size="sm"
-                        icon={<RotateCw />}
-                        label="+5s Adelantar"
-                        variant="indigo"
+                      <button
+                        type="button"
                         onClick={() => stepStagePlayback(5)}
-                      />
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-200/90 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 text-xs font-extrabold transition cursor-pointer"
+                      >
+                        <span>+5s Adelantar</span>
+                        <RotateCw className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      </button>
 
-                      <ExpandableButton
-                        size="sm"
-                        icon={<RotateCcw />}
-                        label="Reiniciar (0s)"
-                        variant="cyan"
+                      <button
+                        type="button"
                         onClick={restartStagePlayback}
-                      />
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-200/90 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-bold transition cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                        <span>0s Reiniciar</span>
+                      </button>
 
                       {baseVideoUrl && (
                         <ExpandableButton
@@ -10291,35 +10432,37 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Envía la composición a Antigravity / FFmpeg para ensamblar el archivo .MP4 final listo para redes.
                       </p>
                     </div>
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-teal-500/20">
+                    <div className="flex flex-col items-start gap-2 pt-2 border-t border-teal-500/20">
                       <button
                         type="button"
                         disabled={isRenderingServerMp4}
                         onClick={handleRenderServerMp4}
-                        className="text-left text-xs font-extrabold text-teal-800 dark:text-teal-200 hover:text-teal-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                        className="text-left text-xs font-extrabold text-teal-800 dark:text-teal-200 hover:text-teal-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60 w-full"
                       >
                         {isRenderingServerMp4
                           ? '📦 Renderizando Video .MP4...'
                           : '📦 FFmpeg + Audio WAV Embebido'}
                       </button>
-                      <ExpandableButton
-                        size="sm"
-                        icon={
-                          isRenderingServerMp4 ? (
-                            <Loader2 className="animate-spin" />
-                          ) : (
-                            <Film />
-                          )
-                        }
-                        label={
-                          isRenderingServerMp4
-                            ? 'Renderizando Video .MP4...'
-                            : 'Descargar Video .MP4 (Todo Unido)'
-                        }
-                        variant="teal"
-                        disabled={isRenderingServerMp4}
-                        onClick={handleRenderServerMp4}
-                      />
+                      <div className="flex flex-wrap items-center justify-start gap-2">
+                        <ExpandableButton
+                          size="sm"
+                          icon={
+                            isRenderingServerMp4 ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <Film />
+                            )
+                          }
+                          label={
+                            isRenderingServerMp4
+                              ? 'Renderizando Video .MP4...'
+                              : 'Descargar Video .MP4 (Todo Unido)'
+                          }
+                          variant="teal"
+                          disabled={isRenderingServerMp4}
+                          onClick={handleRenderServerMp4}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -10339,16 +10482,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Descarga inmediata en 1 clic sin re-renderizar, lista para abrir en cualquier navegador o incrustar en LMS.
                       </p>
                     </div>
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-500/20">
+                    <div className="flex flex-col items-start gap-2 pt-2 border-t border-emerald-500/20">
                       <button
                         type="button"
                         disabled={isBuildingAcademyHtml}
                         onClick={handleDownloadHtmlBundle}
-                        className="text-left text-xs font-extrabold text-emerald-800 dark:text-emerald-200 hover:text-emerald-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60"
+                        className="text-left text-xs font-extrabold text-emerald-800 dark:text-emerald-200 hover:text-emerald-600 dark:hover:text-[#C7F303] truncate cursor-pointer transition disabled:opacity-60 w-full"
                       >
                         ⚡ Cápsula Offline + Código LMS
                       </button>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center justify-start gap-2">
                         <ExpandableButton
                           size="sm"
                           icon={
@@ -10378,18 +10521,20 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   {/* 4. Inspector Visual del Elemento Seleccionado en el Lienzo */}
                   {isVisualEditMode && selectedCanvasElement && (
                     <div className="p-3.5 bg-slate-50 dark:bg-slate-900/95 rounded-2xl border border-teal-500/40 space-y-2.5 animate-in fade-in duration-150">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col items-start gap-2">
                         <span className="text-xs font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
                           <Edit3 className="w-3.5 h-3.5" />
                           Elemento (&lt;{selectedCanvasElement.tagName}&gt;)
                         </span>
-                        <ExpandableButton
-                          size="sm"
-                          icon={<RotateCcw />}
-                          label="Restablecer"
-                          variant="teal"
-                          onClick={() => updateSelectedCanvasElement({ dx: 0, dy: 0, scale: 1 })}
-                        />
+                        <div className="flex flex-wrap items-center justify-start gap-2">
+                          <ExpandableButton
+                            size="sm"
+                            icon={<RotateCcw />}
+                            label="Restablecer"
+                            variant="teal"
+                            onClick={() => updateSelectedCanvasElement({ dx: 0, dy: 0, scale: 1 })}
+                          />
+                        </div>
                       </div>
 
                       <textarea
@@ -10506,12 +10651,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {activeTab === 'lab' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             {/* Tarjeta de Cabecera del Laboratorio */}
-            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-4 shadow-xs">
-              <div className="flex items-center gap-4">
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex flex-col items-start gap-3.5 shadow-xs">
+              <div className="flex items-center gap-4 w-full">
                 <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shrink-0">
                   <Sparkles className="w-5 h-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
                     Laboratorio de Voces, Pausas, Vocal Bursts & Efectos Antigravity
                   </h2>
@@ -10520,7 +10665,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-start gap-2.5">
                 <ExpandableButton
                   size="sm"
                   icon={<Volume2 />}
@@ -10564,16 +10709,16 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   return (
                     <div
                       key={b.tag}
-                      className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3"
+                      className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between items-start gap-3"
                     >
-                      <div>
+                      <div className="w-full">
                         <span className="font-mono text-sm font-extrabold text-amber-600 dark:text-amber-400">
                           {b.tag}
                         </span>
                         <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5">{b.label}</p>
                         <p className="text-[11px] text-slate-600 dark:text-slate-300">{b.description}</p>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex flex-wrap items-center justify-start gap-2">
                         <ExpandableButton
                           size="sm"
                           icon={<Plus />}
@@ -10633,8 +10778,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
             {/* SECCIÓN 2: Probador Libre de Prosodia, Pausas y Dirección de Voz */}
             <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
+              <div className="flex flex-col items-start gap-2.5">
+                <div className="w-full">
                   <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
                     2. Probador de Voces en Vivo y Constructor de Pausas / Énfasis
                   </h3>
@@ -10642,7 +10787,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     Selecciona cualquier voz, escucha su timbre al instante, agrega pausas y envía tu configuración al Estudio de Voz o al Editor de Video.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-start gap-2.5">
                   <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                     Voces activas: {activeVoicesCount} de {voices.length}
                   </span>
@@ -10792,8 +10937,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             {/* SECCIÓN 3: Catálogo de Efectos Visuales de las Skills de Antigravity (18 Efectos + 4 Direcciones de Arte) */}
             {!podcastOnly && (
             <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
+              <div className="flex flex-col items-start gap-2.5">
+                <div className="w-full">
                   <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                     <Wand2 className="w-4 h-4 text-purple-500" />
                     3. Catálogo de Efectos Visuales & Motion Graphics (Skills de Antigravity)
@@ -10802,13 +10947,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     Selecciona los efectos y transiciones que Antigravity encadenará a 60 FPS en tu video HTML + GSAP ({selectedSkillEffects.length} activos).
                   </p>
                 </div>
-                <ExpandableButton
-                  size="sm"
-                  icon={<Film />}
-                  label={`Ir al Editor de Video (${selectedSkillEffects.length} efectos)`}
-                  variant="purple"
-                  onClick={() => handleTabChange('video')}
-                />
+                <div className="flex flex-wrap items-center justify-start gap-2">
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Film />}
+                    label={`Ir al Editor de Video (${selectedSkillEffects.length} efectos)`}
+                    variant="purple"
+                    onClick={() => handleTabChange('video')}
+                  />
+                </div>
               </div>
 
               {/* 4 Direcciones de Arte Oficiales */}
@@ -10819,13 +10966,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     <div
                       key={art.id}
                       className={cn(
-                        'p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 transition',
+                        'p-3.5 rounded-xl border flex flex-col justify-between items-start gap-2.5 transition',
                         isSelected
                           ? 'bg-purple-500/10 border-purple-500/50 ring-1 ring-purple-500/30'
                           : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
                       )}
                     >
-                      <div>
+                      <div className="w-full">
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-xs font-extrabold text-slate-900 dark:text-white">
                             {art.label}
@@ -10841,13 +10988,15 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           {art.description}
                         </p>
                       </div>
-                      <ExpandableButton
-                        size="sm"
-                        icon={isSelected ? <Check /> : <Sparkles />}
-                        label={isSelected ? 'Dirección Activa' : 'Usar Dirección de Arte'}
-                        variant={isSelected ? 'teal' : 'purple'}
-                        onClick={() => setSelectedArtDirection(art.id)}
-                      />
+                      <div className="flex flex-wrap items-center justify-start gap-2">
+                        <ExpandableButton
+                          size="sm"
+                          icon={isSelected ? <Check /> : <Sparkles />}
+                          label={isSelected ? 'Dirección Activa' : 'Usar Dirección de Arte'}
+                          variant={isSelected ? 'teal' : 'purple'}
+                          onClick={() => setSelectedArtDirection(art.id)}
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -10905,21 +11054,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         {/* ==================================================================== */}
         {activeTab === 'library' && (
           <div className="space-y-5 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3 shadow-xs">
-              <div>
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 flex flex-col items-start gap-3.5 shadow-xs">
+              <div className="w-full">
                 <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-500" />
                   {podcastOnly
                     ? 'Biblioteca de Podcasts y Locuciones 24 kHz'
                     : 'Biblioteca de Audios y Videos HTML'}
                 </h2>
-                <p className="text-xs text-slate-600 dark:text-slate-300">
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
                   {podcastOnly
                     ? 'Tus episodios de podcast y locuciones WAV a 24 kHz quedan guardados permanentemente para reproducirlos o descargarlos al instante.'
                     : 'Tus locuciones WAV y tus videos HTML5 + GSAP quedan guardados permanentemente para reabrir en el editor, descargar el .HTML al instante o renderizar el .MP4 con Antigravity.'}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-start gap-2.5 w-full">
                 {/* Filtros de Biblioteca: Todos / Audios / Videos HTML */}
                 {!podcastOnly && (
                   <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
@@ -11052,122 +11201,118 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {item.kind === 'video' ? (
+                      <div className="flex flex-wrap items-center justify-start gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800">
+                        {item.kind === 'video' ? (
+                          <ExpandableButton
+                            size="sm"
+                            icon={<Edit3 />}
+                            label="Abrir en Editor"
+                            variant="orange"
+                            onClick={() => openLibraryVideo(item)}
+                          />
+                        ) : (
+                          <>
+                            <ExpandableButton
+                              size="sm"
+                              icon={<Play />}
+                              label="Reproducir"
+                              variant="teal"
+                              onClick={() => openLibraryAudio(item)}
+                            />
                             <ExpandableButton
                               size="sm"
                               icon={<Edit3 />}
-                              label="Abrir en Editor"
-                              variant="orange"
-                              onClick={() => openLibraryVideo(item)}
+                              label="Editar"
+                              variant="amber"
+                              onClick={() => handleEditLibraryAudio(item)}
                             />
-                          ) : (
-                            <>
-                              <ExpandableButton
-                                size="sm"
-                                icon={<Play />}
-                                label="Reproducir"
-                                variant="teal"
-                                onClick={() => openLibraryAudio(item)}
-                              />
-                              <ExpandableButton
-                                size="sm"
-                                icon={<Edit3 />}
-                                label="Editar"
-                                variant="amber"
-                                onClick={() => handleEditLibraryAudio(item)}
-                              />
-                              {!podcastOnly && (
-                                <ExpandableButton
-                                  size="sm"
-                                  icon={<Film />}
-                                  label="Usar en Video"
-                                  variant="purple"
-                                  onClick={() => openLibraryAudio(item, true)}
-                                />
-                              )}
-                            </>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {item.kind === 'video' && (
-                            <>
-                              <ExpandableButton
-                                size="sm"
-                                icon={<Download />}
-                                label="Descargar .HTML"
-                                variant="green"
-                                onClick={async () => {
-                                  if (item.capsuleKey) {
-                                    const b = await getMediaBlob(item.capsuleKey);
-                                    if (b) {
-                                      downloadBlobFile(b, `wappy-video-${item.id}.html`);
-                                      return;
-                                    }
-                                  }
-                                  if (item.htmlKey) {
-                                    const b = await getMediaBlob(item.htmlKey);
-                                    if (b) {
-                                      downloadBlobFile(b, `wappy-video-${item.id}.html`);
-                                      return;
-                                    }
-                                  }
-                                  setStatusBanner({
-                                    type: 'error',
-                                    text: 'No se encontró el archivo HTML guardado para este elemento.',
-                                  });
-                                }}
-                              />
+                            {!podcastOnly && (
                               <ExpandableButton
                                 size="sm"
                                 icon={<Film />}
-                                label={item.mp4Key ? 'Descargar .MP4' : 'Renderizar .MP4'}
-                                variant="teal"
-                                onClick={async () => {
-                                  if (item.mp4Key) {
-                                    const b = await getMediaBlob(item.mp4Key);
-                                    if (b) {
-                                      downloadBlobFile(b, `wappy-studio-reel-${item.id}.mp4`);
-                                      return;
-                                    }
-                                  }
-                                  await openLibraryVideo(item);
-                                  setTimeout(() => {
-                                    handleRenderServerMp4();
-                                  }, 250);
-                                }}
+                                label="Usar en Video"
+                                variant="purple"
+                                onClick={() => openLibraryAudio(item, true)}
                               />
-                            </>
-                          )}
-                          {item.kind !== 'video' && (
+                            )}
+                          </>
+                        )}
+
+                        {item.kind === 'video' && (
+                          <>
                             <ExpandableButton
                               size="sm"
                               icon={<Download />}
-                              label="Descargar WAV"
+                              label="Descargar .HTML"
                               variant="green"
                               onClick={async () => {
-                                const b = await loadLibraryAudioBlob(item);
-                                if (!b) {
-                                  setStatusBanner({
-                                    type: 'error',
-                                    text: 'Este audio ya no está disponible (se generó antes del guardado permanente). Vuelve a generarlo.',
-                                  });
-                                  return;
+                                if (item.capsuleKey) {
+                                  const b = await getMediaBlob(item.capsuleKey);
+                                  if (b) {
+                                    downloadBlobFile(b, `wappy-video-${item.id}.html`);
+                                    return;
+                                  }
                                 }
-                                downloadBlobFile(b, `wappy-audio-${item.id}.wav`);
+                                if (item.htmlKey) {
+                                  const b = await getMediaBlob(item.htmlKey);
+                                  if (b) {
+                                    downloadBlobFile(b, `wappy-video-${item.id}.html`);
+                                    return;
+                                  }
+                                }
+                                setStatusBanner({
+                                  type: 'error',
+                                  text: 'No se encontró el archivo HTML guardado para este elemento.',
+                                });
                               }}
                             />
-                          )}
+                            <ExpandableButton
+                              size="sm"
+                              icon={<Film />}
+                              label={item.mp4Key ? 'Descargar .MP4' : 'Renderizar .MP4'}
+                              variant="teal"
+                              onClick={async () => {
+                                if (item.mp4Key) {
+                                  const b = await getMediaBlob(item.mp4Key);
+                                  if (b) {
+                                    downloadBlobFile(b, `wappy-studio-reel-${item.id}.mp4`);
+                                    return;
+                                  }
+                                }
+                                await openLibraryVideo(item);
+                                setTimeout(() => {
+                                  handleRenderServerMp4();
+                                }, 250);
+                              }}
+                            />
+                          </>
+                        )}
+                        {item.kind !== 'video' && (
                           <ExpandableButton
                             size="sm"
-                            icon={<Trash2 />}
-                            label="Eliminar"
-                            variant="danger"
-                            onClick={() => deleteLibraryItem(item)}
+                            icon={<Download />}
+                            label="Descargar WAV"
+                            variant="green"
+                            onClick={async () => {
+                              const b = await loadLibraryAudioBlob(item);
+                              if (!b) {
+                                setStatusBanner({
+                                  type: 'error',
+                                  text: 'Este audio ya no está disponible (se generó antes del guardado permanente). Vuelve a generarlo.',
+                                });
+                                return;
+                              }
+                              downloadBlobFile(b, `wappy-audio-${item.id}.wav`);
+                            }}
                           />
-                        </div>
+                        )}
+                        <ExpandableButton
+                          size="sm"
+                          icon={<Trash2 />}
+                          label="Eliminar"
+                          variant="danger"
+                          onClick={() => deleteLibraryItem(item)}
+                        />
                       </div>
                     </div>
                   ))}
@@ -11285,7 +11430,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="space-y-2">
                     <input
                       type="text"
                       value={antigravityBridgeKey}
@@ -11299,9 +11444,9 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         }
                       }}
                       placeholder="wpy_... o wpy_guest_..."
-                      className="flex-1 px-3 py-2 rounded-xl border border-purple-500/30 bg-white dark:bg-slate-950 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                      className="w-full px-3 py-2 rounded-xl border border-purple-500/30 bg-white dark:bg-slate-950 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
                     />
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center justify-start gap-2">
                       <ExpandableButton
                         size="sm"
                         icon={copiedBridgeItem === 'key' ? <Check /> : <Copy />}
@@ -11457,7 +11602,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex justify-start pt-2 border-t border-slate-200 dark:border-slate-800">
                   <ExpandableButton
                     size="sm"
                     icon={<Check />}
@@ -11539,7 +11684,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex flex-wrap items-center justify-start gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
                   <ExpandableButton
                     size="sm"
                     icon={<Trash2 />}
@@ -11557,23 +11702,21 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       setKeyValidationMsg('Claves eliminadas del navegador.');
                     }}
                   />
-                  <div className="flex items-center gap-2">
-                    <ExpandableButton
-                      size="sm"
-                      icon={<X />}
-                      label="Cerrar"
-                      variant="neutral"
-                      onClick={() => setIsApiKeyModalOpen(false)}
-                    />
-                    <ExpandableButton
-                      size="sm"
-                      icon={isValidatingKeys ? <Loader2 className="animate-spin" /> : <Save />}
-                      label={isValidatingKeys ? 'Validando...' : 'Guardar y Validar'}
-                      variant="teal"
-                      disabled={isValidatingKeys}
-                      onClick={handleSaveAndValidateKeys}
-                    />
-                  </div>
+                  <ExpandableButton
+                    size="sm"
+                    icon={<X />}
+                    label="Cerrar"
+                    variant="neutral"
+                    onClick={() => setIsApiKeyModalOpen(false)}
+                  />
+                  <ExpandableButton
+                    size="sm"
+                    icon={isValidatingKeys ? <Loader2 className="animate-spin" /> : <Save />}
+                    label={isValidatingKeys ? 'Validando...' : 'Guardar y Validar'}
+                    variant="teal"
+                    disabled={isValidatingKeys}
+                    onClick={handleSaveAndValidateKeys}
+                  />
                 </div>
               </>
             ) : (
@@ -11648,7 +11791,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   })}
                 </div>
 
-                <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex justify-start pt-2 border-t border-slate-200 dark:border-slate-800">
                   <ExpandableButton
                     size="sm"
                     icon={<Check />}
@@ -11670,12 +11813,12 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto">
           <div className="w-full max-w-3xl rounded-3xl bg-slate-950 border border-[#c7f303]/45 shadow-2xl p-5 sm:p-6 space-y-4 text-white max-h-[92vh] overflow-y-auto">
             {/* Cabecera del Modal */}
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start gap-2.5 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3 w-full">
                 <div className="w-11 h-11 rounded-2xl bg-[#c7f303]/20 border border-[#c7f303]/50 flex items-center justify-center text-[#c7f303] shrink-0">
                   <MicVocal className="w-6 h-6" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-base sm:text-lg font-black text-white">
                       🧬 Estudio de Clonación de Voz & Diseño Vocal
@@ -11689,21 +11832,28 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </p>
                 </div>
               </div>
-              <ExpandableButton
-                size="sm"
-                icon={<X />}
-                label="Cerrar"
-                variant="neutral"
-                onClick={() => {
-                  if (recordingTarget) stopMicRecording();
-                  setIsVoiceCloneModalOpen(false);
-                }}
-              />
+              <div className="flex flex-wrap items-center justify-start gap-2">
+                <ExpandableButton
+                  size="sm"
+                  icon={<X />}
+                  label="Cerrar"
+                  variant="neutral"
+                  onClick={() => {
+                    if (recordingTarget) stopMicRecording();
+                    setIsVoiceCloneModalOpen(false);
+                  }}
+                />
+              </div>
             </div>
 
             {/* Selector de Modalidad con Botones Oficiales WAPPY (ExpandableButton) */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800">
-              <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-col items-start gap-2 bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800">
+              <span className="text-[11px] font-bold text-slate-400">
+                {voiceCloneMode === 'replicated'
+                  ? 'Graba 10-30s con micrófono o sube audio WAV/MP3'
+                  : 'Sin micrófono • Describe acento, edad y timbre'}
+              </span>
+              <div className="flex flex-wrap items-center justify-start gap-2.5">
                 <ExpandableButton
                   size="md"
                   icon={<MicVocal />}
@@ -11721,11 +11871,6 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   onClick={() => setVoiceCloneMode('prompted')}
                 />
               </div>
-              <span className="text-[11px] font-bold text-slate-400">
-                {voiceCloneMode === 'replicated'
-                  ? 'Graba 10-30s con micrófono o sube audio WAV/MP3'
-                  : 'Sin micrófono • Describe acento, edad y timbre'}
-              </span>
             </div>
 
             {/* Datos Básicos de la Voz Personalizada */}
@@ -11908,11 +12053,11 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
 
                 {/* Modo de Almacenamiento de tu Voz Clonada */}
-                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+                <div className="flex flex-col items-start gap-2 p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
                   <span className="font-bold text-slate-300">
                     🔐 Modo de Almacenamiento de tu Voz Clonada:
                   </span>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-start gap-2">
                     <ExpandableButton
                       size="sm"
                       icon={<Save />}
@@ -11945,7 +12090,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   placeholder="Ej: Locutor colombiano de 38 años con acento paisa cálido, voz firme de radio, ritmo ágil y cercano para charlas de seguridad en planta..."
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-[#c7f303]"
                 />
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap items-center justify-start gap-2">
                   {[
                     {
                       label: '+ Host Paisa Cálido SST',
@@ -11976,8 +12121,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             {/* Resultado recién clonado con preescucha y asignación en 1 clic */}
             {lastClonedResult && (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-teal-950/70 border border-[#c7f303]/60 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                <div className="flex flex-col items-start gap-2.5">
+                  <div className="w-full">
                     <div className="text-xs font-black text-[#c7f303] flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>¡Voz Lista!: {lastClonedResult.voice.name}</span>
@@ -11989,7 +12134,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       {lastClonedResult.voice.recommendedFor}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-start gap-2">
                     <ExpandableButton
                       size="sm"
                       icon={<MicVocal />}
@@ -12026,7 +12171,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
             )}
 
             {/* Pie del Modal: Botones Oficiales WAPPY (ExpandableButton) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
+            <div className="flex flex-wrap items-center justify-start gap-3 pt-3 border-t border-slate-800">
               <ExpandableButton
                 size="md"
                 icon={<X />}
@@ -12193,12 +12338,12 @@ function StudioAudioPlayer({
         }}
       />
 
-      {/* Fila 1: Cabecera del Reproductor (Punto verde + Título + Voz/WAV a la izquierda, Acciones a la derecha) */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      {/* Fila 1: Cabecera del Reproductor (Punto verde + Título + Voz/WAV arriba, Acciones en fila propia abajo) */}
+      <div className="flex flex-col items-start gap-2.5">
+        <div className="min-w-0 w-full">
           <div className="flex items-center gap-2">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-xl">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
               {title}
             </h3>
           </div>
@@ -12211,7 +12356,7 @@ function StudioAudioPlayer({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center justify-start gap-2">
           {audioBase64 && (
             <ExpandableButton
               size="sm"
@@ -12419,8 +12564,8 @@ function AsyncJobMonitorCard({
   return (
     <div className="bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
       {/* Cabecera del Monitor */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col items-start gap-3">
+        <div className="flex items-center gap-3 w-full">
           <div
             className={cn(
               'w-10 h-10 rounded-xl flex items-center justify-center border shrink-0',
@@ -12441,7 +12586,7 @@ function AsyncJobMonitorCard({
               <Sparkles className="w-5 h-5" />
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">
                 {isCompleted
@@ -12472,7 +12617,7 @@ function AsyncJobMonitorCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-start gap-2.5">
           {isProcessing && (
             <ExpandableButton
               size="sm"
@@ -12512,7 +12657,7 @@ function AsyncJobMonitorCard({
               <a
                 href={job.downloadUrl || `/api/studio/tts/jobs/${job.id}/download`}
                 download={`wappy-master-${job.id}.wav`}
-                className="inline-flex items-center gap-1.5 h-8 px-2.5 sm:h-9 sm:px-3 rounded-xl bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-bold tracking-wide transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                className="wappy-expand-btn inline-flex items-center gap-1.5 h-8 px-2.5 sm:h-9 sm:px-3 rounded-xl bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-bold tracking-wide transition-all duration-300 ease-in-out sm:hover:-translate-y-0.5 active:scale-95"
               >
                 <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Descargar WAV Master</span>

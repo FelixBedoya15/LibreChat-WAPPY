@@ -23,7 +23,10 @@ const outputs = [
 ];
 
 console.log('▶ Compilando WAPPY Studio portable...');
-execSync('npx vite build -c vite.portable-studio.config.ts', { cwd: clientDir, stdio: 'inherit' });
+const viteBin = fs.existsSync(path.join(repoDir, 'node_modules/vite/bin/vite.js'))
+  ? `"${process.execPath}" "${path.join(repoDir, 'node_modules/vite/bin/vite.js')}"`
+  : 'npx vite';
+execSync(`${viteBin} build -c vite.portable-studio.config.ts`, { cwd: clientDir, stdio: 'inherit' });
 
 const distDir = path.join(clientDir, 'portable-dist/studio');
 const js = fs.readFileSync(path.join(distDir, 'wappy-studio-portable.js'), 'utf8');

@@ -699,31 +699,33 @@ export default function WappyCassetteWalkmanPlayer({
         </button>
       </div>
 
-      {/* 4. Barra Inferior de Exportación WAV 24kHz + Velocidad + Mute */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={cyclePlaybackRate}
-            className="px-2 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-[10px] font-mono font-bold text-[#c7f303] cursor-pointer"
-            title="Velocidad de reproducción"
-          >
-            {playbackRate}x
-          </button>
-          <button
-            type="button"
-            onClick={toggleMute}
-            className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-300 cursor-pointer"
-            title={isMuted ? 'Activar sonido' : 'Silenciar'}
-          >
-            {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5" />}
-          </button>
-          <span className="text-[8.5px] font-mono text-[#c7f303]/80 hidden sm:inline">
+      {/* 4. Barra Inferior de Exportación WAV 24kHz + Velocidad + Mute (Texto/estado arriba, botones debajo en su propia fila) */}
+      <div className="flex flex-col items-start gap-2 pt-2 border-t border-white/10">
+        <div className="flex items-center justify-between gap-2 w-full">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={cyclePlaybackRate}
+              className="px-2 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-[10px] font-mono font-bold text-[#c7f303] cursor-pointer"
+              title="Velocidad de reproducción"
+            >
+              {playbackRate}x
+            </button>
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-300 cursor-pointer"
+              title={isMuted ? 'Activar sonido' : 'Silenciar'}
+            >
+              {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          <span className="text-[8.5px] font-mono text-[#c7f303]/80">
             ● 24,000 Hz MASTER
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-start gap-2 w-full">
           {audioBase64 && (
             <ExpandableButton
               size="sm"
