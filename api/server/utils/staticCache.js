@@ -33,13 +33,12 @@ function staticCache(staticPath, options = {}) {
     const fileName = filePath ? path.basename(filePath) : '';
 
     if (
-      fileName === 'index.html' ||
-      fileName.endsWith('.html') ||
-      fileName.endsWith('.webmanifest') ||
-      fileName === 'manifest.json' ||
-      fileName === 'sw.js'
+      /^(index\.html|manifest\.json|sw\.js)(\.gz|\.br)?$/i.test(fileName) ||
+      /\.(html|webmanifest)(\.gz|\.br)?$/i.test(fileName)
     ) {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
     } else {
       res.setHeader('Cache-Control', `public, max-age=${maxAge}, s-maxage=${sMaxAge}`);
     }

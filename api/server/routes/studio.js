@@ -1054,8 +1054,9 @@ function extractBaseVoiceFromCloneId(voiceName = '') {
 
 function resolveCompatibleVoice(voiceName, modelId) {
   const cleanVoice = (voiceName || 'Kore').trim();
+  const regEntry = customVoicesRegistry.get(cleanVoice);
   if (cleanVoice.startsWith('wappy_clone_')) {
-    const baseVoice = extractBaseVoiceFromCloneId(cleanVoice);
+    const baseVoice = regEntry?.baseVoice || extractBaseVoiceFromCloneId(cleanVoice);
     return resolveCompatibleVoice(baseVoice, modelId);
   }
   // Si es un ID nativo de Gemini Voices API (voice_... o voicekey_...) en modelos 3.8, conservarlo intacto
@@ -1063,7 +1064,10 @@ function resolveCompatibleVoice(voiceName, modelId) {
     if (modelId.includes('3.8')) {
       return cleanVoice;
     }
-    const fallbackBase = extractBaseVoiceFromCloneId(cleanVoice);
+    const fallbackBase =
+      regEntry?.baseVoice ||
+      (regEntry?.gender === 'Femenino' ? 'Kore' : regEntry?.gender === 'Masculino' ? 'Orus' : '') ||
+      extractBaseVoiceFromCloneId(cleanVoice);
     return resolveCompatibleVoice(fallbackBase, modelId);
   }
   if (modelId.includes('2.5')) {
@@ -1108,17 +1112,23 @@ async function synthesizeSingleVoiceTurn({
   ];
 
   let lastError = null;
+  const cleanVoiceKey = String(voiceName || 'Kore').trim();
+  const customCloneEntry = customVoicesRegistry.get(cleanVoiceKey);
+  const effectiveKeyOffset =
+    preferredKeyOffset > 0
+      ? preferredKeyOffset
+      : Number.isInteger(customCloneEntry?.ownerKeyIndex)
+        ? customCloneEntry.ownerKeyIndex
+        : 0;
 
   for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
     const currentModel = modelsToTry[mIdx];
 
     for (let kStep = 0; kStep < keys.length; kStep++) {
-      const kIdx = (Math.max(0, preferredKeyOffset) + kStep) % keys.length;
+      const kIdx = (Math.max(0, effectiveKeyOffset) + kStep) % keys.length;
       const apiKey = keys[kIdx];
       try {
-        const cleanVoiceKey = String(voiceName || 'Kore').trim();
-        const customCloneEntry = customVoicesRegistry.get(cleanVoiceKey);
-        const resolvedVoice = resolveCompatibleVoice(
+        let resolvedVoice = resolveCompatibleVoice(
           customCloneEntry?.nativeVoiceId || voiceName,
           currentModel,
         );
@@ -1161,31 +1171,85 @@ async function synthesizeSingleVoiceTurn({
         }
 
         if (!response) {
-          const speechConfig = {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: resolvedVoice,
+          try {
+            const speechConfig = {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: resolvedVoice,
+                },
               },
-            },
-          };
+            };
 
-          response = await axios.post(
-            url,
-            {
-              contents: [{ role: 'user', parts: [{ text: cleanTurnText }] }],
-              generationConfig: {
-                responseModalities: ['AUDIO'],
-                speechConfig,
+            response = await axios.post(
+              url,
+              {
+                contents: [{ role: 'user', parts: [{ text: cleanTurnText }] }],
+                generationConfig: {
+                  responseModalities: ['AUDIO'],
+                  speechConfig,
+                },
               },
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey,
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': apiKey,
+                },
+                timeout: 55000,
               },
-              timeout: 55000,
-            },
-          );
+            );
+          } catch (prebuiltErr) {
+            const pStatus = prebuiltErr.response?.status || 0;
+            const pMsg = String(
+              prebuiltErr.response?.data?.error?.message || prebuiltErr.message || '',
+            ).toLowerCase();
+            // Si `voice_...` fue creada en otra API key del pool de 18 llaves y esta llave devuelve 400 (Voice not found),
+            // mantenemos el modelo gemini-3.8-flash-tts en esta misma llave usando la voz base acústica emparejada (Charon/Orus/Puck/Kore)
+            // para NUNCA caer por accidente a gemini-3.1-flash-tts-preview ni cambiar una voz masculina a femenina ('Kore').
+            if (
+              pStatus === 400 &&
+              (resolvedVoice.startsWith('voice_') || resolvedVoice.startsWith('voicekey_')) &&
+              (pMsg.includes('voice') || pMsg.includes('not found') || pMsg.includes('invalid'))
+            ) {
+              const matchedBase = resolveCompatibleVoice(
+                customCloneEntry?.baseVoice ||
+                  (customCloneEntry?.gender === 'Femenino' ? 'Kore' : 'Orus'),
+                currentModel,
+              );
+              resolvedVoice = matchedBase;
+              const stylePrefix = customCloneEntry?.styleDirective
+                ? `[Estilo Vocal: ${customCloneEntry.styleDirective}] `
+                : '';
+              const conditionedText =
+                stylePrefix && !cleanTurnText.includes('[Estilo Vocal')
+                  ? `${stylePrefix}${cleanTurnText}`
+                  : cleanTurnText;
+              response = await axios.post(
+                url,
+                {
+                  contents: [{ role: 'user', parts: [{ text: conditionedText }] }],
+                  generationConfig: {
+                    responseModalities: ['AUDIO'],
+                    speechConfig: {
+                      voiceConfig: {
+                        prebuiltVoiceConfig: {
+                          voiceName: matchedBase,
+                        },
+                      },
+                    },
+                  },
+                },
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                  },
+                  timeout: 55000,
+                },
+              );
+            } else {
+              throw prebuiltErr;
+            }
+          }
         }
 
         const parts = response.data?.candidates?.[0]?.content?.parts || [];
@@ -1560,10 +1624,22 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
     const cleanConsentB64 = stripDataUrl(consentAudioBase64 || sourceAudioBase64);
 
     // 1. Intentar registro nativo en Google Gemini Voices API (POST /v1beta/voices)
+    // Priorizar llaves que tengan cuota activa en gemini-3.8-flash-tts:generateContent para que el voice_... creado pertenezca al mismo proyecto
     let nativeVoiceId = null;
     let nativeMethod = null;
+    let replicatedErrorDiag = null;
+    let ownerKeyIndex = 0;
 
-    for (let kIdx = 0; kIdx < Math.min(allKeys.length, 3); kIdx++) {
+    const candidateKeyIndices = allKeys
+      .map((_, idx) => idx)
+      .sort((a, b) => {
+        const aAvail = geminiPoolManager.isKeyAvailable(allKeys[a], 'gemini-3.8-flash-tts') ? 0 : 1;
+        const bAvail = geminiPoolManager.isKeyAvailable(allKeys[b], 'gemini-3.8-flash-tts') ? 0 : 1;
+        return aAvail - bAvail || a - b;
+      });
+
+    for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 4); cStep++) {
+      const kIdx = candidateKeyIndices[cStep];
       const apiKey = allKeys[kIdx];
       try {
         const voicesPayload =
@@ -1623,9 +1699,14 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
         if (createdId) {
           nativeVoiceId = String(createdId).trim();
           nativeMethod = 'gemini_v1beta_voices';
+          ownerKeyIndex = kIdx;
           break;
         }
       } catch (nativeErr) {
+        replicatedErrorDiag = {
+          status: nativeErr.response?.status,
+          error: nativeErr.response?.data?.error || nativeErr.message,
+        };
         logger.debug(
           `[WappyStudio VoiceClone] /v1beta/voices (${mode}) aviso en clave #${kIdx + 1} (${nativeErr.response?.status || nativeErr.message}): ${JSON.stringify(nativeErr.response?.data?.error?.message || '')}`,
         );
@@ -1673,7 +1754,8 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
       const analysisModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite'];
       let analysisResp = null;
       for (const aModel of analysisModels) {
-        for (let kIdx = 0; kIdx < Math.min(allKeys.length, 3); kIdx++) {
+        for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 4); cStep++) {
+          const kIdx = candidateKeyIndices[cStep];
           try {
             analysisResp = await axios.post(
               `https://generativelanguage.googleapis.com/v1beta/models/${aModel}:generateContent`,
@@ -1729,7 +1811,8 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
       const twinPrompt =
         extractedVoiceDesignPrompt ||
         `${acousticSummary}. ${styleDirective}. Voz ${detectedGender.toLowerCase()} con timbre ${detectedTone}, acento ${languageCode || 'es-CO'} natural y cercano.`;
-      for (let kIdx = 0; kIdx < Math.min(allKeys.length, 3); kIdx++) {
+      for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 4); cStep++) {
+        const kIdx = candidateKeyIndices[cStep];
         try {
           const twinResp = await axios.post(
             'https://generativelanguage.googleapis.com/v1beta/voices',
@@ -1762,6 +1845,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
           if (twinId) {
             nativeVoiceId = String(twinId).trim();
             nativeMethod = 'gemini_v1beta_voices_acoustic_twin';
+            ownerKeyIndex = kIdx;
             break;
           }
         } catch (_) {
@@ -1776,6 +1860,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
     const customVoiceProfile = {
       id: finalVoiceId,
       nativeVoiceId: nativeVoiceId || null,
+      ownerKeyIndex,
       name: `🧬 ${cleanName}`,
       displayName: cleanName,
       gender: detectedGender,
@@ -1787,6 +1872,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
       type: mode,
       storageMode: store ? 'stateful_1y' : 'stateless_7d',
       nativeMethod: nativeMethod || 'gemini_multimodal_acoustic_twin',
+      replicatedErrorDiag: replicatedErrorDiag || undefined,
       sourceAudioBase64: cleanSourceB64 || undefined,
       sourceMimeType: sourceMimeType || 'audio/wav',
       isCustomClone: true,
@@ -1809,6 +1895,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
         voiceName: finalVoiceId,
         model: 'gemini-3.8-flash-tts',
         keys: allKeys,
+        preferredKeyOffset: ownerKeyIndex,
       });
       sampleAudioBase64 = synthResult.audioBase64;
       sampleDurationSeconds = synthResult.durationSeconds;
@@ -4144,14 +4231,6 @@ async function handleGenerateMasterReelHtml(req, res) {
       superPrompt ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
 
-    // Delegar de inmediato (en 0ms) al Antigravity local conectado antes de compilar las escenas
-    const resolvedTarget = await resolveStudioTargetUser(req);
-    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
-      title: `Wappy Studio · Generar Animación 60-FPS (${aspectRatio})`,
-      instruction: `${superPrompt || prompt || effectiveScript}\n\n[DIRECTRIZ OBLIGATORIA WAPPY STUDIO 60-FPS — LIENZO DE VIDEO PURO]:\n1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos y textos ya están incluidos arriba) para responder con velocidad instantánea.\n2. Genera ÚNICAMENTE un lienzo de video animado HTML5 + GSAP a 60 FPS dentro de <div id="stage" data-wappy-master-reel="true"> en formato ${aspectRatio} (${aspectRatio === '16:9' ? '1920x1080' : '1080x1920'} con auto-escalado responsivo al viewport 100vw x 100vh y overflow:hidden), SIN barras laterales de escritorio, SIN tablas externas y SIN dashboards alrededor del video.\n3. Expon window.mainTimeline (GSAP timeline pausable/reiniciable) y soporta postMessage STUDIO_PLAY, STUDIO_PAUSE, STUDIO_RESTART y STUDIO_SEEK.\n4. Completa la orden inmediatamente con wappy_completar_orden_delegada_tenshi (formato="html", contenido="<!DOCTYPE html>...").`,
-      outputType: 'html',
-    });
-
     let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
 
     // Si el cliente envió el audio WAV sintetizado, detectar silencios reales y extraer envolvente RMS 60-FPS
@@ -4164,6 +4243,24 @@ async function handleGenerateMasterReelHtml(req, res) {
         logger.debug('[WappyStudio Video] WAV alignment fallback:', wavErr.message);
       }
     }
+
+    const realTotalSec = Number((timelineMap?.totalDurationSeconds || safeDuration || 20).toFixed(2));
+    const syncedBeatsSummary = Array.isArray(timelineMap?.beats)
+      ? timelineMap.beats
+          .map(
+            (b, idx) =>
+              `  • Escena ${idx + 1} [${Number(b.startSec || 0).toFixed(2)}s -> ${Number(b.endSec || realTotalSec).toFixed(2)}s]: "${b.text || ''}"`,
+          )
+          .join('\n')
+      : '';
+
+    // Delegar de inmediato al Antigravity local conectado con la duración real del audio WAV
+    const resolvedTarget = await resolveStudioTargetUser(req);
+    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+      title: `Wappy Studio · Generar Animación 60-FPS (${aspectRatio})`,
+      instruction: `${superPrompt || prompt || effectiveScript}\n\n[SINCRONIZACIÓN OFICIAL DE AUDIO WAV PASO 01 — DURACIÓN EXACTA OBLIGATORIA: ${realTotalSec} SEGUNDOS]:\n${syncedBeatsSummary}\n\n[DIRECTRIZ OBLIGATORIA WAPPY STUDIO 60-FPS — LIENZO DE VIDEO PURO]:\n1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos y textos ya están incluidos arriba) para responder con velocidad instantánea.\n2. Genera ÚNICAMENTE un lienzo de video animado HTML5 + GSAP a 60 FPS dentro de <div id="stage" data-wappy-master-reel="true"> en formato ${aspectRatio} (${aspectRatio === '16:9' ? '1920x1080' : '1080x1920'} con auto-escalado responsivo al viewport 100vw x 100vh y overflow:hidden), SIN barras laterales de escritorio, SIN tablas externas y SIN dashboards alrededor del video.\n3. La duración total de window.mainTimeline DEBE SER EXACTAMENTE ${realTotalSec} segundos (TOTAL_DURATION = ${realTotalSec}), respetando los tiempos exactos de cada escena de arriba. PROHIBIDO usar window.speechSynthesis (voz robótica del navegador) porque el reproductor de Wappy Studio reproduce en paralelo el audio neural de 24kHz del Paso 01.\n4. Expon window.mainTimeline (GSAP timeline pausable/reiniciable) e incluye controles de reproducción (Reiniciar, -5s, Play/Pausa, +5s y barra de progreso) además de soportar postMessage STUDIO_PLAY, STUDIO_PAUSE, STUDIO_RESTART, STUDIO_SEEK y STUDIO_SYNC_TIME.\n5. PROHIBIDO reutilizar archivos HTML de órdenes anteriores: crea un archivo nuevo y completa la orden inmediatamente con wappy_completar_orden_delegada_tenshi (formato="html", contenido="<!DOCTYPE html>...").`,
+      outputType: 'html',
+    });
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
     const keysToUse = allKeys.slice(0, 4);

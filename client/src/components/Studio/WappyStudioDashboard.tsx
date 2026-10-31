@@ -97,12 +97,25 @@ interface StudioVoice {
 }
 
 /**
- * Convierte cualquier Blob de audio grabado con micrófono (webm/mp4/ogg) o subido (.mp3/.wav/.m4a)
- * a formato estándar WAV PCM 16-bit Mono a 24,000 Hz (requerido por Gemini Voices API /v1beta/voices).
+ * Pre-procesador DSP de Referencia Vocal (inspirado en VoiceStudio `audio_dsp.py` + `speaker_clone.py`):
+ * 1) Re-muestreo a 24,000 Hz Mono.
+ * 2) Eliminación de DC Offset + Filtro Pasa-Altos suave (80 Hz) contra retumbo de micrófono.
+ * 3) `trim_speech_padding`: recorte de silencios iniciales/finales bajo -50 dBFS (0.00316) con margen de 50 ms
+ *    y compactación de pausas internas largas (>420 ms -> 160 ms) para evitar que el clonador aprenda ruido de sala.
+ * 4) `best_window`: si el audio supera los 15s (`MAX_REF_DURATION_S = 15s`), desliza una ventana de 12.5s (`IDEAL_REF_DURATION_S`)
+ *    y selecciona el segmento con mayor densidad de energía vocal RMS.
+ * 5) `normalize_audio`: normalización de pico a -2.0 dBFS (0.7943) + estimación de F0 (Hz) y brillo espectral.
  */
 async function convertAudioBlobToWav24kBase64(
   blob: Blob,
-): Promise<{ base64: string; mimeType: string; durationSec: number }> {
+): Promise<{
+  base64: string;
+  mimeType: string;
+  durationSec: number;
+  rawDurationSec?: number;
+  f0Hz?: number;
+  zcrHz?: number;
+}> {
   try {
     const arrayBuffer = await blob.arrayBuffer();
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -118,7 +131,137 @@ async function convertAudioBlobToWav24kBase64(
     const rendered = await offlineCtx.startRendering();
     ctx.close().catch(() => {});
 
-    const channelData = rendered.getChannelData(0);
+    const raw = rendered.getChannelData(0);
+    // 1) DC Offset removal + 80Hz High-Pass Filter
+    let mean = 0;
+    for (let i = 0; i < raw.length; i++) mean += raw[i];
+    mean /= Math.max(1, raw.length);
+
+    const hp = new Float32Array(raw.length);
+    let prevIn = 0;
+    let prevOut = 0;
+    const alpha = 0.989;
+    for (let i = 0; i < raw.length; i++) {
+      const x = raw[i] - mean;
+      prevOut = alpha * (prevOut + x - prevIn);
+      prevIn = x;
+      hp[i] = prevOut;
+    }
+
+    // 2) VoiceStudio `trim_speech_padding`: frame RMS over 20ms (480 samples), threshold -50 dBFS (0.00316), margin 50ms
+    const frameLen = 480;
+    const numFrames = Math.floor(hp.length / frameLen);
+    const rmsArr = new Float32Array(numFrames);
+    let maxRms = 0;
+    for (let f = 0; f < numFrames; f++) {
+      let sumSq = 0;
+      const base = f * frameLen;
+      for (let j = 0; j < frameLen; j++) {
+        const v = hp[base + j];
+        sumSq += v * v;
+      }
+      const r = Math.sqrt(sumSq / frameLen);
+      rmsArr[f] = r;
+      if (r > maxRms) maxRms = r;
+    }
+
+    const silenceThresh = Math.max(0.00316, maxRms * 0.045);
+    const activeFrames: number[] = [];
+    let silenceRun = 0;
+    let started = false;
+    for (let f = 0; f < numFrames; f++) {
+      if (rmsArr[f] >= silenceThresh) {
+        started = true;
+        silenceRun = 0;
+        activeFrames.push(f);
+      } else if (started) {
+        silenceRun++;
+        // Conservar pausas naturales de respiración de hasta 160ms (8 frames)
+        if (silenceRun <= 8) activeFrames.push(f);
+      }
+    }
+
+    let trimmed: Float32Array;
+    if (activeFrames.length >= 25) {
+      const marginFrames = 3; // ~60ms margin
+      const firstF = Math.max(0, activeFrames[0] - marginFrames);
+      const lastF = Math.min(numFrames - 1, activeFrames[activeFrames.length - 1] + marginFrames);
+      const keepSet = new Set(activeFrames);
+      for (let m = firstF; m <= activeFrames[0]; m++) keepSet.add(m);
+      for (let m = activeFrames[activeFrames.length - 1]; m <= lastF; m++) keepSet.add(m);
+      const ordered = Array.from(keepSet).sort((a, b) => a - b);
+      trimmed = new Float32Array(ordered.length * frameLen);
+      for (let idx = 0; idx < ordered.length; idx++) {
+        const srcBase = ordered[idx] * frameLen;
+        trimmed.set(hp.subarray(srcBase, srcBase + frameLen), idx * frameLen);
+      }
+    } else {
+      trimmed = hp;
+    }
+
+    // 3) VoiceStudio `best_window`: si supera 15s (`MAX_REF_DURATION_S`), elegir la mejor ventana de 12.5s con mayor energía vocal
+    const maxWindowSamples = Math.floor(15.0 * targetRate);
+    const idealWindowSamples = Math.floor(12.5 * targetRate);
+    let windowed = trimmed;
+    if (trimmed.length > maxWindowSamples) {
+      const stepSamples = Math.floor(0.25 * targetRate);
+      let bestStart = 0;
+      let bestEnergy = -1;
+      for (let start = 0; start + idealWindowSamples <= trimmed.length; start += stepSamples) {
+        let energy = 0;
+        for (let k = start; k < start + idealWindowSamples; k += 4) {
+          energy += trimmed[k] * trimmed[k];
+        }
+        if (energy > bestEnergy) {
+          bestEnergy = energy;
+          bestStart = start;
+        }
+      }
+      windowed = trimmed.subarray(bestStart, bestStart + idealWindowSamples);
+    }
+
+    // 4) VoiceStudio `normalize_audio`: Peak normalization a -2.0 dBFS (0.7943)
+    let peak = 0;
+    for (let i = 0; i < windowed.length; i++) {
+      const a = Math.abs(windowed[i]);
+      if (a > peak) peak = a;
+    }
+    const normGain = peak > 0.001 ? Math.min(5.0, 0.7943 / peak) : 1.0;
+    const channelData = new Float32Array(windowed.length);
+    for (let i = 0; i < windowed.length; i++) {
+      channelData[i] = Math.max(-0.98, Math.min(0.98, windowed[i] * normGain));
+    }
+
+    // 5) Estimación de F0 (Hz) y ZCR para telemetría acústica
+    let zc = 0;
+    for (let i = 1; i < channelData.length; i++) {
+      if ((channelData[i - 1] >= 0 && channelData[i] < 0) || (channelData[i - 1] < 0 && channelData[i] >= 0)) {
+        zc++;
+      }
+    }
+    const zcrHz = Math.round((zc / Math.max(1, channelData.length)) * (targetRate / 2));
+
+    let f0Hz = 135;
+    const minLag = Math.floor(targetRate / 280);
+    const maxLag = Math.floor(targetRate / 75);
+    const probeLen = Math.min(channelData.length, targetRate * 3);
+    const probeOffset = Math.floor((channelData.length - probeLen) / 2);
+    if (probeLen > maxLag * 2) {
+      let bestLag = minLag;
+      let bestCorr = -1;
+      for (let lag = minLag; lag <= maxLag; lag += 2) {
+        let corr = 0;
+        for (let i = 0; i < probeLen - lag; i += 4) {
+          corr += channelData[probeOffset + i] * channelData[probeOffset + i + lag];
+        }
+        if (corr > bestCorr) {
+          bestCorr = corr;
+          bestLag = lag;
+        }
+      }
+      f0Hz = Math.round(targetRate / bestLag);
+    }
+
     const pcmByteLength = channelData.length * 2;
     const wavBuffer = new ArrayBuffer(44 + pcmByteLength);
     const view = new DataView(wavBuffer);
@@ -153,7 +296,10 @@ async function convertAudioBlobToWav24kBase64(
     return {
       base64: btoa(binary),
       mimeType: 'audio/wav',
-      durationSec: Math.round(decoded.duration * 10) / 10,
+      durationSec: Math.round((channelData.length / targetRate) * 10) / 10,
+      rawDurationSec: Math.round(decoded.duration * 10) / 10,
+      f0Hz,
+      zcrHz,
     };
   } catch {
     return new Promise((resolve, reject) => {
@@ -164,7 +310,7 @@ async function convertAudioBlobToWav24kBase64(
         resolve({
           base64: b64,
           mimeType: blob.type || 'audio/wav',
-          durationSec: 15,
+          durationSec: 12.5,
         });
       };
       reader.onerror = () => reject(new Error('No se pudo leer el archivo de audio.'));
@@ -1902,6 +2048,13 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 
   const headHook = `<script id="wappy-studio-gsap-hook">
   (function() {
+    /* Silenciar síntesis de voz robótica del navegador dentro del iframe para que solo suene la Voz Neural 24kHz de Wappy Studio */
+    try {
+      if ('speechSynthesis' in window && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak = function() {};
+      }
+    } catch (e) {}
     function patchGsap() {
       if (window.gsap && !window.gsap.__wappyPatched) {
         window.gsap.__wappyPatched = true;
@@ -1933,8 +2086,8 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
     overflow: hidden !important;
     box-sizing: border-box !important;
   }
-  /* Ocultar contenedores de subtítulos internos duplicados creados por LLMs para que solo se vea el HUD oficial sincronizado */
-  #subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"] {
+  /* Ocultar contenedores de subtítulos o barras internas duplicadas para que solo domine la barra oficial de Wappy Studio */
+  #subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"], .bottom-control-deck {
     display: none !important;
   }
   body.wappy-visual-edit-active * {
@@ -2140,6 +2293,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
           try { m.play(); } catch (e) {}
         });
       } catch (e) {}
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     } else if (data.type === 'STUDIO_PAUSE') {
       window.__wappyVoicePlaying = false;
       window.__wappyPaused = true;
@@ -2153,6 +2307,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
           try { m.pause(); } catch (e) {}
         });
       } catch (e) {}
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     } else if (data.type === 'STUDIO_RESTART') {
       window.__wappyVoicePlaying = true;
       window.__wappyPaused = false;
@@ -2170,6 +2325,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
         });
       } catch (e) {}
       if (typeof window.__wappyRenderTick === 'function') window.__wappyRenderTick(0);
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     } else if (data.type === 'STUDIO_SEEK') {
       var p = Math.max(0, Math.min(1, Number(data.progress || 0)));
       if (typeof data.time === 'number') window.__wappyCurrentTime = data.time;
@@ -2193,6 +2349,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
       if (typeof window.__wappyRenderTick === 'function' && typeof data.time === 'number') {
         window.__wappyRenderTick(data.time);
       }
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     } else if (data.type === 'STUDIO_SYNC_TIME') {
       var curT = Number(data.currentTime || 0);
       var durT = Math.max(0.5, Number(data.duration || 20));
@@ -2211,6 +2368,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
       if (typeof window.__wappyRenderTick === 'function') {
         window.__wappyRenderTick(curT, durT);
       }
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     } else if (data.type === 'STUDIO_SET_EDIT_MODE') {
       editMode = Boolean(data.enabled);
       if (editMode) {
@@ -2279,7 +2437,7 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
     } else if (data.type === 'STUDIO_FIT_VIEWPORT') {
       fitStageToViewport();
     }
-  });
+  }, true);
 })();
 </script>`;
 
@@ -5026,33 +5184,49 @@ export default function WappyStudioDashboard({
       if (data.timelineMap?.totalDurationSeconds && data.timelineMap.totalDurationSeconds > 2) {
         setVideoDuration(data.timelineMap.totalDurationSeconds);
       }
-      latestEditedHtmlRef.current = '';
-      setHtmlCode(data.htmlCode);
-      // Guardar automáticamente en la Biblioteca (tenga o no tenga audio)
-      await saveVideoProjectToLibrary({ htmlOverride: data.htmlCode }, true);
-      setVideoCurrentTime(0);
-      setIsVideoPlaying(true);
-      setTimeout(() => {
-        iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
-        stageAudioRef.current?.play().catch(() => {});
-        baseVideoRef.current?.play().catch(() => {});
-        const monitorEl = document.getElementById('wappy-studio-live-monitor');
-        if (monitorEl) {
-          monitorEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 140);
-
       const delegatedOrderId = data.delegation?.ordenId;
-      if (delegatedOrderId) {
+      const hasLiveAntigravityDaemon =
+        Boolean(delegatedOrderId) && Number(data.delegation?.daemonsConectados ?? 1) > 0;
+
+      if (hasLiveAntigravityDaemon && delegatedOrderId) {
+        // Antigravity está conectado en vivo: NO reproducir la plantilla prefabricada como si fuera el video final.
+        // Pausar reproducción, activar el monitor de espera en vivo y cargar el HTML real de Antigravity apenas termine.
+        setIsVideoPlaying(false);
+        setVideoCurrentTime(0);
+        stageAudioRef.current?.pause();
+        baseVideoRef.current?.pause();
         startPollingAntigravityOrder(delegatedOrderId);
+        setTimeout(() => {
+          const monitorEl = document.getElementById('wappy-studio-live-monitor');
+          if (monitorEl) {
+            monitorEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 140);
         setStatusBanner({
           type: 'success',
-          text: `⚡ ¡Paso 2 enviado a Antigravity (Orden #${String(delegatedOrderId).slice(-6)})! El lienzo base ya está activo abajo en el Monitor en Vivo y se actualizará automáticamente en cuanto Antigravity termine de compilar.`,
+          text: `⚡ ¡Paso 2 enviado a tu ventana de Google Antigravity (Orden #${String(delegatedOrderId).slice(-6)})! Antigravity está programando las escenas HTML5 + GSAP sincronizadas con tus ${(data.timelineMap?.totalDurationSeconds || targetDuration).toFixed(1)}s de voz. En cuanto termine (~45-90s), el video organizado se cargará automáticamente en el Monitor en Vivo.`,
         });
       } else {
+        latestEditedHtmlRef.current = '';
+        setHtmlCode(data.htmlCode);
+        await saveVideoProjectToLibrary({ htmlOverride: data.htmlCode }, true);
+        setVideoCurrentTime(0);
+        setIsVideoPlaying(true);
+        if (delegatedOrderId) {
+          startPollingAntigravityOrder(delegatedOrderId);
+        }
+        setTimeout(() => {
+          iframeRef.current?.contentWindow?.postMessage({ type: 'STUDIO_RESTART' }, '*');
+          stageAudioRef.current?.play().catch(() => {});
+          baseVideoRef.current?.play().catch(() => {});
+          const monitorEl = document.getElementById('wappy-studio-live-monitor');
+          if (monitorEl) {
+            monitorEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 140);
         setStatusBanner({
           type: 'success',
-          text: '¡Paso 2 completado! El video ya está reproduciéndose abajo en el "Monitor en Vivo & Lienzo Interactivo" y guardado en tu Biblioteca. Desde el Monitor puedes darle Play, editarlo o pulsar "Descargar Video .MP4 (Todo Unido)".',
+          text: '¡Paso 2 completado! El video ya está reproduciéndose abajo en el "Monitor en Vivo & Lienzo Interactivo" y guardado en tu Biblioteca.',
         });
       }
     } catch (err: any) {
@@ -9810,8 +9984,48 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         )}
                       />
 
+                      {/* Overlay en Vivo cuando Google Antigravity está compilando las escenas reales */}
+                      {antigravityOrderStatus === 'delegated' && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute inset-0 z-30 flex flex-col items-center justify-center p-5 bg-slate-950/92 backdrop-blur-md text-center gap-3.5 cursor-default"
+                        >
+                          <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-[#C7F303]/60 flex items-center justify-center shadow-[0_0_25px_rgba(199,243,3,0.35)]">
+                            <Loader2 className="w-7 h-7 text-[#C7F303] animate-spin" />
+                          </div>
+                          <div className="space-y-1.5 max-w-[310px]">
+                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#C7F303]/15 border border-[#C7F303]/45 text-[#C7F303] font-mono text-[10px] font-black uppercase">
+                              ⚡ ORDEN #{activeAntigravityOrderId ? activeAntigravityOrderId.slice(-6) : 'EN VIVO'} • GOOGLE ANTIGRAVITY
+                            </span>
+                            <h4 className="text-sm sm:text-base font-black text-white leading-tight">
+                              Programando tu Video HTML5 + GSAP 60-FPS en Antigravity...
+                            </h4>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                              El chat ya se abrió en tu ventana de Google Antigravity y está construyendo las escenas sincronizadas con tus{' '}
+                              <strong className="text-[#C7F303]">{(videoDuration || 20).toFixed(1)}s</strong> de audio. Al terminar (~45-90s) el video organizado se cargará aquí automáticamente.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => loadLatestCompletedAntigravityOrder(false)}
+                              className="px-3 py-1.5 rounded-xl bg-[#C7F303] hover:bg-[#b5dd02] text-slate-950 text-[11px] font-black transition cursor-pointer shadow-md"
+                            >
+                              📥 Cargar si ya terminó
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAntigravityOrderStatus('idle')}
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold transition cursor-pointer"
+                            >
+                              Ver lienzo base
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Indicador central de Play cuando el video está en pausa */}
-                      {!isVideoPlaying && !isVisualEditMode && (
+                      {!isVideoPlaying && !isVisualEditMode && antigravityOrderStatus !== 'delegated' && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/25 backdrop-blur-[1px] pointer-events-none transition-opacity">
                           <div className="w-16 h-16 rounded-full bg-teal-500/95 text-slate-950 flex items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.7)] border-2 border-white/80">
                             <Play className="w-8 h-8 fill-current ml-1" />
@@ -11563,20 +11777,20 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
             {voiceCloneMode === 'replicated' ? (
               <div className="space-y-3">
-                {/* Paso 1: Audio de Referencia (20 a 30 seg recomendados, mín 10 seg) */}
+                {/* Paso 1: Audio de Referencia (8 a 15 seg óptimos según VoiceStudio, máx 20 seg) */}
                 <div className="p-4 rounded-2xl bg-slate-900/90 border border-teal-500/35 space-y-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-black uppercase tracking-wider text-teal-300">
-                      1️⃣ Muestra de tu Voz Real (Graba de 20 a 30 segundos • Mínimo 10s)
+                      1️⃣ Muestra de tu Voz Real (Ventana Óptima: 8 a 15 Segundos • Máx 20s)
                     </span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      Auto-conversión a WAV Mono 24kHz 16-bit
+                    <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      DSP VoiceStudio: Trim -50dBFS • Mejor Ventana 12.5s • Norm -2dBFS
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
-                    <strong className="text-[#c7f303]">📖 Texto extendido sugerido (20 a 30 seg con entonación natural, preguntas y cifras):</strong>{' '}
-                    &ldquo;¡Hola equipo! Bienvenidos a un nuevo episodio de Somos SST Daily, el espacio donde transformamos la seguridad y salud en el trabajo en una cultura viva. ¿Alguna vez te has preguntado cómo una pausa activa de solo cinco minutos puede prevenir un accidente grave en planta? Según nuestros indicadores del año 2026, aplicar controles preventivos en el 100 por ciento de las tareas críticas reduce los riesgos laborales en más de un 85 por ciento. Recuerda que en casa siempre nos esperan; cuidarnos hoy es nuestra mejor decisión. ¡Empecemos!&rdquo;
+                    <strong className="text-[#c7f303]">📖 Guion calibrado de 12 a 15 segundos (léelo fluido y sin pausas largas):</strong>{' '}
+                    &ldquo;¡Hola equipo! Bienvenidos a un nuevo episodio de Somos SST Daily. ¿Sabías que una pausa activa de cinco minutos puede prevenir un accidente grave en planta? En el 2026 reducimos los riesgos laborales en más de un 85 por ciento aplicando prevención inteligente. ¡Empecemos!&rdquo;
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5">
@@ -11585,8 +11799,8 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       icon={<MicVocal />}
                       label={
                         recordingTarget === 'source'
-                          ? `⏹ Detener Grabación (${recordingSeconds}s / 30s)`
-                          : '🔴 Grabar Muestra con mi Micrófono'
+                          ? `⏹ Detener Grabación (${recordingSeconds}s / 15s óptimos)`
+                          : '🔴 Grabar Muestra con mi Micrófono (8-15s)'
                       }
                       variant={recordingTarget === 'source' ? 'danger' : 'teal'}
                       onClick={() =>

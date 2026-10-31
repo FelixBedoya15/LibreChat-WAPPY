@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
 export default function WappyStudioPage() {
-  const [iframeSrc, setIframeSrc] = useState<string>('/assets/wappystudio.html');
+  const [iframeSrc, setIframeSrc] = useState<string>('/wappystudio.html?v=20261031b');
 
   useEffect(() => {
     let cancelled = false;
     // Check if /wappystudio.html is served as the standalone studio file (not the SPA index.html)
-    fetch('/wappystudio.html', { cache: 'no-store' })
+    fetch('/wappystudio.html?v=20261031b', { cache: 'no-store' })
       .then((res) => (res.ok ? res.text() : ''))
       .then((html) => {
         if (cancelled) return;
-        if (html && html.includes('WAPPY STUDIO') && !html.includes('<div id="root">')) {
+        if (html && /wappy\s+studio/i.test(html) && !html.includes('<div id="root">')) {
           if (window.location.pathname !== '/wappystudio.html') {
-            setIframeSrc('/wappystudio.html');
+            setIframeSrc('/wappystudio.html?v=20261031b');
           } else {
             document.open();
             document.write(html);
@@ -20,7 +20,7 @@ export default function WappyStudioPage() {
           }
         } else {
           // Fallback to /assets/wappystudio.html which is always served statically
-          fetch('/assets/wappystudio.html', { cache: 'no-store' })
+          fetch('/assets/wappystudio.html?v=20261031b', { cache: 'no-store' })
             .then((r) => (r.ok ? r.text() : ''))
             .then((assetHtml) => {
               if (cancelled || !assetHtml) return;

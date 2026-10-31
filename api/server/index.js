@@ -131,6 +131,30 @@ const startServer = async () => {
     console.warn('Response compression has been disabled via DISABLE_COMPRESSION.');
   }
 
+  const servePortableAppNoCache = (htmlFileName) => (req, res, next) => {
+    const candidatePaths = [
+      path.join(appConfig.paths.dist, htmlFileName),
+      path.resolve(__dirname, '../../client/public', htmlFileName),
+    ];
+    for (const candidate of candidatePaths) {
+      if (fs.existsSync(candidate)) {
+        res.set({
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '0',
+          'Surrogate-Control': 'no-store',
+          'Content-Type': 'text/html; charset=UTF-8',
+        });
+        return res.send(fs.readFileSync(candidate, 'utf8'));
+      }
+    }
+    return next();
+  };
+
+  app.get(['/wappystudio', '/wappystudio.html', '/wappy-studio', '/wappy-studio.html'], servePortableAppNoCache('wappystudio.html'));
+  app.get(['/wappypodcast', '/wappypodcast.html', '/wappy-podcast', '/wappy-podcast.html'], servePortableAppNoCache('wappypodcast.html'));
+  app.get(['/matrizipvr', '/matrizipvr.html', '/matriz-ipvr', '/matriz-ipvr.html'], servePortableAppNoCache('matrizipvr.html'));
+
   app.use(staticCache(appConfig.paths.dist));
   app.use(staticCache(appConfig.paths.fonts));
   app.use(staticCache(appConfig.paths.assets));
