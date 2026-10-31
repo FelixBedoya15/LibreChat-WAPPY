@@ -9063,10 +9063,19 @@ async function executeCloudFailoverForAntigravityOrder(taskId, targetUserId, dia
 
     let generatedText = '';
     if (apiKeys.length > 0) {
-      const aiRes = await generateWithKeyRotation(apiKeys, 'gemini-3.6-flash', cloudPrompt);
-      generatedText = (aiRes?.text || '').trim();
-    } else {
-      generatedText = `Respuesta técnica SG-SST para "${task.title}": Conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019 para ${company?.companyName || 'la empresa'}, se ha procesado tu solicitud.`;
+      try {
+        const aiRes = await generateWithKeyRotation('gemini-3.5-flash-lite', targetUserId, cloudPrompt);
+        generatedText = (
+          typeof aiRes?.response?.text === 'function'
+            ? aiRes.response.text()
+            : aiRes?.text || (typeof aiRes === 'string' ? aiRes : '')
+        ).trim();
+      } catch (genErr) {
+        logger.warn(`[MCP Bridge] Error en Cloud Failover Gemini (${idStr}): ${genErr.message}`);
+      }
+    }
+    if (!generatedText) {
+      generatedText = `Respuesta técnica SG-SST para "${task.title}": Conforme al Decreto 1072 de 2015 y la Resolución 0312 de 2019 para ${company?.companyName || 'la empresa'}, la Seguridad y Salud en el Trabajo (SG-SST) es la disciplina que trata de la prevención de las lesiones y enfermedades causadas por las condiciones de trabajo, y de la protección y promoción de la salud de los trabajadores mediante el ciclo PHVA (Planear, Hacer, Verificar y Actuar).`;
     }
 
     const canvasId = `antigravity-${task._id}`;
@@ -9895,7 +9904,7 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
 
 router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    let targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const {
       ordenId,
       id,
@@ -9919,9 +9928,15 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       return res.status(400).json({ error: 'Debes proporcionar el ordenId a completar.' });
     }
 
-    const task = await KanbanTask.findOne({ _id: targetId, user: targetUserId });
+    let task = await KanbanTask.findOne({ _id: targetId, user: targetUserId });
+    if (!task && mongoose.Types.ObjectId.isValid(targetId)) {
+      task = await KanbanTask.findOne({ _id: targetId, type: 'antigravity_delegation' });
+    }
     if (!task) {
       return res.status(404).json({ error: 'Orden no encontrada.' });
+    }
+    if (task.user) {
+      targetUserId = String(task.user);
     }
     const incomingHasOriginalFile = Boolean(
       (archivoOriginal && typeof archivoOriginal === 'object' && (archivoOriginal.dataUrl || archivoOriginal.base64)) ||

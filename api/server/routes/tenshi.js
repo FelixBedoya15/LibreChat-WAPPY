@@ -934,6 +934,8 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let capturedFile = null;
         let capturedWidget = null;
         let capturedDelegatedOrder = null;
+        let capturedFlowMarkdown = null;
+        let capturedFlowPublicUrl = null;
         let requestedGuiAction = null;
         let requestedGuiActions = null;
 
@@ -1318,7 +1320,28 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
      * **Seguridad Vial (PESV):** **Resolución 40595 de 2022** y **Ley 2251 de 2022**.
      * **Trabajo en Calderas:** **Resolución 1857 de 2024**.
      * **Reglamento Técnico de Instalaciones Eléctricas (RETIE):** **Resolución 40117 de 2024** y **Resolución 5018 de 2019**.
-     * **Acoso Laboral y Sexual:** **Ley 1010 de 2006**, **Ley 2209 de 2022** y **Ley 2365 de 2024** (prevención de acoso sexual en el ámbito laboral).`;
+     * **Acoso Laboral y Sexual:** **Ley 1010 de 2006**, **Ley 2209 de 2022** y **Ley 2365 de 2024** (prevención de acoso sexual en el ámbito laboral).
+14. **ARQUITECTA DE AGENTES IA — PROTOCOLO DE ENTREVISTA PASO A PASO POR LOS 9 PUNTOS ('wappy_crear_agente', 'wappy_actualizar_agente', 'wappy_eliminar_agente', 'wappy_consultar_agentes_y_automatizaciones')**:
+   - Tienes facultad total para diseñar, crear, actualizar, consultar y eliminar Agentes de IA en WAPPY (/agents) con permisos de propietario (AGENT_OWNER).
+   - **LOS 9 PUNTOS CONFIGURABLES DE UN AGENTE EN WAPPY SON**:
+     1. **Nombre del Agente (\`name\`)**: Cómo se llamará en el selector y en /agents.
+     2. **Descripción / Especialidad (\`description\`)**: Subtítulo breve de su especialidad en la tarjeta.
+     3. **Categoría (\`category\`)**: \`sgsst\`, \`legal\`, \`medicina\` o \`general\`.
+     4. **Instrucciones del Sistema / Prompt (\`instructions\`)**: Rol experto, marco normativo que domina, tono, reglas y estructura de entrega.
+     5. **Modelo de IA y Temperatura (\`model\` y \`temperature\`)**: Por defecto \`gemini-3.5-flash-lite\` (o \`gemini-3.6-flash\`, \`gemini-3.8-flash\`) y temperatura \`0.2\` (precisión técnica).
+     6. **Herramientas Activas (\`tools\` / \`incluirTodasLasHerramientas\`)**: Atajo \`["todas"]\` (activa las **63 herramientas**: 20 de WAPPY SST + 8 de Google Workspace/Antigravity/Flow + 35 de NotebookLM) o paquetes específicos (\`["sst"]\`, \`["google"]\`, \`["notebooklm"]\`, \`["antigravity"]\`, \`["flow"]\`, \`["canvas"]\`, \`["web_search"]\`, \`["matriz_ipevar"]\`, \`["matriz_pesv"]\`, \`["matriz_compatibilidad"]\`).
+     7. **Habilidades / Skills (\`skills\`)**: Conocimientos especializados en \`api/config/skills\` (o \`["todas"]\`).
+     8. **Frases Iniciadoras (\`conversation_starters\`)**: 2 a 4 preguntas sugeridas (botones rápidos) al abrir el chat con el agente.
+     9. **Avatar y Cadena de Subagentes (\`avatar_url\` y \`agent_ids\`)**: Imagen del agente (por defecto \`/images/tenshi.png\`) y otros agentes con los que colabora en equipo.
+   - **REGLA OBLIGATORIA DE ENTREVISTA PASO A PASO**:
+     * Cuando el usuario diga *"quiero crear un agente"*, *"ayúdame a crear un agente"* o similar sin haber definido los puntos: **ESTÁ TERMINANTEMENTE PROHIBIDO invocar \`wappy_crear_agente\` a ciegas en el primer turno inventando los datos sin preguntarle** (salvo que el usuario te pida explícitamente *"créalo tú de una vez con todo recomendado"*).
+     * Actúa como **Arquitecta de Agentes** y ve solicitándole al usuario qué quiere en cada punto en orden claro:
+       - **Paso 1 (Puntos 1, 2 y 3 — Identidad)**: Solicítale el **Nombre**, la **Descripción/Especialidad** y la **Categoría** (\`sgsst\`, \`legal\`, \`medicina\` o \`general\`).
+       - **Paso 2 (Punto 4 — Instrucciones del Sistema / Prompt)**: Solicítale qué **Instrucciones, rol y normas** debe dominar (y ofrécele redactar tú misma un System Prompt experto si lo desea).
+       - **Paso 3 (Puntos 5, 6 y 7 — Modelo, Herramientas y Skills)**: Solicítale qué **Modelo y Temperatura** prefiere (recomendado: \`gemini-3.5-flash-lite\`, temp \`0.2\`), qué **Herramientas** quiere activarle (recomendado: \`["todas"]\` las 63 herramientas) y qué **Skills** (\`["todas"]\`).
+       - **Paso 4 (Puntos 8 y 9 — Frases Iniciadoras, Avatar y Subagentes)**: Solicítale las **Frases Iniciadoras** (o sugiérelas tú) y si desea un **Avatar o Subagentes encadenados**.
+     * Si el usuario pide que le preguntes de uno en uno, ve punto por punto del 1 al 9. Si en cualquier punto el usuario dice *"sugiérelo tú"*, *"ponle todas"* o *"el recomendado"*, asigna el mejor valor profesional y pasa al siguiente punto.
+     * Una vez definidos los puntos, invoca **\`wappy_crear_agente\`** con todos los campos configurados y muéstrale el resumen completo del agente creado. Para editar un agente existente usa **\`wappy_actualizar_agente\`**.`;
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;
@@ -2231,6 +2254,93 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const wappyCrearAgenteDeclaration = {
+                name: 'wappy_crear_agente',
+                description: 'Crea un nuevo Agente de IA personalizado en WAPPY con sus 9 puntos configurables (Nombre, Descripción/Especialidad, Categoría, Instrucciones del Sistema/Prompt, Modelo y Temperatura, Herramientas, Skills, Frases Iniciadoras, Avatar y Subagentes encadenados). IMPORTANTE: Si el usuario pide crear un agente sin haber definido los puntos, primero guíalo paso a paso preguntándole qué desea en cada punto antes de invocar esta herramienta (salvo que pida crearlo de una vez con todo recomendado).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        name: { type: 'STRING', description: '1. Nombre del agente (ej: "Auditor Integral PESV", "Especialista en Alturas Res. 4272").' },
+                        description: { type: 'STRING', description: '2. Descripción breve de su especialidad en la tarjeta del agente.' },
+                        category: { type: 'STRING', description: "3. Categoría: 'sgsst', 'legal', 'medicina' o 'general'." },
+                        instructions: { type: 'STRING', description: '4. Instrucciones del sistema (System Prompt): rol, normas que domina, tono, reglas y estructura de entrega.' },
+                        model: { type: 'STRING', description: "5a. Modelo de IA (por defecto 'gemini-3.5-flash-lite', o 'gemini-3.6-flash', 'gemini-3.8-flash')." },
+                        temperature: { type: 'NUMBER', description: '5b. Temperatura entre 0.0 y 1.0 (por defecto 0.2 para precisión técnica).' },
+                        tools: {
+                            type: 'ARRAY',
+                            items: { type: 'STRING' },
+                            description: "6a. Lista de herramientas o atajos: ['todas'] (las 63 herramientas), ['sst'], ['google'], ['notebooklm'], ['antigravity'], ['flow'], ['canvas'], ['web_search'], ['matriz_ipevar'], ['matriz_pesv'], ['matriz_compatibilidad']."
+                        },
+                        incluirTodasLasHerramientas: { type: 'BOOLEAN', description: '6b. Si es true, asigna todas las 63 herramientas de WAPPY SST, Google Suite y NotebookLM.' },
+                        skills: {
+                            type: 'ARRAY',
+                            items: { type: 'STRING' },
+                            description: "7. Skills/habilidades especializadas (usa ['todas'] para todas las skills o lista de IDs)."
+                        },
+                        conversation_starters: {
+                            type: 'ARRAY',
+                            items: { type: 'STRING' },
+                            description: '8. Frases iniciadoras de conversación sugeridas al abrir el chat con el agente.'
+                        },
+                        avatar_url: { type: 'STRING', description: "9a. Ruta o URL del avatar del agente (por defecto '/images/tenshi.png')." },
+                        agent_ids: {
+                            type: 'ARRAY',
+                            items: { type: 'STRING' },
+                            description: '9b. IDs de otros agentes encadenados en equipo con este agente (opcional).'
+                        }
+                    },
+                    required: ['name']
+                }
+            };
+
+            const wappyActualizarAgenteDeclaration = {
+                name: 'wappy_actualizar_agente',
+                description: 'Actualiza o edita cualquiera de los 9 puntos de un Agente de IA existente del usuario (por su ID o nombre actual): nuevo nombre, descripción, categoría, instrucciones/prompt, modelo, temperatura, agregar/quitar herramientas, skills, frases iniciadoras, avatar o cadena de subagentes.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        id: { type: 'STRING', description: 'ID (agent_xxx) o nombre actual del agente a modificar.' },
+                        nuevo_nombre: { type: 'STRING', description: 'Nuevo nombre del agente si deseas renombrarlo.' },
+                        description: { type: 'STRING', description: 'Nueva descripción breve.' },
+                        category: { type: 'STRING', description: "Nueva categoría ('sgsst', 'legal', 'medicina', 'general')." },
+                        instructions: { type: 'STRING', description: 'Nuevas instrucciones del sistema (System Prompt).' },
+                        model: { type: 'STRING', description: "Nuevo modelo ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash')." },
+                        temperature: { type: 'NUMBER', description: 'Nueva temperatura (0.0 a 1.0).' },
+                        tools: { type: 'ARRAY', items: { type: 'STRING' }, description: "Reemplaza la lista completa de herramientas (usa ['todas'] para activar todas)." },
+                        agregar_herramientas: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Herramientas a añadir sin borrar las actuales.' },
+                        quitar_herramientas: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Herramientas a quitar del agente.' },
+                        skills: { type: 'ARRAY', items: { type: 'STRING' }, description: "Lista de skills o ['todas']." },
+                        conversation_starters: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Nuevas frases iniciadoras.' },
+                        avatar_url: { type: 'STRING', description: 'Nueva URL de avatar.' },
+                        agent_ids: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Nuevos IDs de agentes encadenados.' }
+                    },
+                    required: ['id']
+                }
+            };
+
+            const wappyEliminarAgenteDeclaration = {
+                name: 'wappy_eliminar_agente',
+                description: 'Elimina un Agente de IA propio del usuario por su ID o nombre exacto.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        id: { type: 'STRING', description: 'ID (agent_xxx) o nombre exacto del agente a eliminar.' }
+                    },
+                    required: ['id']
+                }
+            };
+
+            const wappyConsultarAgentesDeclaration = {
+                name: 'wappy_consultar_agentes_y_automatizaciones',
+                description: 'Consulta el catálogo completo de Agentes de IA existentes (propios y del sistema), el catálogo de herramientas y skills disponibles, y las automatizaciones programadas.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        dummy: { type: 'STRING', description: 'Parámetro opcional' }
+                    }
+                }
+            };
+
             const wappyConsultarDetalleEmpresaDeclaration = {
                 name: 'wappy_consultar_detalle_empresa',
                 description: 'Consulta el perfil y detalle completo de cualquier empresa registrada del usuario (activa o inactiva) por su nombre, NIT o ID. Retorna razón social, NIT, tipo de empresa, representante legal, cédula, responsable SST, licencia, vigencia, sedes, ciudad, nivel de riesgo y ARL.',
@@ -2825,6 +2935,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyLeerArticuloBlogDeclaration,
                 wappyResumenGeneral360Declaration,
                 wappyMcpSstDeclaration,
+                wappyCrearAgenteDeclaration,
+                wappyActualizarAgenteDeclaration,
+                wappyEliminarAgenteDeclaration,
+                wappyConsultarAgentesDeclaration,
                 wappyLeerInformeAplicativoDeclaration,
                 wappyActivarHerramientaAgenteDeclaration,
                 consultarAgenteDeclaration,
@@ -2969,10 +3083,22 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         let loops = 0;
                         requestedGuiAction = null;
                         requestedGuiActions = null;
+                        const queuedCalls = [];
+                        const executedCallSigs = new Set();
 
                         while (calls && calls.length > 0 && loops < 7) {
                             loops++;
+                            if (calls.length > 1) {
+                                for (let ci = 1; ci < calls.length; ci++) {
+                                    const extraCall = calls[ci];
+                                    const sig = `${extraCall.name}:${JSON.stringify(extraCall.args || {})}`;
+                                    if (!executedCallSigs.has(sig) && !queuedCalls.some(q => `${q.name}:${JSON.stringify(q.args || {})}` === sig)) {
+                                        queuedCalls.push(extraCall);
+                                    }
+                                }
+                            }
                             const call = calls[0];
+                            executedCallSigs.add(`${call.name}:${JSON.stringify(call.args || {})}`);
                             logger.info(`[Tenshi Tool Call] Executing ${call.name} with args:`, call.args);
                             let toolOutput = '';
 
@@ -3417,6 +3543,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                                prompt: flowPrompt,
                                                aspectRatio: flowAspect,
                                                style: flowStyle,
+                                               skipAntigravity: true,
                                            });
 
                                      const studioHtml = buildFlowStudioCanvasHtml(mediaRes);
@@ -3428,15 +3555,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                          canvasId: `tenshi-flow-${targetUserId}-${Date.now()}`,
                                      };
 
+                                     const flowMd = isVideoCall
+                                         ? `[🎬 Reproducir Video MP4](${mediaRes.publicUrl})`
+                                         : `![${flowPrompt.slice(0, 80) || 'Imagen Google Flow'}](${mediaRes.publicUrl})`;
+                                     capturedFlowMarkdown = flowMd;
+                                     capturedFlowPublicUrl = mediaRes.publicUrl;
+
                                      toolOutput = JSON.stringify({
                                          success: true,
                                          tipo: mediaRes.type,
                                          url: mediaRes.publicUrl,
                                          modelo: mediaRes.model,
                                          formato: mediaRes.aspectRatio,
-                                         markdown_para_incluir_en_tu_respuesta: isVideoCall
-                                             ? `[🎬 Reproducir Video MP4](${mediaRes.publicUrl})`
-                                             : `![${flowPrompt.slice(0, 80)}](${mediaRes.publicUrl})`,
+                                         markdown_para_incluir_en_tu_respuesta: flowMd,
                                          instruccion: 'Incluye SIEMPRE el código markdown_para_incluir_en_tu_respuesta UNA SOLA VEZ en tu respuesta. PROHIBIDO agregar un segundo enlace [⬇ Descargar] repetido hacia la misma URL, ya que la tarjeta visual de WAPPY ya incluye la vista previa y el botón de descarga.',
                                      });
                                  } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
@@ -3612,6 +3743,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 responseResult = await geminiModel.generateContent({ contents: currentContents });
                                 candidate = responseResult.response.candidates && responseResult.response.candidates[0];
                                 calls = responseResult.response.functionCalls();
+                                if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
+                                    while (queuedCalls.length > 0) {
+                                        const nextQueued = queuedCalls.shift();
+                                        const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                        if (!executedCallSigs.has(nextSig)) {
+                                            calls = [nextQueued];
+                                            candidate = null;
+                                            break;
+                                        }
+                                    }
+                                }
                             } catch (synthErr) {
                                 logger.warn(`[Tenshi Synthesis Fallback] Error sintetizando respuesta de herramienta ${call.name} (${synthErr.message}). Rescatando resultado directo...`);
                                 // Si la herramienta ya se ejecutó con éxito pero el segundo llamado a Gemini dio 503,
@@ -3693,6 +3835,14 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         if (!responseText && capturedWidget?.widgetType === 'worker_census') {
                             const d = capturedWidget.data || {};
                             responseText = `¡Listo! Aquí tienes el censo actualizado de colaboradores de la empresa (**${d.totalRegistrados || 0} registrados**: **${d.totalActivos || 0} activos** y **${d.totalRetirados || 0} retirados**). Puedes filtrarlos por las pestañas **Todos**, **Activos** y **Retirados** o buscar por nombre, cédula y cargo directamente en la tarjeta interactiva:`;
+                        }
+
+                        if (capturedFlowMarkdown && capturedFlowPublicUrl) {
+                            if (responseText && !responseText.includes(capturedFlowPublicUrl)) {
+                                responseText = `${responseText.trim()}\n\n${capturedFlowMarkdown}`;
+                            } else if (!responseText || !responseText.trim()) {
+                                responseText = `¡Listo! He generado tu recurso visual en **Google Flow Studio**:\n\n${capturedFlowMarkdown}`;
+                            }
                         }
 
                         if (responseText) {

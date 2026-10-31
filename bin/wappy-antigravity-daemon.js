@@ -2294,13 +2294,10 @@ function startSseWorker(cliArgs) {
   process.on('SIGINT', cleanupAndExit);
 
   const startStreamForCred = ({ wappyUrl, apiKey }) => {
-    const existing = activeStreams.get(wappyUrl);
+    const streamId = `${wappyUrl}|${apiKey}`;
+    const existing = activeStreams.get(streamId);
     if (existing) {
-      if (existing.apiKey === apiKey) return;
-      try {
-        existing.stop();
-      } catch (_) {}
-      activeStreams.delete(wappyUrl);
+      return;
     }
 
     let reconnectDelay = 3000;
@@ -2348,7 +2345,7 @@ function startSseWorker(cliArgs) {
               res.resume();
               invalidKeys.add(apiKey);
               stopped = true;
-              activeStreams.delete(wappyUrl);
+              activeStreams.delete(streamId);
               log(`Clave API (${keyShort}) rechazada con HTTP ${res.statusCode}. Rotando a siguiente credencial disponible...`);
               setTimeout(syncStreams, 500);
               return;
@@ -2445,7 +2442,7 @@ function startSseWorker(cliArgs) {
       }
     };
 
-    activeStreams.set(wappyUrl, {
+    activeStreams.set(streamId, {
       apiKey,
       stop: () => {
         stopped = true;
@@ -2476,11 +2473,12 @@ function startSseWorker(cliArgs) {
       log('Esperando configuración de API Key válida en ~/.gemini/config/mcp_config.json...');
       return;
     }
-    // Conectar 1 stream único por cada servidor WAPPY (usando la credencial principal/más reciente)
-    const seenUrls = new Set();
+    // Conectar en paralelo un stream por cada credencial registrada en wappy-keys.json (multi-cuenta)
+    const seenStreamIds = new Set();
     for (const c of creds) {
-      if (seenUrls.has(c.wappyUrl)) continue;
-      seenUrls.add(c.wappyUrl);
+      const sid = `${c.wappyUrl}|${c.apiKey}`;
+      if (seenStreamIds.has(sid)) continue;
+      seenStreamIds.add(sid);
       startStreamForCred(c);
     }
   };

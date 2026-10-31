@@ -71,12 +71,16 @@ function log(msg) {
   process.stdout.write(line);
 }
 
-function resolveCredentials() {
+function resolveAllCredentials() {
   const candidates = [];
+  const seen = new Set();
   const add = (url, key) => {
     const cleanKey = String(key || '').trim();
     if (!cleanKey || !cleanKey.startsWith('wpy_')) return;
     const cleanUrl = String(url || 'https://wappy.club').trim().replace(/\/$/, '').replace(/\/api\/mcp-bridge.*$/, '') || 'https://wappy.club';
+    const k = `${cleanUrl}|${cleanKey}`;
+    if (seen.has(k)) return;
+    seen.add(k);
     candidates.push({ wappyUrl: cleanUrl, apiKey: cleanKey });
   };
 
@@ -105,7 +109,12 @@ function resolveCredentials() {
     } catch (_) {}
   }
 
-  return candidates[0] || { wappyUrl: 'https://wappy.club', apiKey: '' };
+  return candidates;
+}
+
+function resolveCredentials() {
+  const all = resolveAllCredentials();
+  return all[0] || { wappyUrl: 'https://wappy.club', apiKey: '' };
 }
 
 function httpJson(urlStr, { method = 'GET', headers = {}, body = null, timeoutMs = 20000 } = {}) {
@@ -210,39 +219,55 @@ function isLocalPushWorkerRunning() {
 async function checkAntigravity(wappyUrl, apiKey) {
   const workerLocal = isLocalPushWorkerRunning();
   const lsLocal = isLocalLanguageServerRunning();
-  const statusRes = await httpJson(`${wappyUrl}/api/studio/antigravity/status`, {
-    method: 'GET',
-    headers: {
-      'x-api-key': apiKey,
-      Authorization: `Bearer ${apiKey}`,
-    },
-    timeoutMs: 12000,
-  });
+  const allCreds = resolveAllCredentials();
+  const credsToCheck = allCreds.length > 0 ? allCreds : [{ wappyUrl, apiKey }];
 
-  const userId = statusRes.data?.userId || statusRes.data?.bridge?.userId || '';
-  const serverConnected = Boolean(
-    statusRes.ok &&
-      (statusRes.data?.bridge?.connected ||
-        statusRes.data?.bridge?.userDaemonConnected ||
-        Number(statusRes.data?.bridge?.userListeners) > 0)
-  );
+  let primaryUserId = '';
+  let connectedCount = 0;
+  const disconnectedKeys = [];
+
+  for (const c of credsToCheck) {
+    const statusRes = await httpJson(`${c.wappyUrl}/api/studio/antigravity/status`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': c.apiKey,
+        Authorization: `Bearer ${c.apiKey}`,
+      },
+      timeoutMs: 12000,
+    });
+    const uid = statusRes.data?.userId || statusRes.data?.bridge?.userId || '';
+    if (!primaryUserId && uid) primaryUserId = uid;
+    const isConn = Boolean(
+      statusRes.ok &&
+        (statusRes.data?.bridge?.connected ||
+          statusRes.data?.bridge?.userDaemonConnected ||
+          Number(statusRes.data?.bridge?.userListeners) > 0)
+    );
+    if (isConn) {
+      connectedCount += 1;
+    } else {
+      disconnectedKeys.push(`${c.apiKey.slice(0, 14)}...`);
+    }
+  }
+
+  const serverConnected = connectedCount === credsToCheck.length && credsToCheck.length > 0;
 
   if (workerLocal && serverConnected && lsLocal) {
     return {
       ok: true,
-      userId,
-      detail: `Daemon Push SSE activo (${statusRes.data?.bridge?.userListeners || 1} listener en vivo) y motor Antigravity local operativo.`,
+      userId: primaryUserId,
+      detail: `Daemon Push SSE activo (${connectedCount}/${credsToCheck.length} cuentas conectadas en vivo) y motor Antigravity local operativo.`,
     };
   }
 
   const reasons = [];
   if (!workerLocal) reasons.push('proceso local wappy-push-daemon no estaba en ejecución');
-  if (!serverConnected) reasons.push('servidor WAPPY no detectaba stream Push SSE conectado');
+  if (!serverConnected) reasons.push(`servidor WAPPY detectó cuenta(s) sin túnel SSE (${disconnectedKeys.join(', ')})`);
   if (!lsLocal) reasons.push('aplicación local Antigravity (language_server) estaba cerrada');
 
   return {
     ok: false,
-    userId,
+    userId: primaryUserId,
     detail: `Fallo detectado en Antigravity: ${reasons.join(', ')}.`,
     workerLocal,
     serverConnected,
