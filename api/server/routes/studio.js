@@ -1048,6 +1048,15 @@ function loadCustomVoicesRegistryFromDisk() {
         if (Array.isArray(parsed)) {
           for (const item of parsed) {
             if (item && item.id) {
+              if (!item.sampleAudioBase64 && item.sourceAudioBase64) {
+                item.sampleAudioBase64 = item.sourceAudioBase64;
+              }
+              if (!item.languageCode) {
+                item.languageCode = 'es-CO';
+              }
+              if (!item.displayName && item.name) {
+                item.displayName = String(item.name).replace(/^🧬\s*/, '').trim();
+              }
               customVoicesRegistry.set(item.id, item);
             }
           }
@@ -1074,6 +1083,89 @@ function saveCustomVoicesRegistryToDisk() {
     fs.writeFileSync(CUSTOM_VOICES_DATA_PATH, payload, 'utf8');
   } catch (err) {
     logger.debug(`[WappyStudio VoiceClone] No se pudo escribir en data (${CUSTOM_VOICES_DATA_PATH}): ${err.message}`);
+  }
+}
+
+function hydrateCustomVoicesFromRequest(body = {}) {
+  if (!body || typeof body !== 'object') return;
+  const candidates = [];
+  if (body.customVoiceProfile && typeof body.customVoiceProfile === 'object') {
+    candidates.push(body.customVoiceProfile);
+  }
+  if (Array.isArray(body.customVoices)) {
+    candidates.push(...body.customVoices);
+  }
+  if (body.speaker1?.customVoiceProfile && typeof body.speaker1.customVoiceProfile === 'object') {
+    candidates.push(body.speaker1.customVoiceProfile);
+  }
+  if (body.speaker2?.customVoiceProfile && typeof body.speaker2.customVoiceProfile === 'object') {
+    candidates.push(body.speaker2.customVoiceProfile);
+  }
+
+  let didUpdate = false;
+  const stripDataUrl = (b64 = '') =>
+    String(b64 || '')
+      .replace(/^data:[^;]+;base64,/, '')
+      .trim();
+
+  for (const item of candidates) {
+    if (!item || typeof item !== 'object' || !item.id) continue;
+    const vId = String(item.id).trim();
+    if (!vId) continue;
+    const existing = customVoicesRegistry.get(vId);
+    const incomingAudio = stripDataUrl(item.sourceAudioBase64 || item.sampleAudioBase64 || '');
+    if (!existing || (!existing.sourceAudioBase64 && incomingAudio)) {
+      const cleanDisplayName =
+        item.displayName ||
+        String(item.name || existing?.displayName || 'Mi Voz Clonada')
+          .replace(/^🧬\s*/, '')
+          .trim();
+      const gender = item.gender || existing?.gender || 'Masculino';
+      const baseVoice =
+        item.baseVoice ||
+        existing?.baseVoice ||
+        extractBaseVoiceFromCloneId(vId) ||
+        (gender === 'Femenino' ? 'Kore' : 'Orus');
+      const rawAudio = incomingAudio || existing?.sourceAudioBase64 || existing?.sampleAudioBase64 || '';
+
+      const hydratedProfile = {
+        ...(existing || {}),
+        ...item,
+        id: vId,
+        name: String(item.name || '').startsWith('🧬') ? item.name : `🧬 ${cleanDisplayName}`,
+        displayName: cleanDisplayName,
+        gender,
+        languageCode: item.languageCode || existing?.languageCode || 'es-CO',
+        tone: item.tone || existing?.tone || 'Clonación Biométrica 24kHz',
+        description:
+          item.description ||
+          existing?.description ||
+          'Timbre vocal analizado y clonado por forma de onda a 24 kHz.',
+        styleDirective:
+          item.styleDirective ||
+          existing?.styleDirective ||
+          'Tono natural, articulación clara, ritmo orgánico con pausas conversacionales realistas.',
+        baseVoice,
+        type: item.type || existing?.type || 'replicated',
+        storageMode: item.storageMode || existing?.storageMode || 'stateful_1y',
+        nativeMethod:
+          item.nativeMethod ||
+          existing?.nativeMethod ||
+          (rawAudio ? 'voicestudio_omnivoice_zeroshot' : 'gemini_v1beta_voices_prompted'),
+        sourceAudioBase64: rawAudio || undefined,
+        sampleAudioBase64:
+          stripDataUrl(item.sampleAudioBase64 || existing?.sampleAudioBase64 || rawAudio) || undefined,
+        isCustomClone: true,
+        fundamental: true,
+        createdAt: item.createdAt || existing?.createdAt || new Date().toISOString(),
+      };
+      customVoicesRegistry.set(vId, hydratedProfile);
+      didUpdate = true;
+    }
+  }
+
+  if (didUpdate) {
+    saveCustomVoicesRegistryToDisk();
   }
 }
 
@@ -1326,17 +1418,16 @@ async function synthesizeSingleVoiceTurn({
 
   const cleanVoiceKey = String(voiceName || 'Kore').trim();
   const customCloneEntry = customVoicesRegistry.get(cleanVoiceKey);
+  const cloneRefAudioB64 =
+    customCloneEntry?.sourceAudioBase64 || customCloneEntry?.sampleAudioBase64 || '';
 
-  // 0. Si es una voz clonada con grabación real (sourceAudioBase64) y no tiene replicación nativa Tier 1 en Google,
+  // 0. Si es una voz clonada con grabación real (sourceAudioBase64 o sampleAudioBase64) y no tiene replicación nativa Tier 1 en Google,
   // sintetizar directamente con el motor Zero-Shot de clonación por forma de onda (VoiceStudio OmniVoice 24kHz)
-  if (
-    customCloneEntry?.sourceAudioBase64 &&
-    customCloneEntry.nativeMethod !== 'gemini_v1beta_voices'
-  ) {
+  if (cloneRefAudioB64 && customCloneEntry?.nativeMethod !== 'gemini_v1beta_voices') {
     try {
       const zeroShotRes = await synthesizeZeroShotVoiceStudioClone({
         text: cleanTurnText,
-        sourceAudioBase64: customCloneEntry.sourceAudioBase64,
+        sourceAudioBase64: cloneRefAudioB64,
         refTranscript: customCloneEntry.refTranscript || '',
         languageCode: customCloneEntry.languageCode || 'es-CO',
       });
@@ -1770,6 +1861,9 @@ router.post('/keys-validate', studioAuth, async (req, res) => {
  */
 router.get('/voices/custom', studioAuth, async (req, res) => {
   try {
+    if (customVoicesRegistry.size === 0) {
+      loadCustomVoicesRegistryFromDisk();
+    }
     const { allKeys } = await getCombinedKeysForRequest(req);
     const remoteVoices = [];
 
@@ -1787,7 +1881,8 @@ router.get('/voices/custom', studioAuth, async (req, res) => {
             if (vId === 'voice_d1mpq6dowjz7' || /f[eé]lix/i.test(String(vLabel))) continue;
             remoteVoices.push({
               id: vId,
-              name: vLabel,
+              name: String(vLabel).startsWith('🧬') ? vLabel : `🧬 ${vLabel}`,
+              displayName: String(vLabel).replace(/^🧬\s*/, '').trim(),
               gender: v.gender === 'female' ? 'Femenino' : 'Masculino',
               tone: v.type === 'prompted' ? 'Diseño Vocal' : 'Voz Clonada Real',
               description:
@@ -1795,9 +1890,16 @@ router.get('/voices/custom', studioAuth, async (req, res) => {
                 (v.type === 'prompted'
                   ? 'Voz personalizada diseñada por descripción (24kHz)'
                   : 'Clon biométrico verificado de estudio (24kHz)'),
+              styleDirective: '',
+              baseVoice: v.gender === 'female' ? 'Kore' : 'Orus',
               type: v.type || 'replicated',
+              languageCode: v.language_code || v.languageCode || 'es-CO',
+              storageMode: 'stateful_1y',
+              nativeMethod:
+                v.type === 'prompted' ? 'gemini_v1beta_voices_prompted' : 'gemini_v1beta_voices',
               isCustomClone: true,
               fundamental: true,
+              sampleAudioBase64: v.sample_audio?.data || null,
               createdAt: v.create_time || new Date().toISOString(),
             });
           }
@@ -1810,7 +1912,32 @@ router.get('/voices/custom', studioAuth, async (req, res) => {
     const localVoices = Array.from(customVoicesRegistry.values());
     const mergedMap = new Map();
     for (const v of [...remoteVoices, ...localVoices]) {
-      if (v && v.id) mergedMap.set(v.id, v);
+      if (v && v.id) {
+        const cleanDisplayName =
+          v.displayName ||
+          String(v.name || v.id)
+            .replace(/^🧬\s*/, '')
+            .trim();
+        mergedMap.set(v.id, {
+          id: v.id,
+          name: String(v.name || '').startsWith('🧬') ? v.name : `🧬 ${cleanDisplayName}`,
+          displayName: cleanDisplayName,
+          gender: v.gender || 'Masculino',
+          tone: v.tone || 'Clonación Biométrica 24kHz',
+          description: v.description || 'Clon biométrico verificado de estudio (24kHz)',
+          styleDirective: v.styleDirective || '',
+          baseVoice: v.baseVoice || (v.gender === 'Femenino' ? 'Kore' : 'Orus'),
+          type: v.type || 'replicated',
+          languageCode: v.languageCode || 'es-CO',
+          storageMode: v.storageMode || 'stateful_1y',
+          nativeMethod: v.nativeMethod || 'voicestudio_omnivoice_zeroshot',
+          isCustomClone: true,
+          fundamental: true,
+          sampleAudioBase64: v.sampleAudioBase64 || v.sourceAudioBase64 || null,
+          sampleDurationSeconds: v.sampleDurationSeconds || 0,
+          createdAt: v.createdAt || new Date().toISOString(),
+        });
+      }
     }
 
     res.json({
@@ -1826,16 +1953,17 @@ router.get('/voices/custom', studioAuth, async (req, res) => {
  * POST /api/studio/voices/clone
  * Clona una voz real (type="replicated" con sourceAudioBase64 + consentAudioBase64)
  * o diseña una voz desde cero por prompt (type="prompted").
- * Combina el endpoint oficial POST /v1beta/voices de Gemini 3.8 con análisis acústico
- * multimodal de respaldo (Gemini 2.5 Flash Audio Analysis) y genera muestra WAV 24kHz en vivo.
+ * Soporta edición en vivo (`editingVoiceId`) tanto de metadatos como de nueva grabación.
  */
 router.post('/voices/clone', studioAuth, async (req, res) => {
   try {
     const {
+      editingVoiceId = '',
       mode = 'replicated', // 'replicated' | 'prompted'
       displayName = 'Mi Voz Clonada SST',
       gender = 'Masculino',
       languageCode = 'es-CO',
+      styleDirective: bodyStyleDirective = '',
       store = true,
       sourceAudioBase64 = '',
       sourceMimeType = 'audio/wav',
@@ -1846,8 +1974,68 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
       customKeys,
     } = req.body || {};
 
-    const cleanName = String(displayName || 'Mi Voz Clonada').trim().slice(0, 60);
-    if (mode === 'replicated' && !sourceAudioBase64) {
+    if (customVoicesRegistry.size === 0) {
+      loadCustomVoicesRegistryFromDisk();
+    }
+
+    const cleanEditingId = String(editingVoiceId || '').trim();
+    const existingVoice = cleanEditingId ? customVoicesRegistry.get(cleanEditingId) : null;
+    const cleanName = String(
+      displayName || existingVoice?.displayName || 'Mi Voz Clonada',
+    )
+      .trim()
+      .slice(0, 60);
+
+    const stripDataUrl = (b64 = '') =>
+      String(b64 || '')
+        .replace(/^data:[^;]+;base64,/, '')
+        .trim();
+    const cleanSourceB64 = stripDataUrl(sourceAudioBase64);
+    const cleanConsentB64 = stripDataUrl(consentAudioBase64 || sourceAudioBase64);
+
+    // Si se está editando una voz existente y el usuario NO subió ni grabó un nuevo sourceAudioBase64:
+    // conservar sourceAudioBase64, refTranscript, nativeVoiceId y sampleAudioBase64 de la voz en customVoicesRegistry.
+    if (existingVoice && !cleanSourceB64 && (mode !== 'prompted' || !String(voicePrompt || '').trim())) {
+      const updatedGender =
+        gender === 'Femenino'
+          ? 'Femenino'
+          : gender === 'Masculino'
+            ? 'Masculino'
+            : existingVoice.gender || 'Masculino';
+      const updatedLang = languageCode || existingVoice.languageCode || 'es-CO';
+      const updatedStyle =
+        String(bodyStyleDirective || voicePrompt || '').trim() ||
+        existingVoice.styleDirective ||
+        'Tono natural, articulación clara, ritmo orgánico con pausas conversacionales realistas.';
+      const preservedSample =
+        existingVoice.sampleAudioBase64 || existingVoice.sourceAudioBase64 || null;
+
+      const updatedProfile = {
+        ...existingVoice,
+        id: cleanEditingId,
+        name: `🧬 ${cleanName}`,
+        displayName: cleanName,
+        gender: updatedGender,
+        languageCode: updatedLang,
+        styleDirective: updatedStyle,
+        sampleAudioBase64: preservedSample,
+        isCustomClone: true,
+        fundamental: true,
+        updatedAt: new Date().toISOString(),
+      };
+
+      customVoicesRegistry.set(cleanEditingId, updatedProfile);
+      saveCustomVoicesRegistryToDisk();
+
+      return res.json({
+        success: true,
+        voice: updatedProfile,
+        sampleAudioBase64: updatedProfile.sampleAudioBase64,
+        sampleDurationSeconds: updatedProfile.sampleDurationSeconds || 0,
+      });
+    }
+
+    if (mode === 'replicated' && !cleanSourceB64) {
       return res.status(400).json({
         success: false,
         error: 'Debes grabar o subir una muestra de tu voz (10 a 30 segundos) para clonarla.',
@@ -1867,10 +2055,6 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
         error: 'No hay claves API de Gemini configuradas para procesar la clonación de voz.',
       });
     }
-
-    const stripDataUrl = (b64 = '') => String(b64 || '').replace(/^data:[^;]+;base64,/, '').trim();
-    const cleanSourceB64 = stripDataUrl(sourceAudioBase64);
-    const cleanConsentB64 = stripDataUrl(consentAudioBase64 || sourceAudioBase64);
 
     // 1. Intentar registro nativo en Google Gemini Voices API (POST /v1beta/voices)
     // Priorizar llaves que tengan cuota activa en gemini-3.8-flash-tts:generateContent
@@ -2119,13 +2303,17 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
     }
 
     const shortHash = crypto.randomBytes(3).toString('hex');
-    const finalVoiceId = nativeVoiceId || `wappy_clone_${matchedBaseVoice}_${shortHash}`;
+    const finalVoiceId =
+      cleanEditingId || nativeVoiceId || `wappy_clone_${matchedBaseVoice}_${shortHash}`;
 
     const customVoiceProfile = {
+      ...(existingVoice || {}),
       id: finalVoiceId,
-      nativeVoiceId: nativeVoiceId || null,
+      nativeVoiceId: nativeVoiceId || existingVoice?.nativeVoiceId || null,
       voiceIdsByKeyIndex:
-        Object.keys(voiceIdsByKeyIndex).length > 0 ? voiceIdsByKeyIndex : undefined,
+        Object.keys(voiceIdsByKeyIndex).length > 0
+          ? voiceIdsByKeyIndex
+          : existingVoice?.voiceIdsByKeyIndex || undefined,
       ownerKeyIndex,
       name: `🧬 ${cleanName}`,
       displayName: cleanName,
@@ -2139,9 +2327,9 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
             ? `ID Nativo: ${nativeVoiceId}`
             : `Base: ${matchedBaseVoice}`
       } • ${store ? 'Persistente' : 'Llave 7 días'})`,
-      styleDirective,
+      styleDirective: String(bodyStyleDirective || styleDirective || '').trim() || styleDirective,
       voiceDesignPrompt: extractedVoiceDesignPrompt || styleDirective,
-      refTranscript: refTranscript || '',
+      refTranscript: refTranscript || existingVoice?.refTranscript || '',
       baseVoice: matchedBaseVoice,
       type: mode,
       storageMode: store ? 'stateful_1y' : 'stateless_7d',
@@ -2149,15 +2337,16 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
         nativeMethod ||
         (mode === 'replicated' ? 'voicestudio_omnivoice_zeroshot' : 'gemini_v1beta_voices_prompted'),
       replicatedErrorDiag: replicatedErrorDiag || undefined,
-      sourceAudioBase64: cleanSourceB64 || undefined,
+      sourceAudioBase64: cleanSourceB64 || existingVoice?.sourceAudioBase64 || undefined,
       sourceMimeType: sourceMimeType || 'audio/wav',
+      sampleAudioBase64: existingVoice?.sampleAudioBase64 || cleanSourceB64 || null,
       isCustomClone: true,
       fundamental: true,
-      createdAt: new Date().toISOString(),
+      createdAt: existingVoice?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     customVoicesRegistry.set(finalVoiceId, customVoiceProfile);
-    saveCustomVoicesRegistryToDisk();
 
     // 3. Sintetizar muestra inmediata a 24kHz para que el usuario escuche su voz clonada al instante
     const previewText =
@@ -2188,11 +2377,31 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
       }
     }
 
+    if (!sampleAudioBase64 && cleanSourceB64) {
+      try {
+        const rawBuf = Buffer.from(cleanSourceB64, 'base64');
+        const norm = normalizeAudioBufferToWav(rawBuf, 24000);
+        sampleAudioBase64 = norm.wavBuffer.toString('base64');
+        sampleDurationSeconds = norm.durationSeconds;
+      } catch (_) {
+        sampleAudioBase64 = cleanSourceB64;
+      }
+    }
+
+    customVoiceProfile.sampleAudioBase64 =
+      sampleAudioBase64 || customVoiceProfile.sampleAudioBase64 || null;
+    customVoiceProfile.sampleDurationSeconds =
+      sampleDurationSeconds || customVoiceProfile.sampleDurationSeconds || 0;
+    customVoiceProfile.languageCode = languageCode || 'es-CO';
+
+    customVoicesRegistry.set(finalVoiceId, customVoiceProfile);
+    saveCustomVoicesRegistryToDisk();
+
     return res.json({
       success: true,
       voice: customVoiceProfile,
-      sampleAudioBase64,
-      sampleDurationSeconds,
+      sampleAudioBase64: customVoiceProfile.sampleAudioBase64,
+      sampleDurationSeconds: customVoiceProfile.sampleDurationSeconds,
     });
   } catch (error) {
     logger.error('[WappyStudio VoiceClone] Error cloning voice:', error);
@@ -2287,6 +2496,7 @@ router.post('/tts/estimate', studioAuth, (req, res) => {
  */
 router.post('/tts/synthesize', studioAuth, async (req, res) => {
   try {
+    hydrateCustomVoicesFromRequest(req.body);
     const {
       text,
       voiceName = 'Kore',
@@ -2337,6 +2547,7 @@ router.post('/tts/synthesize', studioAuth, async (req, res) => {
  */
 router.post('/tts/jobs', studioAuth, async (req, res) => {
   try {
+    hydrateCustomVoicesFromRequest(req.body);
     const {
       text,
       voiceName = 'Kore',

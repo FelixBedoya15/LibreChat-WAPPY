@@ -1239,7 +1239,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
         }
       }
 
-      // 2. Análisis acústico multimodal con Gemini 2.5 Flash
+      // 2. Análisis acústico multimodal con modelos activos del entorno
       let detectedGender = body.gender === 'Femenino' ? 'Femenino' : 'Masculino';
       let matchedBaseVoice = detectedGender === 'Femenino' ? 'Kore' : 'Orus';
       let detectedTone = 'Clonación Biométrica 24kHz';
@@ -1260,7 +1260,8 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
             text: `Analiza este diseño de voz ("${cleanName}", ${detectedGender}): "${body.voicePrompt || ''}". Elige cuál de las 14 voces de Gemini 24kHz (Puck, Orus, Charon, Fenrir, Enceladus, Iapetus, Schedar, Kore, Aoede, Leda, Zephyr, Callirrhoe, Autonoe, Umbriel) es la base ideal. Devuelve solo JSON: {"gender":"Masculino o Femenino","baseVoice":"NombreDeLas14","tone":"2-3 palabras","styleDirective":"Directriz de prosodia","acousticSummary":"Resumen breve"}`,
           });
         }
-        const ar = await geminiPost('gemini-2.5-flash', keys[0], {
+        const analysisModel = textModelIds()[0] || 'gemini-3.5-flash-lite';
+        const ar = await geminiPost(analysisModel, keys[0], {
           contents: [{ role: 'user', parts }],
           generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
         }, 20000);
@@ -1278,24 +1279,8 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       }
 
       const shortHash = Math.random().toString(16).slice(2, 8);
-      const finalVoiceId = nativeVoiceId || `wappy_clone_${matchedBaseVoice}_${shortHash}`;
-      const customVoiceProfile = {
-        id: finalVoiceId,
-        name: `🧬 ${cleanName}`,
-        displayName: cleanName,
-        gender: detectedGender,
-        tone: detectedTone,
-        description: `${acousticSummary} (Base: ${matchedBaseVoice} • ${body.store !== false ? 'Persistente' : 'Llave 7 días'})`,
-        styleDirective,
-        baseVoice: matchedBaseVoice,
-        type: mode,
-        storageMode: body.store !== false ? 'stateful_1y' : 'stateless_7d',
-        nativeMethod: nativeVoiceId ? 'gemini_v1beta_voices' : 'gemini_multimodal_acoustic_twin',
-        isCustomClone: true,
-        fundamental: true,
-        createdAt: new Date().toISOString(),
-      };
-
+      const finalVoiceId =
+        body.editingVoiceId || nativeVoiceId || `wappy_clone_${matchedBaseVoice}_${shortHash}`;
       const previewText =
         String(body.sampleScript || '').trim() ||
         `¡Hola! Soy ${cleanName}. Esta es mi voz clonada en WAPPY Podcast IA para conducir nuestro episodio de Somos SST Daily con calidad de estudio a veinticuatro kilohertz.`;
@@ -1309,6 +1294,25 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       } catch {
         /* ignore sample error */
       }
+
+      const customVoiceProfile = {
+        id: finalVoiceId,
+        name: `🧬 ${cleanName}`,
+        displayName: cleanName,
+        gender: detectedGender,
+        languageCode: body.languageCode || 'es-CO',
+        tone: detectedTone,
+        description: `${acousticSummary} (Base: ${matchedBaseVoice} • ${body.store !== false ? 'Persistente' : 'Llave 7 días'})`,
+        styleDirective,
+        baseVoice: matchedBaseVoice,
+        type: mode,
+        storageMode: body.store !== false ? 'stateful_1y' : 'stateless_7d',
+        nativeMethod: nativeVoiceId ? 'gemini_v1beta_voices' : 'gemini_multimodal_acoustic_twin',
+        sampleAudioBase64: sampleAudioBase64 || undefined,
+        isCustomClone: true,
+        fundamental: true,
+        createdAt: new Date().toISOString(),
+      };
 
       return json({
         success: true,
