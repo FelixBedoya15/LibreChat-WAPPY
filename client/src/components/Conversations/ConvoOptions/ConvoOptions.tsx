@@ -2,8 +2,10 @@ import { useState, useId, useRef, memo, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import * as Menu from '@ariakit/react/menu';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { request } from 'librechat-data-provider';
 import { DropdownPopup, Spinner, useToastContext } from '@librechat/client';
-import { Ellipsis, Share2, Copy, Archive, Pen, Trash } from 'lucide-react';
+import { Ellipsis, Share2, Copy, Archive, Pen, Trash, Pin, PinOff } from 'lucide-react';
 import type { MouseEvent } from 'react';
 import {
   useDuplicateConversationMutation,
@@ -16,7 +18,12 @@ import { NotificationSeverity } from '~/common';
 import { useChatContext } from '~/Providers';
 import DeleteButton from './DeleteButton';
 import ShareButton from './ShareButton';
-import { cn } from '~/utils';
+import {
+  cn,
+  getPinnedConvoIds,
+  togglePinnedConvoLocal,
+  updateConvoInAllQueries,
+} from '~/utils';
 
 function ConvoOptions({
   conversationId,
@@ -26,6 +33,8 @@ function ConvoOptions({
   isPopoverActive,
   setIsPopoverActive,
   isActiveConvo,
+  tags,
+  isPinned,
 }: {
   conversationId: string | null;
   title: string | null;
@@ -34,8 +43,11 @@ function ConvoOptions({
   isPopoverActive: boolean;
   setIsPopoverActive: React.Dispatch<React.SetStateAction<boolean>>;
   isActiveConvo: boolean;
+  tags?: string[];
+  isPinned?: boolean;
 }) {
   const localize = useLocalize();
+  const queryClient = useQueryClient();
   const { index } = useChatContext();
   const { data: startupConfig } = useGetStartupConfig();
   const { navigateToConvo } = useNavigateToConvo(index);
@@ -49,12 +61,50 @@ function ConvoOptions({
   const [upgradeModalTitle, setUpgradeModalTitle] = useState('');
   const [upgradeModalDesc, setUpgradeModalDesc] = useState('');
 
+  const currentlyPinned = useMemo(
+    () =>
+      Boolean(
+        isPinned ||
+          (Array.isArray(tags) && tags.includes('pinned')) ||
+          (conversationId && getPinnedConvoIds().has(conversationId)),
+      ),
+    [isPinned, tags, conversationId],
+  );
+
   const shareButtonRef = useRef<HTMLButtonElement>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const archiveConvoMutation = useArchiveConvoMutation();
+
+  const handlePinClick = useCallback(async () => {
+    const convoId = conversationId ?? '';
+    if (!convoId) {
+      return;
+    }
+    const nextPinned = !currentlyPinned;
+    togglePinnedConvoLocal(convoId, nextPinned);
+    updateConvoInAllQueries(queryClient, convoId, (c) => ({
+      ...c,
+      tags: nextPinned
+        ? Array.from(new Set([...(Array.isArray(c.tags) ? c.tags : []), 'pinned']))
+        : (Array.isArray(c.tags) ? c.tags : []).filter((t) => t !== 'pinned'),
+    }));
+    setIsPopoverActive(false);
+    showToast({
+      message: nextPinned ? '📌 Chat anclado arriba' : 'Chat desanclado',
+      status: 'success',
+    });
+    try {
+      await request.post('/api/convos/pin', {
+        conversationId: convoId,
+        isPinned: nextPinned,
+      });
+    } catch {
+      // Keep optimistic pin state in localStorage & query cache
+    }
+  }, [conversationId, currentlyPinned, queryClient, setIsPopoverActive, showToast]);
 
   const duplicateConversation = useDuplicateConversationMutation({
     onSuccess: (data) => {
@@ -158,6 +208,15 @@ function ConvoOptions({
   const dropdownItems = useMemo(
     () => [
       {
+        label: currentlyPinned ? 'Desanclar chat' : 'Anclar chat',
+        onClick: handlePinClick,
+        icon: currentlyPinned ? (
+          <PinOff className="icon-sm mr-2 text-[#0D9488] dark:text-teal-400" />
+        ) : (
+          <Pin className="icon-sm mr-2 text-[#0D9488] dark:text-teal-400" />
+        ),
+      },
+      {
         label: localize('com_ui_share'),
         onClick: handleShareClick,
         icon: <Share2 className="icon-sm mr-2 text-text-primary" />,
@@ -201,6 +260,8 @@ function ConvoOptions({
       },
     ],
     [
+      currentlyPinned,
+      handlePinClick,
       localize,
       handleShareClick,
       startupConfig,
@@ -299,6 +360,8 @@ export default memo(ConvoOptions, (prevProps, nextProps) => {
     prevProps.conversationId === nextProps.conversationId &&
     prevProps.title === nextProps.title &&
     prevProps.isPopoverActive === nextProps.isPopoverActive &&
-    prevProps.isActiveConvo === nextProps.isActiveConvo
+    prevProps.isActiveConvo === nextProps.isActiveConvo &&
+    prevProps.isPinned === nextProps.isPinned &&
+    prevProps.tags === nextProps.tags
   );
 });

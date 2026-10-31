@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useRecoilValue } from 'recoil';
 import { useParams } from 'react-router-dom';
+import { Pin } from 'lucide-react';
 import { Constants } from 'librechat-data-provider';
 import { useToastContext, useMediaQuery } from '@librechat/client';
 import type { TConversation } from 'librechat-data-provider';
@@ -12,7 +13,7 @@ import { useGetEndpointsQuery } from '~/data-provider';
 import { NotificationSeverity } from '~/common';
 import { ConvoOptions } from './ConvoOptions';
 import RenameForm from './RenameForm';
-import { cn, logger } from '~/utils';
+import { cn, logger, isConversationPinned } from '~/utils';
 import ConvoLink from './ConvoLink';
 import store from '~/store';
 
@@ -120,6 +121,18 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
     });
   };
 
+  const [pinTick, setPinTick] = useState(0);
+  useEffect(() => {
+    const onPinChanged = () => setPinTick((t) => t + 1);
+    window.addEventListener('wappy-pinned-updated', onPinChanged);
+    return () => window.removeEventListener('wappy-pinned-updated', onPinChanged);
+  }, []);
+
+  const isPinned = useMemo(
+    () => isConversationPinned(conversation),
+    [conversation, pinTick],
+  );
+
   const convoOptionsProps = {
     title,
     retainView,
@@ -128,6 +141,8 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
     conversationId,
     isPopoverActive,
     setIsPopoverActive,
+    tags: conversation.tags,
+    isPinned,
   };
 
   return (
@@ -185,6 +200,12 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
             context="menu-item"
           />
         </ConvoLink>
+      )}
+      {!renaming && isPinned && (
+        <Pin
+          className="mr-1 size-3.5 shrink-0 rotate-45 text-[#0D9488] text-teal-500 dark:text-teal-400"
+          aria-label="Chat anclado"
+        />
       )}
       <div
         className={cn(

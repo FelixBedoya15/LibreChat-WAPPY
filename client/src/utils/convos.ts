@@ -401,3 +401,140 @@ export function removeConvoFromAllQueries(queryClient: QueryClient, conversation
     });
   }
 }
+
+// === WAPPY Pinned & Inactive Conversation Helpers ===
+
+export const PINNED_CONVOS_STORAGE_KEY = 'wappy_pinned_convos';
+const unpinnedInSession = new Set<string>();
+
+export function getPinnedConvoIds(): Set<string> {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return new Set<string>();
+  }
+  try {
+    const raw = localStorage.getItem(PINNED_CONVOS_STORAGE_KEY);
+    if (!raw) {
+      return new Set<string>();
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return new Set<string>();
+    }
+    return new Set(
+      parsed.filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+    );
+  } catch {
+    return new Set<string>();
+  }
+}
+
+export function isConversationPinned(
+  convo: TConversation | null | undefined,
+  pinnedSet?: Set<string>,
+): boolean {
+  if (!convo || !convo.conversationId) {
+    return false;
+  }
+  const id = convo.conversationId;
+  if (unpinnedInSession.has(id)) {
+    return false;
+  }
+  const activeSet = pinnedSet ?? getPinnedConvoIds();
+  if (activeSet.has(id)) {
+    return true;
+  }
+  return Array.isArray(convo.tags) && convo.tags.includes('pinned');
+}
+
+export function togglePinnedConvoLocal(conversationId: string, shouldPin: boolean): string[] {
+  const cleanId = conversationId?.trim() || '';
+  if (!cleanId) {
+    return Array.from(getPinnedConvoIds());
+  }
+  const currentSet = getPinnedConvoIds();
+  if (shouldPin) {
+    currentSet.add(cleanId);
+    unpinnedInSession.delete(cleanId);
+  } else {
+    currentSet.delete(cleanId);
+    unpinnedInSession.add(cleanId);
+  }
+  const updatedList = Array.from(currentSet);
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(PINNED_CONVOS_STORAGE_KEY, JSON.stringify(updatedList));
+    } catch {
+      // ignore storage quota errors
+    }
+    window.dispatchEvent(
+      new CustomEvent('wappy-pinned-updated', {
+        detail: { conversationId: cleanId, isPinned: shouldPin, pinnedIds: updatedList },
+      }),
+    );
+  }
+  return updatedList;
+}
+
+export function partitionConversationsForSidebar(
+  conversations: Array<TConversation | null>,
+  pinnedIds?: Set<string>,
+  inactiveDays = 3,
+): {
+  pinnedConvos: TConversation[];
+  recentGroups: GroupedConversations;
+  inactiveGroups: GroupedConversations;
+  inactiveConvos: TConversation[];
+} {
+  if (!Array.isArray(conversations)) {
+    return {
+      pinnedConvos: [],
+      recentGroups: [],
+      inactiveGroups: [],
+      inactiveConvos: [],
+    };
+  }
+
+  const effectivePinned = pinnedIds ?? getPinnedConvoIds();
+  const cutoffTime = subDays(new Date(Date.now()), inactiveDays).getTime();
+  const seenIds = new Set<string>();
+
+  const pinnedConvos: TConversation[] = [];
+  const recentRaw: TConversation[] = [];
+  const inactiveConvos: TConversation[] = [];
+
+  for (const convo of conversations) {
+    if (!convo || !convo.conversationId || seenIds.has(convo.conversationId)) {
+      continue;
+    }
+    seenIds.add(convo.conversationId);
+
+    if (isConversationPinned(convo, effectivePinned)) {
+      pinnedConvos.push(convo);
+      continue;
+    }
+
+    const updatedTime = convo.updatedAt ? new Date(convo.updatedAt).getTime() : Date.now();
+    const isRecent = Number.isNaN(updatedTime) ? true : updatedTime >= cutoffTime;
+
+    if (isRecent) {
+      recentRaw.push(convo);
+    } else {
+      inactiveConvos.push(convo);
+    }
+  }
+
+  pinnedConvos.sort(
+    (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
+  );
+  inactiveConvos.sort(
+    (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
+  );
+
+  return {
+    pinnedConvos,
+    recentGroups: groupConversationsByDate(recentRaw),
+    inactiveGroups: groupConversationsByDate(inactiveConvos),
+    inactiveConvos,
+  };
+}
+
