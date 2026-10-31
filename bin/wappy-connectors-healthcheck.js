@@ -25,6 +25,7 @@ const net = require('net');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { spawn, execFileSync } = require('child_process');
 
 const HOME_DIR = os.homedir();
@@ -34,6 +35,9 @@ const KEYS_FILE = path.join(AGY_DIR, 'wappy-keys.json');
 const DAEMON_SCRIPT = path.join(AGY_DIR, 'wappy-push-daemon.js');
 const LOG_FILE = path.join(AGY_DIR, 'wappy-healthcheck.log');
 const STATE_FILE = path.join(AGY_DIR, 'wappy-healthcheck-state.json');
+const BITACORA_JSON_FILE = path.join(AGY_DIR, 'wappy-healthcheck-bitacora.json');
+const DESKTOP_DOCX_FILE = path.join(HOME_DIR, 'Desktop', 'Bitacora_Conectores_WAPPY_IA.docx');
+const DESKTOP_WAPPY_FOLDER_DOCX = path.join(HOME_DIR, 'Desktop', 'Wappy IA', 'Bitacora_Conectores_WAPPY_IA.docx');
 const LOCK_FILE = path.join(AGY_DIR, 'wappy-healthcheck.lock');
 const ALERT_EMAIL = 'grupowappy@gmail.com';
 const LOG_MAX_BYTES = 3 * 1024 * 1024;
@@ -717,6 +721,491 @@ async function sendHealthEmail(wappyUrl, apiKey, { trigger, initialResults, fina
   }
 }
 
+/**
+ * 5. GENERADOR DE BITÁCORA EN WORD (.DOCX NATIVO OPENXML) EN EL ESCRITORIO
+ */
+function xmlEscape(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    c ^= buf[i];
+    for (let j = 0; j < 8; j++) {
+      c = (c >>> 1) ^ (c & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function createZipBuffer(files) {
+  const localHeaders = [];
+  const centralHeaders = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const nameBuf = Buffer.from(file.name, 'utf8');
+    const rawData = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data, 'utf8');
+    const compressed = zlib.deflateRawSync(rawData);
+    const crc = crc32(rawData);
+
+    const local = Buffer.alloc(30 + nameBuf.length);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0, 6);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt16LE(0, 10);
+    local.writeUInt16LE(0, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(compressed.length, 18);
+    local.writeUInt32LE(rawData.length, 22);
+    local.writeUInt16LE(nameBuf.length, 26);
+    local.writeUInt16LE(0, 28);
+    nameBuf.copy(local, 30);
+
+    const central = Buffer.alloc(46 + nameBuf.length);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0, 8);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt16LE(0, 12);
+    central.writeUInt16LE(0, 14);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(compressed.length, 20);
+    central.writeUInt32LE(rawData.length, 24);
+    central.writeUInt16LE(nameBuf.length, 28);
+    central.writeUInt16LE(0, 30);
+    central.writeUInt16LE(0, 32);
+    central.writeUInt16LE(0, 34);
+    central.writeUInt16LE(0, 36);
+    central.writeUInt32LE(0, 38);
+    central.writeUInt32LE(offset, 42);
+    nameBuf.copy(central, 46);
+
+    localHeaders.push(local, compressed);
+    centralHeaders.push(central);
+    offset += local.length + compressed.length;
+  }
+
+  const centralBuf = Buffer.concat(centralHeaders);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(files.length, 8);
+  eocd.writeUInt16LE(files.length, 10);
+  eocd.writeUInt32LE(centralBuf.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  eocd.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localHeaders, centralBuf, eocd]);
+}
+
+function formatColombianDate(isoOrDate) {
+  try {
+    return new Date(isoOrDate).toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+  } catch (_) {
+    return String(isoOrDate);
+  }
+}
+
+function triggerLabel(trigger) {
+  const map = {
+    boot: 'Encendido de PC (Boot)',
+    wake: 'Despertar de Reposo (Wake)',
+    schedule: 'Corte Programado (7am/2pm/6pm)',
+    cron: 'Corte Programado (Cron)',
+    manual: 'Ejecución Manual',
+    'imac-live-test': 'Prueba Inicial iMac',
+  };
+  return map[trigger] || `Revisión (${trigger})`;
+}
+
+function seedBitacoraFromExistingLog() {
+  if (!fs.existsSync(LOG_FILE)) return [];
+  try {
+    const raw = fs.readFileSync(LOG_FILE, 'utf8');
+    const lines = raw.split(/\r?\n/);
+    const entries = [];
+    let current = null;
+
+    for (const line of lines) {
+      const mStart = line.match(/^\[([^\]]+)\]\s+\[WAPPY HealthCheck\]\s+🔍 Iniciando pruebas de conexión \(trigger=([^)]+)\)/);
+      if (mStart) {
+        if (current && current.hasStatus) entries.push(current);
+        current = {
+          isoDate: mStart[1],
+          fechaColombia: formatColombianDate(mStart[1]),
+          trigger: mStart[2],
+          hostname: os.hostname(),
+          antigravity: { initialOk: true, finalOk: true, detail: 'Operativo' },
+          notebooklm: { initialOk: true, finalOk: true, detail: 'Operativo' },
+          googleflow: { initialOk: true, finalOk: true, detail: 'Operativo' },
+          hadInitialErrors: false,
+          allHealthyNow: true,
+          notes: 'Verificación completada exitosamente.',
+          hasStatus: false,
+        };
+        continue;
+      }
+      if (!current) continue;
+      const mStat = line.match(/📊 Estado inicial -> Antigravity: (OK|FALLO) \| NotebookLM: (OK|FALLO) \| Google Flow: (OK|FALLO)/);
+      if (mStat) {
+        current.hasStatus = true;
+        current.antigravity.initialOk = mStat[1] === 'OK';
+        current.antigravity.finalOk = mStat[1] === 'OK';
+        current.notebooklm.initialOk = mStat[2] === 'OK';
+        current.notebooklm.finalOk = mStat[2] === 'OK';
+        current.googleflow.initialOk = mStat[3] === 'OK';
+        current.googleflow.finalOk = mStat[3] === 'OK';
+        current.hadInitialErrors = !(current.antigravity.initialOk && current.notebooklm.initialOk && current.googleflow.initialOk);
+        current.allHealthyNow = !current.hadInitialErrors;
+      }
+      const mRecAg = line.match(/🔄 Resultado reconexión Antigravity: (RECONECTADO|SIGUE CON FALLO)/);
+      if (mRecAg) {
+        current.antigravity.finalOk = mRecAg[1] === 'RECONECTADO';
+        current.allHealthyNow = current.antigravity.finalOk && current.notebooklm.finalOk && current.googleflow.finalOk;
+        current.notes = current.antigravity.finalOk
+          ? 'Antigravity fue auto-reconectado exitosamente.'
+          : 'Arranque en frío: Antigravity aún estaba iniciando al momento del chequeo boot.';
+      }
+    }
+    if (current && current.hasStatus) entries.push(current);
+    return entries;
+  } catch (_) {
+    return [];
+  }
+}
+
+function buildCellXml(text, opts = {}) {
+  const {
+    bold = false,
+    color = '1E293B',
+    fill = 'FFFFFF',
+    width = 1800,
+    align = 'left',
+    fontSize = 18,
+  } = opts;
+  return `
+    <w:tc>
+      <w:tcPr>
+        <w:tcW w:w="${width}" w:type="dxa"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>
+        <w:tcMar>
+          <w:top w:w="100" w:type="dxa"/>
+          <w:bottom w:w="100" w:type="dxa"/>
+          <w:left w:w="120" w:type="dxa"/>
+          <w:right w:w="120" w:type="dxa"/>
+        </w:tcMar>
+        <w:vAlign w:val="center"/>
+      </w:tcPr>
+      <w:p>
+        <w:pPr>
+          <w:jc w:val="${align}"/>
+          <w:spacing w:before="20" w:after="20"/>
+        </w:pPr>
+        <w:r>
+          <w:rPr>
+            <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+            ${bold ? '<w:b/>' : ''}
+            <w:color w:val="${color}"/>
+            <w:sz w:val="${fontSize}"/>
+            <w:szCs w:val="${fontSize}"/>
+          </w:rPr>
+          <w:t xml:space="preserve">${xmlEscape(text)}</w:t>
+        </w:r>
+      </w:p>
+    </w:tc>`;
+}
+
+function buildConnectorBadge(mod) {
+  if (mod.initialOk && mod.finalOk) {
+    return { text: 'OK (Operativo)', fill: 'DCFCE7', color: '166534' };
+  }
+  if (!mod.initialOk && mod.finalOk) {
+    return { text: 'RECONECTADO', fill: 'FEF3C7', color: '92400E' };
+  }
+  return { text: 'FALLO', fill: 'FEE2E2', color: '991B1B' };
+}
+
+function generateBitacoraDocxBuffer(entries) {
+  const total = entries.length;
+  const okCount = entries.filter((e) => !e.hadInitialErrors && e.allHealthyNow).length;
+  const reconnectedCount = entries.filter((e) => e.hadInitialErrors && e.allHealthyNow).length;
+  const failCount = entries.filter((e) => !e.allHealthyNow).length;
+  const lastUpdate = total > 0 ? entries[entries.length - 1].fechaColombia : formatColombianDate(new Date());
+
+  const headerRowXml = `
+    <w:tr>
+      <w:trPr><w:tblHeader/></w:trPr>
+      ${buildCellXml('#', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 650, align: 'center', fontSize: 18 })}
+      ${buildCellXml('Fecha y Hora (Colombia)', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 2250, align: 'left', fontSize: 18 })}
+      ${buildCellXml('Disparador / Corte', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 2150, align: 'left', fontSize: 18 })}
+      ${buildCellXml('Google Antigravity', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 1650, align: 'center', fontSize: 18 })}
+      ${buildCellXml('Google NotebookLM', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 1650, align: 'center', fontSize: 18 })}
+      ${buildCellXml('Google Flow Studio', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 1650, align: 'center', fontSize: 18 })}
+      ${buildCellXml('Estado Global', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 1650, align: 'center', fontSize: 18 })}
+      ${buildCellXml('Diagnóstico y Observaciones', { bold: true, color: 'FFFFFF', fill: '0C192E', width: 3550, align: 'left', fontSize: 18 })}
+    </w:tr>`;
+
+  // Mostrar del más reciente al más antiguo manteniendo su número consecutivo histórico
+  const rowsXml = entries
+    .map((item, idx) => ({ item, num: idx + 1 }))
+    .reverse()
+    .map(({ item, num }, revIdx) => {
+      const zebraFill = revIdx % 2 === 0 ? 'FFFFFF' : 'F8FAFC';
+      const ag = buildConnectorBadge(item.antigravity || { initialOk: true, finalOk: true });
+      const nb = buildConnectorBadge(item.notebooklm || { initialOk: true, finalOk: true });
+      const fl = buildConnectorBadge(item.googleflow || { initialOk: true, finalOk: true });
+
+      let globalBadge = { text: '100% OPERATIVO', fill: 'DCFCE7', color: '166534' };
+      if (item.hadInitialErrors && item.allHealthyNow) {
+        globalBadge = { text: 'AUTO-RECUPERADO', fill: 'FEF3C7', color: '92400E' };
+      } else if (!item.allHealthyNow) {
+        globalBadge = { text: 'REQUIERE ATENCIÓN', fill: 'FEE2E2', color: '991B1B' };
+      }
+
+      return `
+        <w:tr>
+          ${buildCellXml(`#${num}`, { bold: true, color: '334155', fill: zebraFill, width: 650, align: 'center', fontSize: 17 })}
+          ${buildCellXml(item.fechaColombia, { bold: false, color: '0F172A', fill: zebraFill, width: 2250, align: 'left', fontSize: 17 })}
+          ${buildCellXml(triggerLabel(item.trigger), { bold: false, color: '334155', fill: zebraFill, width: 2150, align: 'left', fontSize: 17 })}
+          ${buildCellXml(ag.text, { bold: true, color: ag.color, fill: ag.fill, width: 1650, align: 'center', fontSize: 17 })}
+          ${buildCellXml(nb.text, { bold: true, color: nb.color, fill: nb.fill, width: 1650, align: 'center', fontSize: 17 })}
+          ${buildCellXml(fl.text, { bold: true, color: fl.color, fill: fl.fill, width: 1650, align: 'center', fontSize: 17 })}
+          ${buildCellXml(globalBadge.text, { bold: true, color: globalBadge.color, fill: globalBadge.fill, width: 1650, align: 'center', fontSize: 17 })}
+          ${buildCellXml(item.notes || 'Conectores verificados en vivo sin novedades.', { bold: false, color: '334155', fill: zebraFill, width: 3550, align: 'left', fontSize: 16 })}
+        </w:tr>`;
+    })
+    .join('\n');
+
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr><w:spacing w:before="0" w:after="80"/></w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+          <w:b/>
+          <w:color w:val="0C192E"/>
+          <w:sz w:val="34"/>
+          <w:szCs w:val="34"/>
+        </w:rPr>
+        <w:t>BITÁCORA AUTOMÁTICA DE CONECTORES — WAPPY IA</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:spacing w:before="0" w:after="180"/></w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+          <w:color w:val="0D9488"/>
+          <w:sz w:val="21"/>
+          <w:szCs w:val="21"/>
+        </w:rPr>
+        <w:t xml:space="preserve">Monitoreo Continuo Lunes a Sábado (07:00 AM · 02:00 PM · 06:00 PM · Encendido · Reposo) | Estación: ${xmlEscape(os.hostname())} | Última actualización: ${xmlEscape(lastUpdate)}</w:t>
+      </w:r>
+    </w:p>
+
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="15200" w:type="dxa"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:left w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:right w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+        </w:tblBorders>
+      </w:tblPr>
+      <w:tr>
+        ${buildCellXml(`Total Revisiones: ${total}`, { bold: true, color: '0C192E', fill: 'F1F5F9', width: 3800, align: 'center', fontSize: 20 })}
+        ${buildCellXml(`100% Operativas (OK): ${okCount}`, { bold: true, color: '166534', fill: 'DCFCE7', width: 3800, align: 'center', fontSize: 20 })}
+        ${buildCellXml(`Auto-Reconexiones: ${reconnectedCount}`, { bold: true, color: '92400E', fill: 'FEF3C7', width: 3800, align: 'center', fontSize: 20 })}
+        ${buildCellXml(`Alertas / Fallos: ${failCount}`, { bold: true, color: '991B1B', fill: 'FEE2E2', width: 3800, align: 'center', fontSize: 20 })}
+      </w:tr>
+    </w:tbl>
+
+    <w:p>
+      <w:pPr><w:spacing w:before="140" w:after="100"/></w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+          <w:b/>
+          <w:color w:val="0C192E"/>
+          <w:sz w:val="22"/>
+          <w:szCs w:val="22"/>
+        </w:rPr>
+        <w:t>Historial Cronológico de Revisiones y Reconexiones (Más reciente primero)</w:t>
+      </w:r>
+    </w:p>
+
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="15200" w:type="dxa"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="6" w:space="0" w:color="94A3B8"/>
+          <w:left w:val="single" w:sz="6" w:space="0" w:color="94A3B8"/>
+          <w:bottom w:val="single" w:sz="6" w:space="0" w:color="94A3B8"/>
+          <w:right w:val="single" w:sz="6" w:space="0" w:color="94A3B8"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        </w:tblBorders>
+      </w:tblPr>
+      ${headerRowXml}
+      ${rowsXml}
+    </w:tbl>
+
+    <w:sectPr>
+      <w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>
+      <w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="450" w:footer="450" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+  const docRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`;
+
+  return createZipBuffer([
+    { name: '[Content_Types].xml', data: contentTypesXml },
+    { name: '_rels/.rels', data: relsXml },
+    { name: 'word/_rels/document.xml.rels', data: docRelsXml },
+    { name: 'word/document.xml', data: documentXml },
+  ]);
+}
+
+function updateWordBitacora({ trigger, initialResults, finalResults, hadInitialErrors, allHealthyNow }) {
+  try {
+    let entries = [];
+    if (fs.existsSync(BITACORA_JSON_FILE)) {
+      try {
+        entries = JSON.parse(fs.readFileSync(BITACORA_JSON_FILE, 'utf8'));
+      } catch (_) {
+        entries = [];
+      }
+    }
+    if (!Array.isArray(entries) || entries.length === 0) {
+      entries = seedBitacoraFromExistingLog();
+    }
+
+    const notesList = [];
+    if (!hadInitialErrors && allHealthyNow) {
+      notesList.push('Los 3 conectores (Antigravity, NotebookLM y Flow) respondieron OK al primer intento.');
+    } else {
+      if (!initialResults.antigravity.ok) {
+        notesList.push(
+          finalResults.antigravity.ok
+            ? 'Antigravity reconectado automáticamente.'
+            : `Fallo Antigravity: ${finalResults.antigravity.detail}`
+        );
+      }
+      if (!initialResults.notebooklm.ok) {
+        notesList.push(
+          finalResults.notebooklm.ok
+            ? 'NotebookLM reconectado automáticamente.'
+            : `Fallo NotebookLM: ${finalResults.notebooklm.detail}`
+        );
+      }
+      if (!initialResults.googleflow.ok) {
+        notesList.push(
+          finalResults.googleflow.ok
+            ? 'Google Flow reconectado automáticamente.'
+            : `Fallo Google Flow: ${finalResults.googleflow.detail}`
+        );
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const newEntry = {
+      isoDate: nowIso,
+      fechaColombia: formatColombianDate(nowIso),
+      trigger,
+      hostname: os.hostname(),
+      antigravity: {
+        initialOk: Boolean(initialResults.antigravity.ok),
+        finalOk: Boolean(finalResults.antigravity.ok),
+        detail: finalResults.antigravity.detail || '',
+      },
+      notebooklm: {
+        initialOk: Boolean(initialResults.notebooklm.ok),
+        finalOk: Boolean(finalResults.notebooklm.ok),
+        detail: finalResults.notebooklm.detail || '',
+      },
+      googleflow: {
+        initialOk: Boolean(initialResults.googleflow.ok),
+        finalOk: Boolean(finalResults.googleflow.ok),
+        detail: finalResults.googleflow.detail || '',
+      },
+      hadInitialErrors: Boolean(hadInitialErrors),
+      allHealthyNow: Boolean(allHealthyNow),
+      notes: notesList.join(' '),
+    };
+
+    // Evitar duplicar si el seed ya leyó exactamente el mismo segundo
+    const lastEntry = entries[entries.length - 1];
+    if (
+      lastEntry &&
+      lastEntry.trigger === newEntry.trigger &&
+      Math.abs(new Date(lastEntry.isoDate).getTime() - new Date(newEntry.isoDate).getTime()) < 5000
+    ) {
+      entries[entries.length - 1] = newEntry;
+    } else {
+      entries.push(newEntry);
+    }
+
+    // Conservar hasta los últimos 500 registros en la bitácora
+    if (entries.length > 500) {
+      entries = entries.slice(entries.length - 500);
+    }
+
+    fs.mkdirSync(AGY_DIR, { recursive: true });
+    fs.writeFileSync(BITACORA_JSON_FILE, JSON.stringify(entries, null, 2), 'utf8');
+
+    const docxBuf = generateBitacoraDocxBuffer(entries);
+    fs.mkdirSync(path.dirname(DESKTOP_DOCX_FILE), { recursive: true });
+    fs.writeFileSync(DESKTOP_DOCX_FILE, docxBuf);
+
+    if (fs.existsSync(path.dirname(DESKTOP_WAPPY_FOLDER_DOCX))) {
+      fs.writeFileSync(DESKTOP_WAPPY_FOLDER_DOCX, docxBuf);
+    }
+
+    log(`📄 Bitácora Word actualizada en el Escritorio: ${DESKTOP_DOCX_FILE} (${entries.length} registros).`);
+  } catch (err) {
+    log(`⚠️ Error actualizando bitácora Word en el Escritorio: ${err.message}`);
+  }
+}
+
 async function main() {
   const args = parseArgs();
   const trigger = String(args.trigger || 'manual');
@@ -862,6 +1351,15 @@ async function main() {
         'utf8'
       );
     } catch (_) {}
+
+    // Actualizar documento Word de bitácora en el Escritorio en cada revisión
+    updateWordBitacora({
+      trigger,
+      initialResults,
+      finalResults,
+      hadInitialErrors,
+      allHealthyNow,
+    });
 
     // Mostrar notificación nativa en macOS para visibilidad inmediata en pantalla
     if (process.platform === 'darwin') {
