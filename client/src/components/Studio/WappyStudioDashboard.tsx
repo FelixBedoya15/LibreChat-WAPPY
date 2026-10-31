@@ -5193,7 +5193,7 @@ export default function WappyStudioDashboard({
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, activeAntigravityKey]);
+  }, [token, antigravityBridgeKey]);
 
   // PASO 2: Enviar Super-Prompt + Audio + Escenas IA al Generador de Video (Antigravity)
   const handleGenerateHtmlWithAi = async () => {

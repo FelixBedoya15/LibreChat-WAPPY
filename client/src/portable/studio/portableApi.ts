@@ -1169,7 +1169,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       if (await isServerAvailable()) {
         try {
           const srvResp = await nativeFetch(url.pathname + url.search, authInit);
-          if (srvResp.ok) return srvResp;
+          if (srvResp.ok || readPortableKeys().length === 0) return srvResp;
         } catch {
           /* fallback to portable Gemini execution */
         }
