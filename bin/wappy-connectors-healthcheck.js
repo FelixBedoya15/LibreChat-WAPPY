@@ -254,7 +254,6 @@ async function reconnectAntigravity(wappyUrl, apiKey) {
       try {
         execFileSync('/usr/bin/open', ['-gj', '-a', '/Applications/Antigravity.app'], { timeout: 6000 });
       } catch (_) {}
-      await new Promise((r) => setTimeout(r, 6000));
     }
 
     if (fs.existsSync(DAEMON_SCRIPT)) {
@@ -265,7 +264,15 @@ async function reconnectAntigravity(wappyUrl, apiKey) {
       });
       child.unref();
     }
-    await new Promise((r) => setTimeout(r, 7000));
+
+    // Esperar hasta 25 segundos (consultando cada 2.5s) para dar tiempo a que Antigravity.app y el daemon Push SSE levanten en frío
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 2500));
+      const check = await checkAntigravity(wappyUrl, apiKey);
+      if (check.ok) {
+        return check;
+      }
+    }
   } catch (err) {
     log(`⚠️ Error durante intento de reconexión Antigravity: ${err.message}`);
   }
@@ -754,6 +761,11 @@ async function main() {
       return;
     }
 
+    // Si acaba de encender el equipo (boot), dar 15s de cortesía para que Antigravity.app y el daemon Push SSE terminen de iniciar
+    if (trigger === 'boot') {
+      await new Promise((r) => setTimeout(r, 15000));
+    }
+
     // 1. Revisión inicial de los 3 conectores
     const initAg = await checkAntigravity(wappyUrl, apiKey);
     const userId = initAg.userId || '';
@@ -851,8 +863,21 @@ async function main() {
       );
     } catch (_) {}
 
-    // 3. Enviar correo a grupowappy@gmail.com si hubo errores iniciales, si no reconectó, o si se pidió --force-email
-    if (hadInitialErrors || !allHealthyNow || forceEmail) {
+    // Mostrar notificación nativa en macOS para visibilidad inmediata en pantalla
+    if (process.platform === 'darwin') {
+      try {
+        const notifTitle = allHealthyNow ? '🟢 WAPPY IA — Conectores OK' : '🚨 WAPPY IA — Alerta Conectores';
+        const notifMsg = `Antigravity: ${finalResults.antigravity.ok ? 'OK' : 'FALLO'} | NotebookLM: ${finalResults.notebooklm.ok ? 'OK' : 'FALLO'} | Flow: ${finalResults.googleflow.ok ? 'OK' : 'FALLO'}`;
+        execFileSync('/usr/bin/osascript', [
+          '-e',
+          `display notification "${notifMsg}" with title "${notifTitle}" sound name "Glass"`,
+        ], { timeout: 4000 });
+      } catch (_) {}
+    }
+
+    // 3. Enviar correo a grupowappy@gmail.com siempre en cortes programados (7am, 2pm, 6pm, arranque) o si hubo errores
+    const isScheduledCut = ['schedule', 'cron', 'boot', 'manual'].includes(trigger);
+    if (hadInitialErrors || !allHealthyNow || forceEmail || isScheduledCut) {
       await sendHealthEmail(wappyUrl, apiKey, {
         trigger,
         initialResults,
