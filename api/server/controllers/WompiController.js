@@ -5,6 +5,7 @@ const Plan = require('~/models/Plan');
 const PromoCode = require('~/models/PromoCode');
 const WompiTransaction = require('~/models/WompiTransaction');
 const { getAppConfig } = require('~/server/services/Config');
+const { sendMetaCapiEvent } = require('../services/MetaCapiService');
 // Removed User import since role is available in req.user
 
 const WompiWebhookLogSchema = new mongoose.Schema({
@@ -599,7 +600,7 @@ const handleWebhook = async (req, res) => {
         }
 
         // Update transaction in our DB
-        if (reference && (reference.startsWith('WAP-COM-') || reference.startsWith('WAP-VIT-'))) {
+        if (reference && (reference.startsWith('WAP-COM-') || reference.startsWith('WAP-CMP-') || reference.startsWith('WAP-VIT-'))) {
             const ComunidadPurchase = require('../../models/ComunidadPurchase');
             const purchase = await ComunidadPurchase.findOne({ wompiReference: reference });
             if (!purchase) {
@@ -612,6 +613,24 @@ const handleWebhook = async (req, res) => {
             purchase.status = status;
             if (status === 'APPROVED') {
                 purchase.isPaid = true;
+
+                if (!wasAlreadyApproved) {
+                    sendMetaCapiEvent({
+                        eventName: 'Purchase',
+                        eventId: `purchase_${reference}`,
+                        email: purchase.email,
+                        phone: purchase.phone,
+                        fullName: purchase.fullName,
+                        customData: {
+                            content_name: reference.startsWith('WAP-VIT-')
+                                ? 'Membresía Wappy Vital'
+                                : 'Curso SST IA + 10 Aplicativos',
+                            currency: 'COP',
+                            value: purchase.amountInCents ? purchase.amountInCents / 100 : 28000
+                        },
+                        req
+                    }).catch(() => {});
+                }
 
                 // Auto-provision Wappy Vital plan (role USER_IPEVAR) if reference is WAP-VIT-
                 if (reference.startsWith('WAP-VIT-') && !wasAlreadyApproved) {
@@ -829,6 +848,19 @@ const handleWebhook = async (req, res) => {
             try {
                 const userDoc = await User.findById(wompiTx.userId).lean();
                 await notifyAdminsOfPayment(wompiTx, userDoc, false);
+                sendMetaCapiEvent({
+                    eventName: 'Purchase',
+                    eventId: `purchase_${wompiTx.reference}`,
+                    email: userDoc?.email || wompiTx.guestEmail,
+                    phone: userDoc?.phoneNumber || wompiTx.guestPhone,
+                    fullName: userDoc?.name || wompiTx.guestName,
+                    customData: {
+                        content_name: `Plan WAPPY ${PLAN_NAMES[wompiTx.planId] || wompiTx.planId} (${wompiTx.interval})`,
+                        currency: 'COP',
+                        value: wompiTx.amountInCents ? wompiTx.amountInCents / 100 : 49900
+                    },
+                    req
+                }).catch(() => {});
             } catch (e) {
                 console.error('[Wompi Webhook] Error fetching user for notification', e);
             }
@@ -967,13 +999,32 @@ const verifyTransaction = async (req, res) => {
                 try {
                     const userDoc = await User.findById(wompiTx.userId).lean();
                     await notifyAdminsOfPayment(wompiTx, userDoc, false);
+                    sendMetaCapiEvent({
+                        eventName: 'Purchase',
+                        eventId: `purchase_${wompiTx.reference}`,
+                        email: userDoc?.email || wompiTx.guestEmail,
+                        phone: userDoc?.phoneNumber || wompiTx.guestPhone,
+                        fullName: userDoc?.name || wompiTx.guestName,
+                        customData: {
+                            content_name: `Plan WAPPY ${PLAN_NAMES[wompiTx.planId] || wompiTx.planId} (${wompiTx.interval})`,
+                            currency: 'COP',
+                            value: wompiTx.amountInCents ? wompiTx.amountInCents / 100 : 49900
+                        },
+                        req
+                    }).catch(() => {});
                 } catch (e) {
                     console.error('[Wompi VerifyTransaction] Error fetching user for notification', e);
                 }
             }
         }
 
-        return res.json({ success: true, status: 'APPROVED' });
+        return res.json({
+            success: true,
+            status: 'APPROVED',
+            reference: wompiTx.reference,
+            amountInCents: wompiTx.amountInCents,
+            planId: wompiTx.planId
+        });
     } catch (err) {
         console.error('[Wompi VerifyTransaction] error:', err);
         return res.status(500).json({ error: err.message });
@@ -1442,13 +1493,32 @@ const guestVerifyTransaction = async (req, res) => {
                 try {
                     const userDoc = await User.findById(wompiTx.userId).lean();
                     await notifyAdminsOfPayment(wompiTx, userDoc, false);
+                    sendMetaCapiEvent({
+                        eventName: 'Purchase',
+                        eventId: `purchase_${wompiTx.reference}`,
+                        email: userDoc?.email || wompiTx.guestEmail,
+                        phone: userDoc?.phoneNumber || wompiTx.guestPhone,
+                        fullName: userDoc?.name || wompiTx.guestName,
+                        customData: {
+                            content_name: `Plan WAPPY ${PLAN_NAMES[wompiTx.planId] || wompiTx.planId} (${wompiTx.interval})`,
+                            currency: 'COP',
+                            value: wompiTx.amountInCents ? wompiTx.amountInCents / 100 : 49900
+                        },
+                        req
+                    }).catch(() => {});
                 } catch (e) {
                     console.error('[Wompi GuestVerifyTransaction] Error fetching user for notification', e);
                 }
             }
         }
 
-        return res.json({ success: true, status: 'APPROVED' });
+        return res.json({
+            success: true,
+            status: 'APPROVED',
+            reference: wompiTx.reference,
+            amountInCents: wompiTx.amountInCents,
+            planId: wompiTx.planId
+        });
     } catch (err) {
         console.error('[Wompi] guestVerifyTransaction error:', err);
         return res.status(500).json({ error: err.message });

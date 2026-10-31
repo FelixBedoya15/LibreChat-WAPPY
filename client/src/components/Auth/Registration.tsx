@@ -47,6 +47,21 @@ const Registration: React.FC = () => {
 
   const [checkoutLoadingText, setCheckoutLoadingText] = useState<string>('');
 
+  const buildMetaMatchingData = (name?: string, email?: string, phone?: string) => {
+    const matchingData: any = { country: 'co' };
+    if (email) matchingData.em = email.toLowerCase().trim();
+    if (phone) {
+      const cleanDigits = phone.trim().replace(/[^0-9]/g, '');
+      matchingData.ph = cleanDigits.length === 10 && cleanDigits.startsWith('3') ? `57${cleanDigits}` : cleanDigits;
+    }
+    if (name) {
+      const nameParts = name.trim().split(/\s+/);
+      if (nameParts[0]) matchingData.fn = nameParts[0].toLowerCase();
+      if (nameParts.length > 1) matchingData.ln = nameParts[nameParts.length - 1].toLowerCase();
+    }
+    return matchingData;
+  };
+
   const handleWompiCheckout = async (name: string, email: string, phone: string) => {
     setCheckoutLoadingText('Creando tu registro de pago en WAPPY...');
     try {
@@ -58,6 +73,15 @@ const Registration: React.FC = () => {
         funnelKey: 'wappyvital',
         discountCode: couponParam || undefined
       });
+
+      if ((window as any).fbq) {
+        (window as any).fbq('init', '1552188416261002', buildMetaMatchingData(name, email, phone));
+        (window as any).fbq('track', 'InitiateCheckout', {
+          content_name: 'Membresía Wappy Vital',
+          value: data.amountInCents ? data.amountInCents / 100 : 100000,
+          currency: 'COP'
+        });
+      }
 
       if (data.alreadyPaid || data.freeAccess) {
         setCheckoutLoadingText('¡Pago confirmado! Redirigiéndote a Wappy...');
@@ -99,6 +123,14 @@ const Registration: React.FC = () => {
           setCheckoutLoadingText('Verificando pago...');
           try {
             await axios.post('/api/comunidad/verify', { transactionId: transaction.id, funnelKey: 'wappyvital' });
+            if ((window as any).fbq) {
+              (window as any).fbq('init', '1552188416261002', buildMetaMatchingData(name, email, phone));
+              (window as any).fbq('track', 'Purchase', {
+                content_name: 'Membresía Wappy Vital',
+                value: data.amountInCents ? data.amountInCents / 100 : 100000,
+                currency: 'COP'
+              }, data.reference ? { eventID: `purchase_${data.reference}` } : undefined);
+            }
             localStorage.setItem('wappy_comunidad_email_wappyvital', email);
             localStorage.setItem('wappy_comunidad_phone_wappyvital', phone);
             setCheckoutLoadingText('¡Pago Aprobado! Redirigiéndote...');
@@ -137,6 +169,15 @@ const Registration: React.FC = () => {
         promoCode
       });
 
+      if ((window as any).fbq) {
+        (window as any).fbq('init', '1552188416261002', buildMetaMatchingData(name, email, phone));
+        (window as any).fbq('track', 'InitiateCheckout', {
+          content_name: `Plan WAPPY ${planId} (${interval})`,
+          value: data.amountInCents ? data.amountInCents / 100 : 49900,
+          currency: 'COP'
+        });
+      }
+
       setCheckoutLoadingText('Abriendo pasarela de pago Wompi...');
 
       if (!window.WidgetCheckout) {
@@ -167,6 +208,14 @@ const Registration: React.FC = () => {
           setCheckoutLoadingText('Verificando pago...');
           try {
             await axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id });
+            if ((window as any).fbq) {
+              (window as any).fbq('init', '1552188416261002', buildMetaMatchingData(name, email, phone));
+              (window as any).fbq('track', 'Purchase', {
+                content_name: `Plan WAPPY ${planId} (${interval})`,
+                value: data.amountInCents ? data.amountInCents / 100 : 49900,
+                currency: 'COP'
+              }, data.reference ? { eventID: `purchase_${data.reference}` } : undefined);
+            }
             setCheckoutLoadingText('¡Pago Aprobado! Redirigiéndote...');
             setTimeout(() => {
               navigate(`/planes?success=1&plan=${planId}`, { replace: true });
@@ -202,20 +251,26 @@ const Registration: React.FC = () => {
     onSuccess: async (data: any) => {
       setIsSubmitting(false);
 
+      const values = getValues();
       const planParam = queryParams.get('plan');
+
+      if ((window as any).fbq) {
+        (window as any).fbq('init', '1552188416261002', buildMetaMatchingData(values.name, values.email, values.phoneNumber));
+        (window as any).fbq('track', 'CompleteRegistration', {
+          content_name: planParam ? `Registro Plan ${planParam}` : 'Registro Gratis 7 Días PRO',
+          currency: 'COP'
+        });
+      }
+
       if (planParam === 'vital') {
-        const values = getValues();
         handleWompiCheckout(values.name, values.email || '', values.phoneNumber || '');
         return;
       } else if (planParam === 'pro') {
-        const values = getValues();
         const intervalParam = queryParams.get('interval') || 'annual';
         const couponParam = queryParams.get('coupon') || undefined;
         handleStandardWompiCheckout(values.name, values.email || '', values.phoneNumber || '', 'pro', intervalParam, couponParam);
         return;
       }
-
-      const values = getValues();
       if (data?.token && data?.user) {
         setUserContext({
           token: data.token,
