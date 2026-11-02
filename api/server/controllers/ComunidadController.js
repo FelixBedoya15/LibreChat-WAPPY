@@ -6,6 +6,7 @@ const ComunidadPurchase = require('../../models/ComunidadPurchase');
 const { Lead } = require('../../models/Lead');
 const ComunidadSession = require('../../models/ComunidadSession');
 const { logger } = require('@librechat/data-schemas');
+const { sendMetaCapiEvent } = require('../services/MetaCapiService');
 
 const getFunnelQuery = (req) => {
     const funnelKey = req.query.funnelKey || req.body.funnelKey || 'comunidad';
@@ -180,6 +181,18 @@ const createComunidadCheckout = async (req, res) => {
                     funnelKey
                 });
                 await newLead.save();
+                sendMetaCapiEvent({
+                    eventName: 'Lead',
+                    eventId: `lead_${email.toLowerCase().trim()}_${funnelKey}`,
+                    email,
+                    phone,
+                    fullName,
+                    customData: {
+                        content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
+                        currency: 'COP'
+                    },
+                    req
+                }).catch(() => {});
             }
         } catch (leadErr) {
             logger.error('[ComunidadController] Error registering lead:', leadErr);
@@ -331,6 +344,22 @@ const verifyComunidadTransaction = async (req, res) => {
             purchase.status = 'APPROVED';
             await purchase.save();
             console.log(`[Comunidad Wompi Verify] Unlocked course access for: ${purchase.email}`);
+
+            sendMetaCapiEvent({
+                eventName: 'Purchase',
+                eventId: `purchase_${purchase.wompiReference || txData.reference}`,
+                email: purchase.email,
+                phone: purchase.phone,
+                fullName: purchase.fullName,
+                customData: {
+                    content_name: (purchase.funnelKey === 'wappyvital' || txData.reference.startsWith('WAP-VIT-'))
+                        ? 'Membresía Wappy Vital'
+                        : 'Curso SST IA + 10 Aplicativos',
+                    currency: 'COP',
+                    value: purchase.amountInCents ? purchase.amountInCents / 100 : 28000
+                },
+                req
+            }).catch(() => {});
         }
 
         // Auto-provision Wappy Vital plan if reference is WAP-VIT-
@@ -399,7 +428,9 @@ const verifyComunidadTransaction = async (req, res) => {
             email: purchase.email,
             fullName: purchase.fullName,
             phone: purchase.phone,
-            funnelKey: purchase.funnelKey || 'comunidad'
+            funnelKey: purchase.funnelKey || 'comunidad',
+            reference: purchase.wompiReference || txData.reference,
+            amountInCents: purchase.amountInCents
         });
     } catch (err) {
         logger.error('[ComunidadController] verifyComunidadTransaction error:', err);
@@ -422,7 +453,9 @@ const checkComunidadAccess = async (req, res) => {
                 fullName: purchase.fullName,
                 phone: purchase.phone,
                 videoWatched: purchase.videoWatched,
-                purchaseTracked: purchase.purchaseTracked === true
+                purchaseTracked: purchase.purchaseTracked === true,
+                reference: purchase.wompiReference,
+                amountInCents: purchase.amountInCents
             });
         }
 

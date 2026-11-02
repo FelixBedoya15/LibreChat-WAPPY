@@ -420,11 +420,21 @@ export default function MatrizPage() {
     }
   };
 
-  const triggerMetaPurchasePixel = async (email: string, fullName?: string, phone?: string) => {
+  const triggerMetaPurchasePixel = async (
+    email: string,
+    fullName?: string,
+    phone?: string,
+    customValue?: number,
+    customContentName?: string,
+    reference?: string
+  ) => {
     if (window.fbq) {
       // Configure Advanced Matching
-      const matchingData: any = { em: email.toLowerCase().trim() };
-      if (phone) matchingData.ph = phone.trim().replace(/[^0-9]/g, '');
+      const matchingData: any = { em: email.toLowerCase().trim(), country: 'co' };
+      if (phone) {
+        const cleanDigits = phone.trim().replace(/[^0-9]/g, '');
+        matchingData.ph = cleanDigits.length === 10 && cleanDigits.startsWith('3') ? `57${cleanDigits}` : cleanDigits;
+      }
       if (fullName) {
         const nameParts = fullName.trim().split(/\s+/);
         matchingData.fn = nameParts[0].toLowerCase();
@@ -433,14 +443,25 @@ export default function MatrizPage() {
         }
       }
 
-      const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(basePrice * 0.7) : basePrice;
+      const finalPrice = customValue ?? ((couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(basePrice * 0.7) : basePrice);
+      const contentName = customContentName || (funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos');
+      const eventOptions = reference ? { eventID: `purchase_${reference}` } : undefined;
+
       window.fbq('init', '1552188416261002', matchingData);
-      window.fbq('track', 'Purchase', {
-        value: finalPrice || 28000,
-        currency: 'COP',
-        content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos'
-      });
-      console.log(`[Meta Pixel] Sent Purchase event with Advanced Matching for ${email}`);
+      if (eventOptions) {
+        window.fbq('track', 'Purchase', {
+          value: finalPrice || 28000,
+          currency: 'COP',
+          content_name: contentName
+        }, eventOptions);
+      } else {
+        window.fbq('track', 'Purchase', {
+          value: finalPrice || 28000,
+          currency: 'COP',
+          content_name: contentName
+        });
+      }
+      console.log(`[Meta Pixel] Sent Purchase event with Advanced Matching for ${email} (ref: ${reference || 'N/A'})`);
     }
     try {
       await axios.post('/api/comunidad/mark-tracked', { email, funnelKey });
@@ -536,7 +557,11 @@ export default function MatrizPage() {
   useEffect(() => {
     fetchConfig();
     if (window.fbq) {
-      window.fbq('track', 'PageView');
+      window.fbq('track', 'ViewContent', {
+        content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
+        content_category: funnelKey,
+        currency: 'COP'
+      });
     }
 
     // Redirect flow verification (PSE/bank transfers)
@@ -548,7 +573,7 @@ export default function MatrizPage() {
           setIsAccessChecking(true);
           const response = await axios.post('/api/comunidad/verify', { transactionId, funnelKey });
           if (response.data.success) {
-            const { email, fullName, phone } = response.data;
+            const { email, fullName, phone, reference, amountInCents } = response.data;
             localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
             setUserEmail(email);
             if (phone) {
@@ -558,8 +583,15 @@ export default function MatrizPage() {
             setIsAccessGranted(true);
             setShowLeadModal(false);
             
-            // Trigger Pixel with Advanced Matching
-            triggerMetaPurchasePixel(email, fullName, phone);
+            // Trigger Pixel with Advanced Matching & Deduplication
+            triggerMetaPurchasePixel(
+              email,
+              fullName,
+              phone,
+              amountInCents ? amountInCents / 100 : undefined,
+              undefined,
+              reference
+            );
 
             // Clean query parameters from URL to avoid repeating on refresh
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
@@ -607,6 +639,9 @@ export default function MatrizPage() {
 
   // Click tracking helper
   const trackClick = (clickType: 'playVideo' | 'quickAccess' | 'checkoutSubmit' | 'downloadFile' | 'recoverAccess' | 'whatsapp') => {
+    if (clickType === 'whatsapp' && window.fbq) {
+      window.fbq('track', 'Contact', { content_name: funnelKey });
+    }
     axios.post('/api/comunidad/metrics/session', { sessionId, clickType, funnelKey }).catch(err => {});
   };
 
@@ -634,7 +669,14 @@ export default function MatrizPage() {
             setIsVideoFinished(true); // if they watched it, immediately unlock materials!
           }
           if (res.data.purchaseTracked === false) {
-            triggerMetaPurchasePixel(userEmail);
+            triggerMetaPurchasePixel(
+              userEmail,
+              res.data.fullName,
+              res.data.phone,
+              res.data.amountInCents ? res.data.amountInCents / 100 : undefined,
+              undefined,
+              res.data.reference
+            );
           }
         }
       })
@@ -1072,6 +1114,18 @@ export default function MatrizPage() {
           phone: checkoutPhone.trim()
         });
 
+        if (window.fbq) {
+          window.fbq('track', 'Lead', {
+            content_name: 'Suscripción Wappy Pro',
+            currency: 'COP'
+          }, { eventID: `lead_${checkoutEmail.toLowerCase().trim()}_${funnelKey}` });
+          window.fbq('track', 'InitiateCheckout', {
+            content_name: 'Suscripción Wappy Pro',
+            value: data.amountInCents ? data.amountInCents / 100 : 49900,
+            currency: 'COP'
+          });
+        }
+
         if (!window.WidgetCheckout) {
           const script = document.createElement('script');
           script.src = 'https://checkout.wompi.co/widget.js';
@@ -1087,6 +1141,10 @@ export default function MatrizPage() {
         // standard community checkout (vital / sst)
         const finalPrice = (couponCode.toUpperCase().trim() === 'VITAL30' && funnelKey === 'wappyvital') ? Math.round(basePrice * 0.7) : basePrice;
         if (window.fbq) {
+          window.fbq('track', 'Lead', {
+            content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
+            currency: 'COP'
+          }, { eventID: `lead_${checkoutEmail.toLowerCase().trim()}_${funnelKey}` });
           window.fbq('track', 'InitiateCheckout', {
             content_name: funnelKey === 'wappyvital' ? 'Membresía Wappy Vital' : 'Curso SST IA + 10 Aplicativos',
             value: finalPrice || 28000,
@@ -1175,7 +1233,14 @@ export default function MatrizPage() {
             }
             setIsAccessGranted(true);
             setShowLeadModal(false);
-            triggerMetaPurchasePixel(email, checkoutFullName, checkoutPhone);
+            triggerMetaPurchasePixel(
+              email,
+              checkoutFullName,
+              checkoutPhone,
+              wompiData.amountInCents ? wompiData.amountInCents / 100 : undefined,
+              undefined,
+              wompiData.reference
+            );
 
             // Log in automatically after payment is approved
             if (funnelKey === 'wappyvital') {
@@ -1233,6 +1298,14 @@ export default function MatrizPage() {
             localStorage.setItem(getStorageKey('wappy_comunidad_phone'), checkoutPhone);
             setUserPhone(checkoutPhone);
           }
+          await triggerMetaPurchasePixel(
+            email,
+            checkoutFullName,
+            checkoutPhone,
+            wompiData.amountInCents ? wompiData.amountInCents / 100 : 49900,
+            'Suscripción Wappy Pro',
+            wompiData.reference
+          );
           alert('¡Suscripción Wappy Pro activada con éxito!');
           // Log in automatically after payment is approved
           try {
