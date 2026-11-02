@@ -1129,6 +1129,60 @@ router.get('/profile/:workerId', async (req, res) => {
   }
 });
 
+// ─── Helper: Sanitize Sociodemographic Worker Item (prevents "r is not iterable" in UI) ───
+function sanitizeSocioWorker(raw, idx = 0) {
+  const w = (raw && typeof raw === 'object') ? { ...raw } : {};
+  if (!w.id) {
+    w.id = w._id ? String(w._id) : `worker_${Date.now()}_${idx}`;
+  }
+  if (Array.isArray(w.formacion)) {
+    w.formacion = w.formacion
+      .filter(Boolean)
+      .map((f) =>
+        typeof f === 'string'
+          ? { curso: f.trim(), estado: 'Vigente', fecha: '' }
+          : {
+              curso: String(f.curso || f.nombre || '').trim(),
+              estado: String(f.estado || 'Vigente').trim(),
+              fecha: String(f.fecha || '').trim(),
+            }
+      );
+  } else if (typeof w.formacion === 'string' && w.formacion.trim()) {
+    w.formacion = w.formacion
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((curso) => ({ curso, estado: 'Vigente', fecha: '' }));
+  } else {
+    w.formacion = [];
+  }
+
+  if (Array.isArray(w.licenciasConduccion)) {
+    w.licenciasConduccion = w.licenciasConduccion
+      .filter(Boolean)
+      .map((l, i) =>
+        typeof l === 'string'
+          ? { id: `lic_${idx}_${i}`, categoria: l.trim(), numero: '', fechaVencimiento: '' }
+          : {
+              id: String(l.id || `lic_${idx}_${i}`),
+              categoria: String(l.categoria || '').trim(),
+              numero: String(l.numero || '').trim(),
+              fechaVencimiento: String(l.fechaVencimiento || '').trim(),
+            }
+      );
+  } else {
+    w.licenciasConduccion = [];
+  }
+
+  w.biocentricAlerts = Array.isArray(w.biocentricAlerts) ? w.biocentricAlerts : [];
+  w.bioTagsIA = Array.isArray(w.bioTagsIA) ? w.bioTagsIA : [];
+  w.riesgosBioIndividual = Array.isArray(w.riesgosBioIndividual) ? w.riesgosBioIndividual : [];
+  w.percepcionRiesgoHistorial = Array.isArray(w.percepcionRiesgoHistorial)
+    ? w.percepcionRiesgoHistorial
+    : [];
+  return w;
+}
+
 // ─── GET /data — Load saved worker data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
@@ -1141,7 +1195,9 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           user: targetUserId,
           $or: [{ companyId: null }, { companyId: { $exists: false } }],
         }).lean();
-    let finalWorkers = data?.trabajadores ? [...data.trabajadores] : [];
+    let finalWorkers = Array.isArray(data?.trabajadores)
+      ? data.trabajadores.map((w, idx) => sanitizeSocioWorker(w, idx))
+      : [];
 
     // ─── SELF-HEALING RECONCILIATION: SgsstWorker & PerfilesCargo (estrictamente por empresa) ───
     try {
@@ -1308,11 +1364,13 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         finalWorkers = finalWorkers.filter(w => String(w.identificacion).trim() === myDoc);
       }
 
+      finalWorkers = finalWorkers.map((w, idx) => sanitizeSocioWorker(w, idx));
+
       return res.json({
         trabajadores: finalWorkers,
         companyId: companyId || data?.companyId || null,
-        actualizacionesPendientes: isSub ? [] : (data?.actualizacionesPendientes || []),
-        actualizacionesPendientesSalud: isSub ? [] : (data?.actualizacionesPendientesSalud || [])
+        actualizacionesPendientes: isSub ? [] : (Array.isArray(data?.actualizacionesPendientes) ? data.actualizacionesPendientes : []),
+        actualizacionesPendientesSalud: isSub ? [] : (Array.isArray(data?.actualizacionesPendientesSalud) ? data.actualizacionesPendientesSalud : [])
       });
     } else {
       res.json({ trabajadores: [], companyId: companyId || null, actualizacionesPendientes: [], actualizacionesPendientesSalud: [] });
@@ -1636,8 +1694,10 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     const response = await result.response;
     const responseText = response.text();
     const cleanJson = cleanAndParseJson(responseText);
+    const rawList = Array.isArray(cleanJson) ? cleanJson : [cleanJson];
+    const sanitizedList = rawList.filter(Boolean).map((w, idx) => sanitizeSocioWorker(w, idx));
 
-    res.json({ success: true, trabajadores: Array.isArray(cleanJson) ? cleanJson : [cleanJson] });
+    res.json({ success: true, trabajadores: sanitizedList });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Import error:', error);
     res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA' });
@@ -2421,8 +2481,12 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
     try {
       const apiKey = await getApiKey(targetUserId);
       if (apiKey) {
-        const PerfilesCargo = mongoose.models.PerfilesCargoData;
-        const cargoDoc = PerfilesCargo ? await PerfilesCargo.findOne({ user: targetUserId }).lean() : null;
+        const PerfilesCargo = mongoose.models.PerfilCargoData;
+        const cargoDoc = PerfilesCargo
+          ? (companyId
+              ? await PerfilesCargo.findOne({ user: targetUserId, companyId }).lean()
+              : await PerfilesCargo.findOne({ user: targetUserId }).lean())
+          : null;
         const perfilesList = cargoDoc?.perfilesList || [];
 
         // Re-fetch the saved doc to get current IA version hashes
@@ -2472,10 +2536,10 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       logger.warn('[OraculoH1] IA tagging error (continuing without IA):', iaErr.message);
     }
 
-    let responseWorkers = updatedWorkers;
+    let responseWorkers = updatedWorkers.map((w, idx) => sanitizeSocioWorker(w, idx));
     if (isSub && !req.user.subUserPermissions?.includes('sgsst:perfil_sociodemografico_all') && req.user.workerDocument) {
       const myDoc = String(req.user.workerDocument).trim();
-      responseWorkers = updatedWorkers.filter(w => String(w.identificacion).trim() === myDoc);
+      responseWorkers = responseWorkers.filter(w => String(w.identificacion).trim() === myDoc);
     }
 
     // Return the updated workers (with IA tags and biocentric scores) so frontend can refresh immediately

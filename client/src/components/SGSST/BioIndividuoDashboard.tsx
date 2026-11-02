@@ -277,7 +277,7 @@ const MODULO_LABELS: Record<string, { label: string; color: string }> = {
 
 const PercepcionHistorial = ({ historial }: { historial: any[] }) => {
   const [expanded, setExpanded] = useState(false);
-  if (!historial || historial.length === 0) return null;
+  if (!Array.isArray(historial) || historial.length === 0) return null;
   const visible = expanded ? historial : historial.slice(-5).reverse();
 
   return (
@@ -948,18 +948,18 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: atel, emptyMsg: 'Sin eventos ATEL' },
-            { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: actos, emptyMsg: 'Sin reportes' },
-            { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: participaciones, emptyMsg: 'Sin registros' },
-            { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: capacitaciones, emptyMsg: 'Sin cursos' },
-            { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
-            { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: worker.comites || [], emptyMsg: 'Sin actas/rondas' },
-            { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: worker.votaciones || [], emptyMsg: 'Sin votos' },
-            { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: worker.solicitud_epp || [], emptyMsg: 'Sin solicitudes' },
-            { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: worker.inspeccion_vehicular_pesv || [], emptyMsg: 'Sin inspecciones' },
-            { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: worker.estudio_puesto || [], emptyMsg: 'Sin mediciones' },
-            { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: worker.brigada || [], emptyMsg: 'Sin registros' },
-            { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...ats, ...(worker.actualizaciones_perfil || [])], emptyMsg: 'Sin actualizaciones' },
+            { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: Array.isArray(atel) ? atel : [], emptyMsg: 'Sin eventos ATEL' },
+            { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: Array.isArray(actos) ? actos : [], emptyMsg: 'Sin reportes' },
+            { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: Array.isArray(participaciones) ? participaciones : [], emptyMsg: 'Sin registros' },
+            { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: Array.isArray(capacitaciones) ? capacitaciones : [], emptyMsg: 'Sin cursos' },
+            { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: Array.isArray(termometroAnimo) ? termometroAnimo : [], emptyMsg: 'Sin check-ins' },
+            { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: Array.isArray(worker?.comites) ? worker.comites : [], emptyMsg: 'Sin actas/rondas' },
+            { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: Array.isArray(worker?.votaciones) ? worker.votaciones : [], emptyMsg: 'Sin votos' },
+            { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: Array.isArray(worker?.solicitud_epp) ? worker.solicitud_epp : [], emptyMsg: 'Sin solicitudes' },
+            { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: Array.isArray(worker?.inspeccion_vehicular_pesv) ? worker.inspeccion_vehicular_pesv : [], emptyMsg: 'Sin inspecciones' },
+            { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: Array.isArray(worker?.estudio_puesto) ? worker.estudio_puesto : [], emptyMsg: 'Sin mediciones' },
+            { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: Array.isArray(worker?.brigada) ? worker.brigada : [], emptyMsg: 'Sin registros' },
+            { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...(Array.isArray(ats) ? ats : []), ...(Array.isArray(worker?.actualizaciones_perfil) ? worker.actualizaciones_perfil : [])], emptyMsg: 'Sin actualizaciones' },
           ].map(({ title, subtitle, icon, items, emptyMsg }) => {
             const hasItems = items.length > 0;
             return (

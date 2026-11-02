@@ -195,7 +195,7 @@ export default function AltaDireccionChecklist() {
                 const res = await axios.get('/api/sgsst/alta-direccion/data', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                if (res.data.statusData?.length) {
+                if (Array.isArray(res.data?.statusData) && res.data.statusData.length > 0) {
                     const loadedStatuses: AltaDireccionStatus[] = res.data.statusData.map((s: any) => ({
                         itemId: s.itemId,
                         status: s.status,
@@ -207,7 +207,7 @@ export default function AltaDireccionChecklist() {
                     setStatuses(loadedStatuses);
                     setObservations(loadedObs);
                 }
-                if (res.data.inboxPublico) setInboxPublico(res.data.inboxPublico);
+                if (Array.isArray(res.data?.inboxPublico)) setInboxPublico(res.data.inboxPublico);
             } catch (e) {
                 // Silently fail if no data yet
             }

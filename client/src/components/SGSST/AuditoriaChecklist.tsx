@@ -296,8 +296,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
       const saved = localStorage.getItem(AUDIT_STORAGE_KEY);
       if (saved) {
         const data = JSON.parse(saved);
-        if (data.statuses) setStatuses(data.statuses);
-        if (data.observations) setObservations(data.observations);
+        if (Array.isArray(data?.statuses)) setStatuses(data.statuses);
+        if (data?.observations && typeof data.observations === 'object') setObservations(data.observations);
       }
     } catch (e) {
       console.error('[SGSST Audit Storage] Load error:', e);
@@ -306,7 +306,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
     if (token) {
       axios.get('/api/sgsst/auditoria/data', { headers: { Authorization: `Bearer ${token}` } })
         .then(res => {
-          if (res.data?.statusData && res.data.statusData.length > 0) {
+          if (Array.isArray(res.data?.statusData) && res.data.statusData.length > 0) {
             setStatuses(res.data.statusData);
             const obs: Record<string, string> = {};
             res.data.statusData.forEach((s: any) => {
@@ -322,7 +322,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({
   // Filter out any orphaned statuses (from old saved audits)
   const validStatuses = useMemo(() => {
     const itemIds = new Set(AUDITORIA_ITEMS.map((i) => i.id));
-    return statuses.filter((s) => itemIds.has(s.itemId));
+    return (Array.isArray(statuses) ? statuses : []).filter((s) => itemIds.has(s.itemId));
   }, [statuses]);
 
   const getItemStatus = useCallback(

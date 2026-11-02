@@ -20,20 +20,21 @@ async function getActiveCompanyId(userId) {
 // ─── GET /data — Obtener inventario de productos químicos ───────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id);
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId);
     if (!companyId) {
-      return res.status(400).json({ error: 'No se encontró empresa activa' });
+      return res.json([]);
     }
     // Como los productos químicos se consolidan por empresa, buscamos el doc de la empresa
-    let doc = await SgsstChemicalData.findOne({ user: req.user.id, companyId });
+    let doc = await SgsstChemicalData.findOne({ user: targetUserId, companyId });
     if (!doc) {
       doc = await SgsstChemicalData.create({
-        user: req.user.id,
+        user: targetUserId,
         companyId,
         productos: []
       });
     }
-    res.json(doc.productos || []);
+    res.json(Array.isArray(doc.productos) ? doc.productos : []);
   } catch (error) {
     logger.error('[SGSST Chemicals] Load error:', error);
     res.status(500).json({ error: 'Error al cargar productos químicos' });

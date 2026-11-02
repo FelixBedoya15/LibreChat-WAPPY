@@ -324,7 +324,7 @@ const CondicionesSalud = () => {
                     if (data.companyId) {
                         setLoadedCompanyId(String(data.companyId));
                     }
-                    if (data.actualizacionesPendientesSalud) {
+                    if (Array.isArray(data.actualizacionesPendientesSalud)) {
                         setInboxPerfil(data.actualizacionesPendientesSalud);
                     }
                 }
@@ -355,10 +355,20 @@ const CondicionesSalud = () => {
         })
             .then(res => res.json())
             .then(data => {
-                if (data.perfilesList) {
+                if (Array.isArray(data?.perfilesList)) {
                     const sortedCargos = data.perfilesList.map((c: any) => ({
                         ...c,
-                        nombreCargo: toTitleCase(c.nombreCargo)
+                        nombreCargo: toTitleCase(c.nombreCargo),
+                        entrenamientosSeleccionados: Array.isArray(c.entrenamientosSeleccionados)
+                            ? c.entrenamientosSeleccionados
+                            : typeof c.entrenamientosSeleccionados === 'string'
+                                ? c.entrenamientosSeleccionados.split(/[,;\n•]+/).map((s: string) => s.trim()).filter(Boolean)
+                                : [],
+                        eppSeleccionados: Array.isArray(c.eppSeleccionados)
+                            ? c.eppSeleccionados
+                            : typeof c.eppSeleccionados === 'string'
+                                ? c.eppSeleccionados.split(/[,;\n•]+/).map((s: string) => s.trim()).filter(Boolean)
+                                : [],
                     })).sort((a: any, b: any) => (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' }));
                     setCargosDisponibles(sortedCargos);
                 }
@@ -1223,13 +1233,13 @@ const CondicionesSalud = () => {
         }
 
         // 6. Entrenamiento y Formación Legal
-        if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
+        if (Array.isArray(cargo.entrenamientosSeleccionados) && cargo.entrenamientosSeleccionados.length > 0) {
             const req = cargo.entrenamientosSeleccionados.length;
             if (req > 0 && !w.curso50h && !w.curso20h) {
                 let penalty = 5; // Base
                 penalty += req; // +1 por cada curso
                 const criticalKeywords = ['alturas', 'confinado', '50 horas', '50h', '20 horas', '20h', 'licencia', 'emergencia', 'rescate', 'primeros auxilios', 'coordinador'];
-                const hasCritical = cargo.entrenamientosSeleccionados.some((c: string) => criticalKeywords.some(k => c.toLowerCase().includes(k)));
+                const hasCritical = cargo.entrenamientosSeleccionados.some((c: string) => criticalKeywords.some(k => String(c || '').toLowerCase().includes(k)));
                 if (hasCritical) penalty += 5; // +5 adicional si falta un curso legal crítico
                 addAudit('Entrenamiento', 'Brecha Formativa SST', `Cursos obligatorios sin acreditar: ${cargo.entrenamientosSeleccionados.join(', ')}.`, penalty, 'warning');
             }

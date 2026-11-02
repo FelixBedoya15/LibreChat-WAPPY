@@ -335,7 +335,8 @@ const PhaseDetail = ({
         const saved = localStorage.getItem(storageKey);
         if (saved) {
             try {
-                setFiles(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                setFiles(Array.isArray(parsed) ? parsed : []);
             } catch (e) {
                 console.error('Failed to parse saved files', e);
             }

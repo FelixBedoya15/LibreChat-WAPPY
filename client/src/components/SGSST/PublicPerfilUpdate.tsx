@@ -627,7 +627,7 @@ export default function PublicPerfilUpdate() {
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    const cur = formData.licenciasConduccion && formData.licenciasConduccion.length > 0
+                                                    const cur = Array.isArray(formData.licenciasConduccion) && formData.licenciasConduccion.length > 0
                                                         ? [...formData.licenciasConduccion]
                                                         : (formData.licenciaConduccion || formData.licenciaConduccionVencimiento)
                                                             ? [{ id: crypto.randomUUID(), categoria: 'C1', numero: formData.licenciaConduccion || '', fechaVencimiento: formData.licenciaConduccionVencimiento || '' }]

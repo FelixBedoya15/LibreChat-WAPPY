@@ -196,7 +196,10 @@ router.get('/', requireJwtAuth, async (req, res) => {
             syncCompanyMemory(targetUserId, info).catch(e => logger.error('[SGSST] Memory auto-purge error:', e));
         }
         
-        res.json(info || {});
+        if (info) {
+            info.sedes = Array.isArray(info.sedes) ? info.sedes : [];
+        }
+        res.json(info || { sedes: [] });
     } catch (error) {
         logger.error('[SGSST CompanyInfo] GET error:', error);
         res.status(500).json({ error: 'Error loading company info' });
@@ -252,7 +255,11 @@ router.get('/all', requireJwtAuth, async (req, res) => {
             }
         }
 
-        res.json(companies);
+        const normalizedCompanies = (Array.isArray(companies) ? companies : []).map((c) => ({
+            ...c,
+            sedes: Array.isArray(c.sedes) ? c.sedes : [],
+        }));
+        res.json(normalizedCompanies);
     } catch (error) {
         logger.error('[SGSST CompanyInfo] GET /all error:', error);
         res.status(500).json({ error: 'Error loading all companies' });

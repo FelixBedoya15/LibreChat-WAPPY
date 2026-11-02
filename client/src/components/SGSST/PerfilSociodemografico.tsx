@@ -354,9 +354,12 @@ const PerfilSociodemografico = () => {
                     const data = await res.json();
                     if (Array.isArray(data.trabajadores)) {
                         const serverWorkers: WorkerEntry[] = data.trabajadores.map((w: any) => ({
+                            ...EMPTY_WORKER,
                             ...w,
                             nombre: toTitleCase(w.nombre),
                             cargo: toTitleCase(w.cargo),
+                            formacion: Array.isArray(w.formacion) ? w.formacion : [],
+                            licenciasConduccion: Array.isArray(w.licenciasConduccion) ? w.licenciasConduccion : [],
                         }));
                         const sortedCombined = serverWorkers.sort((a, b) => 
                             (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
@@ -367,7 +370,7 @@ const PerfilSociodemografico = () => {
                     if (data.companyId) {
                         setLoadedCompanyId(String(data.companyId));
                     }
-                    if (data.actualizacionesPendientes) {
+                    if (Array.isArray(data.actualizacionesPendientes)) {
                         setInboxPerfil(data.actualizacionesPendientes);
                     }
                 }
@@ -398,10 +401,20 @@ const PerfilSociodemografico = () => {
         })
             .then(res => res.json())
             .then(data => {
-                if (data.perfilesList) {
+                if (Array.isArray(data?.perfilesList)) {
                     const sortedCargos = data.perfilesList.map((c: any) => ({
                         ...c,
-                        nombreCargo: toTitleCase(c.nombreCargo)
+                        nombreCargo: toTitleCase(c.nombreCargo),
+                        entrenamientosSeleccionados: Array.isArray(c.entrenamientosSeleccionados)
+                            ? c.entrenamientosSeleccionados
+                            : typeof c.entrenamientosSeleccionados === 'string'
+                                ? c.entrenamientosSeleccionados.split(/[,;\n•]+/).map((s: string) => s.trim()).filter(Boolean)
+                                : [],
+                        eppSeleccionados: Array.isArray(c.eppSeleccionados)
+                            ? c.eppSeleccionados
+                            : typeof c.eppSeleccionados === 'string'
+                                ? c.eppSeleccionados.split(/[,;\n•]+/).map((s: string) => s.trim()).filter(Boolean)
+                                : [],
                     })).sort((a: any, b: any) => (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' }));
                     setCargosDisponibles(sortedCargos);
                 }
@@ -845,13 +858,15 @@ const PerfilSociodemografico = () => {
             }
 
             const data = await res.json();
-            if (data.success && data.trabajadores) {
+            if (data.success && Array.isArray(data.trabajadores)) {
                 const nuevosTrabajadores = data.trabajadores.map((t: any) => ({
                     ...EMPTY_WORKER,
                     ...t,
                     id: crypto.randomUUID(),
                     firmaDigital: null,
-                    completedByAI: true
+                    completedByAI: true,
+                    formacion: Array.isArray(t.formacion) ? t.formacion : [],
+                    licenciasConduccion: Array.isArray(t.licenciasConduccion) ? t.licenciasConduccion : [],
                 }));
 
                 const updatedList = [...trabajadores, ...nuevosTrabajadores];
@@ -1989,7 +2004,7 @@ const PerfilSociodemografico = () => {
                                                                         type="button"
                                                                         onClick={(e) => {
                                                                             e.preventDefault();
-                                                                            const currentList: LicenciaConduccionItem[] = (w.licenciasConduccion && w.licenciasConduccion.length > 0)
+                                                                            const currentList: LicenciaConduccionItem[] = (Array.isArray(w.licenciasConduccion) && w.licenciasConduccion.length > 0)
                                                                                 ? [...w.licenciasConduccion]
                                                                                 : (w.licenciaConduccion || w.licenciaConduccionVencimiento)
                                                                                     ? [{ id: crypto.randomUUID(), categoria: 'C1', numero: w.licenciaConduccion || '', fechaVencimiento: w.licenciaConduccionVencimiento || '' }]
@@ -2009,7 +2024,7 @@ const PerfilSociodemografico = () => {
 
                                                                 {/* Listado de Licencias */}
                                                                 {(() => {
-                                                                    const currentList: LicenciaConduccionItem[] = (w.licenciasConduccion && w.licenciasConduccion.length > 0)
+                                                                    const currentList: LicenciaConduccionItem[] = (Array.isArray(w.licenciasConduccion) && w.licenciasConduccion.length > 0)
                                                                         ? w.licenciasConduccion
                                                                         : (w.licenciaConduccion || w.licenciaConduccionVencimiento)
                                                                             ? [{ id: 'leg-1', categoria: 'C1', numero: w.licenciaConduccion || '', fechaVencimiento: w.licenciaConduccionVencimiento || '' }]
@@ -2252,8 +2267,11 @@ const PerfilSociodemografico = () => {
                                                             <p className="text-xs text-text-secondary">Cursos requeridos por el Perfil de Cargo: <span className="font-bold text-text-primary">{w.cargo || 'Ninguno'}</span></p>
                                                         </div>
                                                         
-                                                        {w.cargo && cargosDisponibles.find(c => c.nombreCargo === w.cargo)?.entrenamientosSeleccionados.map((cursoReq, idx) => {
-                                                            const forms = w.formacion || [];
+                                                        {w.cargo && (() => {
+                                                            const matchedCargo = cargosDisponibles.find(c => c.nombreCargo === w.cargo);
+                                                            const entrenamientos = Array.isArray(matchedCargo?.entrenamientosSeleccionados) ? matchedCargo.entrenamientosSeleccionados : [];
+                                                            return entrenamientos.map((cursoReq, idx) => {
+                                                            const forms = Array.isArray(w.formacion) ? w.formacion : [];
                                                             const courseData = forms.find((f:any) => f.curso === cursoReq) || { curso: cursoReq, estado: 'No Realizado', fecha: '' };
                                                             return (
                                                                 <div key={`req-${idx}`} className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-surface-primary border border-border-light p-3 rounded-lg w-full">
@@ -2279,11 +2297,13 @@ const PerfilSociodemografico = () => {
                                                                     </div>
                                                                 </div>
                                                             );
-                                                        })}
+                                                        });
+                                                        })()}
 
                                                         {/* Extra Cursos */}
-                                                        {((w.formacion || []) as any[]).filter(f => {
-                                                            const reqs = cargosDisponibles.find(c => c.nombreCargo === w.cargo)?.entrenamientosSeleccionados || [];
+                                                        {(Array.isArray(w.formacion) ? w.formacion : []).filter(f => {
+                                                            const matchedCargo = cargosDisponibles.find(c => c.nombreCargo === w.cargo);
+                                                            const reqs = Array.isArray(matchedCargo?.entrenamientosSeleccionados) ? matchedCargo.entrenamientosSeleccionados : [];
                                                             return !reqs.includes(f.curso);
                                                         }).map((extraCourse, eIdx) => (
                                                             <div key={`ex-${eIdx}`} className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-indigo-50/20 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 p-3 rounded-lg w-full relative group">
@@ -2295,7 +2315,7 @@ const PerfilSociodemografico = () => {
                                                                     <SingleSelect 
                                                                         value={extraCourse.estado} 
                                                                         onChange={(val) => {
-                                                                            const forms = w.formacion || [];
+                                                                            const forms = Array.isArray(w.formacion) ? w.formacion : [];
                                                                             const newF = [...forms.filter((f:any) => f.curso !== extraCourse.curso), { ...extraCourse, estado: val }];
                                                                             updateWorkerField(w.id, 'formacion', newF);
                                                                         }} 
@@ -2304,14 +2324,14 @@ const PerfilSociodemografico = () => {
                                                                 <div className="w-full md:w-48 shrink-0">
                                                                     <input type="date" value={extraCourse.fecha} 
                                                                         onChange={(e) => {
-                                                                            const forms = w.formacion || [];
+                                                                            const forms = Array.isArray(w.formacion) ? w.formacion : [];
                                                                             const newF = [...forms.filter((f:any) => f.curso !== extraCourse.curso), { ...extraCourse, fecha: e.target.value }];
                                                                             updateWorkerField(w.id, 'formacion', newF);
                                                                         }} 
                                                                         className="w-full text-sm p-[9px] rounded-xl border border-indigo-200 dark:border-indigo-800 bg-surface-primary text-text-primary" />
                                                                 </div>
                                                                 <button onClick={() => {
-                                                                        const newF = (w.formacion || []).filter((f:any) => f.curso !== extraCourse.curso);
+                                                                        const newF = (Array.isArray(w.formacion) ? w.formacion : []).filter((f:any) => f.curso !== extraCourse.curso);
                                                                         updateWorkerField(w.id, 'formacion', newF);
                                                                     }}
                                                                     className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -2327,7 +2347,7 @@ const PerfilSociodemografico = () => {
                                                                     e.preventDefault();
                                                                     const title = window.prompt('Ingrese el nombre del nuevo curso o competencia específica:');
                                                                     if (title && title.trim()) {
-                                                                        const forms = w.formacion || [];
+                                                                        const forms = Array.isArray(w.formacion) ? w.formacion : [];
                                                                         const exists = forms.find((f:any) => f.curso.toLowerCase() === title.toLowerCase().trim());
                                                                         if (exists) {
                                                                             alert('El curso ya existe en la lista de este trabajador.');

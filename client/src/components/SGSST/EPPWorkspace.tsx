@@ -999,7 +999,7 @@ export default function EPPWorkspace() {
     'Mosquetón de seguridad automatico'
   ];
 
-  const suggestionsList = Array.from(new Set([...recommendedEpps, ...standardEppSuggestions]));
+  const suggestionsList = Array.from(new Set([...(Array.isArray(recommendedEpps) ? recommendedEpps : []), ...standardEppSuggestions]));
 
   // Auto-calculate dates on inspection/delivery date change
   const handleFechaEntregaChange = (dateVal: string) => {
@@ -1067,7 +1067,7 @@ export default function EPPWorkspace() {
       newEppItem.resultadoInspeccion = formResultadoInspeccion;
     }
 
-    const currentDeliveries = selectedDoc ? [...selectedDoc.entregas] : [];
+    const currentDeliveries = Array.isArray(selectedDoc?.entregas) ? [...selectedDoc.entregas] : [];
     
     // Add or replace
     const updatedDeliveries = [...currentDeliveries, newEppItem];
@@ -1112,7 +1112,7 @@ export default function EPPWorkspace() {
     if (!confirm('¿Está seguro de eliminar este registro de entrega? Se repondrá la cantidad al stock de bodega si existe.')) return;
 
     setLoading(true);
-    const updatedDeliveries = selectedDoc.entregas.filter(item => item.id !== itemId);
+    const updatedDeliveries = (Array.isArray(selectedDoc.entregas) ? selectedDoc.entregas : []).filter(item => item.id !== itemId);
 
     try {
       const res = await fetch('/api/sgsst/epp/save', {
@@ -1181,7 +1181,7 @@ export default function EPPWorkspace() {
       return;
     }
 
-    const currentDeliveries = selectedDoc ? [...selectedDoc.entregas] : [];
+    const currentDeliveries = Array.isArray(selectedDoc?.entregas) ? [...selectedDoc.entregas] : [];
     const existingNames = new Set(currentDeliveries.map(d => d.nombre.toLowerCase().trim()));
 
     const pendingEpps = recommendedEpps.filter(e => !existingNames.has(e.toLowerCase().trim()));
@@ -1282,7 +1282,7 @@ export default function EPPWorkspace() {
         })
       });
       const data = await res.json();
-      if (data.perfilesList) {
+      if (Array.isArray(data.perfilesList)) {
         setCargoProfiles(data.perfilesList);
       }
       showToast({ 
@@ -1319,7 +1319,7 @@ export default function EPPWorkspace() {
         })
       });
       const data = await res.json();
-      if (data.perfilesList) {
+      if (Array.isArray(data.perfilesList)) {
         setCargoProfiles(data.perfilesList);
       }
       showToast({ 
@@ -1442,7 +1442,8 @@ export default function EPPWorkspace() {
 
     const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy.club/assets/logo.png';
     const todayStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-    const lastSignature = selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
+    const safeEntregas = Array.isArray(selectedDoc.entregas) ? selectedDoc.entregas : [];
+    const lastSignature = safeEntregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
 
     let receiptHtml = buildReceiptHtml(selectedWorker, selectedDoc, lastSignature, companyLogo, todayStr);
     
@@ -1468,7 +1469,8 @@ export default function EPPWorkspace() {
 
     const companyLogo = localStorage.getItem('wappy_sst_global_logo') || 'https://wappy.club/assets/logo.png';
     const todayStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-    const lastSignature = selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
+    const safeEntregas = Array.isArray(selectedDoc.entregas) ? selectedDoc.entregas : [];
+    const lastSignature = safeEntregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital;
 
     const receiptHtml = buildReceiptHtml(selectedWorker, selectedDoc, lastSignature, companyLogo, todayStr);
 
@@ -1679,7 +1681,7 @@ export default function EPPWorkspace() {
         ]}
         onAnalyze={handleGenerate}
         isAnalyzing={isGenerating}
-        exportContent={selectedWorker && selectedDoc && selectedDoc.entregas && selectedDoc.entregas.length > 0 ? buildReceiptHtml(
+        exportContent={selectedWorker && selectedDoc && Array.isArray(selectedDoc.entregas) && selectedDoc.entregas.length > 0 ? buildReceiptHtml(
           selectedWorker,
           selectedDoc,
           selectedDoc.entregas.filter(e => e.firmaTrabajador).slice(-1)[0]?.firmaTrabajador || selectedWorker.firmaDigital,
@@ -2013,7 +2015,7 @@ export default function EPPWorkspace() {
                       <div className="space-y-3">
                         <div className="flex flex-wrap gap-2.5">
                           {recommendedEpps.map((epp, idx) => {
-                            const isDelivered = selectedDoc?.entregas.some(
+                            const isDelivered = (Array.isArray(selectedDoc?.entregas) ? selectedDoc.entregas : []).some(
                               ent => ent.nombre.toLowerCase().trim() === epp.toLowerCase().trim() && ent.estado === 'Entregado'
                             );
                             const fromIpevar = ipevarEpps.some(ie => ie.toLowerCase() === epp.toLowerCase());
@@ -2169,7 +2171,7 @@ export default function EPPWorkspace() {
               </div>
 
               {/* Trazabilidad de Alturas (Pestaña integrada) */}
-              {selectedDoc?.entregas.some(ent => ent.tipo === 'Alturas') && (
+              {(Array.isArray(selectedDoc?.entregas) ? selectedDoc.entregas : []).some(ent => ent.tipo === 'Alturas') && (
                 <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                   <button 
                     onClick={() => setIsAlturasExpanded(!isAlturasExpanded)} 
@@ -2184,7 +2186,7 @@ export default function EPPWorkspace() {
                   {isAlturasExpanded && (
                     <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {selectedDoc.entregas.filter(ent => ent.tipo === 'Alturas').map(ent => {
+                        {(Array.isArray(selectedDoc?.entregas) ? selectedDoc.entregas : []).filter(ent => ent.tipo === 'Alturas').map(ent => {
                           const today = new Date();
                           today.setHours(0,0,0,0);
                           const proxDate = ent.fechaProximaInspeccion ? new Date(ent.fechaProximaInspeccion + 'T12:00:00') : null;
@@ -2231,7 +2233,7 @@ export default function EPPWorkspace() {
                 </button>
                 {isHistoryExpanded && (
                   <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
-                    {selectedDoc && selectedDoc.entregas.length > 0 ? (
+                    {selectedDoc && Array.isArray(selectedDoc.entregas) && selectedDoc.entregas.length > 0 ? (
                       <div className="border border-border-light dark:border-white/10 rounded-2xl overflow-x-auto shadow-sm">
                         <table className="w-full text-left border-collapse text-xs">
                           <thead>

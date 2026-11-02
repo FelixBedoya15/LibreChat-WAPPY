@@ -347,6 +347,16 @@ const ENTRENAMIENTO_OPTIONS = [
     'Buenas Prácticas de Manufactura (BPM)',
 ];
 
+const toStringArray = (val: any): string[] => {
+    if (Array.isArray(val)) {
+        return val.map(v => String(v ?? '').trim()).filter(Boolean);
+    }
+    if (typeof val === 'string') {
+        return val.split(/[,;\n•]+/).map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+};
+
 // ─── Empty form ───────────────────────────────────────────────────────────────
 const createInitialPerfil = (): PerfilCargoData => ({
     id: crypto.randomUUID(),
@@ -370,6 +380,24 @@ const createInitialPerfil = (): PerfilCargoData => ({
     exigenciaMental: 'Media',
     operaMaquinaria: 'No',
 });
+
+const normalizePerfilCargo = (p: any): PerfilCargoData => {
+    const base = createInitialPerfil();
+    if (!p || typeof p !== 'object') return base;
+    return {
+        ...base,
+        ...p,
+        id: p.id || base.id,
+        nombreCargo: toTitleCase(p.nombreCargo || ''),
+        area: toTitleCase(p.area || ''),
+        jefeInmediato: toTitleCase(p.jefeInmediato || ''),
+        eppSeleccionados: toStringArray(p.eppSeleccionados),
+        entrenamientosSeleccionados: toStringArray(p.entrenamientosSeleccionados),
+        controlesFuenteSeleccionados: toStringArray(p.controlesFuenteSeleccionados),
+        controlesMedioSeleccionados: toStringArray(p.controlesMedioSeleccionados),
+        images: p.images && typeof p.images === 'object' ? { ...base.images, ...p.images } : base.images,
+    };
+};
 
 // ─── Field config for rendering ─────────────────────────────────────────────
 const EXIGENCIA_OPTIONS = ['Baja', 'Media', 'Alta'];
@@ -409,16 +437,19 @@ const FIELD_SECTIONS = [
 ];
 
 // ─── MultiSelect Component ────────────────────────────────────────────────────
-const MultiSelect = ({ options, selected, onChange, label, placeholder }: { options: string[], selected: string[], onChange: (val: string[]) => void, label: string, placeholder: string }) => {
+const MultiSelect = ({ options, selected, onChange, label, placeholder }: { options?: string[], selected?: string[], onChange: (val: string[]) => void, label: string, placeholder: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
 
+    const safeOptions = toStringArray(options);
+    const safeSelected = toStringArray(selected);
+
     const toggle = (val: string) => {
-        if (selected.includes(val)) {
-            onChange(selected.filter(s => s !== val));
+        if (safeSelected.includes(val)) {
+            onChange(safeSelected.filter(s => s !== val));
         } else {
-            onChange([...selected, val]);
+            onChange([...safeSelected, val]);
         }
     };
 
@@ -426,8 +457,8 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
         if (e.key === 'Enter') {
             e.preventDefault();
             const val = inputValue.trim();
-            if (val && !selected.includes(val)) {
-                onChange([...selected, val]);
+            if (val && !safeSelected.includes(val)) {
+                onChange([...safeSelected, val]);
                 setInputValue('');
             }
         }
@@ -443,7 +474,7 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const allOptions = Array.from(new Set([...options, ...selected]));
+    const allOptions = Array.from(new Set([...safeOptions, ...safeSelected]));
 
     return (
         <div className="space-y-2 relative flex flex-col justify-end h-full" ref={containerRef}>
@@ -457,8 +488,8 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
                         : "border-border-medium/60 hover:border-teal-500/80 hover:shadow-[0_0_15px_rgba(20,184,166,0.08)]"
                 )}
             >
-                {selected.length === 0 && <span className="text-text-tertiary flex items-center text-xs font-semibold">{placeholder}</span>}
-                {selected.map(val => (
+                {safeSelected.length === 0 && <span className="text-text-tertiary flex items-center text-xs font-semibold">{placeholder}</span>}
+                {safeSelected.map(val => (
                     <span key={val} className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-teal-500/10 to-cyan-500/10 text-teal-700 dark:text-teal-300 rounded-2xl text-[11px] font-extrabold border border-teal-500/20 shadow-sm transition-all hover:scale-102 hover:bg-teal-500/20">
                         {val}
                         <X className="h-3.5 w-3.5 hover:text-red-500 transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(val); }} />
@@ -489,20 +520,20 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
                                 onClick={() => toggle(opt)}
                                 className={cn(
                                     "flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl cursor-pointer transition-all duration-200 font-bold border",
-                                    selected.includes(opt) 
+                                    safeSelected.includes(opt) 
                                         ? "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20" 
                                         : "hover:bg-surface-hover text-text-primary border-transparent"
                                 )}
                             >
                                 <span className="leading-snug">{opt}</span>
-                                {selected.includes(opt) && <CheckCircle2 className="h-4 w-4 text-teal-600 flex-shrink-0 ml-2" />}
+                                {safeSelected.includes(opt) && <CheckCircle2 className="h-4 w-4 text-teal-600 flex-shrink-0 ml-2" />}
                             </div>
                         ))}
                         {inputValue.trim() && !allOptions.some(opt => opt.toLowerCase() === inputValue.toLowerCase().trim()) && (
                              <div 
                                 className="px-3.5 py-2.5 text-xs rounded-xl cursor-pointer text-teal-600 bg-teal-50/50 hover:bg-teal-100 dark:text-teal-400 dark:bg-teal-900/20 dark:hover:bg-teal-900/40 font-bold flex items-center justify-between border border-dashed border-teal-300 dark:border-teal-700 transition-all duration-200 mt-1"
                                 onClick={() => {
-                                    onChange([...selected, inputValue.trim()]);
+                                    onChange([...safeSelected, inputValue.trim()]);
                                     setInputValue('');
                                 }}
                              >
@@ -701,13 +732,8 @@ const PerfilesCargo = () => {
             .then(res => res.json())
             .then(data => {
                 loadedCompanyIdRef.current = data?.companyId ? String(data.companyId) : null;
-                if (data.perfilesList?.length) {
-                    const sorted = data.perfilesList.map((p: any) => ({
-                        ...p,
-                        nombreCargo: toTitleCase(p.nombreCargo),
-                        area: toTitleCase(p.area),
-                        jefeInmediato: toTitleCase(p.jefeInmediato),
-                    })).sort((a: any, b: any) => 
+                if (Array.isArray(data?.perfilesList) && data.perfilesList.length > 0) {
+                    const sorted = data.perfilesList.map((p: any) => normalizePerfilCargo(p)).sort((a: any, b: any) => 
                         (a.nombreCargo || '').localeCompare(b.nombreCargo || '', 'es', { sensitivity: 'base' })
                     );
                     setPerfiles(sorted);
@@ -786,7 +812,7 @@ const PerfilesCargo = () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            const rows = data?.matrixRows || [];
+            const rows = Array.isArray(data?.matrixRows) ? data.matrixRows : [];
             if (rows.length === 0) {
                 showToast({
                     message: 'No hay filas en la Matriz IPEVR para sincronizar.',
@@ -838,7 +864,7 @@ const PerfilesCargo = () => {
                 )
             );
 
-            const createdPerfiles = results.filter(res => res && res.created && res.perfil).map(res => res.perfil);
+            const createdPerfiles = results.filter(res => res && res.created && res.perfil).map(res => normalizePerfilCargo(res.perfil));
             if (createdPerfiles.length > 0) {
                 setPerfiles(prev => [...prev, ...createdPerfiles]);
                 showToast({
@@ -883,7 +909,7 @@ const PerfilesCargo = () => {
             return;
         }
 
-        const cleanExistingEpps = (formData.eppSeleccionados || []).flatMap(e => parseCleanEppText(e));
+        const cleanExistingEpps = toStringArray(formData.eppSeleccionados).flatMap(e => parseCleanEppText(e));
         const newEpps = new Set<string>(cleanExistingEpps);
         matchingIpevarRows.forEach(r => {
             // EPPs se extraen estrictamente de la medida de intervención EPP (medida_eppu)
@@ -891,7 +917,7 @@ const PerfilesCargo = () => {
             extracted.forEach(item => newEpps.add(item));
         });
 
-        const newFuente = new Set<string>((formData.controlesFuenteSeleccionados || []).flatMap(c => parseCleanControlTexts(c)));
+        const newFuente = new Set<string>(toStringArray(formData.controlesFuenteSeleccionados).flatMap(c => parseCleanControlTexts(c)));
         matchingIpevarRows.forEach(r => {
             const fuenteTexts = [r.medida_ingenieria, r.controles_fuente, r.medida_eliminacion, r.medida_sustitucion];
             fuenteTexts.forEach(txt => {
@@ -900,7 +926,7 @@ const PerfilesCargo = () => {
             });
         });
 
-        const newMedio = new Set<string>((formData.controlesMedioSeleccionados || []).flatMap(c => parseCleanControlTexts(c)));
+        const newMedio = new Set<string>(toStringArray(formData.controlesMedioSeleccionados).flatMap(c => parseCleanControlTexts(c)));
         matchingIpevarRows.forEach(r => {
             const medioTexts = [r.controles_medio];
             medioTexts.forEach(txt => {
@@ -909,7 +935,7 @@ const PerfilesCargo = () => {
             });
         });
 
-        const newEntrenamientos = new Set<string>(formData.entrenamientosSeleccionados || []);
+        const newEntrenamientos = new Set<string>(toStringArray(formData.entrenamientosSeleccionados));
         matchingIpevarRows.forEach(r => {
             const adminTexts = [r.medida_administrativa, r.controles_individuo];
             adminTexts.forEach(txt => {
@@ -1391,8 +1417,8 @@ const PerfilesCargo = () => {
             }
 
             const data = await res.json();
-            if (data.success && data.perfiles) {
-                const nuevosPerfiles = data.perfiles.map((p: any) => ({
+            if (data.success && Array.isArray(data.perfiles)) {
+                const nuevosPerfiles = data.perfiles.map((p: any) => normalizePerfilCargo({
                     ...p,
                     id: crypto.randomUUID(),
                     images: {},
@@ -2018,28 +2044,28 @@ const PerfilesCargo = () => {
                                 label="Controles en la Fuente (Ingeniería / Diseño)"
                                 placeholder="Seleccionar controles en la fuente..."
                                 options={CONTROLES_FUENTE_OPTIONS}
-                                selected={formData.controlesFuenteSeleccionados || []}
+                                selected={toStringArray(formData.controlesFuenteSeleccionados)}
                                 onChange={(val) => handleInput('controlesFuenteSeleccionados', val)}
                             />
                             <MultiSelect
                                 label="Controles en el Medio (Organización / Entorno)"
                                 placeholder="Seleccionar controles en el medio..."
                                 options={CONTROLES_MEDIO_OPTIONS}
-                                selected={formData.controlesMedioSeleccionados || []}
+                                selected={toStringArray(formData.controlesMedioSeleccionados)}
                                 onChange={(val) => handleInput('controlesMedioSeleccionados', val)}
                             />
                             <MultiSelect
                                 label="EPP Requeridos (GTC 45 / Res. 4272)"
                                 placeholder="Seleccionar EPP..."
                                 options={EPP_OPTIONS}
-                                selected={formData.eppSeleccionados}
+                                selected={toStringArray(formData.eppSeleccionados)}
                                 onChange={(val) => handleInput('eppSeleccionados', val)}
                             />
                             <MultiSelect
                                 label="Entrenamiento / Certificación SST"
                                 placeholder="Seleccionar capacitación..."
                                 options={ENTRENAMIENTO_OPTIONS}
-                                selected={formData.entrenamientosSeleccionados}
+                                selected={toStringArray(formData.entrenamientosSeleccionados)}
                                 onChange={(val) => handleInput('entrenamientosSeleccionados', val)}
                             />
                         </div>
@@ -2388,9 +2414,9 @@ const PerfilesCargo = () => {
                                                 </span>
                                             </div>
                                             <div className="mt-3">
-                                                {summaryPerfil.eppSeleccionados && summaryPerfil.eppSeleccionados.length > 0 ? (
+                                                {toStringArray(summaryPerfil.eppSeleccionados).length > 0 ? (
                                                     <div className="flex flex-wrap gap-1.5">
-                                                        {summaryPerfil.eppSeleccionados.map((epp, idx) => (
+                                                        {toStringArray(summaryPerfil.eppSeleccionados).map((epp, idx) => (
                                                             <span 
                                                                 key={idx}
                                                                 className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-light flex items-center gap-1.5"
@@ -2428,9 +2454,9 @@ const PerfilesCargo = () => {
                                                 </span>
                                             </div>
                                             <div className="mt-3">
-                                                {summaryPerfil.entrenamientosSeleccionados && summaryPerfil.entrenamientosSeleccionados.length > 0 ? (
+                                                {toStringArray(summaryPerfil.entrenamientosSeleccionados).length > 0 ? (
                                                     <div className="flex flex-wrap gap-1.5">
-                                                        {summaryPerfil.entrenamientosSeleccionados.map((ent, idx) => (
+                                                        {toStringArray(summaryPerfil.entrenamientosSeleccionados).map((ent, idx) => (
                                                             <span 
                                                                 key={idx}
                                                                 className="text-[9px] font-bold px-2 py-1 rounded-xl bg-surface-secondary text-text-secondary border border-border-light flex items-center gap-1.5"
@@ -2448,7 +2474,7 @@ const PerfilesCargo = () => {
                                     </div>
 
                                     {/* Fila 5: Controles de Prevención (Si aplica) */}
-                                    {(summaryPerfil.controlesFuenteSeleccionados?.length || summaryPerfil.controlesMedioSeleccionados?.length) ? (
+                                    {(toStringArray(summaryPerfil.controlesFuenteSeleccionados).length > 0 || toStringArray(summaryPerfil.controlesMedioSeleccionados).length > 0) ? (
                                         <div className="flex items-start gap-4 p-4 rounded-xl border border-border-medium bg-surface-primary/30 transition-all hover:shadow-md">
                                             <div className="flex flex-col items-center justify-center min-w-[60px] text-center">
                                                 <div className="font-mono font-bold text-base text-text-primary">
@@ -2471,9 +2497,9 @@ const PerfilesCargo = () => {
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                                                     <div className="space-y-1">
                                                         <span className="text-[9px] font-black uppercase text-text-tertiary">En Fuente</span>
-                                                        {summaryPerfil.controlesFuenteSeleccionados && summaryPerfil.controlesFuenteSeleccionados.length > 0 ? (
+                                                        {toStringArray(summaryPerfil.controlesFuenteSeleccionados).length > 0 ? (
                                                             <ul className="text-xs text-text-secondary space-y-1 list-disc pl-4 font-semibold">
-                                                                {summaryPerfil.controlesFuenteSeleccionados.map((ctrl, i) => (
+                                                                {toStringArray(summaryPerfil.controlesFuenteSeleccionados).map((ctrl, i) => (
                                                                     <li key={i}>{ctrl}</li>
                                                                 ))}
                                                             </ul>
@@ -2483,9 +2509,9 @@ const PerfilesCargo = () => {
                                                     </div>
                                                     <div className="space-y-1">
                                                         <span className="text-[9px] font-black uppercase text-text-tertiary">En Medio</span>
-                                                        {summaryPerfil.controlesMedioSeleccionados && summaryPerfil.controlesMedioSeleccionados.length > 0 ? (
+                                                        {toStringArray(summaryPerfil.controlesMedioSeleccionados).length > 0 ? (
                                                             <ul className="text-xs text-text-secondary space-y-1 list-disc pl-4 font-semibold">
-                                                                {summaryPerfil.controlesMedioSeleccionados.map((ctrl, i) => (
+                                                                {toStringArray(summaryPerfil.controlesMedioSeleccionados).map((ctrl, i) => (
                                                                     <li key={i}>{ctrl}</li>
                                                                 ))}
                                                             </ul>

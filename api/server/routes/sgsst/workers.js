@@ -483,7 +483,19 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
                 : null,
         ]);
 
-        const perfilesList = Array.isArray(cargoDoc?.perfilesList) ? cargoDoc.perfilesList : [];
+        const perfilesCargoRouter = require('./perfilesCargo');
+        const sanitizePerfil = typeof perfilesCargoRouter.sanitizePerfilCargoItem === 'function'
+            ? perfilesCargoRouter.sanitizePerfilCargoItem
+            : (p) => ({
+                ...p,
+                eppSeleccionados: Array.isArray(p?.eppSeleccionados) ? p.eppSeleccionados : [],
+                entrenamientosSeleccionados: Array.isArray(p?.entrenamientosSeleccionados) ? p.entrenamientosSeleccionados : [],
+                controlesFuenteSeleccionados: Array.isArray(p?.controlesFuenteSeleccionados) ? p.controlesFuenteSeleccionados : [],
+                controlesMedioSeleccionados: Array.isArray(p?.controlesMedioSeleccionados) ? p.controlesMedioSeleccionados : [],
+            });
+        const perfilesList = Array.isArray(cargoDoc?.perfilesList)
+            ? cargoDoc.perfilesList.map((p, idx) => sanitizePerfil(p, idx))
+            : [];
         const trabajadores = Array.isArray(socioDoc?.trabajadores)
             ? socioDoc.trabajadores
             : (Array.isArray(socioDoc?.perfiles) ? socioDoc.perfiles : []);

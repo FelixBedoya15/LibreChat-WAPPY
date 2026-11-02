@@ -960,6 +960,12 @@ async function importAndSyncSociodemografico({
         pick(rawW.fechaCursoAlturasAutorizado, existingW.fechaCursoAlturasAutorizado)
       ),
       licenciaConduccion: pick(rawW.licenciaConduccion, existingW.licenciaConduccion),
+      licenciasConduccion: Array.isArray(existingW.licenciasConduccion)
+        ? existingW.licenciasConduccion
+        : [],
+      formacion: Array.isArray(existingW.formacion) ? existingW.formacion : [],
+      biocentricAlerts: Array.isArray(existingW.biocentricAlerts) ? existingW.biocentricAlerts : [],
+      bioTagsIA: Array.isArray(existingW.bioTagsIA) ? existingW.bioTagsIA : [],
       completedByAI: true,
       consentimientoFirmaDigital: pick(rawW.consentimientoFirmaDigital, existingW.consentimientoFirmaDigital, 'No'),
     };
@@ -1045,30 +1051,67 @@ async function importAndSyncSociodemografico({
 
   // 5. Sincronizar cargos nuevos en PerfilCargoData y conteo de trabajadores activos en CompanyInfo
   try {
-    const PerfilCargoData = mongoose.models.PerfilCargoData;
+    const perfilesCargoRouter = require('./perfilesCargo');
+    const PerfilCargoData =
+      mongoose.models.PerfilCargoData || perfilesCargoRouter.PerfilCargoData;
+    const sanitizeCargo =
+      typeof perfilesCargoRouter.sanitizePerfilCargoItem === 'function'
+        ? perfilesCargoRouter.sanitizePerfilCargoItem
+        : (p) => ({
+            ...p,
+            eppSeleccionados: Array.isArray(p.eppSeleccionados) ? p.eppSeleccionados : [],
+            entrenamientosSeleccionados: Array.isArray(p.entrenamientosSeleccionados)
+              ? p.entrenamientosSeleccionados
+              : [
+                  'Inducción y Reinducción en SST',
+                  'Identificación de Peligros y Valoración de Riesgos (GTC 45)',
+                ],
+            controlesFuenteSeleccionados: Array.isArray(p.controlesFuenteSeleccionados)
+              ? p.controlesFuenteSeleccionados
+              : [],
+            controlesMedioSeleccionados: Array.isArray(p.controlesMedioSeleccionados)
+              ? p.controlesMedioSeleccionados
+              : [],
+          });
+
     if (PerfilCargoData && cargosDetectados.size > 0) {
       const cargoFilter = companyId ? { user: userId, companyId } : { user: userId };
       let cargoDoc = await PerfilCargoData.findOne(cargoFilter);
-      const existingCargos = cargoDoc?.perfilesList || [];
+      const existingCargos = Array.isArray(cargoDoc?.perfilesList)
+        ? cargoDoc.perfilesList.map((p, idx) => sanitizeCargo(p, idx))
+        : [];
       const existingNames = new Set(existingCargos.map((p) => normalizeText(p.nombreCargo)));
       let cargosAdded = false;
 
       for (const cargoName of cargosDetectados) {
         if (!existingNames.has(normalizeText(cargoName))) {
-          existingCargos.push({
-            id: `cargo_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-            nombreCargo: cargoName,
-            nivelCargo: 'Operativo',
-            exigenciaFisica: 'Media',
-            exigenciaMental: 'Media',
-            operaMaquinaria: 'No',
-          });
+          existingCargos.push(
+            sanitizeCargo(
+              {
+                id: `cargo_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                nombreCargo: cargoName,
+                area: 'Operaciones',
+                nivelCargo: 'Operativo',
+                exigenciaFisica: 'Media',
+                exigenciaMental: 'Media',
+                operaMaquinaria: 'No',
+                eppSeleccionados: [],
+                entrenamientosSeleccionados: [
+                  'Inducción y Reinducción en SST',
+                  'Identificación de Peligros y Valoración de Riesgos (GTC 45)',
+                ],
+                controlesFuenteSeleccionados: [],
+                controlesMedioSeleccionados: [],
+              },
+              existingCargos.length
+            )
+          );
           existingNames.add(normalizeText(cargoName));
           cargosAdded = true;
         }
       }
 
-      if (cargosAdded) {
+      if (cargosAdded || cargoDoc) {
         await PerfilCargoData.findOneAndUpdate(
           cargoFilter,
           {

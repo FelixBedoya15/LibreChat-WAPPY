@@ -329,12 +329,13 @@ async function getWorkerRegisteredSignature(userId, companyId, workerId) {
 // ─── GET /data — Obtener entregas de EPP ────────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id);
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId);
     if (!companyId) {
-      return res.status(400).json({ error: 'No se encontró empresa activa' });
+      return res.json([]);
     }
-    const data = await SgsstEppData.find({ user: req.user.id, companyId });
-    res.json(data);
+    const data = await SgsstEppData.find({ user: targetUserId, companyId });
+    res.json(Array.isArray(data) ? data : []);
   } catch (error) {
     logger.error('[SGSST EPP] Load error:', error);
     res.status(500).json({ error: 'Error al cargar entregas de EPP' });
@@ -344,15 +345,16 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── GET /inventory — Obtener inventario y stock de EPP ──────────────────────
 router.get('/inventory', requireJwtAuth, async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id);
+    const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
+    const companyId = await getActiveCompanyId(targetUserId);
     if (!companyId) {
-      return res.status(400).json({ error: 'No se encontró empresa activa' });
+      return res.json({ items: [] });
     }
-    let inventory = await SgsstEppInventory.findOne({ user: req.user.id, companyId }).lean();
+    let inventory = await SgsstEppInventory.findOne({ user: targetUserId, companyId }).lean();
     if (!inventory) {
       inventory = { items: [] };
     }
-    res.json({ items: inventory.items || [] });
+    res.json({ items: Array.isArray(inventory.items) ? inventory.items : [] });
   } catch (error) {
     logger.error('[SGSST EPP Inventory] Load error:', error);
     res.status(500).json({ error: 'Error al cargar inventario de EPP' });

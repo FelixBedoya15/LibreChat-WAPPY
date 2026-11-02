@@ -546,8 +546,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
         const data = JSON.parse(saved);
-        if (data.statuses) setStatuses(data.statuses);
-        if (data.observations) setObservations(data.observations);
+        if (Array.isArray(data?.statuses)) setStatuses(data.statuses);
+        if (data?.observations && typeof data.observations === 'object') setObservations(data.observations);
       }
     } catch (e) {}
   }, []);

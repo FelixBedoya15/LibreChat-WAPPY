@@ -260,7 +260,7 @@ export default function BioIndividualHub() {
 
       const workersAll: Worker[] = [];
       workerRes.forEach((res, i) => {
-        if (res.status === 'fulfilled' && res.value?.workers) {
+        if (res.status === 'fulfilled' && Array.isArray(res.value?.workers)) {
           workersAll.push(...res.value.workers.map((w: any) => ({ ...w, perfilId: perfilesList[i]?.id })));
         }
       });
@@ -345,10 +345,10 @@ export default function BioIndividualHub() {
   const filteredGroups = groups
     .map(g => {
       if (!term) return g;
-      const matchCargo = g.perfil.nombreCargo.toLowerCase().includes(term) || g.perfil.area.toLowerCase().includes(term);
-      const matchedWorkers = g.workers.filter(w =>
-        w.nombre.toLowerCase().includes(term) ||
-        w.documento.toLowerCase().includes(term) ||
+      const matchCargo = (g.perfil?.nombreCargo || '').toLowerCase().includes(term) || (g.perfil?.area || '').toLowerCase().includes(term);
+      const matchedWorkers = (Array.isArray(g.workers) ? g.workers : []).filter(w =>
+        (w.nombre || '').toLowerCase().includes(term) ||
+        (w.documento || '').toLowerCase().includes(term) ||
         matchCargo
       );
       return {
@@ -357,7 +357,7 @@ export default function BioIndividualHub() {
         isExpanded: true,
       };
     })
-    .filter(g => g.workers.length > 0);
+    .filter(g => (Array.isArray(g.workers) ? g.workers.length : 0) > 0);
 
   const totalWorkers = groups.reduce((acc, g) => acc + g.workers.length, 0);
   const totalCriticos = groups.reduce((acc, g) =>

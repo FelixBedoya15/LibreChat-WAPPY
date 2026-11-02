@@ -1100,7 +1100,7 @@ export default function HeightsWorkspace() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedDoc?.equipos.map((eq, idx) => {
+                          {(Array.isArray(selectedDoc?.equipos) ? selectedDoc.equipos : []).map((eq, idx) => {
                             const days = getDaysUntil(eq.fechaProximaInspeccion);
                             return (
                               <tr key={idx} className="border-b border-border-light dark:border-white/5 hover:bg-surface-hover/30 transition-colors">

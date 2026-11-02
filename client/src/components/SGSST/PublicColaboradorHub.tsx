@@ -1005,26 +1005,27 @@ export default function PublicColaboradorHub() {
                         title: 'Perfil Sociodemográfico',
                         subtitle: 'Ficha médica y datos sociodemográficos',
                         icon: '📋',
-                        items: data.worker.actualizaciones_perfil || [],
+                        items: Array.isArray(data.worker.actualizaciones_perfil) ? data.worker.actualizaciones_perfil : [],
                         emptyMsg: 'Sin actualizaciones',
                       },
                     ]
                   : [
-                      { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: data.worker.atel || [], emptyMsg: 'Sin eventos ATEL' },
-                      { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: data.worker.actos_inseguros || [], emptyMsg: 'Sin reportes' },
-                      { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: data.worker.participaciones_ipevar || [], emptyMsg: 'Sin registros' },
-                      { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: data.worker.capacitaciones || [], emptyMsg: 'Sin cursos' },
-                      { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: termometroAnimo, emptyMsg: 'Sin check-ins' },
-                      { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: data.worker.comites || [], emptyMsg: 'Sin actas/rondas' },
-                      { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: data.worker.votaciones || [], emptyMsg: 'Sin votos' },
-                      { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: data.worker.solicitud_epp || [], emptyMsg: 'Sin solicitudes' },
-                      { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: data.worker.inspeccion_vehicular_pesv || [], emptyMsg: 'Sin inspecciones' },
-                      { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: data.worker.estudio_puesto || [], emptyMsg: 'Sin mediciones' },
-                      { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: data.worker.brigada || [], emptyMsg: 'Sin registros' },
-                      { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...(data.worker.ats || []), ...(data.worker.actualizaciones_perfil || [])], emptyMsg: 'Sin actualizaciones' },
+                      { title: 'ATEL', subtitle: 'Accidentes / Enfermedades', icon: '🚨', items: Array.isArray(data.worker.atel) ? data.worker.atel : [], emptyMsg: 'Sin eventos ATEL' },
+                      { title: 'Actos / Condiciones', subtitle: 'Reportes en terreno', icon: '⚠️', items: Array.isArray(data.worker.actos_inseguros) ? data.worker.actos_inseguros : [], emptyMsg: 'Sin reportes' },
+                      { title: 'IPEVR', subtitle: 'Participación activa', icon: '🎯', items: Array.isArray(data.worker.participaciones_ipevar) ? data.worker.participaciones_ipevar : [], emptyMsg: 'Sin registros' },
+                      { title: 'Capacitaciones', subtitle: 'Formación SST / LMS', icon: '📚', items: Array.isArray(data.worker.capacitaciones) ? data.worker.capacitaciones : [], emptyMsg: 'Sin cursos' },
+                      { title: 'Termómetro Psicosocial', subtitle: 'Bienestar & Clima', icon: '❤️', items: Array.isArray(termometroAnimo) ? termometroAnimo : [], emptyMsg: 'Sin check-ins' },
+                      { title: 'Comités & Inspecciones', subtitle: 'COPASST, CCL, PESV', icon: '🏛️', items: Array.isArray(data.worker.comites) ? data.worker.comites : [], emptyMsg: 'Sin actas/rondas' },
+                      { title: 'Votaciones Paritarias', subtitle: 'Elecciones SST', icon: '🗳️', items: Array.isArray(data.worker.votaciones) ? data.worker.votaciones : [], emptyMsg: 'Sin votos' },
+                      { title: 'EPP y Dotación', subtitle: 'Solicitudes y entregas', icon: '🦺', items: Array.isArray(data.worker.solicitud_epp) ? data.worker.solicitud_epp : [], emptyMsg: 'Sin solicitudes' },
+                      { title: 'Seguridad Vial PESV', subtitle: 'Preoperacionales', icon: '🚗', items: Array.isArray(data.worker.inspeccion_vehicular_pesv) ? data.worker.inspeccion_vehicular_pesv : [], emptyMsg: 'Sin inspecciones' },
+                      { title: 'Ergonomía & Puesto', subtitle: 'Evaluación postural IA', icon: '🪑', items: Array.isArray(data.worker.estudio_puesto) ? data.worker.estudio_puesto : [], emptyMsg: 'Sin mediciones' },
+                      { title: 'Brigada & SCI', subtitle: 'Hoja de vida emergencias', icon: '🚒', items: Array.isArray(data.worker.brigada) ? data.worker.brigada : [], emptyMsg: 'Sin registros' },
+                      { title: 'ATS & Perfil Anual', subtitle: 'Permisos y ficha médica', icon: '📋', items: [...(Array.isArray(data.worker.ats) ? data.worker.ats : []), ...(Array.isArray(data.worker.actualizaciones_perfil) ? data.worker.actualizaciones_perfil : [])], emptyMsg: 'Sin actualizaciones' },
                     ]
                 ).map(({ title, subtitle, icon, items, emptyMsg }) => {
-                  const hasItems = items.length > 0;
+                  const safeItems = Array.isArray(items) ? items : [];
+                  const hasItems = safeItems.length > 0;
                   return (
                     <div
                       key={title}
@@ -1038,7 +1039,7 @@ export default function PublicColaboradorHub() {
                               ? 'bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
                               : 'bg-surface-primary dark:bg-slate-900 text-text-tertiary border border-border-light dark:border-white/10'
                           }`}>
-                            {items.length}
+                            {safeItems.length}
                           </span>
                         </div>
                         <p className="text-xs font-bold text-text-primary leading-tight">{title}</p>
@@ -1050,7 +1051,7 @@ export default function PublicColaboradorHub() {
                           <p className="text-[11px] text-text-tertiary italic text-center py-1">{emptyMsg}</p>
                         ) : (
                           <div className="space-y-1.5">
-                            {items.slice(-2).reverse().map((item: any, idx: number) => (
+                            {safeItems.slice(-2).reverse().map((item: any, idx: number) => (
                               <div key={idx} className="text-[11px] bg-surface-primary dark:bg-slate-900 rounded-lg p-1.5 border border-border-light dark:border-white/5">
                                 <p className="font-semibold text-text-secondary truncate" title={item.descripcion || item.nombre || item.tipo || item.accion}>
                                   {item.descripcion || item.nombre || item.tipo || item.accion || 'Evento registrado'}
@@ -1194,7 +1195,7 @@ export default function PublicColaboradorHub() {
             </div>
 
             {/* Historial de Puntos y Actividades */}
-            {data.worker.historial && data.worker.historial.length > 0 && (
+            {Array.isArray(data.worker.historial) && data.worker.historial.length > 0 && (
               <div className="bg-surface-primary dark:bg-slate-900 border border-border-medium rounded-3xl p-6 shadow-sm space-y-4">
                 <h3 className="text-sm font-black text-text-primary uppercase tracking-wide flex items-center gap-2">
                   <History className="w-4 h-4 text-teal-500" /> Historial Reciente de Puntos

@@ -511,7 +511,7 @@ const EstadisticasATEL = () => {
         })
             .then(res => res.json())
             .then(data => {
-                if (data?.years?.length) {
+                if (Array.isArray(data?.years) && data.years.length > 0) {
                     setAvailableYears(prev => {
                         const set = new Set([...prev, ...data.years]);
                         return Array.from(set).sort((a, b) => b - a);

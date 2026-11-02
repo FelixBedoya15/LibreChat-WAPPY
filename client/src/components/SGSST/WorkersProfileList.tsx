@@ -70,7 +70,7 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                 return;
             }
             const data = await res.json();
-            const allWorkers: SocioDemoWorker[] = data.trabajadores || [];
+            const allWorkers: SocioDemoWorker[] = Array.isArray(data?.trabajadores) ? data.trabajadores : [];
             setAllCompanyWorkers(allWorkers);
 
             // Filter by cargo name (case-insensitive, trimmed)
@@ -398,7 +398,7 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                                     <div className="flex items-start justify-between gap-3 mb-3">
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-white flex items-center justify-center font-black text-lg shadow-md shadow-teal-500/20 shrink-0">
-                                                {w.nombre.charAt(0).toUpperCase()}
+                                                {(w.nombre || 'U').charAt(0).toUpperCase()}
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <h4 className="font-bold text-slate-800 dark:text-zinc-100 text-sm truncate" title={w.nombre}>

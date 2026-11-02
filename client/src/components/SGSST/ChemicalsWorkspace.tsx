@@ -370,7 +370,7 @@ export default function ChemicalsWorkspace() {
       const data = await res.json();
       if (data.success) {
         showToast({ message: 'Inventario químico actualizado correctamente', status: 'success' });
-        setChemicals(data.data);
+        setChemicals(Array.isArray(data.data) ? data.data : []);
         setSelectedProduct(newProduct);
         setIsModalOpen(false);
         resetForm();
@@ -918,7 +918,7 @@ export default function ChemicalsWorkspace() {
                 {isPictogramsExpanded && (
                   <div className="p-5 border-t border-border-medium bg-surface-primary space-y-3.5">
                     <div className="flex flex-wrap gap-2.5">
-                      {selectedProduct.pictogramasSga && selectedProduct.pictogramasSga.length > 0 ? (
+                      {Array.isArray(selectedProduct.pictogramasSga) && selectedProduct.pictogramasSga.length > 0 ? (
                         selectedProduct.pictogramasSga.map((pic, idx) => {
                           const meta = findSgaPictogram(pic);
                           return (
@@ -958,7 +958,7 @@ export default function ChemicalsWorkspace() {
                     <div className="p-5 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-3">
                       <h3 className="font-extrabold text-sm text-text-primary">Incompatibilidades de Almacenamiento</h3>
                       <ul className="list-disc pl-5 text-xs text-text-secondary space-y-1">
-                        {selectedProduct.incompatibilidades && selectedProduct.incompatibilidades.length > 0 ? (
+                        {Array.isArray(selectedProduct.incompatibilidades) && selectedProduct.incompatibilidades.length > 0 ? (
                           selectedProduct.incompatibilidades.map((inc, idx) => <li key={idx} className="text-amber-600 dark:text-amber-400 font-medium">{inc}</li>)
                         ) : (
                           <li className="italic text-text-tertiary">Ninguna incompatibilidad de mezcla registrada.</li>
@@ -970,7 +970,7 @@ export default function ChemicalsWorkspace() {
                     <div className="p-5 border border-border-light dark:border-white/5 rounded-xl bg-surface-secondary/20 space-y-3">
                       <h3 className="font-extrabold text-sm text-text-primary">Trabajadores Expuestos</h3>
                       <ul className="list-disc pl-5 text-xs text-text-secondary space-y-1">
-                        {selectedProduct.trabajadoresExpuestos && selectedProduct.trabajadoresExpuestos.length > 0 ? (
+                        {Array.isArray(selectedProduct.trabajadoresExpuestos) && selectedProduct.trabajadoresExpuestos.length > 0 ? (
                           selectedProduct.trabajadoresExpuestos.map(id => {
                             const w = workers.find(work => work.id === id);
                             return w ? <li key={id}>{w.nombre} ({w.cargo || 'Sin cargo'})</li> : null;

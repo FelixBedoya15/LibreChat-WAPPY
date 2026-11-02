@@ -883,7 +883,7 @@ export default function PublicComites() {
                 </div>
               </div>
 
-              {selectedActaForSign.compromisos && selectedActaForSign.compromisos.length > 0 && (
+              {Array.isArray(selectedActaForSign.compromisos) && selectedActaForSign.compromisos.length > 0 && (
                 <div className="space-y-1.5">
                   <span className="font-bold text-text-secondary uppercase text-[10px] tracking-wide block">
                     Compromisos Asignados en el Acta:

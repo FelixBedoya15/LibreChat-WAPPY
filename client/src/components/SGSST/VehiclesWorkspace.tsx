@@ -419,7 +419,7 @@ export default function VehiclesWorkspace() {
       observaciones: formObservaciones
     };
 
-    const updatedInspecciones = [...selectedVehicle.inspecciones, newInsp];
+    const updatedInspecciones = [...(Array.isArray(selectedVehicle.inspecciones) ? selectedVehicle.inspecciones : []), newInsp];
     const payload = {
       ...selectedVehicle,
       kilometrajeActual: Number(formKilometraje),
@@ -1096,7 +1096,7 @@ export default function VehiclesWorkspace() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedVehicle.inspecciones.map((insp, idx) => (
+                          {(Array.isArray(selectedVehicle.inspecciones) ? selectedVehicle.inspecciones : []).map((insp, idx) => (
                             <tr key={idx} className="border-b border-border-light dark:border-white/5 hover:bg-surface-hover/30 transition-colors">
                               <td className="p-3 font-semibold text-text-primary">{insp.fecha}</td>
                               <td className="p-3 text-text-secondary">{insp.kilometraje} Km</td>

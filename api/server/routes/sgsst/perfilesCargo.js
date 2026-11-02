@@ -13,11 +13,102 @@ const XLSX = require('xlsx');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
-async function getActiveCompanyId(userId) {
-    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-    if (!active) active = await CompanyInfo.findOne({ user: userId });
-    return active ? active._id : null;
+// ─── Helper: Obtener Empresa Activa (con soporte Sub-Usuarios y Header) ──────
+async function getActiveCompanyId(userId, req = null) {
+  const effectiveUserId =
+    req?.user?.isSubUser && req?.user?.parentUser ? req.user.parentUser : userId;
+
+  if (req?.user?.isSubUser && req?.user?.assignedCompany) {
+    const assigned = await CompanyInfo.findOne({
+      _id: req.user.assignedCompany,
+      user: effectiveUserId,
+    }).lean();
+    if (assigned) return assigned._id;
+  }
+
+  const headerCompanyId = req?.headers?.['x-company-id'] || req?.query?.companyId;
+  if (headerCompanyId && mongoose.Types.ObjectId.isValid(String(headerCompanyId))) {
+    const requested = await CompanyInfo.findOne({
+      _id: headerCompanyId,
+      user: effectiveUserId,
+    }).lean();
+    if (requested) return requested._id;
+  }
+
+  let active = await CompanyInfo.findOne({ user: effectiveUserId, isActive: true }).lean();
+  if (!active) active = await CompanyInfo.findOne({ user: effectiveUserId }).lean();
+  return active ? active._id : null;
+}
+
+function getEffectiveUserId(req) {
+  return req?.user?.isSubUser && req?.user?.parentUser ? req.user.parentUser : req?.user?.id;
+}
+
+const DEFAULT_ENTRENAMIENTOS_CARGO = [
+  'Inducción y Reinducción en SST',
+  'Identificación de Peligros y Valoración de Riesgos (GTC 45)',
+];
+
+/**
+ * Normaliza un objeto de perfil de cargo garantizando que todos los campos de lista
+ * sean arreglos iterables válidos (previene TypeError: r is not iterable en frontend).
+ */
+function sanitizePerfilCargoItem(p = {}, idx = 0) {
+  const raw = p && typeof p === 'object' ? p : {};
+  const cleanStr = (val, fallback = '') =>
+    val !== undefined && val !== null && String(val).trim() !== '' ? String(val).trim() : fallback;
+  const cleanStrArray = (arr, fallback = []) => {
+    if (Array.isArray(arr)) {
+      return arr
+        .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+        .filter(Boolean);
+    }
+    if (typeof arr === 'string' && arr.trim() !== '') {
+      return arr
+        .split(/[,;\n•]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return [...fallback];
+  };
+
+  const rawImages =
+    raw.images && typeof raw.images === 'object' && !Array.isArray(raw.images) ? raw.images : {};
+
+  return {
+    ...raw,
+    id: cleanStr(raw.id, `perfil-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 6)}`),
+    nombreCargo: cleanStr(raw.nombreCargo, ''),
+    area: cleanStr(raw.area, 'Operaciones'),
+    nivelCargo: cleanStr(raw.nivelCargo, 'Operativo'),
+    sectorOrganizacion: cleanStr(raw.sectorOrganizacion, 'Sector privado'),
+    tipoContrato: cleanStr(raw.tipoContrato, 'Contrato laboral a término indefinido'),
+    jornada: cleanStr(raw.jornada, 'Tiempo completo (8 horas/día)'),
+    jefeInmediato: cleanStr(raw.jefeInmediato, 'Jefe Inmediato de Área'),
+    escalasSalarial: cleanStr(raw.escalasSalarial, ''),
+    numVacantes: cleanStr(raw.numVacantes, '1'),
+    contextoAdicional: cleanStr(raw.contextoAdicional, ''),
+    eppSeleccionados: cleanStrArray(raw.eppSeleccionados, []),
+    entrenamientosSeleccionados: cleanStrArray(
+      raw.entrenamientosSeleccionados,
+      DEFAULT_ENTRENAMIENTOS_CARGO
+    ),
+    controlesFuenteSeleccionados: cleanStrArray(raw.controlesFuenteSeleccionados, []),
+    controlesMedioSeleccionados: cleanStrArray(raw.controlesMedioSeleccionados, []),
+    images: {
+      foto1: rawImages.foto1 || null,
+      foto2: rawImages.foto2 || null,
+      foto3: rawImages.foto3 || null,
+      foto1Desc: cleanStr(rawImages.foto1Desc, ''),
+      foto2Desc: cleanStr(rawImages.foto2Desc, ''),
+      foto3Desc: cleanStr(rawImages.foto3Desc, ''),
+    },
+    video: raw.video || null,
+    exigenciaFisica: cleanStr(raw.exigenciaFisica, 'Media'),
+    exigenciaMental: cleanStr(raw.exigenciaMental, 'Media'),
+    operaMaquinaria: cleanStr(raw.operaMaquinaria, 'No'),
+    createdAt: raw.createdAt || Date.now(),
+  };
 }
 
 // ─── Mongoose Schema ──────────────────────────────────────────────────────
@@ -282,16 +373,39 @@ async function ensurePerfilExists(userId, companyId, cargoName, contextInfo = {}
 // ─── GET /data ─────────────────────────────────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id);
+    const effectiveUserId = getEffectiveUserId(req);
+    const companyId = await getActiveCompanyId(effectiveUserId, req);
     const filter = companyId
-      ? { user: req.user.id, companyId }
-      : { user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+      ? { user: effectiveUserId, companyId }
+      : { user: effectiveUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
     const data = await PerfilCargoData.findOne(filter).lean();
 
     if (data && Array.isArray(data.perfilesList)) {
+      let needsSelfHeal = false;
+      const normalizedList = data.perfilesList
+        .filter((p) => p && typeof p.nombreCargo === 'string' && p.nombreCargo.trim() !== '')
+        .map((p, idx) => {
+          if (
+            !Array.isArray(p.eppSeleccionados) ||
+            !Array.isArray(p.entrenamientosSeleccionados) ||
+            !Array.isArray(p.controlesFuenteSeleccionados) ||
+            !Array.isArray(p.controlesMedioSeleccionados)
+          ) {
+            needsSelfHeal = true;
+          }
+          return sanitizePerfilCargoItem(p, idx);
+        });
+
+      if (needsSelfHeal && data._id) {
+        PerfilCargoData.updateOne(
+          { _id: data._id },
+          { $set: { perfilesList: normalizedList, updatedAt: Date.now() } }
+        ).catch((err) => logger.warn('[SGSST PerfilesCargo] Self-heal warning:', err.message));
+      }
+
       return res.json({
         companyId: companyId ? String(companyId) : null,
-        perfilesList: data.perfilesList.filter((p) => p && typeof p.nombreCargo === 'string'),
+        perfilesList: normalizedList,
       });
     }
     res.json({
@@ -300,7 +414,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Load error:', error);
-    res.status(500).json({ error: 'Error al cargar datos' });
+    res.status(500).json({ error: 'Error al cargar datos', perfilesList: [] });
   }
 });
 
@@ -311,10 +425,11 @@ router.post('/ensure', requireJwtAuth, express.json(), async (req, res) => {
     if (!nombreCargo || !nombreCargo.trim()) {
       return res.status(400).json({ error: 'Se requiere nombreCargo.' });
     }
-    const companyId = await getActiveCompanyId(req.user.id);
+    const effectiveUserId = getEffectiveUserId(req);
+    const companyId = await getActiveCompanyId(effectiveUserId, req);
     if (clientCompanyId && companyId && String(clientCompanyId) !== String(companyId)) {
       logger.warn(
-        `[SGSST PerfilesCargo] Blocked cross-company /ensure for user ${req.user.id}: clientCompanyId=${clientCompanyId} vs activeCompanyId=${companyId}`
+        `[SGSST PerfilesCargo] Blocked cross-company /ensure for user ${effectiveUserId}: clientCompanyId=${clientCompanyId} vs activeCompanyId=${companyId}`
       );
       return res.status(409).json({
         error: 'La empresa activa cambió. Recargando perfiles de la empresa actual para evitar mezcla de empresas.',
@@ -322,12 +437,15 @@ router.post('/ensure', requireJwtAuth, express.json(), async (req, res) => {
         activeCompanyId: String(companyId),
       });
     }
-    const result = await ensurePerfilExists(req.user.id, companyId, nombreCargo, contextInfo);
+    const result = await ensurePerfilExists(effectiveUserId, companyId, nombreCargo, contextInfo);
+    const normalizedList = Array.isArray(result.perfilesList)
+      ? result.perfilesList.map((p, idx) => sanitizePerfilCargoItem(p, idx))
+      : [];
     res.json({
       success: true,
       created: result.created,
-      perfil: result.perfil,
-      perfilesList: result.perfilesList,
+      perfil: result.perfil ? sanitizePerfilCargoItem(result.perfil, 0) : null,
+      perfilesList: normalizedList,
       companyId: companyId ? String(companyId) : null,
     });
   } catch (error) {
@@ -340,10 +458,11 @@ router.post('/ensure', requireJwtAuth, express.json(), async (req, res) => {
 router.post('/save', requireJwtAuth, express.json({ limit: '100mb' }), async (req, res) => {
   try {
     const { perfilesList, companyId: clientCompanyId } = req.body;
-    const companyId = await getActiveCompanyId(req.user.id);
+    const effectiveUserId = getEffectiveUserId(req);
+    const companyId = await getActiveCompanyId(effectiveUserId, req);
     if (clientCompanyId && companyId && String(clientCompanyId) !== String(companyId)) {
       logger.warn(
-        `[SGSST PerfilesCargo] Blocked cross-company /save for user ${req.user.id}: clientCompanyId=${clientCompanyId} vs activeCompanyId=${companyId}`
+        `[SGSST PerfilesCargo] Blocked cross-company /save for user ${effectiveUserId}: clientCompanyId=${clientCompanyId} vs activeCompanyId=${companyId}`
       );
       return res.status(409).json({
         error: 'La empresa activa cambió. Recargando perfiles de la empresa actual para evitar mezcla de empresas.',
@@ -352,17 +471,19 @@ router.post('/save', requireJwtAuth, express.json({ limit: '100mb' }), async (re
       });
     }
     const sanitizedList = Array.isArray(perfilesList)
-      ? perfilesList.filter((p) => p && typeof p.nombreCargo === 'string')
+      ? perfilesList
+          .filter((p) => p && typeof p.nombreCargo === 'string' && p.nombreCargo.trim() !== '')
+          .map((p, idx) => sanitizePerfilCargoItem(p, idx))
       : [];
     const filter = companyId
-      ? { user: req.user.id, companyId }
-      : { user: req.user.id, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+      ? { user: effectiveUserId, companyId }
+      : { user: effectiveUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
     await PerfilCargoData.findOneAndUpdate(
       filter,
       { $set: { perfilesList: sanitizedList, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true },
     );
-    res.json({ success: true, companyId: companyId ? String(companyId) : null });
+    res.json({ success: true, companyId: companyId ? String(companyId) : null, perfilesList: sanitizedList });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Save error:', error);
     res.status(500).json({ error: 'Error al guardar datos' });
@@ -481,8 +602,12 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     const response = await result.response;
     const responseText = response.text();
     const cleanJson = cleanAndParseJson(responseText);
+    const rawList = Array.isArray(cleanJson) ? cleanJson : cleanJson ? [cleanJson] : [];
+    const normalizedPerfiles = rawList
+      .filter((p) => p && typeof p === 'object')
+      .map((p, idx) => sanitizePerfilCargoItem(p, idx));
 
-    res.json({ success: true, perfiles: Array.isArray(cleanJson) ? cleanJson : [cleanJson] });
+    res.json({ success: true, perfiles: normalizedPerfiles });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Import error:', error);
     res.status(500).json({ error: error.message || 'Error al procesar el archivo con IA' });
@@ -492,7 +617,8 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
 // ─── POST /generate ────────────────────────────────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {
   try {
-    const { perfilData, modelName } = req.body;
+    const { perfilData: rawPerfilData, modelName } = req.body;
+    const perfilData = sanitizePerfilCargoItem(rawPerfilData || {}, 0);
 
     let resolvedApiKey = null;
     try {
@@ -681,7 +807,9 @@ ${companyContext}
 });
 
 router.ensurePerfilExists = ensurePerfilExists;
+router.sanitizePerfilCargoItem = sanitizePerfilCargoItem;
 router.PerfilCargoData = PerfilCargoData;
 module.exports = router;
 module.exports.ensurePerfilExists = ensurePerfilExists;
+module.exports.sanitizePerfilCargoItem = sanitizePerfilCargoItem;
 module.exports.PerfilCargoData = PerfilCargoData;

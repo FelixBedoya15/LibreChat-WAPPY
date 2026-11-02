@@ -176,7 +176,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     }, [isLegacyUser, userPlanName, companyLimit, companies.length]);
 
     const sortedCompanies = React.useMemo(() => {
-        return [...companies].sort((a, b) => {
+        return (Array.isArray(companies) ? [...companies] : []).sort((a, b) => {
             if (a.isActive && !b.isActive) return -1;
             if (!a.isActive && b.isActive) return 1;
             return 0;
@@ -309,13 +309,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const handleAddSede = useCallback(() => {
         setData(prev => ({
             ...prev,
-            sedes: [...(prev.sedes || []), { nombre: '', address: '', city: '', departamento: '', phone: '', email: '', generalActivities: '' }]
+            sedes: [...(Array.isArray(prev.sedes) ? prev.sedes : []), { nombre: '', address: '', city: '', departamento: '', phone: '', email: '', generalActivities: '' }]
         }));
     }, []);
 
     const handleSedeChange = useCallback((index: number, field: keyof SedeData, value: string) => {
         setData(prev => {
-            const newSedes = [...(prev.sedes || [])];
+            const newSedes = [...(Array.isArray(prev.sedes) ? prev.sedes : [])];
             newSedes[index] = { ...newSedes[index], [field]: value };
             return { ...prev, sedes: newSedes };
         });
@@ -324,7 +324,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const handleRemoveSede = useCallback((index: number) => {
         setData(prev => ({
             ...prev,
-            sedes: (prev.sedes || []).filter((_, i) => i !== index)
+            sedes: (Array.isArray(prev.sedes) ? prev.sedes : []).filter((_, i) => i !== index)
         }));
     }, []);
 
@@ -1083,7 +1083,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     />
                                 </div>
                                 
-                                {(!data.sedes || data.sedes.length === 0) ? (
+                                {(!Array.isArray(data.sedes) || data.sedes.length === 0) ? (
                                     <div className="rounded-xl border border-dashed border-border-medium bg-surface-primary/50 p-6 text-center">
                                         <p className="text-sm text-text-secondary">No hay sedes adicionales registradas.</p>
                                     </div>

@@ -140,13 +140,15 @@ const MatrizLegal = () => {
     const [customItems, setCustomItems] = useState<MatrizLegalItem[]>(() => {
         try {
             const saved = localStorage.getItem('wappy_matriz_legal_custom_items');
-            return saved ? JSON.parse(saved) : [];
+            if (!saved) return [];
+            const parsed = JSON.parse(saved);
+            return Array.isArray(parsed) ? parsed : [];
         } catch {
             return [];
         }
     });
 
-    const allLegalItems = useMemo(() => [...MATRIZ_LEGAL_ITEMS, ...customItems], [customItems]);
+    const allLegalItems = useMemo(() => [...MATRIZ_LEGAL_ITEMS, ...(Array.isArray(customItems) ? customItems : [])], [customItems]);
 
     // Modal de Selección de Método de Importación (3 opciones)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
