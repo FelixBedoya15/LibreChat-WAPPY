@@ -700,7 +700,7 @@ function parseSpeakerTurns(
       const rawSpeaker = (m[1] || '').trim().toLowerCase();
       const isSecond = rawSpeaker === s2.toLowerCase() || rawSpeaker.endsWith('2');
       const speaker = isSecond ? s2 : s1;
-      const turnVoice = multiSpeaker || matches.length > 1 ? (isSecond ? v2 : v1) : vDef;
+      const turnVoice = multiSpeaker ? (isSecond ? v2 : v1) : vDef;
       const start = (m.index || 0) + m[0].length;
       const end = i + 1 < matches.length ? matches[i + 1].index || clean.length : clean.length;
       const segmentText = clean
@@ -1038,6 +1038,130 @@ const CUSTOM_VOICES_DATA_PATH = path.resolve(
   __dirname,
   '../../../data/wappy_custom_voices_registry.json',
 );
+const CUSTOM_VOICES_MONGO_COLLECTION = 'studio_custom_voices';
+
+function normalizeRegistryVoiceItem(item) {
+  if (!item || typeof item !== 'object' || !item.id) return null;
+  const normalized = { ...item };
+  delete normalized._id;
+  if (!normalized.sampleAudioBase64 && normalized.sourceAudioBase64) {
+    normalized.sampleAudioBase64 = normalized.sourceAudioBase64;
+  }
+  if (!normalized.languageCode) {
+    normalized.languageCode = 'es-CO';
+  }
+  if (!normalized.displayName && normalized.name) {
+    normalized.displayName = String(normalized.name).replace(/^🧬\s*/, '').trim();
+  }
+  return normalized;
+}
+
+function getCustomVoicesMongoCollection() {
+  try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection && mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      return mongoose.connection.db.collection(CUSTOM_VOICES_MONGO_COLLECTION);
+    }
+  } catch (_) {
+    /* ignore if mongoose not ready */
+  }
+  return null;
+}
+
+async function saveCustomVoiceToMongo(voiceProfile) {
+  const norm = normalizeRegistryVoiceItem(voiceProfile);
+  if (!norm || !norm.id) return;
+  const col = getCustomVoicesMongoCollection();
+  if (!col) return;
+  try {
+    await col.updateOne(
+      { id: norm.id },
+      { $set: { ...norm, updatedAt: norm.updatedAt || new Date().toISOString() } },
+      { upsert: true },
+    );
+  } catch (err) {
+    logger.debug(`[WappyStudio VoiceClone] Aviso guardando voz ${norm.id} en MongoDB: ${err.message}`);
+  }
+}
+
+async function deleteCustomVoiceFromMongo(voiceId) {
+  if (!voiceId) return;
+  const col = getCustomVoicesMongoCollection();
+  if (!col) return;
+  try {
+    await col.deleteOne({ id: String(voiceId).trim() });
+  } catch (err) {
+    logger.debug(`[WappyStudio VoiceClone] Aviso eliminando voz ${voiceId} de MongoDB: ${err.message}`);
+  }
+}
+
+async function loadCustomVoicesRegistryFromMongo() {
+  const col = getCustomVoicesMongoCollection();
+  if (!col) return;
+  try {
+    const docs = await col.find({}).toArray();
+    if (Array.isArray(docs)) {
+      for (const rawDoc of docs) {
+        const item = normalizeRegistryVoiceItem(rawDoc);
+        if (item && item.id) {
+          const existing = customVoicesRegistry.get(item.id);
+          customVoicesRegistry.set(item.id, {
+            ...(existing || {}),
+            ...item,
+            sourceAudioBase64: item.sourceAudioBase64 || existing?.sourceAudioBase64 || undefined,
+            sampleAudioBase64:
+              item.sampleAudioBase64 ||
+              existing?.sampleAudioBase64 ||
+              item.sourceAudioBase64 ||
+              null,
+            refTranscript: item.refTranscript || existing?.refTranscript || '',
+          });
+        }
+      }
+    }
+  } catch (err) {
+    logger.debug(`[WappyStudio VoiceClone] Aviso cargando voces desde MongoDB: ${err.message}`);
+  }
+}
+
+async function ensureCustomVoiceLoadedFromMongo(voiceId) {
+  const cleanId = String(voiceId || '').trim();
+  if (!cleanId || !isCustomClonedVoiceId(cleanId)) return null;
+  const current = customVoicesRegistry.get(cleanId);
+  if (current && (current.sourceAudioBase64 || current.sampleAudioBase64)) {
+    return current;
+  }
+  loadCustomVoicesRegistryFromDisk();
+  const afterDisk = customVoicesRegistry.get(cleanId);
+  if (afterDisk && (afterDisk.sourceAudioBase64 || afterDisk.sampleAudioBase64)) {
+    return afterDisk;
+  }
+  const col = getCustomVoicesMongoCollection();
+  if (col) {
+    try {
+      const doc = await col.findOne({ id: cleanId });
+      const norm = normalizeRegistryVoiceItem(doc);
+      if (norm && norm.id) {
+        const merged = {
+          ...(afterDisk || {}),
+          ...norm,
+          sourceAudioBase64: norm.sourceAudioBase64 || afterDisk?.sourceAudioBase64 || undefined,
+          sampleAudioBase64:
+            norm.sampleAudioBase64 ||
+            afterDisk?.sampleAudioBase64 ||
+            norm.sourceAudioBase64 ||
+            null,
+          refTranscript: norm.refTranscript || afterDisk?.refTranscript || '',
+        };
+        customVoicesRegistry.set(cleanId, merged);
+        return merged;
+      }
+    } catch (err) {
+      logger.debug(`[WappyStudio VoiceClone] Aviso buscando ${cleanId} en MongoDB: ${err.message}`);
+    }
+  }
+  return customVoicesRegistry.get(cleanId) || null;
+}
 
 function loadCustomVoicesRegistryFromDisk() {
   for (const filePath of [CUSTOM_VOICES_DATA_PATH, CUSTOM_VOICES_TMP_PATH]) {
@@ -1046,17 +1170,9 @@ function loadCustomVoicesRegistryFromDisk() {
         const raw = fs.readFileSync(filePath, 'utf8');
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          for (const item of parsed) {
+          for (const rawItem of parsed) {
+            const item = normalizeRegistryVoiceItem(rawItem);
             if (item && item.id) {
-              if (!item.sampleAudioBase64 && item.sourceAudioBase64) {
-                item.sampleAudioBase64 = item.sourceAudioBase64;
-              }
-              if (!item.languageCode) {
-                item.languageCode = 'es-CO';
-              }
-              if (!item.displayName && item.name) {
-                item.displayName = String(item.name).replace(/^🧬\s*/, '').trim();
-              }
               customVoicesRegistry.set(item.id, item);
             }
           }
@@ -1069,7 +1185,8 @@ function loadCustomVoicesRegistryFromDisk() {
 }
 
 function saveCustomVoicesRegistryToDisk() {
-  const payload = JSON.stringify(Array.from(customVoicesRegistry.values()), null, 2);
+  const values = Array.from(customVoicesRegistry.values());
+  const payload = JSON.stringify(values, null, 2);
   try {
     fs.writeFileSync(CUSTOM_VOICES_TMP_PATH, payload, 'utf8');
   } catch (err) {
@@ -1084,6 +1201,7 @@ function saveCustomVoicesRegistryToDisk() {
   } catch (err) {
     logger.debug(`[WappyStudio VoiceClone] No se pudo escribir en data (${CUSTOM_VOICES_DATA_PATH}): ${err.message}`);
   }
+  Promise.allSettled(values.map((v) => saveCustomVoiceToMongo(v))).catch(() => {});
 }
 
 function hydrateCustomVoicesFromRequest(body = {}) {
@@ -1113,8 +1231,14 @@ function hydrateCustomVoicesFromRequest(body = {}) {
     const vId = String(item.id).trim();
     if (!vId) continue;
     const existing = customVoicesRegistry.get(vId);
-    const incomingAudio = stripDataUrl(item.sourceAudioBase64 || item.sampleAudioBase64 || '');
-    if (!existing || (!existing.sourceAudioBase64 && incomingAudio)) {
+    const incomingSource = stripDataUrl(item.sourceAudioBase64 || '');
+    const incomingSample = stripDataUrl(item.sampleAudioBase64 || '');
+    const incomingAudio = incomingSource || incomingSample;
+    if (
+      !existing ||
+      (!existing.sourceAudioBase64 && incomingAudio) ||
+      (!existing.refTranscript && item.refTranscript)
+    ) {
       const cleanDisplayName =
         item.displayName ||
         String(item.name || existing?.displayName || 'Mi Voz Clonada')
@@ -1126,7 +1250,12 @@ function hydrateCustomVoicesFromRequest(body = {}) {
         existing?.baseVoice ||
         extractBaseVoiceFromCloneId(vId) ||
         (gender === 'Femenino' ? 'Kore' : 'Orus');
-      const rawAudio = incomingAudio || existing?.sourceAudioBase64 || existing?.sampleAudioBase64 || '';
+      const rawSourceAudio =
+        existing?.sourceAudioBase64 ||
+        incomingSource ||
+        incomingSample ||
+        existing?.sampleAudioBase64 ||
+        '';
 
       const hydratedProfile = {
         ...(existing || {}),
@@ -1145,16 +1274,17 @@ function hydrateCustomVoicesFromRequest(body = {}) {
           item.styleDirective ||
           existing?.styleDirective ||
           'Tono natural, articulación clara, ritmo orgánico con pausas conversacionales realistas.',
+        refTranscript: item.refTranscript || existing?.refTranscript || '',
         baseVoice,
         type: item.type || existing?.type || 'replicated',
         storageMode: item.storageMode || existing?.storageMode || 'stateful_1y',
         nativeMethod:
           item.nativeMethod ||
           existing?.nativeMethod ||
-          (rawAudio ? 'voicestudio_omnivoice_zeroshot' : 'gemini_v1beta_voices_prompted'),
-        sourceAudioBase64: rawAudio || undefined,
+          (rawSourceAudio ? 'voicestudio_omnivoice_zeroshot' : 'gemini_v1beta_voices_prompted'),
+        sourceAudioBase64: rawSourceAudio || undefined,
         sampleAudioBase64:
-          stripDataUrl(item.sampleAudioBase64 || existing?.sampleAudioBase64 || rawAudio) || undefined,
+          incomingSample || existing?.sampleAudioBase64 || rawSourceAudio || undefined,
         isCustomClone: true,
         fundamental: true,
         createdAt: item.createdAt || existing?.createdAt || new Date().toISOString(),
@@ -1170,6 +1300,9 @@ function hydrateCustomVoicesFromRequest(body = {}) {
 }
 
 loadCustomVoicesRegistryFromDisk();
+setTimeout(() => {
+  loadCustomVoicesRegistryFromMongo().catch(() => {});
+}, 2500);
 
 const OMNIVOICE_SPACES = [
   'https://k2-fsa-omnivoice.hf.space',
@@ -1178,6 +1311,209 @@ const OMNIVOICE_SPACES = [
 ];
 
 const omnivoiceUploadCache = new Map();
+
+/**
+ * Divide un turno largo en sub-oraciones de ~25 a 35 palabras para que cada llamada a OmniVoice ZeroGPU
+ * se complete en ~4-6 segundos sin agotar la cuota por petición ni degradar la similitud vocal.
+ */
+function splitZeroShotTextIntoSubSentences(cleanText, maxWords = 32) {
+  const words = String(cleanText || '').split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) {
+    return [words.join(' ')];
+  }
+
+  const rawSentences = String(cleanText || '')
+    .split(/(?<=[.!?…;:])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const chunks = [];
+  let current = [];
+
+  const flush = () => {
+    if (current.length > 0) {
+      chunks.push(current.join(' ').trim());
+      current = [];
+    }
+  };
+
+  for (const sentence of rawSentences) {
+    const sWords = sentence.split(/\s+/).filter(Boolean);
+    if (current.length + sWords.length <= maxWords) {
+      current.push(...sWords);
+    } else if (sWords.length > maxWords) {
+      flush();
+      const clauses = sentence.split(/(?<=,)\s+/).map((c) => c.trim()).filter(Boolean);
+      for (const clause of clauses) {
+        const cWords = clause.split(/\s+/).filter(Boolean);
+        if (current.length + cWords.length <= maxWords) {
+          current.push(...cWords);
+        } else if (cWords.length > maxWords) {
+          flush();
+          for (let i = 0; i < cWords.length; i += maxWords) {
+            chunks.push(cWords.slice(i, i + maxWords).join(' '));
+          }
+        } else {
+          flush();
+          current.push(...cWords);
+        }
+      }
+      flush();
+    } else {
+      flush();
+      current.push(...sWords);
+    }
+  }
+  flush();
+  return chunks.filter(Boolean);
+}
+
+async function synthesizeSingleZeroShotSegment({
+  segmentText,
+  refWavBuf,
+  refHash,
+  refTranscript = '',
+  omniLang = 'Spanish',
+}) {
+  let lastOmniErr = null;
+
+  for (const spaceBase of OMNIVOICE_SPACES) {
+    const cacheKey = `${spaceBase}::${refHash}`;
+
+    const uploadRefWav = async () => {
+      const form = new FormData();
+      form.append('files', new Blob([refWavBuf], { type: 'audio/wav' }), `ref_${refHash}.wav`);
+      const upResp = await fetch(`${spaceBase}/gradio_api/upload`, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(25000),
+      });
+      if (!upResp.ok) {
+        throw new Error(`Upload HTTP ${upResp.status} en ${spaceBase}`);
+      }
+      const upData = await upResp.json();
+      const uploadedPath = Array.isArray(upData) ? upData[0] : upData?.path;
+      if (!uploadedPath) {
+        throw new Error(`Respuesta de upload sin path en ${spaceBase}`);
+      }
+      omnivoiceUploadCache.set(cacheKey, {
+        uploadedPath,
+        expiresAt: Date.now() + 15 * 60 * 1000,
+      });
+      return uploadedPath;
+    };
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const cached = omnivoiceUploadCache.get(cacheKey);
+        const uploadedPath =
+          attempt === 0 && cached && cached.expiresAt > Date.now()
+            ? cached.uploadedPath
+            : await uploadRefWav();
+
+        const callResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: [
+              segmentText,
+              omniLang,
+              { path: uploadedPath, meta: { _type: 'gradio.FileData' } },
+              String(refTranscript || '').trim(),
+              '',
+              32,
+              2.5,
+              true,
+              1.0,
+              null,
+              true,
+              true,
+            ],
+          }),
+          signal: AbortSignal.timeout(25000),
+        });
+
+        if (!callResp.ok) {
+          throw new Error(`Call _clone_fn HTTP ${callResp.status}`);
+        }
+        const callData = await callResp.json();
+        const eventId = callData?.event_id;
+        if (!eventId) {
+          throw new Error('No se recibió event_id de OmniVoice');
+        }
+
+        const sseResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn/${eventId}`, {
+          signal: AbortSignal.timeout(65000),
+        });
+        if (!sseResp.ok) {
+          throw new Error(`SSE HTTP ${sseResp.status}`);
+        }
+        const sseText = await sseResp.text();
+        if (sseText.includes('event: error')) {
+          omnivoiceUploadCache.delete(cacheKey);
+          throw new Error(`OmniVoice devolvió event: error (${sseText.slice(0, 160)})`);
+        }
+
+        const sseLines = sseText.split(/\r?\n/);
+        let completeJsonStr = '';
+        for (let li = 0; li < sseLines.length; li++) {
+          if (/^event:\s*complete\b/i.test(sseLines[li].trim())) {
+            for (let nj = li + 1; nj < sseLines.length; nj++) {
+              const cand = sseLines[nj].trim();
+              if (cand.startsWith('data:')) {
+                completeJsonStr = cand.replace(/^data:\s*/, '').trim();
+                break;
+              }
+            }
+            if (completeJsonStr) break;
+          }
+        }
+        if (!completeJsonStr) {
+          throw new Error(`Stream SSE incompleto en ${spaceBase}`);
+        }
+
+        const parsed = JSON.parse(completeJsonStr);
+        const fileObj = parsed?.[0];
+        const audioUrl =
+          fileObj?.url ||
+          (fileObj?.path ? `${spaceBase}/gradio_api/file=${fileObj.path}` : null);
+        if (!audioUrl) {
+          throw new Error('OmniVoice no devolvió URL de audio WAV');
+        }
+
+        const wavResp = await fetch(audioUrl, {
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!wavResp.ok) {
+          throw new Error(`Descarga WAV HTTP ${wavResp.status}`);
+        }
+        const outBuf = Buffer.from(await wavResp.arrayBuffer());
+        const { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
+          outBuf,
+          24000,
+        );
+
+        return {
+          wavBuffer,
+          pcmBuffer,
+          audioBase64: wavBuffer.toString('base64'),
+          durationSeconds,
+          sampleRate,
+          usedModel: 'omnivoice-zero-shot-24khz',
+          usedKeyIndex: 0,
+        };
+      } catch (err) {
+        lastOmniErr = err;
+        omnivoiceUploadCache.delete(cacheKey);
+        if (attempt === 0) {
+          continue;
+        }
+      }
+    }
+  }
+
+  throw lastOmniErr || new Error('No se pudo sintetizar el clon acústico Zero-Shot en OmniVoice.');
+}
 
 /**
  * Motor Zero-Shot de Clonación Acústica Real (VoiceStudio / k2-fsa OmniVoice 24kHz)
@@ -1221,131 +1557,56 @@ async function synthesizeZeroShotVoiceStudioClone({
         ? 'French'
         : 'Spanish';
 
-  let lastOmniErr = null;
+  const subSentences = splitZeroShotTextIntoSubSentences(cleanTurnText, 32);
+  if (subSentences.length === 1) {
+    return synthesizeSingleZeroShotSegment({
+      segmentText: subSentences[0],
+      refWavBuf,
+      refHash,
+      refTranscript,
+      omniLang,
+    });
+  }
 
-  for (const spaceBase of OMNIVOICE_SPACES) {
-    const cacheKey = `${spaceBase}::${refHash}`;
+  const sampleRate = 24000;
+  const interSentenceSilence = createPcmSilence(120, sampleRate);
+  const pcmParts = [];
 
-    const uploadRefWav = async () => {
-      const form = new FormData();
-      form.append('files', new Blob([refWavBuf], { type: 'audio/wav' }), `ref_${refHash}.wav`);
-      const upResp = await fetch(`${spaceBase}/gradio_api/upload`, {
-        method: 'POST',
-        body: form,
-        signal: AbortSignal.timeout(25000),
-      });
-      if (!upResp.ok) {
-        throw new Error(`Upload HTTP ${upResp.status} en ${spaceBase}`);
-      }
-      const upData = await upResp.json();
-      const uploadedPath = Array.isArray(upData) ? upData[0] : upData?.path;
-      if (!uploadedPath) {
-        throw new Error(`Respuesta de upload sin path en ${spaceBase}`);
-      }
-      omnivoiceUploadCache.set(cacheKey, {
-        uploadedPath,
-        expiresAt: Date.now() + 15 * 60 * 1000,
-      });
-      return uploadedPath;
-    };
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const cached = omnivoiceUploadCache.get(cacheKey);
-        const uploadedPath =
-          attempt === 0 && cached && cached.expiresAt > Date.now()
-            ? cached.uploadedPath
-            : await uploadRefWav();
-
-        const callResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            data: [
-              cleanTurnText,
-              omniLang,
-              { path: uploadedPath, meta: { _type: 'gradio.FileData' } },
-              String(refTranscript || '').trim(),
-              '',
-              32,
-              2.5,
-              true,
-              1.0,
-              null,
-              true,
-              true,
-            ],
-          }),
-          signal: AbortSignal.timeout(25000),
-        });
-
-        if (!callResp.ok) {
-          throw new Error(`Call _clone_fn HTTP ${callResp.status}`);
-        }
-        const callData = await callResp.json();
-        const eventId = callData?.event_id;
-        if (!eventId) {
-          throw new Error('No se recibió event_id de OmniVoice');
-        }
-
-        const sseResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn/${eventId}`, {
-          signal: AbortSignal.timeout(65000),
-        });
-        if (!sseResp.ok) {
-          throw new Error(`SSE HTTP ${sseResp.status}`);
-        }
-        const sseText = await sseResp.text();
-        if (sseText.includes('event: error')) {
-          omnivoiceUploadCache.delete(cacheKey);
-          throw new Error(`OmniVoice devolvió event: error (${sseText.slice(0, 160)})`);
-        }
-
-        const completeMatch = sseText.match(/event:\s*complete\s*\ndata:\s*(\[[\s\S]*?\])\s*(?:\n|$)/);
-        if (!completeMatch || !completeMatch[1]) {
-          throw new Error(`Stream SSE incompleto en ${spaceBase}`);
-        }
-
-        const parsed = JSON.parse(completeMatch[1]);
-        const fileObj = parsed?.[0];
-        const audioUrl =
-          fileObj?.url ||
-          (fileObj?.path ? `${spaceBase}/gradio_api/file=${fileObj.path}` : null);
-        if (!audioUrl) {
-          throw new Error('OmniVoice no devolvió URL de audio WAV');
-        }
-
-        const wavResp = await fetch(audioUrl, {
-          signal: AbortSignal.timeout(30000),
-        });
-        if (!wavResp.ok) {
-          throw new Error(`Descarga WAV HTTP ${wavResp.status}`);
-        }
-        const outBuf = Buffer.from(await wavResp.arrayBuffer());
-        const { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
-          outBuf,
-          24000,
-        );
-
-        return {
-          wavBuffer,
-          pcmBuffer,
-          audioBase64: wavBuffer.toString('base64'),
-          durationSeconds,
-          sampleRate,
-          usedModel: 'omnivoice-zero-shot-24khz',
-          usedKeyIndex: 0,
-        };
-      } catch (err) {
-        lastOmniErr = err;
-        omnivoiceUploadCache.delete(cacheKey);
-        if (attempt === 0) {
-          continue;
-        }
-      }
+  for (let sIdx = 0; sIdx < subSentences.length; sIdx++) {
+    const segRes = await synthesizeSingleZeroShotSegment({
+      segmentText: subSentences[sIdx],
+      refWavBuf,
+      refHash,
+      refTranscript,
+      omniLang,
+    });
+    pcmParts.push(segRes.pcmBuffer);
+    if (sIdx < subSentences.length - 1) {
+      pcmParts.push(interSentenceSilence);
     }
   }
 
-  throw lastOmniErr || new Error('No se pudo sintetizar el clon acústico Zero-Shot en OmniVoice.');
+  let combinedPcm = Buffer.concat(pcmParts);
+  combinedPcm = applyFinalTailFade(combinedPcm, sampleRate, 35);
+  if (combinedPcm.length % 2 !== 0) {
+    combinedPcm = combinedPcm.slice(0, combinedPcm.length - 1);
+  }
+  const header = createWavHeader(combinedPcm.length, sampleRate, 1, 16);
+  const wavBuffer = Buffer.concat([header, combinedPcm]);
+  const durationSeconds = Math.max(
+    1,
+    Math.round((combinedPcm.length / (sampleRate * 2)) * 10) / 10,
+  );
+
+  return {
+    wavBuffer,
+    pcmBuffer: combinedPcm,
+    audioBase64: wavBuffer.toString('base64'),
+    durationSeconds,
+    sampleRate,
+    usedModel: 'omnivoice-zero-shot-24khz',
+    usedKeyIndex: 0,
+  };
 }
 
 function isCustomClonedVoiceId(voiceName = '') {
@@ -1417,6 +1678,9 @@ async function synthesizeSingleVoiceTurn({
   }
 
   const cleanVoiceKey = String(voiceName || 'Kore').trim();
+  if (isCustomClonedVoiceId(cleanVoiceKey)) {
+    await ensureCustomVoiceLoadedFromMongo(cleanVoiceKey);
+  }
   const customCloneEntry = customVoicesRegistry.get(cleanVoiceKey);
   const cloneRefAudioB64 =
     customCloneEntry?.sourceAudioBase64 || customCloneEntry?.sampleAudioBase64 || '';
@@ -1440,6 +1704,14 @@ async function synthesizeSingleVoiceTurn({
         `[WappyStudio TTS] Aviso en motor Zero-Shot OmniVoice para ${cleanVoiceKey} (${zeroErr.message}). Usando respaldo Gemini TTS...`,
       );
     }
+  } else if (
+    cleanVoiceKey.startsWith('wappy_clone_') &&
+    !cloneRefAudioB64 &&
+    !customCloneEntry?.nativeVoiceId
+  ) {
+    throw new Error(
+      'Tu voz clonada no tiene una muestra de grabación activa tras reiniciar la sesión. Abre "Clonar mi Voz", graba o sube nuevamente tu muestra de 10 segundos y pulsa Guardar.',
+    );
   }
 
   const envTtsModelIds = getTtsFallbackModelIds();
@@ -1864,6 +2136,7 @@ router.get('/voices/custom', studioAuth, async (req, res) => {
     if (customVoicesRegistry.size === 0) {
       loadCustomVoicesRegistryFromDisk();
     }
+    await loadCustomVoicesRegistryFromMongo();
     const { allKeys } = await getCombinedKeysForRequest(req);
     const remoteVoices = [];
 
@@ -1926,13 +2199,16 @@ router.get('/voices/custom', studioAuth, async (req, res) => {
           tone: v.tone || 'Clonación Biométrica 24kHz',
           description: v.description || 'Clon biométrico verificado de estudio (24kHz)',
           styleDirective: v.styleDirective || '',
+          refTranscript: v.refTranscript || '',
           baseVoice: v.baseVoice || (v.gender === 'Femenino' ? 'Kore' : 'Orus'),
           type: v.type || 'replicated',
           languageCode: v.languageCode || 'es-CO',
           storageMode: v.storageMode || 'stateful_1y',
           nativeMethod: v.nativeMethod || 'voicestudio_omnivoice_zeroshot',
+          nativeVoiceId: v.nativeVoiceId || null,
           isCustomClone: true,
           fundamental: true,
+          sourceAudioBase64: v.sourceAudioBase64 || v.sampleAudioBase64 || null,
           sampleAudioBase64: v.sampleAudioBase64 || v.sourceAudioBase64 || null,
           sampleDurationSeconds: v.sampleDurationSeconds || 0,
           createdAt: v.createdAt || new Date().toISOString(),
@@ -1976,9 +2252,13 @@ router.post('/voices/clone', studioAuth, async (req, res) => {
 
     if (customVoicesRegistry.size === 0) {
       loadCustomVoicesRegistryFromDisk();
+      await loadCustomVoicesRegistryFromMongo();
     }
 
     const cleanEditingId = String(editingVoiceId || '').trim();
+    if (cleanEditingId && !customVoicesRegistry.has(cleanEditingId)) {
+      await ensureCustomVoiceLoadedFromMongo(cleanEditingId);
+    }
     const existingVoice = cleanEditingId ? customVoicesRegistry.get(cleanEditingId) : null;
     const cleanName = String(
       displayName || existingVoice?.displayName || 'Mi Voz Clonada',
@@ -2396,6 +2676,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
 
     customVoicesRegistry.set(finalVoiceId, customVoiceProfile);
     saveCustomVoicesRegistryToDisk();
+    await saveCustomVoiceToMongo(customVoiceProfile);
 
     return res.json({
       success: true,
@@ -2421,6 +2702,7 @@ router.delete('/voices/custom/:voiceId', studioAuth, async (req, res) => {
     const voiceId = String(req.params.voiceId || '').trim();
     customVoicesRegistry.delete(voiceId);
     saveCustomVoicesRegistryToDisk();
+    await deleteCustomVoiceFromMongo(voiceId);
 
     if (voiceId.startsWith('voice_')) {
       const { allKeys } = await getCombinedKeysForRequest(req);
@@ -2512,6 +2794,12 @@ router.post('/tts/synthesize', studioAuth, async (req, res) => {
       return res.status(400).json({ error: 'El texto a sintetizar es obligatorio.' });
     }
 
+    for (const vId of [voiceName, speaker1?.voiceName, speaker2?.voiceName]) {
+      if (isCustomClonedVoiceId(vId)) {
+        await ensureCustomVoiceLoadedFromMongo(vId);
+      }
+    }
+
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys);
 
     const result = await synthesizeChunkWithFailover({
@@ -2562,6 +2850,12 @@ router.post('/tts/jobs', studioAuth, async (req, res) => {
 
     if (!text || !String(text).trim()) {
       return res.status(400).json({ error: 'El texto es obligatorio para iniciar el trabajo.' });
+    }
+
+    for (const vId of [voiceName, speaker1?.voiceName, speaker2?.voiceName]) {
+      if (isCustomClonedVoiceId(vId)) {
+        await ensureCustomVoiceLoadedFromMongo(vId);
+      }
     }
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys);
