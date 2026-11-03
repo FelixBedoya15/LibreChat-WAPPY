@@ -5,7 +5,7 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const SgsstVehicleData = require('../../../models/SgsstVehicleData');
 const { logger } = require('~/config');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, autoPersistGeneratedReport } = require('./sgsstGemini');
 const { buildStandardHeader } = require('./reportHeader');
 
 const router = express.Router();
@@ -419,7 +419,18 @@ ${inspectionsStr}
 `;
 
     const result = await generateWithKeyRotation(finalModelName, req.user.id, promptText);
-    res.json({ report: result.response.text() });
+    const reportHtml = result.response.text();
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: reportHtml,
+      title: `Informe de Inspección Vehicular PESV — ${placa || loadedCompanyInfo?.companyName || 'Flota'}`,
+      tags: ['sgsst-vehicles'],
+      model: finalModelName,
+    });
+    res.json({
+      report: reportHtml,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST Vehicles Generate] Error:', error);
     res.status(500).json({ error: error.message || 'Error al generar informe del vehículo' });

@@ -1145,7 +1145,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura completa
   ]
 }`;
 
-    const modelToUse = modelName || 'gemini-2.5-flash';
+    const modelToUse = modelName || 'gemini-3.6-flash';
     let aiParsed = null;
     try {
       const result = await generateWithKeyRotation(modelToUse, userId, promptText);
@@ -1266,7 +1266,7 @@ router.post('/suggest-item', requireJwtAuth, async (req, res) => {
     const { targetUserId: userId, company } = await resolveUserAndCompany(req.user);
     const { mode = 'amenaza', inputData = {}, modelName } = req.body;
     const companyContextStr = buildCompanyContextString(company || {});
-    const modelToUse = modelName || 'gemini-2.5-flash';
+    const modelToUse = modelName || 'gemini-3.6-flash';
 
     if (mode === 'amenaza') {
       const draftName = inputData.amenaza || 'Incendio o explosión en área operativa';
@@ -1580,7 +1580,7 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
 
     try {
       const aiPrompt = `Redacta en 2 párrafos técnicos y ejecutivos (sin etiquetas markdown ni bloques de código, solo texto plano profesional) las Conclusiones y Recomendaciones Tácticas del Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE) para la empresa "${company?.companyName || 'la Organización'}" (${sede.ciudad}), considerando que tiene ${sede.trabajadoresFijos} trabajadores fijos, ${escenariosAmenaza.length} amenazas identificadas, ${estructuraSci.length} cargos en el Sistema Comando de Incidentes (SCI), ${procedimientosPon.length} PONs, ${em.workersWithFitAlerts} trabajadores con alertas médicas FIT y clínica MEDEVAC "${sede.clinicaMedevac}".`;
-      const aiRes = await generateWithKeyRotation(modelName || 'gemini-2.5-flash', userId, aiPrompt);
+      const aiRes = await generateWithKeyRotation(modelName || 'gemini-3.6-flash', userId, aiPrompt);
       const text = (await aiRes.response).text();
       if (text && text.trim().length > 40) {
         const paragraphs = text
@@ -1987,34 +1987,42 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
     try {
       conversationId = crypto.randomUUID();
       messageId = crypto.randomUUID();
+      const companyIdStr = company?._id ? company._id.toString() : (companyId ? String(companyId) : null);
+      const reportTags = [
+        'sgsst-plan-emergencias',
+        ...(companyIdStr ? [`company-${companyIdStr}`, `company_${companyIdStr}`] : []),
+      ];
+      const safeReq = { user: { id: String(userId || req.user.id) }, body: { isTemporary: false } };
       await saveConvo(
-        {
-          userId: req.user.id,
-          isTemporary: false,
-        },
+        safeReq,
         {
           conversationId,
           title: `Plan de Emergencias y Contingencias (PPRE) - ${company?.companyName || sede.nombreSede}`,
-          endpoint: 'google',
-          model: modelName || 'gemini-2.5-flash',
+          endpoint: 'sgsst-diagnostico',
+          model: modelName || 'gemini-3.6-flash',
+          tags: reportTags,
         }
       );
       await saveMessage(
-        {
-          userId: req.user.id,
-          isTemporary: false,
-        },
+        safeReq,
         {
           messageId,
           conversationId,
           sender: 'Wappy SST',
           text: fullReportHtml,
           isCreatedByUser: false,
-          endpoint: 'google',
-          model: modelName || 'gemini-2.5-flash',
+          endpoint: 'sgsst-diagnostico',
+          model: modelName || 'gemini-3.6-flash',
+          parentMessageId: '00000000-0000-0000-0000-000000000000',
         }
       );
-      await updateTagsForConversation(req.user.id, conversationId, ['sgsst-plan-emergencias']);
+      const { Conversation } = require('~/db/models');
+      if (Conversation) {
+        await Conversation.findOneAndUpdate(
+          { conversationId, user: String(userId || req.user.id) },
+          { $addToSet: { tags: { $each: reportTags } } }
+        );
+      }
     } catch (convoErr) {
       logger.debug('[SGSST PlanEmergencias] Optional conversation save skipped:', convoErr.message);
     }

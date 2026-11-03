@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -1187,7 +1187,18 @@ Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexi
             fullReport += buildSignatureSection(loadedCompanyInfo);
         }
 
-        res.json({ report: fullReport });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: fullReport,
+            title: `Informe Ejecutivo Matriz de Peligros GTC-45 — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+            tags: ['sgsst-matriz-peligros'],
+            model: finalModelName,
+        });
+
+        res.json({
+            report: fullReport,
+            conversationId: persisted?.conversationId || null,
+            messageId: persisted?.messageId || null,
+        });
     } catch (error) {
         logger.error('[SGSST MatrizPeligros] Analyze error:', error);
         res.status(500).json({ error: error.message });

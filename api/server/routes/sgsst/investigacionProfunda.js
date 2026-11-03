@@ -75,7 +75,8 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         // 1. Save conversation atomically
         const reportTags = ['sgsst-investigacion-profunda'];
         if (loadedCompanyInfo?._id) {
-            reportTags.push(`company-${loadedCompanyInfo._id.toString()}`);
+            const cid = loadedCompanyInfo._id.toString();
+            reportTags.push(`company-${cid}`, `company_${cid}`);
         }
 
         await saveConvo(req, {

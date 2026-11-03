@@ -567,10 +567,38 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       setHTML: (html: string) => {
         if (editorRef.current) {
           isSyncingRef.current = true;
-          const stripped = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+          const rawHtml = typeof html === 'string' ? html : '';
+          const stripped = rawHtml.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
           const safeHtml = wrapTablesInResponsiveContainer(stripped);
           editorRef.current.innerHTML = safeHtml;
           setContent(safeHtml);
+          safeUpdate(safeHtml);
+          if (typeof window !== 'undefined' && safeHtml.trim().length > 0) {
+            window.dispatchEvent(
+              new CustomEvent('wappy-live-editor-content-set', { detail: { html: safeHtml } }),
+            );
+            try {
+              const activeTag = (window as any).__wappyActiveSgsstReportTag;
+              const companyId = localStorage.getItem('wappy_active_company_id') || 'default';
+              if (activeTag) {
+                const key = `wappy_sgsst_report_${companyId}_${activeTag}`;
+                const prevRaw = localStorage.getItem(key);
+                const prev = prevRaw ? JSON.parse(prevRaw) : {};
+                localStorage.setItem(
+                  key,
+                  JSON.stringify({
+                    ...prev,
+                    content: safeHtml,
+                    companyId,
+                    tag: activeTag,
+                    updatedAt: Date.now(),
+                  }),
+                );
+              }
+            } catch {
+              /* ignore storage errors */
+            }
+          }
           setTimeout(() => {
             isSyncingRef.current = false;
           }, 50);
@@ -713,7 +741,13 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           isSyncingRef.current = true;
           editorRef.current.innerHTML = safeHtml;
           setContent(safeHtml);
+          safeUpdate(safeHtml);
           initializedRef.current = true;
+          if (typeof window !== 'undefined' && safeHtml.trim().length > 0) {
+            window.dispatchEvent(
+              new CustomEvent('wappy-live-editor-content-set', { detail: { html: safeHtml } }),
+            );
+          }
           setTimeout(() => {
             isSyncingRef.current = false;
           }, 50);
@@ -722,12 +756,56 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           isSyncingRef.current = true;
           editorRef.current.innerHTML = safeHtml;
           setContent(safeHtml);
+          safeUpdate(safeHtml);
+          if (typeof window !== 'undefined' && safeHtml.trim().length > 0) {
+            window.dispatchEvent(
+              new CustomEvent('wappy-live-editor-content-set', { detail: { html: safeHtml } }),
+            );
+          }
           setTimeout(() => {
             isSyncingRef.current = false;
           }, 50);
         }
       }
-    }, [initialContent]);
+    }, [initialContent, safeUpdate]);
+
+    // Listen to universal hydration event from useAutoLoadReport
+    useEffect(() => {
+      const handleHydrate = (e: Event) => {
+        const detail = (e as CustomEvent)?.detail;
+        if (!detail || !editorRef.current) return;
+        if (detail.clear) {
+          isSyncingRef.current = true;
+          editorRef.current.innerHTML = '';
+          setContent('');
+          safeUpdate('');
+          setTimeout(() => {
+            isSyncingRef.current = false;
+          }, 50);
+          return;
+        }
+        const rawHtml = typeof detail.html === 'string' ? detail.html : '';
+        if (!rawHtml.trim()) return;
+        const stripped = rawHtml.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+        const safeHtml = wrapTablesInResponsiveContainer(stripped);
+        const currentInner = editorRef.current.innerHTML.trim();
+        if (currentInner !== safeHtml.trim()) {
+          isSyncingRef.current = true;
+          editorRef.current.innerHTML = safeHtml;
+          setContent(safeHtml);
+          safeUpdate(safeHtml);
+          initializedRef.current = true;
+          setTimeout(() => {
+            isSyncingRef.current = false;
+          }, 50);
+        } else {
+          safeUpdate(safeHtml);
+        }
+      };
+
+      window.addEventListener('wappy-hydrate-live-editor', handleHydrate);
+      return () => window.removeEventListener('wappy-hydrate-live-editor', handleHydrate);
+    }, [safeUpdate]);
 
     useEffect(() => {
       // Set content ONLY once when the component first mounts and has content

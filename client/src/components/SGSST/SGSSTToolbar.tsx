@@ -95,22 +95,52 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
 }) => {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const isAnalyzingRef = useRef<boolean>(Boolean(isAnalyzing));
+  isAnalyzingRef.current = Boolean(isAnalyzing);
+  const onAnalyzeRef = useRef(onAnalyze);
+  onAnalyzeRef.current = onAnalyze;
 
-  // Listener global para ejecutar la generación IA de este módulo cuando Tenshi la ordene
+  // Broadcast AI generation status so CollapsibleReportBox auto-expands and shows loading indicator
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('wappy-report-generating-change', {
+          detail: { isGenerating: Boolean(isAnalyzing) },
+        }),
+      );
+    }
+  }, [isAnalyzing]);
+
+  // Listener global de respaldo para ejecutar la generación IA cuando el módulo padre no tenga su propio listener
   React.useEffect(() => {
     if (!onAnalyze) return;
-    const handleTrigger = () => {
-      if (!isAnalyzing) {
-        onAnalyze();
-      }
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const handleTrigger = (e: Event) => {
+      if ((e as any).__wappyHandled || isAnalyzingRef.current) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const now = Date.now();
+        const lastTs = (window as any).__wappyLastAiAnalyzeTriggerTs || 0;
+        if (
+          (e as any).__wappyHandled ||
+          isAnalyzingRef.current ||
+          now - lastTs < 2500
+        ) {
+          return;
+        }
+        (e as any).__wappyHandled = true;
+        (window as any).__wappyLastAiAnalyzeTriggerTs = now;
+        onAnalyzeRef.current?.();
+      }, 150);
     };
     window.addEventListener('wappy-generar-analisis-ia', handleTrigger);
     window.addEventListener('wappy-generar-analisis-actual', handleTrigger);
     return () => {
+      if (timer) clearTimeout(timer);
       window.removeEventListener('wappy-generar-analisis-ia', handleTrigger);
       window.removeEventListener('wappy-generar-analisis-actual', handleTrigger);
     };
-  }, [onAnalyze, isAnalyzing]);
+  }, [ Boolean(onAnalyze) ]);
 
   useLayoutEffect(() => {
     if (disableHeroPortal || typeof document === 'undefined') {

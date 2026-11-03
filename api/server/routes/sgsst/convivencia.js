@@ -1138,10 +1138,13 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       const conversationId = uuidv4();
       const messageId = uuidv4();
       const reportTitle = `Acta Convivencia ${dbActa?.consecutivo || acta.consecutivo || ''} - Q${dbActa?.trimestre || acta.trimestre}/${dbActa?.anio || acta.anio}`;
-      const reportTags = ['sgsst-convivencia', `company-${company._id.toString()}`];
+      const companyIdStr = company._id.toString();
+      const reportTags = ['sgsst-convivencia', `company-${companyIdStr}`, `company_${companyIdStr}`];
+      const effectiveOwnerId = (req.user?.isSubUser && req.user?.parentUser) ? req.user.parentUser : req.user.id;
+      const safeReq = { user: { id: String(effectiveOwnerId) }, body: { isTemporary: false } };
 
       await saveConvo(
-        req,
+        safeReq,
         {
           conversationId,
           title: reportTitle,
@@ -1152,7 +1155,7 @@ Devuelve un objeto JSON válido con dos propiedades principales:
         { context: 'CONVIVENCIA reporte-oficial history' }
       );
       await saveMessage(
-        req,
+        safeReq,
         {
           messageId,
           conversationId,
@@ -1165,7 +1168,7 @@ Devuelve un objeto JSON válido con dos propiedades principales:
       );
       if (Conversation) {
         await Conversation.findOneAndUpdate(
-          { conversationId, user: req.user.id },
+          { conversationId, user: String(targetUserId || req.user.id) },
           { $addToSet: { tags: { $each: reportTags } } },
           { new: true }
         );

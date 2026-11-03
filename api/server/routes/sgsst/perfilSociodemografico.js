@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -2127,7 +2127,18 @@ Tabla con periodicidad de valoraciones médicas, exámenes paraclínicos (audiom
       logger.warn('[OraculoH1] Warning auto-saving dictamen to DB:', saveErr.message);
     }
 
-    return res.json({ dictamen: fullReport });
+    const persistedDictamen = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Dictamen Predictivo H1 — ${currentWorker?.nombre || cleanWId || 'Colaborador'}`,
+      tags: ['sgsst-oraculo-h1', ...(cleanWId ? [`worker-${cleanWId}`] : [])],
+      model: finalModelName,
+    });
+
+    return res.json({
+      dictamen: fullReport,
+      conversationId: persistedDictamen?.conversationId || null,
+      messageId: persistedDictamen?.messageId || null,
+    });
   } catch (error) {
     logger.error('[OraculoH1] Generate dictamen error:', error);
     return res.status(500).json({ error: error.message || 'Error generando dictamen predictivo' });
@@ -2937,7 +2948,18 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
       fullReport += buildSignatureSection(loadedCompanyInfo);
     }
 
-    res.json({ report: fullReport });
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Informe Sociodemográfico y Condiciones de Salud — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-perfil-sociodemografico', 'sgsst-condiciones-salud'],
+      model: finalModelName,
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Analyze error:', error);
     res.status(500).json({ error: error.message });

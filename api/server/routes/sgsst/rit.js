@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
@@ -136,7 +136,25 @@ Instrucciones Críticas de Contenido y Formato:
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
 
-        res.json({ chapterHtml: cleanedHtml });
+        let persisted = { conversationId: null, messageId: null };
+        if (isLast) {
+            const fullRitHtml =
+                (previousHtml ? previousHtml + '\n' : '') +
+                cleanedHtml +
+                (companyInfo ? '\n' + buildSignatureSection(companyInfo) : '');
+            persisted = await autoPersistGeneratedReport(req, {
+                htmlContent: fullRitHtml,
+                title: `Reglamento Interno de Trabajo - ${new Date().toLocaleDateString('es-CO')}`,
+                tags: ['sgsst-rit', 'sgsst-reglamento-interno'],
+                model: finalModelName,
+            });
+        }
+
+        res.json({
+            chapterHtml: cleanedHtml,
+            conversationId: persisted.conversationId,
+            messageId: persisted.messageId,
+        });
     } catch (error) {
         logger.error('[SGSST RIT] Error generating RIT chapter:', error);
         res.status(500).json({ error: 'Failed to generate RIT chapter', details: error.message });

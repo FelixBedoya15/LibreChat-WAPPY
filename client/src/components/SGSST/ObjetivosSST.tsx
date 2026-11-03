@@ -24,7 +24,7 @@ import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
-import { useAutoLoadReport } from './useAutoLoadReport';
+import { useAutoLoadReport, saveReportToLocalCache } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import SGSSTHeroHeader from './SGSSTHeroHeader';
 import CollapsibleReportBox from './CollapsibleReportBox';
@@ -73,6 +73,10 @@ const ObjetivosSST = () => {
     };
 
     const handleGenerate = useCallback(async () => {
+        if (typeof window !== 'undefined') {
+            (window as any).__wappyLastAiAnalyzeTriggerTs = Date.now();
+        }
+        setIsGenerating(true);
 
         if (!isPro && (!conversationId || conversationId === 'new')) {
             try {
@@ -80,13 +84,13 @@ const ObjetivosSST = () => {
                 if (resCount.ok) {
                     const data = await resCount.json();
                     if (data.conversations?.length >= 1) {
+                        setIsGenerating(false);
                         setShowUpgradeModal(true);
                         return;
                     }
                 }
             } catch (e) {}
         }
-        setIsGenerating(true);
         try {
             const response = await fetch('/api/sgsst/objetivos/generate', {
                 method: 'POST',
@@ -108,11 +112,13 @@ const ObjetivosSST = () => {
             }
 
             const data = await response.json();
-            setGeneratedObjectives(data.objectives);
-            editorContentRef.current = data.objectives;
-            liveEditorRef.current?.setHTML(data.objectives);
-            setConversationId('new');  // 'new' marker so handleSave uses POST
-            setReportMessageId(null);
+            const html = data.objectives || data.report || data.content || '';
+            setGeneratedObjectives(html);
+            editorContentRef.current = html;
+            liveEditorRef.current?.setHTML(html);
+            setConversationId(data.conversationId || 'new');
+            setReportMessageId(data.messageId || null);
+            saveReportToLocalCache('sgsst-objetivos', html, data.conversationId || null, data.messageId || null);
             setIsFormExpanded(false);
             showToast({ message: 'Objetivos SST generados exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
@@ -121,7 +127,7 @@ const ObjetivosSST = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [policySummary, diagnosticSummary, additionalNorms, selectedModel, token, showToast]);
+    }, [policySummary, diagnosticSummary, additionalNorms, selectedModel, token, showToast, isPro, conversationId]);
 
     const handleSave = useCallback(async () => {
         const contentToSave = editorContentRef.current || generatedObjectives;
@@ -200,6 +206,13 @@ const ObjetivosSST = () => {
 
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
         if (!selectedConvoId) return;
+        if (selectedConvoId.trim().startsWith('<')) {
+            setGeneratedObjectives(selectedConvoId);
+            editorContentRef.current = selectedConvoId;
+            liveEditorRef.current?.setHTML(selectedConvoId);
+            setIsFormExpanded(false);
+            return;
+        }
 
         try {
             const res = await fetch(`/api/messages/${selectedConvoId}`, {
@@ -213,11 +226,11 @@ const ObjetivosSST = () => {
             if (lastMsg?.text) {
                 setGeneratedObjectives(lastMsg.text);
                 editorContentRef.current = lastMsg.text;
-            liveEditorRef.current?.setHTML(lastMsg.text);
+                liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-            
-            setIsFormExpanded(false);
+                saveReportToLocalCache('sgsst-objetivos', lastMsg.text, selectedConvoId, lastMsg.messageId);
+                setIsFormExpanded(false);
                 showToast({ message: 'Objetivos cargados correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
@@ -283,6 +296,8 @@ const ObjetivosSST = () => {
         const handleAiEvent = (e: any) => {
             const app = (e.detail?.aplicativo || '').toLowerCase();
             if (!app || app.includes('objetivo') || app.includes('sgsst') || app === 'actual') {
+                e.__wappyHandled = true;
+                (window as any).__wappyLastAiAnalyzeTriggerTs = Date.now();
                 handleGenerate();
             }
         };

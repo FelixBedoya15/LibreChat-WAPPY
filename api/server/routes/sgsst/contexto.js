@@ -7,7 +7,7 @@ const ContextoData = require('~/models/ContextoData');
 const OportunidadesData = require('~/models/OportunidadesData');
 const KanbanTask = require('~/models/KanbanTask');
 const SgsstWorker = require('~/models/SgsstWorker');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, autoPersistGeneratedReport } = require('./sgsstGemini');
 const {
   buildStandardHeader,
   buildCompanyContextString,
@@ -1676,7 +1676,7 @@ RESPONDE ÚNICA Y EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO SIN TEXTO ADICIONAL:
   }
 }`;
 
-    const modelToUse = modelName || 'gemini-2.5-flash';
+    const modelToUse = modelName || 'gemini-3.6-flash';
     const result = await generateWithKeyRotation(modelToUse, userId, promptText);
     const response = await result.response;
     const rawText = response.text();
@@ -1780,7 +1780,7 @@ router.post('/suggest-item', requireJwtAuth, async (req, res) => {
     const { mode = 'dofa', inputData = {}, dofaList = [], modelName } = req.body;
     const company = await getActiveCompany(userId);
     const companyContextStr = buildCompanyContextString(company || {});
-    const modelToUse = modelName || 'gemini-2.5-flash';
+    const modelToUse = modelName || 'gemini-3.6-flash';
 
     if (mode === 'dofa') {
       const factorType = inputData.type || 'fortaleza';
@@ -2468,9 +2468,17 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
       { upsert: true }
     );
 
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReportHtml,
+      title: `Informe Oficial Contexto Organizacional y Partes Interesadas — ${company?.companyName || 'Empresa'}`,
+      tags: ['sgsst-contexto-organizacion', 'sgsst-contexto-partes-interesadas', 'sgsst-partes-interesadas'],
+    });
+
     res.json({
       success: true,
       html: fullReportHtml,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
     });
   } catch (error) {
     logger.error('[SGSST Contexto] Error generating report:', error);

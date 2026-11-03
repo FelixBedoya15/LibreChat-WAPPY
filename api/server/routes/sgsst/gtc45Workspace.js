@@ -10,7 +10,7 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const SgsstWorker = require('~/models/SgsstWorker');
 const KanbanTask = require('~/models/KanbanTask');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
-const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
+const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows, autoPersistGeneratedReport } = require('./sgsstGemini');
 const { ensurePerfilExists } = require('./perfilesCargo');
 
 function toSentenceCase(str) {
@@ -1455,8 +1455,21 @@ ${instruction || 'Generar informe ejecutivo de altísimo nivel técnico prioriza
       fullReport += buildSignatureSection(loadedCompanyInfo);
     }
 
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `${reportTitle} — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: isBio
+        ? ['sgsst-bio-ipevar', ...(workerId ? [`worker-${workerId}`] : [])]
+        : ['sgsst-matriz-ipevar'],
+      model: modelName,
+    });
+
     logger.info(`[GTC45/ai-analyze-matrix] HTML Analysis generated for user ${userId}, isBio=${isBio}, ${matrixRows.length} rows`);
-    return res.json({ analysis: fullReport });
+    return res.json({
+      analysis: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
 
   } catch (error) {
     logger.error('[GTC45/ai-analyze-matrix] Error:', error.message);

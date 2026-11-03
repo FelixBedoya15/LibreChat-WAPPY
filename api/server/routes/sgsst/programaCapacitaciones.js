@@ -310,7 +310,18 @@ router.post('/generate-acta', requireJwtAuth, async (req, res) => {
       fullReport += buildSignatureSection(loadedCompanyInfo);
     }
 
-    res.json({ report: fullReport });
+    const { autoPersistGeneratedReport } = require('./sgsstGemini');
+    const persistedActa = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Acta de Capacitación SST: ${sesion.tema || 'Sesión'} — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-programa-capacitaciones', 'sgsst-acta-capacitacion'],
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persistedActa?.conversationId || null,
+      messageId: persistedActa?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST Capacitaciones] Generate error:', error);
     res.status(500).json({ error: 'Error al generar acta de capacitación' });
@@ -716,7 +727,19 @@ DISEÑO: tablas elegantes, cabeceras #0f766e, tipografía clara. NO uses bloques
     let fullReport = header + '<div style="margin-top:20px;">' + htmlBody + '</div>';
     if (companyInfo) fullReport += buildSignatureSection(companyInfo);
 
-    res.json({ report: fullReport });
+    const { autoPersistGeneratedReport } = require('./sgsstGemini');
+    const persistedProg = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Programa Anual de Capacitación SG-SST (${new Date().getFullYear()}) — ${companyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-programa-capacitaciones'],
+      model: preferredModel,
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persistedProg?.conversationId || null,
+      messageId: persistedProg?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST CapacitacionesPlan] generate-programa error:', error);
     res.status(500).json({ error: 'Error al generar el programa anual' });

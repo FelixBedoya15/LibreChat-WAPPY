@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -219,7 +219,18 @@ El diseño debe ser elegante con colores institucionales (azul #0f766e para enca
             cleanedPolicy += buildSignatureSection(loadedCompanyInfo);
         }
 
-        res.json({ policy: cleanedPolicy });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: cleanedPolicy,
+            title: `Política SST - ${new Date().toLocaleDateString('es-CO')}`,
+            tags: ['sgsst-politica'],
+            model: finalModelName,
+        });
+
+        res.json({
+            policy: cleanedPolicy,
+            conversationId: persisted.conversationId,
+            messageId: persisted.messageId,
+        });
 
     } catch (error) {
         logger.error('[SGSST Politica] Generation error:', error);

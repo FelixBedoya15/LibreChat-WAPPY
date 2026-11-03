@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -340,7 +340,18 @@ REGLA: EXTREMADAMENTE extenso, múltiples párrafos. Debe incluir:
     let fullReport = headerHTML + '<div style="margin-top:20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
     if (loadedCompanyInfo) fullReport += buildSignatureSection(loadedCompanyInfo);
 
-    res.json({ report: fullReport });
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Evaluación Ergonómica OWAS — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-owas'],
+      model: modelName,
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST OWAS] Generation error:', error);
     res.status(500).json({ error: 'Error al generar el informe OWAS' });

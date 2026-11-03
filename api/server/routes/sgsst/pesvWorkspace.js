@@ -12,7 +12,7 @@ const DiagnosticoData = require('~/models/DiagnosticoData');
 const SgsstVehicleData = require('~/models/SgsstVehicleData');
 const SgsstWorker = require('~/models/SgsstWorker');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
-const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
+const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows, autoPersistGeneratedReport } = require('./sgsstGemini');
 const { ensurePerfilExists } = require('./perfilesCargo');
 
 const TEST_FALLBACK_EMAILS = [
@@ -1791,7 +1791,18 @@ INSTRUCCIÓN ADICIONAL: ${instruction || 'Generar análisis exhaustivo según Re
       fullReport += buildSignatureSection(loadedCompanyInfo);
     }
 
-    return res.json({ analysis: fullReport });
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Informe Evaluación de Riesgos Viales PESV — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-matriz-pesv'],
+      model: modelName,
+    });
+
+    return res.json({
+      analysis: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[PESV/ai-analyze-matrix] Error:', error.message);
     return res.status(500).json({ error: error.message });

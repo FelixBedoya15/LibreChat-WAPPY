@@ -104,11 +104,12 @@ const ReglamentoHigiene = () => {
             }
 
             const data = await response.json();
-            setGeneratedDocument(data.document);
-            editorContentRef.current = data.document;
-            liveEditorRef.current?.setHTML(data.document);
-            setConversationId(null);
-            setReportMessageId(null);
+            const html = data.document || data.report || data.content || '';
+            setGeneratedDocument(html);
+            editorContentRef.current = html;
+            liveEditorRef.current?.setHTML(html);
+            setConversationId(data.conversationId || null);
+            setReportMessageId(data.messageId || null);
             setIsFormExpanded(false);
             showToast({ message: 'Reglamento generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {

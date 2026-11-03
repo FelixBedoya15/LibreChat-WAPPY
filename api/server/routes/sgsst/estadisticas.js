@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
@@ -449,7 +449,18 @@ Diseña tarjetas KPI de balance financiero con bordes de color, tablas con estil
             cleanedReport += buildSignatureSection(ci);
         }
 
-        res.json({ report: cleanedReport });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: cleanedReport,
+            title: `Estadísticas e Indicadores ATEL (${year || new Date().getFullYear()}) — ${ci?.companyName || 'Empresa'}`,
+            tags: ['sgsst-estadisticas-atel'],
+            model: finalModelName,
+        });
+
+        res.json({
+            report: cleanedReport,
+            conversationId: persisted?.conversationId || null,
+            messageId: persisted?.messageId || null,
+        });
 
     } catch (error) {
         logger.error('[SGSST Estadísticas] Error:', error);

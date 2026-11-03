@@ -7,7 +7,7 @@ const SgsstEppData = require('../../../models/SgsstEppData');
 const SgsstEppInventory = require('../../../models/SgsstEppInventory');
 const SgsstEppSolicitud = require('../../../models/SgsstEppSolicitud');
 const { logger } = require('~/config');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, autoPersistGeneratedReport } = require('./sgsstGemini');
 const { buildStandardHeader } = require('./reportHeader');
 
 const router = express.Router();
@@ -967,7 +967,18 @@ ${entregasStr}
 `;
 
     const result = await generateWithKeyRotation(finalModelName, req.user.id, promptText);
-    res.json({ report: result.response.text() });
+    const reportHtml = result.response.text();
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: reportHtml,
+      title: `Informe Técnico y Matriz de Dotación EPP — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-epp'],
+      model: finalModelName,
+    });
+    res.json({
+      report: reportHtml,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST EPP Generate] Error:', error);
     res.status(500).json({ error: error.message || 'Error al generar informe de EPP' });

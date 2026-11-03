@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -188,7 +188,18 @@ Asegúrate de que el documento se vea como una carta formal de asignación corpo
             cleanedDoc += buildSignatureSection(loadedCompanyInfo);
         }
 
-        res.json({ document: cleanedDoc });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: cleanedDoc,
+            title: `Asignación Responsable SG-SST - ${new Date().toLocaleDateString('es-CO')}`,
+            tags: ['sgsst-responsable'],
+            model: finalModelName,
+        });
+
+        res.json({
+            document: cleanedDoc,
+            conversationId: persisted.conversationId,
+            messageId: persisted.messageId,
+        });
 
     } catch (error) {
         logger.error('[SGSST Responsable] Generation error:', error);
