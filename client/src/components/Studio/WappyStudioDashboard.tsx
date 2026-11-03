@@ -1658,9 +1658,12 @@ function buildDefaultHtmlComposition({
         </div>
       </div>`
         : `
-      <!-- PRESENTADOR FÉLIX 3D VOXEL CON LIP-SYNC Y GESTOS (Estilo Reel Matriz GTC-45 Oficial) -->
+      <!-- PRESENTADOR AVATAR 3D OFICIAL BRANDBOOK CON CÁPSULA HOLOGRÁFICA Y PULSO REACTIVO DE VOZ -->
       <div id="host-stage" data-editable="true" class="relative z-10 w-full ${isVertical ? 'max-w-md' : 'max-w-2xl'} mx-auto flex items-center justify-center gap-3 shrink-0">
-        <canvas id="wappy-felix-voxel" width="150" height="126" class="${isVertical ? 'w-[122px] h-[102px]' : 'w-[96px] h-[80px]'} shrink-0 drop-shadow-[0_10px_20px_rgba(0,0,0,0.65)]"></canvas>
+        <div id="wappy-avatar-capsule" class="relative ${isVertical ? 'w-[84px] h-[84px]' : 'w-[72px] h-[72px]'} rounded-2xl overflow-hidden border-2 border-[#c7f303]/70 bg-gradient-to-b from-[#0f293a] to-[#061018] shadow-[0_10px_28px_rgba(0,0,0,0.7),0_0_20px_rgba(199,243,3,0.28)] shrink-0 flex items-end justify-center">
+          <img id="wappy-brandbook-avatar" src="/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png" onerror="this.onerror=null;this.src='/assets/wappy/felix_avatar_3d.png';" alt="Avatar 3D WAPPY" class="w-full h-full object-cover object-top transition-transform duration-150" />
+          <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#c7f303] text-[#081000] text-[7px] font-mono font-black uppercase tracking-wider shadow">3D LIVE</span>
+        </div>
         <div class="glass-card rounded-2xl p-2.5 px-3 border border-[#c7f303]/40 flex-1 min-w-0">
           <div class="flex items-center justify-between gap-1.5 mb-0.5">
             <span id="host-live-badge" class="text-[9px] font-mono font-black uppercase tracking-wider text-[#c7f303]">${beats[0]?.badge || 'WAPPY IA • SOMOS SST'}</span>
@@ -1890,116 +1893,22 @@ function buildDefaultHtmlComposition({
           }
         }
 
-        // 3) Avatar Voxel 3D de Félix (con camisa de cuadros amarilla WAPPY, gafas, barba y lip-sync)
-        if (felixCanvas && fCtx) {
-          var w = felixCanvas.width, h = felixCanvas.height;
-          fCtx.clearRect(0, 0, w, h);
-          var bob = Math.sin(timeSec * 3.6) * 2.2;
-          var headTilt = Math.sin(timeSec * 2.1) * 0.035;
-          var talkOpen = window.__wappyVoicePlaying
-            ? Math.max(1.5, Math.abs(Math.sin(timeSec * 14.5) * Math.cos(timeSec * 6.2)) * 6.5)
-            : 1.5;
-          var blink = (Math.floor(timeSec * 2.5) % 9 === 0) && ((timeSec * 10) % 10 < 1.8);
-          var g = window.__wappyCurrentGesture || 'wave';
-
-          fCtx.save();
-          fCtx.translate(w / 2, h - 6 + bob);
-
-          // Torso — Camisa a cuadros amarilla/negra oficial WAPPY + camiseta blanca interna
-          fCtx.fillStyle = '#eab308';
-          fCtx.fillRect(-30, -44, 60, 44);
-          fCtx.fillStyle = '#1e293b';
-          for (var gx = -30; gx < 30; gx += 12) {
-            fCtx.fillRect(gx, -44, 4, 44);
-          }
-          for (var gy = -42; gy < 0; gy += 11) {
-            fCtx.fillRect(-30, gy, 60, 3);
-          }
-          // Camiseta blanca central
-          fCtx.fillStyle = '#f1f5f9';
-          fCtx.fillRect(-9, -44, 18, 44);
-          // Bolsillo amarillo con logo W
-          fCtx.fillStyle = '#facc15';
-          fCtx.fillRect(11, -28, 13, 13);
-          fCtx.fillStyle = '#0f172a';
-          fCtx.font = '900 9px monospace';
-          fCtx.fillText('W', 13.5, -18);
-
-          // Brazos con gestos naturales según la escena
-          var leftArmAngle = g === 'wave' || g === 'bothUp' ? -0.55 + Math.sin(timeSec * 6) * 0.18 : 0.12;
-          var rightArmAngle = g === 'pointRight' || g === 'bothUp' ? 0.55 - Math.sin(timeSec * 6) * 0.18 : -0.12;
-
-          fCtx.save();
-          fCtx.translate(-32, -38);
-          fCtx.rotate(leftArmAngle);
-          fCtx.fillStyle = '#eab308';
-          fCtx.fillRect(-10, 0, 11, 24);
-          fCtx.fillStyle = '#d6a374';
-          fCtx.fillRect(-9, 24, 9, 10);
-          fCtx.restore();
-
-          fCtx.save();
-          fCtx.translate(32, -38);
-          fCtx.rotate(rightArmAngle);
-          fCtx.fillStyle = '#eab308';
-          fCtx.fillRect(-1, 0, 11, 24);
-          fCtx.fillStyle = '#d6a374';
-          fCtx.fillRect(0, 24, 9, 10);
-          fCtx.restore();
-
-          // Cabeza Voxel 3D
-          fCtx.save();
-          fCtx.translate(0, -48);
-          fCtx.rotate(headTilt);
-
-          // Sombra lateral 3D de la cabeza
-          fCtx.fillStyle = '#b9855a';
-          fCtx.fillRect(-29, -54, 58, 52);
-          // Rostro frontal
-          fCtx.fillStyle = '#d6a374';
-          fCtx.fillRect(-26, -54, 52, 50);
-
-          // Cabello castaño oscuro voxelizado
-          fCtx.fillStyle = '#2d1c12';
-          fCtx.fillRect(-28, -64, 56, 15);
-          fCtx.fillRect(-28, -54, 6, 22);
-          fCtx.fillRect(22, -54, 6, 22);
-
-          // Barba y bigote en bajo relieve
-          fCtx.fillStyle = '#2b1b12';
-          fCtx.fillRect(-26, -22, 52, 18);
-          fCtx.fillRect(-16, -26, 32, 6);
-
-          // Gafas negras cuadradas características
-          fCtx.strokeStyle = '#0f172a';
-          fCtx.lineWidth = 3.2;
-          fCtx.strokeRect(-21, -44, 17, 13);
-          fCtx.strokeRect(4, -44, 17, 13);
-          fCtx.fillStyle = '#0f172a';
-          fCtx.fillRect(-4, -40, 8, 3);
-
-          // Ojos con parpadeo natural
-          if (blink) {
-            fCtx.fillStyle = '#2d1c12';
-            fCtx.fillRect(-17, -38, 9, 2.5);
-            fCtx.fillRect(8, -38, 9, 2.5);
-          } else {
-            fCtx.fillStyle = '#ffffff';
-            fCtx.fillRect(-17, -41, 9, 7);
-            fCtx.fillRect(8, -41, 9, 7);
-            fCtx.fillStyle = '#1e293b';
-            fCtx.fillRect(-13, -39, 4, 5);
-            fCtx.fillRect(11, -39, 4, 5);
-          }
-
-          // Boca sincronizada con la voz (Lip-Sync en vivo)
-          fCtx.fillStyle = '#180d08';
-          fCtx.fillRect(-9, -18, 18, Math.max(2, talkOpen));
-          fCtx.fillStyle = '#f87171';
-          fCtx.fillRect(-6, -17 + Math.max(1, talkOpen * 0.45), 12, Math.max(1, talkOpen * 0.45));
-
-          fCtx.restore();
-          fCtx.restore();
+        // 3) Avatar 3D Oficial Brandbook con flotación orgánica y pulso reactivo a la voz
+        var avatarImg = document.getElementById('wappy-brandbook-avatar');
+        var avatarCap = document.getElementById('wappy-avatar-capsule');
+        if (avatarImg) {
+          var bob = Math.sin(timeSec * 3.4) * 2.5;
+          var tilt = Math.sin(timeSec * 2.0) * 1.4;
+          var talkScale = window.__wappyVoicePlaying
+            ? 1 + Math.abs(Math.sin(timeSec * 12.5) * Math.cos(timeSec * 5.8)) * 0.045
+            : 1;
+          avatarImg.style.transform = 'translateY(' + bob.toFixed(1) + 'px) rotate(' + tilt.toFixed(1) + 'deg) scale(' + talkScale.toFixed(3) + ')';
+        }
+        if (avatarCap) {
+          var glow = window.__wappyVoicePlaying
+            ? 0.25 + Math.abs(Math.sin(timeSec * 10)) * 0.35
+            : 0.2;
+          avatarCap.style.boxShadow = '0 10px 28px rgba(0,0,0,0.7), 0 0 22px rgba(199,243,3,' + glow.toFixed(2) + ')';
         }
       }
 

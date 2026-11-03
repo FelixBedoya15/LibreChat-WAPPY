@@ -264,9 +264,56 @@ function alignTimelineMapWithWavBuffer(timelineMap, wavBuffer) {
 }
 
 /**
- * Construye un plan de escenas rico e inteligente de forma determinista a partir del guion,
- * garantizando que cada beat tenga títulos gigantes de alto impacto, tarjetas VS, iPhone 3D,
- * Pentágono Orbital con láseres, Pad de Firmas SVG, Chart Grow y Burbujas Virales.
+ * Renderiza iconos vectoriales SVG Duotone animados de nivel After Effects (WAPPY_LOTTIE)
+ * reemplazando los emojis genéricos por iconografía técnica de alta gama.
+ */
+function renderWappySvgIcon(kind = 'escudo', color = '#c7f303', size = 40) {
+  const k = String(kind || '').toLowerCase();
+  let inner = '';
+  if (/alerta|bad|riesgo|peligro|error|❌|⚠️/.test(k)) {
+    const c = color === '#c7f303' ? '#ef4444' : color;
+    inner = `
+      <polygon points="50,12 90,84 10,84" fill="${c}" fill-opacity="0.22" stroke="${c}" stroke-width="5.5" stroke-linejoin="round"/>
+      <line x1="50" y1="36" x2="50" y2="58" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round"/>
+      <circle cx="50" cy="72" r="4.2" fill="#ffffff"/>`;
+  } else if (/cerebro|ia|tenshi|ai|neuronal|✨|🤖|🧠/.test(k)) {
+    inner = `
+      <circle cx="50" cy="50" r="36" fill="${color}" fill-opacity="0.16" stroke="${color}" stroke-width="4" stroke-dasharray="8 5"/>
+      <path d="M35 38 C25 38 22 50 30 56 C25 65 34 74 44 70 L46 70 L46 32 C38 30 35 34 35 38 Z" fill="${color}" fill-opacity="0.28" stroke="${color}" stroke-width="4.5"/>
+      <path d="M65 38 C75 38 78 50 70 56 C75 65 66 74 56 70 L54 70 L54 32 C62 30 65 34 65 38 Z" fill="#22d3ee" fill-opacity="0.28" stroke="#22d3ee" stroke-width="4.5"/>
+      <circle cx="50" cy="50" r="6" fill="#ffffff"/>`;
+  } else if (/grafica|chart|kpi|metric|ind|📊|📈/.test(k)) {
+    inner = `
+      <rect x="16" y="54" width="14" height="30" rx="4" fill="#2dd4bf" fill-opacity="0.35" stroke="#2dd4bf" stroke-width="4"/>
+      <rect x="43" y="36" width="14" height="48" rx="4" fill="#22d3ee" fill-opacity="0.4" stroke="#22d3ee" stroke-width="4"/>
+      <rect x="70" y="18" width="14" height="66" rx="4" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="4"/>
+      <path d="M16 44 L48 26 L78 12" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>`;
+  } else if (/firma|sig|check|legal|norma|✍️|✅|📋/.test(k)) {
+    inner = `
+      <rect x="16" y="14" width="68" height="72" rx="12" fill="${color}" fill-opacity="0.16" stroke="${color}" stroke-width="4.5"/>
+      <path d="M30 52 L44 66 L72 34" fill="none" stroke="#c7f303" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="30" y1="28" x2="58" y2="28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.7"/>`;
+  } else if (/radar|orbit|core|gtc|🎯|🌐/.test(k)) {
+    inner = `
+      <circle cx="50" cy="50" r="38" fill="${color}" fill-opacity="0.15" stroke="${color}" stroke-width="4.5"/>
+      <circle cx="50" cy="50" r="22" fill="none" stroke="#22d3ee" stroke-width="3.5" stroke-dasharray="6 4"/>
+      <circle cx="50" cy="50" r="8" fill="#c7f303"/>
+      <line x1="50" y1="50" x2="78" y2="24" stroke="#c7f303" stroke-width="4.5" stroke-linecap="round"/>`;
+  } else if (/bolt|rayo|fast|⚡|🔥|🚀/.test(k)) {
+    inner = `
+      <polygon points="56,10 22,54 48,54 42,90 78,44 52,44" fill="${color}" fill-opacity="0.32" stroke="${color}" stroke-width="5" stroke-linejoin="round"/>`;
+  } else {
+    // Escudo SST por defecto
+    inner = `
+      <path d="M50 10 L84 24 V48 C84 70 68 85 50 92 C32 85 16 70 16 48 V24 L50 10 Z" fill="${color}" fill-opacity="0.22" stroke="${color}" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M36 50 L46 60 L66 38" fill="none" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" style="overflow:visible;filter:drop-shadow(0 0 10px ${color}66);">${inner}</svg>`;
+}
+
+/**
+ * Construye un plan de escenas rico e inteligente de forma determinista a partir del guion real del usuario,
+ * sin textos hardcodeados ajenos al tema y con iconografía vectorial SVG Duotone.
  */
 function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
   const companyName = options.companyName || 'WAPPY IA';
@@ -283,6 +330,23 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
     : Array.isArray(options.scenesBreakdown)
       ? options.scenesBreakdown
       : [];
+
+  const fullScriptLower = String(scriptText || '').toLowerCase();
+  const isGtc45 = /gtc\s*45|ipevr|matriz\s+de\s+peligros|nivel\s+de\s+riesgo/i.test(fullScriptLower);
+  const isRes0312 = /0312|est[aá]ndares\s+m[ií]nimos|1072|sg-?sst/i.test(fullScriptLower);
+  const normTags = isGtc45
+    ? ['✦ GTC 45 Oficial', '✦ Matriz IPEVR IA', '✦ Decreto 1072', '✦ WAPPY.CLUB']
+    : isRes0312
+      ? ['✦ Resolución 0312', '✦ Decreto 1072', '✦ SG-SST en Vivo', '✦ WAPPY.CLUB']
+      : ['✦ Prevención SST', '✦ IA en Tiempo Real', '✦ Cumplimiento Legal', '✦ WAPPY.CLUB'];
+
+  // Extraer todas las frases útiles del guion completo para que ninguna tarjeta quede vacía ni use rellenos ajenos
+  const allScriptClauses = String(scriptText || '')
+    .replace(/\[pausa\s+[\d.]+s\]/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .split(/(?<=[.!?])\s+|[,;:]|\s+y\s+|\s+para\s+/i)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 8);
 
   return beats.map((beat, idx) => {
     const isFirst = idx === 0;
@@ -321,7 +385,6 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       .replace(/\|[^|]+\|/g, '')
       .trim();
 
-    // Extraer prefijos ordinales (ej. "Primero:", "Segundo:", "Tercero:")
     let stepPrefix = '';
     let bodyText = rawText;
     const ordinalMatch = rawText.match(
@@ -340,7 +403,7 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
         .trim();
     const leadCount = Math.min(3, Math.max(1, Math.ceil(Math.min(bodyWords.length, 6) * 0.5)));
     const defaultTitleBefore = stepPrefix
-      ? `${idx}. ${cleanWordSlice(bodyWords.slice(0, 2))}`
+      ? `${idx + 1}. ${cleanWordSlice(bodyWords.slice(0, 2))}`
       : cleanWordSlice(bodyWords.slice(0, leadCount));
     const defaultTitleHighlight = stepPrefix
       ? cleanWordSlice(bodyWords.slice(2, Math.min(6, bodyWords.length))) || stepPrefix
@@ -370,56 +433,68 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
     const highlightStyles = ['lime', 'cyan', 'lime', 'cyan', 'lime', 'cyan', 'lime'];
     const highlightStyle = stepMeta?.highlightStyle || (isFirst ? 'lime' : highlightStyles[idx % highlightStyles.length]);
 
-    // Extraer frases cortas del beat para alimentar las tarjetas dinámicas
+    // Extraer cláusulas reales del beat actual + contexto del guion
     const clauses = bodyText
-      .split(/[,;:]|\s+y\s+|\s+con\s+|\s+para\s+|\s+de\s+forma\s+/i)
+      .split(/[,;:]|\s+y\s+|\s+con\s+|\s+para\s+|\s+mediante\s+|\s+que\s+/i)
       .map((c) => c.trim())
-      .filter((c) => c.length > 3);
+      .filter((c) => c.length > 4);
 
-    const c0 = clauses[0] || bodyText.slice(0, 42);
-    const c1 = clauses[1] || 'Verificación técnica en tiempo real';
+    const c0 = clauses[0] || bodyText.slice(0, 42) || 'Diagnóstico Inteligente SG-SST';
+    const c1 = clauses[1] || allScriptClauses[(idx + 1) % Math.max(1, allScriptClauses.length)] || 'Control y trazabilidad en tiempo real';
+    const c2 = clauses[2] || allScriptClauses[(idx + 2) % Math.max(1, allScriptClauses.length)] || 'Evidencia verificada en segundos';
+    const c3 = clauses[3] || allScriptClauses[(idx + 3) % Math.max(1, allScriptClauses.length)] || 'Cumplimiento normativo automatizado';
+    const c4 = clauses[4] || allScriptClauses[(idx + 4) % Math.max(1, allScriptClauses.length)] || 'Prevención activa con Tenshi IA';
+
+    const shortTitle = (txt, fallback) => {
+      const w = String(txt || '').split(/\s+/).filter(Boolean).slice(0, 4).join(' ');
+      return (w || fallback).replace(/^[,;:.!?-]+|[,;:.!?-]+$/g, '').slice(0, 26);
+    };
 
     const defaultSideCards = [
       {
-        icon: '⚡',
-        title: c0.slice(0, 26),
-        desc: bodyText.slice(0, 56),
+        icon: 'cerebro_ia',
+        title: shortTitle(c0, 'Análisis con IA'),
+        desc: c0.slice(0, 58),
         color: 'cyan',
       },
       {
-        icon: '🔒',
-        title: c1.slice(0, 26),
-        desc: 'Control operativo obligatorio antes de intervenir',
+        icon: 'firma',
+        title: shortTitle(c1, 'Control Verificado'),
+        desc: c1.slice(0, 58),
         color: 'teal',
       },
       {
-        icon: '🛡️',
-        title: 'Verificación WAPPY IA',
-        desc: 'Evidencia digital e inspección segura en campo',
+        icon: 'escudo',
+        title: shortTitle(c2, `Ecosistema ${companyName}`),
+        desc: c2.slice(0, 58),
         color: 'lime',
       },
     ];
 
     const defaultSigCards = [
-      { role: c0.slice(0, 24) || 'Bloqueo Principal', icon: '🔒', status: '✓ BLOQUEADO' },
-      { role: c1.slice(0, 24) || 'Etiqueta Personal LOTO', icon: '🏷️', status: '✓ ETIQUETADO' },
-      { role: 'Responsable Técnico SST', icon: '✍️', status: '✓ FIRMADO' },
+      { role: shortTitle(c0, 'Validación Técnica'), icon: 'escudo', status: '✓ VERIFICADO' },
+      { role: shortTitle(c1, 'Control Operativo SST'), icon: 'firma', status: '✓ APLICADO' },
+      { role: shortTitle(c2, 'Firma Digital WAPPY'), icon: 'check', status: '✓ FIRMADO' },
     ];
 
     const defaultOrbitalNodes = [
-      { icon: '🔌', title: 'Corte Efectivo', sub: 'Fuentes aisladas' },
-      { icon: '🔒', title: 'Bloqueo LOTO', sub: 'Candado personal' },
-      { icon: '📟', title: 'Detector 0V', sub: 'Ausencia verificada' },
-      { icon: '🌱', title: 'Puesta a Tierra', sub: 'Y en cortocircuito' },
-      { icon: '🚧', title: 'Zona Señalizada', sub: 'Perímetro seguro' },
+      { icon: 'cerebro_ia', title: shortTitle(c0, 'Motor IA'), sub: c0.slice(0, 26) },
+      { icon: 'escudo', title: shortTitle(c1, 'Control SST'), sub: c1.slice(0, 26) },
+      { icon: 'grafica', title: shortTitle(c2, 'Métricas en Vivo'), sub: c2.slice(0, 26) },
+      { icon: 'firma', title: shortTitle(c3, 'Firma Digital'), sub: c3.slice(0, 26) },
+      { icon: 'radar', title: shortTitle(c4, 'Trazabilidad 360°'), sub: c4.slice(0, 26) },
     ];
 
     const defaultGridSpecs = [
-      { icon: '🚧', title: 'Delimitación Física', sub: 'Conos y barreras dieléctricas', color: 'teal' },
-      { icon: '⚠️', title: 'Señalización Visible', sub: 'Avisos normativos de peligro', color: 'cyan' },
-      { icon: '👷', title: 'Personal Autorizado', sub: 'Ingreso exclusivo con EPP', color: 'amber' },
-      { icon: '📋', title: 'Permiso Verificado', sub: 'Lista de chequeo en vivo', color: 'red' },
+      { icon: 'cerebro_ia', title: shortTitle(c0, 'Automatización IA'), sub: c0.slice(0, 32), color: 'teal' },
+      { icon: 'grafica', title: shortTitle(c1, 'Analítica en Vivo'), sub: c1.slice(0, 32), color: 'cyan' },
+      { icon: 'firma', title: shortTitle(c2, 'Respaldo Legal'), sub: c2.slice(0, 32), color: 'amber' },
+      { icon: 'escudo', title: shortTitle(c3, 'Cero Papel'), sub: c3.slice(0, 32), color: 'lime' },
     ];
+
+    const formulaLeft = isGtc45 ? 'PELIGRO × EXPOSICIÓN' : shortTitle(c0, 'DIAGNÓSTICO IA').toUpperCase().slice(0, 18);
+    const formulaMid = isGtc45 ? 'NP = ND × NE' : shortTitle(c1, 'CONTROL EN VIVO').toUpperCase().slice(0, 18);
+    const formulaRight = isGtc45 ? 'VALORACIÓN GTC 45' : '100% CUMPLIMIENTO';
 
     return {
       index: idx + 1,
@@ -435,35 +510,35 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
         (isFirst && options.badgeText
           ? String(options.badgeText).toUpperCase().slice(0, 32)
           : stepPrefix
-            ? `REGLA DE ORO #${idx} • ${stepPrefix}`
+            ? `PUNTO CLAVE #${idx + 1} • ${stepPrefix}`
             : isFirst
-              ? `PORTADA MAGNÉTICA • ${companyName}`
+              ? `ECOSISTEMA IA • ${companyName}`
               : isLast
-                ? `CULTURA PREVENTIVA • ${companyName}`
-                : `ESTÁNDAR TÉCNICO • PASO 0${idx + 1}`),
-      titleBefore: String(titleBefore || 'ESTÁNDAR').slice(0, 26),
+                ? `PREVENCIÓN EN VIVO • ${companyName}`
+                : `MÓDULO ACTIVO • ESCENA 0${idx + 1}`),
+      titleBefore: String(titleBefore || 'GESTIÓN').slice(0, 26),
       titleHighlight: String(titleHighlight || 'WAPPY IA').slice(0, 26),
       highlightStyle,
       subtitle: isFirst && options.subtitleText && !stepMeta?.narration ? String(options.subtitleText) : rawText,
-      badCardTitle: stepMeta?.badCardTitle || 'Práctica sin Protocolo',
-      badCardDesc: stepMeta?.badCardDesc || 'Alto riesgo de accidente grave por exceso de confianza o improvisación',
-      badCardBadge: 'RIESGO CRÍTICO',
-      goodCardTitle: stepMeta?.goodCardTitle || `Estándar Seguro ${companyName}`,
-      goodCardDesc: stepMeta?.goodCardDesc || rawText.slice(0, 78),
-      goodCardBadge: '100% SEGURO',
+      badCardTitle: stepMeta?.badCardTitle || (isGtc45 ? 'Hojas de Excel Manuales' : 'Gestión Manual y Lenta'),
+      badCardDesc: stepMeta?.badCardDesc || 'Semanas de reprocesos, errores de cálculo y riesgo de incumplimiento normativo',
+      badCardBadge: 'TRADICIONAL',
+      goodCardTitle: stepMeta?.goodCardTitle || `${shortTitle(titleHighlight, companyName)} con IA`,
+      goodCardDesc: stepMeta?.goodCardDesc || rawText.slice(0, 82),
+      goodCardBadge: 'WAPPY IA',
       wallPills: [
         String(titleHighlight || 'WAPPY IA').toUpperCase(),
         `${companyName} • SOMOS SST`,
-        'PREVENCIÓN EN TIEMPO REAL',
-        'CERO ACCIDENTES LABORALES',
+        shortTitle(c0, 'INTELIGENCIA ARTIFICIAL').toUpperCase(),
+        shortTitle(c1, 'PREVENCIÓN EN SEGUNDOS').toUpperCase(),
       ],
-      islandText: stepMeta?.islandText || stepPrefix || `PASO 0${idx + 1} LIVE`,
-      phoneQrTitle: (titleHighlight || 'VERIFICADO').toUpperCase().slice(0, 18),
+      islandText: stepMeta?.islandText || stepPrefix || `WAPPY 0${idx + 1} LIVE`,
+      phoneQrTitle: (titleHighlight || 'WAPPY IA').toUpperCase().slice(0, 18),
       phonePills: [
-        { icon: '⚡', text: c0.slice(0, 28) },
-        { icon: '🛡️', text: c1.slice(0, 28) },
-        { icon: '🎯', text: 'Control Verificado: 100%' },
-        { icon: '✅', text: 'Trazabilidad en Vivo' },
+        { icon: 'cerebro_ia', text: c0.slice(0, 30) },
+        { icon: 'escudo', text: c1.slice(0, 30) },
+        { icon: 'grafica', text: c2.slice(0, 30) },
+        { icon: 'check', text: 'Sincronizado en WAPPY Cloud' },
       ],
       sideCards:
         Array.isArray(stepMeta?.sideCards) && stepMeta.sideCards.length >= 3
@@ -482,41 +557,41 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
               status: s.status || defaultSigCards[sIdx].status,
             }))
           : defaultSigCards,
-      formulaLeft: 'INSPECCIÓN',
-      formulaMid: 'VERIFICACIÓN 0V',
-      formulaRight: '100% SEGURO',
+      formulaLeft,
+      formulaMid,
+      formulaRight,
       riskCards: [
         {
-          title: `🟢 ${c0.slice(0, 22)}`,
-          pillPrefix: 'CONTROL:',
+          title: shortTitle(c0, 'Efectividad Operativa'),
+          pillPrefix: 'IMPACTO:',
           val: 100,
           unit: '%',
-          sub: bodyText.slice(0, 48),
+          sub: c0.slice(0, 52),
           widthPct: 100,
           color: 'green',
         },
         {
-          title: '🔵 Detector Calibrado',
-          pillPrefix: 'PRECISIÓN:',
-          val: 100,
+          title: shortTitle(c1, 'Precisión Normativa'),
+          pillPrefix: 'CUMPLIMIENTO:',
+          val: 99,
           unit: '%',
-          sub: 'Ausencia total de tensión certificada en fases',
-          widthPct: 92,
+          sub: c1.slice(0, 52),
+          widthPct: 96,
           color: 'cyan',
         },
         {
-          title: '🟡 Riesgo Residual',
-          pillPrefix: 'TENSIÓN:',
-          val: 0,
-          unit: ' V',
-          sub: 'Energía cero verificada antes de intervenir',
-          widthPct: 18,
+          title: shortTitle(c2, 'Ahorro de Tiempo'),
+          pillPrefix: 'VELOCIDAD:',
+          val: 10,
+          unit: 'x',
+          sub: c2.slice(0, 52),
+          widthPct: 92,
           color: 'lime',
         },
       ],
-      coreIcon: '⚡',
-      coreLabel: (stepPrefix || 'PROTECCIÓN 360°').slice(0, 18),
-      coreBadge: '100% BLINDAJE',
+      coreIcon: 'radar',
+      coreLabel: (stepPrefix || shortTitle(titleHighlight, 'NÚCLEO WAPPY')).toUpperCase().slice(0, 18),
+      coreBadge: 'IA ACTIVA 360°',
       orbitalNodes:
         Array.isArray(stepMeta?.orbitalNodes) && stepMeta.orbitalNodes.length >= 5
           ? stepMeta.orbitalNodes.slice(0, 5).map((n, nIdx) => ({
@@ -525,8 +600,8 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
               sub: n.sub || defaultOrbitalNodes[nIdx].sub,
             }))
           : defaultOrbitalNodes,
-      tenshiTitle: `Tenshi IA • Supervisión ${stepPrefix || 'Activa'}`,
-      tenshiSub: rawText.slice(0, 58),
+      tenshiTitle: `Tenshi IA • ${shortTitle(titleHighlight, 'Copiloto SG-SST')}`,
+      tenshiSub: rawText.slice(0, 64),
       gridSpecs:
         Array.isArray(stepMeta?.gridSpecs) && stepMeta.gridSpecs.length >= 4
           ? stepMeta.gridSpecs.slice(0, 4).map((g, gIdx) => ({
@@ -536,16 +611,16 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
               color: g.color || defaultGridSpecs[sIdxOr(gIdx)].color,
             }))
           : defaultGridSpecs,
-      cloudTags: ['✦ Resolución 0312', '✦ Decreto 1072', '✦ Estándar RETIE', '✦ WAPPY IA'],
-      ctaHeader: 'PREVENCIÓN INTELIGENTE • CERO ACCIDENTES • 100% VIDA',
-      ctaInstruction: '👇 Tu familia te espera en casa:',
+      cloudTags: normTags,
+      ctaHeader: `${companyName} • ECOSISTEMA INTELIGENTE • SG-SST`,
+      ctaInstruction: '👇 Escribe en los comentarios o entra ahora:',
       ctaKeyword: stepMeta?.ctaKeyword || 'SOMOS SST',
-      ctaGift: `🛡️ ${rawText.slice(0, 48).toUpperCase()}`,
+      ctaGift: `⚡ ${shortTitle(c0, 'ACCESO INMEDIATO EN WAPPY.CLUB').toUpperCase()}`,
       socialBubbles: [
-        { icon: '⚡', text: '💬 5 Reglas de Oro siempre activas 🔥' },
-        { icon: '🛡️', text: '💬 Primero mi vida y mi familia ❤️' },
-        { icon: '👷', text: '💬 SOMOS SST prevención en vivo 🚀' },
-        { icon: '✅', text: '💬 Regresar sano y salvo a casa 🙏' },
+        { icon: 'bolt', text: `💬 ${shortTitle(c0, 'Increíble velocidad con IA')} 🔥` },
+        { icon: 'escudo', text: `💬 ${shortTitle(c1, 'Cumplimiento al 100%')} 🚀` },
+        { icon: 'cerebro_ia', text: '💬 SOMOS SST evolución total ⚡' },
+        { icon: 'check', text: '💬 Adiós a semanas de Excel 🙌' },
       ],
     };
   });
@@ -706,6 +781,126 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown \`\`\`json) con un ar
 }
 
 /**
+ * Renderiza la Portada Magnética Obligatoria (0.00s – 2.00s, Escena 0)
+ * con la arquitectura exacta de WAPPY_IA_Reel_Matriz_IPEVR_GTC45_Oficial:
+ * - Avatar 3D de alta resolución del Brandbook (avatar2_mauricio_camisa_cuadros_amarilla.png)
+ * - iPhone 3D inclinado con interfaz real de WAPPY IA en vivo (cero emojis 📱)
+ * - Titular con cajas inclinadas .hl-red-tilted y .hl-lime-tilted
+ * - 3 insignias glass con iconografía SVG Duotone + footer wappy.club · SOMOS SST
+ */
+function renderMagneticCoverMarkup(scenePlan = [], options = {}) {
+  const firstSc = scenePlan[0] || {};
+  const secondSc = scenePlan[1] || firstSc;
+  const thirdSc = scenePlan[2] || secondSc;
+  const companyName = options.companyName || 'WAPPY IA';
+
+  const rawHeadline = String(
+    options.headlineText || `${firstSc.titleBefore || 'GESTIÓN'} ${firstSc.titleHighlight || 'SG-SST CON IA'}`,
+  ).trim();
+  const hWords = rawHeadline.split(/\s+/).filter(Boolean);
+  const line1 = hWords.slice(0, Math.max(1, Math.min(2, Math.floor(hWords.length / 3) || 1))).join(' ') || 'DE SEMANAS';
+  const redBox = hWords.slice(1, Math.max(2, Math.min(4, Math.ceil((hWords.length * 2) / 3)))).join(' ') || firstSc.titleBefore || 'DE PAPELEO';
+  const limeBox = hWords.slice(Math.max(2, Math.min(4, Math.ceil((hWords.length * 2) / 3)))).join(' ') || firstSc.titleHighlight || 'A SEGUNDOS CON IA';
+
+  const badge1 = firstSc.sideCards?.[0]?.title || firstSc.titleHighlight || 'Matriz & Diagnóstico IA';
+  const badge2 = secondSc.sideCards?.[0]?.title || secondSc.titleHighlight || 'Firma Digital & Control';
+  const badge3 = thirdSc.sideCards?.[0]?.title || thirdSc.titleHighlight || 'Informe Gerencial en Vivo';
+
+  const fullTextForGratis = `${rawHeadline} ${options.subtitleText || ''} ${firstSc.subtitle || ''}`;
+  const mentionsGratis = /\bgratis\b|\bgratuito\b/i.test(fullTextForGratis);
+  const topPillLabel = mentionsGratis ? '🔥 100% GRATIS EN WAPPY.CLUB' : `⚡ ${options.badgeText || firstSc.eyebrow || 'ECOSISTEMA IA · SG-SST'}`;
+
+  return `
+    <div class="scene scene-cover" id="scene-0" data-archetype="magnetic-cover-2s" style="opacity:1;visibility:visible;">
+      <div class="cover-layout">
+        <div class="cover-top-brand" id="s0-brand">
+          <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" class="cover-logo-w">
+          <span class="cover-brand-text">${escapeHtml(topPillLabel)}</span>
+        </div>
+
+        <div class="cover-title-block" id="s0-title">
+          <div class="cover-t-line1">${escapeHtml(line1.toUpperCase())}</div>
+          <div class="cover-t-row">
+            <span class="hl-red-tilted">${escapeHtml(redBox.toUpperCase())}</span>
+            <span class="hl-lime-tilted">${escapeHtml(limeBox.toUpperCase())}</span>
+          </div>
+        </div>
+
+        <div class="cover-hero-stage" id="s0-hero">
+          <div class="cover-avatar-card">
+            <div class="cover-avatar-aura"></div>
+            <img src="/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png" alt="Avatar 3D" class="cover-avatar-img">
+            <div class="cover-avatar-tag">
+              <span class="dot-live"></span> AVATAR 3D · IA ACTIVA
+            </div>
+          </div>
+
+          <div class="cover-iphone-tilted">
+            <div class="dynamic-island">
+              <span class="island-dot"></span>
+              <span class="island-text">WAPPY.CLUB</span>
+              <span style="font-size:11px;color:var(--w-lime);font-weight:900;">IA</span>
+            </div>
+            <div class="iphone-ui-real">
+              <div class="ui-app-header">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" style="width:20px;height:20px;border-radius:5px;">
+                  <span style="font-weight:900;font-size:13px;color:#fff;">${escapeHtml(companyName)}</span>
+                </div>
+                <span class="ui-live-pill">99.4% OK</span>
+              </div>
+              <div class="ui-kpi-strip">
+                <div class="ui-kpi-mini"><span class="k-val" style="color:var(--w-lime);">100%</span><span class="k-lbl">IA SST</span></div>
+                <div class="ui-kpi-mini"><span class="k-val" style="color:var(--w-cyan-bright);">GTC 45</span><span class="k-lbl">NORMA</span></div>
+                <div class="ui-kpi-mini"><span class="k-val" style="color:#4ade80;">ACTIVO</span><span class="k-lbl">ESTADO</span></div>
+              </div>
+              <div class="ui-matrix-rows">
+                <div class="ui-m-row" style="border-left:3px solid #ef4444;">
+                  <div class="ui-m-txt"><strong>${escapeHtml(badge1.slice(0, 20))}</strong><span>Diagnóstico automático IA</span></div>
+                  <span class="ui-m-badge" style="background:rgba(239,68,68,0.25);color:#fca5a5;">CRÍTICO</span>
+                </div>
+                <div class="ui-m-row" style="border-left:3px solid #22d3ee;">
+                  <div class="ui-m-txt"><strong>${escapeHtml(badge2.slice(0, 20))}</strong><span>Control y trazabilidad</span></div>
+                  <span class="ui-m-badge" style="background:rgba(34,211,238,0.22);color:#22d3ee;">EN VIVO</span>
+                </div>
+                <div class="ui-m-row" style="border-left:3px solid #c7f303;">
+                  <div class="ui-m-txt"><strong>${escapeHtml(badge3.slice(0, 20))}</strong><span>Exportación A4 + Firmas</span></div>
+                  <span class="ui-m-badge" style="background:var(--w-lime);color:#0e1300;">LISTO</span>
+                </div>
+              </div>
+              <div class="ui-tenshi-bar">
+                <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi" style="width:26px;height:26px;border-radius:50%;object-fit:contain;">
+                <span>Tenshi IA · Copiloto SG-SST</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cover-badges-row" id="s0-badges">
+          <div class="cover-glass-badge">
+            <div class="cgb-ico">${renderWappySvgIcon('cerebro_ia', '#c7f303', 32)}</div>
+            <span>${escapeHtml(badge1.slice(0, 24))}</span>
+          </div>
+          <div class="cover-glass-badge">
+            <div class="cgb-ico">${renderWappySvgIcon('firma', '#22d3ee', 32)}</div>
+            <span>${escapeHtml(badge2.slice(0, 24))}</span>
+          </div>
+          <div class="cover-glass-badge">
+            <div class="cgb-ico">${renderWappySvgIcon('grafica', '#2dd4bf', 32)}</div>
+            <span>${escapeHtml(badge3.slice(0, 24))}</span>
+          </div>
+        </div>
+
+        <div class="cover-footer-bar" id="s0-footer">
+          <span class="cf-domain">🌐 wappy.club</span>
+          <span class="cf-sep">•</span>
+          <span class="cf-cta">SOMOS SST</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+/**
  * Renderiza el HTML interno de cada escena según su Arquetipo Antigravity
  */
 function renderSceneMarkup(sc, idx) {
@@ -732,12 +927,14 @@ function renderSceneMarkup(sc, idx) {
       )
       .join('');
     return `
-    <div class="scene" id="scene-${num}" data-archetype="hook-vs-wall" style="${idx === 0 ? 'opacity:1;visibility:visible;' : ''}">
+    <div class="scene" id="scene-${num}" data-archetype="hook-vs-wall">
       ${headerHtml}
       <div class="middle-container">
-        <div class="hook-box">
+        <div class="hook-box" style="position:relative;">
           <div class="hook-card hook-card-bad hud-glass-pro" id="s${num}-card-1">
-            <div class="hook-ico-box" style="background: rgba(239, 68, 68, 0.22); border: 2.5px solid #ef4444;">❌</div>
+            <div class="hook-ico-box" style="background: rgba(239, 68, 68, 0.22); border: 2.5px solid #ef4444;">
+              ${renderWappySvgIcon('alerta', '#ef4444', 52)}
+            </div>
             <div class="hook-text">
               <h3>${escapeHtml(sc.badCardTitle)}</h3>
               <p>${escapeHtml(sc.badCardDesc)}</p>
@@ -745,15 +942,28 @@ function renderSceneMarkup(sc, idx) {
             <div class="hook-badge" style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 2px solid #ef4444;">${escapeHtml(sc.badCardBadge)}</div>
           </div>
 
+          <div class="vs-badge-circle">VS</div>
+
           <div class="hook-card hook-card-good hud-glass-pro" id="s${num}-card-2">
             <div class="corner-bracket cb-tl"></div><div class="corner-bracket cb-tr"></div>
             <div class="corner-bracket cb-bl"></div><div class="corner-bracket cb-br"></div>
-            <div class="hook-ico-box" style="background: rgba(199, 243, 3, 0.22); border: 2.5px solid var(--w-lime);">⚡</div>
+            <div class="hook-ico-box" style="background: rgba(199, 243, 3, 0.22); border: 2.5px solid var(--w-lime);">
+              ${renderWappySvgIcon('escudo', '#c7f303', 52)}
+            </div>
             <div class="hook-text">
               <h3>${escapeHtml(sc.goodCardTitle)}</h3>
               <p>${escapeHtml(sc.goodCardDesc)}</p>
             </div>
             <div class="hook-badge" style="background: var(--w-lime); color: #0e1300;">${escapeHtml(sc.goodCardBadge)}</div>
+          </div>
+
+          <div class="tenshi-terminal-strip hud-glass-pro">
+            <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi" class="tt-avatar">
+            <div class="tt-body">
+              <div class="tt-label">TENSHI IA · MOTOR DE PREVENCIÓN EN VIVO</div>
+              <div class="tt-text">${escapeHtml((sc.sideCards?.[0]?.desc || sc.subtitle || '').slice(0, 72))}</div>
+            </div>
+            <span class="tt-status">✓ ACTIVO</span>
           </div>
         </div>
 
@@ -777,7 +987,8 @@ function renderSceneMarkup(sc, idx) {
                     ? 'border-color: var(--w-teal-bright); background: rgba(13,148,136,0.20);'
                     : ''
               }">
-                <span>${escapeHtml(p.icon)}</span> <span>${escapeHtml(p.text)}</span>
+                <span class="pill-svg-wrap">${renderWappySvgIcon(p.icon, pIdx === 1 ? '#22d3ee' : '#c7f303', 24)}</span>
+                <span>${escapeHtml(p.text)}</span>
               </div>`,
       )
       .join('');
@@ -796,9 +1007,10 @@ function renderSceneMarkup(sc, idx) {
             : cIdx === 1
               ? 'background: rgba(13, 148, 136, 0.22); border: 2px solid var(--w-teal-bright);'
               : 'background: rgba(199, 243, 3, 0.2); border: 2px solid var(--w-lime);';
+        const svgCol = cIdx === 0 ? '#22d3ee' : cIdx === 1 ? '#2dd4bf' : '#c7f303';
         return `
             <div class="side-card hud-glass-pro" id="s${num}-sc-${cIdx + 1}" style="border-color: ${borderCol};">
-              <div class="side-card-ico" style="${icoBg}">${escapeHtml(c.icon)}</div>
+              <div class="side-card-ico" style="${icoBg}">${renderWappySvgIcon(c.icon || c.title, svgCol, 42)}</div>
               <div class="side-card-text">
                 <h4>${escapeHtml(c.title)}</h4>
                 <p>${escapeHtml(c.desc)}</p>
@@ -816,13 +1028,25 @@ function renderSceneMarkup(sc, idx) {
             <div class="dynamic-island">
               <span class="island-dot"></span>
               <span class="island-text">${escapeHtml(sc.islandText)}</span>
-              <span style="font-size: 12px;">⚡</span>
+              <span style="font-size: 11px; color: var(--w-lime); font-weight: 900;">SG-SST</span>
             </div>
             <div class="iphone-screen">
               <div class="iphone-qr-box">
                 <div class="qr-scan-line" id="s${num}-laser"></div>
-                <div class="qr-ico">📱</div>
-                <div style="font-family: var(--mono); font-size: 16px; font-weight: 900; color: var(--w-lime); margin-top: 8px; text-align:center;">${escapeHtml(sc.phoneQrTitle)}</div>
+                <div class="ui-app-header" style="width:100%;margin-bottom:8px;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" style="width:18px;height:18px;border-radius:4px;">
+                    <span style="font-family:var(--mono);font-size:12px;font-weight:900;color:#fff;">WAPPY CLOUD</span>
+                  </div>
+                  <span class="ui-live-pill">LIVE</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;width:100%;background:rgba(199,243,3,0.10);border:1.5px solid rgba(199,243,3,0.45);border-radius:14px;padding:10px 12px;">
+                  ${renderWappySvgIcon('cerebro_ia', '#c7f303', 38)}
+                  <div style="text-align:left;">
+                    <div style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--w-lime);">${escapeHtml(sc.phoneQrTitle)}</div>
+                    <div style="font-size:12px;font-weight:700;color:#cbd5e1;">Motor IA · Verificación Activa</div>
+                  </div>
+                </div>
               </div>
               ${phonePillsHtml}
             </div>
@@ -853,7 +1077,10 @@ function renderSceneMarkup(sc, idx) {
                   : ''
             }">
               <div class="sig-header">
-                <div class="sig-role"><span>${escapeHtml(sg.icon)}</span> ${escapeHtml(sg.role)}</div>
+                <div class="sig-role">
+                  <span class="pill-svg-wrap">${renderWappySvgIcon(sg.icon || 'firma', sIdx === 1 ? '#22d3ee' : '#c7f303', 28)}</span>
+                  ${escapeHtml(sg.role)}
+                </div>
                 <div class="sig-status">${escapeHtml(sg.status)}</div>
               </div>
               <div class="sig-pad-canvas">
@@ -867,6 +1094,10 @@ function renderSceneMarkup(sc, idx) {
       )
       .join('');
 
+    const docRole1 = sc.sigCards?.[0]?.role || sc.sideCards?.[0]?.title || 'Diagnóstico Técnico';
+    const docRole2 = sc.sigCards?.[1]?.role || sc.sideCards?.[1]?.title || 'Control Preventivo';
+    const docRole3 = sc.sigCards?.[2]?.role || 'Firma Digital A4';
+
     return `
     <div class="scene" id="scene-${num}" data-archetype="signature-pad-live">
       ${headerHtml}
@@ -875,23 +1106,34 @@ function renderSceneMarkup(sc, idx) {
           <div class="iphone-frame" id="s${num}-phone">
             <div class="dynamic-island">
               <span class="island-dot"></span>
-              <span class="island-text">BLOQUEO LOTO</span>
-              <span style="font-size: 12px;">🔒</span>
+              <span class="island-text">${escapeHtml(sc.islandText || 'FIRMA DIGITAL')}</span>
+              <span style="font-size: 11px; color: var(--w-lime); font-weight: 900;">A4</span>
             </div>
             <div class="iphone-screen">
               <div class="iphone-qr-box" style="border-color: var(--w-lime);">
                 <div class="qr-scan-line" id="s${num}-laser"></div>
-                <div class="qr-ico">🔐</div>
-                <div style="font-family: var(--mono); font-size: 16px; font-weight: 900; color: var(--w-lime); margin-top: 8px;">CANDADO PERSONAL</div>
+                <div style="display:flex;align-items:center;gap:10px;width:100%;">
+                  ${renderWappySvgIcon('firma', '#c7f303', 42)}
+                  <div style="text-align:left;">
+                    <div style="font-family: var(--mono); font-size: 15px; font-weight: 900; color: var(--w-lime);">${escapeHtml(sc.phoneQrTitle || 'EXPEDIENTE SST')}</div>
+                    <div style="font-size:12px;color:#cbd5e1;font-weight:700;">Validez Legal & QR Verificado</div>
+                  </div>
+                </div>
+                <div style="margin-top:10px;width:100%;background:rgba(254,240,138,0.16);border-left:3px solid #facc15;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:700;color:#fef08a;text-align:left;">
+                  «${escapeHtml((sc.subtitle || '').slice(0, 58))}»
+                </div>
               </div>
               <div class="iphone-alert-pill" style="border-color: var(--w-lime); background: rgba(199,243,3,0.18);">
-                <span>🔒</span> <span>Enclavamiento Mecánico</span>
+                <span class="pill-svg-wrap">${renderWappySvgIcon('escudo', '#c7f303', 22)}</span>
+                <span>${escapeHtml(docRole1.slice(0, 26))}</span>
               </div>
               <div class="iphone-alert-pill" style="border-color: var(--w-cyan-bright); background: rgba(6,182,212,0.18);">
-                <span>🏷️</span> <span>Tarjeta Peligro No Operar</span>
+                <span class="pill-svg-wrap">${renderWappySvgIcon('cerebro_ia', '#22d3ee', 22)}</span>
+                <span>${escapeHtml(docRole2.slice(0, 26))}</span>
               </div>
               <div class="iphone-alert-pill" style="border-color: var(--w-teal-bright); background: rgba(13,148,136,0.22);">
-                <span>✍️</span> <span>Firma Digital Validada</span>
+                <span class="pill-svg-wrap">${renderWappySvgIcon('check', '#2dd4bf', 22)}</span>
+                <span>${escapeHtml(docRole3.slice(0, 26))}</span>
               </div>
             </div>
           </div>
@@ -917,7 +1159,10 @@ function renderSceneMarkup(sc, idx) {
         return `
             <div class="risk-card hud-glass-pro" id="s${num}-rk-${rIdx + 1}" style="border: 2.5px solid ${bCol};">
               <div class="risk-top">
-                <div class="risk-title">${escapeHtml(rk.title)}</div>
+                <div class="risk-title" style="display:flex;align-items:center;gap:10px;">
+                  ${renderWappySvgIcon(rIdx === 0 ? 'escudo' : rIdx === 1 ? 'grafica' : 'bolt', bCol, 28)}
+                  <span>${escapeHtml(rk.title)}</span>
+                </div>
                 <div class="risk-nr-pill" style="background: rgba(199,243,3,0.2); color:#c7f303; border:1.5px solid ${bCol};" id="s${num}-rknum-${rIdx + 1}" data-target="${rk.val}" data-prefix="${escapeHtml(rk.pillPrefix)}" data-unit="${escapeHtml(rk.unit)}">${escapeHtml(rk.pillPrefix)} ${rk.val}${escapeHtml(rk.unit)}</div>
               </div>
               <div class="risk-sub">${escapeHtml(rk.sub)}</div>
@@ -926,7 +1171,7 @@ function renderSceneMarkup(sc, idx) {
       })
       .join('');
 
-    const barsCols = ['L1', 'L2', 'L3', 'N', 'PE', 'DC', 'OK']
+    const barsCols = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'IA']
       .map(
         (lbl, bIdx) => `
                 <div class="chart-col">
@@ -952,20 +1197,26 @@ function renderSceneMarkup(sc, idx) {
           <div class="iphone-frame" id="s${num}-phone" style="height: 680px;">
             <div class="dynamic-island">
               <span class="island-dot"></span>
-              <span class="island-text">TELEMETRÍA EN VIVO</span>
-              <span style="font-size: 12px;">📟</span>
+              <span class="island-text">ANALÍTICA IA</span>
+              <span style="font-size: 11px; color: var(--w-cyan-bright); font-weight: 900;">KPI</span>
             </div>
             <div class="iphone-screen">
               <div class="iphone-qr-box" style="border-color: var(--w-cyan-bright);">
                 <div class="qr-scan-line" id="s${num}-laser"></div>
-                <div class="qr-ico">📟</div>
-                <div style="font-family: var(--mono); font-size: 16px; font-weight: 900; color: var(--w-cyan-bright); margin-top: 6px;">DETECTOR CALIBRADO</div>
+                <div style="display:flex;align-items:center;gap:10px;width:100%;">
+                  ${renderWappySvgIcon('grafica', '#22d3ee', 40)}
+                  <div style="text-align:left;">
+                    <div style="font-family: var(--mono); font-size: 15px; font-weight: 900; color: var(--w-cyan-bright);">${escapeHtml(sc.phoneQrTitle || 'INDICADORES SST')}</div>
+                    <div style="font-size:12px;color:#cbd5e1;font-weight:700;">Cálculo Determinista en Vivo</div>
+                  </div>
+                </div>
               </div>
               <div class="chart-bars-wrap" style="height: 160px; margin-top: 18px;">
                 ${barsCols}
               </div>
               <div class="iphone-alert-pill" style="margin-top: auto; border-color: var(--w-lime); background: rgba(199,243,3,0.2);">
-                <span>✅</span> <span>0.0 V Verificados en Red</span>
+                <span class="pill-svg-wrap">${renderWappySvgIcon('check', '#c7f303', 22)}</span>
+                <span>${escapeHtml(sc.formulaRight || '100% Cumplimiento')}</span>
               </div>
             </div>
           </div>
@@ -989,9 +1240,10 @@ function renderSceneMarkup(sc, idx) {
           'background: rgba(239, 68, 68, 0.22); border: 2px solid #ef4444;',
           'background: rgba(199, 243, 3, 0.22); border: 2px solid var(--w-lime);',
         ];
+        const icoCols = ['#2dd4bf', '#22d3ee', '#f59e0b', '#ef4444', '#c7f303'];
         return `
           <div class="orbital-node pos-node-${nIdx + 1}" id="s${num}-node-${nIdx + 1}">
-            <div class="node-ico" style="${icoBgs[nIdx]}">${escapeHtml(nd.icon)}</div>
+            <div class="node-ico" style="${icoBgs[nIdx]}">${renderWappySvgIcon(nd.icon || nd.title, icoCols[nIdx], 36)}</div>
             <div>
               <div class="node-title">${escapeHtml(nd.title)}</div>
               <div class="node-sub">${escapeHtml(nd.sub)}</div>
@@ -1019,7 +1271,7 @@ function renderSceneMarkup(sc, idx) {
           <div class="pulse-ring ring-2" id="s${num}-ring-2"></div>
 
           <div class="biocore-center" id="s${num}-core">
-            <div class="biocore-fingerprint">${escapeHtml(sc.coreIcon || '⚡')}</div>
+            <div class="biocore-fingerprint">${renderWappySvgIcon(sc.coreIcon || 'radar', '#22d3ee', 92)}</div>
             <div class="biocore-label">${escapeHtml(sc.coreLabel)}</div>
             <div class="biocore-match">${escapeHtml(sc.coreBadge)}</div>
           </div>
@@ -1046,9 +1298,10 @@ function renderSceneMarkup(sc, idx) {
           'background: rgba(245, 158, 11, 0.25);',
           'background: rgba(199, 243, 3, 0.25);',
         ];
+        const cols = ['#2dd4bf', '#22d3ee', '#f59e0b', '#c7f303'];
         return `
             <div class="spec-item hud-glass-pro" id="s${num}-sp-${sIdx + 1}" style="${borders[sIdx]}">
-              <div class="spec-ico" style="${bgs[sIdx]}">${escapeHtml(sp.icon)}</div>
+              <div class="spec-ico" style="${bgs[sIdx]}">${renderWappySvgIcon(sp.icon || sp.title, cols[sIdx], 38)}</div>
               <div class="spec-text">
                 <h4>${escapeHtml(sp.title)}</h4>
                 <p>${escapeHtml(sp.sub)}</p>
@@ -1069,7 +1322,7 @@ function renderSceneMarkup(sc, idx) {
           <div class="tenshi-header-card hud-glass-pro" id="s${num}-topbar">
             <div class="corner-bracket cb-tl"></div><div class="corner-bracket cb-tr"></div>
             <div class="tenshi-orb-img">
-              <img src="/assets/wappy/tenshi.png" alt="Tenshi IA">
+              <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi IA">
             </div>
             <div class="tenshi-h-info">
               <h3>${escapeHtml(sc.tenshiTitle)}</h3>
@@ -1095,7 +1348,7 @@ function renderSceneMarkup(sc, idx) {
     .map(
       (bb, bIdx) => `
         <div class="social-comment-bubble bubble-${bIdx + 1}" id="s${num}-bub-${bIdx + 1}">
-          <span class="bubble-user">${escapeHtml(bb.icon)}</span> <span>${escapeHtml(bb.text)}</span>
+          <span class="bubble-user">${renderWappySvgIcon(bb.icon || 'bolt', '#0e1300', 20)}</span> <span>${escapeHtml(bb.text)}</span>
         </div>`,
     )
     .join('');
@@ -1120,6 +1373,7 @@ function renderSceneMarkup(sc, idx) {
           </div>
 
           <div class="cta-btn-main" id="s${num}-cta-btn">
+            <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" style="width:34px;height:34px;border-radius:8px;">
             <span>wappy.club</span> ↗
           </div>
         </div>
@@ -1128,12 +1382,13 @@ function renderSceneMarkup(sc, idx) {
 }
 
 /**
- * Lee el código fuente de WappyAvatarVoxel3D (motor/wappy-avatar-voxel3d.js) para incrustarlo directamente
- * y que el Avatar 3D Minecraft Voxel de Mauricio/Félix funcione al 100% sin depender de rutas externas.
+ * Lee los motores oficiales de las skills (wappy-avatar-voxel3d.js, efectos-17-reels.js, wappy-brand.js)
+ * para inyectarlos directamente en el HTML maestro sin depender de peticiones externas.
  */
 let CACHED_VOXEL_AVATAR_JS = null;
+let CACHED_SKILL_MOTORS_JS = null;
 function getVoxelAvatarInlineJs() {
-  if (CACHED_VOXEL_AVATAR_JS) return CACHED_VOXEL_AVATAR_JS;
+  if (CACHED_VOXEL_AVATAR_JS) return `${CACHED_VOXEL_AVATAR_JS}\n\n${CACHED_SKILL_MOTORS_JS || ''}`;
   const candidates = [
     path.join(process.cwd(), 'client', 'public', 'assets', 'wappy', 'wappy-avatar-voxel3d.js'),
     path.join(__dirname, '..', '..', '..', 'client', 'public', 'assets', 'wappy', 'wappy-avatar-voxel3d.js'),
@@ -1142,11 +1397,32 @@ function getVoxelAvatarInlineJs() {
     try {
       if (fs.existsSync(p)) {
         CACHED_VOXEL_AVATAR_JS = fs.readFileSync(p, 'utf8');
-        return CACHED_VOXEL_AVATAR_JS;
+        break;
       }
     } catch (_) {}
   }
-  return '';
+  if (!CACHED_SKILL_MOTORS_JS) {
+    const motorFiles = [
+      path.join(process.cwd(), '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'efectos-17-reels.js'),
+      path.join(process.cwd(), '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'wappy-brand.js'),
+      path.join(__dirname, '..', '..', '..', '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'efectos-17-reels.js'),
+      path.join(__dirname, '..', '..', '..', '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'wappy-brand.js'),
+    ];
+    const loaded = [];
+    const seenNames = new Set();
+    for (const mf of motorFiles) {
+      const bName = path.basename(mf);
+      if (seenNames.has(bName)) continue;
+      try {
+        if (fs.existsSync(mf)) {
+          seenNames.add(bName);
+          loaded.push(`/* === SKILL MOTOR: ${bName} === */\n` + fs.readFileSync(mf, 'utf8'));
+        }
+      } catch (_) {}
+    }
+    CACHED_SKILL_MOTORS_JS = loaded.join('\n\n');
+  }
+  return `${CACHED_VOXEL_AVATAR_JS || ''}\n\n${CACHED_SKILL_MOTORS_JS || ''}`;
 }
 
 /**
@@ -1178,19 +1454,42 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
   const customLime = '#c7f303';
   const customCssBlock = options.customCss ? `\n/* Custom Studio AI Edits */\n${options.customCss}\n` : '';
 
-  const scenesMarkup = scenePlan.map((sc, idx) => renderSceneMarkup(sc, idx)).join('\n');
+  const coverMarkup = renderMagneticCoverMarkup(scenePlan, options);
+  const scenesMarkup = `${coverMarkup}\n${scenePlan.map((sc, idx) => renderSceneMarkup(sc, idx)).join('\n')}`;
   const voxelAvatarJs = getVoxelAvatarInlineJs();
 
-  const scenesTimingJson = JSON.stringify(
-    scenePlan.map((sc, idx) => ({
+  const coverDur = Number(Math.min(2.0, Math.max(1.4, totalDur * 0.14)).toFixed(2));
+  const adjustedScenesTiming = [];
+  adjustedScenesTiming.push({
+    num: 0,
+    id: '#scene-0',
+    archetype: 'magnetic-cover-2s',
+    start: 0,
+    end: coverDur,
+    isLast: false,
+  });
+
+  const remDur = Math.max(2, totalDur - coverDur);
+  const origSpan = Math.max(1, Number(scenePlan[scenePlan.length - 1]?.endSec || totalDur));
+  scenePlan.forEach((sc, idx) => {
+    const rawS = Number(sc.startSec) || 0;
+    const rawE = Number(sc.endSec) || totalDur;
+    const mappedStart = idx === 0 ? coverDur : Number((coverDur + (rawS / origSpan) * remDur).toFixed(2));
+    const mappedEnd =
+      idx === scenePlan.length - 1
+        ? Number(totalDur.toFixed(2))
+        : Number(Math.max(mappedStart + 1.0, coverDur + (rawE / origSpan) * remDur).toFixed(2));
+    adjustedScenesTiming.push({
       num: idx + 1,
       id: `#scene-${idx + 1}`,
       archetype: sc.archetype,
-      start: Number(sc.startSec),
-      end: Number(sc.endSec),
+      start: mappedStart,
+      end: mappedEnd,
       isLast: idx === scenePlan.length - 1,
-    })),
-  );
+    });
+  });
+
+  const scenesTimingJson = JSON.stringify(adjustedScenesTiming);
 
   const vozDataJson = JSON.stringify(timelineMap.vozData || []);
 
@@ -1749,35 +2048,253 @@ html, body {
   display: flex; align-items: center; gap: 14px;
 }
 
-/* TERCIO INFERIOR — AVATAR MINECRAFT VOXEL 3D EN THREE.JS */
+/* PORTADA MAGNÉTICA OFICIAL 0.00s - 2.00s (ESTILO REEL MATRIZ GTC 45 & PLATAFORMA 40S) */
+#particles-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 2; opacity: 0.72;
+}
+#hud-top-bar {
+  position: absolute; top: 14px; left: 40px; right: 40px; height: 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  z-index: 35; pointer-events: none;
+}
+.hud-top-left {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(7, 13, 28, 0.85); border: 1.5px solid rgba(34, 211, 238, 0.45);
+  padding: 4px 14px; border-radius: 999px;
+  font-family: var(--mono); font-size: 13px; font-weight: 800; color: #e2e8f0;
+}
+.hud-top-right {
+  font-family: var(--mono); font-size: 13px; font-weight: 900;
+  color: var(--w-lime); background: rgba(14, 19, 0, 0.88);
+  border: 1.5px solid var(--w-lime); padding: 4px 14px; border-radius: 999px;
+}
+.cover-layout {
+  position: absolute; inset: 54px 38px 34px 38px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  z-index: 25;
+}
+.cover-top-brand {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 10px 26px; border-radius: 999px;
+  background: rgba(7, 13, 28, 0.94); border: 2px solid var(--w-lime);
+  box-shadow: 0 0 28px rgba(199, 243, 3, 0.35);
+}
+.cover-logo-w { width: 32px; height: 32px; border-radius: 8px; object-fit: contain; }
+.cover-brand-text {
+  font-family: var(--mono); font-size: 20px; font-weight: 900;
+  color: var(--w-lime); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.cover-title-block {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+}
+.cover-t-line1 {
+  font-size: 54px; font-weight: 900; color: #ffffff; letter-spacing: -0.03em;
+  text-shadow: 0 6px 24px rgba(0,0,0,0.85); line-height: 1.02;
+}
+.cover-t-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px;
+}
+.hl-red-tilted {
+  display: inline-block; padding: 6px 24px; border-radius: 18px;
+  background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff;
+  font-size: 54px; font-weight: 900; border: 2.5px solid #fca5a5;
+  transform: rotate(-1.5deg); box-shadow: 0 12px 32px rgba(239, 68, 68, 0.55);
+}
+.hl-lime-tilted {
+  display: inline-block; padding: 6px 24px; border-radius: 18px;
+  background: var(--w-lime); color: #0e1300;
+  font-size: 54px; font-weight: 900; border: 2.5px solid #ffffff;
+  transform: rotate(1.2deg); box-shadow: 0 12px 36px rgba(199, 243, 3, 0.65);
+}
+.cover-hero-stage {
+  width: min(1000px, 100%); display: flex; align-items: center; justify-content: center; gap: 28px;
+  margin: 6px 0;
+}
+.cover-avatar-card {
+  position: relative; width: 410px; height: 520px;
+  border-radius: 34px; background: radial-gradient(circle at 50% 38%, rgba(34,211,238,0.26), rgba(7,13,28,0.95) 72%);
+  border: 2.5px solid rgba(199, 243, 3, 0.78);
+  box-shadow: 0 28px 65px rgba(0,0,0,0.88), 0 0 42px rgba(199, 243, 3, 0.28);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  overflow: hidden; padding-bottom: 14px;
+}
+.cover-avatar-aura {
+  position: absolute; width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(199,243,3,0.34) 0%, transparent 70%);
+  top: 45px; left: 50%; transform: translateX(-50%); pointer-events: none;
+}
+.cover-avatar-img {
+  width: 94%; height: 88%; object-fit: contain; object-position: bottom center;
+  filter: drop-shadow(0 16px 28px rgba(0,0,0,0.85)); z-index: 2;
+}
+.cover-avatar-tag {
+  z-index: 3; margin-top: -12px; padding: 7px 18px; border-radius: 999px;
+  background: rgba(5, 10, 20, 0.94); border: 1.5px solid var(--w-cyan-bright);
+  font-family: var(--mono); font-size: 14px; font-weight: 900; color: #fff;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.dot-live {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--w-lime);
+  box-shadow: 0 0 10px var(--w-lime);
+}
+.cover-iphone-tilted {
+  width: 350px; height: 540px; border-radius: 44px;
+  background: #050a14; border: 4.5px solid #38bdf8;
+  box-shadow: 0 32px 75px rgba(0,0,0,0.92), 0 0 42px rgba(34, 211, 238, 0.38);
+  position: relative; overflow: hidden; padding: 14px 12px;
+  display: flex; flex-direction: column; transform: rotate(3.5deg);
+}
+.iphone-ui-real {
+  flex: 1; border-radius: 32px; background: linear-gradient(180deg, #081226 0%, #030711 100%);
+  border: 1px solid rgba(255,255,255,0.16); padding: 42px 12px 12px 12px;
+  display: flex; flex-direction: column; gap: 10px; justify-content: space-between;
+}
+.ui-app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,0.06);
+}
+.ui-live-pill {
+  padding: 3px 10px; border-radius: 999px; background: rgba(199, 243, 3, 0.22);
+  border: 1px solid var(--w-lime); font-family: var(--mono); font-size: 11px; font-weight: 900; color: var(--w-lime);
+}
+.ui-kpi-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ui-kpi-mini {
+  background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(34,211,238,0.35);
+  border-radius: 10px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column;
+}
+.ui-kpi-mini .k-val { font-family: var(--mono); font-size: 14px; font-weight: 900; }
+.ui-kpi-mini .k-lbl { font-size: 10px; font-weight: 700; color: #94a3b8; }
+.ui-matrix-rows { display: flex; flex-direction: column; gap: 8px; }
+.ui-m-row {
+  background: rgba(10, 19, 38, 0.95); border-radius: 10px; padding: 8px 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.ui-m-txt { display: flex; flex-direction: column; text-align: left; }
+.ui-m-txt strong { font-size: 13px; font-weight: 800; color: #fff; line-height: 1.1; }
+.ui-m-txt span { font-size: 11px; color: #94a3b8; }
+.ui-m-badge {
+  padding: 3px 8px; border-radius: 6px; font-family: var(--mono); font-size: 10px; font-weight: 900;
+}
+.ui-tenshi-bar {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 12px;
+  background: linear-gradient(90deg, rgba(13,148,136,0.32), rgba(6,182,212,0.22));
+  border: 1px solid var(--w-cyan-bright); font-size: 12px; font-weight: 800; color: #e2e8f0;
+}
+.cover-badges-row {
+  width: min(980px, 100%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.cover-glass-badge {
+  padding: 16px 18px; border-radius: 22px;
+  background: rgba(7, 13, 28, 0.94); border: 2px solid rgba(34, 211, 238, 0.55);
+  box-shadow: 0 14px 32px rgba(0,0,0,0.75);
+  display: flex; align-items: center; gap: 12px;
+  font-size: 21px; font-weight: 800; color: #fff;
+}
+.cgb-ico { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.cover-footer-bar {
+  display: inline-flex; align-items: center; gap: 16px;
+  padding: 10px 34px; border-radius: 999px;
+  background: rgba(14, 19, 0, 0.95); border: 2.5px solid var(--w-lime);
+  box-shadow: 0 0 32px rgba(199, 243, 3, 0.4);
+  font-family: var(--mono); font-size: 22px; font-weight: 900;
+}
+.cf-domain { color: #ffffff; }
+.cf-sep { color: var(--w-cyan-bright); }
+.cf-cta { color: var(--w-lime); }
+
+.vs-badge-circle {
+  align-self: center; margin: -18px 0; z-index: 25;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: radial-gradient(circle, #c7f303 0%, #84cc16 100%);
+  color: #0e1300; font-family: var(--mono); font-size: 24px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  border: 3px solid #ffffff; box-shadow: 0 0 28px rgba(199, 243, 3, 0.8);
+}
+.tenshi-terminal-strip {
+  padding: 16px 22px; border-radius: 22px;
+  background: rgba(7, 16, 32, 0.95); border: 2px solid rgba(45, 212, 191, 0.65);
+  display: flex; align-items: center; gap: 16px;
+}
+.tt-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: contain; border: 2px solid var(--w-cyan-bright); background: #000; }
+.tt-body { flex: 1; text-align: left; }
+.tt-label { font-family: var(--mono); font-size: 14px; font-weight: 900; color: var(--w-cyan-bright); letter-spacing: 0.08em; }
+.tt-text { font-size: 21px; font-weight: 700; color: #f1f5f9; margin-top: 2px; }
+.tt-status {
+  padding: 6px 14px; border-radius: 999px; background: rgba(199,243,3,0.2);
+  border: 1.5px solid var(--w-lime); font-family: var(--mono); font-size: 15px; font-weight: 900; color: var(--w-lime);
+}
+.pill-svg-wrap { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ESQUINA SEGURA INFERIOR DERECHA — AVATAR 3D PRESENTADOR (NUNCA TAPA EL CENTRO NI USA FILLRECT) */
 #avatar-host-container {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: -22px;
+  left: auto;
+  right: 26px;
+  bottom: 24px;
   top: auto;
-  width: 720px;
-  height: 750px;
+  transform: none;
+  width: 285px;
+  height: 325px;
   pointer-events: none;
-  z-index: 30;
+  z-index: 28;
   background: transparent;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.avatar-3d-dock {
+  position: relative; width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+}
+.avatar-voice-halo {
+  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+  width: 230px; height: 230px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(199,243,3,0.32) 0%, rgba(34,211,238,0.18) 52%, transparent 72%);
+  border: 2.5px solid rgba(199, 243, 3, 0.65);
+  box-shadow: 0 0 36px rgba(199, 243, 3, 0.45);
+  pointer-events: none; z-index: 1;
+}
+.avatar-render-layer {
+  position: relative; width: 265px; height: 295px; z-index: 2;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.avatar-render-img {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; height: 100%; object-fit: contain; object-position: bottom center;
+  filter: drop-shadow(0 14px 24px rgba(0,0,0,0.88));
+  transition: opacity 0.22s ease;
+}
+.avatar-dock-pill {
+  position: relative; z-index: 4; margin-top: -8px;
+  padding: 5px 16px; border-radius: 999px;
+  background: rgba(5, 10, 22, 0.95); border: 1.5px solid var(--w-lime);
+  font-family: var(--mono); font-size: 13px; font-weight: 900; color: var(--w-lime);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.85);
+  display: inline-flex; align-items: center; gap: 6px;
 }
 
 /* ADAPTACIÓN HORIZONTAL 16:9 (1920x1080) */
 html[data-aspect-ratio="16:9"] .header-box {
-  top: 28px; left: 60px; right: 480px; align-items: flex-start; text-align: left;
+  top: 42px; left: 60px; right: 380px; align-items: flex-start; text-align: left;
 }
 html[data-aspect-ratio="16:9"] .title-hero {
-  font-size: 52px; max-width: 1320px;
+  font-size: 52px; max-width: 1380px;
 }
 html[data-aspect-ratio="16:9"] .sub-hero {
-  font-size: 24px; max-width: 1280px; -webkit-line-clamp: 1;
+  font-size: 24px; max-width: 1320px; -webkit-line-clamp: 1;
 }
 html[data-aspect-ratio="16:9"] .middle-container {
-  top: 215px; left: 60px; right: 500px; height: 810px;
+  top: 220px; left: 60px; right: 380px; height: 800px;
+}
+html[data-aspect-ratio="16:9"] .cover-layout {
+  inset: 52px 60px 28px 60px;
+}
+html[data-aspect-ratio="16:9"] .cover-hero-stage {
+  gap: 44px; transform: scale(0.84); margin: -24px 0;
 }
 html[data-aspect-ratio="16:9"] #avatar-host-container {
-  left: auto; right: -30px; top: 340px; bottom: auto; transform: none; width: 640px; height: 740px;
+  left: auto; right: 28px; bottom: 24px; top: auto; transform: none; width: 310px; height: 355px;
 }
 ${customCssBlock}
 </style>
@@ -1785,8 +2302,15 @@ ${customCssBlock}
 <body>
 <div id="viewport">
   <div id="stage" data-wappy-master-reel="true" data-aspect-ratio="${aspectRatio}">
-    ${hasBaseVideo ? '' : '<div class="bg-cyber-grid"></div><div class="ambient-orb orb-teal"></div><div class="ambient-orb orb-cyan"></div><div class="ambient-orb orb-lime"></div>'}
+    ${hasBaseVideo ? '' : '<div class="bg-cyber-grid"></div><canvas id="particles-canvas"></canvas><div class="ambient-orb orb-teal"></div><div class="ambient-orb orb-cyan"></div><div class="ambient-orb orb-lime"></div>'}
     <div id="top-progress-bar"></div>
+    <div id="hud-top-bar">
+      <div class="hud-top-left">
+        <span class="dot-live"></span>
+        <span>ECOSISTEMA IA · SG-SST</span>
+      </div>
+      <div class="hud-top-right">WAPPY.CLUB</div>
+    </div>
     <div class="scanline-beam" id="scanline"></div>
 
     <div class="eq-container">
@@ -1853,6 +2377,58 @@ ${voxelAvatarJs}
   var STAGE_W = ${stageW};
   var STAGE_H = ${stageH};
 
+  // Constelación de partículas conectadas estilo WAPPY_IA_Plataforma_40s_SinSubtitulos
+  var pCanvas = document.getElementById('particles-canvas');
+  var pCtx = pCanvas ? pCanvas.getContext('2d') : null;
+  var particles = [];
+  if (pCanvas) {
+    pCanvas.width = STAGE_W;
+    pCanvas.height = STAGE_H;
+    for (var pi = 0; pi < 56; pi++) {
+      particles.push({
+        x: ((pi * 197) % STAGE_W),
+        y: ((pi * 311) % STAGE_H),
+        vx: ((pi % 2 === 0 ? 1 : -1) * (14 + (pi % 15))),
+        vy: ((pi % 3 === 0 ? -1 : 1) * (10 + (pi % 12))),
+        r: 2 + (pi % 3),
+        lime: pi % 3 === 0
+      });
+    }
+  }
+  function renderConstellationAt(t) {
+    if (!pCtx || !pCanvas) return;
+    pCtx.clearRect(0, 0, STAGE_W, STAGE_H);
+    var pos = [];
+    for (var i = 0; i < particles.length; i++) {
+      var pt = particles[i];
+      var px = (pt.x + pt.vx * t) % STAGE_W;
+      var py = (pt.y + pt.vy * t) % STAGE_H;
+      if (px < 0) px += STAGE_W;
+      if (py < 0) py += STAGE_H;
+      pos.push({ x: px, y: py, r: pt.r, lime: pt.lime });
+      pCtx.beginPath();
+      pCtx.arc(px, py, pt.r, 0, Math.PI * 2);
+      pCtx.fillStyle = pt.lime ? 'rgba(199, 243, 3, 0.65)' : 'rgba(34, 211, 238, 0.55)';
+      pCtx.fill();
+    }
+    pCtx.lineWidth = 1.2;
+    for (var a = 0; a < pos.length; a++) {
+      for (var b = a + 1; b < pos.length; b++) {
+        var dx = pos[a].x - pos[b].x;
+        var dy = pos[a].y - pos[b].y;
+        var distSq = dx * dx + dy * dy;
+        if (distSq < 26000) {
+          var alpha = (1 - distSq / 26000) * 0.24;
+          pCtx.strokeStyle = 'rgba(34, 211, 238, ' + alpha.toFixed(3) + ')';
+          pCtx.beginPath();
+          pCtx.moveTo(pos[a].x, pos[a].y);
+          pCtx.lineTo(pos[b].x, pos[b].y);
+          pCtx.stroke();
+        }
+      }
+    }
+  }
+
   // Escalar el escenario automáticamente al viewport de cualquier pantalla o iframe sin franjas negras
   function fitStageToViewport() {
     var vp = document.getElementById('viewport');
@@ -1896,31 +2472,28 @@ ${voxelAvatarJs}
   var scenes = ${scenesTimingJson};
   var vozData = window.VOZ || [];
 
-  // Inicializar Avatar 3D Minecraft Voxel (Three.js) en #avatar-host-container
+  // Inicializar Avatar 3D de Alta Resolución del Brandbook en #avatar-host-container (CERO muñecos 2D fillRect)
   var avatarHost = document.getElementById('avatar-host-container');
-  var voxelAvatar = null;
-  var fallbackCanvas = null;
-  var fallbackCtx = null;
+  var avatarHaloEl = null;
+  var avatarRenderLayer = null;
+  var imgTalkEl = null;
+  var imgPointEl = null;
 
   function initAvatar3D() {
     if (!avatarHost) return;
-    try {
-      if (typeof window.WappyAvatarVoxel3D === 'function' && typeof window.THREE !== 'undefined') {
-        avatarHost.innerHTML = '';
-        voxelAvatar = new window.WappyAvatarVoxel3D({
-          ancho: 720,
-          alto: 760,
-          parent: avatarHost
-        });
-        return;
-      }
-    } catch (err) {
-      voxelAvatar = null;
-    }
-    // Fallback Canvas 2D Voxel si WebGL está deshabilitado en un contenedor sin GPU
-    avatarHost.innerHTML = '<canvas id="avatar-fallback-2d" width="720" height="760" style="width:720px;height:760px;display:block;"></canvas>';
-    fallbackCanvas = document.getElementById('avatar-fallback-2d');
-    if (fallbackCanvas) fallbackCtx = fallbackCanvas.getContext('2d');
+    avatarHost.innerHTML =
+      '<div class="avatar-3d-dock">' +
+        '<div class="avatar-voice-halo" id="avatar-voice-ring"></div>' +
+        '<div class="avatar-render-layer" id="avatar-render-layer">' +
+          '<img id="avatar-img-talk" class="avatar-render-img" src="/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png" alt="Avatar 3D">' +
+          '<img id="avatar-img-point" class="avatar-render-img" src="/assets/brandbook/avatar_mauricio_voxel_cuerpo_completo.png" alt="Avatar Voxel 3D" style="opacity:0;">' +
+        '</div>' +
+        '<div class="avatar-dock-pill"><span class="dot-live"></span> AVATAR 3D · IA</div>' +
+      '</div>';
+    avatarHaloEl = document.getElementById('avatar-voice-ring');
+    avatarRenderLayer = document.getElementById('avatar-render-layer');
+    imgTalkEl = document.getElementById('avatar-img-talk');
+    imgPointEl = document.getElementById('avatar-img-point');
   }
   initAvatar3D();
 
@@ -1969,42 +2542,6 @@ ${voxelAvatarJs}
       }
       vozData = rmsArr.map(function(v) { return Math.min(1, v / (maxR * 0.65)); });
       window.VOZ = vozData;
-
-      // Detectar silencios reales (>= 0.22s) y ajustar bordes de escenas automáticamente
-      var sils = [];
-      var inS = false, sStart = 0;
-      for (var f2 = 0; f2 < vozData.length; f2++) {
-        if (vozData[f2] < 0.045) {
-          if (!inS) { inS = true; sStart = f2 / fps; }
-        } else if (inS) {
-          var sEnd = f2 / fps;
-          if (sEnd - sStart >= 0.22 && sStart > 0.6 && sEnd < realDur - 0.6) {
-            sils.push({ start: sStart, end: sEnd, mid: (sStart + sEnd) / 2, dur: sEnd - sStart });
-          }
-          inS = false;
-        }
-      }
-      if (scenes.length > 1 && sils.length > 0) {
-        var used = {};
-        for (var scI = 0; scI < scenes.length - 1; scI++) {
-          var exp = scenes[scI].end;
-          var best = null, bestSc = 999;
-          for (var k = 0; k < sils.length; k++) {
-            if (used[k]) continue;
-            var d = Math.abs(sils[k].mid - exp);
-            if (d < 2.5 && (d - sils[k].dur * 0.6) < bestSc) {
-              bestSc = d - sils[k].dur * 0.6;
-              best = { sil: sils[k], k: k };
-            }
-          }
-          if (best) {
-            used[best.k] = true;
-            scenes[scI].end = Number(best.sil.mid.toFixed(2));
-            scenes[scI + 1].start = scenes[scI].end;
-          }
-        }
-        scenes[scenes.length - 1].end = Number(realDur.toFixed(2));
-      }
     } catch (e) {}
   }
   window.addEventListener('DOMContentLoaded', analyzeEmbeddedWavIfNeeded);
@@ -2020,114 +2557,53 @@ ${voxelAvatarJs}
   }
 
   function isPointingMoment(t, activeSceneIdx) {
-    if (activeSceneIdx < 0 || activeSceneIdx >= scenes.length) return false;
+    if (activeSceneIdx <= 0 || activeSceneIdx >= scenes.length) return false;
     var sc = scenes[activeSceneIdx];
     var dt = t - sc.start;
-    // En cada escena el Avatar señala hacia las tarjetas/iPhone durante los primeros 3.6 segundos de explicación
-    return dt >= 0.35 && dt <= Math.min(sc.end - sc.start - 0.3, 4.2);
+    return dt >= 0.45 && dt <= Math.min(sc.end - sc.start - 0.3, 3.6);
   }
 
   function updateAvatarAt(t, activeSceneIdx) {
     if (!avatarHost) return;
+    var coverEnd = scenes[0] && scenes[0].archetype === 'magnetic-cover-2s' ? scenes[0].end : 0;
+    // Durante la Portada Magnética (0..coverEnd) el Avatar grande ya está en el escenario central (#scene-0)
+    if (t < coverEnd - 0.18) {
+      avatarHost.style.opacity = '0';
+      return;
+    }
     var nv = getVoiceLevel(t);
     var isTalking = nv > 0.045;
     var isPointing = isPointingMoment(t, activeSceneIdx);
-    var theta = t * Math.PI * 1.55;
+    var pEnter = clamp((t - (coverEnd - 0.18)) / 0.45);
+    var spEnter = E.spring(pEnter);
 
-    var pIn = clamp(t / 0.55);
-    var sIn = lerp(0.88, 1.04, E.out3(pIn));
-    var yIn = (1 - E.out3(pIn)) * 28;
-    avatarHost.style.transform = 'translateY(' + yIn.toFixed(1) + 'px) scale(' + sIn.toFixed(4) + ')';
-    avatarHost.style.opacity = clamp(pIn * 1.5).toFixed(3);
+    var floatY = Math.sin(t * 3.4) * 5.5 - (isTalking ? nv * 6 : 0);
+    var tiltDeg = Math.sin(t * 2.1) * 1.8 + (isPointing ? -2.2 : 0);
+    var talkScale = 1 + (isTalking ? nv * 0.045 : 0);
 
-    if (voxelAvatar && voxelAvatar.renderer) {
-      var boca = isTalking
-        ? clamp(0.28 + nv * 0.85 + 0.22 * Math.abs(Math.sin(t * 19)))
-        : 0.12;
+    avatarHost.style.opacity = clamp(pEnter * 1.8).toFixed(3);
+    avatarHost.style.transform =
+      'translateY(' + ((1 - spEnter) * 45 + floatY).toFixed(1) + 'px) scale(' + (lerp(0.85, 1, spEnter) * talkScale).toFixed(4) + ')';
 
-      voxelAvatar.root.position.y = Math.sin(theta * 2) * 0.030;
-      voxelAvatar.root.rotation.y = isPointing
-        ? (-0.16 + Math.sin(theta) * 0.08)
-        : (-0.08 + Math.sin(theta) * 0.11);
-
-      voxelAvatar.headGroup.rotation.x = (isPointing ? -0.06 : 0) + Math.sin(theta * 2) * 0.038 + (boca - 0.15) * 0.05;
-      voxelAvatar.headGroup.rotation.y = (isPointing ? 0.10 : 0) + Math.sin(theta + 0.5) * 0.10;
-      voxelAvatar.headGroup.rotation.z = Math.cos(theta) * 0.028;
-
-      var blinkMod = t % 3.4;
-      var blinkScale = (blinkMod > 3.22 && blinkMod < 3.36) ? 0.08 : 1.0;
-      voxelAvatar.eyeL.scale.y = blinkScale;
-      voxelAvatar.eyeR.scale.y = blinkScale;
-
-      var browLift = (boca - 0.15) * 0.05;
-      voxelAvatar.browL.position.y = 0.39 + browLift;
-      voxelAvatar.browR.position.y = 0.39 + browLift;
-
-      voxelAvatar.mouthGroup.scale.y = lerp(0.35, 1.38, clamp(boca));
-      voxelAvatar.mouthGroup.scale.x = lerp(1.04, 0.90, clamp(boca * 0.6));
-
-      voxelAvatar.brazoIzq.pivote.rotation.x = -0.22 + Math.sin(theta * 2) * 0.12 + (boca - 0.15) * 0.04;
-      voxelAvatar.brazoIzq.pivote.rotation.z = -0.10 + Math.cos(theta) * 0.04;
-      voxelAvatar.brazoIzq.antebrazo.rotation.x = -0.25;
-      voxelAvatar.brazoIzq.dedoIndice.scale.y = 0.55;
-
-      if (isPointing) {
-        voxelAvatar.brazoDer.pivote.rotation.x = -2.38 + Math.sin(theta * 2) * 0.08;
-        voxelAvatar.brazoDer.pivote.rotation.z = 0.28 + Math.cos(theta * 2) * 0.04;
-        voxelAvatar.brazoDer.antebrazo.rotation.x = -0.35 + Math.sin(theta * 2) * 0.06;
-        voxelAvatar.brazoDer.dedoIndice.scale.y = 1.45;
-      } else {
-        voxelAvatar.brazoDer.pivote.rotation.x = -0.24 - Math.sin(theta * 2) * 0.13 - (boca - 0.15) * 0.04;
-        voxelAvatar.brazoDer.pivote.rotation.z = 0.10 + Math.sin(theta) * 0.04;
-        voxelAvatar.brazoDer.antebrazo.rotation.x = -0.28;
-        voxelAvatar.brazoDer.dedoIndice.scale.y = 0.55;
-      }
-
-      voxelAvatar.renderer.render(voxelAvatar.scene, voxelAvatar.camera);
-    } else if (fallbackCtx) {
-      // Fallback 2D Voxel en caso de servidor sin WebGL
-      fallbackCtx.clearRect(0, 0, 720, 760);
-      var by = Math.sin(t * 4) * 5;
-      fallbackCtx.save();
-      fallbackCtx.translate(360, 420 + by);
-      // Camisa a cuadros amarilla/oscura
-      fallbackCtx.fillStyle = '#f5c71a';
-      fallbackCtx.fillRect(-130, 0, 260, 240);
-      fallbackCtx.fillStyle = '#182032';
-      fallbackCtx.fillRect(-130, 45, 260, 28);
-      fallbackCtx.fillRect(-130, 115, 260, 28);
-      fallbackCtx.fillRect(-38, 0, 76, 240);
-      fallbackCtx.fillStyle = '#ffffff';
-      fallbackCtx.fillRect(-34, 0, 68, 220);
-      // Cabeza Voxel
-      fallbackCtx.fillStyle = '#eab38f';
-      fallbackCtx.fillRect(-110, -210, 220, 195);
-      // Cabello Pompadour
-      fallbackCtx.fillStyle = '#3b2213';
-      fallbackCtx.fillRect(-118, -255, 236, 56);
-      fallbackCtx.fillRect(-85, -280, 170, 30);
-      // Gafas
-      fallbackCtx.fillStyle = '#12141a';
-      fallbackCtx.strokeStyle = '#12141a';
-      fallbackCtx.lineWidth = 10;
-      fallbackCtx.strokeRect(-88, -150, 74, 48);
-      fallbackCtx.strokeRect(14, -150, 74, 48);
-      fallbackCtx.fillRect(-14, -134, 28, 10);
-      // Barba y boca lip-sync
-      fallbackCtx.fillStyle = '#2d180c';
-      fallbackCtx.fillRect(-112, -62, 224, 48);
-      fallbackCtx.fillRect(-62, -84, 124, 20);
-      var mH = isTalking ? 10 + nv * 22 : 6;
-      fallbackCtx.fillStyle = '#3a0f14';
-      fallbackCtx.fillRect(-32, -66, 64, mH);
-      fallbackCtx.fillStyle = '#ffffff';
-      fallbackCtx.fillRect(-26, -66, 52, 5);
-      fallbackCtx.restore();
+    if (avatarRenderLayer) {
+      avatarRenderLayer.style.transform = 'rotate(' + tiltDeg.toFixed(2) + 'deg)';
+    }
+    if (avatarHaloEl) {
+      var hScale = 0.94 + nv * 0.26 + Math.sin(t * 5) * 0.04;
+      avatarHaloEl.style.transform = 'translateX(-50%) scale(' + hScale.toFixed(3) + ')';
+      avatarHaloEl.style.borderColor = isTalking ? '#c7f303' : '#22d3ee';
+    }
+    if (imgTalkEl && imgPointEl) {
+      imgTalkEl.style.opacity = isPointing ? '0' : '1';
+      imgPointEl.style.opacity = isPointing ? '1' : '0';
     }
   }
 
   function renderFrame(t) {
     var safeT = clamp(t, 0, TOTAL_DUR);
+
+    // 0. Constelación de partículas 60 FPS
+    renderConstellationAt(safeT);
 
     // 1. Barra de progreso superior
     var pBar = document.getElementById('top-progress-bar');
@@ -2194,16 +2670,30 @@ ${voxelAvatarJs}
           sceneScale = lerp(0.94, 1.0, inP);
         } else if (!sc.isLast && safeT > sc.end - 0.34) {
           var outP = E.in3((safeT - (sc.end - 0.34)) / 0.34);
-          sceneScale = 1 + outP * 0.28; // Transición Zoom-Through
+          sceneScale = 1 + outP * (sc.archetype === 'magnetic-cover-2s' ? 0.55 : 0.28); // Transición Zoom-Through
           op = 1 - outP;
         }
         el.style.opacity = clamp(op).toFixed(3);
         el.style.transform = Math.abs(sceneScale - 1) > 0.002 ? 'scale(' + sceneScale.toFixed(3) + ')' : 'none';
 
+        if (sc.archetype === 'magnetic-cover-2s') {
+          var s0Hero = document.getElementById('s0-hero');
+          var s0Badges = document.getElementById('s0-badges');
+          if (s0Hero) {
+            var floatCover = Math.sin(safeT * 3.2) * 5;
+            s0Hero.style.transform = 'translateY(' + floatCover.toFixed(1) + 'px)';
+          }
+          if (s0Badges) {
+            var pB = clamp(dt / 0.38);
+            s0Badges.style.transform = 'scale(' + lerp(0.94, 1.0, E.out3(pB)).toFixed(3) + ')';
+          }
+          continue;
+        }
+
         // Animación del Header de la escena
         var hBox = document.getElementById('s' + num + '-header');
         if (hBox) {
-          var pH = i === 0 ? 1 : clamp(dt / 0.45);
+          var pH = clamp(dt / 0.45);
           hBox.style.opacity = clamp(pH * 1.8).toFixed(2);
           hBox.style.transform = 'translateY(' + ((1 - E.spring(pH)) * -42).toFixed(1) + 'px)';
         }

@@ -3203,14 +3203,49 @@ function inlineWappyPublicAssetsInHtml(rawHtml, { inlineVendorScripts = false } 
   if (!rawHtml || typeof rawHtml !== 'string') return '';
   let html = rawHtml;
   const assetMap = [
-    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?tenshi\.png(["')])/gi, rel: 'assets/wappy/tenshi.png' },
-    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?felix_avatar_3d\.png(["')])/gi, rel: 'assets/wappy/felix_avatar_3d.png' },
-    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?wappy-cat-logo\.png(["')])/gi, rel: 'assets/wappy/wappy-cat-logo.png' },
-    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?antigravity_logo\.png(["')])/gi, rel: 'assets/wappy/antigravity_logo.png' },
-    { regex: /(["'(])(?:\.\/|\/)?assets\/Wappy\.png(["')])/gi, rel: 'assets/Wappy.png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?tenshi\.png(["')])/gi, rel: 'assets/wappy/tenshi.png', mime: 'image/png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?felix_avatar_3d\.png(["')])/gi, rel: 'assets/wappy/felix_avatar_3d.png', mime: 'image/png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?wappy-cat-logo\.png(["')])/gi, rel: 'assets/wappy/wappy-cat-logo.png', mime: 'image/png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/(?:wappy\/)?antigravity_logo\.png(["')])/gi, rel: 'assets/wappy/antigravity_logo.png', mime: 'image/png' },
+    { regex: /(["'(])(?:\.\/|\/)?assets\/Wappy\.png(["')])/gi, rel: 'assets/Wappy.png', mime: 'image/png' },
+    {
+      regex: /(["'(])(?:\.\/|\/)?assets\/brandbook\/avatar2_mauricio_camisa_cuadros_amarilla\.png(["')])/gi,
+      rel: 'assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png',
+      mime: 'image/png',
+    },
+    {
+      regex: /(["'(])(?:\.\/|\/)?assets\/brandbook\/avatar_mauricio_voxel_cuerpo_completo\.png(["')])/gi,
+      rel: 'assets/brandbook/avatar_mauricio_voxel_cuerpo_completo.png',
+      mime: 'image/png',
+    },
+    {
+      regex: /(["'(])(?:\.\/|\/)?assets\/brandbook\/avatar_mauricio_voxel_senalando\.jpg(["')])/gi,
+      rel: 'assets/brandbook/avatar_mauricio_voxel_senalando.jpg',
+      mime: 'image/jpeg',
+    },
+    {
+      regex: /(["'(])(?:\.\/|\/)?assets\/brandbook\/mascota_tenshi_3d\.png(["')])/gi,
+      rel: 'assets/brandbook/mascota_tenshi_3d.png',
+      mime: 'image/png',
+    },
+    {
+      regex: /(["'(])(?:\.\/|\/)?assets\/brandbook\/logo_oficial_vertical_esmeralda\.png(["')])/gi,
+      rel: 'assets/brandbook/logo_oficial_vertical_esmeralda.png',
+      mime: 'image/png',
+    },
+    {
+      regex: /(["'(])(?:\.\/|\/)?assets\/brandbook\/wordmark_wappy_3d\.png(["')])/gi,
+      rel: 'assets/brandbook/wordmark_wappy_3d.png',
+      mime: 'image/png',
+    },
+    {
+      regex: /(["'(])(?:\.\/|\/)?assets\/brandbook\/isotipo_w_favicon\.png(["')])/gi,
+      rel: 'assets/brandbook/isotipo_w_favicon.png',
+      mime: 'image/png',
+    },
   ];
   for (const item of assetMap) {
-    const dataUri = getPublicAssetDataUri(item.rel, 'image/png');
+    const dataUri = getPublicAssetDataUri(item.rel, item.mime || 'image/png');
     if (dataUri) {
       html = html.replace(item.regex, (_, q1, q2) => `${q1}${dataUri}${q2}`);
     }
@@ -3229,6 +3264,20 @@ function inlineWappyPublicAssetsInHtml(rawHtml, { inlineVendorScripts = false } 
       html = html.replace(
         /<script[^>]*src=["'][^"']*gsap(\.min)?\.js["'][^>]*>\s*<\/script>/gi,
         () => `<script id="wappy-inline-gsap">${escapeInline(gsapCode)}</script>`,
+      );
+    }
+    const brandCode = getPublicAssetText('assets/wappy/wappy-brand.js');
+    if (brandCode) {
+      html = html.replace(
+        /<script[^>]*src=["'][^"']*wappy-brand\.js["'][^>]*>\s*<\/script>/gi,
+        () => `<script id="wappy-inline-brand">${escapeInline(brandCode)}</script>`,
+      );
+    }
+    const fx17Code = getPublicAssetText('assets/wappy/efectos-17-reels.js');
+    if (fx17Code) {
+      html = html.replace(
+        /<script[^>]*src=["'][^"']*efectos-17-reels\.js["'][^>]*>\s*<\/script>/gi,
+        () => `<script id="wappy-inline-fx17">${escapeInline(fx17Code)}</script>`,
       );
     }
   }
@@ -4753,37 +4802,19 @@ async function handleGenerateMasterReelHtml(req, res) {
           .join('\n')
       : '';
 
-    // Delegar de inmediato al Antigravity local conectado con la duración real del audio WAV
+    // Notificar al puente Antigravity en segundo plano pero SIEMPRE compilar y devolver de inmediato
+    // el Master Reel 60-FPS determinista (con efectos-17-reels.js, wappy-brand.js, WappyAvatarVoxel3D y Brandbook 3D)
     const resolvedTarget = await resolveStudioTargetUser(req);
-    const delegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
-      title: `Wappy Studio · Generar Animación 60-FPS (${aspectRatio})`,
-      instruction: `${superPrompt || prompt || effectiveScript}\n\n[SINCRONIZACIÓN OFICIAL DE AUDIO WAV PASO 01 — DURACIÓN EXACTA OBLIGATORIA: ${realTotalSec} SEGUNDOS]:\n${syncedBeatsSummary}\n\n[DIRECTRIZ OBLIGATORIA WAPPY STUDIO 60-FPS — LIENZO DE VIDEO PURO]:\n1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos y textos ya están incluidos arriba) para responder con velocidad instantánea.\n2. Genera ÚNICAMENTE un lienzo de video animado HTML5 + GSAP a 60 FPS dentro de <div id="stage" data-wappy-master-reel="true"> en formato ${aspectRatio} (${aspectRatio === '16:9' ? '1920x1080' : '1080x1920'} con auto-escalado responsivo al viewport 100vw x 100vh y overflow:hidden), SIN barras laterales de escritorio, SIN tablas externas y SIN dashboards alrededor del video.\n3. La duración total de window.mainTimeline DEBE SER EXACTAMENTE ${realTotalSec} segundos (TOTAL_DURATION = ${realTotalSec}), respetando los tiempos exactos de cada escena de arriba. PROHIBIDO usar window.speechSynthesis (voz robótica del navegador) porque el reproductor de Wappy Studio reproduce en paralelo el audio neural de 24kHz del Paso 01.\n4. Expon window.mainTimeline (GSAP timeline pausable/reiniciable) e incluye controles de reproducción (Reiniciar, -5s, Play/Pausa, +5s y barra de progreso) además de soportar postMessage STUDIO_PLAY, STUDIO_PAUSE, STUDIO_RESTART, STUDIO_SEEK y STUDIO_SYNC_TIME.\n5. PROHIBIDO reutilizar archivos HTML de órdenes anteriores: crea un archivo nuevo y completa la orden inmediatamente con wappy_completar_orden_delegada_tenshi (formato="html", contenido="<!DOCTYPE html>...").`,
-      outputType: 'html',
-    });
-
-    // Si Antigravity está conectado en vivo, responder de inmediato (<50ms) para que el Monitor en Vivo
-    // active el estado de espera en tiempo real y reciba el HTML compilado por Antigravity sin demora.
-    if (delegation?.delegated && Number(delegation?.daemonsConectados) > 0) {
-      const bridge = notifyStudioAntigravityBridge(
-        req,
-        'html_delegated',
-        {
-          aspectRatio,
-          durationSeconds: realTotalSec,
-          ordenId: delegation.ordenId,
-        },
-        resolvedTarget.userId,
-      );
-      return res.json({
-        ok: true,
-        success: true,
-        delegatedToAntigravity: true,
-        htmlCode: '',
-        timelineMap,
-        delegation,
-        bridge,
-      });
-    }
+    notifyStudioAntigravityBridge(
+      req,
+      'html_compiling',
+      {
+        aspectRatio,
+        durationSeconds: realTotalSec,
+      },
+      resolvedTarget.userId,
+    );
+    const delegation = { delegated: false, mode: 'direct-master-reel-60fps' };
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
     const keysToUse = allKeys.slice(0, 4);
@@ -5213,9 +5244,9 @@ async function handleRenderMasterReelMp4(req, res) {
     }
 
     const isVertical = aspectRatio !== '16:9';
-    const width = isVertical ? 540 : 960;
-    const height = isVertical ? 960 : 540;
-    let safeDuration = Math.min(60, Math.max(3, Number(durationSeconds) || 12));
+    const width = isVertical ? 720 : 1280;
+    const height = isVertical ? 1280 : 720;
+    let safeDuration = Math.min(90, Math.max(3, Number(durationSeconds) || 12));
 
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wappy-studio-mp4-'));
     const outputMp4Path = path.join(tempDir, 'output.mp4');
@@ -5235,22 +5266,20 @@ async function handleRenderMasterReelMp4(req, res) {
       try {
         timelineMap = alignTimelineMapWithWavBuffer(timelineMap, wavBuf);
         if (timelineMap.totalDurationSeconds > 3) {
-          safeDuration = Math.min(60, timelineMap.totalDurationSeconds);
+          safeDuration = Math.min(90, timelineMap.totalDurationSeconds);
         }
       } catch (_) {}
     }
 
-    // Ajustar FPS inteligentemente para que videos largos (30-45s) se rendericen en ~8-12 segundos sin timeout de Cloudflare
-    const defaultFps = safeDuration > 20 ? 12 : 15;
-    const targetFps = Math.min(20, Math.max(10, Number(fps) || defaultFps));
+    // Mantener fluidez cinematográfica sin exceder tiempos de respuesta
+    const defaultFps = safeDuration > 35 ? 20 : 24;
+    const targetFps = Math.min(30, Math.max(15, Number(fps) || defaultFps));
     const totalFrames = Math.max(1, Math.round(safeDuration * targetFps));
     const cleanWords = timelineMap.wordTimings.map((w) => w.word);
 
     const renderHarnessScript = `
 <style id="wappy-mp4-render-styles">
   ${showSubtitles && cleanWords.length > 0 ? '#subtitle-footer, #subtitle-card, #subtitle-container, #subtitle-box, footer[id*="subtitle"] { display: none !important; }' : ''}
-  #orb-1, #orb-2, #orb-3, [class*="blur-"] { filter: blur(18px) !important; }
-  .glass-panel, .glass-card, .glass-panel-amber { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 </style>
 <script id="wappy-mp4-render-harness">
   window.__wappyWords = ${JSON.stringify(cleanWords)};
@@ -5347,8 +5376,10 @@ async function handleRenderMasterReelMp4(req, res) {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
+        '--enable-webgl',
+        '--ignore-gpu-blocklist',
+        '--use-gl=angle',
+        '--use-angle=swiftshader',
         '--no-first-run',
         '--no-zygote',
       ],
