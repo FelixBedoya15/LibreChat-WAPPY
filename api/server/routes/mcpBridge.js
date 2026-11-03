@@ -9852,6 +9852,7 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
     // Si se consultan órdenes pendientes sin un ID específico, expirar tareas antiguas (> 10 min) y excluir image_priority
     if ((rawStatus === 'todo' || rawStatus === 'pendiente' || rawStatus === 'pendientes' || rawStatus === 'pending') && !targetQueryId) {
       const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
       await KanbanTask.updateMany(
         {
           user: targetUserId,
@@ -9859,7 +9860,7 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
           status: { $in: ['todo', 'in_progress'] },
           $or: [
             { createdAt: { $lt: tenMinAgo } },
-            { sourceModule: 'image_priority' },
+            { sourceModule: 'image_priority', createdAt: { $lt: twoMinAgo } },
           ],
         },
         { $set: { status: 'dismissed' } }

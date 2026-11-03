@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
 export default function WappyPodcastPage() {
-  const [iframeSrc, setIframeSrc] = useState<string>('/assets/wappypodcast.html');
+  const [iframeSrc, setIframeSrc] = useState<string>('/assets/wappypodcast.html?v=20261103c');
 
   useEffect(() => {
     let cancelled = false;
     // Comprobar si /wappypodcast.html se sirve como archivo standalone (no como el index.html de la SPA)
-    fetch('/wappypodcast.html', { cache: 'no-store' })
+    fetch('/wappypodcast.html?v=20261103c', { cache: 'no-store' })
       .then((res) => (res.ok ? res.text() : ''))
       .then((html) => {
         if (cancelled) return;
@@ -16,7 +16,7 @@ export default function WappyPodcastPage() {
           !html.includes('<div id="root">')
         ) {
           if (window.location.pathname !== '/wappypodcast.html') {
-            setIframeSrc('/wappypodcast.html');
+            setIframeSrc('/wappypodcast.html?v=20261103c');
           } else {
             document.open();
             document.write(html);
@@ -24,7 +24,7 @@ export default function WappyPodcastPage() {
           }
         } else {
           // Fallback a /assets/wappypodcast.html servido estáticamente
-          fetch('/assets/wappypodcast.html', { cache: 'no-store' })
+          fetch('/assets/wappypodcast.html?v=20261103c', { cache: 'no-store' })
             .then((r) => (r.ok ? r.text() : ''))
             .then((assetHtml) => {
               if (cancelled || !assetHtml) return;

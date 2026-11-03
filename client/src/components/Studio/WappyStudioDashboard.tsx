@@ -63,6 +63,11 @@ import WappyApplePodcastsShelf, {
   PodcastShowPreset,
   WAPPY_PODCAST_SHOWS,
 } from './WappyApplePodcastsShelf';
+import { installPortableStudioApi } from '~/portable/studio/portableApi';
+
+if (typeof window !== 'undefined') {
+  installPortableStudioApi();
+}
 
 // ============================================================================
 // TIPOS E INTERFACES
@@ -97,6 +102,10 @@ interface StudioVoice {
   languageCode?: string;
   type?: string;
   sampleAudioBase64?: string;
+  sourceAudioBase64?: string;
+  refTranscript?: string;
+  nativeMethod?: string;
+  nativeVoiceId?: string;
 }
 
 /**
@@ -2614,14 +2623,40 @@ export default function WappyStudioDashboard({
 
   // Estado del Estudio TTS
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.8-flash-tts');
-  const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => {
+    try {
+      const savedVoice = localStorage.getItem('wappy_studio_selected_voice');
+      if (savedVoice) return savedVoice;
+      const rawClones = localStorage.getItem('wappy_studio_cloned_voices_v1');
+      const parsedClones = rawClones ? JSON.parse(rawClones) : [];
+      if (Array.isArray(parsedClones) && parsedClones[0]?.id) {
+        return String(parsedClones[0].id);
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'Kore';
+  });
   const [stylePrompt, setStylePrompt] = useState<string>(
     podcastOnly
       ? 'Diálogo interactivo de podcast entre dos especialistas con alternancia natural.'
       : 'Voz cálida, serena, clara y envolvente de narradora profesional de audiolibros y cursos formativos, con ritmo fluido.',
   );
   const [multiSpeaker, setMultiSpeaker] = useState<boolean>(podcastOnly ? true : false);
-  const [speaker1Voice, setSpeaker1Voice] = useState<string>('Puck');
+  const [speaker1Voice, setSpeaker1Voice] = useState<string>(() => {
+    try {
+      const savedSpk1 = localStorage.getItem('wappy_studio_speaker1_voice');
+      if (savedSpk1) return savedSpk1;
+      const rawClones = localStorage.getItem('wappy_studio_cloned_voices_v1');
+      const parsedClones = rawClones ? JSON.parse(rawClones) : [];
+      if (Array.isArray(parsedClones) && parsedClones[0]?.id) {
+        return String(parsedClones[0].id);
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'Puck';
+  });
   const [speaker2Voice, setSpeaker2Voice] = useState<string>('Kore');
   const [wordsPerChunk, setWordsPerChunk] = useState<number>(150);
   const [scriptText, setScriptText] = useState<string>(
@@ -2712,17 +2747,53 @@ export default function WappyStudioDashboard({
     return clean.trim();
   };
 
+  const isCustomVoiceId = (vid?: string) => {
+    const clean = String(vid || '').trim();
+    if (!clean) return false;
+    return (
+      clean.startsWith('wappy_clone_') ||
+      clean.startsWith('voice_') ||
+      clean.startsWith('voicekey_')
+    );
+  };
+
+  useEffect(() => {
+    try {
+      if (selectedVoice) localStorage.setItem('wappy_studio_selected_voice', selectedVoice);
+    } catch {
+      /* ignore */
+    }
+  }, [selectedVoice]);
+
+  useEffect(() => {
+    try {
+      if (speaker1Voice) localStorage.setItem('wappy_studio_speaker1_voice', speaker1Voice);
+    } catch {
+      /* ignore */
+    }
+  }, [speaker1Voice]);
+
   const handleSelectApplePodcastShow = (show: PodcastShowPreset, autoSynthesize = false) => {
     setSelectedApplePodcastId(show.id);
     setEditingLibraryItemId(null);
     setActivePodcastEpisodeTitle(show.title);
     setPodcastTopicInstruction(show.topicPrompt || '');
     setMultiSpeaker(show.dualSpeaker);
+    const keepSpk1 = isCustomVoiceId(speaker1Voice)
+      ? speaker1Voice
+      : isCustomVoiceId(selectedVoice)
+        ? selectedVoice
+        : show.voiceId;
+    const keepSolo = isCustomVoiceId(selectedVoice)
+      ? selectedVoice
+      : isCustomVoiceId(speaker1Voice)
+        ? speaker1Voice
+        : show.voiceId;
     if (show.dualSpeaker) {
-      setSpeaker1Voice(show.voiceId);
+      setSpeaker1Voice(keepSpk1);
       setSpeaker2Voice(show.secondVoiceId);
     } else {
-      setSelectedVoice(show.voiceId);
+      setSelectedVoice(keepSolo);
     }
     setStylePrompt(show.stylePrompt);
     const brandedShowScript = ensurePodcastBrandAndInstagram(show.script, show.dualSpeaker);
@@ -2733,15 +2804,15 @@ export default function WappyStudioDashboard({
         script: brandedShowScript,
         title: show.title,
         multiSpeaker: show.dualSpeaker,
-        voiceName: show.voiceId,
-        speaker1Voice: show.voiceId,
+        voiceName: keepSolo,
+        speaker1Voice: keepSpk1,
         speaker2Voice: show.secondVoiceId,
         stylePrompt: show.stylePrompt,
       });
     } else {
       setStatusBanner({
         type: 'success',
-        text: `Serie "${show.title}" (+5 min • ${show.dualSpeaker ? `${show.voiceId} + ${show.secondVoiceId}` : show.voiceId}) cargada en el Estudio y lista para editar o sintetizar en el Walkman.`,
+        text: `Serie "${show.title}" (+5 min • ${show.dualSpeaker ? `${keepSpk1} + ${show.secondVoiceId}` : keepSolo}) cargada en el Estudio y lista para editar o sintetizar en el Walkman.`,
       });
     }
   };
@@ -3755,7 +3826,10 @@ export default function WappyStudioDashboard({
       localStorage.setItem('wappy_studio_cloned_voices_v1', JSON.stringify(list));
     } catch {
       try {
-        const lightweight = list.map(({ sampleAudioBase64: _omit, ...rest }: any) => rest);
+        const lightweight = list.map(
+          ({ sampleAudioBase64: _omitSample, sourceAudioBase64: _omitSource, ...rest }: any) =>
+            rest,
+        );
         localStorage.setItem('wappy_studio_cloned_voices_v1', JSON.stringify(lightweight));
       } catch {
         /* ignore quota */
@@ -3784,8 +3858,13 @@ export default function WappyStudioDashboard({
                 const existing = map.get(v.id);
                 const sampleB64 =
                   v.sampleAudioBase64 || (existing as any)?.sampleAudioBase64 || undefined;
+                const sourceB64 =
+                  v.sourceAudioBase64 || (existing as any)?.sourceAudioBase64 || undefined;
                 if (sampleB64) {
                   putMediaBlob(`voice-sample-${v.id}`, base64ToBlob(sampleB64)).catch(() => {});
+                }
+                if (sourceB64) {
+                  putMediaBlob(`voice-source-${v.id}`, base64ToBlob(sourceB64)).catch(() => {});
                 }
                 const mergedVoice: StudioVoice = {
                   id: v.id,
@@ -3805,11 +3884,24 @@ export default function WappyStudioDashboard({
                   languageCode: v.languageCode || (existing as any)?.languageCode || 'es-CO',
                   type: v.type || (existing as any)?.type || 'replicated',
                   sampleAudioBase64: sampleB64,
+                  sourceAudioBase64: sourceB64,
+                  refTranscript: v.refTranscript || existing?.refTranscript || '',
+                  nativeMethod: v.nativeMethod || existing?.nativeMethod || 'zero_shot_voicestudio',
+                  nativeVoiceId: v.nativeVoiceId || existing?.nativeVoiceId || undefined,
                 };
                 map.set(v.id, mergedVoice);
               }
             }
-            return Array.from(map.values());
+            const mergedList = Array.from(map.values());
+            if (mergedList.length > 0) {
+              setSelectedVoice((curr) =>
+                curr === 'Kore' || curr === 'Orus' ? mergedList[0].id : curr,
+              );
+              setSpeaker1Voice((curr) =>
+                curr === 'Puck' || curr === 'Orus' ? mergedList[0].id : curr,
+              );
+            }
+            return mergedList;
           });
         }
       })
@@ -3928,6 +4020,16 @@ export default function WappyStudioDashboard({
     }
   };
 
+  const blobToBase64String = async (blob: Blob): Promise<string> => {
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)));
+    }
+    return window.btoa(bin);
+  };
+
   const handleExecuteVoiceClone = async () => {
     if (!requireActiveCompany('clonar o diseñar una voz personalizada con IA')) return;
     if (voiceCloneMode === 'replicated' && !sourceAudioData?.base64 && !editingClonedVoiceId) {
@@ -3952,6 +4054,19 @@ export default function WappyStudioDashboard({
         ? clonedVoices.find((v) => v.id === editingClonedVoiceId) || null
         : null;
 
+      let effectiveSourceBase64 =
+        sourceAudioData?.base64 || existingVoice?.sourceAudioBase64 || '';
+      if (!effectiveSourceBase64 && editingClonedVoiceId) {
+        try {
+          const cachedSrcBlob = await getMediaBlob(`voice-source-${editingClonedVoiceId}`);
+          if (cachedSrcBlob) {
+            effectiveSourceBase64 = await blobToBase64String(cachedSrcBlob);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
       const resp = await fetch('/api/studio/voices/clone', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -3962,9 +4077,10 @@ export default function WappyStudioDashboard({
           gender: cloneGender,
           languageCode: cloneLanguageCode,
           store: cloneStoreMode,
-          sourceAudioBase64: sourceAudioData?.base64 || '',
+          sourceAudioBase64: effectiveSourceBase64,
           sourceMimeType: sourceAudioData?.mimeType || 'audio/wav',
-          consentAudioBase64: consentAudioData?.base64 || sourceAudioData?.base64 || '',
+          consentAudioBase64:
+            consentAudioData?.base64 || effectiveSourceBase64 || '',
           consentMimeType: consentAudioData?.mimeType || 'audio/wav',
           voicePrompt: clonePromptText.trim(),
           customKeys: customApiKeys.map((k) => k.key.trim()).filter((k) => k.length > 15),
@@ -3997,6 +4113,11 @@ export default function WappyStudioDashboard({
         (existingVoice as any)?.sampleAudioBase64 ||
         lastClonedResult?.sampleAudioBase64 ||
         undefined;
+      const finalSourceBase64 =
+        (vRaw as any)?.sourceAudioBase64 ||
+        effectiveSourceBase64 ||
+        (existingVoice as any)?.sourceAudioBase64 ||
+        undefined;
 
       const newVoice: StudioVoice = {
         id: vRaw.id,
@@ -4010,16 +4131,30 @@ export default function WappyStudioDashboard({
         baseVoice: vRaw.baseVoice,
         styleDirective: vRaw.styleDirective,
         storageMode: vRaw.storageMode,
+        languageCode: cloneLanguageCode,
+        type: voiceCloneMode,
+        sampleAudioBase64: finalSampleBase64,
+        sourceAudioBase64: finalSourceBase64,
+        refTranscript: (vRaw as any)?.refTranscript || existingVoice?.refTranscript || '',
+        nativeMethod: (vRaw as any)?.nativeMethod || existingVoice?.nativeMethod || 'zero_shot_voicestudio',
+        nativeVoiceId: (vRaw as any)?.nativeVoiceId || existingVoice?.nativeVoiceId || undefined,
       };
-      (newVoice as any).sampleAudioBase64 = finalSampleBase64;
-      (newVoice as any).languageCode = cloneLanguageCode;
-      (newVoice as any).type = voiceCloneMode;
 
       if (finalSampleBase64) {
         try {
           await putMediaBlob(
             'voice-sample-' + newVoice.id,
             base64ToBlob(finalSampleBase64),
+          );
+        } catch {
+          /* ignore IndexedDB write error */
+        }
+      }
+      if (finalSourceBase64) {
+        try {
+          await putMediaBlob(
+            'voice-source-' + newVoice.id,
+            base64ToBlob(finalSourceBase64),
           );
         } catch {
           /* ignore IndexedDB write error */
@@ -4079,6 +4214,7 @@ export default function WappyStudioDashboard({
       return next;
     });
     deleteMediaBlob(`voice-sample-${voiceId}`).catch(() => {});
+    deleteMediaBlob(`voice-source-${voiceId}`).catch(() => {});
     if (selectedVoice === voiceId) setSelectedVoice('Kore');
     if (speaker1Voice === voiceId) setSpeaker1Voice('Puck');
     if (speaker2Voice === voiceId) setSpeaker2Voice('Kore');
@@ -4136,6 +4272,152 @@ export default function WappyStudioDashboard({
     });
   }, [allVoices, activeModelObj, voiceActiveFilter, voiceGenderFilter, voiceSearchQuery]);
 
+  /**
+   * Traduce cualquier ID interno (`wappy_clone_Orus_...` o `id1 + id2`) al nombre amigable visible (`🧬 Mi Voz...`)
+   */
+  const formatVoiceDisplayName = (rawVoiceStr?: string): string => {
+    if (!rawVoiceStr) return 'Kore';
+    return rawVoiceStr
+      .split('+')
+      .map((part) => {
+        const cleanId = part.trim();
+        if (!cleanId) return '';
+        const found = allVoices.find((v) => v.id === cleanId);
+        if (found?.name) return found.name;
+        if (cleanId.startsWith('wappy_clone_')) {
+          return '🧬 Mi Voz Clonada';
+        }
+        return cleanId;
+      })
+      .filter(Boolean)
+      .join(' + ');
+  };
+
+  /**
+   * Cambia de forma unificada la voz activa en `/wappystudio` y `/wappypodcast`,
+   * limpiando el audio pre-cargado anterior para que el Walkman y el botón PLAY usen la nueva voz de inmediato.
+   */
+  const selectActiveStudioVoice = (
+    voiceId: string,
+    targetSlot: 'auto' | 'solo' | 'host1' | 'host2' = 'auto',
+  ) => {
+    if (!voiceId) return;
+    if (!isVoiceSupported(voiceId)) {
+      setSelectedModel('gemini-3.8-flash-tts');
+    }
+    const clonedObj = clonedVoices.find((cv) => cv.id === voiceId);
+    const friendlyName = formatVoiceDisplayName(voiceId);
+
+    if (targetSlot === 'solo') {
+      setMultiSpeaker(false);
+      setSelectedVoice(voiceId);
+      setSpeaker1Voice(voiceId);
+    } else if (targetSlot === 'host1') {
+      setMultiSpeaker(true);
+      setSpeaker1Voice(voiceId);
+      setSelectedVoice(voiceId);
+    } else if (targetSlot === 'host2') {
+      setMultiSpeaker(true);
+      setSpeaker2Voice(voiceId);
+    } else {
+      setSelectedVoice(voiceId);
+      setSpeaker1Voice(voiceId);
+    }
+
+    if (clonedObj?.styleDirective) {
+      setStylePrompt(clonedObj.styleDirective);
+    }
+
+    // Si había un episodio previo cargado en el reproductor/Walkman con otra voz, limpiarlo para que PLAY sintetice con la nueva voz
+    setCurrentAudio((prev) => {
+      if (!prev) return null;
+      if (prev.title?.startsWith('Muestra Voz')) return prev;
+      return null;
+    });
+
+    setStatusBanner({
+      type: 'success',
+      text:
+        targetSlot === 'host2'
+          ? `🎙️ Voz "${friendlyName}" activada en Canal 2 (Host 2). Pulsa Sintetizar o PLAY para escuchar.`
+          : targetSlot === 'host1'
+            ? `🎙️ Voz "${friendlyName}" activada en Canal 1 (Host Principal). Pulsa Sintetizar o PLAY para escuchar.`
+            : `🎙️ Voz "${friendlyName}" activada en el Estudio. Pulsa Sintetizar o PLAY para generar con esta voz.`,
+    });
+  };
+
+  /**
+   * Construye el payload de voces clonadas (`customVoiceProfile` y `customVoices`)
+   * rehidratando el audio original desde IndexedDB (`voice-source-${id}` o `voice-sample-${id}`) si fue omitido de `localStorage`.
+   * Así garantizamos que el backend SIEMPRE tenga `sourceAudioBase64` incluso tras reinicios de contenedor.
+   */
+  const buildCustomVoicePayload = async (
+    primaryVoiceId?: string,
+    spk1Id?: string,
+    spk2Id?: string,
+  ): Promise<{ customVoiceProfile?: StudioVoice; customVoices?: StudioVoice[] }> => {
+    const candidateIds = Array.from(
+      new Set(
+        [
+          primaryVoiceId,
+          spk1Id,
+          spk2Id,
+          ...clonedVoices.map((cv) => cv.id),
+        ].filter(Boolean) as string[],
+      ),
+    );
+    const hydratedList: StudioVoice[] = [];
+
+    for (const vid of candidateIds) {
+      const found = clonedVoices.find((cv) => cv.id === vid);
+      if (!found && !isCustomVoiceId(vid)) continue;
+
+      let sourceB64 = found?.sourceAudioBase64;
+      if (!sourceB64) {
+        try {
+          const srcBlob = await getMediaBlob(`voice-source-${vid}`);
+          if (srcBlob) {
+            sourceB64 = await blobToBase64String(srcBlob);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      let sampleB64 = found?.sampleAudioBase64;
+      if (!sampleB64) {
+        try {
+          const smpBlob = await getMediaBlob(`voice-sample-${vid}`);
+          if (smpBlob) {
+            sampleB64 = await blobToBase64String(smpBlob);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!sourceB64 && sampleB64) {
+        sourceB64 = sampleB64;
+      }
+
+      if (found) {
+        hydratedList.push({
+          ...found,
+          sourceAudioBase64: sourceB64,
+          sampleAudioBase64: sampleB64,
+        });
+      }
+    }
+
+    if (hydratedList.length === 0) return {};
+    const primaryProfile =
+      hydratedList.find((v) => v.id === primaryVoiceId) ||
+      hydratedList.find((v) => v.id === spk1Id) ||
+      hydratedList[0];
+    return {
+      customVoiceProfile: primaryProfile,
+      customVoices: hydratedList,
+    };
+  };
+
   // ============================================================================
   // ACCIONES DE SÍNTESIS DE VOZ (TTS)
   // ============================================================================
@@ -4172,6 +4454,7 @@ export default function WappyStudioDashboard({
       const displayVoiceLabel = customClone
         ? customClone.name.replace(/^🧬\s*/, '')
         : voiceId;
+      const customPayload = await buildCustomVoicePayload(voiceId);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -4179,6 +4462,7 @@ export default function WappyStudioDashboard({
           voiceName: voiceId,
           model: isVoiceSupported(voiceId) ? selectedModel : 'gemini-3.8-flash-tts',
           text: `Hola, soy ${displayVoiceLabel}. Esta es una muestra de voz neural en WAPPY Studio para tus cápsulas y cursos.`,
+          ...customPayload,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -4206,6 +4490,7 @@ export default function WappyStudioDashboard({
     try {
       setIsTestingConnection(true);
       setStatusBanner(null);
+      const customPayload = await buildCustomVoicePayload(selectedVoice);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -4213,6 +4498,7 @@ export default function WappyStudioDashboard({
           voiceName: selectedVoice,
           model: selectedModel,
           text: '¡Conexión verificada con éxito! El motor de voz 24kHz en WAPPY Studio está listo.',
+          ...customPayload,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -4282,6 +4568,7 @@ export default function WappyStudioDashboard({
         progressPercent: 0,
         chunks: [{ index: 0, wordCount: snippetWords, status: 'processing' }],
       });
+      const customPayload = await buildCustomVoicePayload(effVoice, effSpk1, effSpk2);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -4293,6 +4580,7 @@ export default function WappyStudioDashboard({
           multiSpeaker: effMulti,
           speaker1: { name: 'Alex', voiceName: effSpk1 },
           speaker2: { name: 'Sam', voiceName: effSpk2 },
+          ...customPayload,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -4320,18 +4608,21 @@ export default function WappyStudioDashboard({
           },
         ],
       });
+      const friendlyPreviewVoice = formatVoiceDisplayName(
+        effMulti ? `${effSpk1} + ${effSpk2}` : effVoice,
+      );
       setCurrentAudio({
         base64: data.audioBase64,
         title: effTitle,
         durationSeconds: data.durationSeconds,
-        voiceName: effMulti ? `${effSpk1} + ${effSpk2}` : effVoice,
+        voiceName: friendlyPreviewVoice,
         scriptText: snippet,
       });
       const newItem: LibraryItem = {
         id: Date.now().toString(),
         title: effTitle,
         createdAt: Date.now(),
-        voiceName: effMulti ? `${effSpk1} + ${effSpk2}` : effVoice,
+        voiceName: friendlyPreviewVoice,
         model: data.usedModel || selectedModel,
         durationSeconds: data.durationSeconds,
         wordCount: snippetWords,
@@ -4364,6 +4655,7 @@ export default function WappyStudioDashboard({
     try {
       setIsSynthesizingLab(true);
       setStatusBanner(null);
+      const customPayload = await buildCustomVoicePayload(selectedVoice);
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -4372,24 +4664,26 @@ export default function WappyStudioDashboard({
           voiceName: selectedVoice,
           stylePrompt: labStylePrompt,
           model: selectedModel,
+          ...customPayload,
         }),
       });
       const data = await parseStudioJson(resp);
       if (!resp.ok || !data.success) {
         throw new Error(data.error || 'Error al sintetizar en el laboratorio.');
       }
+      const friendlyLabVoice = formatVoiceDisplayName(selectedVoice);
       setCurrentAudio({
         base64: data.audioBase64,
-        title: `Laboratorio (${selectedVoice}): ${labTestText.trim().slice(0, 34)}...`,
+        title: `Laboratorio (${friendlyLabVoice}): ${labTestText.trim().slice(0, 34)}...`,
         durationSeconds: data.durationSeconds,
-        voiceName: selectedVoice,
+        voiceName: friendlyLabVoice,
         scriptText: labTestText.trim(),
       });
       const newItem: LibraryItem = {
         id: Date.now().toString(),
         title: `Laboratorio: ${labTestText.trim().slice(0, 42)}...`,
         createdAt: Date.now(),
-        voiceName: selectedVoice,
+        voiceName: friendlyLabVoice,
         model: data.usedModel || selectedModel,
         durationSeconds: data.durationSeconds,
         wordCount: labTestText.trim().split(/\s+/).filter(Boolean).length,
@@ -4433,7 +4727,9 @@ export default function WappyStudioDashboard({
     const effSpk1 = override?.speaker1Voice || speaker1Voice;
     const effSpk2 = override?.speaker2Voice || speaker2Voice;
     const effStyle = override?.stylePrompt ?? stylePrompt;
-    const effVoiceLabel = effMulti ? `${effSpk1} + ${effSpk2}` : effVoice;
+    const effVoiceLabel = formatVoiceDisplayName(
+      effMulti ? `${effSpk1} + ${effSpk2}` : effVoice,
+    );
     const effTitle =
       override?.title ||
       (podcastOnly && activePodcastEpisodeTitle
@@ -4447,6 +4743,7 @@ export default function WappyStudioDashboard({
       if (sseRef.current) {
         sseRef.current.close();
       }
+      const customPayload = await buildCustomVoicePayload(effVoice, effSpk1, effSpk2);
       const resp = await fetch('/api/studio/tts/jobs', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -4460,6 +4757,7 @@ export default function WappyStudioDashboard({
           speaker2: { name: 'Sam', voiceName: effSpk2 },
           maxWordsPerChunk: wordsPerChunk,
           customKeys: activeUserGeminiKeys,
+          ...customPayload,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -4540,6 +4838,7 @@ export default function WappyStudioDashboard({
         );
         setCurrentAudio({
           url: d.downloadUrl,
+          base64: d.audioBase64,
           title: effTitle,
           durationSeconds: d.totalDurationSeconds,
           voiceName: effVoiceLabel,
@@ -4557,8 +4856,8 @@ export default function WappyStudioDashboard({
           stylePrompt: effStyle,
           scriptText: effScript,
         };
-        // Descargar el WAV maestro del servidor (vive solo en RAM) y guardarlo en IndexedDB
-        saveAudioToLibrary(newItem, { url: d.downloadUrl }).then((key) => {
+        // Descargar el WAV maestro del servidor o usar el Base64 ensamblado en el navegador y guardarlo en IndexedDB
+        saveAudioToLibrary(newItem, { base64: d.audioBase64, url: d.downloadUrl }).then((key) => {
           if (key) setCurrentAudio((prev) => (prev ? { ...prev, mediaKey: key } : prev));
         });
         setEditingLibraryItemId(null);
@@ -4572,6 +4871,10 @@ export default function WappyStudioDashboard({
         const d = JSON.parse(ev.data);
         es.close();
         setActiveJob((prev) => (prev ? { ...prev, status: 'failed', error: d.error } : null));
+        setStatusBanner({
+          type: 'error',
+          text: d.error || 'Error en la síntesis del podcast.',
+        });
       });
 
       es.addEventListener('job_status', (ev: MessageEvent) => {
@@ -4817,6 +5120,11 @@ export default function WappyStudioDashboard({
     try {
       setIsSyncingVoiceToVideo(true);
       setStatusBanner(null);
+      const customPayload = await buildCustomVoicePayload(
+        selectedVoice,
+        speaker1Voice,
+        speaker2Voice,
+      );
       const resp = await fetch('/api/studio/tts/synthesize', {
         method: 'POST',
         headers: getAuthHeaders(token),
@@ -4828,6 +5136,7 @@ export default function WappyStudioDashboard({
           multiSpeaker,
           speaker1: { name: 'Alex', voiceName: speaker1Voice },
           speaker2: { name: 'Sam', voiceName: speaker2Voice },
+          ...customPayload,
         }),
       });
       const data = await parseStudioJson(resp);
@@ -7279,13 +7588,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 }
                 subtitle={
                   multiSpeaker
-                    ? `SIDE A • HOST DUAL (${speaker1Voice} + ${speaker2Voice})`
-                    : `SIDE A • LOCUCIÓN (${selectedVoice})`
+                    ? `SIDE A • HOST DUAL (${formatVoiceDisplayName(speaker1Voice)} + ${formatVoiceDisplayName(speaker2Voice)})`
+                    : `SIDE A • LOCUCIÓN (${formatVoiceDisplayName(selectedVoice)})`
                 }
-                voiceLabel={
+                voiceLabel={formatVoiceDisplayName(
                   currentAudio?.voiceName ||
-                  (multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice)
-                }
+                    (multiSpeaker ? `${speaker1Voice} + ${speaker2Voice}` : selectedVoice),
+                )}
                 durationSeconds={currentAudio?.durationSeconds}
                 durationSec={currentAudio?.durationSeconds}
                 isSynthesizing={isPreviewing || activeJob?.status === 'processing'}
@@ -7362,7 +7671,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               audioUrl={currentAudio.url}
               title={currentAudio.title}
               durationSeconds={currentAudio.durationSeconds}
-              voiceName={currentAudio.voiceName}
+              voiceName={formatVoiceDisplayName(currentAudio.voiceName)}
               onSendToVideo={() => {
                 handleTabChange('video');
                 setStatusBanner({
@@ -7624,46 +7933,100 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   </div>
                   <div className="relative">
                     <select
-                      value={
-                        presets.find(
-                          (preset) =>
-                            stylePrompt === preset.style &&
-                            (preset.multiSpeaker
-                              ? multiSpeaker
-                              : !multiSpeaker && selectedVoice === preset.voiceName),
-                        )?.id || ''
-                      }
+                      value={(() => {
+                        if (!multiSpeaker && clonedVoices.some((cv) => cv.id === selectedVoice)) {
+                          return `clone_solo_${selectedVoice}`;
+                        }
+                        if (multiSpeaker && clonedVoices.some((cv) => cv.id === speaker1Voice)) {
+                          return `clone_dual_${speaker1Voice}`;
+                        }
+                        return (
+                          presets.find(
+                            (preset) =>
+                              stylePrompt === preset.style &&
+                              (preset.multiSpeaker
+                                ? multiSpeaker
+                                : !multiSpeaker && selectedVoice === preset.voiceName),
+                          )?.id || ''
+                        );
+                      })()}
                       onChange={(e) => {
-                        const preset = presets.find((p) => p.id === e.target.value);
+                        const val = e.target.value;
+                        if (val.startsWith('clone_solo_')) {
+                          const cvId = val.replace('clone_solo_', '');
+                          selectActiveStudioVoice(cvId, 'solo');
+                          return;
+                        }
+                        if (val.startsWith('clone_dual_')) {
+                          const cvId = val.replace('clone_dual_', '');
+                          selectActiveStudioVoice(cvId, 'host1');
+                          return;
+                        }
+                        const preset = presets.find((p) => p.id === val);
                         if (!preset) return;
                         if (!isVoiceSupported(preset.voiceName)) {
                           setSelectedModel('gemini-3.8-flash-tts');
                         }
                         if (preset.multiSpeaker) {
                           setMultiSpeaker(true);
-                          if (preset.speaker1) setSpeaker1Voice(preset.speaker1.voiceName);
-                          if (preset.speaker2) setSpeaker2Voice(preset.speaker2.voiceName);
+                          if (preset.speaker1) {
+                            setSpeaker1Voice(preset.speaker1.voiceName);
+                          }
+                          if (preset.speaker2) {
+                            setSpeaker2Voice(preset.speaker2.voiceName);
+                          }
                         } else {
                           setMultiSpeaker(false);
                           setSelectedVoice(preset.voiceName);
                         }
                         setStylePrompt(preset.style);
+                        setCurrentAudio((prev) =>
+                          prev && prev.title?.startsWith('Muestra Voz') ? prev : null,
+                        );
                       }}
                       className="w-full appearance-none rounded-xl border border-teal-500/40 dark:border-[#c7f303]/40 bg-slate-900/95 text-white text-xs font-extrabold px-3.5 py-2.5 pr-9 shadow-inner focus:outline-none focus:border-[#c7f303] focus:ring-2 focus:ring-[#c7f303]/20 transition cursor-pointer"
                     >
                       <option value="" disabled className="bg-slate-950 text-slate-400">
-                        🎙️ Seleccionar estilo vocal y emoción del podcast...
+                        🎙️ Seleccionar voz clonada o estilo vocal del podcast...
                       </option>
-                      {presets.map((preset) => (
-                        <option
-                          key={preset.id}
-                          value={preset.id}
-                          className="bg-slate-950 text-white py-1.5 font-semibold"
+                      {clonedVoices.length > 0 && (
+                        <optgroup
+                          label="🧬 Mis Voces Clonadas y Personalizadas (24kHz)"
+                          className="bg-slate-950 text-[#c7f303] font-extrabold"
                         >
-                          {preset.multiSpeaker ? '👥 ' : '🎙️ '}
-                          {preset.name}
-                        </option>
-                      ))}
+                          {clonedVoices.map((cv) => (
+                            <React.Fragment key={cv.id}>
+                              <option
+                                value={`clone_solo_${cv.id}`}
+                                className="bg-slate-950 text-[#c7f303] py-1.5 font-bold"
+                              >
+                                {cv.name} — Locución Principal (1 Voz)
+                              </option>
+                              <option
+                                value={`clone_dual_${cv.id}`}
+                                className="bg-slate-950 text-teal-300 py-1.5 font-bold"
+                              >
+                                👥 {cv.name} — Podcast Dual (Host 1 + {formatVoiceDisplayName(speaker2Voice)})
+                              </option>
+                            </React.Fragment>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup
+                        label="🎙️ Plantillas de Voz y Emoción de Estudio"
+                        className="bg-slate-950 text-teal-300 font-bold"
+                      >
+                        {presets.map((preset) => (
+                          <option
+                            key={preset.id}
+                            value={preset.id}
+                            className="bg-slate-950 text-white py-1.5 font-semibold"
+                          >
+                            {preset.multiSpeaker ? '👥 ' : '🎙️ '}
+                            {preset.name}
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#c7f303]">
                       <ChevronDown className="w-4 h-4" />
@@ -7742,109 +8105,150 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         Tus voces clonadas:
                       </span>
                       <div className="space-y-2">
-                        {clonedVoices.map((cv) => (
-                          <div
-                            key={cv.id}
-                            className="flex flex-col items-start gap-2 px-3 py-2.5 rounded-xl bg-slate-900/95 border border-[#c7f303]/35 text-[10px] text-white"
-                          >
-                            <div className="flex flex-wrap items-center gap-1.5 w-full">
-                              <span className="font-extrabold text-[#c7f303] text-[11px]">
-                                {cv.name}
-                              </span>
-                              <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 text-[9px] font-bold">
-                                {`${cv.gender} • ${cv.tone || '24kHz'}`}
-                              </span>
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[9px] font-extrabold">
-                                ✓ Lista en tu catálogo de voces
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center justify-start gap-2">
-                              <ExpandableButton
-                                size="sm"
-                                icon={<Play />}
-                                label="Oír"
-                                variant="teal"
-                                onClick={async (e) => {
-                                  e?.stopPropagation();
-                                  const inlineB64 = (cv as any).sampleAudioBase64;
-                                  if (inlineB64) {
-                                    setCurrentAudio({
-                                      base64: inlineB64,
-                                      title: `Muestra Voz Clonada: ${cv.name}`,
-                                      durationSeconds: 8,
-                                      voiceName: cv.name,
-                                    });
-                                    return;
-                                  }
-                                  const savedBlob = await getMediaBlob('voice-sample-' + cv.id);
-                                  if (savedBlob) {
-                                    setCurrentAudio({
-                                      url: setObjectUrlForPlayer(savedBlob),
-                                      title: `Muestra Voz Clonada: ${cv.name}`,
-                                      durationSeconds: 8,
-                                      voiceName: cv.name,
-                                    });
-                                    return;
-                                  }
-                                  handleAuditionVoice(cv.id, e);
-                                }}
-                                title="Escuchar muestra 24kHz de esta voz clonada"
-                              />
-                              <ExpandableButton
-                                size="sm"
-                                icon={<Edit3 />}
-                                label="Editar Voz"
-                                variant="indigo"
-                                onClick={async () => {
-                                  setEditingClonedVoiceId(cv.id);
-                                  setCloneDisplayName(cv.name.replace(/^🧬\s*/, ''));
-                                  setCloneGender(
-                                    cv.gender === 'Femenino' ? 'Femenino' : 'Masculino',
-                                  );
-                                  setCloneLanguageCode((cv as any).languageCode || 'es-CO');
-                                  setVoiceCloneMode(
-                                    (cv as any).type === 'prompted' ? 'prompted' : 'replicated',
-                                  );
-                                  setClonePromptText(cv.styleDirective || '');
-                                  let sampleB64 = (cv as any).sampleAudioBase64 || null;
-                                  if (!sampleB64) {
-                                    try {
-                                      const blob = await getMediaBlob('voice-sample-' + cv.id);
-                                      if (blob) {
-                                        const buf = await blob.arrayBuffer();
-                                        const bytes = new Uint8Array(buf);
-                                        let bin = '';
-                                        for (let i = 0; i < bytes.length; i += 0x8000) {
-                                          bin += String.fromCharCode.apply(
-                                            null,
-                                            Array.from(bytes.subarray(i, i + 0x8000)),
-                                          );
-                                        }
-                                        sampleB64 = window.btoa(bin);
-                                      }
-                                    } catch {
-                                      /* ignore */
+                        {clonedVoices.map((cv) => {
+                          const isActiveSolo = !multiSpeaker && selectedVoice === cv.id;
+                          const isActiveHost1 = multiSpeaker && speaker1Voice === cv.id;
+                          const isActiveHost2 = multiSpeaker && speaker2Voice === cv.id;
+                          const isActiveClone = isActiveSolo || isActiveHost1 || isActiveHost2;
+                          return (
+                            <div
+                              key={cv.id}
+                              onClick={() => {
+                                selectActiveStudioVoice(cv.id, multiSpeaker ? 'host1' : 'solo');
+                              }}
+                              className={cn(
+                                'flex flex-col items-start gap-2 px-3 py-2.5 rounded-xl bg-slate-900/95 border text-[10px] text-white cursor-pointer transition',
+                                isActiveClone
+                                  ? 'border-[#c7f303] ring-1 ring-[#c7f303]/45 bg-[#121f17]'
+                                  : 'border-[#c7f303]/35 hover:border-[#c7f303]/70',
+                              )}
+                            >
+                              <div className="flex flex-wrap items-center gap-1.5 w-full">
+                                <span className="font-extrabold text-[#c7f303] text-[11px]">
+                                  {cv.name}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 text-[9px] font-bold">
+                                  {`${cv.gender} • ${cv.tone || '24kHz'}`}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'px-2 py-0.5 rounded-md border text-[9px] font-extrabold',
+                                    isActiveClone
+                                      ? 'bg-[#c7f303]/20 border-[#c7f303]/60 text-[#c7f303]'
+                                      : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300',
+                                  )}
+                                >
+                                  {isActiveSolo
+                                    ? '✓ Activa en Locución (1 Voz)'
+                                    : isActiveHost1
+                                      ? '✓ Activa en Host 1 (Podcast Dual)'
+                                      : isActiveHost2
+                                        ? '✓ Activa en Host 2 (Podcast Dual)'
+                                        : '✓ Lista en tu catálogo de voces'}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center justify-start gap-2">
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Check />}
+                                  label={isActiveSolo ? 'Activa (1 Voz)' : 'Usar en 1 Voz'}
+                                  variant={isActiveSolo ? 'emerald' : 'cyan'}
+                                  onClick={(e) => {
+                                    e?.stopPropagation();
+                                    selectActiveStudioVoice(cv.id, 'solo');
+                                  }}
+                                  title="Seleccionar esta voz clonada para locución individual (1 Voz)"
+                                />
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Users />}
+                                  label={isActiveHost1 ? 'Activa (Host 1)' : 'Usar en Host 1 (Dual)'}
+                                  variant={isActiveHost1 ? 'emerald' : 'purple'}
+                                  onClick={(e) => {
+                                    e?.stopPropagation();
+                                    selectActiveStudioVoice(cv.id, 'host1');
+                                  }}
+                                  title="Seleccionar esta voz clonada como Host 1 en Podcast de 2 Voces"
+                                />
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Play />}
+                                  label="Oír"
+                                  variant="teal"
+                                  onClick={async (e) => {
+                                    e?.stopPropagation();
+                                    const inlineB64 = (cv as any).sampleAudioBase64;
+                                    if (inlineB64) {
+                                      setCurrentAudio({
+                                        base64: inlineB64,
+                                        title: `Muestra Voz Clonada: ${cv.name}`,
+                                        durationSeconds: 8,
+                                        voiceName: cv.name,
+                                      });
+                                      return;
                                     }
-                                  }
-                                  setLastClonedResult({
-                                    voice: cv,
-                                    sampleAudioBase64: sampleB64,
-                                  });
-                                  setIsVoiceCloneModalOpen(true);
-                                }}
-                                title="Editar nombre, idioma o actualizar muestra de esta voz clonada"
-                              />
-                              <ExpandableButton
-                                size="sm"
-                                icon={<Trash2 />}
-                                label="Eliminar"
-                                variant="danger"
-                                onClick={(e) => handleDeleteClonedVoice(cv.id, e)}
-                                title="Eliminar voz clonada"
-                              />
+                                    const savedBlob = await getMediaBlob('voice-sample-' + cv.id);
+                                    if (savedBlob) {
+                                      setCurrentAudio({
+                                        url: setObjectUrlForPlayer(savedBlob),
+                                        title: `Muestra Voz Clonada: ${cv.name}`,
+                                        durationSeconds: 8,
+                                        voiceName: cv.name,
+                                      });
+                                      return;
+                                    }
+                                    handleAuditionVoice(cv.id, e);
+                                  }}
+                                  title="Escuchar muestra 24kHz de esta voz clonada"
+                                />
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Edit3 />}
+                                  label="Editar Voz"
+                                  variant="indigo"
+                                  onClick={async (e) => {
+                                    e?.stopPropagation();
+                                    setEditingClonedVoiceId(cv.id);
+                                    setCloneDisplayName(cv.name.replace(/^🧬\s*/, ''));
+                                    setCloneGender(
+                                      cv.gender === 'Femenino' ? 'Femenino' : 'Masculino',
+                                    );
+                                    setCloneLanguageCode((cv as any).languageCode || 'es-CO');
+                                    setVoiceCloneMode(
+                                      (cv as any).type === 'prompted' ? 'prompted' : 'replicated',
+                                    );
+                                    setClonePromptText(cv.styleDirective || '');
+                                    let sampleB64 = (cv as any).sampleAudioBase64 || null;
+                                    if (!sampleB64) {
+                                      try {
+                                        const blob = await getMediaBlob('voice-sample-' + cv.id);
+                                        if (blob) {
+                                          sampleB64 = await blobToBase64String(blob);
+                                        }
+                                      } catch {
+                                        /* ignore */
+                                      }
+                                    }
+                                    setLastClonedResult({
+                                      voice: cv,
+                                      sampleAudioBase64: sampleB64,
+                                    });
+                                    setIsVoiceCloneModalOpen(true);
+                                  }}
+                                  title="Editar nombre, idioma o actualizar muestra de esta voz clonada"
+                                />
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Trash2 />}
+                                  label="Eliminar"
+                                  variant="danger"
+                                  onClick={(e) => handleDeleteClonedVoice(cv.id, e)}
+                                  title="Eliminar voz clonada"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -7901,7 +8305,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           <div className="relative">
                             <select
                               value={speaker1Voice}
-                              onChange={(e) => setSpeaker1Voice(e.target.value)}
+                              onChange={(e) => selectActiveStudioVoice(e.target.value, 'host1')}
                               className="w-full appearance-none bg-slate-900/95 border border-teal-500/40 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer truncate"
                             >
                               {clonedVoices.length > 0 && (
@@ -7980,7 +8384,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           <div className="relative">
                             <select
                               value={speaker2Voice}
-                              onChange={(e) => setSpeaker2Voice(e.target.value)}
+                              onChange={(e) => selectActiveStudioVoice(e.target.value, 'host2')}
                               className="w-full appearance-none bg-slate-900/95 border border-purple-500/40 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/30 cursor-pointer truncate"
                             >
                               {clonedVoices.length > 0 && (
@@ -8025,13 +8429,88 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
                   </div>
                 ) : (
-                  /* 4. Catálogo de 14 Voces en Rejilla Espaciosa de 2 Columnas con Audición en Vivo */
+                  /* 4. Selector Directo 1 Voz + Catálogo de Voces en Rejilla de 2 Columnas */
                   <div className="space-y-3">
+                    {/* Cabina de Locución Principal (1 Voz) con Lista Desplegable Directa */}
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-[#0e161a] to-slate-950 border border-teal-500/40 shadow-md text-white flex flex-col justify-between gap-2.5">
+                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/10">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-8 h-8 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-[#C7F303] shrink-0">
+                            <MicVocal className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-black tracking-tight text-white">
+                                {formatVoiceDisplayName(selectedVoice)}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-teal-500/15 border border-teal-500/30 text-[9px] font-mono text-[#c7f303] font-extrabold whitespace-nowrap shrink-0">
+                                VOZ PRINCIPAL (1 VOZ)
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              Selecciona tu voz clonada o cualquiera de las 14 voces de estudio 24kHz
+                            </p>
+                          </div>
+                        </div>
+                        <div className="px-2 py-0.5 rounded-md bg-emerald-950/85 border border-emerald-500/80 text-emerald-300 text-[9px] font-mono font-black inline-flex items-center gap-1 whitespace-nowrap shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                          <span>CH 01</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-extrabold text-[#c7f303]">
+                          Cambiar Voz Activa (Lista Desplegable 24kHz):
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={selectedVoice}
+                            onChange={(e) => selectActiveStudioVoice(e.target.value, 'solo')}
+                            className="w-full appearance-none bg-slate-900/95 border border-[#c7f303]/45 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-bold focus:outline-none focus:ring-2 focus:ring-[#c7f303]/30 cursor-pointer truncate"
+                          >
+                            {clonedVoices.length > 0 && (
+                              <optgroup
+                                label="🧬 Mis Voces Clonadas y Personalizadas"
+                                className="bg-slate-950 text-[#c7f303]"
+                              >
+                                {clonedVoices.map((cv) => (
+                                  <option
+                                    key={cv.id}
+                                    value={cv.id}
+                                    className="bg-slate-900 text-white"
+                                  >
+                                    {cv.name} ({cv.gender} - {cv.tone || '24kHz'})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            <optgroup
+                              label="🎙️ 14 Voces de Estudio 24kHz"
+                              className="bg-slate-950 text-teal-300"
+                            >
+                              {voices.map((vObj) => (
+                                <option
+                                  key={vObj.id}
+                                  value={vObj.id}
+                                  className="bg-slate-900 text-white"
+                                >
+                                  {vObj.name} ({vObj.gender || 'Voz'} - {vObj.tone || 'Natural'})
+                                </option>
+                              ))}
+                            </optgroup>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[#c7f303]">
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <label className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                           <MicVocal className="w-3.5 h-3.5 text-teal-500" />
-                          Catálogo de Voces ({activeVoicesCount} activas / {voices.length} totales)
+                          Catálogo de Voces ({activeVoicesCount + clonedVoices.length} activas / {allVoices.length} totales)
                         </label>
                         <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
                           Haz clic en cualquier tarjeta para elegir la voz o en ▶ para escuchar su timbre real.
@@ -8107,8 +8586,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           <div
                             key={v.id}
                             onClick={() => {
-                              if (!supported) setSelectedModel('gemini-3.8-flash-tts');
-                              setSelectedVoice(v.id);
+                              selectActiveStudioVoice(v.id, 'solo');
                             }}
                             className={cn(
                               'p-3 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer',
@@ -8180,19 +8658,29 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                 onClick={(e) => handleAuditionVoice(v.id, e)}
                                 title={`Escuchar muestra de ${v.name}`}
                               />
-                              {!supported && (
-                                <ExpandableButton
-                                  size="sm"
-                                  icon={<Check />}
-                                  label="Activar Voz"
-                                  variant="indigo"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedModel('gemini-3.8-flash-tts');
-                                    setSelectedVoice(v.id);
-                                  }}
-                                />
-                              )}
+                                {!supported ? (
+                                  <ExpandableButton
+                                    size="sm"
+                                    icon={<Check />}
+                                    label="Activar Voz"
+                                    variant="indigo"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      selectActiveStudioVoice(v.id, 'solo');
+                                    }}
+                                  />
+                                ) : (
+                                  <ExpandableButton
+                                    size="sm"
+                                    icon={<Check />}
+                                    label={isSelected ? 'Activa' : 'Elegir'}
+                                    variant={isSelected ? 'emerald' : 'cyan'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      selectActiveStudioVoice(v.id, 'solo');
+                                    }}
+                                  />
+                                )}
                             </div>
                           </div>
                         );
@@ -10864,7 +11352,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     1. Efectos Vocales Orgánicos (Vocal Bursts en Vivo)
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Escucha cómo suena cada etiqueta con la voz actual ({selectedVoice}) o insértala en tu frase de prueba.
+                    Escucha cómo suena cada etiqueta con la voz actual ({formatVoiceDisplayName(selectedVoice)}) o insértala en tu frase de prueba.
                   </p>
                 </div>
               </div>
@@ -10909,6 +11397,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                           onClick={async () => {
                             try {
                               setPlayingBurstTag(b.tag);
+                              const customPayload = await buildCustomVoicePayload(selectedVoice);
                               const resp = await fetch('/api/studio/tts/synthesize', {
                                 method: 'POST',
                                 headers: getAuthHeaders(token),
@@ -10917,6 +11406,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                                   model: 'gemini-3.8-flash-tts',
                                   stylePrompt: 'Voz muy expresiva y natural.',
                                   text: `Escucha cómo suena este efecto natural en medio de una frase: ${b.tag} ¡Suena totalmente humano!`,
+                                  ...customPayload,
                                 }),
                               });
                               const data = await parseStudioJson(resp);
@@ -10955,7 +11445,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                 </div>
                 <div className="flex flex-wrap items-center justify-start gap-2.5">
                   <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                    Voces activas: {activeVoicesCount} de {voices.length}
+                    Voces activas: {activeVoicesCount + clonedVoices.length} de {allVoices.length}
                   </span>
                   <ExpandableButton
                     size="sm"
@@ -10966,7 +11456,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         <Volume2 />
                       )
                     }
-                    label={`Escuchar ${selectedVoice}`}
+                    label={`Escuchar ${allVoices.find((v) => v.id === selectedVoice)?.name || selectedVoice}`}
                     variant="teal"
                     disabled={auditioningVoiceId === selectedVoice}
                     onClick={() => handleAuditionVoice(selectedVoice)}
@@ -10976,10 +11466,10 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
               <div className="space-y-2">
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                  Selecciona la Voz ({activeVoicesCount} activas)
+                  Selecciona la Voz ({activeVoicesCount + clonedVoices.length} activas)
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {voices.map((v) => {
+                  {allVoices.map((v) => {
                     const isSelected = selectedVoice === v.id;
                     const supported = isVoiceSupported(v.id);
                     return (
@@ -10987,8 +11477,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                         key={v.id}
                         type="button"
                         onClick={() => {
-                          if (!supported) setSelectedModel('gemini-3.8-flash-tts');
-                          setSelectedVoice(v.id);
+                          selectActiveStudioVoice(v.id, 'auto');
                         }}
                         className={cn(
                           'px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5',
