@@ -2024,19 +2024,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const googleGmailDeclaration = {
                 name: 'google_gmail',
-                description: 'Permite enviar correos electrónicos, crear borradores, buscar/listar correos y leer correos en Gmail desde la cuenta de Google Workspace conectada.',
+                description: 'Permite enviar correos electrónicos, crear borradores, buscar/listar correos, leer correos, mover correos a la papelera (individual o en lote) y eliminarlos definitivamente en Gmail desde la cuenta de Google Workspace conectada.',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        action: { type: 'STRING', description: 'send_email, create_draft, list_emails o read_email' },
+                        action: { type: 'STRING', description: 'send_email, create_draft, list_emails, read_email, trash_email, batch_trash_emails o delete_email' },
                         to: { type: 'STRING', description: 'Dirección de correo electrónico del destinatario (para send_email o create_draft).' },
                         subject: { type: 'STRING', description: 'Asunto del correo electrónico.' },
                         body: { type: 'STRING', description: 'Contenido del mensaje (HTML o texto).' },
                         cc: { type: 'STRING', description: 'Correos en copia.' },
                         bcc: { type: 'STRING', description: 'Correos en copia oculta.' },
-                        query: { type: 'STRING', description: 'Filtro o término de búsqueda para list_emails (ej. "is:unread", "from:...", "subject:...").' },
-                        maxResults: { type: 'NUMBER', description: 'Cantidad máxima de correos a listar (opcional, default 10).' },
-                        messageId: { type: 'STRING', description: 'ID del mensaje específico a leer en read_email.' }
+                        query: { type: 'STRING', description: 'Filtro o término de búsqueda para list_emails y batch_trash_emails (ej. "is:unread", "from:...", "subject:...").' },
+                        maxResults: { type: 'NUMBER', description: 'Cantidad máxima de correos a listar o mover a la papelera (opcional, default 10 para list, 50 para batch).' },
+                        messageId: { type: 'STRING', description: 'ID del mensaje específico a leer en read_email, mover a la papelera en trash_email o eliminar definitivamente en delete_email.' }
                     },
                     required: ['action']
                 }

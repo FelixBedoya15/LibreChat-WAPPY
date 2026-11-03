@@ -1689,19 +1689,19 @@ class VoiceSession {
                         },
                         {
                             name: "google_gmail",
-                            description: "Envía correos electrónicos, crea borradores, lista o busca correos y lee correos en Gmail desde la cuenta del usuario.",
+                            description: "Envía correos electrónicos, crea borradores, busca/lista correos, lee correos, mueve correos a la papelera (individual o en lote) y los elimina definitivamente en Gmail desde la cuenta del usuario.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    action: { type: "string", description: "'send_email', 'create_draft', 'list_emails' o 'read_email'" },
+                                    action: { type: "string", description: "'send_email', 'create_draft', 'list_emails', 'read_email', 'trash_email', 'batch_trash_emails' o 'delete_email'" },
                                     to: { type: "string", description: "Dirección de correo electrónico del destinatario (para send_email o create_draft)" },
                                     subject: { type: "string", description: "Asunto del correo electrónico" },
                                     body: { type: "string", description: "Contenido del mensaje (HTML o texto)" },
                                     cc: { type: "string", description: "Correos en copia" },
                                     bcc: { type: "string", description: "Correos en copia oculta" },
-                                    query: { type: "string", description: "Término de búsqueda o filtro para list_emails (ej. 'is:unread', 'from:...', 'subject:...')" },
-                                    maxResults: { type: "number", description: "Cantidad máxima de correos a listar (default 10)" },
-                                    messageId: { type: "string", description: "ID del correo específico a leer en read_email" }
+                                    query: { type: "string", description: "Término de búsqueda o filtro para list_emails y batch_trash_emails (ej. 'is:unread', 'from:...', 'subject:...')" },
+                                    maxResults: { type: "number", description: "Cantidad máxima de correos a listar o mover a la papelera (default 10 para list, 50 para batch)" },
+                                    messageId: { type: "string", description: "ID del correo específico para read_email, trash_email o delete_email" }
                                 },
                                 required: ["action"]
                             }
@@ -2890,7 +2890,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - 'google_sheets': Crea, lee y formatea hojas de cálculo.
    - 'google_docs': Redacta y lee documentos Google Docs.
    - 'google_slides': Crea presentaciones ejecutivas.
-   - 'google_gmail': Redacta y envía correos electrónicos.
+   - 'google_gmail': Redacta, envía, busca, lee, mueve a la papelera ('trash_email', 'batch_trash_emails') y elimina correos ('delete_email'). Para limpiar o borrar correos de la bandeja, usa 'batch_trash_emails' con el criterio o 'trash_email' con el ID del mensaje.
    - 'google_calendar': Programa citas, auditorías y eventos.
    - 'onedrive': Lee y guarda archivos en OneDrive.
 13. **editor_rit**: Carga plantillas oficial/humanista y edita secciones del Reglamento Interno de Trabajo.

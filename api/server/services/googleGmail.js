@@ -368,10 +368,123 @@ const readEmail = async (userId, messageId, companyId = null) => {
   }
 };
 
+/**
+ * Moves an email message to the Gmail trash by ID.
+ */
+const trashEmail = async (userId, messageId, companyId = null) => {
+  try {
+    const gmail = await getGmailClient(userId, companyId);
+    if (!gmail) {
+      throw new Error('Google Workspace no está conectado o autorizado.');
+    }
+    const res = await gmail.users.messages.trash({
+      userId: 'me',
+      id: messageId,
+    });
+    logger.info(`[GoogleGmailService] Email moved to trash: ${messageId}`);
+    return {
+      success: true,
+      id: res.data.id,
+      threadId: res.data.threadId,
+      message: `El correo con ID ${messageId} fue movido a la papelera exitosamente.`,
+    };
+  } catch (err) {
+    logger.error(`[GoogleGmailService] Error moving email ${messageId} to trash:`, err.message);
+    throw err;
+  }
+};
+
+/**
+ * Permanently deletes an email message by ID.
+ */
+const deleteEmail = async (userId, messageId, companyId = null) => {
+  try {
+    const gmail = await getGmailClient(userId, companyId);
+    if (!gmail) {
+      throw new Error('Google Workspace no está conectado o autorizado.');
+    }
+    await gmail.users.messages.delete({
+      userId: 'me',
+      id: messageId,
+    });
+    logger.info(`[GoogleGmailService] Email permanently deleted: ${messageId}`);
+    return {
+      success: true,
+      id: messageId,
+      message: `El correo con ID ${messageId} fue eliminado permanentemente de tu cuenta de Gmail.`,
+    };
+  } catch (err) {
+    logger.error(`[GoogleGmailService] Error deleting email ${messageId}:`, err.message);
+    throw err;
+  }
+};
+
+/**
+ * Moves multiple emails to trash matching a query.
+ */
+const batchTrashEmails = async (userId, { query = '', maxResults = 50 } = {}, companyId = null) => {
+  try {
+    if (!query || !query.trim()) {
+      throw new Error('Se requiere un criterio o query de búsqueda (ej. "from:spam@ejemplo.com", "subject:antiguo") para enviar correos en lote a la papelera.');
+    }
+    const gmail = await getGmailClient(userId, companyId);
+    if (!gmail) {
+      throw new Error('Google Workspace no está conectado o autorizado.');
+    }
+
+    const limit = Math.min(Math.max(Number(maxResults) || 50, 1), 100);
+    const listRes = await gmail.users.messages.list({
+      userId: 'me',
+      q: query.trim(),
+      maxResults: limit,
+    });
+
+    const messages = listRes.data.messages || [];
+    if (messages.length === 0) {
+      return {
+        success: true,
+        count: 0,
+        message: `No se encontraron correos para enviar a la papelera con el filtro: "${query}".`,
+      };
+    }
+
+    let trashedCount = 0;
+    const errors = [];
+
+    for (const msg of messages) {
+      try {
+        await gmail.users.messages.trash({
+          userId: 'me',
+          id: msg.id,
+        });
+        trashedCount++;
+      } catch (err) {
+        errors.push({ id: msg.id, error: err.message });
+      }
+    }
+
+    logger.info(`[GoogleGmailService] Batch trash completed: ${trashedCount}/${messages.length} moved to trash (query: "${query}")`);
+
+    return {
+      success: true,
+      count: trashedCount,
+      totalFound: messages.length,
+      message: `Se enviaron ${trashedCount} de ${messages.length} correos a la papelera que coincidían con: "${query}".`,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  } catch (err) {
+    logger.error(`[GoogleGmailService] Error in batchTrashEmails with query "${query}":`, err.message);
+    throw err;
+  }
+};
+
 module.exports = {
   getGmailClient,
   sendEmail,
   createDraft,
   listEmails,
   readEmail,
+  trashEmail,
+  deleteEmail,
+  batchTrashEmails,
 };
