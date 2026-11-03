@@ -76,18 +76,30 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const [copiedLocal, setCopiedLocal] = useState(false);
   const [showAdvancedLocal, setShowAdvancedLocal] = useState(false);
   const [activeTab, setActiveTab] = useState<'config' | 'tools' | 'keys'>('config');
+  const [daemonStatus, setDaemonStatus] = useState<any>(null);
 
-  // Cargar claves existentes
+  // Cargar claves existentes y estado en vivo del daemon Push SSE
   const loadKeys = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/user-api-keys', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [res, statusRes] = await Promise.all([
+        fetch('/api/user-api-keys', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        }),
+        fetch('/api/studio/antigravity/status', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        }).catch(() => null),
+      ]);
       if (res.ok) {
         const data = await res.json();
         setKeys(Array.isArray(data) ? data : []);
+      }
+      if (statusRes && statusRes.ok) {
+        const statusData = await statusRes.json().catch(() => null);
+        if (statusData) setDaemonStatus(statusData);
       }
     } catch (err) {
       console.error('[MCP View] Error cargando claves:', err);
@@ -95,6 +107,15 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
       setLoading(false);
     }
   }, [token]);
+
+  const isLiveConnected = Boolean(
+    daemonStatus?.bridge?.userDaemonConnected ||
+      daemonStatus?.bridge?.daemonListening ||
+      daemonStatus?.bridge?.connected ||
+      daemonStatus?.userDaemonConnected ||
+      daemonStatus?.daemonListening ||
+      daemonStatus?.connected,
+  );
 
   useEffect(() => {
     loadKeys();
@@ -1252,14 +1273,21 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
             <Cpu className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               <h2 className="text-lg font-bold">Conexión Total Antigravity (MCP)</h2>
+              {isLiveConnected && (
+                <span className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Conectado en Vivo (Push SSE)
+                </span>
+              )}
               <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
                 Acceso Total
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-              Conecta Antigravity a tu cuenta de WAPPY para que consulte y gestione absolutamente todos los módulos: matrices, normas, vehículos, comités, EPP, cronograma, cursos y agentes.
+              {isLiveConnected
+                ? 'Tu computador y Google Antigravity están enlazados en tiempo real con WAPPY IA por Push SSE (0 ms de latencia).'
+                : 'Conecta Antigravity a tu cuenta de WAPPY para que consulte y gestione absolutamente todos los módulos: matrices, normas, vehículos, comités, EPP, cronograma, cursos y agentes.'}
             </p>
           </div>
         </div>

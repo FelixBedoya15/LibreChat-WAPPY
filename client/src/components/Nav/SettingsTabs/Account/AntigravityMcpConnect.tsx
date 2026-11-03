@@ -13,6 +13,13 @@ export default function AntigravityMcpConnect() {
     daemonListening?: boolean;
     userDaemonConnected?: boolean;
     activeListeners?: number;
+    bridge?: {
+      connected?: boolean;
+      daemonListening?: boolean;
+      userDaemonConnected?: boolean;
+      activeListeners?: number;
+      userListeners?: number;
+    };
   } | null>(null);
 
   useEffect(() => {
@@ -41,7 +48,12 @@ export default function AntigravityMcpConnect() {
   }, [token, isOpen]);
 
   const isLiveConnected = Boolean(
-    daemonStatus?.userDaemonConnected || daemonStatus?.daemonListening,
+    daemonStatus?.bridge?.userDaemonConnected ||
+      daemonStatus?.bridge?.daemonListening ||
+      daemonStatus?.bridge?.connected ||
+      daemonStatus?.userDaemonConnected ||
+      daemonStatus?.daemonListening ||
+      daemonStatus?.connected,
   );
 
   return (
