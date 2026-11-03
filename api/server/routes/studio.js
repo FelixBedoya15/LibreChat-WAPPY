@@ -1709,8 +1709,8 @@ async function synthesizeSingleVoiceTurn({
     !cloneRefAudioB64 &&
     !customCloneEntry?.nativeVoiceId
   ) {
-    throw new Error(
-      'Tu voz clonada no tiene una muestra de grabación activa tras reiniciar la sesión. Abre "Clonar mi Voz", graba o sube nuevamente tu muestra de 10 segundos y pulsa Guardar.',
+    logger.warn(
+      `[WappyStudio TTS] Voz clonada ${cleanVoiceKey} sin audio fuente en RAM/Mongo/IndexedDB; aplicando huella acústica directiva (${customCloneEntry?.baseVoice || 'Orus'}).`,
     );
   }
 
