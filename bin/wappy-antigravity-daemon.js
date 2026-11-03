@@ -1973,9 +1973,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     ? findStudioConversationId(forceNewChat)
     : isWappyStudioOrder
     ? null
-    : preferredConvoId && /^[0-9a-fA-F-]{36}$/.test(String(preferredConvoId).trim()) && !forceNewChat
-    ? String(preferredConvoId).trim()
-    : null;
+    : findTargetConversationId(preferredConvoId, forceNewChat);
 
   // Traer la ventana de Antigravity al frente en macOS para que el usuario vea el chat abrirse y trabajar en tiempo real
   if (!isInternalHelperThread && process.platform === 'darwin') {

@@ -5410,7 +5410,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         },
         {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
-          timeout: 35000,
+          timeout: 110000,
         },
       );
 
@@ -5786,6 +5786,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       if (status === 502 || rawDetails.includes('502')) {
         userFriendlyMsg =
           'Se interrumpió la conexión brevemente mientras el servidor terminaba de actualizarse (Error 502). Ya estamos totalmente en línea. ¡Por favor reenvíame tu solicitud!';
+      } else if (
+        error?.code === 'ECONNABORTED' ||
+        rawDetails.toLowerCase().includes('timeout')
+      ) {
+        try {
+          const histRes = await axios.get('/api/tenshi/history', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            timeout: 10000,
+          });
+          if (Array.isArray(histRes.data) && histRes.data.length > 0) {
+            const lastSaved = histRes.data[histRes.data.length - 1];
+            if (lastSaved?.role === 'assistant' && lastSaved?.content) {
+              setMessages(histRes.data);
+              setIsTyping(false);
+              setTenshiStatus('');
+              return;
+            }
+          }
+        } catch (_) {}
+        userFriendlyMsg =
+          'La generación con Google Antigravity sigue procesándose en segundo plano. En unos segundos verás el resultado en el chat.';
       } else if (
         status === 503 ||
         rawDetails.includes('503') ||
