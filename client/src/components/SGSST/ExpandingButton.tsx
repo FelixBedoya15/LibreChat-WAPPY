@@ -12,7 +12,15 @@ export interface ExpandingButtonProps {
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   label: string;
   icon?: React.ComponentType<{ className?: string }> | React.ReactNode;
-  variant?: 'teal' | 'orange' | 'secondary' | 'rose' | 'outline-teal' | 'save' | 'ai';
+  variant?:
+    | 'teal'
+    | 'orange'
+    | 'secondary'
+    | 'rose'
+    | 'outline-teal'
+    | 'save'
+    | 'ai'
+    | ExpandableButtonVariant;
   disabled?: boolean;
   isLoading?: boolean;
   title?: string;
@@ -46,7 +54,7 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
   size = 'md',
   alwaysShowLabel = false,
 }) => {
-  const mappedDefault = legacyMap[variant] || 'neutral';
+  const mappedDefault = legacyMap[variant] || (variant as ExpandableButtonVariant) || 'neutral';
   const semanticKey = resolveSemanticVariant(`${label} ${title || ''}`, mappedDefault);
   const variantClass =
     (WAPPY_SEMANTIC_BUTTON_STYLES[semanticKey] || WAPPY_SEMANTIC_BUTTON_STYLES.neutral).idle;

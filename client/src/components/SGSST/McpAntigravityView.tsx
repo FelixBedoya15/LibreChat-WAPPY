@@ -35,6 +35,9 @@ import {
   ChevronUp,
   Info,
   Download,
+  ExternalLink,
+  Monitor,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -73,43 +76,130 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const [copiedVerify, setCopiedVerify] = useState(false);
   const [copiedCron, setCopiedCron] = useState(false);
   const [copiedSkillsPrompt, setCopiedSkillsPrompt] = useState(false);
+  const [copiedCloudPrompt, setCopiedCloudPrompt] = useState(false);
   const [copiedLocal, setCopiedLocal] = useState(false);
   const [showAdvancedLocal, setShowAdvancedLocal] = useState(false);
   const [activeTab, setActiveTab] = useState<'config' | 'tools' | 'keys'>('config');
+  const [connectionGuideMode, setConnectionGuideMode] = useState<'both' | 'cloud' | 'local'>('both');
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false);
   const [daemonStatus, setDaemonStatus] = useState<any>(null);
+
+  // Refrescar estado en vivo del puente Dual (Local + Cloud)
+  const refreshDaemonStatus = useCallback(async () => {
+    if (!token) return;
+    try {
+      const [mcpRes, studioRes] = await Promise.all([
+        fetch('/api/mcp-bridge/antigravity/status', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        }).catch(() => null),
+        fetch('/api/studio/antigravity/status', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        }).catch(() => null),
+      ]);
+      const mcpData = mcpRes && mcpRes.ok ? await mcpRes.json().catch(() => null) : null;
+      const studioData = studioRes && studioRes.ok ? await studioRes.json().catch(() => null) : null;
+      if (mcpData || studioData) {
+        setDaemonStatus((prev: any) => ({
+          ...(prev || {}),
+          ...(studioData || {}),
+          ...(mcpData || {}),
+          localConnected: Boolean(
+            mcpData?.localConnected ??
+              studioData?.localConnected ??
+              studioData?.bridge?.localConnected ??
+              false,
+          ),
+          cloudConnected: Boolean(
+            mcpData?.cloudConnected ??
+              studioData?.cloudConnected ??
+              studioData?.bridge?.cloudConnected ??
+              false,
+          ),
+          localCount: Number(
+            mcpData?.localCount ?? studioData?.localCount ?? studioData?.bridge?.localCount ?? 0,
+          ),
+          cloudCount: Number(
+            mcpData?.cloudCount ?? studioData?.cloudCount ?? studioData?.bridge?.cloudCount ?? 0,
+          ),
+          activeMode:
+            mcpData?.activeMode ||
+            studioData?.activeMode ||
+            studioData?.bridge?.activeMode ||
+            prev?.activeMode ||
+            'local',
+          effectiveEnv:
+            mcpData?.effectiveEnv ||
+            studioData?.effectiveEnv ||
+            studioData?.bridge?.effectiveEnv ||
+            prev?.effectiveEnv ||
+            'local',
+        }));
+      }
+    } catch (_) {
+      /* ignore background poll error */
+    }
+  }, [token]);
 
   // Cargar claves existentes y estado en vivo del daemon Push SSE
   const loadKeys = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const [res, statusRes] = await Promise.all([
+      const [res] = await Promise.all([
         fetch('/api/user-api-keys', {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
         }),
-        fetch('/api/studio/antigravity/status', {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
-        }).catch(() => null),
+        refreshDaemonStatus(),
       ]);
       if (res.ok) {
         const data = await res.json();
         setKeys(Array.isArray(data) ? data : []);
-      }
-      if (statusRes && statusRes.ok) {
-        const statusData = await statusRes.json().catch(() => null);
-        if (statusData) setDaemonStatus(statusData);
       }
     } catch (err) {
       console.error('[MCP View] Error cargando claves:', err);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, refreshDaemonStatus]);
+
+  const localConnected = Boolean(
+    daemonStatus?.localConnected ||
+      daemonStatus?.bridge?.localConnected ||
+      Number(daemonStatus?.localCount ?? daemonStatus?.bridge?.localCount ?? 0) > 0,
+  );
+  const cloudConnected = Boolean(
+    daemonStatus?.cloudConnected ||
+      daemonStatus?.bridge?.cloudConnected ||
+      Number(daemonStatus?.cloudCount ?? daemonStatus?.bridge?.cloudCount ?? 0) > 0,
+  );
+  const localCount = Number(
+    daemonStatus?.localCount ?? daemonStatus?.bridge?.localCount ?? (localConnected ? 1 : 0),
+  );
+  const cloudCount = Number(
+    daemonStatus?.cloudCount ?? daemonStatus?.bridge?.cloudCount ?? (cloudConnected ? 1 : 0),
+  );
+  const activeMode: 'local' | 'cloud' | 'auto' =
+    daemonStatus?.activeMode === 'cloud' || daemonStatus?.bridge?.activeMode === 'cloud'
+      ? 'cloud'
+      : daemonStatus?.activeMode === 'auto' || daemonStatus?.bridge?.activeMode === 'auto'
+        ? 'auto'
+        : 'local';
+  const effectiveEnv: 'local' | 'cloud' =
+    daemonStatus?.effectiveEnv === 'cloud' || daemonStatus?.bridge?.effectiveEnv === 'cloud'
+      ? 'cloud'
+      : activeMode === 'cloud'
+        ? 'cloud'
+        : activeMode === 'auto' && !localConnected && cloudConnected
+          ? 'cloud'
+          : 'local';
 
   const isLiveConnected = Boolean(
-    daemonStatus?.bridge?.userDaemonConnected ||
+    localConnected ||
+      cloudConnected ||
+      daemonStatus?.bridge?.userDaemonConnected ||
       daemonStatus?.bridge?.daemonListening ||
       daemonStatus?.bridge?.connected ||
       daemonStatus?.userDaemonConnected ||
@@ -117,9 +207,71 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
       daemonStatus?.connected,
   );
 
+  // Cambiar Modo de Trabajo de 1 Clic ('local' | 'cloud' | 'auto')
+  const handleSelectMode = async (nextMode: 'local' | 'cloud' | 'auto') => {
+    if (!token || isSwitchingMode) return;
+    setIsSwitchingMode(true);
+    const optimisticEffective: 'local' | 'cloud' =
+      nextMode === 'cloud'
+        ? 'cloud'
+        : nextMode === 'local'
+          ? 'local'
+          : localConnected
+            ? 'local'
+            : cloudConnected
+              ? 'cloud'
+              : 'local';
+    setDaemonStatus((prev: any) => ({
+      ...(prev || {}),
+      activeMode: nextMode,
+      effectiveEnv: optimisticEffective,
+    }));
+    try {
+      const res = await fetch('/api/mcp-bridge/antigravity/mode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ mode: nextMode }),
+      });
+      const data = res.ok ? await res.json().catch(() => null) : null;
+      if (data && data.ok !== false) {
+        setDaemonStatus((prev: any) => ({
+          ...(prev || {}),
+          ...data,
+          activeMode: data.activeMode || data.mode || nextMode,
+          effectiveEnv: data.effectiveEnv || optimisticEffective,
+        }));
+      }
+      const modeMessages: Record<'local' | 'cloud' | 'auto', string> = {
+        local: '🖥️ Modo Local activado: Las órdenes se enviarán a tu Antigravity en Mac/PC.',
+        cloud:
+          '☁️ Modo Cloud activado: Las órdenes se enviarán a antigravity.google.com (24/7 sin tu PC prendido).',
+        auto: '⚡ Modo Automático (Híbrido) activado: Usa Local si tu PC está activo y pasa a Cloud automáticamente.',
+      };
+      showToast({
+        message: modeMessages[nextMode],
+        status: 'success',
+      });
+    } catch (err) {
+      showToast({
+        message: 'No se pudo cambiar el modo de Antigravity. Revisa tu conexión.',
+        status: 'error',
+      });
+    } finally {
+      setIsSwitchingMode(false);
+    }
+  };
+
   useEffect(() => {
     loadKeys();
-  }, [loadKeys]);
+    const pollTimer = setInterval(() => {
+      refreshDaemonStatus();
+    }, 8000);
+    return () => clearInterval(pollTimer);
+  }, [loadKeys, refreshDaemonStatus]);
 
   // Generar nueva clave
   const handleCreateKey = async (): Promise<string | null> => {
@@ -833,6 +985,32 @@ Confírmame apenas quede instalado y corriendo.`;
     });
   };
 
+  // Prompt de 1 Clic para Conectar Antigravity Cloud (antigravity.google.com) — MCP + 7 Skills + Puente 24/7
+  const buildCloudAntigravityPrompt = (key: string) => {
+    const safeKey = key && !key.includes('...') ? key : effectiveKey;
+    return `Hola Antigravity, conecta mi cuenta oficial de WAPPY IA en este entorno Cloud (instalando las 7 Skills Oficiales de Diseño y Video 60-FPS, registrando mi servidor MCP "wappy" en ~/.gemini/config/mcp_config.json y ~/.gemini/antigravity/mcp_config.json, y activando el Puente Reactivo SSE en segundo plano) ejecutando directamente este comando autorizado en tu terminal con run_command:
+
+node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process');const key='${safeKey}',url='${originUrl}';const agy=path.join(os.homedir(),'.gemini','antigravity'),cfg=path.join(os.homedir(),'.gemini','config');fs.mkdirSync(agy,{recursive:true});fs.mkdirSync(cfg,{recursive:true});const sse=url+'/api/mcp-bridge/sse?apiKey='+key;for(const p of [path.join(cfg,'mcp_config.json'),path.join(agy,'mcp_config.json')]){let m={};try{if(fs.existsSync(p))m=JSON.parse(fs.readFileSync(p,'utf8'))||{};}catch(_){}m.mcpServers=m.mcpServers||{};m.mcpServers.wappy={url:sse,serverUrl:sse};fs.writeFileSync(p,JSON.stringify(m,null,2));}const inst=await fetch(url+'/api/studio/antigravity/skills-installer.js?key='+key+'&env=cloud').then(r=>r.text());const ip=path.join(agy,'wappy-skills-installer.js');fs.writeFileSync(ip,inst);cp.spawnSync(process.execPath,[ip,'--key='+key,'--url='+url,'--cloud'],{stdio:'inherit'});const d=await fetch(url+'/api/mcp-bridge/antigravity/daemon.js').then(r=>r.text());const dp=path.join(agy,'wappy-push-daemon.js');fs.writeFileSync(dp,d);cp.spawnSync(process.execPath,[dp,'--install','--cloud','--key='+key,'--url='+url],{stdio:'inherit'});})()"`;
+  };
+
+  const cloudAntigravityPrompt = buildCloudAntigravityPrompt(effectiveKey);
+
+  const handleCopyCloudPrompt = async () => {
+    let keyToUse = newKeyGenerated || fullKeyFromList;
+    if (!keyToUse) {
+      keyToUse = await handleCreateKey();
+    }
+    const finalKey = keyToUse || effectiveKey;
+    const promptText = buildCloudAntigravityPrompt(finalKey);
+    navigator.clipboard.writeText(promptText);
+    setCopiedCloudPrompt(true);
+    setTimeout(() => setCopiedCloudPrompt(false), 2500);
+    showToast({
+      message: '☁️ Prompt de Enlace Cloud (MCP + 7 Skills + Puente 24/7) copiado al portapapeles',
+      status: 'success',
+    });
+  };
+
   // Paso 1: Configuración 100% declarativa y estándar de mcp_config.json para pegar en el Chat de Antigravity
   const buildAntigravityPrompt = (url: string) => `Hola Antigravity, usando tu guía interna agy-customizations (MCP Servers), ayúdame a registrar mi servidor MCP "wappy" de forma declarativa en mi archivo de configuración global de MCP (.gemini/config/mcp_config.json y .gemini/antigravity/mcp_config.json dentro de mi carpeta de usuario, conservando cualquier otro servidor que ya exista en mcpServers) con este bloque JSON:
 
@@ -1324,8 +1502,209 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
         </div>
       )}
 
+      {/* PANEL SUPERIOR DE ESTADO DUAL + SELECTOR DE MODO DE TRABAJO DE 1 CLIC ([🖥️ Local] [☁️ Cloud] [⚡ Auto]) */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-sm flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-300">
+                Estado Dual en Tiempo Real & Selector de Modo (1-Clic)
+              </span>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl text-[11px] font-bold border',
+                  effectiveEnv === 'cloud'
+                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-300'
+                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300',
+                )}
+              >
+                Enrutamiento efectivo actual:{' '}
+                {effectiveEnv === 'cloud' ? '☁️ Cloud (antigravity.google.com)' : '🖥️ Local (Mac/PC)'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+              Elige con un clic a qué entorno de Google Antigravity debe enviar WAPPY IA y Tenshi Voz tus órdenes en tiempo real:
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ExpandingButton
+              onClick={refreshDaemonStatus}
+              icon={RefreshCw}
+              label="Actualizar Estado"
+              variant="cyan"
+              size="sm"
+              title="Consultar en vivo el estado de tus conexiones Local y Cloud"
+            />
+          </div>
+        </div>
+
+        {/* 2 Píldoras / Tarjetas de Estado en Tiempo Real */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* 1. Estado Antigravity Local */}
+          <div
+            className={cn(
+              'p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-all',
+              localConnected
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100'
+                : 'bg-slate-500/5 dark:bg-zinc-950/60 border-slate-200/80 dark:border-zinc-800 text-slate-700 dark:text-zinc-300',
+            )}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border',
+                  localConnected
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-300'
+                    : 'bg-slate-500/10 border-slate-300/50 dark:border-zinc-700 text-slate-500 dark:text-zinc-400',
+                )}
+              >
+                <Monitor className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-extrabold truncate">
+                  🖥️ Antigravity Local (Mac/PC):
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                  {localConnected
+                    ? `Enlazado en tu equipo (${localCount} instancia${localCount === 1 ? '' : 's'} activa${localCount === 1 ? '' : 's'})`
+                    : 'Apagado o sin iniciar daemon local'}
+                </div>
+              </div>
+            </div>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold border shrink-0',
+                localConnected
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-slate-500/10 border-slate-300/60 dark:border-zinc-700 text-slate-600 dark:text-zinc-400',
+              )}
+            >
+              {localConnected ? '🟢 Conectado' : '⚪ Desconectado'}
+            </span>
+          </div>
+
+          {/* 2. Estado Antigravity Cloud */}
+          <div
+            className={cn(
+              'p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-all',
+              cloudConnected
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100'
+                : 'bg-sky-500/5 dark:bg-zinc-950/60 border-sky-500/20 dark:border-zinc-800 text-slate-700 dark:text-zinc-300',
+            )}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border',
+                  cloudConnected
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-300'
+                    : 'bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-300',
+                )}
+              >
+                <Cloud className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-extrabold truncate">
+                  ☁️ Antigravity Cloud (antigravity.google.com):
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                  {cloudConnected
+                    ? `Corriendo 24/7 en la nube (${cloudCount} instancia${cloudCount === 1 ? '' : 's'} activa${cloudCount === 1 ? '' : 's'})`
+                    : 'Listo para enlazar en 1 clic sin instalar nada'}
+                </div>
+              </div>
+            </div>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold border shrink-0',
+                cloudConnected
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-slate-500/10 border-slate-300/60 dark:border-zinc-700 text-slate-600 dark:text-zinc-400',
+              )}
+            >
+              {cloudConnected ? '🟢 Conectado' : '⚪ Sin enlazar'}
+            </span>
+          </div>
+        </div>
+
+        {/* Selector de Modo de Trabajo de 1 Clic ([🖥️ Local] [☁️ Cloud] [⚡ Auto]) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          <button
+            type="button"
+            disabled={isSwitchingMode}
+            onClick={() => handleSelectMode('local')}
+            className={cn(
+              'p-3 rounded-xl border text-left transition-all duration-300 flex flex-col gap-1 active:scale-95',
+              activeMode === 'local'
+                ? 'bg-teal-500/15 border-teal-500/50 text-teal-800 dark:text-teal-200 ring-1 ring-teal-500/30 shadow-2xs'
+                : 'bg-slate-500/5 dark:bg-zinc-900/80 border-slate-200/80 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-teal-500/10 hover:border-teal-500/30',
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-extrabold">🖥️ Trabajar en Local</span>
+              {activeMode === 'local' && (
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-lg bg-teal-500/20 border border-teal-500/40 text-teal-700 dark:text-teal-300">
+                  Activo
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 leading-snug">
+              Envía las órdenes al Antigravity de tu Mac/PC.
+            </span>
+          </button>
+
+          <button
+            type="button"
+            disabled={isSwitchingMode}
+            onClick={() => handleSelectMode('cloud')}
+            className={cn(
+              'p-3 rounded-xl border text-left transition-all duration-300 flex flex-col gap-1 active:scale-95',
+              activeMode === 'cloud'
+                ? 'bg-sky-500/15 border-sky-500/50 text-sky-800 dark:text-sky-200 ring-1 ring-sky-500/30 shadow-2xs'
+                : 'bg-slate-500/5 dark:bg-zinc-900/80 border-slate-200/80 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-sky-500/10 hover:border-sky-500/30',
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-extrabold">☁️ Trabajar en Cloud</span>
+              {activeMode === 'cloud' && (
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-lg bg-sky-500/20 border border-sky-500/40 text-sky-700 dark:text-sky-300">
+                  Activo
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 leading-snug">
+              Envía las órdenes a <code className="font-mono">antigravity.google.com</code> (corre 24/7 sin tu PC prendido).
+            </span>
+          </button>
+
+          <button
+            type="button"
+            disabled={isSwitchingMode}
+            onClick={() => handleSelectMode('auto')}
+            className={cn(
+              'p-3 rounded-xl border text-left transition-all duration-300 flex flex-col gap-1 active:scale-95',
+              activeMode === 'auto'
+                ? 'bg-purple-500/15 border-purple-500/50 text-purple-800 dark:text-purple-200 ring-1 ring-purple-500/30 shadow-2xs'
+                : 'bg-slate-500/5 dark:bg-zinc-900/80 border-slate-200/80 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-purple-500/10 hover:border-purple-500/30',
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-extrabold">⚡ Automático (Híbrido)</span>
+              {activeMode === 'auto' && (
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-700 dark:text-purple-300">
+                  Activo
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 leading-snug">
+              Usa Local si tu PC está activo y pasa a Cloud automáticamente cuando apagues tu PC.
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* Selector de Pestañas (Toolbar Cápsula WAPPY) */}
-      <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none w-fit">
+      <div className="inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none w-fit flex-wrap">
         <button
           onClick={() => setActiveTab('config')}
           className={cn(
@@ -1367,6 +1746,144 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
       {/* Tab: Configuración Antigravity (Guía Paso a Paso Simple) */}
       {activeTab === 'config' && (
         <div className="flex flex-col gap-5">
+          {/* Selector de Guía Paso a Paso: Cloud vs Local */}
+          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-100/80 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 w-fit">
+            <button
+              type="button"
+              onClick={() => setConnectionGuideMode('cloud')}
+              className={cn(
+                'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
+                connectionGuideMode === 'cloud'
+                  ? 'bg-sky-500/15 border border-sky-500/40 text-sky-700 dark:text-sky-300 shadow-2xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-800 border border-transparent',
+              )}
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              ☁️ Conectar Antigravity Cloud (Sin instalar nada)
+            </button>
+            <button
+              type="button"
+              onClick={() => setConnectionGuideMode('local')}
+              className={cn(
+                'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
+                connectionGuideMode === 'local'
+                  ? 'bg-teal-500/15 border border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-800 border border-transparent',
+              )}
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              🖥️ Conectar Antigravity Local (Mac / Windows)
+            </button>
+            <button
+              type="button"
+              onClick={() => setConnectionGuideMode('both')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
+                connectionGuideMode === 'both'
+                  ? 'bg-purple-500/15 border border-purple-500/40 text-purple-700 dark:text-purple-300 shadow-2xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-800 border border-transparent',
+              )}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Ver Ambos (Cloud + Local)
+            </button>
+          </div>
+
+          {/* TARJETA DESTACADA: ☁️ Conexión en la Nube (antigravity.google.com) — Sin instalar nada en tu PC */}
+          {(connectionGuideMode === 'both' || connectionGuideMode === 'cloud') && (
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-sky-500/10 via-cyan-500/5 to-indigo-500/10 dark:from-sky-950/30 dark:via-zinc-900 dark:to-indigo-950/20 border border-sky-500/30 flex flex-col gap-4 shadow-sm">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-300 font-black text-base shrink-0">
+                    ☁️
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-zinc-100">
+                        ☁️ Conexión en la Nube (<code className="font-mono text-sky-600 dark:text-sky-300">antigravity.google.com</code>) — Sin instalar nada en tu PC
+                      </h3>
+                      <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-xl bg-sky-500/20 border border-sky-500/40 text-sky-700 dark:text-sky-300">
+                        24/7 en la Nube • 1 Clic
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-zinc-300 mt-1 leading-relaxed">
+                      Enlaza tu cuenta de WAPPY directamente en el navegador con <strong>Google Antigravity Web</strong> (<code className="font-mono">antigravity.google.com</code>). Instala automáticamente el servidor MCP ({totalHerramientas}+ herramientas), las 7 Skills Oficiales de Diseño y Video 60-FPS y el Puente Reactivo SSE 24/7 sin descargar ni instalar programas en tu computador.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Botonera dedicada Cloud (Cumple regla anti-parpadeo: cada botón en contenedor dedicado/estable) */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <ExpandingButton
+                    onClick={() => {
+                      window.open('https://antigravity.google.com', '_blank', 'noopener,noreferrer');
+                    }}
+                    icon={ExternalLink}
+                    label="Abrir antigravity.google.com"
+                    variant="cyan"
+                    title="Abrir Google Antigravity Cloud (antigravity.google.com) en una nueva pestaña"
+                  />
+                  <ExpandingButton
+                    onClick={handleCopyCloudPrompt}
+                    icon={copiedCloudPrompt ? Check : Copy}
+                    label={
+                      copiedCloudPrompt
+                        ? '¡Prompt Cloud Copiado!'
+                        : '📋 Copiar Prompt de Enlace Cloud (MCP + 7 Skills + Puente 24/7)'
+                    }
+                    variant="purple"
+                    title="Copiar el Prompt de 1 Clic con tu API Key activa para pegarlo en el chat de antigravity.google.com"
+                  />
+                </div>
+              </div>
+
+              {/* Instrucciones rápidas en 3 pasos para Cloud + Nota de Google Drive / GitHub en Resources */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-sky-500/20 flex flex-col gap-1">
+                  <span className="text-xs font-extrabold text-sky-700 dark:text-sky-300">
+                    1. Abre antigravity.google.com
+                  </span>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                    Inicia sesión con tu cuenta de Google en <strong>https://antigravity.google.com</strong> desde cualquier navegador o celular.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-sky-500/20 flex flex-col gap-1">
+                  <span className="text-xs font-extrabold text-sky-700 dark:text-sky-300">
+                    2. Adjunta Drive / GitHub en Resources
+                  </span>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                    En el panel lateral <strong>Resources</strong> de Antigravity Web puedes adjuntar tus carpetas de <strong>Google Drive</strong> o repositorios de <strong>GitHub</strong> para que trabaje sobre tus archivos en la nube.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-sky-500/20 flex flex-col gap-1">
+                  <span className="text-xs font-extrabold text-sky-700 dark:text-sky-300">
+                    3. Pega el Prompt de Enlace Cloud
+                  </span>
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+                    Haz clic en <strong>📋 Copiar Prompt de Enlace Cloud</strong>, pégalo en el chat de <code className="font-mono">antigravity.google.com</code> y verás cómo el indicador superior pasa a <strong>🟢 Conectado</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Vista previa del Prompt de Enlace Cloud */}
+              <div className="p-3.5 rounded-xl bg-sky-50/50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-sky-200/70 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all max-h-48 overflow-y-auto break-all">
+                {cloudAntigravityPrompt}
+              </div>
+            </div>
+          )}
+
+          {(connectionGuideMode === 'both' || connectionGuideMode === 'local') && (
+            <>
+          {/* Encabezado de Sección Local */}
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-2">
+              <Monitor className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                🖥️ Conexión Antigravity Local (Mac / Windows) — Paso a Paso
+              </span>
+            </div>
+          </div>
+
           {/* Guía Rápida de 3 Pasos arriba para orientar al usuario desde el primer vistazo */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
@@ -1587,6 +2104,8 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
               </div>
             </div>
           </div>
+            </>
+          )}
 
           {/* Resumen sencillo de qué puede hacer el usuario una vez conectado */}
           <div className="p-4 rounded-2xl bg-teal-50/40 dark:bg-teal-950/20 border border-teal-500/30 dark:border-teal-500/30 flex flex-col gap-2.5 shadow-2xs">

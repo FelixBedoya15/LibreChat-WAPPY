@@ -2604,13 +2604,27 @@ export default function WappyStudioDashboard({
   });
   const [antigravityStreamConnected, setAntigravityStreamConnected] = useState<boolean>(false);
   const [antigravityDaemonConnected, setAntigravityDaemonConnected] = useState<boolean>(false);
+  const [antigravityLocalConnected, setAntigravityLocalConnected] = useState<boolean>(false);
+  const [antigravityCloudConnected, setAntigravityCloudConnected] = useState<boolean>(false);
+  const [antigravityLocalCount, setAntigravityLocalCount] = useState<number>(0);
+  const [antigravityCloudCount, setAntigravityCloudCount] = useState<number>(0);
+  const [antigravityActiveMode, setAntigravityActiveMode] = useState<'local' | 'cloud' | 'auto'>(
+    'local',
+  );
+  const [antigravityEffectiveEnv, setAntigravityEffectiveEnv] = useState<'local' | 'cloud'>(
+    'local',
+  );
+  const [isSwitchingAntigravityMode, setIsSwitchingAntigravityMode] = useState<boolean>(false);
+  const [antigravityConnectionGuideTab, setAntigravityConnectionGuideTab] = useState<
+    'both' | 'cloud' | 'local'
+  >('both');
   const [activeAntigravityOrderId, setActiveAntigravityOrderId] = useState<string>('');
   const [antigravityOrderStatus, setAntigravityOrderStatus] = useState<
     'idle' | 'delegated' | 'completed'
   >('idle');
   const antigravityPollTimerRef = useRef<any>(null);
   const [copiedBridgeItem, setCopiedBridgeItem] = useState<
-    'key' | 'prompt' | 'terminal' | null
+    'key' | 'prompt' | 'terminal' | 'cloud_prompt' | null
   >(null);
 
   // Catálogo precargado inmediatamente (14 voces, 4 modelos, 9 presets y 5 vocal bursts siempre visibles)
@@ -6868,6 +6882,50 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
   // ============================================================================
   // ENLACE PERSONAL ANTIGRAVITY (USUARIO wpy_... O VISITANTE wpy_guest_...) + SSE
   // ============================================================================
+  const applyAntigravityStatusPayload = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return;
+    const bridge = payload.bridge || payload;
+    const locConn = Boolean(
+      payload.localConnected ??
+        bridge.localConnected ??
+        Number(payload.localCount ?? bridge.localCount ?? 0) > 0,
+    );
+    const cldConn = Boolean(
+      payload.cloudConnected ??
+        bridge.cloudConnected ??
+        Number(payload.cloudCount ?? bridge.cloudCount ?? 0) > 0,
+    );
+    const locCnt = Number(payload.localCount ?? bridge.localCount ?? (locConn ? 1 : 0));
+    const cldCnt = Number(payload.cloudCount ?? bridge.cloudCount ?? (cldConn ? 1 : 0));
+    const rawMode = String(payload.activeMode || payload.mode || bridge.activeMode || 'local');
+    const modeVal: 'local' | 'cloud' | 'auto' =
+      rawMode === 'cloud' ? 'cloud' : rawMode === 'auto' ? 'auto' : 'local';
+    const rawEff = String(payload.effectiveEnv || bridge.effectiveEnv || '');
+    const effVal: 'local' | 'cloud' =
+      rawEff === 'cloud'
+        ? 'cloud'
+        : modeVal === 'cloud'
+          ? 'cloud'
+          : modeVal === 'auto' && !locConn && cldConn
+            ? 'cloud'
+            : 'local';
+    const anyConn = Boolean(
+      locConn ||
+        cldConn ||
+        payload.connected ||
+        bridge.userDaemonConnected ||
+        bridge.daemonListening ||
+        bridge.connected,
+    );
+    setAntigravityLocalConnected(locConn);
+    setAntigravityCloudConnected(cldConn);
+    setAntigravityLocalCount(locCnt);
+    setAntigravityCloudCount(cldCnt);
+    setAntigravityActiveMode(modeVal);
+    setAntigravityEffectiveEnv(effVal);
+    setAntigravityDaemonConnected(anyConn);
+  };
+
   const syncAntigravityBridgeKey = async (forceRefresh = false) => {
     const isUserLoggedIn = Boolean(
       token ||
@@ -6879,21 +6937,29 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       const storedKey = localStorage.getItem('wappy_antigravity_bridge_key') || '';
       const effectiveGuestSeed =
         forceRefresh || (isUserLoggedIn && storedKey.startsWith('wpy_guest_')) ? '' : storedKey;
-      const resp = await fetch('/api/studio/antigravity/guest-key', {
-        method: 'POST',
-        credentials: 'include',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify({
-          guestKey: effectiveGuestSeed,
+      const [resp, statusResp] = await Promise.all([
+        fetch('/api/studio/antigravity/guest-key', {
+          method: 'POST',
+          credentials: 'include',
+          headers: getAuthHeaders(token),
+          body: JSON.stringify({
+            guestKey: effectiveGuestSeed,
+          }),
         }),
-      });
+        fetch('/api/studio/antigravity/status', {
+          method: 'GET',
+          credentials: 'include',
+          headers: getAuthHeaders(token),
+        }).catch(() => null),
+      ]);
+      if (statusResp && statusResp.ok) {
+        const statusData = await statusResp.json().catch(() => null);
+        if (statusData) applyAntigravityStatusPayload(statusData);
+      }
       if (resp.ok) {
         const data = await resp.json().catch(() => ({}));
+        applyAntigravityStatusPayload(data);
         const resolvedKey = String(data.apiKey || data.guestKey || data.key || '').trim();
-        const isConnected = Boolean(
-          data.connected || data.bridge?.userDaemonConnected || data.bridge?.connected,
-        );
-        setAntigravityDaemonConnected(isConnected);
         if (resolvedKey) {
           setAntigravityBridgeKey(resolvedKey);
           try {
@@ -6925,6 +6991,64 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     return generated;
   };
 
+  const handleChangeStudioAntigravityMode = async (nextMode: 'local' | 'cloud' | 'auto') => {
+    if (isSwitchingAntigravityMode) return;
+    setIsSwitchingAntigravityMode(true);
+    const optimisticEffective: 'local' | 'cloud' =
+      nextMode === 'cloud'
+        ? 'cloud'
+        : nextMode === 'local'
+          ? 'local'
+          : antigravityLocalConnected
+            ? 'local'
+            : antigravityCloudConnected
+              ? 'cloud'
+              : 'local';
+    setAntigravityActiveMode(nextMode);
+    setAntigravityEffectiveEnv(optimisticEffective);
+    try {
+      const effKey = resolveEffectiveAntigravityKey() || antigravityBridgeKey || '';
+      let resp = await fetch('/api/studio/antigravity/mode', {
+        method: 'POST',
+        credentials: 'include',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          mode: nextMode,
+          antigravityApiKey: effKey || undefined,
+        }),
+      }).catch(() => null);
+      if (!resp || !resp.ok) {
+        resp = await fetch('/api/mcp-bridge/antigravity/mode', {
+          method: 'POST',
+          credentials: 'include',
+          headers: getAuthHeaders(token),
+          body: JSON.stringify({
+            mode: nextMode,
+            apiKey: effKey || undefined,
+          }),
+        }).catch(() => null);
+      }
+      if (resp && resp.ok) {
+        const data = await resp.json().catch(() => null);
+        if (data) applyAntigravityStatusPayload(data);
+      }
+      const modeMessages: Record<'local' | 'cloud' | 'auto', string> = {
+        local: '🖥️ Modo Local activado: Las órdenes se enviarán al Antigravity de tu Mac/PC.',
+        cloud:
+          '☁️ Modo Cloud activado: Las órdenes se enviarán a antigravity.google.com (corre 24/7 sin tu PC prendido).',
+        auto: '⚡ Modo Automático (Híbrido) activado: Usa Local si tu PC está activo y pasa a Cloud automáticamente.',
+      };
+      setStatusBanner({
+        type: 'success',
+        text: modeMessages[nextMode],
+      });
+    } catch {
+      /* keep optimistic state */
+    } finally {
+      setIsSwitchingAntigravityMode(false);
+    }
+  };
+
   useEffect(() => {
     syncAntigravityBridgeKey(false);
     const onAuthUpdated = () => {
@@ -6932,7 +7056,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     };
     const statusInterval = setInterval(() => {
       syncAntigravityBridgeKey(false);
-    }, 15000);
+    }, 10000);
     window.addEventListener('wappy-auth-updated', onAuthUpdated);
     return () => {
       clearInterval(statusInterval);
@@ -7046,6 +7170,14 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
       es.onerror = () => {
         setAntigravityStreamConnected(false);
       };
+      es.addEventListener('connected', (ev: MessageEvent) => {
+        try {
+          const parsed = JSON.parse(ev.data);
+          applyAntigravityStatusPayload(parsed);
+        } catch {
+          /* ignore */
+        }
+      });
       es.onmessage = (ev) => {
         try {
           const parsed = JSON.parse(ev.data);
@@ -7077,6 +7209,13 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   const studioOriginUrl =
     typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club';
+
+  const buildAntigravityCloudPrompt = (keyOverride?: string) => {
+    const activeKey = (keyOverride || antigravityBridgeKey || '').trim() || 'PEGA_TU_CLAVE_AQUI';
+    return `Hola Antigravity, conecta mi cuenta oficial de WAPPY IA en este entorno Cloud (instalando las 7 Skills Oficiales de Diseño y Video 60-FPS, registrando mi servidor MCP "wappy" en ~/.gemini/config/mcp_config.json y ~/.gemini/antigravity/mcp_config.json, y activando el Puente Reactivo SSE en segundo plano) ejecutando directamente este comando autorizado en tu terminal con run_command:
+
+node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process');const key='${activeKey}',url='${studioOriginUrl}';const agy=path.join(os.homedir(),'.gemini','antigravity'),cfg=path.join(os.homedir(),'.gemini','config');fs.mkdirSync(agy,{recursive:true});fs.mkdirSync(cfg,{recursive:true});const sse=url+'/api/mcp-bridge/sse?apiKey='+key;for(const p of [path.join(cfg,'mcp_config.json'),path.join(agy,'mcp_config.json')]){let m={};try{if(fs.existsSync(p))m=JSON.parse(fs.readFileSync(p,'utf8'))||{};}catch(_){}m.mcpServers=m.mcpServers||{};m.mcpServers.wappy={url:sse,serverUrl:sse};fs.writeFileSync(p,JSON.stringify(m,null,2));}const inst=await fetch(url+'/api/studio/antigravity/skills-installer.js?key='+key+'&env=cloud').then(r=>r.text());const ip=path.join(agy,'wappy-skills-installer.js');fs.writeFileSync(ip,inst);cp.spawnSync(process.execPath,[ip,'--key='+key,'--url='+url,'--cloud'],{stdio:'inherit'});const d=await fetch(url+'/api/mcp-bridge/antigravity/daemon.js').then(r=>r.text());const dp=path.join(agy,'wappy-push-daemon.js');fs.writeFileSync(dp,d);cp.spawnSync(process.execPath,[dp,'--install','--cloud','--key='+key,'--url='+url],{stdio:'inherit'});})()"`;
+  };
 
   const buildAntigravitySkillsInstallCmd = (keyOverride?: string) => {
     const activeKey = (keyOverride || antigravityBridgeKey || '').trim();
@@ -7439,6 +7578,98 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                   title="Abrir Landing Page Pública y Aplicativo Portable"
                 />
               )}
+            </div>
+
+            {/* Barra de Estado Dual Antigravity (🖥️ Local | ☁️ Cloud) + Selector Rápido de Modo 1-Clic ([🖥️ Local] [☁️ Cloud] [⚡ Auto]) */}
+            <div className="w-full flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-50/90 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800">
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="font-extrabold text-slate-600 dark:text-zinc-300">
+                  Puente Antigravity:
+                </span>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-xl font-bold border',
+                    antigravityLocalConnected
+                      ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-slate-500/10 border-slate-300/60 dark:border-slate-700 text-slate-600 dark:text-zinc-400',
+                  )}
+                  title="Estado de Antigravity Local (Mac/PC)"
+                >
+                  🖥️ Local: {antigravityLocalConnected ? '🟢 Conectado' : '⚪ Desconectado'}
+                </span>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-xl font-bold border',
+                    antigravityCloudConnected
+                      ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-300',
+                  )}
+                  title="Estado de Antigravity Cloud (antigravity.google.com)"
+                >
+                  ☁️ Cloud: {antigravityCloudConnected ? '🟢 Conectado' : '⚪ Sin enlazar'}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mr-0.5">
+                  Modo:
+                </span>
+                <button
+                  type="button"
+                  disabled={isSwitchingAntigravityMode}
+                  onClick={() => handleChangeStudioAntigravityMode('local')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-xl text-[11px] font-extrabold border transition cursor-pointer active:scale-95',
+                    antigravityActiveMode === 'local'
+                      ? 'bg-teal-500/20 border-teal-500/50 text-teal-700 dark:text-teal-300 shadow-2xs'
+                      : 'bg-slate-500/10 border-slate-300/50 dark:border-slate-800 text-slate-600 dark:text-zinc-400 hover:bg-teal-500/10',
+                  )}
+                  title="Envía las órdenes al Antigravity de tu Mac/PC"
+                >
+                  🖥️ Local
+                </button>
+                <button
+                  type="button"
+                  disabled={isSwitchingAntigravityMode}
+                  onClick={() => handleChangeStudioAntigravityMode('cloud')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-xl text-[11px] font-extrabold border transition cursor-pointer active:scale-95',
+                    antigravityActiveMode === 'cloud'
+                      ? 'bg-sky-500/20 border-sky-500/50 text-sky-700 dark:text-sky-300 shadow-2xs'
+                      : 'bg-slate-500/10 border-slate-300/50 dark:border-slate-800 text-slate-600 dark:text-zinc-400 hover:bg-sky-500/10',
+                  )}
+                  title="Envía las órdenes a antigravity.google.com (corre 24/7 sin tu PC prendido)"
+                >
+                  ☁️ Cloud
+                </button>
+                <button
+                  type="button"
+                  disabled={isSwitchingAntigravityMode}
+                  onClick={() => handleChangeStudioAntigravityMode('auto')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-xl text-[11px] font-extrabold border transition cursor-pointer active:scale-95',
+                    antigravityActiveMode === 'auto'
+                      ? 'bg-purple-500/20 border-purple-500/50 text-purple-700 dark:text-purple-300 shadow-2xs'
+                      : 'bg-slate-500/10 border-slate-300/50 dark:border-slate-800 text-slate-600 dark:text-zinc-400 hover:bg-purple-500/10',
+                  )}
+                  title="Usa Local si tu PC está activo y pasa a Cloud automáticamente cuando apagues tu PC"
+                >
+                  ⚡ Auto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setKeyValidationMsg('');
+                    setApiKeyModalTab('antigravity');
+                    setAntigravityConnectionGuideTab('cloud');
+                    setIsApiKeyModalOpen(true);
+                  }}
+                  className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-700 dark:text-sky-300 transition cursor-pointer"
+                  title="Abrir guía de 1 clic para conectar Antigravity Cloud (antigravity.google.com) sin instalar nada"
+                >
+                  Enlazar Cloud →
+                </button>
+              </div>
             </div>
           </div>
 
@@ -12123,15 +12354,205 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                       />
                     </div>
                   </div>
+
+                  {/* Estado Dual (🖥️ Local | ☁️ Cloud) + Selector de Modo de Trabajo de 1 Clic ([🖥️ Local] [☁️ Cloud] [⚡ Auto]) */}
+                  <div className="pt-2 border-t border-purple-500/20 space-y-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div
+                        className={cn(
+                          'p-2.5 rounded-xl border flex items-center justify-between gap-2',
+                          antigravityLocalConnected
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100'
+                            : 'bg-white/70 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-zinc-300',
+                        )}
+                      >
+                        <span className="font-bold truncate">
+                          🖥️ Antigravity Local (Mac/PC):
+                        </span>
+                        <span className="font-extrabold shrink-0">
+                          {antigravityLocalConnected ? '🟢 Conectado' : '⚪ Desconectado'}
+                        </span>
+                      </div>
+                      <div
+                        className={cn(
+                          'p-2.5 rounded-xl border flex items-center justify-between gap-2',
+                          antigravityCloudConnected
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100'
+                            : 'bg-sky-500/5 dark:bg-slate-950/60 border-sky-500/20 dark:border-slate-800 text-slate-700 dark:text-zinc-300',
+                        )}
+                      >
+                        <span className="font-bold truncate">
+                          ☁️ Antigravity Cloud (antigravity.google.com):
+                        </span>
+                        <span className="font-extrabold shrink-0">
+                          {antigravityCloudConnected ? '🟢 Conectado' : '⚪ Sin enlazar'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        disabled={isSwitchingAntigravityMode}
+                        onClick={() => handleChangeStudioAntigravityMode('local')}
+                        className={cn(
+                          'p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 active:scale-95',
+                          antigravityActiveMode === 'local'
+                            ? 'bg-teal-500/15 border-teal-500/50 text-teal-800 dark:text-teal-200 ring-1 ring-teal-500/30'
+                            : 'bg-white/80 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-zinc-300 hover:bg-teal-500/10',
+                        )}
+                      >
+                        <span className="text-xs font-extrabold">🖥️ Trabajar en Local</span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                          Envía las órdenes al Antigravity de tu Mac/PC.
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isSwitchingAntigravityMode}
+                        onClick={() => handleChangeStudioAntigravityMode('cloud')}
+                        className={cn(
+                          'p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 active:scale-95',
+                          antigravityActiveMode === 'cloud'
+                            ? 'bg-sky-500/15 border-sky-500/50 text-sky-800 dark:text-sky-200 ring-1 ring-sky-500/30'
+                            : 'bg-white/80 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-zinc-300 hover:bg-sky-500/10',
+                        )}
+                      >
+                        <span className="text-xs font-extrabold">☁️ Trabajar en Cloud</span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                          Envía las órdenes a antigravity.google.com (24/7).
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isSwitchingAntigravityMode}
+                        onClick={() => handleChangeStudioAntigravityMode('auto')}
+                        className={cn(
+                          'p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col gap-0.5 active:scale-95',
+                          antigravityActiveMode === 'auto'
+                            ? 'bg-purple-500/15 border-purple-500/50 text-purple-800 dark:text-purple-200 ring-1 ring-purple-500/30'
+                            : 'bg-white/80 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-zinc-300 hover:bg-purple-500/10',
+                        )}
+                      >
+                        <span className="text-xs font-extrabold">⚡ Automático (Híbrido)</span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                          Usa Local si tu PC está activo y pasa a Cloud al apagarlo.
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                {/* 2. Pack Importable de las 7 Skills de Diseño y Video WAPPY IA */}
+                {/* Selector de Pestañas de Conexión: Cloud vs Local */}
+                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setAntigravityConnectionGuideTab('cloud')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
+                      antigravityConnectionGuideTab === 'cloud'
+                        ? 'bg-sky-500/15 border border-sky-500/40 text-sky-700 dark:text-sky-300'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
+                    )}
+                  >
+                    ☁️ Conectar Antigravity Cloud (Sin instalar nada)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAntigravityConnectionGuideTab('local')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
+                      antigravityConnectionGuideTab === 'local'
+                        ? 'bg-teal-500/15 border border-teal-500/40 text-teal-700 dark:text-teal-300'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
+                    )}
+                  >
+                    🖥️ Conectar Antigravity Local (Mac/PC)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAntigravityConnectionGuideTab('both')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
+                      antigravityConnectionGuideTab === 'both'
+                        ? 'bg-purple-500/15 border border-purple-500/40 text-purple-700 dark:text-purple-300'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
+                    )}
+                  >
+                    🔀 Ver Ambos
+                  </button>
+                </div>
+
+                {/* OPCIÓN A: ☁️ Antigravity Cloud (antigravity.google.com) — Sin instalar nada en tu PC */}
+                {(antigravityConnectionGuideTab === 'both' ||
+                  antigravityConnectionGuideTab === 'cloud') && (
+                  <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                          ☁️ Conexión en la Nube (antigravity.google.com) — Sin instalar nada en tu PC
+                        </span>
+                        <p className="text-[11px] text-slate-600 dark:text-zinc-300 mt-0.5 leading-relaxed">
+                          Abre <strong>https://antigravity.google.com</strong> (puedes adjuntar tu <strong>Google Drive</strong> o <strong>GitHub</strong> en <em>Resources</em>) y pega el prompt de enlace Cloud en el chat para instalar en 1 clic el servidor MCP, las 7 Skills Oficiales de Diseño y Video 60-FPS y el Puente Reactivo 24/7:
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ExpandableButton
+                        size="sm"
+                        icon={<ExternalLink />}
+                        label="Abrir antigravity.google.com"
+                        variant="cyan"
+                        onClick={() =>
+                          window.open(
+                            'https://antigravity.google.com',
+                            '_blank',
+                            'noopener,noreferrer',
+                          )
+                        }
+                      />
+                      <ExpandableButton
+                        size="sm"
+                        icon={copiedBridgeItem === 'cloud_prompt' ? <Check /> : <Copy />}
+                        label={
+                          copiedBridgeItem === 'cloud_prompt'
+                            ? '¡Prompt Cloud Copiado!'
+                            : '📋 Copiar Prompt de Enlace Cloud (MCP + 7 Skills + Puente 24/7)'
+                        }
+                        variant="purple"
+                        onClick={async () => {
+                          const effKey =
+                            (antigravityBridgeKey || '').trim() ||
+                            (await syncAntigravityBridgeKey(false));
+                          navigator.clipboard.writeText(buildAntigravityCloudPrompt(effKey));
+                          setCopiedBridgeItem('cloud_prompt');
+                          setTimeout(() => setCopiedBridgeItem(null), 2500);
+                          setStatusBanner({
+                            type: 'success',
+                            text: '☁️ ¡Prompt de Enlace Cloud copiado! Pégalo en el chat de antigravity.google.com para activar las 7 Skills + MCP + Puente 24/7.',
+                          });
+                        }}
+                      />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950 text-sky-300 font-mono text-[10px] border border-slate-800 max-h-28 overflow-y-auto whitespace-pre-wrap select-all break-all">
+                      {buildAntigravityCloudPrompt()}
+                    </div>
+                  </div>
+                )}
+
+                {/* OPCIÓN B: 🖥️ Antigravity Local (Mac/PC) + Pack Importable de las 7 Skills de Diseño y Video WAPPY IA */}
+                {(antigravityConnectionGuideTab === 'both' ||
+                  antigravityConnectionGuideTab === 'local') && (
                 <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/25 space-y-3.5">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
                         <Sparkles className="w-4 h-4 text-indigo-500" />
-                        2. 📦 Pack Importable de las 7 Skills de Diseño y Video WAPPY IA
+                        2. 🖥️ Antigravity Local (Mac/PC) & 📦 Pack Importable de las 7 Skills de Diseño y Video WAPPY IA
                       </span>
                       <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
                         Instala en tu propio Antigravity las <strong>7 Skills Oficiales de Producción Audiovisual y UI de WAPPY IA</strong> junto con el puente reactivo <code className="font-mono">wappy-push-daemon.js</code> para que tu Antigravity programe videos HTML5 + GSAP a 60 FPS y los envíe directo a este Lienzo:
@@ -12256,6 +12677,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
                     </div>
                   </div>
                 </div>
+                )}
 
                 <div className="flex justify-start pt-2 border-t border-slate-200 dark:border-slate-800">
                   <ExpandableButton
