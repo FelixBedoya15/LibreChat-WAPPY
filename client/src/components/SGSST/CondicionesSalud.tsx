@@ -53,7 +53,7 @@ import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
-import { smartMapExcelToWorkers, toTitleCase, formatWorkerName } from './excelWorkerMapper';
+import { smartMapExcelToWorkers, toTitleCase, formatWorkerName, normalizeWorkerRecord } from './excelWorkerMapper';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { CONDICIONES_SALUD_FIELDS } from './moduleFieldDefinitions';
@@ -135,6 +135,15 @@ interface WorkerEntry {
     afp?: string;
     estadoPila?: string;
 
+    // Estado Laboral & Trazabilidad SG-SST (Activo vs Retirado)
+    estadoLaboral?: 'Activo' | 'Retirado' | string;
+    fechaRetiro?: string;
+    motivoRetiro?: string;
+
+    biocentricScore?: number;
+    biocentricAlerts?: string[];
+    biocentricIsLethal?: boolean;
+
     completedByAI: boolean;
     consentimientoFirmaDigital: string;
     firmaDigital: string | null;
@@ -192,6 +201,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     peso: '', talla: '', imc: '', presionArterial: '', frecuenciaCardiaca: '',
     limitacionesBiomecanicas: '', alergiasQuimicas: '',
     eps: '', afp: '', estadoPila: 'Pendiente de soporte PILA',
+    estadoLaboral: 'Activo', fechaRetiro: '', motivoRetiro: '',
     completedByAI: false, consentimientoFirmaDigital: 'No', firmaDigital: null,
 };
 
@@ -311,10 +321,9 @@ const CondicionesSalud = () => {
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data.trabajadores)) {
-                        const normalized = data.trabajadores.map((w: any) => ({
+                        const normalized = data.trabajadores.map((w: any) => normalizeWorkerRecord({
+                            ...EMPTY_WORKER,
                             ...w,
-                            nombre: toTitleCase(w.nombre),
-                            cargo: toTitleCase(w.cargo),
                         })).sort((a: any, b: any) => 
                             (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
                         );
@@ -577,7 +586,8 @@ const CondicionesSalud = () => {
             showToast({ message: 'No se encontraron filas legibles para importación directa.', severity: NotificationSeverity.WARNING });
             return;
         }
-        handleConfirmColumnMapping(pendingDirectRows);
+        const smartMapped = smartMapExcelToWorkers(pendingDirectRows, EMPTY_WORKER);
+        handleConfirmColumnMapping(smartMapped.length > 0 ? smartMapped : pendingDirectRows);
     };
 
     const handleConfirmColumnMapping = (mappedRows: any[]) => {
@@ -607,19 +617,7 @@ const CondicionesSalud = () => {
         const updatedList = (() => {
             const list = [...trabajadores];
             rowsToImport.forEach((t: any) => {
-                const sanitizedT: any = { ...t };
-                if (sanitizedT.nombre) sanitizedT.nombre = toTitleCase(formatWorkerName(sanitizedT.nombre));
-                if (sanitizedT.cargo) sanitizedT.cargo = toTitleCase(sanitizedT.cargo);
-                if (sanitizedT.area) sanitizedT.area = toTitleCase(sanitizedT.area);
-                if (sanitizedT.municipioDomicilio) sanitizedT.municipioDomicilio = toTitleCase(sanitizedT.municipioDomicilio);
-                if (sanitizedT.barrio) sanitizedT.barrio = toTitleCase(sanitizedT.barrio);
-                if (sanitizedT.lugarNacimiento) sanitizedT.lugarNacimiento = toTitleCase(sanitizedT.lugarNacimiento);
-                if (sanitizedT.lugarResidencia) sanitizedT.lugarResidencia = toTitleCase(sanitizedT.lugarResidencia);
-                if (sanitizedT.nivelEscolaridad) sanitizedT.nivelEscolaridad = toTitleCase(sanitizedT.nivelEscolaridad);
-                if (sanitizedT.estadoCivil) sanitizedT.estadoCivil = toTitleCase(sanitizedT.estadoCivil);
-                if (sanitizedT.vivienda) sanitizedT.vivienda = toTitleCase(sanitizedT.vivienda);
-                if (sanitizedT.eps) sanitizedT.eps = toTitleCase(sanitizedT.eps);
-                if (sanitizedT.afp) sanitizedT.afp = toTitleCase(sanitizedT.afp);
+                const sanitizedT: any = normalizeWorkerRecord({ ...t });
 
                 const incomingId = String(sanitizedT.identificacion || '').trim();
                 const incomingNombre = String(sanitizedT.nombre || '').trim().toLowerCase();
@@ -640,16 +638,16 @@ const CondicionesSalud = () => {
                             merged[k] = sanitizedT[k];
                         }
                     });
-                    list[existingIndex] = merged;
+                    list[existingIndex] = normalizeWorkerRecord(merged);
                     actualizados++;
                 } else {
-                    list.push({
+                    list.push(normalizeWorkerRecord({
                         ...EMPTY_WORKER,
                         ...sanitizedT,
                         id: sanitizedT.id || crypto.randomUUID(),
                         firmaDigital: null,
                         completedByAI: false,
-                    });
+                    }));
                     nuevos++;
                 }
             });
@@ -2007,7 +2005,29 @@ const CondicionesSalud = () => {
                                                     <div className="space-y-1.5">
                                                         <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Hallazgos Examen Ocupacional</label>
                                                         <div className="[&>div>div]:border-rose-200/50 dark:[&>div>div]:border-rose-900/30 [&>div>div]:bg-rose-50/20 dark:[&>div>div]:bg-rose-900/10 font-bold">
-                                                            <SingleSelect value={w.diagnosticoMedico || ''} onChange={val => updateWorkerField(w.id, 'diagnosticoMedico', val)} placeholder="Seleccione dictamen..." options={['Apto / Sin Hallazgos / Ninguno', 'Espalda: Lumbalgia / Cervicalgia / Hernias', 'M. Superiores: Túnel carpiano / Epicondilitis / Manguito', 'Vicios de refracción', 'Hipoacusia', 'Otros Clínicos']} />
+                                                            <SingleSelect
+                                                                value={w.diagnosticoMedico || ''}
+                                                                onChange={val => updateWorkerField(w.id, 'diagnosticoMedico', val)}
+                                                                placeholder="Seleccione dictamen..."
+                                                                options={[
+                                                                    'Apto / Sin Hallazgos / Ninguno',
+                                                                    'Ninguno / Apto Sin Restricción',
+                                                                    'Apto Con Restricciones Menores',
+                                                                    'Espalda: Lumbalgia / Cervicalgia / Hernias',
+                                                                    'M. Superiores: Túnel carpiano / Epicondilitis / Manguito',
+                                                                    'Vicios de refracción',
+                                                                    'Túnel Carpiano',
+                                                                    'Epicondilitis / Codo de Tenista',
+                                                                    'Lumbago / Espasmo Muscular',
+                                                                    'Tendinitis Manguito Rotador',
+                                                                    'Trastorno de Ansiedad / Estrés',
+                                                                    'Hipertensión Arterial',
+                                                                    'Diabetes Mellitus',
+                                                                    'Defecto Refractivo Visual',
+                                                                    'Hipoacusia',
+                                                                    'Otros Clínicos',
+                                                                ]}
+                                                            />
                                                         </div>
                                                     </div>
 
@@ -2053,14 +2073,14 @@ const CondicionesSalud = () => {
                                                     <div className="space-y-1.5">
                                                         <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Tabaquismo</label>
                                                         <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/20 dark:[&>div>div]:border-amber-900/30 dark:[&>div>div]:bg-amber-900/10">
-                                                            <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, diario', 'Ocasional']} />
+                                                            <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, ocasional', 'Sí, diario', 'Ocasional']} />
                                                         </div>
                                                     </div>
                                                     
                                                     <div className="space-y-1.5">
                                                         <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Etilismo (Alcohol)</label>
                                                         <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/20 dark:[&>div>div]:border-amber-900/30 dark:[&>div>div]:bg-amber-900/10">
-                                                            <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Riesgo Letal..." options={['No', 'Mensual', 'Semanal', 'Sí (Frecuente)']} />
+                                                            <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Riesgo Letal..." options={['No', 'Sí (Social)', 'Sí (Frecuente)', 'Mensual', 'Semanal']} />
                                                         </div>
                                                     </div>
                                                     
@@ -2073,8 +2093,25 @@ const CondicionesSalud = () => {
                                                     
                                                     <div className="space-y-1.5">
                                                         <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block truncate">Próximo Seguimiento</label>
-                                                        <input type="date" value={w.fechaSeguimiento} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
+                                                        <input type="date" value={w.fechaSeguimiento || ''} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
                                                             className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none shadow-inner" />
+                                                    </div>
+
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block truncate">Riesgo Cardiovascular</label>
+                                                        <div className="[&>div>div]:border-rose-200/50 [&>div>div]:bg-rose-50/20 dark:[&>div>div]:border-rose-900/30 dark:[&>div>div]:bg-rose-900/10">
+                                                            <SingleSelect value={w.riesgoCardiovascular || ''} onChange={val => updateWorkerField(w.id, 'riesgoCardiovascular', val)} placeholder="Framingham..." options={['Bajo', 'Moderado', 'Alto', 'Muy Alto']} />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[11px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider block truncate">Deporte / Actividad Física</label>
+                                                        <SingleSelect value={w.deporte || ''} onChange={val => updateWorkerField(w.id, 'deporte', val)} placeholder="Seleccione..." options={['No realiza', '1-2 veces por semana', '3+ veces por semana']} />
+                                                    </div>
+
+                                                    <div className="space-y-1.5 sm:col-span-2">
+                                                        <label className="text-[11px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider block truncate">Calidad de Alimentación</label>
+                                                        <SingleSelect value={w.alimentacion || ''} onChange={val => updateWorkerField(w.id, 'alimentacion', val)} placeholder="Seleccione..." options={['Balanceada', 'Alta en grasas/azúcares', 'Vegetariana/Vegana']} />
                                                     </div>
                                                 </div>
                                             </div>

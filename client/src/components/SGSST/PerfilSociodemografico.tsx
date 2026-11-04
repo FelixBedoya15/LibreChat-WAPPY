@@ -54,7 +54,7 @@ import SGSSTLegalBadge from './SGSSTLegalBadge';
 import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
-import { smartMapExcelToWorkers, toTitleCase, formatWorkerName } from './excelWorkerMapper';
+import { smartMapExcelToWorkers, toTitleCase, formatWorkerName, normalizeWorkerRecord } from './excelWorkerMapper';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { SOCIODEMOGRAFICO_FIELDS } from './moduleFieldDefinitions';
@@ -353,11 +353,9 @@ const PerfilSociodemografico = () => {
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data.trabajadores)) {
-                        const serverWorkers: WorkerEntry[] = data.trabajadores.map((w: any) => ({
+                        const serverWorkers: WorkerEntry[] = data.trabajadores.map((w: any) => normalizeWorkerRecord({
                             ...EMPTY_WORKER,
                             ...w,
-                            nombre: toTitleCase(w.nombre),
-                            cargo: toTitleCase(w.cargo),
                             formacion: Array.isArray(w.formacion) ? w.formacion : [],
                             licenciasConduccion: Array.isArray(w.licenciasConduccion) ? w.licenciasConduccion : [],
                         }));
@@ -616,7 +614,8 @@ const PerfilSociodemografico = () => {
             showToast({ message: 'No se encontraron filas legibles para importación directa.', status: 'warning', severity: 'warning' });
             return;
         }
-        handleConfirmColumnMapping(pendingDirectRows);
+        const smartMapped = smartMapExcelToWorkers(pendingDirectRows, EMPTY_WORKER);
+        handleConfirmColumnMapping(smartMapped.length > 0 ? smartMapped : pendingDirectRows);
     };
 
     const handleConfirmColumnMapping = (mappedRows: any[]) => {
@@ -633,19 +632,7 @@ const PerfilSociodemografico = () => {
         const updatedList = (() => {
             const list = [...trabajadores];
             rowsToImport.forEach((t: any) => {
-                const sanitizedT: any = { ...t };
-                if (sanitizedT.nombre) sanitizedT.nombre = toTitleCase(formatWorkerName(sanitizedT.nombre));
-                if (sanitizedT.cargo) sanitizedT.cargo = toTitleCase(sanitizedT.cargo);
-                if (sanitizedT.area) sanitizedT.area = toTitleCase(sanitizedT.area);
-                if (sanitizedT.municipioDomicilio) sanitizedT.municipioDomicilio = toTitleCase(sanitizedT.municipioDomicilio);
-                if (sanitizedT.barrio) sanitizedT.barrio = toTitleCase(sanitizedT.barrio);
-                if (sanitizedT.lugarNacimiento) sanitizedT.lugarNacimiento = toTitleCase(sanitizedT.lugarNacimiento);
-                if (sanitizedT.lugarResidencia) sanitizedT.lugarResidencia = toTitleCase(sanitizedT.lugarResidencia);
-                if (sanitizedT.nivelEscolaridad) sanitizedT.nivelEscolaridad = toTitleCase(sanitizedT.nivelEscolaridad);
-                if (sanitizedT.estadoCivil) sanitizedT.estadoCivil = toTitleCase(sanitizedT.estadoCivil);
-                if (sanitizedT.vivienda) sanitizedT.vivienda = toTitleCase(sanitizedT.vivienda);
-                if (sanitizedT.eps) sanitizedT.eps = toTitleCase(sanitizedT.eps);
-                if (sanitizedT.afp) sanitizedT.afp = toTitleCase(sanitizedT.afp);
+                const sanitizedT: any = normalizeWorkerRecord({ ...t });
 
                 const incomingId = String(sanitizedT.identificacion || '').trim();
                 const incomingNombre = String(sanitizedT.nombre || '').trim().toLowerCase();
@@ -666,16 +653,16 @@ const PerfilSociodemografico = () => {
                             merged[k] = sanitizedT[k];
                         }
                     });
-                    list[existingIndex] = merged;
+                    list[existingIndex] = normalizeWorkerRecord(merged);
                     actualizados++;
                 } else {
-                    list.push({
+                    list.push(normalizeWorkerRecord({
                         ...EMPTY_WORKER,
                         ...sanitizedT,
                         id: sanitizedT.id || crypto.randomUUID(),
                         firmaDigital: null,
                         completedByAI: false,
-                    });
+                    }));
                     nuevos++;
                 }
             });
@@ -1717,7 +1704,7 @@ const PerfilSociodemografico = () => {
                                                             </div>
                                                             <div className="space-y-1">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Nivel Escolaridad</label>
-                                                                <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado']} />
+                                                                <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Bachiller', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado', 'Maestría', 'Doctorado']} />
                                                             </div>
                                                             <div className="space-y-1">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Fecha Nacimiento</label>
@@ -1757,7 +1744,7 @@ const PerfilSociodemografico = () => {
                                                             </div>
                                                             <div className="space-y-1">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Tipo de Vivienda</label>
-                                                                <SingleSelect value={w.vivienda || ''} onChange={val => updateWorkerField(w.id, 'vivienda', val)} placeholder="Seleccione..." options={['Propia', 'Arrendada', 'Familiar']} />
+                                                                <SingleSelect value={w.vivienda || ''} onChange={val => updateWorkerField(w.id, 'vivienda', val)} placeholder="Seleccione..." options={['Propia', 'Arrendada', 'Familiar', 'Otra']} />
                                                             </div>
                                                             <div className="space-y-1">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Estrato</label>
@@ -1774,6 +1761,10 @@ const PerfilSociodemografico = () => {
                                                                 <input type="number" value={w.personasCargo} onChange={e => updateWorkerField(w.id, 'personasCargo', e.target.value)}
                                                                     placeholder="Número de personas"
                                                                     className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-inner focus:ring-2 focus:ring-teal-400 outline-none" />
+                                                            </div>
+                                                            <div className="space-y-1 md:col-span-2">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Tipo de Sangre (RH)</label>
+                                                                <SingleSelect value={w.tipoSangre || ''} onChange={val => updateWorkerField(w.id, 'tipoSangre', val)} placeholder="Seleccione RH..." options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1841,7 +1832,12 @@ const PerfilSociodemografico = () => {
 
                                                             <div className="space-y-1 md:col-span-2">
                                                                 <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5 text-indigo-500"/> Perfil de Cargo Requerido</label>
-                                                                <SingleSelect value={w.cargo || ''} onChange={val => updateWorkerField(w.id, 'cargo', val)} placeholder="Seleccione el Rol..." options={cargosDisponibles.map(c => c.nombreCargo)} />
+                                                                <SingleSelect
+                                                                    value={w.cargo || ''}
+                                                                    onChange={val => updateWorkerField(w.id, 'cargo', val)}
+                                                                    placeholder="Seleccione el Rol..."
+                                                                    options={Array.from(new Set([...cargosDisponibles.map(c => c.nombreCargo), ...trabajadores.map(t => t.cargo).filter(Boolean)]))}
+                                                                />
                                                             </div>
 
                                                             <div className="space-y-1">
@@ -1858,11 +1854,15 @@ const PerfilSociodemografico = () => {
                                                             </div>
                                                             <div className="space-y-1">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Consumo de Alcohol</label>
-                                                                <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Seleccione..." options={['No', 'Sí (Social)', 'Sí (Frecuente)']} />
+                                                                <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Seleccione..." options={['No', 'Sí (Social)', 'Sí (Frecuente)', 'Mensual', 'Semanal']} />
                                                             </div>
-                                                            <div className="space-y-1 md:col-span-2">
+                                                            <div className="space-y-1">
                                                                 <label className="text-xs font-bold text-text-secondary uppercase">Acompañamiento Psicológico (Terapia)</label>
-                                                                <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                                <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Seleccione..." options={['No', 'Sí', 'Anteriormente']} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-text-secondary uppercase">Riesgo Cardiovascular (Framingham)</label>
+                                                                <SingleSelect value={w.riesgoCardiovascular || ''} onChange={val => updateWorkerField(w.id, 'riesgoCardiovascular', val)} placeholder="Seleccione..." options={['Bajo', 'Moderado', 'Alto', 'Muy Alto']} />
                                                             </div>
                                                             <div className="space-y-1.5 md:col-span-2 pt-3 border-t border-border-medium/60">
                                                                 <label className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight flex items-center gap-1.5">
@@ -1956,13 +1956,23 @@ const PerfilSociodemografico = () => {
                                                     {/* Alturas (Default) */}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Trab. Autorizado</label>
-                                                            <input type="date" value={w.fechaCursoAlturasAutorizado} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasAutorizado', e.target.value)}
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Trab. Autorizado</label>
+                                                                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", w.fechaCursoAlturasAutorizado ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                    {w.fechaCursoAlturasAutorizado ? 'Vigente' : 'No aplica / Sin registro'}
+                                                                </span>
+                                                            </div>
+                                                            <input type="date" value={w.fechaCursoAlturasAutorizado || ''} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasAutorizado', e.target.value)}
                                                                 className="w-full text-sm p-2 rounded-xl border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Coordinador</label>
-                                                            <input type="date" value={w.fechaCursoAlturasCoordinador} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasCoordinador', e.target.value)}
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Coordinador</label>
+                                                                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", w.fechaCursoAlturasCoordinador ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                    {w.fechaCursoAlturasCoordinador ? 'Vigente' : 'No aplica / Sin registro'}
+                                                                </span>
+                                                            </div>
+                                                            <input type="date" value={w.fechaCursoAlturasCoordinador || ''} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasCoordinador', e.target.value)}
                                                                 className="w-full text-sm p-2 rounded-xl border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
                                                         </div>
                                                     </div>
@@ -2149,34 +2159,16 @@ const PerfilSociodemografico = () => {
                                                         </div>
                                                         <div className="space-y-1 lg:col-span-1">
                                                             <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">COPASST / Vigía</label>
-                                                            {w.esCopasst === 'Sí' ? (
-                                                                <div className="p-2 rounded-xl bg-teal-100/80 dark:bg-teal-900/40 border border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-                                                                    <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                                                                    <span>Miembro Activo</span>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 text-xs font-medium flex items-center gap-1.5">
-                                                                    <span>No pertenece</span>
-                                                                </div>
-                                                            )}
+                                                            <SingleSelect value={w.esCopasst || 'No'} onChange={val => updateWorkerField(w.id, 'esCopasst', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                             <span className="text-[9px] text-text-tertiary block">
-                                                                {w.esCopasst === 'Sí' ? 'Electo o asignado en Hito 03' : 'Automático vía conformación/votación'}
+                                                                {w.esCopasst === 'Sí' ? 'Miembro activo (Hito 03)' : 'No pertenece'}
                                                             </span>
                                                         </div>
                                                         <div className="space-y-1 lg:col-span-1">
                                                             <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Convivencia Laboral</label>
-                                                            {w.esComiteConvivencia === 'Sí' ? (
-                                                                <div className="p-2 rounded-xl bg-indigo-100/80 dark:bg-indigo-900/40 border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-                                                                    <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                                                                    <span>Miembro Activo</span>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 text-xs font-medium flex items-center gap-1.5">
-                                                                    <span>No pertenece</span>
-                                                                </div>
-                                                            )}
+                                                            <SingleSelect value={w.esComiteConvivencia || 'No'} onChange={val => updateWorkerField(w.id, 'esComiteConvivencia', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                             <span className="text-[9px] text-text-tertiary block">
-                                                                {w.esComiteConvivencia === 'Sí' ? 'Comité CCL activo en Hito 03' : 'Automático vía comité por sede'}
+                                                                {w.esComiteConvivencia === 'Sí' ? 'Miembro CCL activo (Hito 03)' : 'No pertenece'}
                                                             </span>
                                                         </div>
                                                         <div className="space-y-1 lg:col-span-1">
@@ -2189,32 +2181,46 @@ const PerfilSociodemografico = () => {
                                                         </div>
                                                     </div>
 
-                                                    {/* SST Conditional */}
-                                                    {w.cargo && ['sst', 'hseq', 'seguridad', 'salud', 'ocupacional'].some(kw => w.cargo.toLowerCase().includes(kw)) && (
-                                                        <div className="p-4 border border-purple-200 bg-purple-50/30 dark:bg-purple-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                            <h4 className="md:col-span-4 lg:col-span-4 text-purple-700 dark:text-purple-400 font-bold text-sm uppercase">Perfil SST Exigido</h4>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Nº Licencia SST</label>
-                                                                <input type="text" value={w.licenciaSST} onChange={e => updateWorkerField(w.id, 'licenciaSST', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Vencimiento Licencia</label>
-                                                                <input type="date" value={w.licenciaVencimiento} onChange={e => updateWorkerField(w.id, 'licenciaVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Curso de 50 Horas (Expedición)</label>
-                                                                <input type="date" value={w.curso50h} onChange={e => updateWorkerField(w.id, 'curso50h', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Curso de 20 Horas (Expedición)</label>
-                                                                <input type="date" value={w.curso20h} onChange={e => updateWorkerField(w.id, 'curso20h', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
+                                                    {/* Perfil SST & Certificaciones SG-SST (Curso 50h, 20h y Licencia SST) */}
+                                                    <div className="p-4 border border-purple-200 bg-purple-50/30 dark:bg-purple-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                        <div className="md:col-span-4 lg:col-span-4 flex items-center justify-between flex-wrap gap-2">
+                                                            <h4 className="text-purple-700 dark:text-purple-400 font-bold text-sm uppercase">Perfil SST & Certificaciones (50h / 20h / Licencia SST)</h4>
+                                                            <span className="text-[10px] text-purple-700/80 dark:text-purple-300/80 bg-purple-100 dark:bg-purple-950/60 px-2 py-0.5 rounded-full font-medium">
+                                                                Res. 0312/2019 · Dec. 1072/2015
+                                                            </span>
                                                         </div>
-                                                    )}
+                                                        <div className="space-y-1 lg:col-span-2">
+                                                            <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Nº Licencia SGSST</label>
+                                                            <input type="text" value={w.licenciaSST || ''} onChange={e => updateWorkerField(w.id, 'licenciaSST', e.target.value)}
+                                                                placeholder="No aplica o N° Resolución"
+                                                                className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                        </div>
+                                                        <div className="space-y-1 lg:col-span-2">
+                                                            <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Vencimiento Licencia SGSST</label>
+                                                            <input type="date" value={w.licenciaVencimiento || ''} onChange={e => updateWorkerField(w.id, 'licenciaVencimiento', e.target.value)}
+                                                                className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                        </div>
+                                                        <div className="space-y-1 lg:col-span-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Curso de 50 Horas (Expedición)</label>
+                                                                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", w.curso50h ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                    {w.curso50h ? 'Certificado' : 'Sin registro'}
+                                                                </span>
+                                                            </div>
+                                                            <input type="date" value={w.curso50h || ''} onChange={e => updateWorkerField(w.id, 'curso50h', e.target.value)}
+                                                                className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                        </div>
+                                                        <div className="space-y-1 lg:col-span-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Curso de 20 Horas (Expedición)</label>
+                                                                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", w.curso20h ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                    {w.curso20h ? 'Certificado' : 'Sin registro'}
+                                                                </span>
+                                                            </div>
+                                                            <input type="date" value={w.curso20h || ''} onChange={e => updateWorkerField(w.id, 'curso20h', e.target.value)}
+                                                                className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                        </div>
+                                                    </div>
 
                                                     {/* Firma Digital */}
                                                     <div className="space-y-1 lg:col-span-4 p-4 border rounded-xl bg-surface-tertiary/30 border-border-medium">

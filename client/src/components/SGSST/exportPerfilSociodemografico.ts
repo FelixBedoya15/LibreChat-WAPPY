@@ -67,6 +67,9 @@ export interface ExportWorkerEntry {
   afp?: string;
   estadoPila?: string;
   consentimientoFirmaDigital?: string;
+  estadoLaboral?: string;
+  fechaRetiro?: string;
+  motivoRetiro?: string;
 }
 
 const DEFAULT_CARGOS = [
@@ -133,15 +136,19 @@ export const exportPerfilSociodemograficoToExcel = async (
   const listDeporte = ['No realiza', '1-2 veces por semana', '3+ veces por semana'];
   const listAlimentacion = ['Balanceada', 'Alta en grasas/azúcares', 'Vegetariana/Vegana'];
   const listFuma = ['No', 'Sí, ocasional', 'Sí, diario'];
-  const listAlcohol = ['No', 'Sí (Social)', 'Sí (Frecuente)'];
+  const listAlcohol = ['No', 'Sí (Social)', 'Sí (Frecuente)', 'Mensual', 'Semanal'];
   const listTerapia = ['No', 'Sí', 'Anteriormente'];
-  const listEstrato = ['Estrato 1', 'Estrato 2', 'Estrato 3', 'Estrato 4', 'Estrato 5', 'Estrato 6'];
+  const listEstrato = ['1', '2', '3', '4', '5', '6'];
   const listVivienda = ['Propia', 'Familiar', 'Arrendada', 'Otra'];
   const listSangre = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
   const listRiesgoCardio = ['Bajo', 'Moderado', 'Alto', 'Muy Alto'];
   const listDiagnostico = [
+    'Apto / Sin Hallazgos / Ninguno',
     'Ninguno / Apto Sin Restricción',
     'Apto Con Restricciones Menores',
+    'Espalda: Lumbalgia / Cervicalgia / Hernias',
+    'M. Superiores: Túnel carpiano / Epicondilitis / Manguito',
+    'Vicios de refracción',
     'Túnel Carpiano',
     'Epicondilitis / Codo de Tenista',
     'Lumbago / Espasmo Muscular',
@@ -153,8 +160,41 @@ export const exportPerfilSociodemograficoToExcel = async (
     'Hipoacusia',
     'Otros Clínicos'
   ];
-  const listCategoriasLicencia = ['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
+  const listCategoriasLicencia = ['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'Especial / Maquinaria'];
   const listSiNo = ['Sí', 'No'];
+  const listEps = [
+    'Sura',
+    'Sanitas',
+    'Compensar',
+    'Nueva EPS',
+    'Salud Total',
+    'Famisanar',
+    'Savia Salud',
+    'Coosalud',
+    'Mutual Ser',
+    'Capital Salud',
+    'Asmet Salud',
+    'Emssanar',
+    'Aliansalud',
+    'Servicio Occidental de Salud (SOS)',
+    'FOSYGA / ADRES',
+    'Otra'
+  ];
+  const listAfp = [
+    'Porvenir',
+    'Protección',
+    'Colfondos',
+    'Skandia',
+    'Colpensiones',
+    'Fondo de Solidaridad Pensional',
+    'Otra'
+  ];
+  const listEstadoPila = [
+    'Planilla Verificada / Al día',
+    'Pendiente de soporte PILA',
+    'En mora / Sin cobertura'
+  ];
+  const listEstadoLaboral = ['Activo', 'Retirado'];
 
   // ============================================================================
   // HOJA 1: TRABAJADORES (PERFIL SOCIODEMOGRÁFICO Y CONDICIONES DE SALUD)
@@ -187,7 +227,11 @@ export const exportPerfilSociodemograficoToExcel = async (
     { header: 'Riesgo Cardiovascular', key: 'riesgoCardio', width: 22, data: listRiesgoCardio },
     { header: 'Diagnóstico Ocupacional', key: 'diagnostico', width: 45, data: listDiagnostico },
     { header: 'Cat. Licencia Conducción', key: 'catLicencia', width: 24, data: listCategoriasLicencia },
-    { header: 'Opciones Sí / No', key: 'sino', width: 16, data: listSiNo }
+    { header: 'Opciones Sí / No', key: 'sino', width: 16, data: listSiNo },
+    { header: 'Entidades EPS', key: 'eps', width: 32, data: listEps },
+    { header: 'Fondos AFP', key: 'afp', width: 28, data: listAfp },
+    { header: 'Estados Soporte PILA', key: 'estadoPila', width: 28, data: listEstadoPila },
+    { header: 'Estado Laboral', key: 'estadoLaboral', width: 18, data: listEstadoLaboral }
   ];
 
   wsOptions.columns = optionsHeaders.map(col => ({
@@ -291,7 +335,10 @@ export const exportPerfilSociodemograficoToExcel = async (
     { header: 'Entidad EPS', key: 'eps', width: 22 },
     { header: 'Fondo Pensiones (AFP)', key: 'afp', width: 24 },
     { header: 'Estado Soporte PILA', key: 'estadoPila', width: 24 },
-    { header: 'Consentimiento Firma', key: 'consentimientoFirmaDigital', width: 22 }
+    { header: 'Consentimiento Firma', key: 'consentimientoFirmaDigital', width: 22 },
+    { header: 'Estado Laboral (Activo / Retirado)', key: 'estadoLaboral', width: 26 },
+    { header: 'Fecha de Retiro / Desvinculación', key: 'fechaRetiro', width: 24 },
+    { header: 'Motivo de Retiro', key: 'motivoRetiro', width: 28 }
   ];
 
   const totalRows = trabajadores.length > 0 ? trabajadores.length + 1 : 2;
@@ -392,7 +439,10 @@ export const exportPerfilSociodemograficoToExcel = async (
       eps: w.eps || '',
       afp: w.afp || '',
       estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
-      consentimientoFirmaDigital: w.consentimientoFirmaDigital || 'No'
+      consentimientoFirmaDigital: w.consentimientoFirmaDigital || 'No',
+      estadoLaboral: w.estadoLaboral || 'Activo',
+      fechaRetiro: w.fechaRetiro || '',
+      motivoRetiro: w.motivoRetiro || ''
     });
 
     addedRow.height = 24;
@@ -441,7 +491,11 @@ export const exportPerfilSociodemograficoToExcel = async (
     esComiteConvivencia: `'Listas de Opciones'!$P$2:$P$${listSiNo.length + 1}`,
     esBrigadista: `'Listas de Opciones'!$P$2:$P$${listSiNo.length + 1}`,
     esComiteSeguridadVial: `'Listas de Opciones'!$P$2:$P$${listSiNo.length + 1}`,
-    consentimientoFirmaDigital: `'Listas de Opciones'!$P$2:$P$${listSiNo.length + 1}`
+    consentimientoFirmaDigital: `'Listas de Opciones'!$P$2:$P$${listSiNo.length + 1}`,
+    eps: `'Listas de Opciones'!$Q$2:$Q$${listEps.length + 1}`,
+    afp: `'Listas de Opciones'!$R$2:$R$${listAfp.length + 1}`,
+    estadoPila: `'Listas de Opciones'!$S$2:$S$${listEstadoPila.length + 1}`,
+    estadoLaboral: `'Listas de Opciones'!$T$2:$T$${listEstadoLaboral.length + 1}`
   };
 
   for (const [key, formula] of Object.entries(validationsMap)) {

@@ -130,6 +130,35 @@ export function calculateMatchScore(candidate: any, targetKey: string, targetLab
     return 0;
   }
 
+  // Reglas de desambiguación para Perfil Sociodemográfico y Condiciones de Salud (60 casillas)
+  if (targetKey === 'talla' && (normCandidate.includes('altura') && normCandidate.includes('curso'))) {
+    return 0;
+  }
+  if (targetKey === 'estadoLaboral' && normCandidate.includes('civil')) {
+    return 0;
+  }
+  if (targetKey === 'estadoCivil' && normCandidate.includes('laboral')) {
+    return 0;
+  }
+  if (targetKey === 'licenciaConduccion' && (normCandidate.includes('venc') || normCandidate.includes('sgsst') || normCandidate.includes('sst'))) {
+    return 0;
+  }
+  if (targetKey === 'licenciaConduccionVencimiento' && (normCandidate.includes('soat') || normCandidate.includes('tecnico') || normCandidate.includes('tecnomec') || normCandidate.includes('sgsst') || normCandidate.includes('sst'))) {
+    return 0;
+  }
+  if (targetKey === 'soatVencimiento' && !normCandidate.includes('soat')) {
+    return 0;
+  }
+  if (targetKey === 'tecnicomecanicaVencimiento' && !normCandidate.includes('tecnico') && !normCandidate.includes('tecnomec') && !normCandidate.includes('rtm')) {
+    return 0;
+  }
+  if (targetKey === 'licenciaSST' && (normCandidate.includes('venc') || normCandidate.includes('conduccion') || normCandidate.includes('pase'))) {
+    return 0;
+  }
+  if (targetKey === 'licenciaVencimiento' && (!normCandidate.includes('venc') || (!normCandidate.includes('sst') && !normCandidate.includes('sgsst')))) {
+    return 0;
+  }
+
   const normKey = normalizeColumnName(targetKey);
   const normLabel = normalizeColumnName(targetLabel);
 
@@ -732,11 +761,43 @@ export function autoMatchColumns(
 ): Record<string, string> {
   const mapping: Record<string, string> = {};
   const usedHeaders = new Set<string>();
+  const assignedFields = new Set<string>();
 
-  // 1. Prioridad: Campos obligatorios primero
+  // 1. Fase 1: Coincidencias exactas / de alta confianza (>= 0.94) ordenadas de mayor a menor puntaje
+  // Esto evita que un campo con coincidencia parcial (0.72) le robe una columna a otro campo que tiene coincidencia exacta (0.98 - 1.00)
+  const highConfidenceCandidates: Array<{ fieldKey: string; header: string; score: number; required: boolean }> = [];
+  for (const field of targetFields) {
+    for (const header of excelHeaders) {
+      const score = calculateMatchScore(header, field.key, field.label, field.synonyms);
+      if (score >= 0.94) {
+        highConfidenceCandidates.push({
+          fieldKey: field.key,
+          header,
+          score,
+          required: !!field.required,
+        });
+      }
+    }
+  }
+
+  highConfidenceCandidates.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return (b.required ? 1 : 0) - (a.required ? 1 : 0);
+  });
+
+  for (const cand of highConfidenceCandidates) {
+    if (assignedFields.has(cand.fieldKey) || usedHeaders.has(cand.header)) continue;
+    mapping[cand.fieldKey] = cand.header;
+    assignedFields.add(cand.fieldKey);
+    usedHeaders.add(cand.header);
+  }
+
+  // 2. Fase 2: Campos restantes por heurística flexible (>= 0.60), priorizando obligatorios
   const sortedFields = [...targetFields].sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
 
   for (const field of sortedFields) {
+    if (assignedFields.has(field.key)) continue;
+
     let bestHeader = '';
     let highestScore = 0;
 
@@ -753,6 +814,7 @@ export function autoMatchColumns(
     if (bestHeader) {
       mapping[field.key] = bestHeader;
       usedHeaders.add(bestHeader);
+      assignedFields.add(field.key);
     } else {
       mapping[field.key] = '';
     }
@@ -779,6 +841,13 @@ export function formatCellValue(rawValue: any, type?: 'string' | 'number' | 'dat
   if (rawValue === undefined || rawValue === null) return '';
 
   if (type === 'date') {
+    const strVal = String(rawValue).trim();
+    if (!strVal || /^(no\s*aplica|n\/?a|ningun[oa]?|no|sin\s*fecha|-+)$/i.test(strVal)) {
+      return '';
+    }
+    if (/^(vigente|s[ií]|aplica|certificado)$/i.test(strVal)) {
+      return '2026-01-15';
+    }
     return excelSerialToDate(rawValue);
   }
 

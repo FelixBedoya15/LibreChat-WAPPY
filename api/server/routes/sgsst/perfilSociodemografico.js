@@ -22,116 +22,25 @@ async function getActiveCompanyId(userId, subUserAssignedCompany = null) {
     return active ? active._id : null;
 }
 
-// ─── Mongoose Schema ─────────────────────────────────────────────────
-const WorkerEntrySchema = new mongoose.Schema({
-  id: String,
-  nombre: String,
-  identificacion: String,
-  edad: Number,
-  genero: String,
-  estadoCivil: String,
-  nivelEscolaridad: String,
-  direccion: String,
-  telefono: String,
-  cargo: String,
-  fechaExamenMedico: String,
-  fechaCursoAlturasAutorizado: String,
-  fechaCursoAlturasCoordinador: String,
-  diagnosticoMedico: String,
-  recomendacionesMedicas: String,
-  fechaSeguimiento: String,
-  completedByAI: { type: Boolean, default: false },
-  consentimientoFirmaDigital: { type: String, default: 'No' },
-  firmaDigital: { type: String, default: null },
-  // New extended sociodemographic fields
-  fechaNacimiento: { type: String, default: '' },
-  lugarNacimiento: { type: String, default: '' },
-  barrio: { type: String, default: '' },
-  municipioDomicilio: { type: String, default: '' },
-  correoElectronico: { type: String, default: '' },
-  emergenciaContacto: { type: String, default: '' },
-  tipoSangre: { type: String, default: '' },
-  rh: { type: String, default: '' },
-  enfermedades: { type: String, default: '' },
-  medicamentos: { type: String, default: '' },
-  fuma: { type: String, default: '' },
-  alcohol: { type: String, default: '' },
-  terapiaPsicologica: { type: String, default: '' },
-  deporte: { type: String, default: '' },
-  alimentacion: { type: String, default: '' },
-  riesgoCardiovascular: { type: String, default: '' },
-  personasCargo: { type: mongoose.Schema.Types.Mixed, default: '' },
-  estrato: { type: String, default: '' },
-  vivienda: { type: String, default: '' },
-  soatVencimiento: { type: String, default: '' },
-  tecnicomecanicaVencimiento: { type: String, default: '' },
-  licenciaSST: { type: String, default: '' },
-  licenciaVencimiento: { type: String, default: '' },
-  curso50h: { type: String, default: '' },
-  curso20h: { type: String, default: '' },
-  // Seguridad Social & PILA
-  eps: { type: String, default: '' },
-  afp: { type: String, default: '' },
-  estadoPila: { type: String, default: 'Pendiente de soporte PILA' },
-  // Salario / Remuneración
-  salario: { type: String, default: '' },
-  // Biomonitoring / Fisiología
-  peso: { type: String, default: '' },
-  talla: { type: String, default: '' },
-  imc: { type: String, default: '' },
-  presionArterial: { type: String, default: '' },
-  frecuenciaCardiaca: { type: String, default: '' },
-  limitacionesBiomecanicas: { type: String, default: '' },
-  alergiasQuimicas: { type: String, default: '' },
+// ─── Mongoose Schema (Unificado con ~/models/PerfilSociodemograficoData) ─────
+const PerfilSociodemograficoData = require('~/models/PerfilSociodemograficoData');
+const {
+  mapSpreadsheetRowsDeterministically,
+  normalizeDateStr,
+  computeAge,
+  computeImc,
+} = require('./sociodemograficoDriveService');
 
-  // Bio-Fit Engine (Índice Biocéntrico Integral)
-  biocentricScore: { type: Number, default: 100 },
-  biocentricAlerts: { type: Array, default: [] },
-  biocentricIsLethal: { type: Boolean, default: false },
-
-  // Conducción
-  licenciaConduccion: { type: String, default: '' },
-  licenciaConduccionVencimiento: { type: String, default: '' },
-  licenciasConduccion: { type: Array, default: [] },
-
-  // Comités SG-SST
-  esCopasst: { type: String, default: 'No' },
-  esComiteConvivencia: { type: String, default: 'No' },
-  esBrigadista: { type: String, default: 'No' },
-  esComiteSeguridadVial: { type: String, default: 'No' },
-
-  // Formación
-  formacion: { type: Array, default: [] },
-
-
-  // Oráculo Predictivo H1 — Dictamen IA persistido
-  dictamenPredictivoH1: { type: String, default: '' },
-
-  // Análisis Semántico IA (Opción B)
-  bioScoreIAVersion: { type: String, default: '' },     // hash de campos clínicos al momento de evaluar
-  bioScoreIAReason: { type: String, default: '' },       // justificación corta
-  bioScoreIADate: { type: Date, default: null },         // fecha de última evaluación IA
-  bioTagsIA: { type: Array, default: [] },               // etiquetas clínicas detectadas por la IA (ej: ['Lumbalgia', 'Estrés Moderado'])
-  bioScoreIAAptitud: { type: String, default: '' },      // "Apto", "Apto con Restricciones", "No Apto"
-
-  // Estado Laboral & Trazabilidad SG-SST (Activo vs Retirado)
-  estadoLaboral: { type: String, enum: ['Activo', 'Retirado'], default: 'Activo' },
-  fechaRetiro: { type: String, default: '' },
-  motivoRetiro: { type: String, default: '' },
-}, { _id: false, strict: false });
-
-const PerfilSociodemograficoDataSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
-  trabajadores: [WorkerEntrySchema],
-  actualizacionesPendientes: { type: Array, default: [] },
-  actualizacionesPendientesSalud: { type: Array, default: [] },
-  updatedAt: { type: Date, default: Date.now },
-}, { strict: false });
-
-PerfilSociodemograficoDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
-
-const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || mongoose.model('PerfilSociodemograficoData', PerfilSociodemograficoDataSchema);
+function toValidDateOrNull(val) {
+  if (!val) return null;
+  const norm = normalizeDateStr(val);
+  if (!norm) return null;
+  const d = new Date(norm);
+  if (isNaN(d.getTime())) return null;
+  const yr = d.getUTCFullYear();
+  if (yr < 1900 || yr > 2100) return null;
+  return d;
+}
 
 // ─── Helper: Get API Key ─────────────────────────────────────────────
 async function getApiKey(userId) {
@@ -1129,12 +1038,94 @@ router.get('/profile/:workerId', async (req, res) => {
   }
 });
 
-// ─── Helper: Sanitize Sociodemographic Worker Item (prevents "r is not iterable" in UI) ───
+// ─── Helper: Sanitize Sociodemographic Worker Item (prevents "r is not iterable" in UI & normalizes raw Excel imports) ───
 function sanitizeSocioWorker(raw, idx = 0) {
-  const w = (raw && typeof raw === 'object') ? { ...raw } : {};
+  let w = (raw && typeof raw === 'object') ? { ...raw } : {};
+
+  // Si el objeto viene de "Importación Directa" con cabeceras crudas de Excel (ej. "Nombre", "Identificación", "Fecha de Nacimiento")
+  const hasRawExcelHeaders =
+    (!w.nombre && (w['Nombre'] || w['Nombre Completo'] || w['Trabajador'])) ||
+    (!w.identificacion && (w['Identificación'] || w['Identificacion'] || w['Cédula'] || w['Documento'])) ||
+    w['Fecha de Nacimiento'] !== undefined ||
+    w['Salario Base / IBC ($)'] !== undefined ||
+    w['Fecha Examen Médico'] !== undefined ||
+    w['Enfermedades Actuales'] !== undefined;
+
+  if (hasRawExcelHeaders && typeof mapSpreadsheetRowsDeterministically === 'function') {
+    const mappedArr = mapSpreadsheetRowsDeterministically([w]);
+    if (mappedArr.length > 0) {
+      const mapped = mappedArr[0];
+      for (const [mk, mv] of Object.entries(mapped)) {
+        if (mv !== undefined && mv !== null && String(mv).trim() !== '' && (w[mk] === undefined || w[mk] === null || String(w[mk]).trim() === '')) {
+          w[mk] = mv;
+        }
+      }
+    }
+  }
+
   if (!w.id) {
     w.id = w._id ? String(w._id) : `worker_${Date.now()}_${idx}`;
   }
+
+  // Normalizar campos de fecha (convierte seriales de Excel como 29221/46266 a YYYY-MM-DD y limpia "No aplica")
+  const dateFields = [
+    'fechaNacimiento',
+    'fechaExamenMedico',
+    'fechaSeguimiento',
+    'soatVencimiento',
+    'tecnicomecanicaVencimiento',
+    'licenciaConduccionVencimiento',
+    'licenciaVencimiento',
+    'fechaCursoAlturasAutorizado',
+    'fechaCursoAlturasCoordinador',
+    'curso50h',
+    'curso20h',
+    'fechaRetiro',
+    'fechaIngreso',
+  ];
+  for (const df of dateFields) {
+    if (w[df] !== undefined && w[df] !== null && w[df] !== '') {
+      w[df] = normalizeDateStr(w[df]);
+    } else {
+      w[df] = '';
+    }
+  }
+
+  // Normalizar estrato ("Estrato 1" -> "1")
+  if (w.estrato !== undefined && w.estrato !== null && String(w.estrato).trim() !== '') {
+    w.estrato = String(w.estrato).replace(/^estrato\s*/i, '').trim();
+  }
+
+  // Sincronizar alias de vivienda y tipo de sangre
+  w.vivienda = w.vivienda || w.tipoVivienda || '';
+  w.tipoVivienda = w.vivienda;
+  w.tipoSangre = w.tipoSangre || w.rh || '';
+  w.rh = w.tipoSangre;
+
+  if ((w.personasCargo === undefined || w.personasCargo === '') && w.personasACargo !== undefined && w.personasACargo !== '') {
+    w.personasCargo = String(w.personasACargo);
+  } else if (w.personasCargo !== undefined && w.personasCargo !== null) {
+    w.personasCargo = String(w.personasCargo);
+  }
+
+  // Limpiar "No aplica" en campos de número de licencia
+  if (w.licenciaConduccion && /^no\s*aplica$/i.test(String(w.licenciaConduccion).trim())) {
+    w.licenciaConduccion = '';
+  }
+  if (w.licenciaSST && /^no\s*aplica$/i.test(String(w.licenciaSST).trim())) {
+    w.licenciaSST = '';
+  }
+
+  // Calcular edad o IMC automáticamente si faltan
+  if ((w.edad === undefined || w.edad === null || String(w.edad).trim() === '') && w.fechaNacimiento) {
+    const calcAge = computeAge(w.edad, w.fechaNacimiento);
+    if (calcAge !== undefined) w.edad = String(calcAge);
+  }
+  if ((!w.imc || String(w.imc).trim() === '') && w.peso && w.talla) {
+    const calcImc = computeImc(w.imc, w.peso, w.talla);
+    if (calcImc) w.imc = calcImc;
+  }
+
   if (Array.isArray(w.formacion)) {
     w.formacion = w.formacion
       .filter(Boolean)
@@ -1167,7 +1158,7 @@ function sanitizeSocioWorker(raw, idx = 0) {
               id: String(l.id || `lic_${idx}_${i}`),
               categoria: String(l.categoria || '').trim(),
               numero: String(l.numero || '').trim(),
-              fechaVencimiento: String(l.fechaVencimiento || '').trim(),
+              fechaVencimiento: normalizeDateStr(l.fechaVencimiento || ''),
             }
       );
   } else {
@@ -1350,8 +1341,8 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           const cedula = String(w.identificacion || '').trim();
           return {
             ...w,
-            esCopasst: copasstCedulas.has(cedula) ? 'Sí' : 'No',
-            esComiteConvivencia: convivenciaCedulas.has(cedula) ? 'Sí' : 'No',
+            esCopasst: copasstCedulas.has(cedula) ? 'Sí' : (copasstCedulas.size > 0 ? 'No' : (w.esCopasst || 'No')),
+            esComiteConvivencia: convivenciaCedulas.has(cedula) ? 'Sí' : (convivenciaCedulas.size > 0 ? 'No' : (w.esComiteConvivencia || 'No')),
           };
         });
       } catch (comiteErr) {
@@ -1582,6 +1573,38 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     const base64Data = fileData.split(';base64,').pop();
     const buffer = Buffer.from(base64Data, 'base64');
 
+    // 1.5. Si es un archivo Excel/CSV, intentar mapeo determinista de todas las columnas primero (0 pérdida de columnas, 0 truncamiento de filas)
+    const lowerFileName = String(fileName || '').toLowerCase();
+    const isSpreadsheetFile =
+      mimeType?.includes('spreadsheet') ||
+      mimeType?.includes('excel') ||
+      mimeType?.includes('csv') ||
+      lowerFileName.endsWith('.xlsx') ||
+      lowerFileName.endsWith('.xls') ||
+      lowerFileName.endsWith('.csv');
+
+    if (isSpreadsheetFile && typeof mapSpreadsheetRowsDeterministically === 'function') {
+      try {
+        const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+        let allDeterministicWorkers = [];
+        for (const sheetName of workbook.SheetNames) {
+          if (/lista|opcion|instruccion|catalogo/i.test(sheetName)) continue;
+          const sheet = workbook.Sheets[sheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          const mapped = mapSpreadsheetRowsDeterministically(jsonRows);
+          if (mapped.length > 0) {
+            allDeterministicWorkers.push(...mapped);
+          }
+        }
+        if (allDeterministicWorkers.length > 0) {
+          const sanitizedDeterministic = allDeterministicWorkers.map((w, idx) => sanitizeSocioWorker(w, idx));
+          return res.json({ success: true, trabajadores: sanitizedDeterministic });
+        }
+      } catch (xlsErr) {
+        logger.debug('[SGSST PerfilSociodemografico] Deterministic Excel parse fallback to AI:', xlsErr.message);
+      }
+    }
+
     // 2. Extraer texto según tipo de archivo de forma robusta
     const extractedText = await extractTextFromFile({ buffer, fileName, mimeType });
 
@@ -1618,6 +1641,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
               eps: { type: 'string' },
               afp: { type: 'string' },
               arl: { type: 'string' },
+              estadoPila: { type: 'string' },
               rh: { type: 'string' },
               fechaExamenMedico: { type: 'string' },
               diagnosticoMedico: { type: 'string' },
@@ -1666,7 +1690,10 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
               licenciaVencimiento: { type: 'string' },
               curso50h: { type: 'string' },
               curso20h: { type: 'string' },
-              consentimientoFirmaDigital: { type: 'string' }
+              consentimientoFirmaDigital: { type: 'string' },
+              estadoLaboral: { type: 'string' },
+              fechaRetiro: { type: 'string' },
+              motivoRetiro: { type: 'string' }
             },
             required: ['nombre', 'identificacion'],
           },
@@ -2231,13 +2258,17 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
     let existingDoc = companyId
       ? await PerfilSociodemograficoData.findOne({ user: targetUserId, companyId }).lean()
       : await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean();
-    const existingWorkers = existingDoc?.trabajadores || [];
+    const existingWorkers = (existingDoc?.trabajadores || []).map((w, idx) => sanitizeSocioWorker(w, idx));
+
+    const incomingWorkers = (Array.isArray(trabajadores) ? trabajadores : []).map((w, idx) =>
+      sanitizeSocioWorker(w, idx)
+    );
 
     let workersToSave = [];
 
     if (mode === 'health_patch') {
       // ─── HEALTH PATCH MODE (Condiciones de Salud) ───
-      // Master roster is PRESERVED. Only clinical and evaluation fields are patched!
+      // Master roster is PRESERVED. Clinical, PILA, and any non-empty sociodemographic fields are patched!
       // NEVER drop any existing worker from Perfiles del Cargo / Perfil Sociodemográfico!
       const existingMap = new Map();
       existingWorkers.forEach(w => {
@@ -2245,14 +2276,61 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         if (key) existingMap.set(key, { ...w });
       });
 
-      for (const inc of (trabajadores || [])) {
+      const pickNonEmpty = (incVal, curVal) => {
+        if (incVal !== undefined && incVal !== null && String(incVal).trim() !== '') {
+          return incVal;
+        }
+        return curVal;
+      };
+
+      for (const inc of incomingWorkers) {
         const key = String(inc.identificacion || inc.id || '').trim();
         if (!key) continue;
 
         if (existingMap.has(key)) {
           const cur = existingMap.get(key);
+          const mergedSangre = inc.tipoSangre !== undefined && inc.tipoSangre !== '' ? inc.tipoSangre : (inc.rh !== undefined && inc.rh !== '' ? inc.rh : (cur.tipoSangre || cur.rh || ''));
           existingMap.set(key, {
             ...cur,
+            nombre: pickNonEmpty(inc.nombre, cur.nombre),
+            edad: pickNonEmpty(inc.edad, cur.edad),
+            genero: pickNonEmpty(inc.genero, cur.genero),
+            estadoCivil: pickNonEmpty(inc.estadoCivil, cur.estadoCivil),
+            nivelEscolaridad: pickNonEmpty(inc.nivelEscolaridad, cur.nivelEscolaridad),
+            direccion: pickNonEmpty(inc.direccion, cur.direccion),
+            telefono: pickNonEmpty(inc.telefono, cur.telefono),
+            salario: pickNonEmpty(inc.salario, cur.salario),
+            fechaNacimiento: pickNonEmpty(inc.fechaNacimiento, cur.fechaNacimiento),
+            lugarNacimiento: pickNonEmpty(inc.lugarNacimiento, cur.lugarNacimiento),
+            barrio: pickNonEmpty(inc.barrio, cur.barrio),
+            municipioDomicilio: pickNonEmpty(inc.municipioDomicilio, cur.municipioDomicilio),
+            correoElectronico: pickNonEmpty(inc.correoElectronico, cur.correoElectronico),
+            emergenciaContacto: pickNonEmpty(inc.emergenciaContacto, cur.emergenciaContacto),
+            personasCargo: pickNonEmpty(inc.personasCargo, cur.personasCargo),
+            estrato: pickNonEmpty(inc.estrato, cur.estrato),
+            vivienda: pickNonEmpty(inc.vivienda, cur.vivienda),
+            tipoVivienda: pickNonEmpty(inc.vivienda || inc.tipoVivienda, cur.vivienda || cur.tipoVivienda),
+            tipoSangre: mergedSangre,
+            rh: mergedSangre,
+            eps: inc.eps !== undefined ? inc.eps : cur.eps,
+            afp: inc.afp !== undefined ? inc.afp : cur.afp,
+            arl: inc.arl !== undefined ? inc.arl : cur.arl,
+            estadoPila: inc.estadoPila !== undefined ? inc.estadoPila : cur.estadoPila,
+            fechaCursoAlturasAutorizado: pickNonEmpty(inc.fechaCursoAlturasAutorizado, cur.fechaCursoAlturasAutorizado),
+            fechaCursoAlturasCoordinador: pickNonEmpty(inc.fechaCursoAlturasCoordinador, cur.fechaCursoAlturasCoordinador),
+            soatVencimiento: pickNonEmpty(inc.soatVencimiento, cur.soatVencimiento),
+            tecnicomecanicaVencimiento: pickNonEmpty(inc.tecnicomecanicaVencimiento, cur.tecnicomecanicaVencimiento),
+            licenciaConduccion: pickNonEmpty(inc.licenciaConduccion, cur.licenciaConduccion),
+            licenciaConduccionVencimiento: pickNonEmpty(inc.licenciaConduccionVencimiento, cur.licenciaConduccionVencimiento),
+            licenciasConduccion: (Array.isArray(inc.licenciasConduccion) && inc.licenciasConduccion.length > 0) ? inc.licenciasConduccion : cur.licenciasConduccion,
+            licenciaSST: pickNonEmpty(inc.licenciaSST, cur.licenciaSST),
+            licenciaVencimiento: pickNonEmpty(inc.licenciaVencimiento, cur.licenciaVencimiento),
+            curso50h: pickNonEmpty(inc.curso50h, cur.curso50h),
+            curso20h: pickNonEmpty(inc.curso20h, cur.curso20h),
+            esCopasst: inc.esCopasst === 'Sí' ? 'Sí' : (cur.esCopasst || inc.esCopasst || 'No'),
+            esComiteConvivencia: inc.esComiteConvivencia === 'Sí' ? 'Sí' : (cur.esComiteConvivencia || inc.esComiteConvivencia || 'No'),
+            esBrigadista: inc.esBrigadista === 'Sí' ? 'Sí' : (cur.esBrigadista || inc.esBrigadista || 'No'),
+            esComiteSeguridadVial: inc.esComiteSeguridadVial === 'Sí' ? 'Sí' : (cur.esComiteSeguridadVial || inc.esComiteSeguridadVial || 'No'),
             fechaExamenMedico: inc.fechaExamenMedico !== undefined ? inc.fechaExamenMedico : cur.fechaExamenMedico,
             diagnosticoMedico: inc.diagnosticoMedico !== undefined ? inc.diagnosticoMedico : cur.diagnosticoMedico,
             recomendacionesMedicas: inc.recomendacionesMedicas !== undefined ? inc.recomendacionesMedicas : cur.recomendacionesMedicas,
@@ -2297,7 +2375,7 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
     } else {
       // ─── MASTER SAVE MODE (Perfil Sociodemográfico) ───
       // Protect against accidental loss of cargos
-      workersToSave = (trabajadores || []).map(w => {
+      workersToSave = incomingWorkers.map(w => {
         const key = String(w.identificacion || w.id || '').trim();
         const prev = existingWorkers.find(ew => 
           (ew.identificacion && String(ew.identificacion).trim() === key) ||
@@ -2405,8 +2483,8 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         const cedula = String(w.identificacion || '').trim();
         return {
           ...w,
-          esCopasst: copasstCedulas.has(cedula) ? 'Sí' : 'No',
-          esComiteConvivencia: convivenciaCedulas.has(cedula) ? 'Sí' : 'No',
+          esCopasst: copasstCedulas.has(cedula) ? 'Sí' : (copasstCedulas.size > 0 ? 'No' : (w.esCopasst || 'No')),
+          esComiteConvivencia: convivenciaCedulas.has(cedula) ? 'Sí' : (convivenciaCedulas.size > 0 ? 'No' : (w.esComiteConvivencia || 'No')),
         };
       });
     } catch (comiteErr) {
@@ -2447,10 +2525,10 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
           afp: w.afp || '',
           estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
           condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
-          fechaNacimiento: w.fechaNacimiento || null,
+          fechaNacimiento: toValidDateOrNull(w.fechaNacimiento),
           genero: w.genero || 'No especificado',
           estadoLaboral: w.estadoLaboral || 'Activo',
-          fechaRetiro: w.fechaRetiro || null,
+          fechaRetiro: toValidDateOrNull(w.fechaRetiro),
           motivoRetiro: w.motivoRetiro || '',
           updatedAt: new Date(),
         };
@@ -2467,7 +2545,9 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         };
       });
     if (workerBulkOps.length > 0) {
-      await SgsstWorker.bulkWrite(workerBulkOps, { ordered: false });
+      await SgsstWorker.bulkWrite(workerBulkOps, { ordered: false }).catch(err =>
+        logger.warn('[PerfilSociodemografico] SgsstWorker bulkWrite sync warning:', err.message)
+      );
     }
 
     // ── Eliminar de SgsstWorker trabajadores eliminados del maestro para evitar que la reconciliación los reviva ──
@@ -3250,7 +3330,7 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
               nombre: w.nombre,
               cargo: w.cargo || '',
               genero: w.genero || 'No especificado',
-              fechaNacimiento: w.fechaNacimiento || null,
+              fechaNacimiento: toValidDateOrNull(w.fechaNacimiento),
               condicionesSalud: conditionsStr,
               fitScore: w.biocentricScore,
               fitAlerts: w.biocentricAlerts,

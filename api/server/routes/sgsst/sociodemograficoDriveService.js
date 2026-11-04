@@ -9,7 +9,6 @@ const { logger } = require('~/config');
 const GoogleDriveTool = require('~/app/clients/tools/structured/GoogleDrive');
 const { generateWithKeyRotation } = require('./sgsstGemini');
 const { cleanAndParseJson } = require('./fileExtractorHelper');
-const perfilSocioRouter = require('./perfilSociodemografico');
 const SgsstWorker = require('~/models/SgsstWorker');
 const CompanyInfo = require('~/models/CompanyInfo');
 
@@ -64,19 +63,39 @@ function normalizeSiNo(val, defaultVal = 'No') {
  */
 function normalizeDateStr(val) {
   if (val === undefined || val === null || val === '') return '';
-  if (typeof val === 'number' && val > 10000 && val < 80000) {
-    // Fecha serial de Excel
-    const utcDays = Math.floor(val - 25569);
+  const s = String(val).trim();
+  if (!s) return '';
+  const lower = s.toLowerCase();
+  if (
+    lower === 'no aplica' ||
+    lower === 'n/a' ||
+    lower === 'na' ||
+    lower === 'ninguno' ||
+    lower === 'ninguna' ||
+    lower === '-' ||
+    lower === 'sin fecha'
+  ) {
+    return '';
+  }
+  const num = Number(s);
+  if (!isNaN(num) && /^\d+(\.\d+)?$/.test(s) && num > 10000 && num < 80000) {
+    // Fecha serial de Excel (número o string numérico ej. 29221, 46266)
+    const utcDays = Math.round(num - 25569);
     const dateInfo = new Date(utcDays * 86400 * 1000);
     if (!isNaN(dateInfo.getTime())) {
       return dateInfo.toISOString().split('T')[0];
     }
   }
-  const s = String(val).trim();
   // Si viene DD/MM/YYYY o DD-MM-YYYY
   const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (dmyMatch) {
     const [, d, m, y] = dmyMatch;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  // Si viene YYYY/MM/DD
+  const ymdMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
   return s;
@@ -134,15 +153,17 @@ function mapSpreadsheetRowsDeterministically(rows) {
       for (const [k, v] of entries) {
         if (v === undefined || v === null || String(v).trim() === '') continue;
         const nk = normalizeText(k);
-        if (excludeKeywords.some((ex) => nk.includes(ex))) continue;
+        if (excludeKeywords.some((ex) => nk.includes(normalizeText(ex)))) continue;
         if (
           keywords.some((kw) => {
-            if (nk === kw) return true;
-            if (kw.length <= 2) {
+            const nkw = normalizeText(kw);
+            if (!nkw) return false;
+            if (nk === nkw) return true;
+            if (nkw.length <= 2) {
               const words = nk.split(/\s+/);
-              return words.includes(kw);
+              return words.includes(nkw);
             }
-            return nk.includes(kw);
+            return nk.includes(nkw);
           })
         ) {
           return String(v).trim();
@@ -169,6 +190,12 @@ function mapSpreadsheetRowsDeterministically(rows) {
     // Ignorar filas que son encabezados repetidos o totales
     if (normalizeText(fullNombre) === 'nombre' || normalizeText(fullNombre).startsWith('total')) continue;
 
+    const rawEstrato = getByKeywords(['estrato', 'nivel socioeconomico']);
+    const normEstrato = rawEstrato ? rawEstrato.replace(/^estrato\s*/i, '').trim() : '';
+    const rawVivienda = getByKeywords(['tipo de vivienda', 'vivienda', 'tenencia vivienda']);
+    const rawSangre = getByKeywords(['tipo de sangre', 'grupo sanguineo', 'sangre', 'rh']);
+    const rawRh = getByKeywords(['rh', 'factor rh', 'grupo sanguineo']) || rawSangre;
+
     const worker = {
       nombre: fullNombre || 'Colaborador',
       identificacion: identificacion || '',
@@ -177,54 +204,82 @@ function mapSpreadsheetRowsDeterministically(rows) {
       lugarNacimiento: getByKeywords(['lugar de nacimiento', 'lugar nacimiento', 'ciudad nacimiento']),
       genero: getByKeywords(['genero', 'sexo']),
       estadoCivil: getByKeywords(['estado civil']),
-      nivelEscolaridad: getByKeywords(['escolaridad', 'nivel educativo', 'estudios', 'formacion', 'nivel de escolaridad']),
-      direccion: getByKeywords(['direccion', 'residencia', 'domicilio'], ['correo', 'email']),
+      nivelEscolaridad: getByKeywords(['escolaridad', 'nivel educativo', 'estudios', 'nivel de escolaridad'], ['curso', 'alturas']),
+      direccion: getByKeywords(['direccion', 'residencia', 'domicilio'], ['correo', 'email', 'municipio']),
       barrio: getByKeywords(['barrio', 'vereda', 'sector']),
-      municipioDomicilio: getByKeywords(['municipio', 'ciudad residencia', 'ciudad domicilio', 'ciudad']),
+      municipioDomicilio: getByKeywords(['municipio', 'ciudad residencia', 'ciudad domicilio', 'ciudad'], ['nacimiento']),
       telefono: getByKeywords(['telefono', 'celular', 'movil', 'tel'], ['emergencia', 'contacto']),
       correoElectronico: getByKeywords(['correo', 'email', 'e-mail', 'mail']),
       emergenciaContacto: getByKeywords(['contacto de emergencia', 'emergencia', 'acudiente', 'familiar en caso']),
-      cargo: getByKeywords(['cargo', 'puesto', 'ocupacion', 'rol', 'oficio'], ['personas a cargo', 'personas cargo']),
-      areaTrabajo: getByKeywords(['area', 'departamento', 'proceso', 'dependencia', 'seccion']),
+      cargo: getByKeywords(['cargo', 'puesto', 'ocupacion', 'rol', 'oficio'], ['personas a cargo', 'personas cargo', 'control']),
+      areaTrabajo: getByKeywords(['area', 'departamento', 'proceso', 'dependencia', 'seccion'], ['nacimiento', 'domicilio']),
       sede: getByKeywords(['sede', 'centro de trabajo', 'sucursal', 'planta']),
       tipoContrato: getByKeywords(['tipo de contrato', 'tipo contrato', 'contrato', 'vinculacion']),
-      salario: getByKeywords(['salario', 'sueldo', 'ingreso', 'remuneracion', 'devengado']),
+      salario: getByKeywords(['salario', 'sueldo', 'ingreso', 'remuneracion', 'devengado', 'ibc']),
       jornadaLaboral: getByKeywords(['jornada', 'turno', 'horario']),
-      eps: getByKeywords(['eps', 'entidad promotora', 'salud eps']),
-      afp: getByKeywords(['afp', 'fondo de pension', 'pension', 'pensiones']),
+      eps: getByKeywords(['entidad eps', 'eps', 'entidad promotora', 'salud eps']),
+      afp: getByKeywords(['fondo pensiones', 'afp', 'fondo de pension', 'pension', 'pensiones']),
       arl: getByKeywords(['arl', 'riesgos laborales', 'aseguradora']),
+      estadoPila: getByKeywords(['estado soporte pila', 'soporte pila', 'estado pila', 'planilla pila', 'pila']),
       personasCargo: getByKeywords(['personas a cargo', 'personas cargo', 'dependientes', 'hijos', 'num hijos']),
-      estrato: getByKeywords(['estrato', 'nivel socioeconomico']),
-      vivienda: getByKeywords(['tipo de vivienda', 'vivienda', 'tenencia vivienda']),
-      tipoSangre: getByKeywords(['tipo de sangre', 'grupo sanguineo', 'sangre', 'rh']),
-      rh: getByKeywords(['rh', 'factor rh', 'grupo sanguineo']),
+      estrato: normEstrato,
+      vivienda: rawVivienda,
+      tipoVivienda: rawVivienda,
+      tipoSangre: rawSangre || rawRh,
+      rh: rawRh || rawSangre,
       fechaExamenMedico: normalizeDateStr(getByKeywords(['fecha examen', 'examen medico', 'ultimo emo', 'fecha emo', 'evaluacion medica'])),
-      diagnosticoMedico: getByKeywords(['diagnostico', 'concepto medico', 'aptitud medica', 'concepto emo', 'hallazgos medicos', 'condicion de salud']),
+      diagnosticoMedico: getByKeywords(['diagnostico medico', 'diagnostico', 'concepto medico', 'aptitud medica', 'concepto emo', 'hallazgos medicos', 'condicion de salud']),
       recomendacionesMedicas: getByKeywords(['recomendaciones medicas', 'recomendaciones', 'observaciones medicas', 'plan medico', 'conducta']),
       fechaSeguimiento: normalizeDateStr(getByKeywords(['fecha seguimiento', 'proximo control', 'seguimiento medico'])),
-      enfermedades: getByKeywords(['enfermedades', 'patologias', 'antecedentes medicos', 'condiciones de salud', 'morbilidad', 'sintomas']),
+      enfermedades: getByKeywords(['enfermedades actuales', 'enfermedades', 'patologias', 'antecedentes medicos', 'condiciones de salud', 'morbilidad', 'sintomas']),
       medicamentos: getByKeywords(['medicamentos', 'tratamiento farmacologico', 'toma medicamentos', 'farmacos']),
-      limitacionesBiomecanicas: getByKeywords(['limitaciones', 'restricciones', 'osteomuscular', 'biomecanica', 'restriccion laboral']),
-      alergiasQuimicas: getByKeywords(['alergias', 'alergia', 'sensibilidad quimica']),
+      limitacionesBiomecanicas: getByKeywords(['limitaciones biomecanicas', 'limitaciones', 'restricciones', 'osteomuscular', 'biomecanica', 'restriccion laboral']),
+      alergiasQuimicas: getByKeywords(['alergias / sensibilidad quimica', 'alergias', 'alergia', 'sensibilidad quimica']),
       riesgoCardiovascular: getByKeywords(['riesgo cardiovascular', 'cardiovascular', 'rcv']),
-      peso: getByKeywords(['peso', 'peso kg']),
-      talla: getByKeywords(['talla', 'estatura', 'altura cm', 'altura m']),
+      peso: getByKeywords(['peso (kg)', 'peso', 'peso kg']),
+      talla: getByKeywords(['talla (m)', 'talla', 'estatura', 'altura cm', 'altura m']),
       imc: getByKeywords(['imc', 'indice de masa']),
-      presionArterial: getByKeywords(['presion arterial', 'tension arterial', 'pa', 'ta'], ['estado', 'departamento', 'nivel']),
+      presionArterial: getByKeywords(['presion arterial', 'tension arterial', 'pa', 'ta'], ['estado', 'departamento', 'nivel', 'pila']),
       frecuenciaCardiaca: getByKeywords(['frecuencia cardiaca', 'pulso', 'fc'], ['fecha']),
       fuma: getByKeywords(['fuma', 'tabaquismo', 'cigarrillo', 'fumador']),
       alcohol: getByKeywords(['alcohol', 'bebidas alcoholicas', 'licor', 'consumo alcohol']),
-      deporte: getByKeywords(['deporte', 'actividad fisica', 'ejercicio']),
-      alimentacion: getByKeywords(['alimentacion', 'dieta', 'nutricion']),
+      deporte: getByKeywords(['deporte / actividad fisica', 'deporte', 'actividad fisica', 'ejercicio']),
+      alimentacion: getByKeywords(['calidad de alimentacion', 'alimentacion', 'dieta', 'nutricion']),
       terapiaPsicologica: getByKeywords(['terapia psicologica', 'psicologia', 'salud mental']),
       esCopasst: getByKeywords(['copasst', 'vigia sst']),
-      esComiteConvivencia: getByKeywords(['comite de convivencia', 'convivencia laboral', 'ccl']),
-      esBrigadista: getByKeywords(['brigadista', 'brigada', 'emergencias']),
-      esComiteSeguridadVial: getByKeywords(['seguridad vial', 'pesv', 'comite vial']),
-      curso50h: getByKeywords(['curso 50', '50 horas']),
-      curso20h: getByKeywords(['curso 20', '20 horas']),
-      fechaCursoAlturasAutorizado: normalizeDateStr(getByKeywords(['curso alturas', 'alturas autorizado', 'trabajo en alturas'])),
-      licenciaConduccion: getByKeywords(['licencia de conduccion', 'licencia conduccion', 'categoria licencia']),
+      esComiteConvivencia: getByKeywords(['comite convivencia', 'comite de convivencia', 'convivencia laboral', 'ccl']),
+      esBrigadista: getByKeywords(['brigadista', 'brigada', 'emergencias'], ['contacto']),
+      esComiteSeguridadVial: getByKeywords(['comite seg. vial', 'comite seg vial', 'seguridad vial', 'pesv', 'comite vial']),
+      curso50h: normalizeDateStr(getByKeywords(['curso 50h', 'curso 50', '50 horas'])),
+      curso20h: normalizeDateStr(getByKeywords(['curso 20h', 'curso 20', '20 horas'])),
+      fechaCursoAlturasAutorizado: normalizeDateStr(
+        getByKeywords(['curso alturas autorizado', 'alturas autorizado', 'trab autorizado', 'trabajo en alturas'], ['coordinador'])
+      ),
+      fechaCursoAlturasCoordinador: normalizeDateStr(
+        getByKeywords(['curso alturas coordinador', 'alturas coordinador', 'coordinador alturas'])
+      ),
+      soatVencimiento: normalizeDateStr(getByKeywords(['vencimiento soat', 'soat vencimiento', 'soat'])),
+      tecnicomecanicaVencimiento: normalizeDateStr(
+        getByKeywords(['vencimiento tecnicomecanica', 'tecnicomecanica vencimiento', 'tecnicomecanica', 'rtm'])
+      ),
+      licenciaConduccion: getByKeywords(
+        ['licencia(s) conduccion', 'licencias conduccion', 'licencia de conduccion', 'licencia conduccion', 'categoria licencia'],
+        ['vencimiento', 'sgsst', 'sst']
+      ),
+      licenciaConduccionVencimiento: normalizeDateStr(
+        getByKeywords(['vencimiento(s) licencia', 'vencimientos licencia', 'vencimiento licencia conduccion', 'vencimiento licencia'], ['sgsst', 'sst'])
+      ),
+      licenciaSST: getByKeywords(
+        ['n licencia sgsst', 'no licencia sgsst', 'numero licencia sgsst', 'licencia sgsst', 'licencia sst'],
+        ['venc', 'vencimiento']
+      ),
+      licenciaVencimiento: normalizeDateStr(
+        getByKeywords(['venc. licencia sgsst', 'venc licencia sgsst', 'vencimiento licencia sgsst', 'vencimiento licencia sst'])
+      ),
+      consentimientoFirmaDigital: getByKeywords(['consentimiento firma', 'consentimiento informado', 'firma digital']),
+      estadoLaboral: getByKeywords(['estado laboral', 'estado trabajador'], ['civil', 'pila']),
+      fechaRetiro: normalizeDateStr(getByKeywords(['fecha de retiro', 'fecha retiro'])),
+      motivoRetiro: getByKeywords(['motivo de retiro', 'motivo retiro', 'causa retiro']),
     };
 
     mappedWorkers.push(worker);
@@ -530,6 +585,7 @@ const WORKER_EXTRACTION_SCHEMA = {
       eps: { type: 'string' },
       afp: { type: 'string' },
       arl: { type: 'string' },
+      estadoPila: { type: 'string' },
       personasCargo: { type: 'string' },
       estrato: { type: 'string' },
       vivienda: { type: 'string' },
@@ -561,7 +617,17 @@ const WORKER_EXTRACTION_SCHEMA = {
       curso50h: { type: 'string' },
       curso20h: { type: 'string' },
       fechaCursoAlturasAutorizado: { type: 'string' },
+      fechaCursoAlturasCoordinador: { type: 'string' },
+      soatVencimiento: { type: 'string' },
+      tecnicomecanicaVencimiento: { type: 'string' },
       licenciaConduccion: { type: 'string' },
+      licenciaConduccionVencimiento: { type: 'string' },
+      licenciaSST: { type: 'string' },
+      licenciaVencimiento: { type: 'string' },
+      consentimientoFirmaDigital: { type: 'string' },
+      estadoLaboral: { type: 'string' },
+      fechaRetiro: { type: 'string' },
+      motivoRetiro: { type: 'string' },
     },
     required: ['nombre'],
   },
@@ -917,9 +983,12 @@ async function importAndSyncSociodemografico({
       arl: pick(rawW.arl, existingW.arl),
       estadoPila: pick(rawW.estadoPila, existingW.estadoPila, 'Pendiente de soporte PILA'),
       estadoLaboral: pick(rawW.estadoLaboral || rawW.estado_laboral, existingW.estadoLaboral, 'Activo'),
+      fechaRetiro: normalizeDateStr(pick(rawW.fechaRetiro, existingW.fechaRetiro)),
+      motivoRetiro: pick(rawW.motivoRetiro, existingW.motivoRetiro),
       personasCargo: pick(rawW.personasCargo, existingW.personasCargo),
-      estrato: pick(rawW.estrato, existingW.estrato),
-      vivienda: pick(rawW.vivienda, existingW.vivienda),
+      estrato: pick(rawW.estrato, existingW.estrato).replace(/^estrato\s*/i, '').trim(),
+      vivienda: pick(rawW.vivienda || rawW.tipoVivienda, existingW.vivienda || existingW.tipoVivienda),
+      tipoVivienda: pick(rawW.vivienda || rawW.tipoVivienda, existingW.vivienda || existingW.tipoVivienda),
       tipoSangre: rhVal,
       rh: rhVal,
       // Condiciones de salud y perfil clínico
@@ -954,12 +1023,24 @@ async function importAndSyncSociodemografico({
       esComiteConvivencia: normalizeSiNo(rawW.esComiteConvivencia ?? existingW.esComiteConvivencia, 'No'),
       esBrigadista: normalizeSiNo(rawW.esBrigadista ?? existingW.esBrigadista, 'No'),
       esComiteSeguridadVial: normalizeSiNo(rawW.esComiteSeguridadVial ?? existingW.esComiteSeguridadVial, 'No'),
-      curso50h: pick(rawW.curso50h, existingW.curso50h),
-      curso20h: pick(rawW.curso20h, existingW.curso20h),
+      curso50h: normalizeDateStr(pick(rawW.curso50h, existingW.curso50h)),
+      curso20h: normalizeDateStr(pick(rawW.curso20h, existingW.curso20h)),
       fechaCursoAlturasAutorizado: normalizeDateStr(
         pick(rawW.fechaCursoAlturasAutorizado, existingW.fechaCursoAlturasAutorizado)
       ),
+      fechaCursoAlturasCoordinador: normalizeDateStr(
+        pick(rawW.fechaCursoAlturasCoordinador, existingW.fechaCursoAlturasCoordinador)
+      ),
+      soatVencimiento: normalizeDateStr(pick(rawW.soatVencimiento, existingW.soatVencimiento)),
+      tecnicomecanicaVencimiento: normalizeDateStr(
+        pick(rawW.tecnicomecanicaVencimiento, existingW.tecnicomecanicaVencimiento)
+      ),
       licenciaConduccion: pick(rawW.licenciaConduccion, existingW.licenciaConduccion),
+      licenciaConduccionVencimiento: normalizeDateStr(
+        pick(rawW.licenciaConduccionVencimiento, existingW.licenciaConduccionVencimiento)
+      ),
+      licenciaSST: pick(rawW.licenciaSST, existingW.licenciaSST),
+      licenciaVencimiento: normalizeDateStr(pick(rawW.licenciaVencimiento, existingW.licenciaVencimiento)),
       licenciasConduccion: Array.isArray(existingW.licenciasConduccion)
         ? existingW.licenciasConduccion
         : [],
@@ -967,10 +1048,14 @@ async function importAndSyncSociodemografico({
       biocentricAlerts: Array.isArray(existingW.biocentricAlerts) ? existingW.biocentricAlerts : [],
       bioTagsIA: Array.isArray(existingW.bioTagsIA) ? existingW.bioTagsIA : [],
       completedByAI: true,
-      consentimientoFirmaDigital: pick(rawW.consentimientoFirmaDigital, existingW.consentimientoFirmaDigital, 'No'),
+      consentimientoFirmaDigital: normalizeSiNo(
+        pick(rawW.consentimientoFirmaDigital, existingW.consentimientoFirmaDigital, 'No'),
+        'No'
+      ),
     };
 
     // Etiquetado clínico determinista inmediato (Condiciones de Salud -> bioTagsIA / aptitud)
+    const perfilSocioRouter = require('./perfilSociodemografico');
     if (typeof perfilSocioRouter.runDeterministicSemanticTagging === 'function') {
       const semantic = perfilSocioRouter.runDeterministicSemanticTagging(workerItem);
       workerItem.bioTagsIA = semantic.tags || [];
@@ -1002,6 +1087,7 @@ async function importAndSyncSociodemografico({
   }
 
   // 3. Recalcular Score Biocéntrico y sincronizar con SgsstWorker
+  const perfilSocioRouter = require('./perfilSociodemografico');
   if (typeof perfilSocioRouter.recalculateAndSyncAllWorkers === 'function') {
     trabajadoresList = await perfilSocioRouter.recalculateAndSyncAllWorkers(
       userId,
@@ -1156,4 +1242,8 @@ module.exports = {
   importAndSyncSociodemografico,
   findSociodemograficoFilesInDrive,
   extractDriveFileData,
+  mapSpreadsheetRowsDeterministically,
+  normalizeDateStr,
+  computeAge,
+  computeImc,
 };

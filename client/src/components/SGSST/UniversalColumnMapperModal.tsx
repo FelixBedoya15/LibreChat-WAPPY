@@ -33,6 +33,7 @@ import {
   SavedTemplate,
   exportModuleDataToExcel,
 } from './columnMapperEngine';
+import { exportPerfilSociodemograficoToExcel } from './exportPerfilSociodemografico';
 
 interface UniversalColumnMapperModalProps {
   isOpen: boolean;
@@ -679,6 +680,10 @@ export default function UniversalColumnMapperModal({
             <button
               type="button"
               onClick={() => {
+                if (effectiveModuleKey === 'perfil-sociodemografico' || effectiveModuleKey === 'condiciones-salud') {
+                  exportPerfilSociodemograficoToExcel([], `Plantilla_${moduleTitle.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+                  return;
+                }
                 exportModuleDataToExcel({
                   targetFields,
                   data: [],

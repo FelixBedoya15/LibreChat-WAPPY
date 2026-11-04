@@ -39,8 +39,21 @@ const SingleSelect = ({
     const DROPDOWN_MAX_H = 256; // max-h-64 in px
     const MARGIN = 6;
 
-    const currentOptionObj = options.find(o => typeof o === 'string' ? o === value : (!o.isHeader && o.value === value));
-    const displayValue = currentOptionObj ? (typeof currentOptionObj === 'string' ? currentOptionObj : currentOptionObj.label) : (allowCustomInput ? value : '');
+    const normalizedVal = value !== undefined && value !== null ? String(value).trim() : '';
+    const currentOptionObj = options.find(o => {
+        if (typeof o === 'string') {
+            return o === normalizedVal || o.toLowerCase() === normalizedVal.toLowerCase();
+        }
+        if (o.isHeader) return false;
+        return (
+            o.value === normalizedVal ||
+            o.value.toLowerCase() === normalizedVal.toLowerCase() ||
+            o.label.toLowerCase() === normalizedVal.toLowerCase()
+        );
+    });
+    const displayValue = currentOptionObj
+        ? (typeof currentOptionObj === 'string' ? currentOptionObj : currentOptionObj.label)
+        : normalizedVal;
 
     const calcStyle = () => {
         if (!triggerRef.current) return;
