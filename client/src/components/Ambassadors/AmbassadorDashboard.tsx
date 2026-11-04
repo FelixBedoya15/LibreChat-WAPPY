@@ -152,6 +152,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   const [commissions, setCommissions] = useState<CommissionItem[]>([]);
   const [networkStats, setNetworkStats] = useState<NetworkPartner[]>([]);
   const [myReferralLink, setMyReferralLink] = useState<string>('');
+  const [copied, setCopied] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLeader, setIsLeader] = useState<boolean>(false);
 
@@ -488,7 +489,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
     const partner = networkStats.find(p => p.partnerId === selectedAmbassadorFilter || p.slug === selectedAmbassadorFilter);
     return referredUsers.filter(u => 
       u.ambassadorId === selectedAmbassadorFilter || 
-      (partner && (u.ambassadorSlug === partner.slug || u.ambassadorName.toLowerCase() === partner.name.toLowerCase()))
+      (partner && (u.ambassadorSlug === partner.slug || (u.ambassadorName || '').toLowerCase() === (partner.name || '').toLowerCase()))
     );
   }, [referredUsers, selectedAmbassadorFilter, networkStats]);
 
@@ -500,7 +501,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
     const userIds = new Set(ambassadorFilteredUsers.map(u => String(u.userId)));
     return commissions.filter(c => 
       c.partnerId === selectedAmbassadorFilter ||
-      (partner && (c.ambassadorSlug === partner.slug || (c.ambassadorName && c.ambassadorName.toLowerCase() === partner.name.toLowerCase()))) ||
+      (partner && (c.ambassadorSlug === partner.slug || (c.ambassadorName && c.ambassadorName.toLowerCase() === (partner.name || '').toLowerCase()))) ||
       (c.referredUserEmail && userEmails.has(c.referredUserEmail.toLowerCase())) ||
       (c.userId && userIds.has(String(c.userId)))
     );
@@ -558,7 +559,9 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   const copyReferralLink = () => {
     if (!myReferralLink) return;
     navigator.clipboard.writeText(myReferralLink);
+    setCopied(true);
     showToast({ message: '¡Link de referido copiado al portapapeles!', status: 'success' });
+    setTimeout(() => setCopied(false), 2500);
   };
 
   const exportToCSV = () => {
@@ -600,22 +603,22 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
     // Aggregate partners
     const partnersToReport = isFiltered && filterPartner ? [filterPartner] : networkStats;
     partnersToReport.forEach(p => {
-      const pUsers = referredUsers.filter(u => u.ambassadorId === p.partnerId || u.ambassadorSlug === p.slug || u.ambassadorName.toLowerCase() === p.name.toLowerCase());
+      const pUsers = referredUsers.filter(u => u.ambassadorId === p.partnerId || u.ambassadorSlug === p.slug || (u.ambassadorName || '').toLowerCase() === (p.name || '').toLowerCase());
       const proCount = pUsers.filter(u => u.role === 'USER_PRO' || u.subscriptionType === 'pro' || u.subscriptionType === 'vital' || u.paymentStatus === 'paid').length;
       const trialCount = pUsers.filter(u => u.role !== 'USER_PRO' && u.daysToExpiry !== null && u.daysToExpiry > 0).length;
       const contactCount = pUsers.filter(u => u.crmStage && u.crmStage !== 'nuevo').length;
       const proposalCount = pUsers.filter(u => u.crmStage === 'propuesta' || (u.crmNotes && u.crmNotes.some((n: any) => n.type === 'proposal'))).length;
       const convRate = pUsers.length > 0 ? ((proCount / pUsers.length) * 100).toFixed(1) : '0.0';
 
-      const pComms = commissions.filter(c => pUsers.some(u => u.email.toLowerCase() === c.referredUserEmail.toLowerCase()));
+      const pComms = commissions.filter(c => pUsers.some(u => (u.email || '').toLowerCase() === (c.referredUserEmail || '').toLowerCase()));
       const pendingComm = pComms.filter(c => c.status === 'pending').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
       const paidComm = pComms.filter(c => c.status === 'paid').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
       const totalComm = pendingComm + paidComm;
 
       csv += [
-        `"${p.name.replace(/"/g, '""')}"`,
-        `"${p.slug}"`,
-        `"${p.email}"`,
+        `"${(p.name || '').replace(/"/g, '""')}"`,
+        `"${p.slug || ''}"`,
+        `"${p.email || ''}"`,
         pUsers.length,
         proCount,
         trialCount,
@@ -651,12 +654,12 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
     exportUsers.forEach(u => {
       const crmStageLabel = CRM_STAGES.find(s => s.key === (u.crmStage || 'nuevo'))?.label || u.crmStage || 'Sin Contactar';
       csv += [
-        `"${u.name.replace(/"/g, '""')}"`,
-        `"${u.email}"`,
+        `"${(u.name || '').replace(/"/g, '""')}"`,
+        `"${u.email || ''}"`,
         `"${u.phone || ''}"`,
         `"${(u.city || '').replace(/"/g, '""')}"`,
         `"${(u.department || '').replace(/"/g, '""')}"`,
-        `"${u.ambassadorName.replace(/"/g, '""')}"`,
+        `"${(u.ambassadorName || '').replace(/"/g, '""')}"`,
         `"${crmStageLabel}"`,
         `"${u.role}"`,
         `"${u.subscriptionType}${u.planInterval ? ` (${u.planInterval})` : ''}"`,
@@ -721,13 +724,14 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
 
   // Filter logic for referred users
   const filteredUsers = ambassadorFilteredUsers.filter(u => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch = 
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phone.includes(searchTerm) ||
-      (u.city && u.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.department && u.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      u.ambassadorName.toLowerCase().includes(searchTerm.toLowerCase());
+      (u.name || '').toLowerCase().includes(term) ||
+      (u.email || '').toLowerCase().includes(term) ||
+      (u.phone || '').includes(searchTerm) ||
+      (u.city && u.city.toLowerCase().includes(term)) ||
+      (u.department && u.department.toLowerCase().includes(term)) ||
+      (u.ambassadorName || '').toLowerCase().includes(term);
 
     const matchesRole = roleFilter === 'all' || u.role === roleFilter || (roleFilter === 'USER_IPEVAR' && (u.role === 'USER_IPEVAR' || u.role === 'IPEVAR'));
     const matchesStatus = statusFilter === 'all' || u.accountStatus === statusFilter;
@@ -835,9 +839,10 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
 
           <ExpandableButton
             onClick={copyReferralLink}
-            variant="teal"
-            icon={<Copy className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
-            label="Copiar Mi Link"
+            variant="fuchsia"
+            isActive={copied}
+            icon={copied ? <Check className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" /> : <Copy className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label={copied ? '¡Copiado!' : 'Copiar Mi Link'}
             title="Copiar mi Link de Referido"
           />
         </div>
@@ -872,7 +877,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
               >
                 <option value="all">🌐 Toda la Red ({referredUsers.length} registros totales)</option>
                 {networkStats.map((p) => {
-                  const count = referredUsers.filter(u => u.ambassadorId === p.partnerId || u.ambassadorSlug === p.slug || u.ambassadorName.toLowerCase() === p.name.toLowerCase()).length;
+                  const count = referredUsers.filter(u => u.ambassadorId === p.partnerId || u.ambassadorSlug === p.slug || (u.ambassadorName || '').toLowerCase() === (p.name || '').toLowerCase()).length;
                   return (
                     <option key={p.partnerId} value={p.partnerId}>
                       👤 {p.name} ({count} registros) — {p.slug}
@@ -942,11 +947,11 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 </div>
               </div>
               <div className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight truncate">
-                ${activeKpis.totalCommissionsEarned.toLocaleString('es-CO')} <span className="text-xs font-bold text-text-tertiary">COP</span>
+                ${(activeKpis.totalCommissionsEarned || 0).toLocaleString('es-CO')} <span className="text-xs font-bold text-text-tertiary">COP</span>
               </div>
               <div className="flex items-center justify-between mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-medium text-text-secondary">
-                <span>Pend: ${activeKpis.totalCommissionsPending.toLocaleString('es-CO')}</span>
-                <span className="text-emerald-600 font-bold">Pag: ${activeKpis.totalCommissionsPaid.toLocaleString('es-CO')}</span>
+                <span>Pend: ${(activeKpis.totalCommissionsPending || 0).toLocaleString('es-CO')}</span>
+                <span className="text-emerald-600 font-bold">Pag: ${(activeKpis.totalCommissionsPaid || 0).toLocaleString('es-CO')}</span>
               </div>
             </div>
 
@@ -1117,7 +1122,8 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 <ExpandableButton
                   onClick={copyReferralLink}
                   variant="white"
-                  icon={<Copy className="w-4 h-4 text-teal-700" />}
+                  isActive={copied}
+                  icon={copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-teal-700" />}
                   label={copied ? '¡Copiado!' : 'Copiar'}
                   title="Copiar mi Link de Referido"
                 />
@@ -1323,14 +1329,14 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                                 const uStage = u.crmStage || (u.subscriptionType?.toLowerCase().includes('pro') || u.subscriptionType === 'vital' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR' ? 'ganado' : 'nuevo');
                                 const stObj = CRM_STAGES.find(s => s.key === uStage);
                                 return (
-                                  <button
-                                    onClick={() => setContactUser(u as any)}
-                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer shadow-xs ${stObj?.badgeColor || 'bg-slate-500/10 text-slate-700'}`}
-                                    title="Clic para ver seguimiento CRM o cambiar etapa"
-                                  >
-                                    <span>{stObj?.icon || '🔘'}</span>
-                                    <span>{stObj?.shortLabel || stObj?.label || 'Nuevo'}</span>
-                                  </button>
+                                    <button
+                                      onClick={() => setContactUser(u as any)}
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer shadow-xs ${stObj?.badgeColor || 'bg-slate-500/10 text-slate-700'}`}
+                                      title="Clic para ver seguimiento CRM o cambiar etapa"
+                                    >
+                                      <span>{stObj?.emoji || (stObj as any)?.icon || '🔘'}</span>
+                                      <span>{stObj?.shortLabel || stObj?.label || 'Nuevo'}</span>
+                                    </button>
                                 );
                               })()}
                             </td>
@@ -1595,9 +1601,9 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                             })()}
                           </td>
 
-                          <td className="px-4 py-3.5 align-middle font-medium text-xs whitespace-nowrap">${c.amount.toLocaleString('es-CO')} COP</td>
-                          <td className="px-4 py-3.5 align-middle font-extrabold text-teal-600 dark:text-teal-400 text-xs whitespace-nowrap">{Math.round(c.commissionRate * 100)}%</td>
-                          <td className="px-4 py-3.5 align-middle font-bold text-emerald-600 dark:text-emerald-400 text-xs whitespace-nowrap">${c.commissionAmount.toLocaleString('es-CO')} COP</td>
+                          <td className="px-4 py-3.5 align-middle font-medium text-xs whitespace-nowrap">${(c.amount || 0).toLocaleString('es-CO')} COP</td>
+                          <td className="px-4 py-3.5 align-middle font-extrabold text-teal-600 dark:text-teal-400 text-xs whitespace-nowrap">{Math.round((c.commissionRate || 0) * 100)}%</td>
+                          <td className="px-4 py-3.5 align-middle font-bold text-emerald-600 dark:text-emerald-400 text-xs whitespace-nowrap">${(c.commissionAmount || 0).toLocaleString('es-CO')} COP</td>
                           <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
                               c.status === 'paid' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
@@ -1727,7 +1733,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                           </td>
                           <td className="px-4 py-3.5 align-middle font-bold text-text-primary text-sm whitespace-nowrap">{p.totalReferrals}</td>
                           <td className="px-4 py-3.5 align-middle font-extrabold text-emerald-600 dark:text-emerald-400 text-sm whitespace-nowrap">
-                            ${p.totalCommission.toLocaleString('es-CO')} COP
+                            ${(p.totalCommission || 0).toLocaleString('es-CO')} COP
                           </td>
                           <td className="px-4 py-3.5 align-middle text-text-tertiary text-xs whitespace-nowrap">{p.daysSinceLastReferral}</td>
                         </tr>
@@ -1818,7 +1824,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 <option value="">-- Sin Embajador (Desvincular) --</option>
                 {networkStats.map(p => (
                   <option key={p.partnerId} value={p.partnerId}>
-                    {p.name} ({p.slug}) {p.isLeader ? '🌟 Líder (30%)' : '💼 Estándar (20-25%)'}
+                    {p.name} ({p.slug}) {(p.type === 'embajador' || (p as any).isLeader) ? '🌟 Líder (30%)' : '💼 Estándar (20-25%)'}
                   </option>
                 ))}
               </select>
