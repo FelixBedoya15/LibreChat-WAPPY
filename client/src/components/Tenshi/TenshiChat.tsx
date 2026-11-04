@@ -5251,7 +5251,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (!token || typeof window === 'undefined' || typeof EventSource === 'undefined') return;
     let es: EventSource | null = null;
     try {
-      es = new EventSource(`/api/mcp-bridge/antigravity/stream?token=${encodeURIComponent(token)}`);
+      es = new EventSource(`/api/mcp-bridge/antigravity/stream?token=${encodeURIComponent(token)}&clientType=browser`);
       es.addEventListener('orden_completada', (evt: MessageEvent) => {
         try {
           const payload = JSON.parse(evt.data);

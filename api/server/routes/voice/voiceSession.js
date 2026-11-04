@@ -2150,6 +2150,10 @@ class VoiceSession {
                                         items: {
                                             type: "string"
                                         }
+                                    },
+                                    entorno_destino: {
+                                        type: "string",
+                                        description: "Entorno donde ejecutar la orden si el usuario lo especifica o lo pide por voz: 'local' (en su Mac/PC), 'cloud' (en la nube antigravity.google.com), o 'auto' (automático según conexión)."
                                     }
                                 },
                                 required: ["instruccion"]

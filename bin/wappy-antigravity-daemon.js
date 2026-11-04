@@ -961,7 +961,7 @@ function watchDirectTrajectoryCompletion({
         .map((s) => JSON.stringify(s.plannerResponse || s.userInput || ''))
         .join(' ');
       const imgPathMatch = allNewText.match(
-        /(\/(?:Users|home)\/[^"'\s)\]]+\.(?:png|jpg|jpeg|webp|gif))/i
+        /(\/(?:Users|home|tmp|workspace|root)\/[^"'\s)\]]+\.(?:png|jpg|jpeg|webp|gif))/i
       );
       if (imgPathMatch && imgPathMatch[1] && fs.existsSync(imgPathMatch[1])) {
         completed = true;

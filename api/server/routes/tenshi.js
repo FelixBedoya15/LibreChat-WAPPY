@@ -2640,6 +2640,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             items: {
                                 type: 'STRING'
                             }
+                        },
+                        entorno_destino: {
+                            type: 'STRING',
+                            description: "Entorno donde ejecutar la orden si el usuario lo especifica explícitamente: 'local' (en su Mac/PC), 'cloud' (en la nube antigravity.google.com), o 'auto' (automático según conexión)."
                         }
                     },
                     required: ['instruccion']
@@ -3585,6 +3589,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                                 titulo: res.detalles?.titulo || targetArgs?.titulo || 'Orden Antigravity',
                                                 formato: res.detalles?.formatoEntregable || targetArgs?.tipo_entregable || 'html',
                                                 estado: res.estado || 'todo',
+                                                routedToEnv: res.routedToEnv || 'local',
+                                                activeMode: res.activeMode || 'auto',
                                             };
                                         }
                                         if (!capturedWidget) {

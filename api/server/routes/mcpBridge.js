@@ -9976,6 +9976,8 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       adjuntos,
       media,
       sourceModule,
+      entorno_destino,
+      targetEnv,
     } = req.body;
 
     const rawFiles = archivos || files || adjuntos || media || [];
@@ -10060,10 +10062,22 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
 
-    // Emisión Push instantánea (0 ms) a todos los listeners SSE de Antigravity conectados
-    const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload);
-    const daemonsConectados = countAntigravityDaemons(targetUserId);
-    logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos (${daemonsConectados} computador(es) con daemon).`);
+    const rawRequestedEnv = String(entorno_destino || targetEnv || req.query.env || '').toLowerCase().trim();
+    const explicitTargetEnv = (rawRequestedEnv === 'local' || rawRequestedEnv === 'cloud') ? rawRequestedEnv : null;
+
+    // Emisión Push instantánea (0 ms) a los listeners SSE de Antigravity conectados según modo y destino explícito
+    const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload, { targetEnv: explicitTargetEnv });
+    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
+    const daemonsConectados = breakdown.totalCount;
+
+    const effectiveRoutedEnv = explicitTargetEnv || (breakdown.activeMode === 'cloud' ? (breakdown.cloudCount > 0 ? 'cloud' : (breakdown.localCount > 0 ? 'local' : 'cloud_failover')) : (breakdown.localCount > 0 ? 'local' : (breakdown.cloudCount > 0 ? 'cloud' : 'cloud_failover')));
+    const envLabel = effectiveRoutedEnv === 'cloud'
+      ? '☁️ Antigravity Cloud (antigravity.google.com)'
+      : effectiveRoutedEnv === 'local'
+      ? '🖥️ Antigravity Local (Mac/PC)'
+      : 'Nube WAPPY (Respaldo Automático)';
+
+    logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos (destino: ${effectiveRoutedEnv}, local: ${breakdown.localCount}, cloud: ${breakdown.cloudCount}, modo: ${breakdown.activeMode}).`);
 
     // Respaldo Automático Inmediato (Cloud Failover):
     // 1. Si no hay ningún PC conectado, o el PC no reclama la orden en 10s, ejecutar en la nube automáticamente.
@@ -10100,11 +10114,13 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     return res.status(200).json({
       exito: true,
       mensaje: daemonsConectados > 0
-        ? `Orden delegada a Antigravity exitosamente mediante Push en tiempo real (con Cloud Failover activo).`
+        ? `Orden delegada exitosamente a ${envLabel} mediante Push en tiempo real (con Cloud Failover activo).`
         : `Orden en procesamiento inmediato mediante Respaldo Automático Cloud de WAPPY.`,
       ordenId: finalOrdenId,
       pushClientesNotificados: pushedListeners,
       daemonsConectados,
+      routedToEnv: effectiveRoutedEnv,
+      activeMode: breakdown.activeMode,
       estado: 'todo',
       detalles: {
         titulo: finalTitle,
@@ -10114,8 +10130,9 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         archivos: finalFiles,
         estado: 'todo',
         empresa: companyName,
+        routedToEnv: effectiveRoutedEnv,
       },
-      instruccionAntigravity: `La orden "${finalTitle}" ya está en ejecución en tiempo real (con respaldo automático en la nube garantizado). Confírmale al usuario con total seguridad que su solicitud ya se está procesando y aparecerá en segundos en pantalla.`,
+      instruccionAntigravity: `La orden "${finalTitle}" fue enviada a ${envLabel} y ya está en ejecución en tiempo real (con respaldo automático garantizado). Confírmale al usuario con total seguridad que su solicitud ya se está procesando y aparecerá en segundos en pantalla.`,
     });
   } catch (error) {
     logger.error('[MCP Bridge] Error delegando orden a Antigravity:', error);
