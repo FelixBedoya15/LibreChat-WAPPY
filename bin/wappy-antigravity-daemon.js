@@ -170,6 +170,28 @@ function ensureWappyProjectPermissions() {
   } catch (_) {}
 }
 
+const UPLOAD_PERSIST_DIR = '/home/antigravity/upload';
+
+function detectDaemonEnv(cliArgs = {}) {
+  const explicit = String(cliArgs.env || process.env.WAPPY_AGY_ENV || '').toLowerCase().trim();
+  if (cliArgs.cloud || explicit === 'cloud' || explicit === 'remote') return 'cloud';
+  if (cliArgs.local || explicit === 'local') return 'local';
+  try {
+    if (fs.existsSync(ENV_FILE)) {
+      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
+      if (savedEnv?.WAPPY_AGY_ENV === 'cloud') return 'cloud';
+      if (savedEnv?.WAPPY_AGY_ENV === 'local') return 'local';
+    }
+  } catch (_) {}
+  if (
+    process.platform === 'linux' &&
+    (os.homedir() === '/home/antigravity' || fs.existsSync('/home/antigravity'))
+  ) {
+    return 'cloud';
+  }
+  return 'local';
+}
+
 /**
  * Sincroniza el servidor MCP "wappy" en AMBOS archivos mcp_config.json (.gemini/config y .gemini/antigravity)
  * y guarda la clave en el historial multi-cuenta (wappy-keys.json).
@@ -182,6 +204,9 @@ function ensureWappyMcpConfig(wappyUrl, apiKey) {
     path.join(CONFIG_DIR, 'mcp_config.json'),
     path.join(AGY_DIR, 'mcp_config.json'),
   ];
+  if (fs.existsSync(UPLOAD_PERSIST_DIR)) {
+    cfgTargets.push(path.join(UPLOAD_PERSIST_DIR, 'mcp_config.json'));
+  }
   for (const cfgPath of cfgTargets) {
     try {
       fs.mkdirSync(path.dirname(cfgPath), { recursive: true });
@@ -204,7 +229,7 @@ function ensureWappyMcpConfig(wappyUrl, apiKey) {
     } catch (_) {}
   }
 
-  // Guardar en historial multi-cuenta (hasta 5 cuentas en el mismo PC)
+  // Guardar en historial multi-cuenta (hasta 5 cuentas en el mismo PC o instancia Cloud)
   try {
     let savedKeys = [];
     if (fs.existsSync(KEYS_FILE)) {
@@ -215,7 +240,11 @@ function ensureWappyMcpConfig(wappyUrl, apiKey) {
     }
     savedKeys = savedKeys.filter((item) => item && item.apiKey && item.apiKey !== apiKey);
     savedKeys.unshift({ wappyUrl: cleanUrl, apiKey, updatedAt: Date.now() });
-    fs.writeFileSync(KEYS_FILE, JSON.stringify(savedKeys.slice(0, 5), null, 2), 'utf8');
+    const serialized = JSON.stringify(savedKeys.slice(0, 5), null, 2);
+    fs.writeFileSync(KEYS_FILE, serialized, 'utf8');
+    if (fs.existsSync(UPLOAD_PERSIST_DIR)) {
+      fs.writeFileSync(path.join(UPLOAD_PERSIST_DIR, 'wappy-keys.json'), serialized, 'utf8');
+    }
   } catch (_) {}
 }
 
@@ -383,6 +412,7 @@ function resolveAllCredentials(cliArgs = {}) {
   const configPaths = [
     path.join(CONFIG_DIR, 'mcp_config.json'),
     path.join(AGY_DIR, 'mcp_config.json'),
+    path.join(UPLOAD_PERSIST_DIR, 'mcp_config.json'),
   ];
 
   for (const cfgPath of configPaths) {
@@ -406,16 +436,18 @@ function resolveAllCredentials(cliArgs = {}) {
     } catch (_) {}
   }
 
-  try {
-    if (fs.existsSync(KEYS_FILE)) {
-      const saved = JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
-      if (Array.isArray(saved)) {
-        for (const item of saved) {
-          if (item && item.apiKey) addCred(item.wappyUrl, item.apiKey);
+  for (const kf of [KEYS_FILE, path.join(UPLOAD_PERSIST_DIR, 'wappy-keys.json')]) {
+    try {
+      if (fs.existsSync(kf)) {
+        const saved = JSON.parse(fs.readFileSync(kf, 'utf8'));
+        if (Array.isArray(saved)) {
+          for (const item of saved) {
+            if (item && item.apiKey) addCred(item.wappyUrl, item.apiKey);
+          }
         }
       }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
 
   return list;
 }
@@ -436,7 +468,7 @@ function findExeRecursive(baseDir, depth = 0) {
     if (!fs.existsSync(baseDir)) return null;
     const entries = fs.readdirSync(baseDir, { withFileTypes: true });
     for (const e of entries) {
-      if (e.isFile() && /^(language_server.*|agentapi)\.exe$/i.test(e.name)) {
+      if (e.isFile() && /^(language_server.*|agentapi)(\.exe)?$/i.test(e.name)) {
         return path.join(baseDir, e.name);
       }
     }
@@ -471,7 +503,22 @@ function resolveAgentApiBinary() {
     path.join(AGY_DIR, 'bin', 'agentapi.exe'),
     '/Applications/Antigravity.app/Contents/Resources/bin/language_server',
   ];
-  if (process.platform === 'win32') {
+  if (process.platform === 'linux') {
+    candidates.push(
+      '/usr/local/bin/agentapi',
+      '/usr/bin/agentapi',
+      '/usr/local/bin/language_server',
+      '/usr/bin/language_server',
+      '/opt/antigravity/bin/language_server',
+      '/opt/antigravity/resources/bin/language_server',
+      '/opt/google/antigravity/bin/language_server',
+      '/opt/google/antigravity/resources/bin/language_server'
+    );
+    try {
+      const whichOut = execFileSync('/usr/bin/env', ['which', 'agentapi'], { encoding: 'utf8', timeout: 2000 }).trim();
+      if (whichOut && fs.existsSync(whichOut)) candidates.unshift(whichOut);
+    } catch (_) {}
+  } else if (process.platform === 'win32') {
     const localApp = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
     const progFiles = process.env.ProgramFiles || 'C:\\Program Files';
     const progFiles86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
@@ -566,30 +613,73 @@ function discoverLiveLanguageServer() {
         const workspaceId = mWs ? mWs[1] : '';
         const isPreferredWorkspace = /LibreChat/i.test(workspaceId);
 
+        const ports = [];
         try {
           const lsofOut = execFileSync(lsofBin, ['-nP', '-a', '-p', pid, '-iTCP', '-sTCP:LISTEN'], {
             encoding: 'utf8',
             timeout: 4000,
             env: baseEnv,
           });
-          const ports = [];
           for (const l of lsofOut.split(/\r?\n/)) {
             const mp = l.match(/:(\d+)\s+\(LISTEN\)/);
             if (mp && !ports.includes(mp[1])) ports.push(mp[1]);
           }
-          // El servidor gRPC de agentapi suele abrirse en el segundo puerto (el más alto)
-          for (const port of ports.reverse()) {
-            candidates.push({
-              pid,
-              port,
-              address: `localhost:${port}`,
-              csrfToken,
-              isHub,
-              workspaceId,
-              isPreferredWorkspace,
-            });
-          }
         } catch (_) {}
+
+        // Respaldo Linux (Google Antigravity Remote Agents VM): usar `ss -tlpn` o `/proc/<pid>/net/tcp` si `lsof` no está instalado
+        if (ports.length === 0 && process.platform === 'linux') {
+          try {
+            const ssOut = execFileSync('ss', ['-tlpn'], { encoding: 'utf8', timeout: 3000, env: baseEnv });
+            for (const sl of ssOut.split(/\r?\n/)) {
+              if (!sl.includes(`pid=${pid},`) && !sl.includes(`pid=${pid})`)) continue;
+              const mp = sl.match(/:(\d+)\s+/);
+              if (mp && !ports.includes(mp[1])) ports.push(mp[1]);
+            }
+          } catch (_) {}
+          if (ports.length === 0) {
+            try {
+              const fdDir = `/proc/${pid}/fd`;
+              const socketInodes = new Set();
+              if (fs.existsSync(fdDir)) {
+                for (const fd of fs.readdirSync(fdDir)) {
+                  try {
+                    const target = fs.readlinkSync(path.join(fdDir, fd));
+                    const mSock = target.match(/socket:\[(\d+)\]/);
+                    if (mSock) socketInodes.add(mSock[1]);
+                  } catch (_) {}
+                }
+              }
+              for (const tcpFile of [`/proc/${pid}/net/tcp`, `/proc/${pid}/net/tcp6`]) {
+                if (!fs.existsSync(tcpFile)) continue;
+                const tcpLines = fs.readFileSync(tcpFile, 'utf8').split(/\r?\n/);
+                for (const tl of tcpLines) {
+                  const parts = tl.trim().split(/\s+/);
+                  if (parts.length < 10 || parts[3] !== '0A') continue; // '0A' = TCP_LISTEN
+                  const inode = parts[9];
+                  if (socketInodes.size > 0 && !socketInodes.has(inode)) continue;
+                  const localHex = parts[1].split(':')[1];
+                  if (localHex) {
+                    const pDec = String(parseInt(localHex, 16));
+                    if (pDec && pDec !== '0' && !ports.includes(pDec)) ports.push(pDec);
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+        }
+
+        // El servidor gRPC de agentapi suele abrirse en el segundo puerto (el más alto)
+        for (const port of ports.reverse()) {
+          candidates.push({
+            pid,
+            port,
+            address: `localhost:${port}`,
+            csrfToken,
+            isHub,
+            workspaceId,
+            isPreferredWorkspace,
+          });
+        }
       }
       candidates.sort((a, b) => Number(Boolean(b.isPreferredWorkspace)) - Number(Boolean(a.isPreferredWorkspace)));
     } catch (_) {}
@@ -2701,9 +2791,56 @@ function installAndStartDaemon(cliArgs) {
     } catch (_) {}
   }
 
+  // 3C. En Linux / Google Antigravity Remote Agents (antigravity.google.com): registrar Sidecar persistente
+  const daemonEnv = detectDaemonEnv(cliArgs);
+  try {
+    let savedEnv = {};
+    if (fs.existsSync(ENV_FILE)) {
+      savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8')) || {};
+    }
+    savedEnv.WAPPY_AGY_ENV = daemonEnv;
+    if (apiKey) savedEnv.WAPPY_API_KEY = apiKey;
+    if (wappyUrl) savedEnv.WAPPY_URL = wappyUrl;
+    fs.writeFileSync(ENV_FILE, JSON.stringify(savedEnv, null, 2), 'utf8');
+  } catch (_) {}
+
+  if (process.platform === 'linux') {
+    try {
+      const sidecarDir = path.join(CONFIG_DIR, 'sidecars', 'wappy-bridge');
+      fs.mkdirSync(sidecarDir, { recursive: true });
+      const sidecarManifest = {
+        command: nodeBin,
+        args: [
+          scriptToRun,
+          '--worker',
+          '--silent',
+          ...(daemonEnv === 'cloud' ? ['--cloud'] : []),
+          ...(wappyUrl ? [`--url=${wappyUrl}`] : []),
+          ...(apiKey ? [`--key=${apiKey}`] : []),
+        ],
+        restart_policy: 'always',
+      };
+      fs.writeFileSync(path.join(sidecarDir, 'sidecar.json'), JSON.stringify(sidecarManifest, null, 2), 'utf8');
+
+      const globalCfgPath = path.join(CONFIG_DIR, 'config.json');
+      let globalCfg = {};
+      if (fs.existsSync(globalCfgPath)) {
+        try {
+          globalCfg = JSON.parse(fs.readFileSync(globalCfgPath, 'utf8')) || {};
+        } catch (_) {}
+      }
+      if (!globalCfg.sidecars || typeof globalCfg.sidecars !== 'object') {
+        globalCfg.sidecars = {};
+      }
+      globalCfg.sidecars['wappy-bridge'] = { enabled: true };
+      fs.writeFileSync(globalCfgPath, JSON.stringify(globalCfg, null, 2), 'utf8');
+    } catch (_) {}
+  }
+
   // 4. Si launchd aún no inició el worker (Windows/Linux o arranque lento), lanzarlo desacoplado
   if (!startedByLaunchd) {
     const workerArgs = [scriptToRun, '--worker', '--silent'];
+    if (daemonEnv === 'cloud') workerArgs.push('--cloud');
     if (wappyUrl) workerArgs.push(`--url=${wappyUrl}`);
     if (apiKey) workerArgs.push(`--key=${apiKey}`);
     if (cliArgs.conversation) workerArgs.push(`--conversation=${cliArgs.conversation}`);
@@ -2712,15 +2849,17 @@ function installAndStartDaemon(cliArgs) {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
-      env: cleanAntigravitySessionEnv(process.env),
+      env: { ...cleanAntigravitySessionEnv(process.env), WAPPY_AGY_ENV: daemonEnv },
     });
     child.unref();
 
     fs.writeFileSync(PID_FILE, String(child.pid), 'utf8');
-    console.log(`✅ Puente Reactivo Push WAPPY <-> Antigravity v${DAEMON_VERSION} instalado y activo permanentemente (PID: ${child.pid}).`);
+    console.log(
+      `✅ Puente Reactivo Push WAPPY <-> Antigravity v${DAEMON_VERSION} (${daemonEnv.toUpperCase()}) instalado y activo permanentemente (PID: ${child.pid}).`
+    );
   }
 
-  console.log(`📡 Escuchando eventos en tiempo real desde: ${wappyUrl}/api/mcp-bridge/antigravity/stream`);
+  console.log(`📡 Escuchando eventos en tiempo real desde: ${wappyUrl}/api/mcp-bridge/antigravity/stream (entorno: ${daemonEnv})`);
   console.log(`⚡ Latencia de despacho: 0 ms (vía agentapi Reactive Wakeup — Auto-arranque OS activo).`);
   process.exit(0);
 }
@@ -2731,6 +2870,14 @@ function installAndStartDaemon(cliArgs) {
 function startSseWorker(cliArgs) {
   purgeProcessSessionVars();
   ensureDirs();
+  const daemonEnv = detectDaemonEnv(cliArgs);
+  const hostName = (() => {
+    try {
+      return os.hostname() || '';
+    } catch (_) {
+      return '';
+    }
+  })();
   process.on('uncaughtException', (err) => {
     log(`Aviso uncaughtException en worker: ${err?.message || err}`);
   });
@@ -2743,7 +2890,7 @@ function startSseWorker(cliArgs) {
   try {
     fs.writeFileSync(PID_FILE, String(process.pid), 'utf8');
   } catch (_) {}
-  log(`Worker v${DAEMON_VERSION} iniciado (PID: ${process.pid}, Node ${process.version}, ${process.platform}).`);
+  log(`Worker v${DAEMON_VERSION} iniciado (PID: ${process.pid}, Node ${process.version}, ${process.platform}, env: ${daemonEnv}).`);
 
   try {
     if (fs.existsSync('/tmp/deploy_studio_flow.sh')) {
@@ -2780,10 +2927,13 @@ function startSseWorker(cliArgs) {
         log(`Memoria del worker en ${Math.round(rssMb)} MB (> 400 MB). Reiniciando worker de forma limpia...`);
         if (process.platform !== 'darwin') {
           const scriptToRun = fs.existsSync(DAEMON_SCRIPT_DEST) ? DAEMON_SCRIPT_DEST : __filename;
-          const child = spawn(process.execPath, [scriptToRun, '--worker', '--silent'], {
+          const respawnArgs = [scriptToRun, '--worker', '--silent'];
+          if (daemonEnv === 'cloud') respawnArgs.push('--cloud');
+          const child = spawn(process.execPath, respawnArgs, {
             detached: true,
             stdio: 'ignore',
             windowsHide: true,
+            env: { ...process.env, WAPPY_AGY_ENV: daemonEnv },
           });
           child.unref();
         }
@@ -2826,9 +2976,9 @@ function startSseWorker(cliArgs) {
 
     const connectSingle = () => {
       if (stopped) return;
-      const streamUrl = `${wappyUrl}/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(apiKey)}&v=${encodeURIComponent(DAEMON_VERSION)}`;
+      const streamUrl = `${wappyUrl}/api/mcp-bridge/antigravity/stream?apiKey=${encodeURIComponent(apiKey)}&v=${encodeURIComponent(DAEMON_VERSION)}&env=${encodeURIComponent(daemonEnv)}&platform=${encodeURIComponent(process.platform)}&host=${encodeURIComponent(hostName)}`;
       const keyShort = `${apiKey.slice(0, 15)}...`;
-      log(`Conectando al stream Push SSE v${DAEMON_VERSION} (${keyShort}): ${wappyUrl}/api/mcp-bridge/antigravity/stream ...`);
+      log(`Conectando al stream Push SSE v${DAEMON_VERSION} (${keyShort}, env=${daemonEnv}): ${wappyUrl}/api/mcp-bridge/antigravity/stream ...`);
 
       let reconnecting = false;
       let watchdog = null;
@@ -2857,6 +3007,9 @@ function startSseWorker(cliArgs) {
               'Cache-Control': 'no-cache',
               Connection: 'keep-alive',
               'x-api-key': apiKey,
+              'x-antigravity-env': daemonEnv,
+              'x-antigravity-platform': process.platform,
+              'x-antigravity-host': hostName,
               Authorization: `Bearer ${apiKey}`,
             },
           },

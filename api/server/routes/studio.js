@@ -4453,10 +4453,12 @@ router.get('/antigravity/skills-installer.js', (req, res) => {
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
   const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
   const defaultOrigin = `${proto}://${host}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
+  const queryKey = String(req.query.key || req.query.apiKey || '').trim();
+  const queryEnv = String(req.query.env || '').toLowerCase().trim();
 
   const installerScript = `#!/usr/bin/env node
 /**
- * WAPPY IA · Instalador Oficial de las 7 Skills de Diseño y Video 60-FPS + Puente Reactivo Google Antigravity
+ * WAPPY IA · Instalador Oficial de las 7 Skills de Diseño y Video 60-FPS + Puente Reactivo Google Antigravity (Local & Cloud)
  */
 'use strict';
 
@@ -4465,16 +4467,23 @@ const path = require('path');
 const os = require('os');
 const https = require('https');
 const http = require('http');
-const { spawn } = require('child_process');
+const { spawnSync } = require('child_process');
 
 const args = process.argv.slice(2);
-let apiKey = process.env.WAPPY_API_KEY || '';
+let apiKey = process.env.WAPPY_API_KEY || ${JSON.stringify(queryKey)} || '';
 let originUrl = process.env.WAPPY_URL || ${JSON.stringify(defaultOrigin)};
+let forceCloud = ${JSON.stringify(queryEnv === 'cloud')};
 
 for (const arg of args) {
   if (arg.startsWith('--key=')) apiKey = arg.slice(6).trim();
   else if (arg.startsWith('--url=')) originUrl = arg.slice(6).trim();
+  else if (arg === '--cloud' || arg === '--env=cloud') forceCloud = true;
 }
+
+const isCloudEnv =
+  forceCloud ||
+  process.env.WAPPY_AGY_ENV === 'cloud' ||
+  (process.platform === 'linux' && (os.homedir() === '/home/antigravity' || fs.existsSync('/home/antigravity')));
 
 function fetchUrl(urlStr) {
   return new Promise((resolve, reject) => {
@@ -4495,8 +4504,9 @@ function fetchUrl(urlStr) {
 
 (async () => {
   try {
+    const cleanOrigin = originUrl.replace(/\\/$/, '');
     console.log('\\n🚀 [WAPPY IA <-> Google Antigravity] Descargando Pack Oficial de 7 Skills de Diseño y Video 60-FPS...');
-    const bundleRaw = await fetchUrl(originUrl.replace(/\\/$/, '') + '/api/studio/antigravity/skills-bundle.json');
+    const bundleRaw = await fetchUrl(cleanOrigin + '/api/studio/antigravity/skills-bundle.json');
     const bundle = JSON.parse(bundleRaw);
     const skills = Array.isArray(bundle.skills) ? bundle.skills : [];
 
@@ -4521,9 +4531,27 @@ function fetchUrl(urlStr) {
     }
 
     if (apiKey && apiKey.startsWith('wpy_')) {
-      console.log('\\n🔌 Configurando Puente Reactivo WAPPY <-> Antigravity para clave ' + apiKey.slice(0, 14) + '...');
+      const envTag = isCloudEnv ? 'cloud' : 'local';
+      console.log('\\n🔌 Configurando Servidor MCP WAPPY (120+ herramientas) y Puente Reactivo (' + envTag.toUpperCase() + ') para clave ' + apiKey.slice(0, 14) + '...');
       const agyDir = path.join(os.homedir(), '.gemini', 'antigravity');
+      const cfgDir = path.join(os.homedir(), '.gemini', 'config');
       fs.mkdirSync(agyDir, { recursive: true });
+      fs.mkdirSync(cfgDir, { recursive: true });
+
+      const sseUrl = cleanOrigin + '/api/mcp-bridge/sse?apiKey=' + apiKey;
+      for (const mcpCfgPath of [path.join(cfgDir, 'mcp_config.json'), path.join(agyDir, 'mcp_config.json')]) {
+        try {
+          let currentMcp = {};
+          if (fs.existsSync(mcpCfgPath)) {
+            currentMcp = JSON.parse(fs.readFileSync(mcpCfgPath, 'utf8')) || {};
+          }
+          if (!currentMcp.mcpServers || typeof currentMcp.mcpServers !== 'object') {
+            currentMcp.mcpServers = {};
+          }
+          currentMcp.mcpServers.wappy = { url: sseUrl, serverUrl: sseUrl };
+          fs.writeFileSync(mcpCfgPath, JSON.stringify(currentMcp, null, 2), 'utf8');
+        } catch (_) {}
+      }
 
       const envPath = path.join(agyDir, 'wappy-env.json');
       let currentEnv = {};
@@ -4531,10 +4559,11 @@ function fetchUrl(urlStr) {
         if (fs.existsSync(envPath)) currentEnv = JSON.parse(fs.readFileSync(envPath, 'utf8'));
       } catch (_) {}
       currentEnv.WAPPY_API_KEY = apiKey;
-      currentEnv.WAPPY_URL = originUrl.replace(/\\/$/, '');
+      currentEnv.WAPPY_URL = cleanOrigin;
+      currentEnv.WAPPY_AGY_ENV = envTag;
       fs.writeFileSync(envPath, JSON.stringify(currentEnv, null, 2), 'utf8');
 
-      const daemonCode = await fetchUrl(originUrl.replace(/\\/$/, '') + '/api/mcp-bridge/antigravity/daemon.js');
+      const daemonCode = await fetchUrl(cleanOrigin + '/api/mcp-bridge/antigravity/daemon.js');
       const daemonPath = path.join(agyDir, 'wappy-push-daemon.js');
       if (daemonCode && daemonCode.length > 200) {
         fs.writeFileSync(daemonPath, daemonCode, 'utf8');
@@ -4542,13 +4571,13 @@ function fetchUrl(urlStr) {
       }
 
       if (fs.existsSync(daemonPath)) {
-        const child = spawn(process.execPath, [daemonPath, '--daemon'], {
-          detached: true,
-          stdio: 'ignore',
-          env: { ...process.env, WAPPY_API_KEY: apiKey, WAPPY_URL: originUrl.replace(/\\/$/, '') },
+        const installArgs = [daemonPath, '--install', '--url=' + cleanOrigin, '--key=' + apiKey];
+        if (isCloudEnv) installArgs.push('--cloud');
+        spawnSync(process.execPath, installArgs, {
+          stdio: 'inherit',
+          env: { ...process.env, WAPPY_API_KEY: apiKey, WAPPY_URL: cleanOrigin, WAPPY_AGY_ENV: envTag },
         });
-        child.unref();
-        console.log('✅ Daemon Reactivo SSE iniciado en segundo plano (PID: ' + child.pid + '). ¡Wappy Studio ya está conectado!');
+        console.log('✅ Servidor MCP WAPPY + Daemon Reactivo SSE (' + envTag.toUpperCase() + ') instalados y activos.');
       }
     } else {
       console.log('\\n💡 Tip: Pasa --key=wpy_... para conectar también el Daemon Reactivo en tiempo real.');
