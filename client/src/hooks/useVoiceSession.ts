@@ -606,6 +606,21 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     }, []);
 
     /**
+     * Send live Video Clip (MediaRecorder segment) over WebSocket
+     */
+    const sendVideoClip = useCallback((base64Video: string, mimeType = 'video/webm', telemetry?: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'video-clip',
+            data: {
+                video: base64Video,
+                mimeType,
+                ...(telemetry ? { telemetry } : {}),
+            },
+        }));
+    }, []);
+
+    /**
      * Connect to voice WebSocket
      */
     const connect = useCallback(async () => {
@@ -1082,6 +1097,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         connect,
         disconnect,
         sendVideoFrame,
+        sendVideoClip,
         sendTextMessage,
         sendEvidenceImage,
         changeVoice,

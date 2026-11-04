@@ -1700,6 +1700,155 @@ function resolveWorkspaceDirectory() {
 }
 
 /**
+ * Descarga o resuelve en `/tmp/` los archivos adjuntos de una orden (como fotos `/images/tenshi_cam_*.jpg`
+ * o clips de video `/images/tenshi_cam_clip_*.webm` / `.mp4` de la cámara en vivo de Tenshi)
+ * para que Antigravity pueda inspeccionarlos directamente con `read_file`.
+ */
+async function materializeOrderMediaLocally(archivosList, wappyUrl, apiKey, ordenId) {
+  if (!Array.isArray(archivosList) || archivosList.length === 0) {
+    return [];
+  }
+
+  const downloadBinaryToDest = (targetUrl, destPath, redirectsLeft = 3) =>
+    new Promise((resolve) => {
+      try {
+        const parsed = new URL(targetUrl);
+        const client = parsed.protocol === 'https:' ? https : http;
+        const headers = {};
+        if (apiKey) {
+          headers['x-api-key'] = apiKey;
+          headers.Authorization = `Bearer ${apiKey}`;
+        }
+        const req = client.get(
+          parsed,
+          { headers, timeout: 30000 },
+          (res) => {
+            if (
+              res.statusCode &&
+              res.statusCode >= 300 &&
+              res.statusCode < 400 &&
+              res.headers.location &&
+              redirectsLeft > 0
+            ) {
+              res.resume();
+              const nextUrl = new URL(res.headers.location, targetUrl).toString();
+              return resolve(downloadBinaryToDest(nextUrl, destPath, redirectsLeft - 1));
+            }
+            if (res.statusCode !== 200) {
+              res.resume();
+              return resolve(false);
+            }
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => {
+              try {
+                const buf = Buffer.concat(chunks);
+                if (buf.length === 0) return resolve(false);
+                fs.writeFileSync(destPath, buf);
+                resolve(true);
+              } catch (_) {
+                resolve(false);
+              }
+            });
+          }
+        );
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => {
+          req.destroy();
+          resolve(false);
+        });
+      } catch (_) {
+        resolve(false);
+      }
+    });
+
+  const localPaths = [];
+  const safeOrdenId = String(ordenId || Date.now()).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const cleanBaseUrl = String(wappyUrl || 'https://wappy.club').replace(/\/$/, '');
+
+  for (const item of archivosList) {
+    const rawItem =
+      typeof item === 'string'
+        ? item.trim()
+        : String(item?.url || item?.path || item?.publicUrl || item?.fileUrl || '').trim();
+    if (!rawItem) continue;
+
+    // 1. Si ya es una ruta absoluta existente en disco local (y no una ruta relativa web `/images/...`)
+    if (!rawItem.startsWith('/images/') && !/^https?:\/\//i.test(rawItem) && fs.existsSync(rawItem)) {
+      localPaths.push(rawItem);
+      continue;
+    }
+
+    // 2. Si empieza con `/images/` o `http://` o `https://`
+    if (rawItem.startsWith('/images/') || /^https?:\/\//i.test(rawItem)) {
+      let relativePath = '';
+      if (rawItem.startsWith('/images/')) {
+        relativePath = rawItem.split('?')[0];
+      } else {
+        try {
+          const parsedUrl = new URL(rawItem);
+          relativePath = parsedUrl.pathname || '';
+        } catch (_) {
+          relativePath = '';
+        }
+      }
+
+      const rawBasename = path.basename(relativePath || rawItem.split('?')[0]) || `media_${Date.now()}.bin`;
+      const basename = rawBasename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const tmpDest = path.join('/tmp', `wappy_media_${safeOrdenId}_${basename}`);
+
+      // Primero verificar si el archivo ya existe localmente en el workspace `/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/client/public${relativePath}`
+      let copiedFromLocalWorkspace = false;
+      if (relativePath.startsWith('/images/')) {
+        const workspaceCandidates = [
+          `/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/client/public${relativePath}`,
+          path.join(resolveWorkspaceDirectory(), 'client', 'public', relativePath),
+        ];
+        for (const candidate of workspaceCandidates) {
+          try {
+            if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+              fs.copyFileSync(candidate, tmpDest);
+              localPaths.push(tmpDest);
+              copiedFromLocalWorkspace = true;
+              log(`📸 Archivo multimedia copiado desde workspace local a ${tmpDest}`);
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+      if (copiedFromLocalWorkspace) continue;
+
+      // De lo contrario, descargarlo vía HTTP/HTTPS desde `${wappyUrl}${relativePath}` (o la URL completa si es http(s)://)
+      const downloadCandidates = [];
+      if (/^https?:\/\//i.test(rawItem)) {
+        downloadCandidates.push(rawItem);
+      }
+      if (relativePath) {
+        const primaryUrl = `${cleanBaseUrl}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+        if (!downloadCandidates.includes(primaryUrl)) {
+          downloadCandidates.push(primaryUrl);
+        }
+        const localDevUrl = `http://localhost:3080${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+        if (!downloadCandidates.includes(localDevUrl)) {
+          downloadCandidates.push(localDevUrl);
+        }
+      }
+
+      for (const candidateUrl of downloadCandidates) {
+        const downloaded = await downloadBinaryToDest(candidateUrl, tmpDest);
+        if (downloaded && fs.existsSync(tmpDest)) {
+          localPaths.push(tmpDest);
+          log(`📸 Archivo multimedia descargado desde ${candidateUrl} a ${tmpDest}`);
+          break;
+        }
+      }
+    }
+  }
+
+  return localPaths;
+}
+
+/**
  * Despierta a Google Antigravity inmediatamente vía `agentapi` (Reactive Wakeup)
  */
 async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConvoId, dispatchedSet) {
@@ -1732,6 +1881,15 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const archivos = Array.isArray(orden.archivos) && orden.archivos.length > 0
     ? `\nArchivos Adjuntos:\n${orden.archivos.map((f) => `- ${f}`).join('\n')}`
     : '';
+  const localMediaPaths = await materializeOrderMediaLocally(orden.archivos || [], wappyUrl, apiKey, ordenId);
+  const localMediaSection =
+    localMediaPaths.length > 0
+      ? [
+          `📸🎥 [EVIDENCIA VISUAL EN VIVO DE LA CÁMARA DE TENSHI DESCARGADA EN DISCO LOCAL]:`,
+          ...localMediaPaths.map((p) => `- ${p}`),
+          `INSTRUCCIÓN MULTIMODAL OBLIGATORIA: Antes de emitir tu respuesta o redactar el entregable, DEBES llamar a tu herramienta \`read_file\` sobre las rutas locales \`/tmp/wappy_media_...\` listadas arriba para observar y analizar directamente las fotos y/o el clip de video en vivo capturados por la cámara de Tenshi.`,
+        ].join('\n')
+      : '';
 
   // Prueba Funcional E2E de Bitácora (Cron / HealthCheck):
   // Valida que la orden viajó por el túnel Push SSE desde el VPS, fue reclamada por este daemon
@@ -1930,6 +2088,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     `Instrucción del Usuario:`,
     instruccion,
     archivos,
+    localMediaSection,
     ``,
     ...executionInstructions,
   ]

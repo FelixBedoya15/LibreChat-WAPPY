@@ -213,6 +213,8 @@ const VoiceModal: FC<VoiceModalProps> = ({
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const clipIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const transcriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const manualPhotosCountRef = useRef<number>(0);
@@ -470,6 +472,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
         connect,
         disconnect,
         sendVideoFrame,
+        sendVideoClip,
         sendEvidenceImage,
         changeVoice,
         getInputVolume,
@@ -642,6 +645,18 @@ const VoiceModal: FC<VoiceModalProps> = ({
             clearInterval(videoIntervalRef.current);
             videoIntervalRef.current = null;
         }
+        if (clipIntervalRef.current) {
+            clearInterval(clipIntervalRef.current);
+            clipIntervalRef.current = null;
+        }
+        if (mediaRecorderRef.current) {
+            try {
+                if (mediaRecorderRef.current.state === 'recording') {
+                    mediaRecorderRef.current.stop();
+                }
+            } catch (_) {}
+            mediaRecorderRef.current = null;
+        }
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
@@ -649,6 +664,83 @@ const VoiceModal: FC<VoiceModalProps> = ({
         }
         setIsCameraOn(false);
         setIsScreenSharing(false);
+    };
+
+    const startRecordingClips = (stream: MediaStream) => {
+        if (typeof MediaRecorder === 'undefined') return;
+        if (clipIntervalRef.current) {
+            clearInterval(clipIntervalRef.current);
+            clipIntervalRef.current = null;
+        }
+
+        const mimeType = MediaRecorder.isTypeSupported('video/mp4')
+            ? 'video/mp4'
+            : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+                ? 'video/webm;codecs=vp8'
+                : 'video/webm';
+
+        const recordSingleSegment = () => {
+            if (!stream.active) return;
+            try {
+                if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                    return;
+                }
+                const chunks: BlobPart[] = [];
+                const recorder = new MediaRecorder(stream, {
+                    mimeType,
+                    videoBitsPerSecond: 350000,
+                });
+                mediaRecorderRef.current = recorder;
+
+                recorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) {
+                        chunks.push(e.data);
+                    }
+                };
+
+                recorder.onstop = () => {
+                    if (chunks.length === 0) return;
+                    const blob = new Blob(chunks, { type: mimeType.split(';')[0] });
+                    if (blob.size < 1024) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const result = typeof reader.result === 'string' ? reader.result : '';
+                        const base64 = result.includes(',') ? result.split(',')[1] : result;
+                        if (base64) {
+                            const proto = activeProtocolRef.current;
+                            const phase = currentPhaseRef.current || proto?.phases?.[0];
+                            const perspective = capturePerspectiveRef.current || 'Auto-evaluación';
+                            const telemetry = `[Clip de Video en Vivo • ${proto?.title || 'Inspección'} • ${phase?.name || 'Evaluación General'} • ${perspective}]`;
+                            sendVideoClip(base64, mimeType.split(';')[0], telemetry);
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                };
+
+                recorder.start();
+                setTimeout(() => {
+                    try {
+                        if (recorder.state === 'recording') {
+                            recorder.stop();
+                        }
+                    } catch (_) {}
+                }, 3500);
+            } catch (err) {
+                console.warn('[VoiceModal] MediaRecorder clip capture skipped:', err);
+            }
+        };
+
+        recordSingleSegment();
+        clipIntervalRef.current = setInterval(() => {
+            if (!stream.active) {
+                if (clipIntervalRef.current) {
+                    clearInterval(clipIntervalRef.current);
+                    clipIntervalRef.current = null;
+                }
+                return;
+            }
+            recordSingleSegment();
+        }, 5000);
     };
 
     const [supportsScreenShare, setSupportsScreenShare] = useState(false);
@@ -671,6 +763,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
             }
             setIsCameraOn(true);
             startSendingFrames();
+            startRecordingClips(stream);
         } catch (error) {
             console.error('[VoiceModal] Error starting camera:', error);
             setStatusText('Error accessing camera');
@@ -692,6 +785,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
             stream.getVideoTracks()[0].onended = () => stopMediaTracks();
             setIsScreenSharing(true);
             startSendingFrames();
+            startRecordingClips(stream);
         } catch (error) {
             console.error('[VoiceModal] Error starting screen share:', error);
             setIsScreenSharing(false);

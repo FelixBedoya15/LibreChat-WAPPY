@@ -2124,7 +2124,7 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_delegar_orden_antigravity",
-                            description: "Delega una orden de trabajo a Google Antigravity. REGLA ESTRICTA: SOLO Y EXCLUSIVAMENTE se utiliza cuando el usuario mencione de forma explícita la palabra 'Antigravity' (ej: 'pídele a Antigravity...', 'delega en Antigravity'). Está PROHIBIDO usarla si el usuario no dice 'Antigravity' (para crear aplicativos, documentos o HTML sin mencionar Antigravity debes usar canvas_tool).",
+                            description: "Delega una orden de trabajo a Google Antigravity. Cuando la cámara o videollamada en vivo de Tenshi está activa, adjunta automáticamente en tiempo real las fotos en vivo, secuencias de fotogramas, evidencias capturadas y el clip de video en vivo de la cámara para que Antigravity vea y analice directamente lo que el usuario está mostrando. REGLA ESTRICTA: SOLO Y EXCLUSIVAMENTE se utiliza cuando el usuario mencione de forma explícita la palabra 'Antigravity' (ej: 'pídele a Antigravity...', 'delega en Antigravity'). Está PROHIBIDO usarla si el usuario no dice 'Antigravity' (para crear aplicativos, documentos o HTML sin mencionar Antigravity debes usar canvas_tool).",
                             parameters: {
                                 type: "object",
                                 properties: {
@@ -2723,6 +2723,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 
 [DELEGACIÓN A ANTIGRAVITY ('wappy_delegar_orden_antigravity')]:
 - REGLA ESTRICTA Y OBLIGATORIA: SOLO Y EXCLUSIVAMENTE INVOCA 'wappy_delegar_orden_antigravity' SI EL USUARIO MENCIONA LITERALMENTE LA PALABRA "ANTIGRAVITY" (ej: "pídele a Antigravity que...", "delega en Antigravity...", "pregúntale a Antigravity...").
+- CAPACIDAD MULTIMODAL DE CÁMARA Y VIDEO EN VIVO HACIA ANTIGRAVITY: TIENES PLENA CAPACIDAD de enviar fotos en vivo, secuencias de fotogramas, capturas de evidencia y clips de video en vivo de tu cámara directamente a Antigravity. Siempre que invoques 'wappy_delegar_orden_antigravity' mientras la cámara o videollamada está activa (o tras haber capturado evidencias visuales), el sistema adjunta automáticamente las fotos y el video en vivo en la orden para que Antigravity vea y analice lo que el usuario muestra en tiempo real. ESTÁ TERMINANTEMENTE PROHIBIDO decir que no puedes enviar fotos o videos de la cámara a Antigravity.
 - SI EL USUARIO PIDE CREAR UN APLICATIVO, HTML, DASHBOARD, GRÁFICAS, REPORTE O DOCUMENTO SIN DECIR "ANTIGRAVITY", ESTÁ TERMINANTEMENTE PROHIBIDO INVOCAR ESTA HERRAMIENTA. DEBES USAR 'canvas_tool' PARA CREARLO TÚ DIRECTAMENTE.
 - DISTINCIÓN CRÍTICA ENTRE PREGUNTA ('respuesta') Y DOCUMENTO ('documento' / 'html'):
   * Si el usuario solo le hace una pregunta o consulta a Antigravity (ej: "pregúntale a Antigravity qué es SST", "dile a Antigravity que me explique...") y NO pidió explícitamente crear un documento, informe o aplicativo, DEBES enviar tipo_entregable='respuesta' y redactar la 'instruccion' como una pregunta directa sin pedirle informes ni documentos.
@@ -5773,6 +5774,14 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     continue;
                                 }
                             }
+
+                            const camMedia = this.persistLiveCameraMediaForAntigravity();
+                            if (camMedia && Array.isArray(camMedia.mediaUrls) && camMedia.mediaUrls.length > 0) {
+                                const existingArchivos = Array.isArray(targetArgs.archivos) ? targetArgs.archivos : [];
+                                targetArgs.archivos = Array.from(new Set([...existingArchivos, ...camMedia.mediaUrls]));
+                                targetArgs.instruccion = `${targetArgs.instruccion || ''}\n[CÁMARA EN VIVO DE TENSHI ACTIVA — Evidencia visual adjunta en tiempo real (${camMedia.mediaUrls.length} archivos de foto/video): ${camMedia.mediaUrls.join(', ')}${camMedia.telemetry ? ` | Telemetría en vivo: ${camMedia.telemetry}` : ''}]`.trim();
+                                logger.info(`[VoiceSession] Attached ${camMedia.mediaUrls.length} live camera media file(s) (photos + video clip) to Antigravity order: ${camMedia.mediaUrls.join(', ')}`);
+                            }
                         }
 
                         this.sendToClient({
@@ -6600,6 +6609,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 if (data && data.image) {
                     logger.debug(`[VoiceSession] Received video frame (${data.image.length} chars, has telemetry: ${!!data.telemetry})`);
                     this.latestFrame = data.image; // Guarda el último frame capturado para el análisis
+                    this.lastVideoFrameAt = Date.now();
                     if (data.telemetry) {
                         this.latestTelemetry = data.telemetry;
                     }
@@ -6619,6 +6629,18 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     } else {
                         logger.warn('[VoiceSession] Received video but Gemini client is not ready');
                     }
+                }
+                break;
+
+            case 'video-clip':
+                if (data && data.video) {
+                    this.latestVideoClip = {
+                        base64: data.video,
+                        mimeType: data.mimeType || 'video/webm',
+                        telemetry: data.telemetry || this.latestTelemetry || null,
+                        capturedAt: Date.now(),
+                    };
+                    logger.debug(`[VoiceSession] Received live video clip (${data.video.length} chars, mime: ${this.latestVideoClip.mimeType})`);
                 }
                 break;
 
@@ -10340,6 +10362,109 @@ Has asumido el rol de la Especialista en Ergonomía y Fisioterapeuta Laboral en 
         } catch (err) {
             logger.error('[VoiceSession] Error activando Modo Fisioterapeuta:', err);
         }
+    }
+
+    persistLiveCameraMediaForAntigravity() {
+        const savedUrls = [];
+        try {
+            const hasLatestFrame = Boolean(this.latestFrame && typeof this.latestFrame === 'string');
+            const hasFrameBuffer = Array.isArray(this.frameBuffer) && this.frameBuffer.length > 0;
+            const hasManualEvidences = Array.isArray(this.manualEvidences) && this.manualEvidences.length > 0;
+            const phaseEvValues = this.phaseEvidences && typeof this.phaseEvidences === 'object' ? Object.values(this.phaseEvidences) : [];
+            const hasPhaseEvidences = phaseEvValues.length > 0;
+            const hasVideoClip = Boolean(
+                this.latestVideoClip &&
+                this.latestVideoClip.base64 &&
+                (!this.latestVideoClip.capturedAt || Date.now() - this.latestVideoClip.capturedAt <= 5 * 60 * 1000)
+            );
+
+            if (!hasLatestFrame && !hasFrameBuffer && !hasManualEvidences && !hasPhaseEvidences && !hasVideoClip) {
+                return { mediaUrls: [], telemetry: null };
+            }
+
+            const imagesDir = path.join(process.cwd(), 'client', 'public', 'images');
+            fs.mkdirSync(imagesDir, { recursive: true });
+
+            const ts = Date.now();
+            const stripBase64Prefix = (b64) => String(b64 || '').replace(/^data:[^;]+;base64,/, '');
+            const seenBase64 = new Set();
+
+            // a) Save latestFrame -> tenshi_cam_live_${ts}.jpg
+            if (hasLatestFrame) {
+                const rawB64 = stripBase64Prefix(this.latestFrame);
+                if (rawB64) {
+                    const fileName = `tenshi_cam_live_${ts}.jpg`;
+                    fs.writeFileSync(path.join(imagesDir, fileName), Buffer.from(rawB64, 'base64'));
+                    savedUrls.push(`/images/${fileName}`);
+                    seenBase64.add(rawB64);
+                }
+            }
+
+            // b) Save up to the last 2 frames from frameBuffer (if different from latestFrame)
+            if (hasFrameBuffer) {
+                const recentFrames = this.frameBuffer
+                    .filter((f) => f && typeof f === 'string' && f !== this.latestFrame)
+                    .slice(-2);
+                recentFrames.forEach((frameB64, idx) => {
+                    const rawB64 = stripBase64Prefix(frameB64);
+                    if (rawB64 && !seenBase64.has(rawB64)) {
+                        const fileName = `tenshi_cam_seq_${ts}_${idx}.jpg`;
+                        fs.writeFileSync(path.join(imagesDir, fileName), Buffer.from(rawB64, 'base64'));
+                        savedUrls.push(`/images/${fileName}`);
+                        seenBase64.add(rawB64);
+                    }
+                });
+            }
+
+            // c) Save up to 2 photos from manualEvidences or Object.values(phaseEvidences)
+            const evidenceCandidates = [];
+            if (hasManualEvidences) {
+                for (const ev of this.manualEvidences) {
+                    const img = typeof ev === 'string' ? ev : ev?.image;
+                    if (img && typeof img === 'string') evidenceCandidates.push(img);
+                }
+            }
+            if (hasPhaseEvidences) {
+                for (const pev of phaseEvValues) {
+                    const img = typeof pev === 'string' ? pev : pev?.image;
+                    if (img && typeof img === 'string') evidenceCandidates.push(img);
+                }
+            }
+            const uniqueEvidences = [];
+            for (const cand of evidenceCandidates.slice().reverse()) {
+                const rawB64 = stripBase64Prefix(cand);
+                if (rawB64 && !seenBase64.has(rawB64)) {
+                    seenBase64.add(rawB64);
+                    uniqueEvidences.push(rawB64);
+                    if (uniqueEvidences.length >= 2) break;
+                }
+            }
+            uniqueEvidences.forEach((rawB64, idx) => {
+                const fileName = `tenshi_cam_ev_${ts}_${idx}.jpg`;
+                fs.writeFileSync(path.join(imagesDir, fileName), Buffer.from(rawB64, 'base64'));
+                savedUrls.push(`/images/${fileName}`);
+            });
+
+            // d) Save latestVideoClip if captured within the last 5 minutes
+            if (hasVideoClip) {
+                const rawClipB64 = stripBase64Prefix(this.latestVideoClip.base64);
+                if (rawClipB64) {
+                    const ext = String(this.latestVideoClip.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+                    const fileName = `tenshi_cam_clip_${ts}.${ext}`;
+                    fs.writeFileSync(path.join(imagesDir, fileName), Buffer.from(rawClipB64, 'base64'));
+                    savedUrls.push(`/images/${fileName}`);
+                }
+            }
+        } catch (err) {
+            logger.error('[VoiceSession] Error persisting live camera media for Antigravity:', err);
+        }
+
+        const rawTelemetry = this.latestTelemetry || this.latestVideoClip?.telemetry || null;
+        const formattedTelemetry = rawTelemetry
+            ? (typeof rawTelemetry === 'object' ? (rawTelemetry.summary || JSON.stringify(rawTelemetry)) : String(rawTelemetry))
+            : null;
+
+        return { mediaUrls: savedUrls, telemetry: formattedTelemetry };
     }
 
     async stop() {

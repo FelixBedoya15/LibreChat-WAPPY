@@ -9268,6 +9268,9 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
           const desc = String(t.description || '');
           const mFormato = desc.match(/Formato Esperado:\s*([a-z_]+)/i);
           const mInstr = desc.match(/Instrucci[oó]n:\s*([\s\S]*?)(?:\nRecurso Objetivo:|$)/i);
+          const taskArchivos = Array.isArray(t.attachments)
+            ? t.attachments.map((a) => (typeof a === 'string' ? a.trim() : String(a?.url || '').trim())).filter(Boolean)
+            : [];
           res.write(
             `event: nueva_orden\ndata: ${JSON.stringify({
               id: t._id.toString(),
@@ -9276,6 +9279,7 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
               instruccion: mInstr ? mInstr[1].trim() : desc,
               descripcion: desc,
               formatoEntregable: mFormato ? mFormato[1].toLowerCase() : 'respuesta',
+              archivos: taskArchivos,
               estado: t.status,
               prioridad: t.priority,
               fechaCreacion: t.createdAt,
@@ -9694,7 +9698,24 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     } = req.body;
 
     const rawFiles = archivos || files || adjuntos || media || [];
-    const finalFiles = Array.isArray(rawFiles) ? rawFiles : (typeof rawFiles === 'string' && rawFiles.trim() ? [rawFiles.trim()] : []);
+    const rawFilesList = Array.isArray(rawFiles)
+      ? rawFiles
+      : typeof rawFiles === 'string' && rawFiles.trim()
+      ? [rawFiles.trim()]
+      : [];
+    const finalFiles = Array.from(
+      new Set(
+        rawFilesList
+          .map((item) => {
+            if (typeof item === 'string') return item.trim();
+            if (item && typeof item === 'object') {
+              return String(item.url || item.path || item.publicUrl || item.fileUrl || '').trim();
+            }
+            return '';
+          })
+          .filter(Boolean)
+      )
+    );
 
     const finalTitle = titulo || title || `Orden Antigravity: ${(tarea || instruccion || 'Consulta / Procesamiento').slice(0, 60)}`;
     const finalDesc = instruccion || instruction || tarea || task || 'Procesar requerimiento delegado desde Tenshi.';
@@ -9881,6 +9902,9 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
         id: t._id.toString(),
         titulo: t.title,
         descripcion: t.description,
+        archivos: Array.isArray(t.attachments)
+          ? t.attachments.map((a) => (typeof a === 'string' ? a.trim() : String(a?.url || '').trim())).filter(Boolean)
+          : [],
         estado: t.status,
         prioridad: t.priority,
         fechaCreacion: t.createdAt,
