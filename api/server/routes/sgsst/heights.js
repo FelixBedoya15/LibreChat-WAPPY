@@ -5,7 +5,7 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const SgsstHeightsData = require('../../../models/SgsstHeightsData');
 const { logger } = require('~/config');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, autoPersistGeneratedReport } = require('./sgsstGemini');
 const { buildStandardHeader } = require('./reportHeader');
 
 const router = express.Router();
@@ -237,7 +237,18 @@ ${equiposStr}
 `;
 
     const result = await generateWithKeyRotation(finalModelName, req.user.id, promptText);
-    res.json({ report: result.response.text() });
+    const reportHtml = result.response.text();
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: reportHtml,
+      title: `Informe Técnico Equipos de Alturas — ${nombreTrabajador || loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-heights'],
+      model: finalModelName,
+    });
+    res.json({
+      report: reportHtml,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST Heights Generate] Error:', error);
     res.status(500).json({ error: error.message || 'Error al generar informe de equipos de alturas' });

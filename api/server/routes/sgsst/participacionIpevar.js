@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const mongoose = require('mongoose');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
@@ -547,7 +547,18 @@ Presenta un bloque visual de resumen metodológico GTC-45 con tarjetas de métri
             }
         }
 
-        res.json({ report: fullReport });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: fullReport,
+            title: `Participación IPEVAR (${formData?.proceso || formData?.tarea || 'General'}) — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+            tags: ['sgsst-participacion-ipevar', ...(formData?.id ? [`sgsst-participacion-ipevar-${formData.id}`] : [])],
+            model: finalModelName,
+        });
+
+        res.json({
+            report: fullReport,
+            conversationId: persisted?.conversationId || null,
+            messageId: persisted?.messageId || null,
+        });
     } catch (error) {
         logger.error('[SGSST Participacion IPEVAR] Generation error:', error);
         res.status(500).json({ error: 'Error al generar Pre-Matriz de Participación' });

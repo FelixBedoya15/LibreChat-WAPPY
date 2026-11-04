@@ -12,7 +12,7 @@ const SgsstChemicalData = require('~/models/SgsstChemicalData');
 const DiagnosticoData = require('~/models/DiagnosticoData');
 const SgsstWorker = require('~/models/SgsstWorker');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
-const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows } = require('./sgsstGemini');
+const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, cleanRawRows, autoPersistGeneratedReport } = require('./sgsstGemini');
 
 const TEST_FALLBACK_EMAILS = [
   'carlos@grupowappy.com',
@@ -2066,8 +2066,19 @@ ${instruction || 'Generar informe técnico estructurado de almacenamiento seguro
       );
     }
 
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Auditoría y Matriz de Compatibilidad Química — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-matriz-compatibilidad'],
+      model: modelName,
+    });
+
     logger.info(`[ChemicalCompatibility/ai-analyze-matrix] Generated HTML analysis, ${matrixRows.length} rows`);
-    return res.json({ analysis: fullReport });
+    return res.json({
+      analysis: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[ChemicalCompatibility/ai-analyze-matrix] Error:', error.message);
     return res.status(500).json({ error: error.message });

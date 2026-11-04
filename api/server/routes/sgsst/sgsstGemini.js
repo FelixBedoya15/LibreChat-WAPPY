@@ -473,4 +473,163 @@ function cleanRawRows(rawRows) {
   });
 }
 
-module.exports = { resolveApiKeys, generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS, cleanRawRows };
+/**
+ * Automatically persists a newly generated SGSST HTML report into Conversation + Message
+ * tagged with the module tag(s) and the active company tag (`company-${companyId}` and `company_${companyId}`).
+ * Includes 30-second smart deduplication so rapid double-saves or frontend follow-up saves update cleanly.
+ *
+ * @param {object} req Express request object
+ * @param {object} params { htmlContent, title, tags, model }
+ * @returns {Promise<{ conversationId: string|null, messageId: string|null, title: string }>}
+ */
+async function autoPersistGeneratedReport(req, { htmlContent, title, tags, model } = {}) {
+  try {
+    if (!htmlContent || typeof htmlContent !== 'string' || !htmlContent.trim()) {
+      return { conversationId: null, messageId: null, title: title || '' };
+    }
+
+    const crypto = require('crypto');
+    const CompanyInfo = require('~/models/CompanyInfo');
+    const { saveConvo } = require('~/models/Conversation');
+    const { saveMessage, updateMessageText } = require('~/models/Message');
+    const { Conversation, Message } = require('~/db/models');
+
+    const rawUser = req?.user || {};
+    const targetUserId =
+      rawUser.isSubUser && rawUser.parentUser
+        ? String(rawUser.parentUser)
+        : String(rawUser.id || rawUser._id || '');
+
+    if (!targetUserId) {
+      return { conversationId: null, messageId: null, title: title || '' };
+    }
+
+    let activeCompany = null;
+    if (rawUser.isSubUser && rawUser.assignedCompany) {
+      activeCompany = await CompanyInfo.findOne({
+        _id: rawUser.assignedCompany,
+        user: targetUserId,
+      }).lean();
+    }
+    if (!activeCompany) {
+      activeCompany = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+    }
+    if (!activeCompany) {
+      activeCompany = await CompanyInfo.findOne({ user: targetUserId }).lean();
+    }
+
+    const companyIdStr = activeCompany?._id ? activeCompany._id.toString() : null;
+    const baseTags = (Array.isArray(tags) ? tags : [tags]).filter(Boolean);
+    if (baseTags.length === 0) {
+      baseTags.push('sgsst-diagnostico');
+    }
+
+    const reportTags = [
+      ...new Set([
+        ...baseTags,
+        ...(companyIdStr ? [`company-${companyIdStr}`, `company_${companyIdStr}`] : []),
+      ]),
+    ];
+
+    const dateStr = new Date().toLocaleDateString('es-CO');
+    const reportTitle = title || `Informe SG-SST - ${dateStr}`;
+    const safeReq = {
+      user: { id: targetUserId },
+      body: { isTemporary: false },
+      config: req?.config,
+    };
+
+    // Smart deduplication: if an identical module report for this company was saved < 30s ago, update it
+    if (Conversation && Message) {
+      const thirtySecsAgo = new Date(Date.now() - 30000);
+      const dedupAnd = [{ tags: { $in: baseTags } }];
+      if (companyIdStr) {
+        dedupAnd.push({ tags: { $in: [`company-${companyIdStr}`, `company_${companyIdStr}`] } });
+      }
+      const recentConvo = await Conversation.findOne({
+        user: targetUserId,
+        updatedAt: { $gte: thirtySecsAgo },
+        $and: dedupAnd,
+      })
+        .sort({ updatedAt: -1 })
+        .lean();
+
+      if (recentConvo && recentConvo.conversationId) {
+        const recentMsg = await Message.findOne({
+          conversationId: recentConvo.conversationId,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        if (recentMsg && recentMsg.messageId) {
+          await updateMessageText(safeReq, {
+            messageId: recentMsg.messageId,
+            text: htmlContent,
+          });
+          await Conversation.findOneAndUpdate(
+            { conversationId: recentConvo.conversationId, user: targetUserId },
+            {
+              $set: { title: reportTitle, updatedAt: new Date() },
+              $addToSet: { tags: { $each: reportTags } },
+            }
+          );
+          return {
+            conversationId: recentConvo.conversationId,
+            messageId: recentMsg.messageId,
+            title: reportTitle,
+          };
+        }
+      }
+    }
+
+    const conversationId = crypto.randomUUID();
+    const messageId = crypto.randomUUID();
+
+    await saveConvo(
+      safeReq,
+      {
+        conversationId,
+        title: reportTitle,
+        endpoint: 'sgsst-diagnostico',
+        model: model || 'gemini-3.6-flash',
+        tags: reportTags,
+      },
+      { context: 'SGSST autoPersistGeneratedReport' }
+    );
+
+    await saveMessage(
+      safeReq,
+      {
+        messageId,
+        conversationId,
+        text: htmlContent,
+        sender: 'Wappy SST',
+        isCreatedByUser: false,
+        parentMessageId: '00000000-0000-0000-0000-000000000000',
+      },
+      { context: 'SGSST autoPersistGeneratedReport message' }
+    );
+
+    if (Conversation) {
+      await Conversation.findOneAndUpdate(
+        { conversationId, user: targetUserId },
+        { $addToSet: { tags: { $each: reportTags } } },
+        { new: true }
+      );
+    }
+
+    return { conversationId, messageId, title: reportTitle };
+  } catch (err) {
+    logger.warn('[SGSST autoPersistGeneratedReport] Non-fatal error:', err.message);
+    return { conversationId: null, messageId: null, title: title || '' };
+  }
+}
+
+module.exports = {
+  resolveApiKeys,
+  generateWithKeyRotation,
+  SGSST_FALLBACK_MODELS,
+  LIVE_FALLBACK_MODELS,
+  cleanRawRows,
+  autoPersistGeneratedReport,
+};

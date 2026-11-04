@@ -1089,11 +1089,32 @@ const PlanEmergenciasWorkspace: React.FC = () => {
     }
   };
 
-  const handleSelectReportFromHistory = (html: string) => {
-    setGeneratedReport(html);
-    editorContentRef.current = html;
-    if (liveEditorRef.current) {
-      liveEditorRef.current.setContent(html);
+  const handleSelectReportFromHistory = async (convoIdOrHtml: string) => {
+    if (!convoIdOrHtml) return;
+    if (convoIdOrHtml.trim().startsWith('<')) {
+      setGeneratedReport(convoIdOrHtml);
+      editorContentRef.current = convoIdOrHtml;
+      liveEditorRef.current?.setHTML(convoIdOrHtml);
+      setIsHistoryOpen(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/messages/${convoIdOrHtml}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const messages = await res.json();
+        const lastMsg = Array.isArray(messages) ? messages[messages.length - 1] : null;
+        if (lastMsg?.text) {
+          setGeneratedReport(lastMsg.text);
+          editorContentRef.current = lastMsg.text;
+          liveEditorRef.current?.setHTML(lastMsg.text);
+          setConversationId(convoIdOrHtml);
+          setReportMessageId(lastMsg.messageId);
+        }
+      }
+    } catch {
+      /* ignore */
     }
     setIsHistoryOpen(false);
   };

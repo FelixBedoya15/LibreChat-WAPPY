@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -2116,7 +2116,18 @@ Tabla detallada con columnas exactas:
             fullReport += buildSignatureSection(ci);
         }
 
-        res.json({ report: fullReport });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: fullReport,
+            title: `Dictamen Predictivo de Siniestralidad IA — ${ci?.companyName || 'Empresa'}`,
+            tags: ['sgsst-predictivo-ia'],
+            model: finalModelName,
+        });
+
+        res.json({
+            report: fullReport,
+            conversationId: persisted?.conversationId || null,
+            messageId: persisted?.messageId || null,
+        });
 
     } catch (error) {
         logger.error('[Predictivo] Report error:', error);

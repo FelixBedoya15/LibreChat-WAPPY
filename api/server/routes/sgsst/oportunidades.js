@@ -6,7 +6,7 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const ContextoData = require('~/models/ContextoData');
 const OportunidadesData = require('~/models/OportunidadesData');
 const KanbanTask = require('~/models/KanbanTask');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, autoPersistGeneratedReport } = require('./sgsstGemini');
 const { gatherCompanyFullContext, resolveUserAndCompany } = require('./contexto');
 const {
   buildStandardHeader,
@@ -291,7 +291,7 @@ RESPONDE ÚNICA Y EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO SIN TEXTO ADICIONAL:
   ]
 }`;
 
-    const modelToUse = modelName || 'gemini-2.5-flash';
+    const modelToUse = modelName || 'gemini-3.6-flash';
     const result = await generateWithKeyRotation(modelToUse, userId, promptText);
     const rawText = (await result.response).text();
 
@@ -395,7 +395,7 @@ router.post('/suggest-item', requireJwtAuth, async (req, res) => {
     const { mode = 'oportunidad', inputData = {}, modelName } = req.body;
     const company = await getActiveCompany(userId);
     const companyContextStr = buildCompanyContextString(company || {});
-    const modelToUse = modelName || 'gemini-2.5-flash';
+    const modelToUse = modelName || 'gemini-3.6-flash';
 
     if (mode === 'oportunidad') {
       const draftTitle = inputData.titulo || 'Mejora en prevención de riesgos laborales';
@@ -1112,9 +1112,17 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
       { upsert: true }
     );
 
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReportHtml,
+      title: `Informe Oficial Gestión de Oportunidades SST — ${company?.companyName || 'Empresa'}`,
+      tags: ['sgsst-oportunidades', 'sgsst-oportunidades-sst'],
+    });
+
     return res.json({
       success: true,
       html: fullReportHtml,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
     });
   } catch (error) {
     logger.error('[SGSST Oportunidades] Error generating report:', error);

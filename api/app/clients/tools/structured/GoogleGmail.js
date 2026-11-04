@@ -1,7 +1,7 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
-const { sendEmail, createDraft, listEmails, readEmail } = require('~/server/services/googleGmail');
+const { sendEmail, createDraft, listEmails, readEmail, trashEmail, deleteEmail, batchTrashEmails } = require('~/server/services/googleGmail');
 const { getActiveCompany } = require('~/server/services/googleAuthHelper');
 
 class GoogleGmailTool extends Tool {
@@ -13,7 +13,7 @@ class GoogleGmailTool extends Tool {
     super(fields);
     this.name = 'google_gmail';
     this.description =
-      'Permite enviar correos electrónicos, crear borradores, buscar/listar correos y leer correos directamente desde la cuenta de Gmail (Google Workspace) conectada por el usuario. REGLA OBLIGATORIA: Si el usuario te pide enviar un documento, política, informe o matriz que acabas de crear o editar en el panel de Canvas, DEBES pasar el código HTML completo y estructurado de dicho documento en el parámetro "body", garantizando que el destinatario reciba el diseño visual completo.';
+      'Permite enviar correos electrónicos, crear borradores, buscar/listar correos, leer correos, mover correos a la papelera (individual o en lote) y eliminarlos definitivamente en Gmail (Google Workspace) conectado por el usuario. REGLA OBLIGATORIA: Si el usuario te pide enviar un documento, política, informe o matriz que acabas de crear o editar en el panel de Canvas, DEBES pasar el código HTML completo y estructurado de dicho documento en el parámetro "body", garantizando que el destinatario reciba el diseño visual completo.';
     
     this.req = fields.req;
     
@@ -23,15 +23,18 @@ class GoogleGmailTool extends Tool {
         'create_draft',
         'list_emails',
         'read_email',
-      ]).describe('La acción a realizar en Gmail ("send_email" para enviar, "create_draft" para guardar borrador, "list_emails" para buscar y listar correos, "read_email" para leer un correo específico).'),
+        'trash_email',
+        'batch_trash_emails',
+        'delete_email',
+      ]).describe('La acción a realizar en Gmail ("send_email" para enviar, "create_draft" para guardar borrador, "list_emails" para buscar y listar correos, "read_email" para leer un correo específico, "trash_email" para mover un correo a la papelera por su ID, "batch_trash_emails" para mover a la papelera todos los correos que coincidan con una búsqueda o remitente, "delete_email" para eliminar definitivamente un correo por su ID).'),
       to: z.string().optional().describe('La dirección de correo electrónico del destinatario (obligatorio para "send_email" y "create_draft", ej. "trabajador@empresa.com").'),
       subject: z.string().optional().describe('El asunto del correo electrónico (obligatorio para "send_email" y "create_draft").'),
       body: z.string().optional().describe('El contenido del mensaje. REGLA CRÍTICA: Si estás enviando un documento o política del panel de Canvas, este parámetro DEBE contener todo el código HTML completo y estilizado del documento de Canvas para que el destinatario reciba la versión final diseñada.'),
       cc: z.string().optional().describe('Direcciones de correo en copia (CC) separadas por coma. Opcional.'),
       bcc: z.string().optional().describe('Direcciones de correo en copia oculta (BCC) separadas por coma. Opcional.'),
-      query: z.string().optional().describe('Filtro o término de búsqueda para "list_emails" (ej. "is:unread", "from:alguien@empresa.com", "subject:SST", etc.).'),
-      maxResults: z.number().optional().describe('Número máximo de correos a listar (por defecto 10, máximo 50).'),
-      messageId: z.string().optional().describe('El ID del correo específico que se desea leer detalladamente en "read_email".'),
+      query: z.string().optional().describe('Filtro o término de búsqueda para "list_emails" y "batch_trash_emails" (ej. "is:unread", "from:alguien@empresa.com", "subject:SST", etc.).'),
+      maxResults: z.number().optional().describe('Número máximo de correos a listar o mover a la papelera en lote (por defecto 10 para list, 50 para batch_trash).'),
+      messageId: z.string().optional().describe('El ID del correo específico que se desea leer detalladamente en "read_email", mover a la papelera en "trash_email" o eliminar permanentemente en "delete_email".'),
     });
   }
 
@@ -116,7 +119,7 @@ class GoogleGmailTool extends Tool {
         }
 
         // If we found any active documents, append them nicely to the email body
-        if (links.length > 0 && !finalBody.includes('/view')) {
+        if (links.length > 0 && finalBody && !finalBody.includes('/view')) {
           const hasHtml = /<[a-z][\s\S]*>/i.test(finalBody);
           if (hasHtml) {
             let buttonsHtml = `
@@ -172,11 +175,12 @@ class GoogleGmailTool extends Tool {
 
       case 'list_emails': {
         const result = await listEmails(userId, { query: query || '', maxResults: maxResults || 10 }, companyId);
-        if (!result || !result.messages || result.messages.length === 0) {
+        const emailsList = Array.isArray(result) ? result : (result?.messages || []);
+        if (emailsList.length === 0) {
           return `No se encontraron correos en tu cuenta de Gmail con el filtro de búsqueda: "${query || 'todos'}".`;
         }
-        let summary = `Se encontraron ${result.messages.length} correos en tu cuenta de Gmail:\n\n`;
-        for (const m of result.messages) {
+        let summary = `Se encontraron ${emailsList.length} correos en tu cuenta de Gmail:\n\n`;
+        for (const m of emailsList) {
           summary += `- [ID: ${m.id}] De: ${m.from || 'Desconocido'} | Asunto: "${m.subject || 'Sin asunto'}" | Fecha: ${m.date || 'Desconocida'}\n  Resumen: ${m.snippet || ''}\n\n`;
         }
         return summary.trim();
@@ -188,6 +192,30 @@ class GoogleGmailTool extends Tool {
         }
         const msg = await readEmail(userId, messageId, companyId);
         return `Detalles del correo:\n- ID: ${msg.id}\n- De: ${msg.from}\n- Para: ${msg.to}\n- Asunto: "${msg.subject}"\n- Fecha: ${msg.date}\n\nContenido:\n${msg.body || msg.snippet || 'Sin contenido de texto.'}`;
+      }
+
+      case 'trash_email': {
+        if (!messageId) {
+          throw new Error('Se requiere el campo "messageId" para mover el correo a la papelera.');
+        }
+        const result = await trashEmail(userId, messageId, companyId);
+        return `Correo movido a la papelera exitosamente:\n- ID: ${result.id}\n- Mensaje: El correo ha sido enviado a la papelera de reciclaje de Gmail.`;
+      }
+
+      case 'batch_trash_emails': {
+        if (!query || !query.trim()) {
+          throw new Error('Se requiere el campo "query" con el filtro de búsqueda (ej. "from:remitente@dominio.com" o "subject:ofertas") para mover correos a la papelera en lote.');
+        }
+        const result = await batchTrashEmails(userId, { query: query.trim(), maxResults: maxResults || 50 }, companyId);
+        return `Operación de papelera en lote completada:\n- Correos enviados a la papelera: ${result.count}\n- Total encontrados: ${result.totalFound || result.count}\n- Filtro aplicado: "${query}"\n- Detalle: ${result.message}`;
+      }
+
+      case 'delete_email': {
+        if (!messageId) {
+          throw new Error('Se requiere el campo "messageId" para eliminar definitivamente el correo de Gmail.');
+        }
+        const result = await deleteEmail(userId, messageId, companyId);
+        return `Correo eliminado permanentemente:\n- ID: ${result.id}\n- Detalle: El correo ha sido eliminado definitivamente de tu cuenta de Gmail y no se puede recuperar.`;
       }
 
       default:

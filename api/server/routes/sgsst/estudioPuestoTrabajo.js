@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CompanyInfo = require('~/models/CompanyInfo');
 const EstudioPuestoTrabajo = require('~/models/EstudioPuestoTrabajo');
@@ -731,9 +731,18 @@ REGLAS DE FORMATO Y SALIDA:
       });
     }
 
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: finalReportHtml,
+      title: `Estudio Ergonómico de Puesto de Trabajo — ${workerName || cargo || 'Colaborador'}`,
+      tags: ['sgsst-estudio-puesto', ...(studyId ? [`study-${studyId}`] : [])],
+      model: model || 'gemini-3.6-flash',
+    });
+
     return res.json({
       success: true,
       reportHtml: finalReportHtml,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
     });
   } catch (err) {
     logger.error('[EPT Routes] POST /generate-report error:', err);

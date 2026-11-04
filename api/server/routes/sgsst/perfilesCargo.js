@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -799,7 +799,18 @@ ${companyContext}
       fullReport += buildSignatureSection(loadedCompanyInfo);
     }
 
-    res.json({ report: fullReport });
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Perfil de Cargo y Profesiograma: ${perfilData?.nombreCargo || 'Cargo'} — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-perfil-cargo', ...(perfilData?.id ? [`sgsst-perfil-cargo-${perfilData.id}`] : [])],
+      model: finalModelName,
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST PerfilesCargo] Generation error:', error);
     res.status(500).json({ error: 'Error al generar el Perfil de Cargo' });

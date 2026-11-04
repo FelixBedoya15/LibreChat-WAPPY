@@ -141,11 +141,12 @@ const ResponsableSGSST = () => {
             }
 
             const data = await response.json();
-            setGeneratedDoc(data.document);
-            editorContentRef.current = data.document;
-            liveEditorRef.current?.setHTML(data.document);
-            setConversationId('new');  // 'new' marker so handleSave uses POST
-            setReportMessageId(null);
+            const html = data.document || data.report || data.content || '';
+            setGeneratedDoc(html);
+            editorContentRef.current = html;
+            liveEditorRef.current?.setHTML(html);
+            setConversationId(data.conversationId || 'new');
+            setReportMessageId(data.messageId || null);
             setIsFormExpanded(false);
             showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
@@ -161,6 +162,8 @@ const ResponsableSGSST = () => {
         const handleAiEvent = (e: any) => {
             const app = (e.detail?.aplicativo || '').toLowerCase();
             if (!app || app.includes('responsable') || app.includes('sgsst')) {
+                e.__wappyHandled = true;
+                (window as any).__wappyLastAiAnalyzeTriggerTs = Date.now();
                 handleGenerate();
             }
         };

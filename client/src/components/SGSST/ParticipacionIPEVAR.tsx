@@ -10,6 +10,7 @@ import {
     Loader2,
     History,
     ChevronDown,
+    ChevronLeft,
     ChevronRight,
     Camera,
     X,
@@ -57,6 +58,7 @@ import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 const WorkerAutocomplete = ({
     value,
@@ -224,23 +226,27 @@ export interface UnifiedReportItem {
     rawItem: any;
 }
 
-const SEV_BADGES: Record<string, { bg: string; text: string; border: string }> = {
+const SEV_BADGES: Record<string, { label: string; bg: string; text: string; border: string }> = {
     'Crítica': {
+        label: 'Crítica',
         bg: 'bg-red-50 dark:bg-red-950/40',
         text: 'text-red-700 dark:text-red-300',
         border: 'border-red-200 dark:border-red-800'
     },
     'Alta': {
+        label: 'Alta',
         bg: 'bg-amber-50 dark:bg-amber-950/40',
         text: 'text-amber-700 dark:text-amber-300',
         border: 'border-amber-200 dark:border-amber-800'
     },
     'Media': {
+        label: 'Media',
         bg: 'bg-blue-50 dark:bg-blue-950/40',
         text: 'text-blue-700 dark:text-blue-300',
         border: 'border-blue-200 dark:border-blue-800'
     },
     'Baja': {
+        label: 'Baja',
         bg: 'bg-teal-50 dark:bg-teal-950/40',
         text: 'text-teal-700 dark:text-teal-300',
         border: 'border-teal-200 dark:border-teal-800'
@@ -372,6 +378,71 @@ const ParticipacionIPEVAR = () => {
     const [isReloading, setIsReloading] = useState(false);
     const reportBoxRef = useRef<HTMLDivElement>(null);
     const formBoxRef = useRef<HTMLDivElement>(null);
+    const directoryTableScrollRef = useRef<HTMLDivElement>(null);
+    const topScrollRef = useRef<HTMLDivElement>(null);
+    const isSyncingScrollRef = useRef(false);
+    const isDraggingTableRef = useRef(false);
+    const dragStartXRef = useRef(0);
+    const dragScrollLeftRef = useRef(0);
+    const [tableScrollWidth, setTableScrollWidth] = useState(1020);
+
+    const handleTopScroll = useCallback(() => {
+        if (isSyncingScrollRef.current) return;
+        if (topScrollRef.current && directoryTableScrollRef.current) {
+            isSyncingScrollRef.current = true;
+            directoryTableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+            requestAnimationFrame(() => {
+                isSyncingScrollRef.current = false;
+            });
+        }
+    }, []);
+
+    const handleDirectoryTableScroll = useCallback(() => {
+        if (isSyncingScrollRef.current) return;
+        if (directoryTableScrollRef.current && topScrollRef.current) {
+            isSyncingScrollRef.current = true;
+            topScrollRef.current.scrollLeft = directoryTableScrollRef.current.scrollLeft;
+            requestAnimationFrame(() => {
+                isSyncingScrollRef.current = false;
+            });
+        }
+    }, []);
+
+    const handleScrollDirectoryTable = useCallback((direction: 'left' | 'right') => {
+        const amount = direction === 'left' ? -340 : 340;
+        directoryTableScrollRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
+    }, []);
+
+    const handleTableKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            directoryTableScrollRef.current?.scrollBy({ left: -160, behavior: 'smooth' });
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            directoryTableScrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' });
+        }
+    }, []);
+
+    const handleTableMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button, a, input, select, textarea')) return;
+        if (!directoryTableScrollRef.current) return;
+        isDraggingTableRef.current = true;
+        dragStartXRef.current = e.pageX - directoryTableScrollRef.current.offsetLeft;
+        dragScrollLeftRef.current = directoryTableScrollRef.current.scrollLeft;
+    }, []);
+
+    const handleTableMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!isDraggingTableRef.current || !directoryTableScrollRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - directoryTableScrollRef.current.offsetLeft;
+        const walk = (x - dragStartXRef.current) * 1.25;
+        directoryTableScrollRef.current.scrollLeft = dragScrollLeftRef.current - walk;
+    }, []);
+
+    const handleTableMouseUpOrLeave = useCallback(() => {
+        isDraggingTableRef.current = false;
+    }, []);
 
     const allUnifiedReports = useMemo<UnifiedReportItem[]>(() => {
         const list: UnifiedReportItem[] = [];
@@ -510,6 +581,22 @@ const ParticipacionIPEVAR = () => {
             return matchesSearch && matchesSeverity && matchesSource;
         });
     }, [allUnifiedReports, searchTerm, filterSeverity, filterSource]);
+
+    useEffect(() => {
+        const el = directoryTableScrollRef.current;
+        if (!el) return;
+        const updateWidth = () => {
+            setTableScrollWidth(Math.max(el.scrollWidth || 1020, 1020));
+        };
+        updateWidth();
+        if (typeof ResizeObserver !== 'undefined') {
+            const observer = new ResizeObserver(updateWidth);
+            observer.observe(el);
+            const tableEl = el.querySelector('table');
+            if (tableEl) observer.observe(tableEl);
+            return () => observer.disconnect();
+        }
+    }, [filteredReports.length]);
 
     React.useEffect(() => {
         fetch('/api/sgsst/company-info', {
@@ -1831,9 +1918,63 @@ const ParticipacionIPEVAR = () => {
                         </div>
                     </div>
 
+                    {/* Barra de control y desplazamiento horizontal para PC (Mouse / Teclado) */}
+                    <div className="px-4 py-2.5 bg-slate-50/80 dark:bg-zinc-800/40 border-b border-slate-200 dark:border-zinc-800 flex flex-col gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 dark:text-zinc-300">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 font-bold">
+                                    ↔ Desplazamiento Horizontal
+                                </span>
+                                <span className="text-slate-500 dark:text-zinc-400">
+                                    Usa la barra inferior/superior, arrastra con el mouse, presiona las flechas <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded shadow-2xs">←</kbd> <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded shadow-2xs">→</kbd> o usa los botones laterales:
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <ExpandableButton
+                                    variant="teal"
+                                    size="sm"
+                                    icon={<ChevronLeft className="h-4 w-4" />}
+                                    label="Izquierda"
+                                    title="Desplazar tabla hacia la izquierda"
+                                    onClick={() => handleScrollDirectoryTable('left')}
+                                />
+                                <ExpandableButton
+                                    variant="teal"
+                                    size="sm"
+                                    icon={<ChevronRight className="h-4 w-4" />}
+                                    label="Derecha"
+                                    title="Desplazar tabla hacia la derecha"
+                                    onClick={() => handleScrollDirectoryTable('right')}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Barra de scroll horizontal superior sincronizada */}
+                        <div
+                            ref={topScrollRef}
+                            onScroll={handleTopScroll}
+                            className="overflow-x-auto custom-table-scroll w-full h-3.5 rounded-lg"
+                            aria-label="Barra de desplazamiento horizontal superior de la tabla"
+                        >
+                            <div style={{ width: `${tableScrollWidth}px`, height: '1px' }} />
+                        </div>
+                    </div>
+
                     {/* Tabla responsive de reportes */}
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
+                    <div
+                        ref={directoryTableScrollRef}
+                        onScroll={handleDirectoryTableScroll}
+                        onKeyDown={handleTableKeyDown}
+                        onMouseDown={handleTableMouseDown}
+                        onMouseMove={handleTableMouseMove}
+                        onMouseUp={handleTableMouseUpOrLeave}
+                        onMouseLeave={handleTableMouseUpOrLeave}
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Tabla de Directorio de Reportes y Participación IPEVR"
+                        className="overflow-x-auto custom-table-scroll pb-1 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                    >
+                        <table className="w-full min-w-[1020px] text-left text-xs border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-zinc-800">
                                     <th className="py-3 px-4">Trabajador / Cédula</th>

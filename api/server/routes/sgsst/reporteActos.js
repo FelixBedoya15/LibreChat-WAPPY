@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -449,7 +449,18 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
       }
     }
 
-    res.json({ report: fullReport });
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Reporte de Actos y Condiciones Inseguras — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-reporte-actos'],
+      model: finalModelName,
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST Reporte Actos] Generation error:', error);
     res.status(500).json({ error: 'Error al generar Reporte de Actos y Condiciones' });

@@ -5,7 +5,7 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const SgsstChemicalData = require('../../../models/SgsstChemicalData');
 const { logger } = require('~/config');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, autoPersistGeneratedReport } = require('./sgsstGemini');
 const { buildStandardHeader } = require('./reportHeader');
 
 const router = express.Router();
@@ -279,7 +279,18 @@ ${inventoryStr}
     }
 
     const result = await generateWithKeyRotation(finalModelName, req.user.id, promptText);
-    res.json({ report: result.response.text() });
+    const reportHtml = result.response.text();
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: reportHtml,
+      title: `${reportTitle} — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-chemicals'],
+      model: finalModelName,
+    });
+    res.json({
+      report: reportHtml,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST Chemicals Generate] Error:', error);
     res.status(500).json({ error: error.message || 'Error al generar informe químico' });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const crypto = require('crypto');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -880,9 +880,17 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             );
         }
 
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: cleanedReport,
+            title: `Investigación ATEL — ${formData?.nombreTrabajador || loadedCompanyInfo?.companyName || 'Evento'}`,
+            tags: ['sgsst-investigacion-atel'],
+            model: modelName || 'sgsst-investigacion-atel',
+        });
+
         res.json({
             report: cleanedReport,
-            conversationId: crypto.randomUUID(),
+            conversationId: persisted?.conversationId || crypto.randomUUID(),
+            messageId: persisted?.messageId || null,
         });
 
     } catch (error) {
@@ -897,55 +905,22 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
         const { content, title, tags } = req.body;
         if (!content) return res.status(400).json({ error: 'Content is required' });
 
-        const conversationId = crypto.randomUUID();
-        const messageId = crypto.randomUUID();
         const dateStr = new Date().toLocaleString('es-CO');
         const reportTitle = title || `Investigación ATEL - ${dateStr}`;
-        const reportTags = Array.isArray(tags) ? [...tags] : ['sgsst-investigacion-atel'];
+        const reportTags = Array.isArray(tags) && tags.length > 0 ? [...tags] : ['sgsst-investigacion-atel'];
 
-        // Append company tag so report-history can filter by company
-        try {
-            let activeCompany = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
-            if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            if (activeCompany?._id) {
-                reportTags.push(`company-${activeCompany._id.toString()}`);
-            }
-        } catch (e) {
-            logger.warn('[SGSST] Could not append company tag to ATEL report', e);
-        }
-
-        // 1. Save conversation WITH tags atomically
-        await saveConvo(req, {
-            conversationId,
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: content,
             title: reportTitle,
-            endpoint: 'sgsst-investigacion-atel',
-            model: 'sgsst-investigacion-atel',
             tags: reportTags,
-        }, { context: 'SGSST Investigacion ATEL Save' });
+            model: 'sgsst-investigacion-atel',
+        });
 
-        // 2. Save message with the report content
-        await saveMessage(req, {
-            messageId,
-            conversationId,
-            text: content,
-            sender: 'SGSST Investigación ATEL',
-            isCreatedByUser: false,
-            parentMessageId: '00000000-0000-0000-0000-000000000000',
-        }, { context: 'SGSST ATEL message' });
-
-        // 3. Belt-and-suspenders: ensure tags via direct model update
-        try {
-            const { Conversation } = require('~/db/models');
-            await Conversation.findOneAndUpdate(
-                { conversationId, user: req.user.id },
-                { $addToSet: { tags: { $each: reportTags } } },
-                { new: true },
-            );
-        } catch (tagErr) {
-            logger.warn('[InvestigacionATEL] Error applying tags (non-fatal):', tagErr.message);
-        }
-
-        res.status(201).json({ conversationId, messageId, title: reportTitle });
+        res.status(201).json({
+            conversationId: persisted?.conversationId || crypto.randomUUID(),
+            messageId: persisted?.messageId || null,
+            title: reportTitle,
+        });
     } catch (error) {
         logger.error('[InvestigacionATEL save-report] Error:', error);
         res.status(500).json({ error: 'Error saving report' });

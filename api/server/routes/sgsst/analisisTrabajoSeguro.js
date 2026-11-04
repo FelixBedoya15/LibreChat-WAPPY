@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -410,7 +410,18 @@ Tabla de verificación final:
     let fullReport = headerHTML + '<div style="margin-top: 20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
     if (loadedCompanyInfo) fullReport += buildSignatureSection(loadedCompanyInfo);
 
-    res.json({ report: fullReport });
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Análisis de Trabajo Seguro (ATS) — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-ats'],
+      model: modelName,
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST ATS] Generation error:', error);
     res.status(500).json({ error: 'Error al generar el Análisis de Trabajo Seguro' });

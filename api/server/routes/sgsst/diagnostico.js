@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const crypto = require('crypto');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -538,9 +538,31 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
             cleanedReport += buildSignatureSection(loadedCompanyInfo);
         }
 
+        const dateStr = new Date().toLocaleDateString('es-CO');
+        const autoTag =
+            type === 'auditoria'
+                ? 'sgsst-auditoria'
+                : type === 'alta_direccion'
+                  ? 'sgsst-alta-direccion'
+                  : 'sgsst-diagnostico';
+        const autoTitle =
+            type === 'auditoria'
+                ? `Auditoría Interna SG-SST - ${dateStr}`
+                : type === 'alta_direccion'
+                  ? `Revisión por la Alta Dirección - ${dateStr}`
+                  : `Diagnóstico SGSST - ${dateStr}`;
+
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: cleanedReport,
+            title: autoTitle,
+            tags: [autoTag],
+            model: selectedModel,
+        });
+
         res.json({
             report: cleanedReport,
-            conversationId: crypto.randomUUID(), // Return new ID for UI
+            conversationId: persisted.conversationId || crypto.randomUUID(),
+            messageId: persisted.messageId || null,
             summary: {
                 score,
                 totalPoints,
@@ -579,58 +601,26 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'Content is required' });
         }
 
-        const conversationId = crypto.randomUUID();
-        const messageId = crypto.randomUUID();
         const dateStr = new Date().toLocaleString('es-CO');
         const reportTitle = title || `Diagnóstico SGSST - ${dateStr}`;
-        const reportTags = Array.isArray(tags) ? [...tags] : ['sgsst-diagnostico'];
+        const reportTags = Array.isArray(tags) && tags.length > 0 ? [...tags] : ['sgsst-diagnostico'];
 
-        // Append company tag so report-history can filter by company
-        try {
-            let activeCompany = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
-            if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            if (activeCompany?._id) {
-                reportTags.push(`company-${activeCompany._id.toString()}`);
-            }
-        } catch (e) {
-            logger.warn('[SGSST] Could not append company tag to report', e);
-        }
-
-        // 1. Save conversation WITH tags atomically (avoids race condition with updateTagsForConversation)
-        await saveConvo(req, {
-            conversationId,
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: content,
             title: reportTitle,
-            endpoint: 'sgsst-diagnostico',
-            model: 'sgsst-diagnostico',
             tags: reportTags,
-        }, { context: 'SGSST save-report' });
+            model: 'sgsst-diagnostico',
+        });
 
-        // 2. Save message with the report content
-        await saveMessage(req, {
-            messageId,
-            conversationId,
-            text: content,
-            sender: 'SGSST Diagnóstico',
-            isCreatedByUser: false,
-            parentMessageId: '00000000-0000-0000-0000-000000000000',
-        }, { context: 'SGSST save-report message' });
-
-        // 3. Ensure tags are set (belt-and-suspenders via direct model update)
-        try {
-            const { Conversation } = require('~/db/models');
-            await Conversation.findOneAndUpdate(
-                { conversationId, user: req.user.id },
-                { $addToSet: { tags: { $each: reportTags } } },
-                { new: true },
-            );
-        } catch (tagErr) {
-            logger.warn('[SGSST] Error applying tags via direct update (non-fatal):', tagErr.message);
+        if (!persisted.conversationId) {
+            return res.status(500).json({ error: 'Error saving report' });
         }
 
         res.status(201).json({
-            conversationId,
-            messageId,
-            title: reportTitle,
+            success: true,
+            conversationId: persisted.conversationId,
+            messageId: persisted.messageId,
+            title: persisted.title || reportTitle,
         });
     } catch (error) {
         logger.error('[SGSST save-report] Error:', error);
@@ -649,7 +639,12 @@ router.put('/save-report', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'conversationId, messageId, and content are required' });
         }
 
-        await updateMessageText(req, { messageId, text: content });
+        const targetUserId =
+            req.user?.isSubUser && req.user?.parentUser
+                ? String(req.user.parentUser)
+                : String(req.user.id);
+
+        await updateMessageText({ user: { id: targetUserId } }, { messageId, text: content });
 
         res.json({ success: true, conversationId, messageId });
     } catch (error) {
@@ -692,11 +687,22 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
             return res.status(500).json({ error: 'Conversation model not available' });
         }
 
-        // 1. Resolve active company for this user
-        let company = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+        const targetUserId =
+            req.user?.isSubUser && req.user?.parentUser
+                ? String(req.user.parentUser)
+                : String(req.user.id);
+
+        // 1. Resolve active company for this user / sub-user
+        let company = null;
+        if (req.user?.isSubUser && req.user?.assignedCompany) {
+            company = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean();
+        }
         if (!company) {
-            company = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            if (company) {
+            company = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+        }
+        if (!company) {
+            company = await CompanyInfo.findOne({ user: targetUserId }).lean();
+            if (company && !req.user?.isSubUser) {
                 await CompanyInfo.updateOne({ _id: company._id }, { isActive: true });
             }
         }
@@ -713,20 +719,22 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'At least one tag is required' });
         }
 
-        // 3. Build strict filter: module tag(s) AND company tag (fast indexed query first)
-        const searchTags = companyId
-            ? [...moduleTags, `company-${companyId}`]
-            : moduleTags;
+        // 3. Build strict filter: ANY of moduleTags ($in) AND active company tag
+        const andConditions = [
+            { tags: { $in: moduleTags } },
+            { $or: [{ isArchived: false }, { isArchived: { $exists: false } }] },
+            { $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] },
+        ];
 
-        const filterOp = companyId
-            ? { $all: searchTags }   // AND — must have every tag
-            : { $in: searchTags };   // fallback if no company
+        if (companyId) {
+            andConditions.push({
+                tags: { $in: [`company-${companyId}`, `company_${companyId}`] },
+            });
+        }
 
         let conversations = await ConversationModel.find({
-            user: req.user.id,
-            tags: filterOp,
-            $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
-            $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }],
+            user: targetUserId,
+            $and: andConditions,
         })
             .select('conversationId title updatedAt tags')
             .sort({ updatedAt: -1 })
@@ -737,11 +745,12 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
         if ((!conversations || conversations.length === 0) && companyId) {
             try {
                 const companyTag = `company-${companyId}`;
+                const companyTagUnderscore = `company_${companyId}`;
                 const legacyReports = await ConversationModel.find({
-                    user: req.user.id,
+                    user: targetUserId,
                     tags: { $in: moduleTags },
                     $and: [
-                        { tags: { $not: /^company-/ } },
+                        { tags: { $not: /^company[-_]/ } },
                     ],
                 }).select('_id tags').limit(50).lean();
 
@@ -749,13 +758,11 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
                     const ids = legacyReports.map(r => r._id);
                     await ConversationModel.updateMany(
                         { _id: { $in: ids } },
-                        { $addToSet: { tags: companyTag } },
+                        { $addToSet: { tags: { $each: [companyTag, companyTagUnderscore] } } },
                     );
                     conversations = await ConversationModel.find({
-                        user: req.user.id,
-                        tags: filterOp,
-                        $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
-                        $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }],
+                        user: targetUserId,
+                        $and: andConditions,
                     })
                         .select('conversationId title updatedAt tags')
                         .sort({ updatedAt: -1 })

@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -323,7 +323,18 @@ Cierra con una declaratoria estructurada y técnica. **Si se ha proporcionado un
     let fullReport = headerHTML + diamantesHtml + '<div style="margin-top:20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
     if (loadedCompanyInfo) fullReport += buildSignatureSection(loadedCompanyInfo);
 
-    res.json({ report: fullReport });
+    const persisted = await autoPersistGeneratedReport(req, {
+      htmlContent: fullReport,
+      title: `Análisis de Vulnerabilidad — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+      tags: ['sgsst-vulnerabilidad'],
+      model: modelName,
+    });
+
+    res.json({
+      report: fullReport,
+      conversationId: persisted?.conversationId || null,
+      messageId: persisted?.messageId || null,
+    });
   } catch (error) {
     logger.error('[SGSST Vulnerabilidad] Generation error:', error);
     res.status(500).json({ error: 'Error al generar el análisis' });

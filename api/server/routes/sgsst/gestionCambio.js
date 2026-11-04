@@ -811,7 +811,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO:
   ]
 }`;
 
-    const modelToUse = modelName || 'gemini-2.5-flash';
+    const modelToUse = modelName || 'gemini-3.6-flash';
     const today = new Date().toISOString().split('T')[0];
     let aiItems = [];
 
@@ -994,7 +994,7 @@ async function handleGenerateGestionCambioReport(req, res) {
           ? existingDoc.mocList
           : buildMocCandidatesFromEcosystem(eco, company);
 
-    const modelName = req.body?.modelName || 'gemini-2.5-flash';
+    const modelName = req.body?.modelName || 'gemini-3.6-flash';
     const metrics = buildGestionCambioMetrics(mocList, eco);
 
     const currentDate = new Date().toLocaleDateString('es-CO', {
@@ -1219,28 +1219,43 @@ No incluyas bloques markdown \`\`\`html ni encabezados <h1>.`;
     try {
       conversationId = crypto.randomUUID();
       messageId = crypto.randomUUID();
+      const companyIdStr = company?._id ? company._id.toString() : (companyId ? String(companyId) : null);
+      const reportTags = [
+        'sgsst-gestion-cambio',
+        'sgsst-moc',
+        ...(companyIdStr ? [`company-${companyIdStr}`, `company_${companyIdStr}`] : []),
+      ];
+      const safeReq = { user: { id: String(userId || req.user.id) }, body: { isTemporary: false } };
       await saveConvo(
-        { userId: req.user.id, isTemporary: false },
+        safeReq,
         {
           conversationId,
           title: `Procedimiento y Matriz de Gestión del Cambio MOC - ${company?.companyName || 'SG-SST'}`,
-          endpoint: 'google',
+          endpoint: 'sgsst-diagnostico',
           model: modelName,
+          tags: reportTags,
         }
       );
       await saveMessage(
-        { userId: req.user.id, isTemporary: false },
+        safeReq,
         {
           messageId,
           conversationId,
           sender: 'Wappy SST',
           text: fullReportHtml,
           isCreatedByUser: false,
-          endpoint: 'google',
+          endpoint: 'sgsst-diagnostico',
           model: modelName,
+          parentMessageId: '00000000-0000-0000-0000-000000000000',
         }
       );
-      await updateTagsForConversation(req.user.id, conversationId, ['sgsst-gestion-cambio']);
+      const { Conversation } = require('~/db/models');
+      if (Conversation) {
+        await Conversation.findOneAndUpdate(
+          { conversationId, user: String(userId || req.user.id) },
+          { $addToSet: { tags: { $each: reportTags } } }
+        );
+      }
     } catch (convoErr) {
       logger.debug('[SGSST GestionCambio] Optional conversation save skipped:', convoErr.message);
     }

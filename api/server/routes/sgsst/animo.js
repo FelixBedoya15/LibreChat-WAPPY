@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -230,7 +230,18 @@ Puntos clave con lineamientos normativos y recomendaciones estratégicas para fo
             fullReport += buildSignatureSection(company);
         }
 
-        res.json({ report: fullReport });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: fullReport,
+            title: `Informe Ejecutivo Termómetro Psicosocial — ${company?.companyName || 'Empresa'}`,
+            tags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
+            model: finalModelName,
+        });
+
+        res.json({
+            report: fullReport,
+            conversationId: persisted?.conversationId || null,
+            messageId: persisted?.messageId || null,
+        });
     } catch (error) {
         logger.error('[SGSST Animo] Error generating psychosocial report:', error);
         res.status(500).json({ error: error.message || 'Error al generar el informe de Termómetro Psicosocial' });

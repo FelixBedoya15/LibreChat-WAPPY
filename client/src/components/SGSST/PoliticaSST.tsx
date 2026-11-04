@@ -25,7 +25,7 @@ import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import SGSSTHeroHeader from './SGSSTHeroHeader';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
-import { useAutoLoadReport } from './useAutoLoadReport';
+import { useAutoLoadReport, saveReportToLocalCache } from './useAutoLoadReport';
 import CollapsibleReportBox from './CollapsibleReportBox';
 
 const PoliticaSST = () => {
@@ -74,6 +74,10 @@ const PoliticaSST = () => {
     };
 
     const handleGenerate = useCallback(async () => {
+        if (typeof window !== 'undefined') {
+            (window as any).__wappyLastAiAnalyzeTriggerTs = Date.now();
+        }
+        setIsGenerating(true);
 
         if (!isPro && (!conversationId || conversationId === 'new')) {
             try {
@@ -81,13 +85,13 @@ const PoliticaSST = () => {
                 if (resCount.ok) {
                     const data = await resCount.json();
                     if (data.conversations?.length >= 1) {
+                        setIsGenerating(false);
                         setShowUpgradeModal(true);
                         return;
                     }
                 }
             } catch (e) {}
         }
-        setIsGenerating(true);
         try {
             const response = await fetch('/api/sgsst/politica/generate', {
                 method: 'POST',
@@ -111,11 +115,13 @@ const PoliticaSST = () => {
             }
 
             const data = await response.json();
-            setGeneratedPolicy(data.policy);
-            editorContentRef.current = data.policy;
-            liveEditorRef.current?.setHTML(data.policy);
-            setConversationId('new');  // 'new' marker so handleSave uses POST
-            setReportMessageId(null);
+            const html = data.policy || data.report || data.content || '';
+            setGeneratedPolicy(html);
+            editorContentRef.current = html;
+            liveEditorRef.current?.setHTML(html);
+            setConversationId(data.conversationId || 'new');
+            setReportMessageId(data.messageId || null);
+            saveReportToLocalCache('sgsst-politica', html, data.conversationId || null, data.messageId || null);
             setIsFormExpanded(false);
             showToast({ message: 'Política SST generada exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
@@ -124,7 +130,7 @@ const PoliticaSST = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [hazards, scope, commitments, objectives, additionalNorms, token, showToast]);
+    }, [hazards, scope, commitments, objectives, additionalNorms, selectedModel, token, showToast, isPro, conversationId]);
 
     const handleSave = useCallback(async () => {
         const contentToSave = editorContentRef.current || generatedPolicy;
@@ -288,6 +294,8 @@ const PoliticaSST = () => {
         const handleAiEvent = (e: any) => {
             const app = (e.detail?.aplicativo || '').toLowerCase();
             if (!app || app.includes('politica') || app.includes('sgsst') || app === 'actual') {
+                e.__wappyHandled = true;
+                (window as any).__wappyLastAiAnalyzeTriggerTs = Date.now();
                 handleGenerate();
             }
         };

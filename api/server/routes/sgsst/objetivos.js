@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -243,7 +243,18 @@ Las tablas DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; wi
             cleanedHtml += buildSignatureSection(loadedCompanyInfo);
         }
 
-        res.json({ objectives: cleanedHtml });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: cleanedHtml,
+            title: `Objetivos SST - ${new Date().toLocaleDateString('es-CO')}`,
+            tags: ['sgsst-objetivos'],
+            model: finalModelName,
+        });
+
+        res.json({
+            objectives: cleanedHtml,
+            conversationId: persisted.conversationId,
+            messageId: persisted.messageId,
+        });
 
     } catch (error) {
         logger.error('[SGSST Objetivos] Generation error:', error);

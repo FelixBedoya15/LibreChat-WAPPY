@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -395,7 +395,18 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #0f766e
             fullReport += buildSignatureSection(loadedCompanyInfo);
         }
 
-        res.json({ report: fullReport });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: fullReport,
+            title: `Permiso de Trabajo en Alturas — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+            tags: ['sgsst-permiso-alturas'],
+            model: modelName,
+        });
+
+        res.json({
+            report: fullReport,
+            conversationId: persisted?.conversationId || null,
+            messageId: persisted?.messageId || null,
+        });
     } catch (error) {
         logger.error('[SGSST Permiso Alturas] Generation error:', error);
         res.status(500).json({ error: 'Error al generar Permiso de Alturas' });

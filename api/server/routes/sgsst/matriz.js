@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -253,7 +253,18 @@ Después de las firmas o información omitida, el resumen ejecutivo, el Indicado
             finalContent += buildSignatureSection(loadedCompanyInfo);
         }
 
-        res.json({ matrix: finalContent });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: finalContent,
+            title: `Matriz de Requisitos Legales SG-SST — ${loadedCompanyInfo?.companyName || 'Empresa'}`,
+            tags: ['sgsst-matriz-legal'],
+            model: finalModelName,
+        });
+
+        res.json({
+            matrix: finalContent,
+            conversationId: persisted?.conversationId || null,
+            messageId: persisted?.messageId || null,
+        });
 
     } catch (error) {
         console.error('[SGSST Matriz] Generation error:', error);

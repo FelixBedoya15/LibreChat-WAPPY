@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys, autoPersistGeneratedReport } = require('./sgsstGemini');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
@@ -120,7 +120,18 @@ ${additionalContextContext}
             cleanedHtml += buildSignatureSection(companyInfo);
         }
 
-        res.json({ document: cleanedHtml });
+        const persisted = await autoPersistGeneratedReport(req, {
+            htmlContent: cleanedHtml,
+            title: `Reglamento de Higiene y Seguridad Industrial - ${new Date().toLocaleDateString('es-CO')}`,
+            tags: ['sgsst-rhs', 'sgsst-reglamento-higiene'],
+            model: finalModelName,
+        });
+
+        res.json({
+            document: cleanedHtml,
+            conversationId: persisted.conversationId,
+            messageId: persisted.messageId,
+        });
     } catch (error) {
         logger.error('[SGSST RHS] Error generating RHS:', error);
         res.status(500).json({ error: 'Failed to generate RHS', details: error.message });
