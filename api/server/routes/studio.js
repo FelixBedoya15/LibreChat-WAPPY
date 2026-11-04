@@ -4001,6 +4001,12 @@ async function resolveStudioTargetUser(req) {
 function getAntigravityBridgeStatus(req, explicitUserId = '') {
   let activeListeners = 0;
   let userListeners = 0;
+  let globalLocalCount = 0;
+  let globalCloudCount = 0;
+  let userLocalCount = 0;
+  let userCloudCount = 0;
+  const instances = [];
+
   const targetUid = String(
     explicitUserId ||
       (req?.user ? ((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id || '')) : ''),
@@ -4010,12 +4016,32 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
     if (clientsMap && typeof clientsMap.forEach === 'function') {
       clientsMap.forEach((set, uid) => {
         let count = 0;
+        let loc = 0;
+        let cld = 0;
         for (const c of set || []) {
-          if (c?.__wappyClientType !== 'browser') count++;
+          if (c?.__wappyClientType !== 'browser') {
+            count++;
+            const env = c?.__wappyDaemonEnv === 'cloud' ? 'cloud' : 'local';
+            if (env === 'cloud') cld++;
+            else loc++;
+            if (targetUid && String(uid) === targetUid) {
+              instances.push({
+                env,
+                platform: c?.__wappyDaemonPlatform || (env === 'cloud' ? 'linux' : 'local-os'),
+                host: c?.__wappyDaemonHost || '',
+                version: c?.__wappyDaemonVersion || '',
+                connectedAt: c?.__wappyConnectedAt || null,
+              });
+            }
+          }
         }
         activeListeners += count;
+        globalLocalCount += loc;
+        globalCloudCount += cld;
         if (targetUid && String(uid) === targetUid) {
           userListeners += count;
+          userLocalCount += loc;
+          userCloudCount += cld;
         }
       });
     }
@@ -4023,6 +4049,21 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
 
   const isAdmin = isWappyAdminUser(req?.user);
   const effectiveConnected = userListeners > 0 || (isAdmin && activeListeners > 0);
+  const effectiveLocalCount = userListeners > 0 ? userLocalCount : (isAdmin ? globalLocalCount : 0);
+  const effectiveCloudCount = userListeners > 0 ? userCloudCount : (isAdmin ? globalCloudCount : 0);
+  const activeMode =
+    typeof mcpBridge?.getUserAntigravityMode === 'function'
+      ? mcpBridge.getUserAntigravityMode(targetUid, req?.user)
+      : 'local';
+
+  let effectiveEnv = 'local';
+  if (activeMode === 'cloud') {
+    effectiveEnv = effectiveCloudCount > 0 ? 'cloud' : (effectiveLocalCount > 0 ? 'local' : 'cloud');
+  } else if (activeMode === 'local') {
+    effectiveEnv = effectiveLocalCount > 0 ? 'local' : (effectiveCloudCount > 0 ? 'cloud' : 'local');
+  } else {
+    effectiveEnv = effectiveLocalCount > 0 ? 'local' : (effectiveCloudCount > 0 ? 'cloud' : 'auto');
+  }
 
   return {
     connected: effectiveConnected,
@@ -4030,6 +4071,13 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
     userDaemonConnected: effectiveConnected,
     activeListeners,
     userListeners: userListeners > 0 ? userListeners : (isAdmin ? activeListeners : 0),
+    localCount: effectiveLocalCount,
+    cloudCount: effectiveCloudCount,
+    localConnected: effectiveLocalCount > 0,
+    cloudConnected: effectiveCloudCount > 0,
+    activeMode,
+    effectiveEnv,
+    instances,
     userId: targetUid || null,
     engine: 'antigravity-master-reel-60fps',
     skillsLoaded: ANTIGRAVITY_VIDEO_SKILLS_CATALOG.length,
@@ -4534,11 +4582,84 @@ router.get('/antigravity/status', studioAuth, async (req, res) => {
     userDaemonConnected: Boolean(bridge?.userDaemonConnected),
     activeListeners: Number(bridge?.activeListeners || 0),
     userListeners: Number(bridge?.userListeners || 0),
+    localCount: Number(bridge?.localCount || 0),
+    cloudCount: Number(bridge?.cloudCount || 0),
+    localConnected: Boolean(bridge?.localConnected),
+    cloudConnected: Boolean(bridge?.cloudConnected),
+    activeMode: bridge?.activeMode || 'local',
+    effectiveEnv: bridge?.effectiveEnv || 'local',
+    instances: Array.isArray(bridge?.instances) ? bridge.instances : [],
     bridge,
     skills: ANTIGRAVITY_VIDEO_SKILLS_CATALOG,
     artDirections: ANTIGRAVITY_ART_DIRECTIONS,
     effectsCatalog: ANTIGRAVITY_EFFECTS_CATALOG,
   });
+});
+
+/**
+ * GET /api/studio/antigravity/mode
+ * Devuelve el modo activo de enrutamiento ('local' | 'cloud' | 'auto') y el desglose de instancias conectadas.
+ */
+router.get('/antigravity/mode', studioAuth, async (req, res) => {
+  try {
+    const resolved = await resolveStudioTargetUser(req);
+    const bridge = getAntigravityBridgeStatus(req, resolved.userId);
+    return res.json({
+      ok: true,
+      success: true,
+      userId: resolved.userId || null,
+      mode: bridge.activeMode,
+      activeMode: bridge.activeMode,
+      effectiveEnv: bridge.effectiveEnv,
+      localCount: bridge.localCount,
+      cloudCount: bridge.cloudCount,
+      localConnected: bridge.localConnected,
+      cloudConnected: bridge.cloudConnected,
+      connected: bridge.connected,
+      bridge,
+    });
+  } catch (error) {
+    logger.error('[WappyStudio Antigravity] Error in GET /antigravity/mode:', error);
+    return res.status(500).json({ ok: false, error: 'Error consultando el modo de Antigravity.' });
+  }
+});
+
+/**
+ * POST /api/studio/antigravity/mode
+ * Cambia con 1 clic el modo de enrutamiento ('local' | 'cloud' | 'auto') en caliente sin desconectar ningún daemon.
+ */
+router.post('/antigravity/mode', studioAuth, async (req, res) => {
+  try {
+    const resolved = await resolveStudioTargetUser(req);
+    const rawMode = req.body?.mode || req.body?.activeMode || req.query?.mode || 'local';
+    if (typeof mcpBridge?.setUserAntigravityMode === 'function' && resolved.userId) {
+      await mcpBridge.setUserAntigravityMode(resolved.userId, rawMode, req.user);
+      if (isWappyAdminUser(req.user)) {
+        const fallbackDaemonUid = findFirstActiveDaemonUserId();
+        if (fallbackDaemonUid && fallbackDaemonUid !== resolved.userId) {
+          await mcpBridge.setUserAntigravityMode(fallbackDaemonUid, rawMode, req.user);
+        }
+      }
+    }
+    const bridge = getAntigravityBridgeStatus(req, resolved.userId);
+    return res.json({
+      ok: true,
+      success: true,
+      userId: resolved.userId || null,
+      mode: bridge.activeMode,
+      activeMode: bridge.activeMode,
+      effectiveEnv: bridge.effectiveEnv,
+      localCount: bridge.localCount,
+      cloudCount: bridge.cloudCount,
+      localConnected: bridge.localConnected,
+      cloudConnected: bridge.cloudConnected,
+      connected: bridge.connected,
+      bridge,
+    });
+  } catch (error) {
+    logger.error('[WappyStudio Antigravity] Error in POST /antigravity/mode:', error);
+    return res.status(500).json({ ok: false, error: 'Error cambiando el modo de Antigravity.' });
+  }
 });
 
 /**

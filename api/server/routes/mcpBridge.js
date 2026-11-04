@@ -8592,17 +8592,177 @@ router.get('/clima/pronostico', requireApiKeyOrJwt, async (req, res) => {
 // 3. Antigravity completa la orden -> emisión instantánea `event: orden_completada` a Tenshi y Canvas.
 
 const antigravityStreamClients = new Map(); // userId (string) -> Set<ServerResponse>
+const antigravityTargetModes = new Map(); // userId (string) -> 'local' | 'cloud' | 'auto'
+const antigravityModeHydratedUsers = new Set(); // userId (string)
 
-function broadcastAntigravityEvent(userId, eventName, payload) {
+function normalizeAntigravityMode(rawMode) {
+  const m = String(rawMode || '').toLowerCase().trim();
+  if (m === 'cloud' || m === 'remote') return 'cloud';
+  if (m === 'auto' || m === 'hybrid' || m === 'hibrido') return 'auto';
+  return 'local';
+}
+
+function getUserAntigravityMode(userId, userObj = null) {
+  if (!userId) return 'local';
+  const key = String(userId);
+  if (antigravityTargetModes.has(key)) {
+    return antigravityTargetModes.get(key);
+  }
+  const fromUserObj = userObj?.personalization?.antigravityTargetMode;
+  if (fromUserObj) {
+    const normalized = normalizeAntigravityMode(fromUserObj);
+    antigravityTargetModes.set(key, normalized);
+    return normalized;
+  }
+  if (!antigravityModeHydratedUsers.has(key) && mongoose.Types.ObjectId.isValid(key)) {
+    antigravityModeHydratedUsers.add(key);
+    User.findById(key)
+      .select('personalization')
+      .lean()
+      .then((u) => {
+        if (u?.personalization?.antigravityTargetMode && !antigravityTargetModes.has(key)) {
+          antigravityTargetModes.set(key, normalizeAntigravityMode(u.personalization.antigravityTargetMode));
+        }
+      })
+      .catch(() => {});
+  }
+  return 'local';
+}
+
+function getAntigravityDaemonsBreakdown(userId, userObj = null) {
+  const key = userId ? String(userId) : '';
+  const clients = key ? antigravityStreamClients.get(key) : null;
+  let localCount = 0;
+  let cloudCount = 0;
+  const instances = [];
+
+  if (clients && clients.size > 0) {
+    for (const clientRes of clients) {
+      if (clientRes.__wappyClientType !== 'browser') {
+        const env = clientRes.__wappyDaemonEnv === 'cloud' ? 'cloud' : 'local';
+        if (env === 'cloud') cloudCount++;
+        else localCount++;
+        instances.push({
+          env,
+          platform: clientRes.__wappyDaemonPlatform || (env === 'cloud' ? 'linux' : 'local-os'),
+          host: clientRes.__wappyDaemonHost || '',
+          version: clientRes.__wappyDaemonVersion || '',
+          connectedAt: clientRes.__wappyConnectedAt || null,
+        });
+      }
+    }
+  }
+
+  const totalCount = localCount + cloudCount;
+  const activeMode = getUserAntigravityMode(key, userObj);
+  let effectiveEnv = 'local';
+  if (activeMode === 'cloud') {
+    effectiveEnv = cloudCount > 0 ? 'cloud' : (localCount > 0 ? 'local' : 'cloud');
+  } else if (activeMode === 'local') {
+    effectiveEnv = localCount > 0 ? 'local' : (cloudCount > 0 ? 'cloud' : 'local');
+  } else {
+    // 'auto': prioriza local para sesiones interactivas si está conectado, o cloud si el PC está apagado
+    effectiveEnv = localCount > 0 ? 'local' : (cloudCount > 0 ? 'cloud' : 'auto');
+  }
+
+  return {
+    localCount,
+    cloudCount,
+    totalCount,
+    localConnected: localCount > 0,
+    cloudConnected: cloudCount > 0,
+    connected: totalCount > 0,
+    activeMode,
+    effectiveEnv,
+    instances,
+  };
+}
+
+async function setUserAntigravityMode(userId, rawMode, userObj = null) {
+  if (!userId) {
+    return getAntigravityDaemonsBreakdown('', userObj);
+  }
+  const key = String(userId);
+  const mode = normalizeAntigravityMode(rawMode);
+  antigravityTargetModes.set(key, mode);
+  antigravityModeHydratedUsers.add(key);
+
+  if (mongoose.Types.ObjectId.isValid(key)) {
+    try {
+      await User.updateOne(
+        { _id: key },
+        { $set: { 'personalization.antigravityTargetMode': mode } }
+      );
+    } catch (_) {}
+  }
+
+  const breakdown = getAntigravityDaemonsBreakdown(key, userObj);
+  broadcastAntigravityEvent(key, 'antigravity_mode_updated', {
+    userId: key,
+    activeMode: mode,
+    ...breakdown,
+    timestamp: new Date().toISOString(),
+  });
+  return breakdown;
+}
+
+function broadcastAntigravityEvent(userId, eventName, payload, options = {}) {
   if (!userId) return 0;
   const key = String(userId);
   const clients = antigravityStreamClients.get(key);
   if (!clients || clients.size === 0) return 0;
 
-  const frame = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  let targetDaemonEnv = null; // null = enviar a todos los clientes del usuario
+  if (eventName === 'nueva_orden' || options?.targetEnv || payload?.targetEnv) {
+    const breakdown = getAntigravityDaemonsBreakdown(key);
+    let desiredEnv = options?.targetEnv || payload?.targetEnv || null;
+    if (!desiredEnv) {
+      if (breakdown.activeMode === 'cloud') {
+        desiredEnv = 'cloud';
+      } else if (breakdown.activeMode === 'local') {
+        desiredEnv = 'local';
+      } else {
+        // Modo 'auto'
+        if (payload?.formatoEntregable === 'copia_archivo') {
+          desiredEnv = 'local';
+        } else if (
+          (payload?.sourceModule === 'sgsst_automation' || payload?.preferCloud === true) &&
+          breakdown.cloudCount > 0
+        ) {
+          desiredEnv = 'cloud';
+        } else {
+          desiredEnv = breakdown.localCount > 0 ? 'local' : 'cloud';
+        }
+      }
+    }
+    const hasDesired = desiredEnv === 'cloud' ? breakdown.cloudCount > 0 : breakdown.localCount > 0;
+    if (hasDesired || options?.strictMode) {
+      targetDaemonEnv = desiredEnv;
+    } else if (breakdown.totalCount > 0) {
+      targetDaemonEnv = desiredEnv === 'cloud' ? 'local' : 'cloud';
+    }
+  } else if (eventName === 'launch_connector' && payload?.token !== 'wappy_daemon_autoupdate') {
+    const breakdown = getAntigravityDaemonsBreakdown(key);
+    if (breakdown.localCount > 0) {
+      targetDaemonEnv = 'local';
+    }
+  }
+
+  const enrichedPayload =
+    eventName === 'nueva_orden' && payload && typeof payload === 'object' && targetDaemonEnv
+      ? { ...payload, routedToEnv: targetDaemonEnv }
+      : payload;
+
+  const frame = `event: ${eventName}\ndata: ${JSON.stringify(enrichedPayload)}\n\n`;
   let sentCount = 0;
   for (const clientRes of clients) {
     try {
+      if (targetDaemonEnv && clientRes.__wappyClientType !== 'browser') {
+        const clientEnv = clientRes.__wappyDaemonEnv === 'cloud' ? 'cloud' : 'local';
+        if (clientEnv !== targetDaemonEnv) {
+          continue;
+        }
+      }
       clientRes.write(frame);
       if (typeof clientRes.flush === 'function') {
         clientRes.flush();
@@ -8616,16 +8776,22 @@ function broadcastAntigravityEvent(userId, eventName, payload) {
 }
 
 /**
- * Cuenta solo los daemons locales reales (PC/Mac del usuario) conectados al stream,
+ * Cuenta los daemons reales (Local Mac/PC + Cloud antigravity.google.com) conectados al stream,
  * excluyendo las pestañas del navegador (Tenshi / Studio) que también escuchan `orden_completada`.
  */
-function countAntigravityDaemons(userId) {
+function countAntigravityDaemons(userId, filterEnv = null) {
   if (!userId) return 0;
   const clients = antigravityStreamClients.get(String(userId));
   if (!clients || clients.size === 0) return 0;
   let count = 0;
   for (const clientRes of clients) {
-    if (clientRes.__wappyClientType !== 'browser') count++;
+    if (clientRes.__wappyClientType !== 'browser') {
+      if (filterEnv) {
+        const env = clientRes.__wappyDaemonEnv === 'cloud' ? 'cloud' : 'local';
+        if (env !== filterEnv) continue;
+      }
+      count++;
+    }
   }
   return count;
 }
@@ -9189,11 +9355,25 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
     const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
     const clientVersion = String(req.query.v || '').trim();
     const CURRENT_DAEMON_VERSION = getCurrentDaemonVersion();
-    // Los daemons locales se autentican con API Key; el navegador (Tenshi/Studio) con token JWT o clientType=browser
+    // Los daemons locales/cloud se autentican con API Key; el navegador (Tenshi/Studio) con token JWT o clientType=browser
     const isExplicitBrowser = String(req.query.clientType || '').toLowerCase() === 'browser';
     const isDaemonClient = !isExplicitBrowser && Boolean(clientVersion || req.query.apiKey || req.headers['x-api-key']);
+    const rawEnv = String(req.query.env || req.headers['x-antigravity-env'] || '').toLowerCase().trim();
+    const rawPlatform = String(req.query.platform || req.headers['x-antigravity-platform'] || '').toLowerCase().trim();
+    const rawHost = String(req.query.host || req.headers['x-antigravity-host'] || '').trim().slice(0, 120);
+    const isCloudDaemon =
+      rawEnv === 'cloud' ||
+      rawEnv === 'remote' ||
+      rawPlatform === 'linux-cloud' ||
+      /antigravity-cloud|remote-agent/i.test(rawHost);
+
     res.__wappyClientType = isDaemonClient ? 'daemon' : 'browser';
     res.__wappyRawApiKey = isDaemonClient ? String(req.query.apiKey || req.headers['x-api-key'] || '').trim() : '';
+    res.__wappyDaemonEnv = isDaemonClient ? (isCloudDaemon ? 'cloud' : 'local') : 'browser';
+    res.__wappyDaemonPlatform = rawPlatform || (isDaemonClient ? (isCloudDaemon ? 'linux-cloud' : 'local-os') : 'web');
+    res.__wappyDaemonHost = rawHost;
+    res.__wappyDaemonVersion = clientVersion || (isDaemonClient ? 'legacy' : 'browser');
+    res.__wappyConnectedAt = new Date().toISOString();
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -9209,11 +9389,24 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
     const userSet = antigravityStreamClients.get(targetUserId);
     userSet.add(res);
 
+    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
     logger.info(
-      `[MCP Bridge] 🟢 Cliente SSE Antigravity conectado para usuario ${targetUserId} (tipo: ${res.__wappyClientType}, versión: ${clientVersion || (isDaemonClient ? 'legacy' : 'navegador')}, daemons activos: ${countAntigravityDaemons(targetUserId)})`
+      `[MCP Bridge] 🟢 Cliente SSE Antigravity conectado para usuario ${targetUserId} (tipo: ${res.__wappyClientType}, env: ${res.__wappyDaemonEnv}, versión: ${clientVersion || (isDaemonClient ? 'legacy' : 'navegador')}, local: ${breakdown.localCount}, cloud: ${breakdown.cloudCount}, modo: ${breakdown.activeMode})`
     );
 
-    res.write(`event: connected\ndata: ${JSON.stringify({ status: 'ok', userId: targetUserId, version: CURRENT_DAEMON_VERSION, timestamp: new Date().toISOString() })}\n\n`);
+    res.write(
+      `event: connected\ndata: ${JSON.stringify({
+        status: 'ok',
+        userId: targetUserId,
+        env: res.__wappyDaemonEnv,
+        activeMode: breakdown.activeMode,
+        effectiveEnv: breakdown.effectiveEnv,
+        localConnected: breakdown.localConnected,
+        cloudConnected: breakdown.cloudConnected,
+        version: CURRENT_DAEMON_VERSION,
+        timestamp: new Date().toISOString(),
+      })}\n\n`
+    );
 
     // Compatibilidad universal de versiones: el servidor acepta cualquier versión >= MIN_REQUIRED_DAEMON_VERSION (2.5.2)
     // sin reiniciar el daemon en despliegues rutinarios. Solo auto-actualiza versiones legacy (< 2.5.2) máximo 1 vez cada 6h.
@@ -9335,6 +9528,83 @@ router.get('/antigravity/daemon.js', async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] Error sirviendo /antigravity/daemon.js:', error);
     return res.status(500).send('// Error interno sirviendo daemon.js');
+  }
+});
+
+/**
+ * GET /api/mcp-bridge/antigravity/status
+ * Devuelve el estado desglosado de conexiones Local (Mac/PC) + Cloud (antigravity.google.com) y el modo activo.
+ */
+router.get('/antigravity/status', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
+    return res.json({
+      ok: true,
+      success: true,
+      userId: targetUserId,
+      connected: breakdown.connected,
+      daemonsCount: breakdown.totalCount,
+      localConnected: breakdown.localConnected,
+      cloudConnected: breakdown.cloudConnected,
+      localCount: breakdown.localCount,
+      cloudCount: breakdown.cloudCount,
+      totalCount: breakdown.totalCount,
+      activeMode: breakdown.activeMode,
+      effectiveEnv: breakdown.effectiveEnv,
+      instances: breakdown.instances,
+      version: getCurrentDaemonVersion(),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en GET /antigravity/status:', error);
+    return res.status(500).json({ ok: false, error: 'Error consultando estado de Antigravity.' });
+  }
+});
+
+/**
+ * GET /api/mcp-bridge/antigravity/mode
+ * Devuelve el modo de enrutamiento actual del usuario ('local' | 'cloud' | 'auto') y el desglose de conexiones.
+ */
+router.get('/antigravity/mode', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
+    return res.json({
+      ok: true,
+      success: true,
+      userId: targetUserId,
+      mode: breakdown.activeMode,
+      ...breakdown,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en GET /antigravity/mode:', error);
+    return res.status(500).json({ ok: false, error: 'Error consultando modo de Antigravity.' });
+  }
+});
+
+/**
+ * POST /api/mcp-bridge/antigravity/mode
+ * Permite cambiar con 1 clic el modo de trabajo entre 'local', 'cloud' y 'auto' sin desconectar ningún daemon.
+ */
+router.post('/antigravity/mode', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+    const rawMode = req.body?.mode || req.body?.activeMode || req.query?.mode || 'local';
+    const breakdown = await setUserAntigravityMode(targetUserId, rawMode, req.user);
+    logger.info(
+      `[MCP Bridge] 🔀 Usuario ${targetUserId} cambió modo Antigravity a '${breakdown.activeMode}' (destino efectivo: ${breakdown.effectiveEnv}, local: ${breakdown.localCount}, cloud: ${breakdown.cloudCount})`
+    );
+    return res.json({
+      ok: true,
+      success: true,
+      userId: targetUserId,
+      mode: breakdown.activeMode,
+      ...breakdown,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en POST /antigravity/mode:', error);
+    return res.status(500).json({ ok: false, error: 'Error actualizando modo de Antigravity.' });
   }
 });
 
@@ -11069,6 +11339,10 @@ router.post('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
 
 router.broadcastAntigravityEvent = broadcastAntigravityEvent;
 router.countAntigravityDaemons = countAntigravityDaemons;
+router.getUserAntigravityMode = getUserAntigravityMode;
+router.setUserAntigravityMode = setUserAntigravityMode;
+router.getAntigravityDaemonsBreakdown = getAntigravityDaemonsBreakdown;
+router.antigravityTargetModes = antigravityTargetModes;
 router.tryGenerateImageViaAntigravity = tryGenerateImageViaAntigravity;
 router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
 router.getActiveCompany = getActiveCompany;
