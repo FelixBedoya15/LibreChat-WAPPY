@@ -764,6 +764,21 @@ const startServer = async () => {
     next();
   });
 
+  app.get(['/clase3', '/clase3.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/clase3.html'),
+      path.resolve(__dirname, '../../client/public/clase3.html'),
+      path.resolve(__dirname, '../../clase3.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
   app.get(['/matrizipvr', '/matriz-ipvr', '/matrizipvr.html'], (req, res, next) => {
     const candidatePaths = [
       path.resolve(__dirname, '../../client/dist/matrizipvr.html'),
