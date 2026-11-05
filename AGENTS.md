@@ -7,26 +7,22 @@
 
 ---
 
-## 0. Regla de Activación Obligatoria de Subagentes según la Tarea
+## 0. Regla de Eficiencia: Cuándo Delegar en Subagentes
 
-> [!CRITICAL]
-> **OBLIGACIÓN ESTRICTA DE DELEGACIÓN MULTI-AGENTE (`invoke_subagent`):**
-> Tienes **PROHIBIDO** resolver tareas técnicas, de diseño, frontend, backend, integraciones, voz, video o QA en solitario saltándote a tu equipo de especialistas.
+> [!IMPORTANT]
+> **Velocidad primero.** Delegar solo cuando aporta valor real. Cada traspaso a un subagente añade espera; no delegar por protocolo.
 
-1. ⚡ **Excepción Única — Consultas Conceptuales Puras (Sin tocar código ni servidor):**
-   - Solo cuando el usuario haga una pregunta puramente teórica o conversacional (ej. *"¿Qué es SST?"*, dudas normativas rápidas sin pedir cambios en el sistema), responde directamente en el acto.
-2. 🚀 **Regla General Obligatoria — Activación Automática de Subagentes por Especialidad (`invoke_subagent`):**
-   - **En TODA tarea operativa, de código, diseño, integración, video, auditoría o despliegue**, **DEBES** invocar obligatoriamente vía `invoke_subagent` (`Model: "inherit"`) al subagente o dupla de subagentes especialistas que corresponda según la matriz de la **Sección 1**:
-     * **UI / Estilos / Layout / Botones:** Invocar a `wappy-design-director` y/o `wappy-frontend-ui`.
-     * **Componentes React / Hitos SG-SST / Estado:** Invocar a `wappy-frontend-ui` (en dupla con `wappy-design-director` si hay cambios visuales).
-     * **API Express / Mongoose / Herramientas MCP:** Invocar a `wappy-backend-api`.
-     * **Conectores (Antigravity Daemon, Google Flow, NotebookLM, Drive, OneDrive):** Invocar a `wappy-integrations-hub`.
-     * **Tenshi Voice / Gemini Live / Push SSE:** Invocar a `wappy-tenshi-voice`.
-     * **Videos / Reels / Motion Graphics (7 Piezas):** Invocar a `wappy-video-studio`.
-     * **Auditoría / Build / Deploy Dokploy:** Invocar a `wappy-qa-devops`.
-     * **Verificación E2E en Vivo (Post-cambio o Post-deploy):** Invocar **SIEMPRE** a `wappy-live-tester`.
-
----
+1. ⚡ **Hazlo tú directamente (SIN subagentes):**
+   - Preguntas conceptuales o normativas.
+   - Bugs o cambios acotados (1–3 archivos, causa clara): leer, corregir, `node -c` / build, commit.
+   - Comandos de git, build y deploy rutinarios.
+   - Comprobaciones rápidas (grep, logs, estado de git): verifica el estado real ANTES de preguntar al usuario.
+2. 🚀 **Delega en el especialista (Sección 1) solo si:**
+   - La tarea es grande o multi-módulo (> 3 archivos, frontend + backend a la vez): lanzar subagentes **en paralelo**, no en cadena.
+   - Requiere conocimiento especializado delicado: Tenshi Voice/Gemini Live (`wappy-tenshi-voice`), integraciones OAuth/daemon (`wappy-integrations-hub`), vídeos (`wappy-video-studio`), rediseños visuales completos (`wappy-design-director`).
+   - El usuario lo pide explícitamente.
+3. 🌐 **Verificación en vivo:** usar `wappy-live-tester` solo tras deploys de cambios visibles o riesgosos, o si el usuario lo pide. Para cambios pequeños basta con build OK y pedir al usuario que recargue (Cmd+Shift+R). Si el navegador de pruebas no tiene sesión, avisar al usuario de inmediato en vez de reintentar.
+4. 💬 **No pedir confirmación** para pasos rutinarios implícitos (build, commit de los archivos tocados). Sí confirmar antes de desplegar a producción si el usuario no lo pidió, o si hay cambios ajenos sin commitear en el área.
 
 ## 1. Equipo de Subagentes Especialistas (`invoke_subagent`)
 
@@ -53,17 +49,13 @@
 
 ---
 
-## 2. Flujo de Consolidación ("Especialistas Preparan -> Orquestador Compila -> Live Tester Verifica")
+## 2. Flujo de Cierre (mínimo necesario)
 
-1. Al delegar en subagentes, recopila sus reportes técnicos (*Reactive Wakeup*).
-2. **Tú (el Orquestador Principal)** integras los cambios y ejecutas la secuencia obligatoria:
-   - **Paso A:** Validar sintaxis backend (`node -c <archivo.js>`).
-   - **Paso B:** Si se modificó `client/src/**/*`, compilar `npm run build:client` y agregar `git add client/src client/dist`.
-   - **Paso C:** Commit / Despliegue al servidor/VPS.
-   - **Paso D:** Verificación en vivo con `wappy-live-tester`.
-   - **Paso E:** Registro de aprendizaje procedural en `/Users/felixbedoya/.gemini/config/plugins/wappy-dev-agency/memory/` con formato `❌ Anti-patrón -> ✅ Solución Procedural`.
-
----
+1. **Backend tocado:** `node -c <archivo.js>`.
+2. **`client/src/**` tocado:** `npm run build:client` y `git add` solo de los archivos modificados + `client/dist`.
+3. **Commit / deploy:** ver Sección 3 y skill `wappy-build-and-deploy`.
+4. **Verificación en vivo:** según la regla 0.3.
+5. **Aprendizaje (opcional, solo hallazgos no triviales):** registrar `❌ Anti-patrón -> ✅ Solución Procedural` en la carpeta `memory/` del plugin `wappy-dev-agency`, si existe.
 
 ## 3. Compilación Local Obligatoria (`client/dist`) y Despliegue
 
@@ -115,17 +107,25 @@
 
 ---
 
-## 7. Protocolo Obligatorio de Producción de Vídeos (Sistema de las 7 Piezas)
+## 7. Protocolo Obligatorio de Producción de Vídeos (Estilo Pro Limpio + Sistema de las 7 Piezas)
 
 > [!CRITICAL]
-> No programar ni renderizar MP4 a ciegas. Seguir las 7 Piezas del Brandbook (`docs/WAPPY_IA_BRANDBOOK_OFICIAL.md`) y validar propuesta antes de renderizar:
-> 1. **Pieza 1 — Enfoque de Dirección de Arte:** Formato y propósito (Reel 9:16, Tutorial, Lanzamiento, etc.).
-> 2. **Pieza 2 — Identidad WAPPY IA:** Paleta oficial, tipografías (`Plus Jakarta Sans`/`Outfit ExtraBold` + `Inter` + `JetBrains Mono`), `Avatar 3D` en zona segura (nombrarlo siempre `Avatar 3D` en la interfaz, sin usar nombres propios como "Félix" ni etiquetas promocionales como "¡GRATIS!" salvo petición explícita del usuario).
-> 3. **Pieza 3 — Audiencia y Mensaje Técnico:** Público objetivo y normativa verificada (GTC 45, Res. 0312, Dec. 1072).
-> 4. **Pieza 4 — Guión Segundo a Segundo + Portada Magnética:** Incluir **de 0.00s a 2.00s la Portada Magnética (2s)** con Avatar 3D e insignias técnicas del tema.
-> 5. **Pieza 5 — Motion Graphics:** Suavizado elástico (`spring`), 60 fps, mínimo 4 transiciones de `animaciones-17-efectos-reels`.
-> 6. **Pieza 6 — Diseño Sonoro:** Locución limpia + SFX sutiles (`whoosh`, `pop`, `ding`).
-> 7. **Pieza 7 — Render y Vistas Previas:** Mostrar 3 capturas previas (inicio/miniatura, mitad y cierre) antes de entregar el MP4 final.
+> No programar ni renderizar MP4 a ciegas. Aplicar por defecto el **Estilo Pro Limpio (`editor-reels` / `protocolo-produccion-videos`)** —cero ruido visual, una sola pieza a la vez— junto con las 7 Piezas del Brandbook (`docs/WAPPY_IA_BRANDBOOK_OFICIAL.md`):
+> 1. **Pieza 1 — Dirección de Arte Pro Limpia (Por Defecto):**
+>    - **Regla «Una frase, una idea, una pieza»:** Prohibido acumular paneles, rejillas cyberpunk, rayos láser, radares o múltiples tarjetas a la vez (salvo que el usuario pida explícitamente estilo HUD Cyberpunk).
+>    - **Fondo y Tarjetas:** Fondo casi negro liso (`#06080d`) con tarjetas oscuras sólidas (`#10151e` → `#0c1118`, borde fino `1.5px`), **1 sola tipografía (`Inter` 800–900)** y **1 único color de acento** (`#C7F303` Verde Lima WAPPY o `#4B8CF7` Azul Pro; verde/ámbar/rojo solo para estados puntuales).
+> 2. **Pieza 2 — Alternancia de los 3 Planos y Uso del Avatar 3D:**
+>    - En vez de dejar el `Avatar 3D` pegado en una esquina compitiendo con los textos, alternar los **3 planos**:
+>      * **Plano 1 (Avatar 3D + Pieza sobre el pecho):** `Avatar 3D` protagonista en la zona superior central (`y: 305–831`) y **1 sola pieza** debajo (`y: 916–1376`) que se construye con la voz.
+>      * **Plano 2 (Escena a pantalla completa con cortina):** Sube una cortina oscura con filo de luz (`6px`) que oculta al avatar durante la explicación de esquemas (`flujo`, `filas`, comparativas) para dar 100% de foco visual.
+>      * **Plano 3 (Primer plano / Cierre):** Regresa el `Avatar 3D` con la `sentencia` o llamado a la acción (`wappy.club`).
+> 3. **Pieza 3 — Audiencia y Mensaje Técnico:** Público objetivo y normativa verificada (GTC 45, Res. 0312, Res. 2764, Dec. 1072).
+> 4. **Pieza 4 — Qué Pieza Pide Cada Frase (Sincronía en la Sílaba):**
+>    - Elegir discriminadamente **1 pieza por frase** (`titular`, `flujo`, `filas`, `columnas`, `cambio`, `sentencia`, `acciones`). Lo que aún no se ha nombrado espera apagado en gris (`#9aa3b3`) y **se enciende con resorte (`spring`) en la sílaba exacta**.
+>    - Cuando una pieza ya muestra el titular grande (`titular`, `sentencia`), **ocultar los subtítulos** automáticamente para no duplicar texto.
+> 5. **Pieza 5 — Movimiento Sobrio a 60 FPS:** Resortes suaves (`damping: 17, stiffness: 190`), todo recto (sin inclinaciones ni parpadeos). Las librerías `animaciones-17-efectos-reels` y `animaciones-dark-tech-hud` son catálogos opcionales de consulta (máximo 1 efecto puntual si la frase lo justifica).
+> 6. **Pieza 6 — Diseño Sonoro Discreto:** Locución normalizada + ticks suaves (`-16 dB`) al encender cada elemento y solo 4 a 6 golpes graves en todo el reel.
+> 7. **Pieza 7 — Render y Vistas Previas:** Mostrar 3 capturas previas (inicio, escena central y cierre) antes de entregar el MP4 final.
 
 ---
 
