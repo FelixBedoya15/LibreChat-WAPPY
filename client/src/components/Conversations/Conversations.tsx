@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo, type FC, useCallback } from 'react';
+import { useState, useEffect, useMemo, memo, type FC, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -329,9 +329,12 @@ const Conversations: FC<ConversationsProps> = ({
     [selectedConvoIds, selectedDays, queryClient, showToast, navigate, params.conversationId],
   );
 
+  // Anti-flicker: depend on header presence (boolean), not on the JSX identity,
+  // which changes on every parent render and was forcing a full cache reset.
+  const hasHeader = !!headerContent;
   const flattenedItems = useMemo(() => {
     const items: FlattenedItem[] = [];
-    if (headerContent) {
+    if (hasHeader) {
       items.push({ type: 'custom_header' });
     }
     if (pinnedConvos.length > 0) {
@@ -361,7 +364,7 @@ const Conversations: FC<ConversationsProps> = ({
     }
     return items;
   }, [
-    headerContent,
+    hasHeader,
     pinnedConvos,
     recentGroups,
     inactiveConvos.length,
@@ -370,13 +373,18 @@ const Conversations: FC<ConversationsProps> = ({
     isLoading,
   ]);
 
+  const flattenedItemsRef = useRef<FlattenedItem[]>(flattenedItems);
+  flattenedItemsRef.current = flattenedItems;
+
+  // Stable cache: keyMapper reads the latest items via ref, so measured heights
+  // (keyed by conversationId) survive data refetches instead of resetting to defaultHeight.
   const cache = useMemo(
     () =>
       new CellMeasurerCache({
         fixedWidth: true,
         defaultHeight: convoHeight,
         keyMapper: (index) => {
-          const item = flattenedItems[index];
+          const item = flattenedItemsRef.current[index];
           if (!item) {
             return `empty-${index}`;
           }
@@ -401,16 +409,28 @@ const Conversations: FC<ConversationsProps> = ({
           return `unknown-${index}`;
         },
       }),
-    [flattenedItems, convoHeight],
+    [convoHeight],
   );
 
+  // Only recompute positions when the list structure changes; keep cached heights.
   useEffect(() => {
-    cache.clearAll();
     const listInstance = containerRef?.current as any;
     if (listInstance && typeof listInstance.recomputeRowHeights === 'function') {
       listInstance.recomputeRowHeights();
     }
   }, [cache, isInactiveExpanded, flattenedItems, containerRef]);
+
+  // Header content (nav buttons) may change height (lazy chunks, permissions): re-measure only row 0.
+  useEffect(() => {
+    if (!hasHeader) {
+      return;
+    }
+    cache.clear(0, 0);
+    const listInstance = containerRef?.current as any;
+    if (listInstance && typeof listInstance.recomputeRowHeights === 'function') {
+      listInstance.recomputeRowHeights(0);
+    }
+  }, [headerContent, hasHeader, cache, containerRef]);
 
   const rowRenderer = useCallback(
     ({ index, key, parent, style }) => {

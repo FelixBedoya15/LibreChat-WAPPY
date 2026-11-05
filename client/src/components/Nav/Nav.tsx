@@ -244,6 +244,91 @@ const Nav = memo(
       }
     }, [search.debouncedQuery, isLoading, isFetching]);
 
+    // Anti-flicker: stable header JSX so the virtualized list does not re-measure on every Nav render (hover, fetch state).
+    const expandedHeaderContent = useMemo(
+      () => (
+                            <>
+                              {hasAccessToChat && (
+                                <MemoNewChat
+                                  toggleNav={toggleNavVisible}
+                                  isSmallScreen={isSmallScreen}
+                                  isCollapsed={false}
+                                />
+                              )}
+                              <div className="flex flex-col gap-1.5 mt-1 mb-3">
+                                {hasAccessToChat && search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
+                                
+                                {/* 1. Somos SST (Wappy Pro y Admin) */}
+                                {hasAccessToSGSST && (
+                                  <Suspense fallback={null}>
+                                    <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 1B. Huella Biocéntrica (Wappy Vital y Admin) */}
+                                {hasAccessToHuellaBiocentrica && (
+                                  <Suspense fallback={null}>
+                                    <HuellaBiocentricaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                
+                                {/* 2. Centro de Control SST */}
+                                {hasAccessToKanban && (
+                                  <Suspense fallback={null}>
+                                    <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 3. Tareas (antes Automatizaciones IA del Centro de Control) */}
+                                {hasAccessToTareas && (
+                                  <Suspense fallback={null}>
+                                    <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 3.2. WAPPY APPs (acceso directo al catálogo de aplicaciones, debajo de Tareas) */}
+                                <Suspense fallback={null}>
+                                  <WappyAppsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
+
+                                {/* 4. Academia WAPPY (Cursos, Rutas, Clases Meet y Blog) */}
+                                {hasAccessToLMS && (
+                                  <Suspense fallback={null}>
+                                    <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 5. Tienda WAPPY (Marketplace) */}
+                                <Suspense fallback={null}>
+                                  <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
+
+                                {/* 5. Marcadores */}
+                                {hasAccessToBookmarks && (
+                                  <Suspense fallback={null}>
+                                    <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 7. Comunidad (Solo ADMIN) */}
+                                {user?.role === 'ADMIN' && (
+                                  <Suspense fallback={null}>
+                                    <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+
+                                {/* 8. Métricas & Embajadores (Solo ADMIN / Embajadores) */}
+                                <Suspense fallback={null}>
+                                  {hasAmbassadorAccess && (
+                                    <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  )}
+                                </Suspense>
+                              </div>
+                            </>
+      ),
+      [hasAccessToChat, toggleNavVisible, isSmallScreen, search.enabled, hasAccessToSGSST, hasAccessToHuellaBiocentrica, hasAccessToKanban, hasAccessToTareas, hasAccessToLMS, hasAccessToBookmarks, tags, user?.role, hasAmbassadorAccess],
+    );
+
     return (
       <>
         <div
@@ -380,86 +465,7 @@ const Nav = memo(
                           isLoading={hasAccessToChat ? (isFetchingNextPage || showLoading || isLoading) : false}
                           isSearchLoading={hasAccessToChat ? isSearchLoading : false}
                           isCollapsed={false}
-                          headerContent={
-                            <>
-                              {hasAccessToChat && (
-                                <MemoNewChat
-                                  toggleNav={toggleNavVisible}
-                                  isSmallScreen={isSmallScreen}
-                                  isCollapsed={false}
-                                />
-                              )}
-                              <div className="flex flex-col gap-1.5 mt-1 mb-3">
-                                {hasAccessToChat && search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
-                                
-                                {/* 1. Somos SST (Wappy Pro y Admin) */}
-                                {hasAccessToSGSST && (
-                                  <Suspense fallback={null}>
-                                    <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-
-                                {/* 1B. Huella Biocéntrica (Wappy Vital y Admin) */}
-                                {hasAccessToHuellaBiocentrica && (
-                                  <Suspense fallback={null}>
-                                    <HuellaBiocentricaButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-                                
-                                {/* 2. Centro de Control SST */}
-                                {hasAccessToKanban && (
-                                  <Suspense fallback={null}>
-                                    <KanbanButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-
-                                {/* 3. Tareas (antes Automatizaciones IA del Centro de Control) */}
-                                {hasAccessToTareas && (
-                                  <Suspense fallback={null}>
-                                    <TareasButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-
-                                {/* 3.2. WAPPY APPs (acceso directo al catálogo de aplicaciones, debajo de Tareas) */}
-                                <Suspense fallback={null}>
-                                  <WappyAppsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
-
-                                {/* 4. Academia WAPPY (Cursos, Rutas, Clases Meet y Blog) */}
-                                {hasAccessToLMS && (
-                                  <Suspense fallback={null}>
-                                    <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-
-                                {/* 5. Tienda WAPPY (Marketplace) */}
-                                <Suspense fallback={null}>
-                                  <MarketplaceNavButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
-
-                                {/* 5. Marcadores */}
-                                {hasAccessToBookmarks && (
-                                  <Suspense fallback={null}>
-                                    <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-
-                                {/* 7. Comunidad (Solo ADMIN) */}
-                                {user?.role === 'ADMIN' && (
-                                  <Suspense fallback={null}>
-                                    <ChatSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-
-                                {/* 8. Métricas & Embajadores (Solo ADMIN / Embajadores) */}
-                                <Suspense fallback={null}>
-                                  {hasAmbassadorAccess && (
-                                    <AmbassadorsButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  )}
-                                </Suspense>
-                              </div>
-                            </>
-                          }
+                          headerContent={expandedHeaderContent}
                         />
                       </div>
                     )}
