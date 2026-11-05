@@ -80,6 +80,7 @@ const SgsstEppData = require('~/models/SgsstEppData');
 const Automation = require('~/models/Automation');
 const { Course } = require('~/models/Course');
 const UserProgress = require('~/models/UserProgress');
+const User = mongoose.models.User || require('~/models/User');
 const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
 const MarketplaceProduct = mongoose.models.MarketplaceProduct || require('~/models/MarketplaceProduct');
 const MarketplaceOrder = mongoose.models.MarketplaceOrder || require('~/models/MarketplaceOrder');
