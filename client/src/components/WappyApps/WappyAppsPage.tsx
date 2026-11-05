@@ -19,7 +19,7 @@ import InstagramFollowGateModal, {
 
 type AppsFilter = 'all' | 'active' | 'soon';
 
-const FILTERS: { id: AppsFilter; label: string }[] = [
+const ALL_FILTERS: { id: AppsFilter; label: string }[] = [
   { id: 'all', label: 'Todas' },
   { id: 'active', label: 'Disponibles' },
   { id: 'soon', label: 'Próximamente' },
@@ -318,6 +318,18 @@ export default function WappyAppsPage() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<AppsFilter>('all');
 
+  const hasSoonApps = useMemo(() => WAPPY_APPS_CATALOG.some((a) => a.badgeTone === 'soon'), []);
+  const availableFilters = useMemo(
+    () => ALL_FILTERS.filter((f) => (f.id === 'soon' ? hasSoonApps : true)),
+    [hasSoonApps],
+  );
+
+  useEffect(() => {
+    if (filter === 'soon' && !hasSoonApps) {
+      setFilter('all');
+    }
+  }, [filter, hasSoonApps]);
+
   const apps = useMemo(() => {
     const q = (query || '').trim().toLowerCase();
     return WAPPY_APPS_CATALOG.filter((app) => {
@@ -446,28 +458,30 @@ export default function WappyAppsPage() {
                   />
                 </label>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2" role="tablist" aria-label="Filtrar aplicaciones">
-                {FILTERS.map((f) => {
-                  const selected = filter === f.id;
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={selected}
-                      onClick={() => setFilter(f.id)}
-                      className={cn(
-                        'h-8 rounded-xl border px-3 text-xs font-bold transition-all active:scale-95',
-                        selected
-                          ? 'border-teal-500/50 bg-teal-500/20 text-teal-700 ring-1 ring-teal-500/30 dark:text-teal-300'
-                          : 'border-slate-300/60 bg-slate-500/10 text-slate-700 hover:bg-slate-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300',
-                      )}
-                    >
-                      {f.label}
-                    </button>
-                  );
-                })}
-              </div>
+              {hasSoonApps && availableFilters.length > 1 && (
+                <div className="flex flex-wrap items-center justify-center gap-2" role="tablist" aria-label="Filtrar aplicaciones">
+                  {availableFilters.map((f) => {
+                    const selected = filter === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        onClick={() => setFilter(f.id)}
+                        className={cn(
+                          'h-8 rounded-xl border px-3 text-xs font-bold transition-all active:scale-95',
+                          selected
+                            ? 'border-teal-500/50 bg-teal-500/20 text-teal-700 ring-1 ring-teal-500/30 dark:text-teal-300'
+                            : 'border-slate-300/60 bg-slate-500/10 text-slate-700 hover:bg-slate-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300',
+                        )}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -481,7 +495,7 @@ export default function WappyAppsPage() {
               </div>
             ) : (
               <div className="mx-auto max-w-md rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-zinc-700 dark:text-zinc-400">
-                No encontramos aplicaciones para “{query}”.
+                {query ? `No encontramos aplicaciones para “${query}”.` : 'No hay aplicaciones en esta sección.'}
               </div>
             )}
           </div>

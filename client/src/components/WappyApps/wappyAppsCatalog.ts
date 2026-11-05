@@ -93,55 +93,6 @@ export const WAPPY_APPS_CATALOG: WappyAppCatalogItem[] = [
     path: '/wappypodcast',
     ctaLabel: 'Ingresar a WAPPY Podcast',
   },
-  {
-    id: 'wappy-dots',
-    badge: 'MUY PRONTO · ACCESO ADMIN',
-    badgeTone: 'soon',
-    title: 'Wappy Dots + Tenshi IA',
-    subtitle: 'Isla Inteligente en tu Notch · Voz Viva 24kHz, Hermes Core & Team de Agentes',
-    description:
-      'Lleva a Tenshi IA en el Notch de tu computador (macOS, Windows y Linux) con activación por voz a 24kHz (Gemini Live), Memoria Dual y Auto-Aprendizaje de Skills estilo Hermes/OpenClaw, Team de Agentes en paralelo, puente con Antigravity IDE, Siigo ERP, Google Workspace y Portal Móvil QR.',
-    normative: 'macOS (Apple Silicon & Intel) · Windows · Linux',
-    visualType: 'soon',
-    icon: '🟣',
-    tags: [
-      'Voz Viva 24kHz en Notch',
-      'Memoria & Skills Hermes',
-      'Team de 4 Agentes IA',
-      'Antigravity · Siigo · Google',
-    ],
-    href: 'https://wappy.club/wappy-dots',
-    path: '/wappy-dots',
-    ctaLabel: '🔒 Muy Pronto (Acceso Admin)',
-  },
-  {
-    id: 'diagnostico-0312',
-    badge: 'PRÓXIMAMENTE EN WAPPY APPs',
-    badgeTone: 'soon',
-    title: 'APP Autoevaluación Res. 0312',
-    subtitle: 'Diagnóstico Interactivo de Estándares Mínimos SG-SST (7, 21 y 60 Estándares)',
-    description:
-      'Calculadora normativa inteligente que clasifica tu empresa según número de trabajadores y nivel de riesgo ARL, evalúa el cumplimiento del ciclo PHVA y genera el Plan de Mejoramiento automático.',
-    normative: 'Resolución 0312 de 2019 · Art. 27-28',
-    visualType: 'soon',
-    icon: '🛡️',
-    tags: ['7, 21 o 60 Estándares', 'Plan de Mejora IA', 'Puntaje Ponderado', 'Reporte Oficial'],
-    ctaLabel: 'Próximamente disponible',
-  },
-  {
-    id: 'matriz-quimica-sga',
-    badge: 'PRÓXIMAMENTE EN WAPPY APPs',
-    badgeTone: 'soon',
-    title: 'APP Compatibilidad Química SGA',
-    subtitle: 'Inventario de Sustancias, Pictogramas SGA y Matriz de Almacenamiento Seguro',
-    description:
-      'Valida al instante la compatibilidad de almacenamiento de tus productos químicos según el Sistema Globalmente Armonizado (SGA), extrae datos de Fichas de Seguridad (FDS) y genera etiquetas normativas.',
-    normative: 'Decreto 1496 de 2018 · Res. 773 de 2021',
-    visualType: 'soon',
-    icon: '🧪',
-    tags: ['Cruce SGA en Vivo', 'Pictogramas Oficiales', 'Alertas de Reacción', 'Etiquetado SGA'],
-    ctaLabel: 'Próximamente disponible',
-  },
 ];
 
 /**

@@ -262,21 +262,10 @@ export default function WappyPortalPage() {
   };
 
   /* Catálogo único compartido con la vista interna /aplicaciones (ver wappyAppsCatalog.ts) */
-  const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.map((app) => {
-    if (app.id === 'wappy-dots') {
-      return {
-        ...app,
-        badge: isAdmin ? '🔓 ACCESO ADMIN · DESCARGAR .ZIP' : '🔒 MUY PRONTO · BLOQUEADO',
-        badgeTone: isAdmin ? 'active' : 'soon',
-        ctaLabel: isAdmin ? 'Entrar a Wappy Dots (Admin)' : '🔒 Muy Pronto · Bloqueado',
-        onOpen: () => handleOpenWappyDots(),
-      };
-    }
-    return {
-      ...app,
-      onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppItem(app) : undefined,
-    };
-  });
+  const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.map((app) => ({
+    ...app,
+    onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppItem(app) : undefined,
+  }));
 
   return (
     <div className={`mkt wappy-portal-page ${isDarkMode ? 'mkt-dark' : ''}`}>
