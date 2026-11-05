@@ -6923,6 +6923,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     setAntigravityCloudCount(cldCnt);
     setAntigravityActiveMode(modeVal);
     setAntigravityEffectiveEnv(effVal);
+    setAntigravityConnectionGuideTab(modeVal === 'local' ? 'local' : modeVal === 'cloud' ? 'cloud' : 'both');
     setAntigravityDaemonConnected(anyConn);
   };
 
@@ -7006,6 +7007,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               : 'local';
     setAntigravityActiveMode(nextMode);
     setAntigravityEffectiveEnv(optimisticEffective);
+    setAntigravityConnectionGuideTab(nextMode === 'local' ? 'local' : nextMode === 'cloud' ? 'cloud' : 'both');
     try {
       const effKey = resolveEffectiveAntigravityKey() || antigravityBridgeKey || '';
       let resp = await fetch('/api/studio/antigravity/mode', {
@@ -12445,44 +12447,41 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                   </div>
                 </div>
 
-                {/* Selector de Pestañas de Conexión: Cloud vs Local */}
-                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-fit">
-                  <button
-                    type="button"
-                    onClick={() => setAntigravityConnectionGuideTab('cloud')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
-                      antigravityConnectionGuideTab === 'cloud'
-                        ? 'bg-sky-500/15 border border-sky-500/40 text-sky-700 dark:text-sky-300'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
-                    )}
-                  >
-                    ☁️ Conectar Antigravity Cloud (Sin instalar nada)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAntigravityConnectionGuideTab('local')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
-                      antigravityConnectionGuideTab === 'local'
-                        ? 'bg-teal-500/15 border border-teal-500/40 text-teal-700 dark:text-teal-300'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
-                    )}
-                  >
-                    🖥️ Conectar Antigravity Local (Mac/PC)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAntigravityConnectionGuideTab('both')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
-                      antigravityConnectionGuideTab === 'both'
-                        ? 'bg-purple-500/15 border border-purple-500/40 text-purple-700 dark:text-purple-300'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
-                    )}
-                  >
-                    🔀 Ver Ambos
-                  </button>
+                {/* Título contextual según modo activo — sin sub-selector redundante */}
+                <div className="flex items-center gap-2 pb-1">
+                  {antigravityConnectionGuideTab === 'cloud' && (
+                    <>
+                      <span className="text-base">☁️</span>
+                      <span className="text-xs font-extrabold text-sky-700 dark:text-sky-300">
+                        Instrucciones de Conexión Cloud (antigravity.google.com)
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                        — Sin instalar nada en tu PC
+                      </span>
+                    </>
+                  )}
+                  {antigravityConnectionGuideTab === 'local' && (
+                    <>
+                      <span className="text-base">🖥️</span>
+                      <span className="text-xs font-extrabold text-teal-700 dark:text-teal-300">
+                        Instrucciones de Conexión Local (Mac / Windows)
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                        — Corre en tu computador
+                      </span>
+                    </>
+                  )}
+                  {antigravityConnectionGuideTab === 'both' && (
+                    <>
+                      <span className="text-base">⚡</span>
+                      <span className="text-xs font-extrabold text-purple-700 dark:text-purple-300">
+                        Modo Automático — Conexión Cloud y Local
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                        — Puedes usar ambos entornos
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {/* OPCIÓN A: ☁️ Antigravity Cloud (antigravity.google.com) — Sin instalar nada en tu PC */}
