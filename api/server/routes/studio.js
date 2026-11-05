@@ -1765,28 +1765,10 @@ async function synthesizeSingleVoiceTurn({
   const cloneRefAudioB64 =
     customCloneEntry?.sourceAudioBase64 || customCloneEntry?.sampleAudioBase64 || '';
 
-  // 0. Si es una voz clonada con grabación real (sourceAudioBase64 o sampleAudioBase64) y no tiene replicación nativa Tier 1 en Google,
-  // intentar primero Zero-Shot OmniVoice (si no está en cooldown de cuota) y si no, usar Gemini TTS + OpenVoice V2 ToneColorConverter 24kHz
-  if (cloneRefAudioB64 && customCloneEntry?.nativeMethod !== 'gemini_v1beta_voices') {
-    if (Date.now() >= omnivoiceQuotaCooldownUntil) {
-      try {
-        const zeroShotRes = await synthesizeZeroShotVoiceStudioClone({
-          text: cleanTurnText,
-          sourceAudioBase64: cloneRefAudioB64,
-          refTranscript: customCloneEntry.refTranscript || '',
-          languageCode: customCloneEntry.languageCode || 'es-CO',
-        });
-        logger.info(
-          `[WappyStudio TTS] Turno sintetizado con clon acústico real Zero-Shot OmniVoice (voz=${cleanVoiceKey}, dur=${zeroShotRes.durationSeconds}s, bytes=${zeroShotRes.pcmBuffer.length})`,
-        );
-        return zeroShotRes;
-      } catch (zeroErr) {
-        logger.info(
-          `[WappyStudio TTS] Redirigiendo turno de voz clonada ${cleanVoiceKey} al motor neural local OpenVoice V2 24kHz (${zeroErr.message}).`,
-        );
-      }
-    }
-  } else if (
+  // 0. Si es una voz clonada con grabación real del usuario (sourceAudioBase64 o sampleAudioBase64):
+  // Sintetizamos la actuación y prosodia directamente con Gemini 3.8 Flash TTS y transferimos de inmediato
+  // su timbre vocal auténtico mediante el motor neural local OpenVoice V2 24kHz (en VPS propio, sin latencias ni cuotas externas).
+  if (
     cleanVoiceKey.startsWith('wappy_clone_') &&
     !cloneRefAudioB64 &&
     !customCloneEntry?.nativeVoiceId

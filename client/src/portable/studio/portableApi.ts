@@ -910,28 +910,9 @@ async function synthesizeSingleVoiceTurn(opts: {
     ? await resolveBrowserClonedVoiceProfile(voiceKey, opts.synthOpts)
     : null;
 
-  // 1. Si es una voz clonada (wappy_clone_*) y el servidor no está disponible (o antes de delegar),
-  // intentar sintetizar contra OmniVoice Zero-Shot
-  if (voiceKey.startsWith('wappy_clone_') && Date.now() >= omnivoiceBrowserCooldownUntil) {
-    const refAudioB64 = profile?.sourceAudioBase64 || profile?.sampleAudioBase64 || '';
-    if (refAudioB64 && profile?.nativeMethod !== 'gemini_v1beta_voices') {
-      try {
-        return await synthesizeBrowserZeroShotOmniVoice({
-          text: cleanText,
-          voiceId: voiceKey,
-          sourceAudioBase64: refAudioB64,
-          refTranscript: profile?.refTranscript || '',
-          languageCode: profile?.languageCode || 'es-CO',
-        });
-      } catch (omniErr) {
-        console.warn('[WappyStudio Browser Zero-Shot] Aviso en OmniVoice:', omniErr);
-      }
-    }
-  }
-
-  // 2. Si es una voz clonada (que requiere OpenVoice V2 en el servidor) o no hay llaves Gemini locales en el navegador,
-  // delegar este turno individual al backend /api/studio/tts/synthesize incluyendo customVoiceProfile y customVoices
-  if (opts.keys.length === 0 || (isCloned && (await isServerAvailable()))) {
+  // 1. Si el servidor de WAPPY está disponible y es una voz clonada (que requiere OpenVoice V2 en el servidor)
+  // o no hay llaves locales en el cliente, delegar este turno al backend /api/studio/tts/synthesize
+  if ((isCloned && (await isServerAvailable())) || opts.keys.length === 0) {
     const srvResp = await nativeFetch('/api/studio/tts/synthesize', {
       ...(opts.synthOpts?.authInit || {}),
       method: 'POST',
@@ -966,6 +947,24 @@ async function synthesizeSingleVoiceTurn(opts: {
       usedModel: srvData.usedModel || opts.modelsToTry[0] || 'gemini-3.8-flash-tts',
       usedKeyIndex: srvData.usedKeyIndex || 0,
     };
+  }
+
+  // 2. Si el servidor no está disponible y es una voz clonada (wappy_clone_*), intentar OmniVoice en navegador
+  if (voiceKey.startsWith('wappy_clone_') && Date.now() >= omnivoiceBrowserCooldownUntil) {
+    const refAudioB64 = profile?.sourceAudioBase64 || profile?.sampleAudioBase64 || '';
+    if (refAudioB64 && profile?.nativeMethod !== 'gemini_v1beta_voices') {
+      try {
+        return await synthesizeBrowserZeroShotOmniVoice({
+          text: cleanText,
+          voiceId: voiceKey,
+          sourceAudioBase64: refAudioB64,
+          refTranscript: profile?.refTranscript || '',
+          languageCode: profile?.languageCode || 'es-CO',
+        });
+      } catch (omniErr) {
+        console.warn('[WappyStudio Browser Zero-Shot] Aviso en OmniVoice:', omniErr);
+      }
+    }
   }
 
   let lastError: Error | null = null;
