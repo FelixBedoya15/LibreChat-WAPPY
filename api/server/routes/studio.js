@@ -1342,6 +1342,11 @@ async function convertSpeechTimbreWithOpenVoiceV2(
   const srcWavB64 = Buffer.isBuffer(sourceWavBuffer)
     ? sourceWavBuffer.toString('base64')
     : Buffer.from(sourceWavBuffer).toString('base64');
+  const { wavBuffer: normRefWavBuf } = normalizeAudioBufferToWav(
+    Buffer.from(cleanRefB64, 'base64'),
+    24000,
+  );
+  const normRefB64 = normRefWavBuf.toString('base64');
 
   let lastErr = null;
   for (const endpoint of OPENVOICE_V2_ENDPOINTS) {
@@ -1349,8 +1354,10 @@ async function convertSpeechTimbreWithOpenVoiceV2(
       const resp = await axios.post(
         endpoint,
         {
+          sourceSpeechBase64: srcWavB64,
+          referenceVoiceBase64: normRefB64,
           source_wav_b64: srcWavB64,
-          ref_wav_b64: cleanRefB64,
+          ref_wav_b64: normRefB64,
           tau,
         },
         {
@@ -1360,13 +1367,16 @@ async function convertSpeechTimbreWithOpenVoiceV2(
           maxContentLength: Infinity,
         },
       );
-      if (resp.data?.ok && resp.data?.audio_b64) {
-        const rawConverted = Buffer.from(resp.data.audio_b64, 'base64');
+      const outB64 = resp.data?.audioBase64 || resp.data?.audio_b64;
+      if ((resp.data?.success || resp.data?.ok) && outB64) {
+        const rawConverted = Buffer.from(outB64, 'base64');
         return normalizeAudioBufferToWav(rawConverted, 24000);
       }
       throw new Error(resp.data?.error || 'Respuesta inválida de OpenVoice V2');
     } catch (err) {
-      lastErr = err;
+      if (!lastErr || err.response?.data?.error) {
+        lastErr = err.response?.data?.error ? new Error(err.response.data.error) : err;
+      }
     }
   }
   throw lastErr || new Error('No se pudo conectar con el motor neural OpenVoice V2 local.');
