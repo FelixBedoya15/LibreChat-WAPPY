@@ -2919,6 +2919,35 @@ function startSseWorker(cliArgs) {
   writeHeartbeat();
   setInterval(writeHeartbeat, 60000);
 
+  // Si el usuario aún no tiene wappy-connectors-healthcheck.js en su equipo, descargarlo en segundo plano
+  try {
+    const hcDest = path.join(AGY_DIR, 'wappy-connectors-healthcheck.js');
+    if (!fs.existsSync(hcDest)) {
+      const { wappyUrl: hcOrigin } = resolveCredentials(cliArgs);
+      const hcUrl = `${resolveEffectiveServerUrl(hcOrigin, 'https://wappy.club')}/api/mcp-bridge/antigravity/healthcheck.js`;
+      const parsedHc = new URL(hcUrl);
+      const hcClient = parsedHc.protocol === 'https:' ? https : http;
+      hcClient
+        .get(parsedHc, (hcRes) => {
+          if (hcRes.statusCode !== 200) {
+            hcRes.resume();
+            return;
+          }
+          let hcBody = '';
+          hcRes.setEncoding('utf8');
+          hcRes.on('data', (ch) => (hcBody += ch));
+          hcRes.on('end', () => {
+            try {
+              if (hcBody && hcBody.length > 500) {
+                fs.writeFileSync(hcDest, hcBody, { encoding: 'utf8', mode: 0o755 });
+              }
+            } catch (_) {}
+          });
+        })
+        .on('error', () => {});
+    }
+  } catch (_) {}
+
   // Protección de memoria para procesos que corren durante semanas: si crece anormalmente, reiniciar limpio
   setInterval(() => {
     try {

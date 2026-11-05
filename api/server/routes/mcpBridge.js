@@ -8954,7 +8954,7 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
-const MIN_REQUIRED_DAEMON_VERSION = '2.5.4';
+const MIN_REQUIRED_DAEMON_VERSION = '2.5.5';
 
 function compareSemver(a, b) {
   const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
@@ -9539,6 +9539,28 @@ router.get('/antigravity/daemon.js', async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] Error sirviendo /antigravity/daemon.js:', error);
     return res.status(500).send('// Error interno sirviendo daemon.js');
+  }
+});
+
+router.get('/antigravity/healthcheck.js', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const hcPaths = [
+      path.resolve(__dirname, '../../../bin/wappy-connectors-healthcheck.js'),
+      path.resolve(process.cwd(), 'bin/wappy-connectors-healthcheck.js'),
+      '/app/bin/wappy-connectors-healthcheck.js',
+    ];
+    for (const p of hcPaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.send(fs.readFileSync(p, 'utf8'));
+      }
+    }
+    return res.status(404).send('// Archivo wappy-connectors-healthcheck.js no encontrado en el servidor.');
+  } catch (error) {
+    logger.error('[MCP Bridge] Error sirviendo /antigravity/healthcheck.js:', error);
+    return res.status(500).send('// Error interno sirviendo healthcheck.js');
   }
 });
 

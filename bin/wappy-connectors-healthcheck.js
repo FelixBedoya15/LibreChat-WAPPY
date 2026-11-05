@@ -223,6 +223,7 @@ async function checkAntigravity(wappyUrl, apiKey) {
   const credsToCheck = allCreds.length > 0 ? allCreds : [{ wappyUrl, apiKey }];
 
   let primaryUserId = '';
+  let primaryUserEmail = '';
   let connectedCount = 0;
   const disconnectedKeys = [];
 
@@ -236,7 +237,9 @@ async function checkAntigravity(wappyUrl, apiKey) {
       timeoutMs: 12000,
     });
     const uid = statusRes.data?.userId || statusRes.data?.bridge?.userId || '';
+    const uEmail = statusRes.data?.userEmail || '';
     if (!primaryUserId && uid) primaryUserId = uid;
+    if (!primaryUserEmail && uEmail && !String(uEmail).endsWith('@wappy.internal')) primaryUserEmail = uEmail;
     const isConn = Boolean(
       statusRes.ok &&
         (statusRes.data?.bridge?.connected ||
@@ -256,6 +259,7 @@ async function checkAntigravity(wappyUrl, apiKey) {
     return {
       ok: true,
       userId: primaryUserId,
+      userEmail: primaryUserEmail,
       detail: `Daemon Push SSE activo (${connectedCount}/${credsToCheck.length} cuentas conectadas en vivo) y motor Antigravity local operativo.`,
     };
   }
@@ -268,6 +272,7 @@ async function checkAntigravity(wappyUrl, apiKey) {
   return {
     ok: false,
     userId: primaryUserId,
+    userEmail: primaryUserEmail,
     detail: `Fallo detectado en Antigravity: ${reasons.join(', ')}.`,
     workerLocal,
     serverConnected,
@@ -278,11 +283,18 @@ async function checkAntigravity(wappyUrl, apiKey) {
 async function reconnectAntigravity(wappyUrl, apiKey) {
   log('🔄 Ejecutando auto-reconexión de Google Antigravity...');
   try {
-    if (!isLocalLanguageServerRunning() && process.platform === 'darwin' && fs.existsSync('/Applications/Antigravity.app')) {
-      log('🚀 Abriendo Antigravity.app en segundo plano para iniciar language_server...');
-      try {
-        execFileSync('/usr/bin/open', ['-gj', '-a', '/Applications/Antigravity.app'], { timeout: 6000 });
-      } catch (_) {}
+    if (!isLocalLanguageServerRunning() && process.platform === 'darwin') {
+      const agApp = fs.existsSync('/Applications/Antigravity.app')
+        ? '/Applications/Antigravity.app'
+        : fs.existsSync('/Applications/Antigravity IDE.app')
+        ? '/Applications/Antigravity IDE.app'
+        : null;
+      if (agApp) {
+        log(`🚀 Abriendo ${path.basename(agApp)} en segundo plano para iniciar language_server...`);
+        try {
+          execFileSync('/usr/bin/open', ['-gj', '-a', agApp], { timeout: 6000 });
+        } catch (_) {}
+      }
     }
 
     if (fs.existsSync(DAEMON_SCRIPT)) {
@@ -483,8 +495,8 @@ async function runFunctionalAntigravityQuestion(wappyUrl, apiKey) {
     };
   }
 
-  // Esperar hasta 18 segundos a que el daemon local en el Mac reclame por Push SSE y responda la orden
-  for (let i = 0; i < 12; i++) {
+  // Esperar hasta 30 segundos a que el daemon local en el Mac reclame por Push SSE y responda la orden
+  for (let i = 0; i < 20; i++) {
     await new Promise((r) => setTimeout(r, 1500));
     const ordRes = await httpJson(
       `${wappyUrl}/api/mcp-bridge/antigravity/ordenes?id=${encodeURIComponent(ordenId)}`,
@@ -839,8 +851,17 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
 async function sendHealthEmail(
   wappyUrl,
   apiKey,
-  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow }
+  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow, recipientEmail }
 ) {
+  const customEmail = String(recipientEmail || process.env.WAPPY_ALERT_EMAIL || '').trim();
+  const targetEmail =
+    customEmail &&
+    customEmail.includes('@') &&
+    !customEmail.endsWith('@wappy.internal') &&
+    customEmail.toLowerCase() !== 'felix.bedoya15@gmail.com'
+      ? customEmail
+      : ALERT_EMAIL;
+
   const nowStr = new Date().toLocaleString('es-CO', {
     timeZone: 'America/Bogota',
     dateStyle: 'full',
@@ -932,7 +953,7 @@ async function sendHealthEmail(
       Authorization: `Bearer ${apiKey}`,
     },
     body: {
-      to: ALERT_EMAIL,
+      to: targetEmail,
       subject,
       html,
       skipAutoReport: true,
@@ -942,10 +963,10 @@ async function sendHealthEmail(
   });
 
   if (emailRes.ok && emailRes.data?.exito) {
-    log(`📧 Correo unificado enviado exitosamente a ${ALERT_EMAIL} (${subject}).`);
+    log(`📧 Correo unificado enviado exitosamente a ${targetEmail} (${subject}).`);
     return true;
   } else {
-    log(`❌ Error enviando correo a ${ALERT_EMAIL}: ${emailRes.data?.error || emailRes.error || `HTTP ${emailRes.status}`}`);
+    log(`❌ Error enviando correo a ${targetEmail}: ${emailRes.data?.error || emailRes.error || `HTTP ${emailRes.status}`}`);
     return false;
   }
 }
@@ -1660,6 +1681,7 @@ async function main() {
         functionalResults,
         hadInitialErrors,
         allHealthyNow,
+        recipientEmail: args.email || finalResults.antigravity?.userEmail || initAg.userEmail || '',
       });
     }
 
