@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Reel Riesgo Psicosocial · Avatar 3D Lip-Sync + Catálogo Unificado WAPPY</title>
+  <title>Reel Riesgo Psicosocial · Avatar 3D Lip-Sync + Catálogo Unificado WAPPY (9:16 Puro)</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <!-- Three.js Inlined for CSP-Safe 3D Rigged Avatar Lip-Sync -->
   <script id="wappy-inline-three">console.warn('Scripts "build/three.js" and "build/three.min.js" are deprecated with r150+, and will be removed with r160. Please use ES Modules or alternatives: https://threejs.org/docs/index.html#manual/en/introduction/Installation'),
@@ -177,13 +177,54 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     /* =========================================================================
        2. THREE.JS 3D LOW-POLY / VOXEL RIGGED AVATAR WITH LIP-SYNC
-          (Exact port of motor/wappy-avatar3d.js with mouth, teeth, tongue,
-           eyebrows, blinking eyes, glasses, beard, and articulated arms)
+          (Exact visual model of WappyAvatarVoxel3D — Mauricio/Félix Minecraft Voxel:
+           yellow/black plaid flannel shirt, white tee, yellow pocket with pixel "W",
+           pompadour hair, rectangular glasses, voxel beard, and articulated index finger)
        ========================================================================= */
     class RiggedPresenter3D {
       constructor(canvas) {
         this.canvas = canvas;
         this._initScene();
+      }
+
+      _createPlaidTexture() {
+        const c = document.createElement('canvas');
+        c.width = 64;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+
+        // Fondo amarillo brillante de la camisa a cuadros
+        ctx.fillStyle = '#f5c71a';
+        ctx.fillRect(0, 0, 64, 64);
+
+        // Franjas secundarias mostaza/ámbar para textura tejida voxel
+        ctx.fillStyle = '#d99f0b';
+        for (let i = 0; i < 64; i += 16) {
+          ctx.fillRect(i + 4, 0, 8, 64);
+          ctx.fillRect(0, i + 4, 64, 8);
+        }
+
+        // Cuadrícula azul marino / negro profundo
+        ctx.fillStyle = '#182032';
+        for (let i = 0; i < 64; i += 16) {
+          ctx.fillRect(i + 6, 0, 5, 64);
+          ctx.fillRect(0, i + 6, 64, 5);
+        }
+
+        // Intersecciones oscuras más marcadas
+        ctx.fillStyle = '#0e131f';
+        for (let x = 0; x < 64; x += 16) {
+          for (let y = 0; y < 64; y += 16) {
+            ctx.fillRect(x + 5, y + 5, 6, 6);
+          }
+        }
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.NearestFilter;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        return tex;
       }
 
       _initScene() {
@@ -192,265 +233,238 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         this.scene = new THREE.Scene();
 
         this.camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
-        this.camera.position.set(0, 0.48, 5.5);
-        this.camera.lookAt(0, 0.35, 0);
+        this.camera.position.set(0, 0.58, 6.25);
+        this.camera.lookAt(0, 0.36, 0);
 
         this.renderer = new THREE.WebGLRenderer({
           canvas: this.canvas,
           alpha: true,
-          antialias: true
+          antialias: true,
+          preserveDrawingBuffer: true,
+          powerPreference: 'high-performance'
         });
         this.renderer.setSize(W, H, false);
         this.renderer.setPixelRatio(1);
 
-        // Studio 3-Point Lighting with WAPPY Lime Rim Light
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.76));
-        const keyLight = new THREE.DirectionalLight(0xfff8eb, 1.38);
-        keyLight.position.set(3.5, 5.0, 4.5);
+        // Iluminación de estudio Raytraced Voxel
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.78));
+        const keyLight = new THREE.DirectionalLight(0xfff6e5, 1.38);
+        keyLight.position.set(3.8, 5.2, 4.8);
         this.scene.add(keyLight);
 
-        const fillLight = new THREE.DirectionalLight(0x5bb8f5, 0.65);
-        fillLight.position.set(-4.0, 2.0, 3.0);
+        const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.55);
+        fillLight.position.set(-4.2, 2.2, 3.2);
         this.scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xc7f303, 1.05);
-        rimLight.position.set(0, 4.0, -4.5);
+        const rimLight = new THREE.DirectionalLight(0xc7f303, 0.85);
+        rimLight.position.set(0, 4.2, -4.5);
         this.scene.add(rimLight);
 
         const mat = (hex, extra = {}) => new THREE.MeshStandardMaterial({
           color: hex,
-          roughness: extra.roughness ?? 0.55,
-          metalness: extra.metalness ?? 0.08,
-          flatShading: extra.flat ?? true,
+          roughness: extra.roughness ?? 0.52,
+          metalness: extra.metalness ?? 0.06,
+          flatShading: true,
           ...extra
         });
 
-        const mSkin = mat(0xe8a882, { roughness: 0.58 });
-        const mSkinRosy = mat(0xd98768, { roughness: 0.58 });
-        const mHair = mat(0x361e14, { roughness: 0.48 });
-        const mBeard = mat(0x2b170e, { roughness: 0.65 });
-        const mGlasses = mat(0x16181d, { roughness: 0.25, metalness: 0.3 });
-        const mLens = new THREE.MeshPhysicalMaterial({
-          color: 0xdff4ff, transparent: true, opacity: 0.22, roughness: 0.1
+        const plaidTex = this._createPlaidTexture();
+        const mPlaid = new THREE.MeshStandardMaterial({
+          map: plaidTex,
+          roughness: 0.58,
+          metalness: 0.04,
+          flatShading: true
         });
-        const mEyeWhite = mat(0xffffff, { flat: false, roughness: 0.2 });
-        const mIris = mat(0x4a2511, { flat: false, roughness: 0.15 });
-        const mPupil = mat(0x090a0c, { flat: false, roughness: 0.1 });
-        const mJacket = mat(0x233554, { roughness: 0.52 });
-        const mJacketTex = mat(0x1b2942, { roughness: 0.45 });
-        const mLime = mat(0xc7f303, { roughness: 0.32, emissive: 0x263000 });
-        const mOrange = mat(0xf28729, { roughness: 0.35, emissive: 0x3a1800 });
-        const mWhite = mat(0xf4f4f0, { roughness: 0.4 });
+
+        const mSkin = mat(0xeab38f, { roughness: 0.55 });
+        const mSkinShade = mat(0xd99b74, { roughness: 0.58 });
+        const mHair = mat(0x3b2213, { roughness: 0.50 });
+        const mHairLight = mat(0x4d2e1b, { roughness: 0.48 });
+        const mBeard = mat(0x2d180c, { roughness: 0.62 });
+        const mGlasses = mat(0x12141a, { roughness: 0.25, metalness: 0.25 });
+        const mLens = new THREE.MeshPhysicalMaterial({
+          color: 0xdff4ff,
+          transparent: true,
+          opacity: 0.20,
+          roughness: 0.1
+        });
+        const mWhite = mat(0xf8fafc, { roughness: 0.35 });
+        const mYellowPocket = mat(0xf5c71a, { roughness: 0.45 });
+        const mLogoDark = mat(0x111318, { roughness: 0.3 });
+        const mEyeWhite = mat(0xffffff, { roughness: 0.2 });
+        const mIris = mat(0x4a2511, { roughness: 0.18 });
+        const mPupil = mat(0x0b0c0e, { roughness: 0.1 });
         const mMouthIn = mat(0x3a0f14, { roughness: 0.8 });
-        const mTongue = mat(0xd14b58, { roughness: 0.6 });
+        const mTongue = mat(0xd9535f, { roughness: 0.6 });
+        const mJeans = mat(0x365f8a, { roughness: 0.6 });
+        const mJeansCuff = mat(0x6fa0c7, { roughness: 0.55 });
 
         this.root = new THREE.Group();
         this.scene.add(this.root);
 
-        // 1. Torso & WAPPY Jacket
+        const addBox = (parent, w, h, d, material, x = 0, y = 0, z = 0) => {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+          m.position.set(x, y, z);
+          parent.add(m);
+          return m;
+        };
+
+        // 1. TORSO VOXEL: CAMISA A CUADROS AMARILLA/NEGRA + CAMISETA BLANCA
         this.torso = new THREE.Group();
         this.torso.position.set(0, -0.58, 0);
         this.root.add(this.torso);
 
-        this.torso.add(new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.58, 1.38, 8), mJacket));
-        const chestMesh = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.46, 0.62), mJacketTex);
-        chestMesh.position.set(0, 0.32, 0.12);
-        this.torso.add(chestMesh);
+        addBox(this.torso, 0.46, 1.34, 0.62, mWhite, 0, 0.02, 0.02);
+        addBox(this.torso, 1.32, 1.36, 0.44, mPlaid, 0, 0.0, -0.10);
+        addBox(this.torso, 0.46, 1.36, 0.28, mPlaid, -0.43, 0.0, 0.24);
+        addBox(this.torso, 0.46, 1.36, 0.28, mPlaid,  0.43, 0.0, 0.24);
 
-        const zipMesh = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.36, 0.06), mGlasses);
-        zipMesh.position.set(0, 0, 0.58);
-        this.torso.add(zipMesh);
+        addBox(this.torso, 0.26, 0.16, 0.24, mPlaid, -0.30, 0.72, 0.22);
+        addBox(this.torso, 0.26, 0.16, 0.24, mPlaid,  0.30, 0.72, 0.22);
+        addBox(this.torso, 0.34, 0.18, 0.16, mSkin,   0.00, 0.74, 0.06);
 
-        const shirtMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 0.32, 8), mWhite);
-        shirtMesh.position.set(0, 0.72, 0.08);
-        this.torso.add(shirtMesh);
+        // Bolsillo amarillo Voxel en el pecho con el logo "W" en píxeles negros
+        const pocketG = new THREE.Group();
+        pocketG.position.set(0.41, 0.16, 0.39);
+        this.torso.add(pocketG);
+        addBox(pocketG, 0.32, 0.30, 0.05, mYellowPocket, 0, 0, 0);
+        addBox(pocketG, 0.22, 0.06, 0.05, mYellowPocket, 0, -0.17, 0);
 
-        // W: Logo on Chest
-        const logoG = new THREE.Group();
-        logoG.position.set(0.30, 0.34, 0.45);
-        const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.19, 0.04), mLime);
-        b1.position.set(-0.09, 0, 0); b1.rotation.z = 0.18;
-        const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.14, 0.04), mLime);
-        b2.position.set(-0.03, -0.02, 0); b2.rotation.z = -0.25;
-        const b3 = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.14, 0.04), mLime);
-        b3.position.set(0.03, -0.02, 0); b3.rotation.z = 0.25;
-        const b4 = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.19, 0.04), mLime);
-        b4.position.set(0.09, 0, 0); b4.rotation.z = -0.18;
-        logoG.add(b1, b2, b3, b4);
-        this.torso.add(logoG);
+        const px = 0.036;
+        addBox(pocketG, px, px * 4, 0.03, mLogoDark, -px * 2.1, 0.01, 0.025);
+        addBox(pocketG, px, px * 3, 0.03, mLogoDark,  0,        -0.01, 0.025);
+        addBox(pocketG, px, px * 4, 0.03, mLogoDark,  px * 2.1, 0.01, 0.025);
+        addBox(pocketG, px * 1.4, px, 0.03, mLogoDark, -px * 1.05, -px * 1.6, 0.025);
+        addBox(pocketG, px * 1.4, px, 0.03, mLogoDark,  px * 1.05, -px * 1.6, 0.025);
 
-        // 2. Articulated Arms
-        const crearBrazo = (lado) => {
+        // Jeans azules Voxel y zapatillas blancas escalonadas
+        addBox(this.torso, 1.22, 0.18, 0.58, mJeans, 0, -0.74, 0.02);
+        addBox(this.torso, 0.50, 0.85, 0.52, mJeans, -0.31, -1.20, 0.02);
+        addBox(this.torso, 0.50, 0.85, 0.52, mJeans,  0.31, -1.20, 0.02);
+        addBox(this.torso, 0.54, 0.12, 0.56, mJeansCuff, -0.31, -1.58, 0.02);
+        addBox(this.torso, 0.54, 0.12, 0.56, mJeansCuff,  0.31, -1.58, 0.02);
+        addBox(this.torso, 0.50, 0.22, 0.64, mWhite, -0.31, -1.74, 0.08);
+        addBox(this.torso, 0.50, 0.22, 0.64, mWhite,  0.31, -1.74, 0.08);
+
+        // 2. BRAZOS VOXEL CON MANGAS A CUADROS REMANGADAS Y DEDO SEÑALADOR
+        const crearBrazoVoxel = (lado) => {
           const s = lado === 'izq' ? -1 : 1;
           const pivote = new THREE.Group();
-          pivote.position.set(s * 0.74, 0.48, 0);
-          pivote.add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.23, 0), mJacket));
+          pivote.position.set(s * 0.84, 0.50, 0.04);
 
-          const manga = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.15, 0.88, 7), mJacket);
-          manga.position.set(s * 0.08, -0.44, 0);
-          manga.rotation.z = s * 0.12;
-          pivote.add(manga);
+          addBox(pivote, 0.40, 0.62, 0.42, mPlaid, s * 0.04, -0.22, 0);
+          addBox(pivote, 0.44, 0.14, 0.46, mYellowPocket, s * 0.04, -0.56, 0);
+          addBox(pivote, 0.45, 0.04, 0.47, mLogoDark, s * 0.04, -0.56, 0);
 
-          const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.86, 0.06), mOrange);
-          stripe.position.set(s * 0.25, -0.44, 0);
-          stripe.rotation.z = s * 0.12;
-          pivote.add(stripe);
-
-          const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.15, 0.08, 7), mOrange);
-          cuff.position.set(s * 0.14, -0.88, 0);
-          pivote.add(cuff);
+          const antebrazo = new THREE.Group();
+          antebrazo.position.set(s * 0.04, -0.63, 0);
+          pivote.add(antebrazo);
+          addBox(antebrazo, 0.32, 0.38, 0.34, mSkin, 0, -0.19, 0);
 
           const mano = new THREE.Group();
-          mano.position.set(s * 0.15, -1.04, 0.04);
-          mano.add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 0), mSkin));
-          pivote.add(mano);
-          this.torso.add(pivote);
-          return { pivote, mano };
-        };
-        this.brazoIzq = crearBrazo('izq');
-        this.brazoDer = crearBrazo('der');
+          mano.position.set(0, -0.44, 0.02);
+          antebrazo.add(mano);
+          addBox(mano, 0.30, 0.24, 0.28, mSkin, 0, 0, 0);
+          addBox(mano, 0.09, 0.14, 0.10, mSkinShade, -s * 0.17, 0.02, 0.08);
 
-        // 3. Faceted Low-Poly Head
+          const dedoIndice = addBox(mano, 0.09, 0.20, 0.09, mSkin, -s * 0.08, -0.16, 0.06);
+          this.torso.add(pivote);
+          return { pivote, antebrazo, mano, dedoIndice };
+        };
+
+        this.brazoIzq = crearBrazoVoxel('izq');
+        this.brazoDer = crearBrazoVoxel('der');
+
+        // 3. CABEZA CÚBICA MINECRAFT VOXEL (PIEL, OREJAS, NARIZ, OJOS)
         this.headGroup = new THREE.Group();
-        this.headGroup.position.set(0, 0.84, 0.05);
+        this.headGroup.position.set(0, 0.86, 0.06);
         this.root.add(this.headGroup);
 
-        const headGeo = new THREE.BoxGeometry(1.52, 1.56, 1.36, 2, 2, 2);
-        const pos = headGeo.attributes.position;
-        const v = new THREE.Vector3();
-        for (let i = 0; i < pos.count; i++) {
-          v.fromBufferAttribute(pos, i);
-          const nx = v.x / 0.76, ny = v.y / 0.78, nz = v.z / 0.68;
-          const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-          if (len > 0) {
-            const k = 0.68 + 0.32 / len;
-            v.x *= k; v.y *= k; v.z *= k;
-          }
-          pos.setXYZ(i, v.x, v.y, v.z);
-        }
-        headGeo.computeVertexNormals();
-        this.headGroup.add(new THREE.Mesh(headGeo, mSkin));
+        addBox(this.headGroup, 1.54, 1.50, 1.34, mSkin, 0, 0.02, 0);
+        addBox(this.headGroup, 0.16, 0.38, 0.26, mSkinShade, -0.84, 0.0, -0.02);
+        addBox(this.headGroup, 0.16, 0.38, 0.26, mSkinShade,  0.84, 0.0, -0.02);
+        addBox(this.headGroup, 0.22, 0.20, 0.18, mSkinShade, 0, -0.04, 0.72);
 
-        // Ears & Nose
-        const earGeo = new THREE.DodecahedronGeometry(0.22, 0);
-        const earL = new THREE.Mesh(earGeo, mSkinRosy);
-        earL.scale.set(0.55, 1.15, 0.7);
-        earL.position.set(-0.78, -0.02, -0.02);
-        const earR = earL.clone();
-        earR.position.x = 0.78;
-        this.headGroup.add(earL, earR);
+        this.browL = addBox(this.headGroup, 0.38, 0.09, 0.08, mHair, -0.34, 0.39, 0.68);
+        this.browR = addBox(this.headGroup, 0.38, 0.09, 0.08, mHair,  0.34, 0.39, 0.68);
 
-        const noseMesh = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.30, 5), mSkinRosy);
-        noseMesh.rotation.x = Math.PI * 0.38;
-        noseMesh.position.set(0, -0.02, 0.74);
-        this.headGroup.add(noseMesh);
-
-        // Expressive Eyebrows
-        const browGeo = new THREE.BoxGeometry(0.38, 0.085, 0.09);
-        this.browL = new THREE.Mesh(browGeo, mHair);
-        this.browL.position.set(-0.33, 0.38, 0.68);
-        this.browL.rotation.z = 0.08;
-        this.browR = new THREE.Mesh(browGeo, mHair);
-        this.browR.position.set(0.33, 0.38, 0.68);
-        this.browR.rotation.z = -0.08;
-        this.headGroup.add(this.browL, this.browR);
-
-        // Eyes with Blink & Shine
-        const crearOjo = (x) => {
+        const crearOjoVoxel = (cx) => {
           const g = new THREE.Group();
-          g.position.set(x, 0.14, 0.63);
-          const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), mEyeWhite);
-          sclera.scale.set(1, 1.05, 0.6);
-          const iris = new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), mIris);
-          iris.position.set(0, 0, 0.055);
-          iris.scale.set(1, 1, 0.5);
-          const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), mPupil);
-          pupil.position.set(0, 0, 0.085);
-          const shine = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), mEyeWhite);
-          shine.position.set(0.038, 0.042, 0.11);
-          g.add(sclera, iris, pupil, shine);
+          g.position.set(cx, 0.14, 0.67);
+          addBox(g, 0.30, 0.22, 0.04, mEyeWhite, 0, 0, 0);
+          addBox(g, 0.16, 0.18, 0.05, mIris, 0.01, -0.01, 0.01);
+          addBox(g, 0.09, 0.11, 0.06, mPupil, 0.01, -0.01, 0.015);
+          addBox(g, 0.045, 0.045, 0.065, mEyeWhite, 0.045, 0.04, 0.02);
           this.headGroup.add(g);
           return g;
         };
-        this.eyeL = crearOjo(-0.31);
-        this.eyeR = crearOjo(0.31);
+        this.eyeL = crearOjoVoxel(-0.33);
+        this.eyeR = crearOjoVoxel(0.33);
 
-        // Iconic Rectangular Glasses
+        // 4. GAFAS NEGRAS RECTANGULARES DE MARCO GRUESO VOXEL
         this.glasses = new THREE.Group();
-        this.glasses.position.set(0, 0.13, 0.74);
+        this.glasses.position.set(0, 0.14, 0.74);
         this.headGroup.add(this.glasses);
-        const crearMarcoGafa = (cx) => {
+
+        const crearMarcoGafaVoxel = (cx) => {
           const fg = new THREE.Group();
           fg.position.set(cx, 0, 0);
-          const w = 0.54, h = 0.38, th = 0.055, d = 0.06;
-          const top = new THREE.Mesh(new THREE.BoxGeometry(w, th, d), mGlasses); top.position.y = h / 2;
-          const bot = new THREE.Mesh(new THREE.BoxGeometry(w, th, d), mGlasses); bot.position.y = -h / 2;
-          const lft = new THREE.Mesh(new THREE.BoxGeometry(th, h, d), mGlasses); lft.position.x = -w / 2 + th / 2;
-          const rgt = new THREE.Mesh(new THREE.BoxGeometry(th, h, d), mGlasses); rgt.position.x = w / 2 - th / 2;
-          const lens = new THREE.Mesh(new THREE.PlaneGeometry(w - th, h - th), mLens);
-          fg.add(top, bot, lft, rgt, lens);
+          const w = 0.58, h = 0.38, t = 0.065, d = 0.07;
+          addBox(fg, w, t, d, mGlasses, 0, h / 2, 0);
+          addBox(fg, w, t, d, mGlasses, 0, -h / 2, 0);
+          addBox(fg, t, h, d, mGlasses, -w / 2 + t / 2, 0, 0);
+          addBox(fg, t, h, d, mGlasses,  w / 2 - t / 2, 0, 0);
+          const lens = new THREE.Mesh(new THREE.PlaneGeometry(w - t, h - t), mLens);
+          fg.add(lens);
           return fg;
         };
-        const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.055, 0.06), mGlasses);
-        bridge.position.set(0, 0.08, 0);
-        this.glasses.add(crearMarcoGafa(-0.33), crearMarcoGafa(0.33), bridge);
+        this.glasses.add(crearMarcoGafaVoxel(-0.34));
+        this.glasses.add(crearMarcoGafaVoxel(0.34));
+        addBox(this.glasses, 0.16, 0.065, 0.07, mGlasses, 0, 0.06, 0);
+        addBox(this.glasses, 0.06, 0.065, 0.72, mGlasses, -0.64, 0.05, -0.34);
+        addBox(this.glasses, 0.06, 0.065, 0.72, mGlasses,  0.64, 0.05, -0.34);
 
-        // Hair (Clear Forehead)
+        // 5. CABELLO POMPADOUR VOXEL ESCALONADO (FRENTE DESPEJADA)
         const hairG = new THREE.Group();
         this.headGroup.add(hairG);
-        const topCap = new THREE.Mesh(new THREE.DodecahedronGeometry(0.76, 1), mHair);
-        topCap.scale.set(1.05, 0.64, 0.86);
-        topCap.position.set(0, 0.62, -0.16);
-        hairG.add(topCap);
-        [
-          { x: -0.32, y: 0.90, z: 0.16, sx: 0.44, sy: 0.30, sz: 0.44, rz: 0.28 },
-          { x: -0.02, y: 0.96, z: 0.18, sx: 0.48, sy: 0.32, sz: 0.46, rz: 0.15 },
-          { x: 0.28,  y: 0.86, z: 0.14, sx: 0.40, sy: 0.26, sz: 0.42, rz: -0.14 },
-          { x: -0.50, y: 0.78, z: 0.08, sx: 0.34, sy: 0.26, sz: 0.38, rz: 0.42 },
-          { x: 0.50,  y: 0.72, z: 0.06, sx: 0.30, sy: 0.22, sz: 0.36, rz: -0.35 },
-          { x: -0.68, y: 0.25, z: -0.04, sx: 0.18, sy: 0.52, sz: 0.48, rz: 0.08 },
-          { x: 0.68,  y: 0.25, z: -0.04, sx: 0.18, sy: 0.52, sz: 0.48, rz: -0.08 }
-        ].forEach((m) => {
-          const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6, 0), mHair);
-          mesh.scale.set(m.sx, m.sy, m.sz);
-          mesh.position.set(m.x, m.y, m.z);
-          mesh.rotation.z = m.rz;
-          hairG.add(mesh);
-        });
+        addBox(hairG, 1.62, 0.24, 1.42, mHair, 0, 0.78, -0.02);
+        addBox(hairG, 1.46, 0.18, 1.24, mHairLight, 0, 0.94, 0.02);
+        addBox(hairG, 1.18, 0.14, 0.96, mHair, 0.04, 1.06, 0.06);
+        addBox(hairG, 0.42, 0.16, 0.24, mHairLight, -0.28, 0.86, 0.62);
+        addBox(hairG, 0.46, 0.20, 0.26, mHair,       0.06, 0.90, 0.64);
+        addBox(hairG, 0.38, 0.14, 0.22, mHairLight,  0.42, 0.84, 0.60);
+        addBox(hairG, 0.12, 0.72, 1.28, mHair, -0.79, 0.36, -0.04);
+        addBox(hairG, 0.12, 0.72, 1.28, mHair,  0.79, 0.36, -0.04);
+        addBox(hairG, 1.58, 0.95, 0.14, mHair,  0,    0.26, -0.66);
 
-        // Low-Relief Faceted Beard (Mustache + Goatee + Jawline + Sideburns)
+        // 6. BARBA Y BIGOTE VOXEL DE BAJO RELIEVE + BOCA ANIMADA LIP-SYNC
         const beardG = new THREE.Group();
         this.headGroup.add(beardG);
-        const mustacheL = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.09, 0.08), mBeard);
-        mustacheL.position.set(-0.15, -0.20, 0.68);
-        mustacheL.rotation.z = 0.12;
-        const mustacheR = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.09, 0.08), mBeard);
-        mustacheR.position.set(0.15, -0.20, 0.68);
-        mustacheR.rotation.z = -0.12;
-        const chinBeard = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.26, 0.14), mBeard);
-        chinBeard.position.set(0, -0.56, 0.60);
-        const jawL = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.22, 0.55), mBeard);
-        jawL.position.set(-0.48, -0.52, 0.36);
-        const jawR = jawL.clone(); jawR.position.x = 0.48;
-        beardG.add(mustacheL, mustacheR, chinBeard, jawL, jawR);
+        const zFront = 0.685;
+        const hRel = 0.055;
+        addBox(beardG, 0.84, 0.11, hRel, mBeard, 0, -0.20, zFront);
+        addBox(beardG, 0.96, 0.08, hRel, mBeard, 0, -0.26, zFront);
+        addBox(beardG, 0.16, 0.26, hRel, mBeard, -0.40, -0.38, zFront);
+        addBox(beardG, 0.16, 0.26, hRel, mBeard,  0.40, -0.38, zFront);
+        addBox(beardG, 1.58, 0.28, 1.38, mBeard, 0, -0.62, 0.01);
+        addBox(beardG, 1.24, 0.12, hRel, mBeard, 0, -0.78, zFront - 0.02);
+        addBox(beardG, 0.26, 0.24, hRel, mBeard, -0.65, -0.40, zFront);
+        addBox(beardG, 0.26, 0.24, hRel, mBeard,  0.65, -0.40, zFront);
+        addBox(beardG, 0.14, 0.42, 0.36, mBeard, -0.75, -0.10, 0.50);
+        addBox(beardG, 0.14, 0.42, 0.36, mBeard,  0.75, -0.10, 0.50);
 
-        // Articulated Lip-Sync Mouth (Cavity + Upper Teeth + Tongue)
         this.mouthGroup = new THREE.Group();
-        this.mouthGroup.position.set(0, -0.35, 0.67);
+        this.mouthGroup.position.set(0, -0.37, 0.68);
         this.headGroup.add(this.mouthGroup);
 
-        this.mouthCav = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.18, 0.12), mMouthIn);
-        const teethTop = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.055, 0.13), mWhite);
-        teethTop.position.set(0, 0.055, 0.01);
-        const tongue = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.045, 0.125), mTongue);
-        tongue.position.set(0, -0.05, 0.01);
-        this.mouthGroup.add(this.mouthCav, teethTop, tongue);
+        this.mouthCav = addBox(this.mouthGroup, 0.48, 0.18, 0.06, mMouthIn, 0, 0, 0);
+        addBox(this.mouthGroup, 0.42, 0.065, 0.07, mWhite, 0, 0.055, 0.005);
+        addBox(this.mouthGroup, 0.26, 0.05, 0.068, mTongue, 0, -0.05, 0.005);
       }
 
       // Compute mouth aperture synced to active speech syllables
       _getMouthAperture(t) {
         const syllableWave = Math.max(0, Math.sin(t * 19.5) * 0.62 + Math.sin(t * 12.1) * 0.48);
-        // Pause mouth briefly at phrase boundaries
         const isPause = (Math.abs(t - 4.0) < 0.18 || Math.abs(t - 9.6) < 0.18 || Math.abs(t - 15.8) < 0.18 || Math.abs(t - 21.4) < 0.18);
         if (isPause) return 0.14;
         return 0.18 + syllableWave * 1.05;
@@ -461,49 +475,66 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
         // Multi-cam framing per shot (Plano 1 Abierto -> Plano 1 Medio -> Plano 3 Primer Plano)
         if (t < 4.2) {
-          this.camera.position.z = 5.55 - (t / 4.2) * 0.18;
-          this.camera.position.y = 0.46;
+          this.camera.position.z = 6.35 - (t / 4.2) * 0.18;
+          this.camera.position.y = 0.56;
         } else if (t >= 15.8 && t < 21.4) {
           const p = (t - 15.8) / (21.4 - 15.8);
-          this.camera.position.z = 5.05 - p * 0.15;
-          this.camera.position.y = 0.52;
+          this.camera.position.z = 5.85 - p * 0.15;
+          this.camera.position.y = 0.58;
         } else if (t >= 21.4) {
           const p = (t - 21.4) / (26.0 - 21.4);
-          this.camera.position.z = 4.68 - p * 0.12;
-          this.camera.position.y = 0.58;
+          this.camera.position.z = 5.45 - p * 0.12;
+          this.camera.position.y = 0.62;
         }
 
         const boca = this._getMouthAperture(t);
+        const theta = t * Math.PI * 1.55;
+        // Gesto de señalar con el dedo índice en los momentos de énfasis (1.2s-3.6s, 16.5s-19.8s, 22.0s-24.8s)
+        const isPointing = (t >= 1.1 && t <= 3.7) || (t >= 16.4 && t <= 19.8) || (t >= 22.0 && t <= 25.0);
 
         // Breathing & Natural Torso Sway
-        this.root.position.y = Math.sin(t * 2.4) * 0.038;
-        this.root.rotation.y = -0.10 + Math.sin(t * 1.35) * 0.13;
+        this.root.position.y = Math.sin(theta * 2) * 0.032;
+        this.root.rotation.y = isPointing
+          ? (-0.14 + Math.sin(theta) * 0.08)
+          : (-0.08 + Math.sin(theta) * 0.11);
 
         // Expressive Head Nod synced to Mouth
-        this.headGroup.rotation.x = Math.sin(t * 3.2) * 0.045 + (boca - 0.2) * 0.085;
-        this.headGroup.rotation.y = Math.sin(t * 1.7 + 0.5) * 0.11;
-        this.headGroup.rotation.z = Math.cos(t * 2.1) * 0.04;
+        this.headGroup.rotation.x = (isPointing ? -0.05 : 0) + Math.sin(theta * 2) * 0.04 + (boca - 0.18) * 0.065;
+        this.headGroup.rotation.y = (isPointing ? 0.08 : 0) + Math.sin(theta + 0.5) * 0.10;
+        this.headGroup.rotation.z = Math.cos(theta) * 0.03;
 
-        // Eye Blink every 3.5s
-        const blinkCycle = (t + 0.4) % 3.5;
-        const blinkScale = (blinkCycle > 3.35 && blinkCycle < 3.47) ? 0.08 : 1.0;
+        // Eye Blink every 3.4s
+        const blinkMod = (t + 0.4) % 3.4;
+        const blinkScale = (blinkMod > 3.22 && blinkMod < 3.36) ? 0.08 : 1.0;
         this.eyeL.scale.y = blinkScale;
         this.eyeR.scale.y = blinkScale;
 
         // Eyebrow Lift on syllables
-        const browLift = (boca - 0.2) * 0.065;
-        this.browL.position.y = 0.38 + browLift;
-        this.browR.position.y = 0.38 + browLift;
+        const browLift = (boca - 0.18) * 0.055;
+        this.browL.position.y = 0.39 + browLift;
+        this.browR.position.y = 0.39 + browLift;
 
         // Real-Time 3D Mouth Opening & Closing (Lip-Sync)
-        this.mouthGroup.scale.y = lerp(0.32, 1.52, clamp01(boca));
-        this.mouthGroup.scale.x = lerp(1.06, 0.88, clamp01(boca * 0.6));
+        this.mouthGroup.scale.y = lerp(0.35, 1.45, clamp01(boca));
+        this.mouthGroup.scale.x = lerp(1.04, 0.90, clamp01(boca * 0.6));
 
-        // Conversational Arm Gestures
-        this.brazoIzq.pivote.rotation.x = -0.22 + Math.sin(t * 2.4) * 0.16 + boca * 0.09;
-        this.brazoIzq.pivote.rotation.z = -0.10 + Math.cos(t * 1.9) * 0.06;
-        this.brazoDer.pivote.rotation.x = -0.24 - Math.sin(t * 2.8) * 0.18 - boca * 0.09;
-        this.brazoDer.pivote.rotation.z = 0.10 + Math.sin(t * 2.1) * 0.06;
+        // Conversational Arm Gestures + Pointing Index Finger (dedoIndice)
+        this.brazoIzq.pivote.rotation.x = -0.22 + Math.sin(theta * 2) * 0.14 + (boca - 0.15) * 0.05;
+        this.brazoIzq.pivote.rotation.z = -0.10 + Math.cos(theta) * 0.05;
+        this.brazoIzq.antebrazo.rotation.x = -0.25;
+        this.brazoIzq.dedoIndice.scale.y = 0.55;
+
+        if (isPointing) {
+          this.brazoDer.pivote.rotation.x = -1.65 + Math.sin(theta * 2) * 0.08;
+          this.brazoDer.pivote.rotation.z = 0.24 + Math.cos(theta * 2) * 0.04;
+          this.brazoDer.antebrazo.rotation.x = -0.35 + Math.sin(theta * 2) * 0.06;
+          this.brazoDer.dedoIndice.scale.y = 1.45;
+        } else {
+          this.brazoDer.pivote.rotation.x = -0.24 - Math.sin(theta * 2) * 0.15 - (boca - 0.15) * 0.05;
+          this.brazoDer.pivote.rotation.z = 0.10 + Math.sin(theta) * 0.05;
+          this.brazoDer.antebrazo.rotation.x = -0.28;
+          this.brazoDer.dedoIndice.scale.y = 0.55;
+        }
 
         this.renderer.render(this.scene, this.camera);
       }
