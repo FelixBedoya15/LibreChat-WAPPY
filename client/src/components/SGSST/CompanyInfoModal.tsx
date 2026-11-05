@@ -661,8 +661,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         { id: 'sst', label: 'Información SST', icon: Shield },
         { id: 'firmas', label: 'Firmas Digitales', icon: UserCheck },
         { id: 'contacto', label: 'Contacto y Actividades', icon: MapPin },
-        { id: 'antigravity', label: 'Google Antigravity', icon: Cpu },
         { id: 'sedes', label: 'Sedes Adicionales', icon: Briefcase },
+        { id: 'antigravity', label: 'Google Antigravity', icon: Cpu },
     ];
 
     return ReactDOM.createPortal(
@@ -690,23 +690,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 Gestiona hasta {effectiveLimit} empresa(s) de forma aislada. La empresa Activa será utilizada por la IA.
                             </p>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <ExpandingButton
-                            onClick={() => setShowMcpModal(true)}
-                            icon={Cpu}
-                            label="Conectar Antigravity (MCP)"
-                            variant="orange"
-                            title="Conectar este perfil de empresa con Antigravity vía MCP"
-                        />
-                        <button 
-                            type="button"
-                            onClick={onClose} 
-                            className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all active:scale-95 shadow-2xs shrink-0 cursor-pointer"
-                            title="Cerrar"
-                        >
-                            <X size={18} />
-                        </button>
                     </div>
                 </div>
 
@@ -1294,46 +1277,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </div>
                                 </div>
 
-                                {/* Proyecto Google Antigravity Card */}
-                                <div id="company-sec-antigravity" className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-teal-500/5 to-transparent p-5 shadow-sm transition-all duration-300 hover:border-cyan-500/50">
-                                    <div className="mb-2 flex items-center justify-between">
-                                        <h3 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-                                            <Cpu className="h-4 w-4 text-cyan-500" /> Proyecto Google Antigravity (Local)
-                                        </h3>
-                                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[10.5px] font-bold tracking-wide text-cyan-600 dark:text-cyan-400">
-                                            Puente Reactivo Push
-                                        </span>
-                                    </div>
-                                    <p className="mb-3 text-xs text-text-secondary leading-relaxed">
-                                        Ruta de la carpeta del proyecto asociada a esta empresa (en tu disco local, servidor o unidad sincronizada como Google Drive). Cuando delegues requerimientos desde Tenshi o los agentes de WAPPY, Google Antigravity abrirá automáticamente este espacio de trabajo y mantendrá un hilo de chat dedicado sin mezclar empresas.
-                                    </p>
-                                    <div>
-                                        <label className={optionalLabelClass}>
-                                            <FolderGit2 className="h-3 w-3 text-cyan-500" />
-                                            Directorio o Carpeta del Proyecto (Opcional)
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                id="input-antigravityWorkspace"
-                                                name="antigravityWorkspace"
-                                                className={cn(
-                                                    inputClass,
-                                                    'font-mono text-xs border-cyan-500/30 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 pr-8'
-                                                )}
-                                                value={data.antigravityWorkspace || ''}
-                                                onChange={e => handleChange('antigravityWorkspace', e.target.value)}
-                                                placeholder="~/Documents/Proyectos/EmpresaA o G:\Mi unidad\EmpresaA"
-                                            />
-                                            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-500/60" title="Terminal / Carpeta del Proyecto">
-                                                <Terminal className="h-3.5 w-3.5" />
-                                            </div>
-                                        </div>
-                                        <p className="mt-1.5 text-[10.5px] text-text-secondary">
-                                            💡 Ejemplos: <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">~/Documents/Proyectos/EmpresaA</code> · <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">G:\Mi unidad\SST\EmpresaA</code> · <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">C:\Proyectos\EmpresaA</code>
-                                        </p>
-                                    </div>
-                                </div>
-
                                 {/* Sedes Adicionales Card */}
                                 <div id="company-sec-sedes" className="p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
                                     <div className="mb-4 flex items-center justify-between">
@@ -1410,6 +1353,78 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                             ))}
                                         </div>
                                     )}
+                                </div>
+
+                                {/* Proyecto Google Antigravity Card (Última sección después de Sedes Adicionales) */}
+                                <div id="company-sec-antigravity" className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-teal-500/5 to-transparent p-5 shadow-sm transition-all duration-300 hover:border-cyan-500/50">
+                                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="flex items-center gap-2 text-base font-semibold text-text-primary">
+                                                <Cpu className="h-4 w-4 text-cyan-500" /> 🏢 Proyecto Google Antigravity
+                                            </h3>
+                                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[10.5px] font-bold tracking-wide text-cyan-600 dark:text-cyan-400">
+                                                Local · Google Drive · GitHub
+                                            </span>
+                                        </div>
+                                        <ExpandingButton
+                                            onClick={() => setShowMcpModal(true)}
+                                            icon={Cpu}
+                                            label="Conectar Antigravity (MCP)"
+                                            variant="orange"
+                                            size="sm"
+                                            title="Conectar este perfil de empresa con Google Antigravity"
+                                        />
+                                    </div>
+                                    <p className="mb-3 text-xs text-text-secondary leading-relaxed">
+                                        Vincula esta empresa con su proyecto en <strong>Google Antigravity</strong> (sin importar si trabajas con agentes remotos en la nube o en local). Puedes ingresar un <strong>repositorio de GitHub</strong>, un <strong>enlace o carpeta de Google Drive</strong> o la <strong>ruta de una carpeta en tu computador/servidor</strong>. Al enviar solicitudes desde WAPPY, se abrirá el proyecto indicado y se mantendrá un hilo de conversación exclusivo para esta empresa.
+                                    </p>
+                                    <div>
+                                        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                                            <label className={cn(optionalLabelClass, 'mb-0')}>
+                                                <FolderGit2 className="h-3.5 w-3.5 text-cyan-500" />
+                                                Ruta Local, Enlace de Google Drive o Repositorio GitHub (Opcional)
+                                            </label>
+                                            {Boolean(data.antigravityWorkspace?.trim()) && (
+                                                <span className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-700 dark:text-cyan-300">
+                                                    {/github\.com|^[\w.-]+\/[\w.-]+$/i.test(data.antigravityWorkspace.trim())
+                                                        ? '🐙 Repositorio GitHub (Agente Remoto / Local)'
+                                                        : /drive\.google\.com|docs\.google\.com|GoogleDrive|Mi unidad|My Drive/i.test(data.antigravityWorkspace.trim())
+                                                        ? '📁 Proyecto en Google Drive'
+                                                        : '💻 Carpeta Local / Servidor'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                id="input-antigravityWorkspace"
+                                                name="antigravityWorkspace"
+                                                className={cn(
+                                                    inputClass,
+                                                    'font-mono text-xs border-cyan-500/30 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 pr-8'
+                                                )}
+                                                value={data.antigravityWorkspace || ''}
+                                                onChange={e => handleChange('antigravityWorkspace', e.target.value)}
+                                                placeholder="https://github.com/org/repo, https://drive.google.com/drive/folders/... o ~/Proyectos/EmpresaA"
+                                            />
+                                            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-500/60" title="Proyecto Google Antigravity (GitHub / Google Drive / Carpeta)">
+                                                <Terminal className="h-3.5 w-3.5" />
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3 text-[10.5px] text-text-secondary">
+                                            <div className="rounded-lg border border-border-light bg-surface-secondary/40 px-2.5 py-1.5">
+                                                <span className="font-semibold text-text-primary block">🐙 GitHub (Remoto / Cloud)</span>
+                                                <code className="font-mono text-[10px] text-cyan-600 dark:text-cyan-400 break-all">https://github.com/empresa/sst</code>
+                                            </div>
+                                            <div className="rounded-lg border border-border-light bg-surface-secondary/40 px-2.5 py-1.5">
+                                                <span className="font-semibold text-text-primary block">📁 Google Drive (Cloud / Sync)</span>
+                                                <code className="font-mono text-[10px] text-cyan-600 dark:text-cyan-400 break-all">https://drive.google.com/drive/folders/...</code>
+                                            </div>
+                                            <div className="rounded-lg border border-border-light bg-surface-secondary/40 px-2.5 py-1.5">
+                                                <span className="font-semibold text-text-primary block">💻 Carpeta Local / Unidad</span>
+                                                <code className="font-mono text-[10px] text-cyan-600 dark:text-cyan-400 break-all">~/Documents/Proyectos/EmpresaA</code>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                             </div>

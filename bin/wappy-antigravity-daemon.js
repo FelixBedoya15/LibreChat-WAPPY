@@ -1780,27 +1780,135 @@ function findProjectByCompanyMatch(companyName, companyNit) {
 }
 
 /**
+ * Analiza una referencia de proyecto configurada en la empresa de WAPPY (`antigravityWorkspace`):
+ * - Repositorio GitHub: `https://github.com/owner/repo`, `git@github.com:owner/repo.git` o `owner/repo`
+ * - Enlace de Google Drive: `https://drive.google.com/drive/folders/ID` o `https://drive.google.com/...`
+ * - Ruta de carpeta local o unidad sincronizada: `~/Documents/...`, `/Users/...`, `G:\Mi unidad\...`, `C:\...`
+ */
+function parseCompanyProjectReference(rawRef) {
+  const clean = String(rawRef || '').trim();
+  if (!clean) return null;
+
+  // 1. Detectar repositorio de GitHub (URL completa, SSH o formato corto owner/repo)
+  const ghUrlMatch = clean.match(/(?:https?:\/\/github\.com\/|git@github\.com:)([\w.-]+)\/([\w.-]+?)(?:\.git|\/.*)?$/i);
+  const ghSlugMatch = !ghUrlMatch && !clean.includes('\\') && !clean.startsWith('/') && !clean.startsWith('~') && !clean.startsWith('.')
+    ? clean.match(/^([\w.-]+)\/([\w.-]+)$/)
+    : null;
+  const ghMatch = ghUrlMatch || ghSlugMatch;
+  if (ghMatch) {
+    const owner = ghMatch[1];
+    const repo = ghMatch[2].replace(/\.git$/i, '');
+    const slug = `${owner}/${repo}`;
+    const url = `https://github.com/${slug}`;
+    return { type: 'github', raw: clean, owner, repo, slug, url };
+  }
+
+  // 2. Detectar enlace de Google Drive
+  if (/^https?:\/\/(?:drive|docs)\.google\.com\//i.test(clean)) {
+    const folderMatch = clean.match(/\/folders\/([a-zA-Z0-9_-]+)/) || clean.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    return {
+      type: 'gdrive_url',
+      raw: clean,
+      url: clean,
+      folderId: folderMatch ? folderMatch[1] : null,
+    };
+  }
+
+  // 3. Ruta de sistema de archivos (local, servidor o unidad montada de Google Drive / OneDrive)
+  let resolvedPath = clean;
+  if (resolvedPath.startsWith('~')) {
+    resolvedPath = path.join(HOME_DIR, resolvedPath.slice(1));
+  }
+  resolvedPath = path.resolve(resolvedPath);
+  return {
+    type: 'path',
+    raw: clean,
+    path: resolvedPath,
+  };
+}
+
+/**
+ * Busca si un repositorio de GitHub (`owner/repo` o `repo`) está clonado localmente o registrado en `~/.gemini/config/projects/*.json`.
+ */
+function findLocalFolderForGitHubRepo(owner, repo) {
+  const repoLower = String(repo || '').toLowerCase();
+  const slugLower = `${String(owner || '').toLowerCase()}/${repoLower}`;
+
+  // 1. Buscar en ~/.gemini/config/projects/*.json
+  const projectsDir = path.join(HOME_DIR, '.gemini', 'config', 'projects');
+  try {
+    if (fs.existsSync(projectsDir)) {
+      const files = fs.readdirSync(projectsDir).filter((f) => f.endsWith('.json'));
+      for (const f of files) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(projectsDir, f), 'utf8'));
+          const folders = Array.isArray(data?.folders) ? data.folders : [];
+          for (const folder of folders) {
+            if (!folder || !fs.existsSync(folder)) continue;
+            const baseName = path.basename(folder).toLowerCase();
+            if (baseName === repoLower) {
+              return { cwd: folder, projectId: data.id || path.basename(f, '.json') };
+            }
+            const gitConfigPath = path.join(folder, '.git', 'config');
+            if (fs.existsSync(gitConfigPath)) {
+              const gitCfg = fs.readFileSync(gitConfigPath, 'utf8').toLowerCase();
+              if (gitCfg.includes(slugLower) || gitCfg.includes(`/${repoLower}.git`)) {
+                return { cwd: folder, projectId: data.id || path.basename(f, '.json') };
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+
+  // 2. Buscar en carpetas estándar de GitHub del usuario
+  const commonDirs = [
+    path.join(HOME_DIR, 'Documents', 'GitHub', repo),
+    path.join(HOME_DIR, 'GitHub', repo),
+    path.join(HOME_DIR, 'Projects', repo),
+    path.join(HOME_DIR, 'Proyectos', repo),
+    path.join(HOME_DIR, repo),
+  ];
+  for (const dir of commonDirs) {
+    if (fs.existsSync(dir)) {
+      const pid = findProjectIdForFolder(dir);
+      return { cwd: dir, projectId: pid || 'outside-of-project' };
+    }
+  }
+  return null;
+}
+
+/**
  * Resuelve el directorio de trabajo (workspace) y el ANTIGRAVITY_PROJECT_ID activo para `agentapi new-conversation`.
  * Soporta resolución inteligente por empresa cuando un usuario tiene múltiples empresas en WAPPY
- * y múltiples proyectos locales en Google Antigravity.
+ * y múltiples proyectos locales, en Google Drive o en GitHub (agentes remotos/locales de Google Antigravity).
  */
 function resolveWorkspaceTarget(orden = null) {
   if (orden && typeof orden === 'object') {
     // -------------------------------------------------------------------------
     // Prioridad 1: companyWorkspace explícito en la base de datos de WAPPY
+    // (Soporta Carpeta Local, Repositorio GitHub o Carpeta Google Drive)
     // -------------------------------------------------------------------------
-    let rawCompanyWs = String(orden.companyWorkspace || orden.workspace || '').trim();
-    if (rawCompanyWs) {
-      if (rawCompanyWs.startsWith('~')) {
-        rawCompanyWs = path.join(HOME_DIR, rawCompanyWs.slice(1));
-      }
-      rawCompanyWs = path.resolve(rawCompanyWs);
-      if (fs.existsSync(rawCompanyWs)) {
-        const pid = findProjectIdForFolder(rawCompanyWs);
+    const rawCompanyWs = String(orden.companyWorkspace || orden.workspace || '').trim();
+    const parsedRef = parseCompanyProjectReference(rawCompanyWs);
+    if (parsedRef) {
+      if (parsedRef.type === 'path' && fs.existsSync(parsedRef.path)) {
+        const pid = findProjectIdForFolder(parsedRef.path);
         return {
-          cwd: rawCompanyWs,
+          cwd: parsedRef.path,
           projectId: pid || 'outside-of-project',
+          projectRef: parsedRef,
         };
+      }
+      if (parsedRef.type === 'github') {
+        const localRepo = findLocalFolderForGitHubRepo(parsedRef.owner, parsedRef.repo);
+        if (localRepo) {
+          return {
+            ...localRepo,
+            projectRef: parsedRef,
+          };
+        }
       }
     }
 
@@ -2382,10 +2490,23 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     ];
   }
 
+  const bin = resolveAgentApiBinary();
+  const targetCompanyId = String(orden?.companyId || '').trim();
+  const { cwd: workspaceCwd, projectId } = resolveWorkspaceTarget(orden);
+  const parsedProjectRef = parseCompanyProjectReference(orden?.companyWorkspace || orden?.workspace || '');
+  const companyProjectContextLine = parsedProjectRef
+    ? parsedProjectRef.type === 'github'
+      ? `Proyecto Vinculado de la Empresa (Repositorio GitHub — Agente Remoto / Local): ${parsedProjectRef.url} (${parsedProjectRef.slug})${workspaceCwd ? ` | Clon local detectado: ${workspaceCwd}` : ''}`
+      : parsedProjectRef.type === 'gdrive_url'
+      ? `Proyecto Vinculado de la Empresa (Carpeta Google Drive): ${parsedProjectRef.url}${parsedProjectRef.folderId ? ` (Folder ID: ${parsedProjectRef.folderId})` : ''}`
+      : `Proyecto Vinculado de la Empresa (Carpeta de Trabajo): ${parsedProjectRef.path}`
+    : '';
+
   const prompt = [
     `⚡ [ORDEN EN TIEMPO REAL DE TENSHI — PUENTE REACTIVO PUSH WAPPY]`,
     `ID de Orden: ${ordenId}`,
     `Empresa: ${empresa}${orden.companyNit ? ` (NIT: ${orden.companyNit})` : ''}`,
+    companyProjectContextLine,
     `Título: ${titulo}`,
     `Tipo de Solicitud: ${
       isOriginalFileCopy
@@ -2412,12 +2533,11 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   // Garantizar que Antigravity esté abierto y su language_server esté escuchando en vivo antes de despachar
   ensureLiveAntigravityRunning();
 
-  const bin = resolveAgentApiBinary();
-  const targetCompanyId = String(orden?.companyId || '').trim();
-  const { cwd: workspaceCwd, projectId } = resolveWorkspaceTarget(orden);
   const spawnEnv = {
     ...cleanAntigravitySessionEnv(process.env),
     ...(projectId ? { ANTIGRAVITY_PROJECT_ID: projectId } : {}),
+    ...(parsedProjectRef?.type === 'github' ? { ANTIGRAVITY_GITHUB_REPO: parsedProjectRef.slug, ANTIGRAVITY_GITHUB_URL: parsedProjectRef.url } : {}),
+    ...(parsedProjectRef?.type === 'gdrive_url' && parsedProjectRef.folderId ? { ANTIGRAVITY_GDRIVE_FOLDER_ID: parsedProjectRef.folderId } : {}),
   };
 
   // Detectar si es el hilo auxiliar silencioso de terminal
