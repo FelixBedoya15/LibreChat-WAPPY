@@ -1054,6 +1054,7 @@ function watchDirectTrajectoryCompletion({
 async function dispatchViaDirectLanguageServer({
   prompt,
   workspaceCwd,
+  projectId,
   targetConvoId,
   ordenId,
   rawFormato,
@@ -1121,6 +1122,7 @@ async function dispatchViaDirectLanguageServer({
           {
             source: 'CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT',
             workspaceUris: [workspaceUri],
+            ...(projectId && projectId !== 'outside-of-project' ? { projectId } : {}),
           },
           6000
         );
@@ -1258,14 +1260,28 @@ function runAgentApi(bin, subArgs, opts = {}) {
       } else {
         delete mergedEnv.ANTIGRAVITY_PROJECT_ID;
       }
+      // En macOS, si el proceso daemon corre bajo launchd y el cwd está en CloudStorage (Google Drive) o Desktop,
+      // ejecutar el binario CLI con cwd=HOME_DIR cuando ya tenemos ANTIGRAVITY_PROJECT_ID evita bloqueos TCC de FileProvider
+      // y el language_server vincula automáticamente el proyecto y su workspaceUris desde ANTIGRAVITY_PROJECT_ID.
+      const safeExecOpts = {
+        windowsHide: true,
+        ...execOpts,
+        timeout: Math.min(Number(execOpts.timeout) || 7000, 8000),
+        env: mergedEnv,
+        ...(isBatch ? { shell: true } : {}),
+      };
+      if (
+        process.platform === 'darwin' &&
+        mergedEnv.ANTIGRAVITY_PROJECT_ID &&
+        mergedEnv.ANTIGRAVITY_PROJECT_ID !== 'outside-of-project' &&
+        safeExecOpts.cwd &&
+        /\/(Library\/CloudStorage|Desktop)\//i.test(String(safeExecOpts.cwd))
+      ) {
+        safeExecOpts.cwd = HOME_DIR;
+      }
       let out;
       try {
-        out = execFileSync(bin, fullArgs, {
-          windowsHide: true,
-          ...execOpts,
-          env: mergedEnv,
-          ...(isBatch ? { shell: true } : {}),
-        });
+        out = execFileSync(bin, fullArgs, safeExecOpts);
       } catch (innerErr) {
         const innerDetail = [
           innerErr?.stderr ? String(innerErr.stderr).trim() : '',
@@ -1344,7 +1360,7 @@ function getTenshiThreadFilePath(companyId = '') {
  *   con `uiVisible === true`, menos de 2 horas de inactividad y su base `.db` sigue existiendo, reutiliza ese chat.
  * - De lo contrario devuelve `null` para crear el primer chat limpio visible en la UI (`new-conversation`).
  */
-function findTargetConversationId(preferredId, forceNewChat = false, companyId = '') {
+function findTargetConversationId(preferredId, forceNewChat = false, companyId = '', expectedWorkspaceCwd = '') {
   if (forceNewChat) {
     return null;
   }
@@ -1364,8 +1380,17 @@ function findTargetConversationId(preferredId, forceNewChat = false, companyId =
     if (fs.existsSync(threadFile)) {
       const raw = JSON.parse(fs.readFileSync(threadFile, 'utf8'));
       const convoId = String(raw?.conversationId || '').trim();
+      const savedCwd = String(raw?.workspaceCwd || '').trim();
       const lastUsedAt = Number(raw?.lastUsedAt || raw?.createdAt || 0);
       const isUiVisible = raw?.uiVisible === true;
+      // Si el proyecto/carpeta de la empresa cambió respecto al hilo anterior, abrir un hilo nuevo en el proyecto correcto
+      if (
+        expectedWorkspaceCwd &&
+        savedCwd &&
+        normalizeMacUserPath(savedCwd) !== normalizeMacUserPath(expectedWorkspaceCwd)
+      ) {
+        return null;
+      }
       if (
         isUiVisible &&
         /^[0-9a-fA-F-]{36}$/.test(convoId) &&
@@ -1719,9 +1744,15 @@ function findProjectByCompanyMatch(companyName, companyNit) {
     const projectsDir = path.join(CONFIG_DIR, 'projects');
     if (!fs.existsSync(projectsDir)) return null;
 
+    const rawCompanyLower = String(companyName || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const normCompanyKey = normalizeCompanyKey(companyName);
     const nameKeys = extractCompanyKeywords(companyName);
     const nitClean = companyNit ? String(companyNit).replace(/[^0-9]/g, '') : '';
-    if (nameKeys.length === 0 && !nitClean) return null;
+    if (!rawCompanyLower && nameKeys.length === 0 && !nitClean) return null;
 
     const files = fs.readdirSync(projectsDir).filter((f) => f.endsWith('.json') && f !== 'outside-of-project.json');
     let bestMatch = null;
@@ -1731,7 +1762,11 @@ function findProjectByCompanyMatch(companyName, companyNit) {
       const fullPath = path.join(projectsDir, file);
       try {
         const raw = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
-        const projName = String(raw?.name || '').toLowerCase();
+        const projName = String(raw?.name || '')
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
         const resources = raw?.projectResources?.resources || [];
 
         for (const r of resources) {
@@ -1741,18 +1776,39 @@ function findProjectByCompanyMatch(companyName, companyNit) {
             if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(folderPath)) {
               folderPath = folderPath.slice(1);
             }
-            if (fs.existsSync(folderPath)) {
-              const folderBasename = path.basename(folderPath).toLowerCase();
+            let folderExists = true;
+            if (!/\/(Library\/CloudStorage|Desktop)\//i.test(folderPath)) {
+              try {
+                folderExists = fs.existsSync(folderPath);
+              } catch (_) {
+                folderExists = true;
+              }
+            }
+            if (folderExists) {
+              const folderBasename = path
+                .basename(folderPath)
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
               const normFolder = normalizeCompanyKey(folderBasename);
               const normProjName = normalizeCompanyKey(projName);
               let score = 0;
 
-              // Coincidencia por NIT en la ruta o nombre
+              // 1. Coincidencia EXACTA por nombre completo del proyecto o de la carpeta (ej. "wappy ltda" === "wappy ltda")
+              if (rawCompanyLower && projName === rawCompanyLower) score += 100;
+              if (rawCompanyLower && folderBasename === rawCompanyLower) score += 100;
+
+              // 2. Coincidencia EXACTA normalizada sin sufijo societario (ej. "wappy" === "wappy", frente a "librechatwappy")
+              if (normCompanyKey && normProjName === normCompanyKey) score += 40;
+              if (normCompanyKey && normFolder === normCompanyKey) score += 40;
+
+              // 3. Coincidencia por NIT en la ruta o nombre
               if (nitClean && nitClean.length >= 5 && (folderPath.includes(nitClean) || projName.includes(nitClean))) {
-                score += 10;
+                score += 15;
               }
 
-              // Coincidencia por palabras clave de la razón social
+              // 4. Coincidencia parcial por palabras clave de la razón social
               for (const kw of nameKeys) {
                 if (normFolder.includes(kw)) score += 3;
                 if (normProjName.includes(kw)) score += 3;
@@ -1838,11 +1894,20 @@ function findLocalFolderForGitHubRepo(owner, repo) {
   const projectsDir = path.join(HOME_DIR, '.gemini', 'config', 'projects');
   try {
     if (fs.existsSync(projectsDir)) {
-      const files = fs.readdirSync(projectsDir).filter((f) => f.endsWith('.json'));
+      const files = fs.readdirSync(projectsDir).filter((f) => f.endsWith('.json') && f !== 'outside-of-project.json');
       for (const f of files) {
         try {
           const data = JSON.parse(fs.readFileSync(path.join(projectsDir, f), 'utf8'));
-          const folders = Array.isArray(data?.folders) ? data.folders : [];
+          const resourceFolders = (Array.isArray(data?.projectResources?.resources) ? data.projectResources.resources : [])
+            .map((r) => {
+              const uri = r?.gitFolder?.folderUri || r?.folder?.folderUri || r?.folderUri || '';
+              if (!uri.startsWith('file://')) return '';
+              let p = decodeURIComponent(uri.replace(/^file:\/\//, ''));
+              if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(p)) p = p.slice(1);
+              return p;
+            })
+            .filter(Boolean);
+          const folders = [...resourceFolders, ...(Array.isArray(data?.folders) ? data.folders : [])];
           for (const folder of folders) {
             if (!folder || !fs.existsSync(folder)) continue;
             const baseName = path.basename(folder).toLowerCase();
@@ -1888,7 +1953,7 @@ function resolveWorkspaceTarget(orden = null) {
   if (orden && typeof orden === 'object') {
     // -------------------------------------------------------------------------
     // Prioridad 1: companyWorkspace explícito en la base de datos de WAPPY
-    // (Soporta Carpeta Local, Repositorio GitHub o Carpeta Google Drive)
+    // (Soporta Carpeta Local, Repositorio GitHub, Carpeta Google Drive o Nombre del Proyecto)
     // -------------------------------------------------------------------------
     const rawCompanyWs = String(orden.companyWorkspace || orden.workspace || '').trim();
     const parsedRef = parseCompanyProjectReference(rawCompanyWs);
@@ -1910,11 +1975,28 @@ function resolveWorkspaceTarget(orden = null) {
           };
         }
       }
+      // Si el usuario escribió el nombre del proyecto de Antigravity (ej. "WAPPY LTDA"), buscarlo en projects/*.json
+      const namedProj = findProjectByCompanyMatch(rawCompanyWs, '');
+      if (namedProj) {
+        return {
+          ...namedProj,
+          projectRef: parsedRef,
+        };
+      }
     }
 
     // -------------------------------------------------------------------------
-    // Prioridad 2: Buscar en ~/.gemini/antigravity/wappy-company-workspaces.json
-    // Permite mapear companyId, NIT o nombre de empresa a una ruta local
+    // Prioridad 2: Búsqueda en proyectos nativos de Google Antigravity (~/.gemini/config/projects/*.json)
+    // Si el usuario creó un proyecto en Antigravity con el nombre o NIT de la empresa, priorizarlo siempre
+    // -------------------------------------------------------------------------
+    const smartMatched = findProjectByCompanyMatch(orden.companyName || orden.empresa, orden.companyNit);
+    if (smartMatched) {
+      return smartMatched;
+    }
+
+    // -------------------------------------------------------------------------
+    // Prioridad 3: Buscar en ~/.gemini/antigravity/wappy-company-workspaces.json
+    // Permite mapear manualmente companyId, NIT o nombre de empresa a una ruta local
     // -------------------------------------------------------------------------
     const mappings = loadCompanyWorkspacesMap();
     const lookupCandidates = [
@@ -1943,14 +2025,6 @@ function resolveWorkspaceTarget(orden = null) {
           };
         }
       }
-    }
-
-    // -------------------------------------------------------------------------
-    // Prioridad 3: Búsqueda difusa (smart match) contra ~/.gemini/config/projects/*.json
-    // -------------------------------------------------------------------------
-    const smartMatched = findProjectByCompanyMatch(orden.companyName || orden.empresa, orden.companyNit);
-    if (smartMatched) {
-      return smartMatched;
     }
   }
 
@@ -2031,7 +2105,15 @@ function resolveWorkspaceTarget(orden = null) {
               if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(folderPath)) {
                 folderPath = folderPath.slice(1);
               }
-              if (fs.existsSync(folderPath)) {
+              let folderExists = true;
+            if (!/\/(Library\/CloudStorage|Desktop)\//i.test(folderPath)) {
+              try {
+                folderExists = fs.existsSync(folderPath);
+              } catch (_) {
+                folderExists = true;
+              }
+            }
+            if (folderExists) {
                 const matchedProjId = findProjectIdForFolder(folderPath);
                 if (matchedProjId) {
                   return {
@@ -2530,7 +2612,8 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     .filter(Boolean)
     .join('\n');
 
-  // Garantizar que Antigravity esté abierto y su language_server esté escuchando en vivo antes de despachar
+  // Garantizar que Antigravity esté abierto, su language_server esté escuchando en vivo y todo nuevo proyecto tenga permisos MCP antes de despachar
+  ensureWappyProjectPermissions();
   ensureLiveAntigravityRunning();
 
   const spawnEnv = {
@@ -2562,12 +2645,12 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const saveThreadFn = isWappyStudioOrder ? saveStudioThreadConversationId : saveTenshiThreadConversationId;
 
   const targetConvoId = isInternalHelperThread
-    ? findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId)
+    ? findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId, workspaceCwd)
     : isWappyStudioEdit || isWappyStudioRenderMp4
     ? findStudioConversationId(forceNewChat)
     : isWappyStudioOrder
     ? null
-    : findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId);
+    : findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId, workspaceCwd);
 
   // Traer la ventana de Antigravity al frente en macOS para que el usuario vea el chat abrirse y trabajar en tiempo real
   if (!isInternalHelperThread && process.platform === 'darwin') {
@@ -2779,6 +2862,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         const directRes = await dispatchViaDirectLanguageServer({
           prompt,
           workspaceCwd,
+          projectId,
           targetConvoId: forceNewChat ? null : targetConvoId,
           ordenId,
           rawFormato,
