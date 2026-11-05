@@ -156,6 +156,11 @@ const companyInfoSchema = new mongoose.Schema({
         }],
         default: [],
     },
+    antigravityWorkspace: {
+        type: String,
+        trim: true,
+        default: '',
+    },
     eptConfig: {
         requireAppointment: {
             type: Boolean,

@@ -5,7 +5,8 @@ import {
     X, Building2, Save, User, MapPin, Phone, Mail,
     Briefcase, Shield, Hash, FileText, Users, Activity,
     Award, Calendar, UserCheck, Image as ImageIcon,
-    Plus, Trash2, CheckCircle, Lock, Sparkles, Cpu
+    Plus, Trash2, CheckCircle, Lock, Sparkles, Cpu,
+    FolderGit2, Terminal
 } from 'lucide-react';
 
 import { useAuthContext } from '~/hooks';
@@ -59,6 +60,7 @@ interface CompanyInfoData {
     sstRespSignature: string | null;
     sstRespConsent: string;
     logoBase64?: string | null;
+    antigravityWorkspace?: string;
     sedes: SedeData[];
 }
 
@@ -92,6 +94,7 @@ const INITIAL_DATA: CompanyInfoData = {
     sstRespSignature: null,
     sstRespConsent: 'No',
     logoBase64: null,
+    antigravityWorkspace: '',
     sedes: [],
 };
 
@@ -214,6 +217,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     if (active.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(active.workerCount));
                     if (active.riskLevel) localStorage.setItem('wappy_active_company_risk', active.riskLevel);
                     if (active.logoBase64) localStorage.setItem('wappy_sst_global_logo', active.logoBase64);
+                    if (active.antigravityWorkspace) localStorage.setItem('wappy_active_company_workspace', active.antigravityWorkspace);
                 }
                 
                 const draftKey = `wappy_company_draft_${active._id || 'new'}`;
@@ -631,6 +635,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
 
     const inputClass = 'w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500';
     const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
+    const optionalLabelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary';
 
     return ReactDOM.createPortal(
         <div 
@@ -1063,6 +1068,46 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     />
                                     <p className="mt-1.5 text-xs italic text-amber-500/90">
                                         ⚠️ Describa con el mayor detalle posible las actividades de su empresa. Esta información alimenta todos los informes, diagnósticos, políticas y análisis generados por IA en el sistema.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Proyecto Google Antigravity Local */}
+                            <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-teal-500/5 to-transparent p-4 shadow-sm transition-all duration-300 hover:border-cyan-500/50">
+                                <div className="mb-2 flex items-center justify-between">
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                                        <Cpu className="h-4 w-4 text-cyan-500" /> Proyecto Google Antigravity (Local)
+                                    </h3>
+                                    <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[10.5px] font-bold tracking-wide text-cyan-600 dark:text-cyan-400">
+                                        Puente Reactivo Push
+                                    </span>
+                                </div>
+                                <p className="mb-3 text-xs text-text-secondary leading-relaxed">
+                                    Ruta absoluta de la carpeta o proyecto en tu computador asociada a esta empresa. Cuando delegues requerimientos desde Tenshi o los agentes de WAPPY, Google Antigravity abrirá automáticamente este espacio de trabajo y mantendrá un hilo de chat dedicado sin mezclar empresas.
+                                </p>
+                                <div>
+                                    <label className={optionalLabelClass}>
+                                        <FolderGit2 className="h-3 w-3 text-cyan-500" />
+                                        Directorio del Workspace Local (Opcional)
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            id="input-antigravityWorkspace"
+                                            name="antigravityWorkspace"
+                                            className={cn(
+                                                inputClass,
+                                                'font-mono text-xs border-cyan-500/30 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 pr-8'
+                                            )}
+                                            value={data.antigravityWorkspace || ''}
+                                            onChange={e => handleChange('antigravityWorkspace', e.target.value)}
+                                            placeholder="/Users/usuario/proyectos/mi-empresa"
+                                        />
+                                        <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-500/60" title="Terminal / Carpeta Local">
+                                            <Terminal className="h-3.5 w-3.5" />
+                                        </div>
+                                    </div>
+                                    <p className="mt-1.5 text-[10.5px] text-text-secondary">
+                                        💡 Ejemplo: <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">~/Documents/GitHub/empresa-a</code> o <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">C:\Proyectos\EmpresaA</code>
                                     </p>
                                 </div>
                             </div>

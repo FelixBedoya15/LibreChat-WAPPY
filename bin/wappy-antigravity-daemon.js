@@ -32,10 +32,11 @@ const LOG_FILE = path.join(AGY_DIR, 'wappy-push-daemon.log');
 const DISPATCHED_FILE = path.join(AGY_DIR, 'wappy-dispatched-orders.json');
 const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
+const COMPANY_WORKSPACES_FILE = path.join(AGY_DIR, 'wappy-company-workspaces.json');
 const STUDIO_THREAD_FILE = path.join(AGY_DIR, 'wappy-studio-thread.json');
 const STUDIO_CURRENT_HTML_FILE = '/tmp/wappy_studio_current.html';
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi / Wappy Studio
-const DAEMON_VERSION = '2.5.5';
+const DAEMON_VERSION = '2.6.0';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -1324,13 +1325,26 @@ function runAgentApi(bin, subArgs, opts = {}) {
 }
 
 /**
- * Obtiene el ID del hilo dedicado de Tenshi activo (creado en la primera consulta de la sesión).
+ * Resuelve la ruta del archivo de hilo de Tenshi para una empresa dada.
+ * Si se especifica companyId, devuelve `wappy-tenshi-thread-${safeCompanyId}.json`
+ * para garantizar aislamiento estricto y que Antigravity no mezcle conversaciones entre empresas.
+ */
+function getTenshiThreadFilePath(companyId = '') {
+  if (companyId && typeof companyId === 'string' && companyId.trim()) {
+    const safeCompanyId = companyId.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    return path.join(AGY_DIR, `wappy-tenshi-thread-${safeCompanyId}.json`);
+  }
+  return TENSHI_THREAD_FILE;
+}
+
+/**
+ * Obtiene el ID del hilo dedicado de Tenshi activo (aislado por empresa o global).
  * - Si el usuario pide explícitamente abrir un nuevo chat (`forceNewChat = true`), devuelve `null`.
- * - Si existe un hilo dedicado de Tenshi en `wappy-tenshi-thread.json` con `uiVisible === true`, menos de 2 horas
- *   de inactividad y su base `.db` sigue existiendo en `~/.gemini/antigravity/conversations/`, reutiliza ese mismo chat.
+ * - Si existe un hilo dedicado de Tenshi en `wappy-tenshi-thread-${safeCompanyId}.json` (o global)
+ *   con `uiVisible === true`, menos de 2 horas de inactividad y su base `.db` sigue existiendo, reutiliza ese chat.
  * - De lo contrario devuelve `null` para crear el primer chat limpio visible en la UI (`new-conversation`).
  */
-function findTargetConversationId(preferredId, forceNewChat = false) {
+function findTargetConversationId(preferredId, forceNewChat = false, companyId = '') {
   if (forceNewChat) {
     return null;
   }
@@ -1345,9 +1359,10 @@ function findTargetConversationId(preferredId, forceNewChat = false) {
     }
   }
 
+  const threadFile = getTenshiThreadFilePath(companyId);
   try {
-    if (fs.existsSync(TENSHI_THREAD_FILE)) {
-      const raw = JSON.parse(fs.readFileSync(TENSHI_THREAD_FILE, 'utf8'));
+    if (fs.existsSync(threadFile)) {
+      const raw = JSON.parse(fs.readFileSync(threadFile, 'utf8'));
       const convoId = String(raw?.conversationId || '').trim();
       const lastUsedAt = Number(raw?.lastUsedAt || raw?.createdAt || 0);
       const isUiVisible = raw?.uiVisible === true;
@@ -1369,16 +1384,17 @@ function findTargetConversationId(preferredId, forceNewChat = false) {
 }
 
 /**
- * Guarda o actualiza el ID de conversación del hilo dedicado de Tenshi
+ * Guarda o actualiza el ID de conversación del hilo dedicado de Tenshi por empresa
  */
-function saveTenshiThreadConversationId(convoId, workspaceCwd, uiVisible = false) {
+function saveTenshiThreadConversationId(convoId, workspaceCwd, uiVisible = false, companyId = '') {
   if (!convoId || !/^[0-9a-fA-F-]{36}$/.test(String(convoId).trim())) return;
   const cleanId = String(convoId).trim();
+  const threadFile = getTenshiThreadFilePath(companyId);
   let createdAt = Date.now();
   let prevUiVisible = false;
   try {
-    if (fs.existsSync(TENSHI_THREAD_FILE)) {
-      const prev = JSON.parse(fs.readFileSync(TENSHI_THREAD_FILE, 'utf8'));
+    if (fs.existsSync(threadFile)) {
+      const prev = JSON.parse(fs.readFileSync(threadFile, 'utf8'));
       if (prev?.conversationId === cleanId) {
         if (prev?.createdAt) createdAt = prev.createdAt;
         if (prev?.uiVisible === true) prevUiVisible = true;
@@ -1387,11 +1403,12 @@ function saveTenshiThreadConversationId(convoId, workspaceCwd, uiVisible = false
   } catch (_) {}
   try {
     fs.writeFileSync(
-      TENSHI_THREAD_FILE,
+      threadFile,
       JSON.stringify(
         {
           conversationId: cleanId,
           workspaceCwd: workspaceCwd || '',
+          companyId: companyId || '',
           uiVisible: Boolean(uiVisible || prevUiVisible),
           createdAt,
           lastUsedAt: Date.now(),
@@ -1622,9 +1639,216 @@ function findProjectIdForFolder(folderPath) {
 }
 
 /**
- * Resuelve el directorio de trabajo (workspace) y el ANTIGRAVITY_PROJECT_ID activo para `agentapi new-conversation`
+ * Normaliza nombres o identificadores de empresa para búsquedas en disco y proyectos
  */
-function resolveWorkspaceTarget() {
+function normalizeCompanyKey(rawKey) {
+  if (!rawKey || typeof rawKey !== 'string') return '';
+  return rawKey
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(s\.?a\.?s\.?|ltda\.?|s\.?a\.?|e\.?u\.?|sociedad por acciones simplificada|limitada|cia|corporation|corp|inc)\b/gi, ' ')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Extrae palabras clave significativas de la razón social ignorando sufijos societarios
+ */
+function extractCompanyKeywords(name) {
+  if (!name || typeof name !== 'string') return [];
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(s\.?a\.?s\.?|ltda\.?|s\.?a\.?|e\.?u\.?|sociedad por acciones simplificada|limitada|cia|corporation|corp|inc)\b/gi, ' ')
+    .replace(/[^a-z0-9\s_-]/g, ' ')
+    .split(/[\s_-]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 3);
+}
+
+/**
+ * Lee el archivo de configuración local ~/.gemini/antigravity/wappy-company-workspaces.json
+ */
+function loadCompanyWorkspacesMap() {
+  try {
+    if (fs.existsSync(COMPANY_WORKSPACES_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(COMPANY_WORKSPACES_FILE, 'utf8'));
+      if (raw && typeof raw === 'object') {
+        return raw.mappings && typeof raw.mappings === 'object' ? raw.mappings : raw;
+      }
+    }
+  } catch (_) {}
+  return {};
+}
+
+/**
+ * Guarda o actualiza un enlace de empresa <-> workspace en ~/.gemini/antigravity/wappy-company-workspaces.json
+ */
+function saveCompanyWorkspaceMapping(identifier, workspacePath) {
+  fs.mkdirSync(AGY_DIR, { recursive: true });
+  let current = {};
+  if (fs.existsSync(COMPANY_WORKSPACES_FILE)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(COMPANY_WORKSPACES_FILE, 'utf8'));
+      current = raw && typeof raw === 'object' ? (raw.mappings || raw) : {};
+    } catch (_) {}
+  }
+  const cleanKey = String(identifier || '').trim();
+  let cleanPath = String(workspacePath || '').trim();
+  if (cleanPath.startsWith('~')) {
+    cleanPath = path.join(HOME_DIR, cleanPath.slice(1));
+  }
+  cleanPath = path.resolve(cleanPath);
+  current[cleanKey] = cleanPath;
+  const normKey = normalizeCompanyKey(cleanKey);
+  if (normKey && normKey !== cleanKey.toLowerCase()) {
+    current[normKey] = cleanPath;
+  }
+  fs.writeFileSync(COMPANY_WORKSPACES_FILE, JSON.stringify(current, null, 2), 'utf8');
+  return { key: cleanKey, path: cleanPath };
+}
+
+/**
+ * Búsqueda difusa (smart match) contra los proyectos registrados en ~/.gemini/config/projects/*.json:
+ * busca si alguna carpeta de proyecto coincide o contiene el nombre de la empresa normalizado o su NIT.
+ */
+function findProjectByCompanyMatch(companyName, companyNit) {
+  try {
+    const projectsDir = path.join(CONFIG_DIR, 'projects');
+    if (!fs.existsSync(projectsDir)) return null;
+
+    const nameKeys = extractCompanyKeywords(companyName);
+    const nitClean = companyNit ? String(companyNit).replace(/[^0-9]/g, '') : '';
+    if (nameKeys.length === 0 && !nitClean) return null;
+
+    const files = fs.readdirSync(projectsDir).filter((f) => f.endsWith('.json') && f !== 'outside-of-project.json');
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const file of files) {
+      const fullPath = path.join(projectsDir, file);
+      try {
+        const raw = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+        const projName = String(raw?.name || '').toLowerCase();
+        const resources = raw?.projectResources?.resources || [];
+
+        for (const r of resources) {
+          const uri = r?.gitFolder?.folderUri || r?.folder?.folderUri || r?.folderUri || '';
+          if (uri.startsWith('file://')) {
+            let folderPath = decodeURIComponent(uri.replace(/^file:\/\//, ''));
+            if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(folderPath)) {
+              folderPath = folderPath.slice(1);
+            }
+            if (fs.existsSync(folderPath)) {
+              const folderBasename = path.basename(folderPath).toLowerCase();
+              const normFolder = normalizeCompanyKey(folderBasename);
+              const normProjName = normalizeCompanyKey(projName);
+              let score = 0;
+
+              // Coincidencia por NIT en la ruta o nombre
+              if (nitClean && nitClean.length >= 5 && (folderPath.includes(nitClean) || projName.includes(nitClean))) {
+                score += 10;
+              }
+
+              // Coincidencia por palabras clave de la razón social
+              for (const kw of nameKeys) {
+                if (normFolder.includes(kw)) score += 3;
+                if (normProjName.includes(kw)) score += 3;
+                if (folderPath.toLowerCase().includes(kw)) score += 1;
+              }
+
+              if (score > bestScore) {
+                bestScore = score;
+                bestMatch = {
+                  cwd: folderPath,
+                  projectId: raw.id || file.replace(/\.json$/, ''),
+                };
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (bestScore >= 3 && bestMatch) {
+      return bestMatch;
+    }
+  } catch (_) {}
+  return null;
+}
+
+/**
+ * Resuelve el directorio de trabajo (workspace) y el ANTIGRAVITY_PROJECT_ID activo para `agentapi new-conversation`.
+ * Soporta resolución inteligente por empresa cuando un usuario tiene múltiples empresas en WAPPY
+ * y múltiples proyectos locales en Google Antigravity.
+ */
+function resolveWorkspaceTarget(orden = null) {
+  if (orden && typeof orden === 'object') {
+    // -------------------------------------------------------------------------
+    // Prioridad 1: companyWorkspace explícito en la base de datos de WAPPY
+    // -------------------------------------------------------------------------
+    let rawCompanyWs = String(orden.companyWorkspace || orden.workspace || '').trim();
+    if (rawCompanyWs) {
+      if (rawCompanyWs.startsWith('~')) {
+        rawCompanyWs = path.join(HOME_DIR, rawCompanyWs.slice(1));
+      }
+      rawCompanyWs = path.resolve(rawCompanyWs);
+      if (fs.existsSync(rawCompanyWs)) {
+        const pid = findProjectIdForFolder(rawCompanyWs);
+        return {
+          cwd: rawCompanyWs,
+          projectId: pid || 'outside-of-project',
+        };
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Prioridad 2: Buscar en ~/.gemini/antigravity/wappy-company-workspaces.json
+    // Permite mapear companyId, NIT o nombre de empresa a una ruta local
+    // -------------------------------------------------------------------------
+    const mappings = loadCompanyWorkspacesMap();
+    const lookupCandidates = [
+      orden.companyId,
+      orden.companyNit,
+      orden.companyNit ? String(orden.companyNit).replace(/[^0-9]/g, '') : null,
+      orden.companyName,
+      orden.empresa,
+      normalizeCompanyKey(orden.companyName),
+      normalizeCompanyKey(orden.empresa),
+    ].filter(Boolean);
+
+    for (const cand of lookupCandidates) {
+      const mapped = mappings[cand];
+      if (mapped) {
+        let cleanMapped = String(mapped).trim();
+        if (cleanMapped.startsWith('~')) {
+          cleanMapped = path.join(HOME_DIR, cleanMapped.slice(1));
+        }
+        cleanMapped = path.resolve(cleanMapped);
+        if (fs.existsSync(cleanMapped)) {
+          const pid = findProjectIdForFolder(cleanMapped);
+          return {
+            cwd: cleanMapped,
+            projectId: pid || 'outside-of-project',
+          };
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Prioridad 3: Búsqueda difusa (smart match) contra ~/.gemini/config/projects/*.json
+    // -------------------------------------------------------------------------
+    const smartMatched = findProjectByCompanyMatch(orden.companyName || orden.empresa, orden.companyNit);
+    if (smartMatched) {
+      return smartMatched;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Prioridad 4: Respaldo actual (WAPPY_PROJECT_DIR, LS activo, conversaciones recientes, etc.)
+  // ---------------------------------------------------------------------------
   if (process.env.WAPPY_PROJECT_DIR && fs.existsSync(process.env.WAPPY_PROJECT_DIR)) {
     return {
       cwd: process.env.WAPPY_PROJECT_DIR,
@@ -1785,8 +2009,8 @@ function resolveWorkspaceTarget() {
   return { cwd: os.homedir(), projectId: 'outside-of-project' };
 }
 
-function resolveWorkspaceDirectory() {
-  return resolveWorkspaceTarget().cwd;
+function resolveWorkspaceDirectory(orden = null) {
+  return resolveWorkspaceTarget(orden).cwd;
 }
 
 /**
@@ -2161,7 +2385,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const prompt = [
     `⚡ [ORDEN EN TIEMPO REAL DE TENSHI — PUENTE REACTIVO PUSH WAPPY]`,
     `ID de Orden: ${ordenId}`,
-    `Empresa: ${empresa}`,
+    `Empresa: ${empresa}${orden.companyNit ? ` (NIT: ${orden.companyNit})` : ''}`,
     `Título: ${titulo}`,
     `Tipo de Solicitud: ${
       isOriginalFileCopy
@@ -2189,7 +2413,8 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   ensureLiveAntigravityRunning();
 
   const bin = resolveAgentApiBinary();
-  const { cwd: workspaceCwd, projectId } = resolveWorkspaceTarget();
+  const targetCompanyId = String(orden?.companyId || '').trim();
+  const { cwd: workspaceCwd, projectId } = resolveWorkspaceTarget(orden);
   const spawnEnv = {
     ...cleanAntigravitySessionEnv(process.env),
     ...(projectId ? { ANTIGRAVITY_PROJECT_ID: projectId } : {}),
@@ -2208,7 +2433,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   // - Wappy Studio usa su propio archivo de hilo (`wappy-studio-thread.json`, `🎬 Wappy Studio: ...`):
   //   * Paso 02 (Generar Animación) abre una NUEVA conversación dedicada de Wappy Studio.
   //   * Paso 03 (Editar Animación) y Renderizar .MP4 continúan en esa misma conversación de Wappy Studio.
-  // - Tenshi y los Agentes usan su propio archivo de hilo (`wappy-tenshi-thread.json`, `⚡ Tenshi: ...`), jamás mezclado con Wappy Studio.
+  // - Tenshi y los Agentes usan su propio archivo de hilo (`wappy-tenshi-thread.json` o `wappy-tenshi-thread-${safeCompanyId}.json`), jamás mezclado con Wappy Studio ni entre empresas distintas.
   const chatTitlePrefix = isWappyStudioOrder ? '🎬 Wappy Studio' : '⚡ Tenshi';
   const cleanDisplayTitle = String(titulo)
     .replace(/^(Wappy Studio|Tenshi)\s*[·:-]\s*/i, '')
@@ -2217,12 +2442,12 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const saveThreadFn = isWappyStudioOrder ? saveStudioThreadConversationId : saveTenshiThreadConversationId;
 
   const targetConvoId = isInternalHelperThread
-    ? findTargetConversationId(preferredConvoId, forceNewChat)
+    ? findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId)
     : isWappyStudioEdit || isWappyStudioRenderMp4
     ? findStudioConversationId(forceNewChat)
     : isWappyStudioOrder
     ? null
-    : findTargetConversationId(preferredConvoId, forceNewChat);
+    : findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId);
 
   // Traer la ventana de Antigravity al frente en macOS para que el usuario vea el chat abrirse y trabajar en tiempo real
   if (!isInternalHelperThread && process.platform === 'darwin') {
@@ -2238,8 +2463,9 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     } catch (_) {}
   }
 
+  const companyLogLabel = (orden?.companyName || orden?.empresa) ? ` [Empresa: ${orden.companyName || orden.empresa}]` : '';
   log(
-    `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato}) hacia Antigravity (Destino: ${
+    `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato})${companyLogLabel} hacia Antigravity (Destino: ${
       targetConvoId
         ? `Hilo activo de ${isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'} ${targetConvoId}`
         : `NUEVO HILO de ${isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'} en workspace ${workspaceCwd} [project=${projectId || 'auto'}]`
@@ -2321,7 +2547,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       ];
       runAgentApi(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd, env: spawnEnv });
       dispatchedOk = true;
-      saveThreadFn(targetConvoId, workspaceCwd, true);
+      saveThreadFn(targetConvoId, workspaceCwd, true, targetCompanyId);
       attachWatcherForConversation(targetConvoId, prevStepCount);
       log(
         `✅ Orden ${ordenId} continuada y abierta en pantalla en el hilo de ${
@@ -2383,7 +2609,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         dispatchedOk = true;
         const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
         if (createdConvoId) {
-          saveThreadFn(createdConvoId, workspaceCwd, true);
+          saveThreadFn(createdConvoId, workspaceCwd, true, targetCompanyId);
           attachWatcherForConversation(createdConvoId, 0);
           log(
             `✅ Orden ${ordenId} iniciada y abierta en pantalla en NUEVO hilo dedicado de ${
@@ -2408,7 +2634,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         const lateConvoId = beforeDbsForAttempt ? detectNewlyCreatedConversationId(beforeDbsForAttempt, '') : null;
         if (lateConvoId) {
           dispatchedOk = true;
-          saveThreadFn(lateConvoId, workspaceCwd, true);
+          saveThreadFn(lateConvoId, workspaceCwd, true, targetCompanyId);
           attachWatcherForConversation(lateConvoId, 0);
           log(`✅ Orden ${ordenId} sí fue creada en Antigravity (${lateConvoId}) pese al error de respuesta: ${err.message}`);
           jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
@@ -2441,7 +2667,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         });
         if (directRes && directRes.ok && directRes.cascadeId) {
           dispatchedOk = true;
-          saveThreadFn(directRes.cascadeId, workspaceCwd, false);
+          saveThreadFn(directRes.cascadeId, workspaceCwd, false, targetCompanyId);
           log(
             `✅ [Canal Directo QR / LanguageServerService] Orden ${ordenId} inyectada directo al motor de Antigravity (Hilo: ${directRes.cascadeId}, Puerto: ${directRes.port}, Modelo: ${directRes.model}).`
           );
@@ -3411,13 +3637,58 @@ async function failOrderCli(cliArgs) {
   process.exit(1);
 }
 
+function linkCompanyCli(cliArgs) {
+  const identifier = String(cliArgs['link-company'] || cliArgs.linkCompany || cliArgs.company || cliArgs.c || '').trim();
+  const wsPath = String(cliArgs.workspace || cliArgs.w || cliArgs.path || cliArgs.folder || '').trim();
+  if (!identifier || !wsPath) {
+    console.error('❌ Uso: node wappy-push-daemon.js --link-company="<Nombre, ID o NIT>" --workspace="<Ruta de Carpeta>"');
+    process.exit(1);
+  }
+  let cleanPath = wsPath;
+  if (cleanPath.startsWith('~')) {
+    cleanPath = path.join(HOME_DIR, cleanPath.slice(1));
+  }
+  cleanPath = path.resolve(cleanPath);
+  if (!fs.existsSync(cleanPath)) {
+    console.warn(`⚠️ Advertencia: La carpeta "${cleanPath}" no existe actualmente en el disco.`);
+  }
+  const saved = saveCompanyWorkspaceMapping(identifier, cleanPath);
+  console.log(`\n✅ Empresa enlazada exitosamente con su Workspace de Antigravity:`);
+  console.log(`   Empresa / Identificador : ${saved.key}`);
+  console.log(`   Workspace Local         : ${saved.path}`);
+  console.log(`   Configuración guardada  : ${COMPANY_WORKSPACES_FILE}\n`);
+  process.exit(0);
+}
+
+function listWorkspacesCli(cliArgs) {
+  const mappings = loadCompanyWorkspacesMap();
+  const keys = Object.keys(mappings);
+  console.log(`\n🏢 Workspaces de Empresas enlazados en Google Antigravity:`);
+  console.log(`   Archivo de mapeo: ${COMPANY_WORKSPACES_FILE}\n`);
+  if (keys.length === 0) {
+    console.log('   (No hay empresas enlazadas aún. Usa: node wappy-push-daemon.js --link-company="<empresa>" --workspace="<ruta>")\n');
+  } else {
+    for (const k of keys) {
+      const p = mappings[k];
+      const exists = fs.existsSync(p) ? '✅ Existe' : '❌ No encontrada en disco';
+      console.log(`   • ${k} -> ${p} [${exists}]`);
+    }
+    console.log('');
+  }
+  process.exit(0);
+}
+
 if (require.main === module) {
   const cliArgs = parseArgs();
   if (cliArgs.help || cliArgs.h || cliArgs.version || cliArgs.v) {
     console.log(
-      `WAPPY <-> Google Antigravity Push Bridge v${DAEMON_VERSION}\nUso: node wappy-push-daemon.js [--install | --worker | --ensure | --stop | --complete-order=<id> | --send-file=<ruta> | --notebooklm | --googleflow]`
+      `WAPPY <-> Google Antigravity Push Bridge v${DAEMON_VERSION}\nUso: node wappy-push-daemon.js [--install | --worker | --ensure | --stop | --link-company="<nombre/id/nit>" --workspace="<ruta>" | --list-workspaces | --complete-order=<id> | --send-file=<ruta> | --notebooklm | --googleflow]`
     );
     process.exit(0);
+  } else if (cliArgs['link-company'] || cliArgs.linkCompany) {
+    linkCompanyCli(cliArgs);
+  } else if (cliArgs['list-workspaces'] || cliArgs.listWorkspaces) {
+    listWorkspacesCli(cliArgs);
   } else if (cliArgs['fail-order'] || cliArgs.failOrder) {
     failOrderCli(cliArgs);
   } else if (cliArgs['complete-order'] || cliArgs.completeOrder || cliArgs.complete) {

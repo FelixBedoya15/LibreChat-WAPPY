@@ -176,7 +176,11 @@ class GoogleAntigravity extends Tool {
         archivos: finalFiles,
         estado: 'todo',
         prioridad: 'alta',
-        empresa: companyName,
+        companyId: company ? String(company._id || '') : '',
+        companyName: company?.companyName || '',
+        companyNit: company?.nit || '',
+        companyWorkspace: company?.antigravityWorkspace || '',
+        empresa: company?.companyName || 'Empresa Activa',
         fechaCreacion: kanbanTask.createdAt || new Date().toISOString(),
       };
 

@@ -8916,6 +8916,10 @@ async function tryGenerateImageViaAntigravity({
       estado: 'todo',
       prioridad: 'alta',
       sourceModule: 'image_priority',
+      companyId: company?._id ? String(company._id) : '',
+      companyName: company?.companyName || '',
+      companyNit: company?.nit || '',
+      companyWorkspace: company?.antigravityWorkspace || '',
       empresa: company?.companyName || 'Empresa Activa',
       fechaCreacion: kanbanTask.createdAt || new Date().toISOString(),
     });
@@ -9476,6 +9480,13 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
           const taskArchivos = Array.isArray(t.attachments)
             ? t.attachments.map((a) => (typeof a === 'string' ? a.trim() : String(a?.url || '').trim())).filter(Boolean)
             : [];
+          let taskCompany = null;
+          if (t.companyId) {
+            taskCompany = await CompanyInfo.findById(t.companyId).lean().catch(() => null);
+          }
+          if (!taskCompany) {
+            taskCompany = await getActiveCompany(targetUserId).catch(() => null);
+          }
           res.write(
             `event: nueva_orden\ndata: ${JSON.stringify({
               id: t._id.toString(),
@@ -9487,6 +9498,11 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
               archivos: taskArchivos,
               estado: t.status,
               prioridad: t.priority,
+              companyId: taskCompany ? String(taskCompany._id || '') : (t.companyId ? String(t.companyId) : ''),
+              companyName: taskCompany?.companyName || '',
+              companyNit: taskCompany?.nit || '',
+              companyWorkspace: taskCompany?.antigravityWorkspace || '',
+              empresa: taskCompany?.companyName || 'Empresa Activa',
               fechaCreacion: t.createdAt,
             })}\n\n`
           );
@@ -10081,7 +10097,11 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       estado: 'todo',
       prioridad: finalPriority,
       sourceModule: finalSourceModule,
-      empresa: companyName,
+      companyId: company ? String(company._id || '') : '',
+      companyName: company?.companyName || '',
+      companyNit: company?.nit || '',
+      companyWorkspace: company?.antigravityWorkspace || '',
+      empresa: company?.companyName || 'Empresa Activa',
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
 
