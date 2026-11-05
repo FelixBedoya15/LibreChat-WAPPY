@@ -79,8 +79,8 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const [copiedCloudPrompt, setCopiedCloudPrompt] = useState(false);
   const [copiedLocal, setCopiedLocal] = useState(false);
   const [showAdvancedLocal, setShowAdvancedLocal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'config' | 'tools' | 'keys'>('config');
-  const [connectionGuideMode, setConnectionGuideMode] = useState<'both' | 'cloud' | 'local'>('both');
+  const [activeTab, setActiveTab] = useState<'config' | 'skills' | 'tools' | 'keys'>('config');
+  // connectionGuideMode se deriva de activeMode — se declara abajo tras activeMode
   const [isSwitchingMode, setIsSwitchingMode] = useState(false);
   const [daemonStatus, setDaemonStatus] = useState<any>(null);
 
@@ -187,6 +187,10 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
       : daemonStatus?.activeMode === 'auto' || daemonStatus?.bridge?.activeMode === 'auto'
         ? 'auto'
         : 'local';
+
+  // Derivado de activeMode — reemplaza el antiguo estado connectionGuideMode
+  const connectionGuideMode: 'cloud' | 'local' | 'both' =
+    activeMode === 'local' ? 'local' : activeMode === 'cloud' ? 'cloud' : 'both';
   const effectiveEnv: 'local' | 'cloud' =
     daemonStatus?.effectiveEnv === 'cloud' || daemonStatus?.bridge?.effectiveEnv === 'cloud'
       ? 'cloud'
@@ -1718,6 +1722,18 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
           Configuración Antigravity
         </button>
         <button
+          onClick={() => setActiveTab('skills')}
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
+            activeTab === 'skills'
+              ? 'bg-lime-500/15 dark:bg-lime-950/50 border border-lime-500 text-lime-700 dark:text-lime-300 font-bold shadow-2xs ring-1 ring-lime-500/30'
+              : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-transparent'
+          )}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-lime-600 dark:text-lime-400" />
+          🎬 Skills de Video (7)
+        </button>
+        <button
           onClick={() => setActiveTab('tools')}
           className={cn(
             'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
@@ -1746,47 +1762,11 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
       {/* Tab: Configuración Antigravity (Guía Paso a Paso Simple) */}
       {activeTab === 'config' && (
         <div className="flex flex-col gap-5">
-          {/* Selector de Guía Paso a Paso: Cloud vs Local */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-100/80 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800 w-fit">
-            <button
-              type="button"
-              onClick={() => setConnectionGuideMode('cloud')}
-              className={cn(
-                'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
-                connectionGuideMode === 'cloud'
-                  ? 'bg-sky-500/15 border border-sky-500/40 text-sky-700 dark:text-sky-300 shadow-2xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-800 border border-transparent',
-              )}
-            >
-              <Cloud className="w-3.5 h-3.5" />
-              ☁️ Conectar Antigravity Cloud (Sin instalar nada)
-            </button>
-            <button
-              type="button"
-              onClick={() => setConnectionGuideMode('local')}
-              className={cn(
-                'flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
-                connectionGuideMode === 'local'
-                  ? 'bg-teal-500/15 border border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-800 border border-transparent',
-              )}
-            >
-              <Monitor className="w-3.5 h-3.5" />
-              🖥️ Conectar Antigravity Local (Mac / Windows)
-            </button>
-            <button
-              type="button"
-              onClick={() => setConnectionGuideMode('both')}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs transition-all active:scale-95',
-                connectionGuideMode === 'both'
-                  ? 'bg-purple-500/15 border border-purple-500/40 text-purple-700 dark:text-purple-300 shadow-2xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-800 border border-transparent',
-              )}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Ver Ambos (Cloud + Local)
-            </button>
+          {/* Título contextual según modo activo — sin sub-selector redundante */}
+          <div className="flex items-center gap-2 pb-1">
+            {activeMode === 'cloud' && <><span className="text-lg">☁️</span><span className="text-sm font-extrabold text-sky-700 dark:text-sky-300">Conexión en la Nube</span><span className="text-xs text-slate-500 dark:text-zinc-400">— Sin instalar nada en tu PC</span></>}
+            {activeMode === 'local' && <><span className="text-lg">🖥️</span><span className="text-sm font-extrabold text-teal-700 dark:text-teal-300">Conexión Local</span><span className="text-xs text-slate-500 dark:text-zinc-400">— Mac / Windows</span></>}
+            {activeMode === 'auto' && <><span className="text-lg">⚡</span><span className="text-sm font-extrabold text-purple-700 dark:text-purple-300">Modo Automático</span><span className="text-xs text-slate-500 dark:text-zinc-400">— Cloud + Local disponibles</span></>}
           </div>
 
           {/* TARJETA DESTACADA: ☁️ Conexión en la Nube (antigravity.google.com) — Sin instalar nada en tu PC */}
@@ -2034,78 +2014,31 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
             </div>
           </div>
 
-          {/* TARJETA DESTACADA: Pack Importable de las 7 Skills de Diseño & Video (WAPPY Studio) */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-teal-500/10 dark:from-purple-950/30 dark:via-zinc-900 dark:to-teal-950/20 border border-purple-500/30 flex flex-col gap-3 shadow-sm">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-600 dark:text-purple-300 font-black text-xs shrink-0">
-                  🎬
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                      Pack Importable de Skills de Diseño & Video (WAPPY Studio)
-                    </span>
-                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-600 text-white shadow-2xs">
-                      7 Skills Oficiales • 60 FPS
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    Importa en tu Antigravity las 7 Skills de producción audiovisual y diseño UI de WAPPY IA (<code className="font-mono">protocolo-produccion-videos</code>, <code className="font-mono">animaciones-17-efectos-reels</code>, <code className="font-mono">animaciones-wappy-brand</code>, <code className="font-mono">animaciones-dark-tech-hud</code>, <code className="font-mono">animaciones-explicativas-sst</code>, <code className="font-mono">hyperframes-motion-design</code> y <code className="font-mono">wappy-ui-design-system</code>):
-                  </p>
-                </div>
-              </div>
+          </> 
+          )}
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <ExpandingButton
-                  onClick={() => {
-                    const a = document.createElement('a');
-                    a.href = `/api/studio/antigravity/skills-bundle.json?download=1`;
-                    a.download = 'wappy-antigravity-7-skills-pack.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    showToast({
-                      message: 'Descargando Pack Oficial de las 7 Skills (.JSON Importable)...',
-                      status: 'success',
-                    });
-                  }}
-                  icon={Download}
-                  label="Descargar Pack de Skills (.JSON)"
-                  variant="green"
-                  title="Descargar el archivo JSON importable con las 7 Skills de Diseño y Video de WAPPY IA"
-                />
-                <ExpandingButton
-                  onClick={async () => {
-                    let keyToUse = newKeyGenerated || fullKeyFromList;
-                    if (!keyToUse) {
-                      keyToUse = await handleCreateKey();
-                    }
-                    const finalKey = keyToUse || effectiveKey;
-                    const installCmd = `node -e "fetch('${originUrl}/api/studio/antigravity/skills-installer.js?key=${encodeURIComponent(finalKey)}').then(r=>r.text()).then(c=>{const fs=require('fs'),p=require('path').join(require('os').homedir(),'.gemini','antigravity','wappy-skills-installer.js');fs.mkdirSync(require('path').dirname(p),{recursive:true});fs.writeFileSync(p,c);require('child_process').spawnSync(process.execPath,[p,'--install','--url=${originUrl}','--key=${finalKey}'],{stdio:'inherit'})})"`;
-                    const skillsPrompt = `Hola Antigravity, instala el Pack Oficial de las 7 Skills de Diseño y Video de WAPPY IA (protocolo-produccion-videos, animaciones-17-efectos-reels, animaciones-wappy-brand, animaciones-dark-tech-hud, animaciones-explicativas-sst, hyperframes-motion-design y wappy-ui-design-system) y conecta mi puente reactivo ejecutando este comando con run_command:\n\n${installCmd}\n\nConfírmame apenas queden instaladas las 7 Skills.`;
-                    navigator.clipboard.writeText(skillsPrompt);
-                    setCopiedSkillsPrompt(true);
-                    setTimeout(() => setCopiedSkillsPrompt(false), 2500);
-                    showToast({
-                      message: 'Prompt de instalación de las 7 Skills copiado al portapapeles',
-                      status: 'success',
-                    });
-                  }}
-                  icon={copiedSkillsPrompt ? Check : Sparkles}
-                  label={
-                    copiedSkillsPrompt
-                      ? '¡Prompt de Skills Copiado!'
-                      : 'Copiar Prompt de Instalación de Skills'
-                  }
-                  variant="purple"
-                  title="Copiar prompt para pegar en el chat de Antigravity e instalar automáticamente las 7 Skills"
-                />
+          {/* Acceso directo opcional a Skills de Video */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-lime-500/10 via-emerald-500/5 to-teal-500/10 dark:from-lime-950/30 dark:via-zinc-900 dark:to-teal-950/20 border border-lime-500/30 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🎬</span>
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 block">
+                  Pack de 7 Skills de Diseño & Video (WAPPY Studio)
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                  Reels 9:16 a 60 FPS, animaciones virales y WAPPY UI Design System en Antigravity.
+                </span>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('skills')}
+              className="px-3.5 py-1.5 rounded-xl bg-lime-500 hover:bg-lime-400 text-lime-950 font-extrabold text-xs transition-all shadow-sm active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Ver Skills de Video (7) →
+            </button>
           </div>
-            </>
-          )}
 
           {/* Resumen sencillo de qué puede hacer el usuario una vez conectado */}
           <div className="p-4 rounded-2xl bg-teal-50/40 dark:bg-teal-950/20 border border-teal-500/30 dark:border-teal-500/30 flex flex-col gap-2.5 shadow-2xs">
@@ -2178,6 +2111,193 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Skills Oficiales de Diseño & Video (WAPPY Studio) */}
+      {activeTab === 'skills' && (
+        <div className="flex flex-col gap-5 animate-in fade-in duration-200">
+          {/* Cabecera Principal con Badges y Descripción */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-lime-500/15 via-emerald-500/10 to-teal-500/15 dark:from-lime-950/40 dark:via-zinc-900 dark:to-emerald-950/30 border border-lime-500/40 dark:border-lime-500/30 shadow-md ring-1 ring-lime-500/20 flex flex-col gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-lime-500/20 border border-lime-500/40 flex items-center justify-center text-lime-600 dark:text-lime-300 font-black text-2xl shrink-0 shadow-inner">
+                  🎬
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-zinc-100">
+                      Pack Oficial de las 7 Skills de Diseño &amp; Video (WAPPY Studio)
+                    </h3>
+                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-lime-500 text-lime-950 shadow-sm shadow-lime-500/30">
+                      7 SKILLS OFICIALES • 60 FPS
+                    </span>
+                    <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-teal-500/20 border border-teal-500/30 text-teal-700 dark:text-teal-300">
+                      MOTION GRAPHICS &amp; REELS
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-zinc-300 mt-1.5 leading-relaxed max-w-3xl">
+                    Importa en tu Google Antigravity (Local o Cloud) el pack oficial de producción audiovisual de WAPPY IA. Incluye el protocolo de 7 piezas, transiciones virales de reels a 60 FPS, animaciones Dark Tech HUD, videos explicativos normativos y el WAPPY UI Design System.
+                  </p>
+                </div>
+              </div>
+
+              {/* Botonera de Acción Destacada */}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <ExpandingButton
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = `/api/studio/antigravity/skills-bundle.json?download=1`;
+                    a.download = 'wappy-antigravity-7-skills-pack.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    showToast({
+                      message: 'Descargando Pack Oficial de las 7 Skills (.JSON Importable)...',
+                      status: 'success',
+                    });
+                  }}
+                  icon={Download}
+                  label="Descargar Pack de Skills (.JSON)"
+                  variant="green"
+                  title="Descargar el archivo JSON importable con las 7 Skills de Diseño y Video de WAPPY IA"
+                />
+                <ExpandingButton
+                  onClick={async () => {
+                    let keyToUse = newKeyGenerated || fullKeyFromList;
+                    if (!keyToUse) {
+                      keyToUse = await handleCreateKey();
+                    }
+                    const finalKey = keyToUse || effectiveKey;
+                    const installCmd = `node -e "fetch('${originUrl}/api/studio/antigravity/skills-installer.js?key=${encodeURIComponent(finalKey)}').then(r=>r.text()).then(c=>{const fs=require('fs'),p=require('path').join(require('os').homedir(),'.gemini','antigravity','wappy-skills-installer.js');fs.mkdirSync(require('path').dirname(p),{recursive:true});fs.writeFileSync(p,c);require('child_process').spawnSync(process.execPath,[p,'--install','--url=${originUrl}','--key=${finalKey}'],{stdio:'inherit'})})"`;
+                    const skillsPrompt = `Hola Antigravity, instala el Pack Oficial de las 7 Skills de Diseño y Video de WAPPY IA (protocolo-produccion-videos, animaciones-17-efectos-reels, animaciones-wappy-brand, animaciones-dark-tech-hud, animaciones-explicativas-sst, hyperframes-motion-design y wappy-ui-design-system) y conecta mi puente reactivo ejecutando este comando con run_command:\n\n${installCmd}\n\nConfírmame apenas queden instaladas las 7 Skills.`;
+                    navigator.clipboard.writeText(skillsPrompt);
+                    setCopiedSkillsPrompt(true);
+                    setTimeout(() => setCopiedSkillsPrompt(false), 2500);
+                    showToast({
+                      message: 'Prompt de instalación de las 7 Skills copiado al portapapeles',
+                      status: 'success',
+                    });
+                  }}
+                  icon={copiedSkillsPrompt ? Check : Sparkles}
+                  label={
+                    copiedSkillsPrompt
+                      ? '¡Prompt de Skills Copiado!'
+                      : 'Copiar Prompt de Instalación de Skills'
+                  }
+                  variant="purple"
+                  title="Copiar prompt para pegar en el chat de Antigravity e instalar automáticamente las 7 Skills"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Grilla Detallada de las 7 Skills Oficiales */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-zinc-300 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-lime-500" />
+                Catálogo de las 7 Skills de Video y Diseño Incluidas
+              </span>
+              <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                Instalación automática en 1 clic
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                {
+                  id: 'protocolo-produccion-videos',
+                  icon: '📋',
+                  name: 'protocolo-produccion-videos',
+                  title: 'Protocolo de las 7 Piezas & Brandbook',
+                  desc: 'Protocolo obligatorio de pre-producción, estructura de 7 piezas (Arte, Identidad, Audiencia, Guión 2s portada, Motion, SFX, Render) y Ficha de Marca WAPPY IA.',
+                  tag: 'Pre-producción',
+                },
+                {
+                  id: 'animaciones-17-efectos-reels',
+                  icon: '⚡',
+                  name: 'animaciones-17-efectos-reels',
+                  title: '19 Transiciones & Efectos Virales',
+                  desc: 'Catálogo de transiciones de alto impacto para Reels 9:16 y TikTok: 01 Orbit 3D, Frame break, UI world, Dolly Zoom, Glass type, Phone mockup y más.',
+                  tag: 'Reels 60 FPS',
+                },
+                {
+                  id: 'animaciones-wappy-brand',
+                  icon: '✨',
+                  name: 'animaciones-wappy-brand',
+                  title: 'Identidad Visual Oficial WAPPY IA',
+                  desc: 'Paleta corporativa verde lima eléctrico (#c7f303), negro oliva (#0e1300), barra de navegación píldora, Tenshi 3D flotante e iconos Duotone.',
+                  tag: 'Branding',
+                },
+                {
+                  id: 'animaciones-dark-tech-hud',
+                  icon: '🌌',
+                  name: 'animaciones-dark-tech-hud',
+                  title: 'Dark Tech HUD & Cyberpunk 9:16',
+                  desc: 'Motion graphics con estética HUD cósmica oscura (#0c192e a #00d4ff), retículas técnicas, medidores circulares de audio y tipografía JetBrains Mono.',
+                  tag: 'Dark Tech HUD',
+                },
+                {
+                  id: 'animaciones-explicativas-sst',
+                  icon: '🛡️',
+                  name: 'animaciones-explicativas-sst',
+                  title: 'Vídeos Explicativos Normativos SST',
+                  desc: 'Estilo documental SST para Dummies: visor de sentencias y decretos con subrayado fluorescente amarillo, rumor vs norma, y metáforas visuales.',
+                  tag: 'SST 60 FPS',
+                },
+                {
+                  id: 'hyperframes-motion-design',
+                  icon: '🎥',
+                  name: 'hyperframes-motion-design',
+                  title: 'HyperFrames & GSAP Cinematográfico',
+                  desc: 'Estándar y sistema de animación GSAP avanzada con suavizado elástico, tipografía cinematográfica, capas multicapa y renders publicitarios de alto impacto.',
+                  tag: 'Cinematográfico',
+                },
+                {
+                  id: 'wappy-ui-design-system',
+                  icon: '🎨',
+                  name: 'wappy-ui-design-system',
+                  title: 'WAPPY 14-Group Design System',
+                  desc: 'Biblia visual de WAPPY IA: los 14 grupos semánticos de color, geometría hover con inclinación, tarjetas glassmorphism y tablas LiveEditor.',
+                  tag: 'Design System',
+                },
+              ].map((skill) => (
+                <div
+                  key={skill.id}
+                  className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 flex flex-col justify-between gap-2 shadow-2xs hover:border-lime-500/40 dark:hover:border-lime-500/30 transition-all group"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-xl shrink-0 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800">{skill.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">{skill.title}</span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-lime-500/15 border border-lime-500/30 text-lime-700 dark:text-lime-300">
+                          {skill.tag}
+                        </span>
+                      </div>
+                      <code className="text-[10px] font-mono text-teal-600 dark:text-teal-400 block mt-0.5">{skill.name}</code>
+                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">{skill.desc}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cómo usar las Skills en Antigravity */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 flex flex-col gap-2">
+            <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+              💡 ¿Cómo se usan estas Skills en Antigravity?
+            </span>
+            <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
+              Una vez instaladas (ya sea en tu Antigravity de escritorio o en la nube en <code className="font-mono">antigravity.google.com</code>), simplemente pídele al agente:
+              <br />
+              <em className="text-slate-800 dark:text-zinc-200 font-medium">"Créame un reel de 30 segundos sobre trabajo en alturas usando el protocolo de las 7 piezas y transiciones de animaciones-17-efectos-reels"</em>
+              <br />
+              El agente aplicará automáticamente las reglas de diseño, duraciones de portada (2s), paleta corporativa y renderizado a 60 FPS sin que tengas que explicárselo paso a paso.
+            </p>
           </div>
         </div>
       )}

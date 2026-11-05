@@ -114,11 +114,31 @@ function parseSpeakerTurns(text: string, s1Name = 'Alex', s2Name = 'Sam'): Speak
   const s2 = (s2Name || 'Sam').trim();
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const turnRegex = new RegExp(
-    `(?:^|\\n)\\s*(?:\\*\\*\\s*)?(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2|Host\\s*1|Host\\s*2)(?:\\s*\\*\\*)?\\s*:\\s*`,
+    `(?:^|\\n)\\s*(?:\\*\\*\\s*)?(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2|Host\\s*1|Host\\s*2|Locutor\\s*1|Locutor\\s*2)(?:\\s*\\*\\*)?\\s*:\\s*`,
     'gi',
   );
   const matches = Array.from(clean.matchAll(turnRegex));
-  if (matches.length === 0) return [];
+  if (matches.length === 0) {
+    const paragraphs = clean
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const units =
+      paragraphs.length > 1
+        ? paragraphs
+        : clean
+            .split(/(?<=[.!?…])\s+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+    if (units.length > 1) {
+      return units.map((u, idx) => ({
+        speaker: idx % 2 === 0 ? s1 : s2,
+        isSpeaker2: idx % 2 === 1,
+        text: u,
+      }));
+    }
+    return [];
+  }
 
   const turns: SpeakerTurn[] = [];
   const firstIdx = matches[0].index || 0;
@@ -483,8 +503,14 @@ interface SynthOpts {
 
 const OMNIVOICE_SPACES = [
   'https://k2-fsa-omnivoice.hf.space',
-  'https://d3vshoaib-omnivoice.hf.space',
+  'https://harmonyshoes-omnivoice.hf.space',
+  'https://archivartaunik-omnivoice.hf.space',
+  'https://nitrox-omnivoice.hf.space',
+  'https://shelplank8-omnivoice.hf.space',
+  'https://oddadmix-lahgtna-omnivoice-demo.hf.space',
 ];
+
+let omnivoiceBrowserCooldownUntil = 0;
 
 const omnivoiceBrowserUploadCache = new Map<
   string,
@@ -662,7 +688,12 @@ async function synthesizeBrowserSingleZeroShotSegment(params: {
   refTranscript: string;
   omniLang: string;
 }) {
+  if (Date.now() < omnivoiceBrowserCooldownUntil) {
+    throw new Error('OmniVoice en enfriamiento de cuota ZeroGPU.');
+  }
   let lastOmniErr: Error | null = null;
+  const hasRefTranscript = Boolean(params.refTranscript && params.refTranscript.trim().length > 5);
+
   for (const spaceBase of OMNIVOICE_SPACES) {
     const cacheKey = `${spaceBase}::${params.voiceId}::${params.refWavBytes.length}`;
 
@@ -689,104 +720,100 @@ async function synthesizeBrowserSingleZeroShotSegment(params: {
       return uploadedPath;
     };
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const cached = omnivoiceBrowserUploadCache.get(cacheKey);
-        const uploadedPath =
-          attempt === 0 && cached && cached.expiresAt > Date.now()
-            ? cached.uploadedPath
-            : await uploadRefWav();
+    try {
+      const cached = omnivoiceBrowserUploadCache.get(cacheKey);
+      const uploadedPath =
+        cached && cached.expiresAt > Date.now() ? cached.uploadedPath : await uploadRefWav();
 
-        const callResp = await nativeFetch(`${spaceBase}/gradio_api/call/_clone_fn`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            data: [
-              params.segmentText,
-              params.omniLang,
-              { path: uploadedPath, meta: { _type: 'gradio.FileData' } },
-              String(params.refTranscript || '').trim(),
-              '',
-              32,
-              2.5,
-              true,
-              1.0,
-              null,
-              true,
-              true,
-            ],
-          }),
-        });
-        if (!callResp.ok) {
-          throw new Error(`Call _clone_fn HTTP ${callResp.status}`);
-        }
-        const callData = await callResp.json();
-        const eventId = callData?.event_id;
-        if (!eventId) {
-          throw new Error('No se recibió event_id de OmniVoice');
-        }
-
-        const sseResp = await nativeFetch(`${spaceBase}/gradio_api/call/_clone_fn/${eventId}`);
-        if (!sseResp.ok) {
-          throw new Error(`SSE HTTP ${sseResp.status}`);
-        }
-        const sseText = await sseResp.text();
-        if (sseText.includes('event: error')) {
-          omnivoiceBrowserUploadCache.delete(cacheKey);
-          throw new Error(`OmniVoice devolvió event: error`);
-        }
-
-        const sseLines = sseText.split(/\r?\n/);
-        let completeJsonStr = '';
-        for (let li = 0; li < sseLines.length; li++) {
-          if (/^event:\s*complete\b/i.test(sseLines[li].trim())) {
-            for (let nj = li + 1; nj < sseLines.length; nj++) {
-              const cand = sseLines[nj].trim();
-              if (cand.startsWith('data:')) {
-                completeJsonStr = cand.replace(/^data:\s*/, '').trim();
-                break;
-              }
-            }
-            if (completeJsonStr) break;
-          }
-        }
-        if (!completeJsonStr) {
-          throw new Error(`Stream SSE incompleto en ${spaceBase}`);
-        }
-
-        const parsed = JSON.parse(completeJsonStr);
-        const fileObj = parsed?.[0];
-        const audioUrl =
-          fileObj?.url ||
-          (fileObj?.path ? `${spaceBase}/gradio_api/file=${fileObj.path}` : null);
-        if (!audioUrl) {
-          throw new Error('OmniVoice no devolvió URL de audio WAV');
-        }
-
-        const wavResp = await nativeFetch(audioUrl);
-        if (!wavResp.ok) {
-          throw new Error(`Descarga WAV HTTP ${wavResp.status}`);
-        }
-        const outBytes = new Uint8Array(await wavResp.arrayBuffer());
-        const { pcm: rawPcm, sampleRate } = extractPcm(outBytes);
-        const pcm = microFade(removeDcOffset(rawPcm), sampleRate, 18);
-        const wav = concatBytes([wavHeader(pcm.length, sampleRate), pcm]);
-
-        return {
-          pcm,
-          sampleRate,
-          audioBase64: bytesToB64(wav),
-          durationSeconds: Math.max(1, Math.round((pcm.length / (sampleRate * 2)) * 10) / 10),
-          usedModel: 'omnivoice-zero-shot-24khz',
-          usedKeyIndex: 0,
-        };
-      } catch (err: any) {
-        lastOmniErr = err instanceof Error ? err : new Error(String(err));
-        omnivoiceBrowserUploadCache.delete(cacheKey);
-        if (attempt === 0) continue;
+      const callResp = await nativeFetch(`${spaceBase}/gradio_api/call/_clone_fn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: [
+            params.segmentText,
+            params.omniLang,
+            { path: uploadedPath, meta: { _type: 'gradio.FileData' } },
+            String(params.refTranscript || '').trim(),
+            '',
+            20,
+            2.5,
+            true,
+            1.0,
+            null,
+            !hasRefTranscript,
+            true,
+          ],
+        }),
+      });
+      if (!callResp.ok) {
+        throw new Error(`Call _clone_fn HTTP ${callResp.status}`);
       }
+      const callData = await callResp.json();
+      const eventId = callData?.event_id;
+      if (!eventId) {
+        throw new Error('No se recibió event_id de OmniVoice');
+      }
+
+      const sseResp = await nativeFetch(`${spaceBase}/gradio_api/call/_clone_fn/${eventId}`);
+      if (!sseResp.ok) {
+        throw new Error(`SSE HTTP ${sseResp.status}`);
+      }
+      const sseText = await sseResp.text();
+      if (sseText.includes('event: error')) {
+        omnivoiceBrowserUploadCache.delete(cacheKey);
+        throw new Error(`OmniVoice devolvió event: error`);
+      }
+
+      const sseLines = sseText.split(/\r?\n/);
+      let completeJsonStr = '';
+      for (let li = 0; li < sseLines.length; li++) {
+        if (/^event:\s*complete\b/i.test(sseLines[li].trim())) {
+          for (let nj = li + 1; nj < sseLines.length; nj++) {
+            const cand = sseLines[nj].trim();
+            if (cand.startsWith('data:')) {
+              completeJsonStr = cand.replace(/^data:\s*/, '').trim();
+              break;
+            }
+          }
+          if (completeJsonStr) break;
+        }
+      }
+      if (!completeJsonStr) {
+        throw new Error(`Stream SSE incompleto en ${spaceBase}`);
+      }
+
+      const parsed = JSON.parse(completeJsonStr);
+      const fileObj = parsed?.[0];
+      const audioUrl =
+        fileObj?.url ||
+        (fileObj?.path ? `${spaceBase}/gradio_api/file=${fileObj.path}` : null);
+      if (!audioUrl) {
+        throw new Error('OmniVoice no devolvió URL de audio WAV');
+      }
+
+      const wavResp = await nativeFetch(audioUrl);
+      if (!wavResp.ok) {
+        throw new Error(`Descarga WAV HTTP ${wavResp.status}`);
+      }
+      const outBytes = new Uint8Array(await wavResp.arrayBuffer());
+      const { pcm: rawPcm, sampleRate } = extractPcm(outBytes);
+      const pcm = microFade(removeDcOffset(rawPcm), sampleRate, 18);
+      const wav = concatBytes([wavHeader(pcm.length, sampleRate), pcm]);
+
+      return {
+        pcm,
+        sampleRate,
+        audioBase64: bytesToB64(wav),
+        durationSeconds: Math.max(1, Math.round((pcm.length / (sampleRate * 2)) * 10) / 10),
+        usedModel: 'omnivoice-zero-shot-24khz',
+        usedKeyIndex: 0,
+      };
+    } catch (err: any) {
+      lastOmniErr = err instanceof Error ? err : new Error(String(err));
+      omnivoiceBrowserUploadCache.delete(cacheKey);
     }
   }
+  omnivoiceBrowserCooldownUntil = Date.now() + 90 * 1000;
   throw lastOmniErr || new Error('No se pudo sintetizar la voz clonada en OmniVoice.');
 }
 
@@ -798,7 +825,7 @@ async function synthesizeBrowserZeroShotOmniVoice(params: {
   languageCode?: string;
 }) {
   const cleanTurnText = sanitizeScriptText(params.text)
-    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2)\s*:\s*/gim, '')
+    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2|Host\s*1|Host\s*2|Locutor\s*1|Locutor\s*2)\s*:\s*/gim, '')
     .replace(/\[Estilo Vocal:[^\]]*\]/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -822,7 +849,7 @@ async function synthesizeBrowserZeroShotOmniVoice(params: {
         ? 'French'
         : 'Spanish';
 
-  const subSentences = splitZeroShotTextIntoSubSentences(cleanTurnText, 30);
+  const subSentences = splitZeroShotTextIntoSubSentences(cleanTurnText, 110);
   if (subSentences.length === 1) {
     return synthesizeBrowserSingleZeroShotSegment({
       segmentText: subSentences[0],
@@ -878,11 +905,14 @@ async function synthesizeSingleVoiceTurn(opts: {
   const cleanText = sanitizeScriptText(opts.text);
   if (!cleanText) throw new Error('El texto a sintetizar no contiene palabras válidas.');
   const voiceKey = String(opts.voiceName || 'Kore').trim();
+  const isCloned = isClonedVoiceId(voiceKey);
+  const profile = isCloned
+    ? await resolveBrowserClonedVoiceProfile(voiceKey, opts.synthOpts)
+    : null;
 
-  // 1. Si es una voz clonada (wappy_clone_*), sintetizar directamente desde el navegador del usuario
-  // contra OmniVoice Zero-Shot (usando la IP residencial del cliente para evitar bloqueo de IP de datacenter en HuggingFace)
-  if (voiceKey.startsWith('wappy_clone_')) {
-    const profile = await resolveBrowserClonedVoiceProfile(voiceKey, opts.synthOpts);
+  // 1. Si es una voz clonada (wappy_clone_*) y el servidor no está disponible (o antes de delegar),
+  // intentar sintetizar contra OmniVoice Zero-Shot
+  if (voiceKey.startsWith('wappy_clone_') && Date.now() >= omnivoiceBrowserCooldownUntil) {
     const refAudioB64 = profile?.sourceAudioBase64 || profile?.sampleAudioBase64 || '';
     if (refAudioB64 && profile?.nativeMethod !== 'gemini_v1beta_voices') {
       try {
@@ -899,9 +929,9 @@ async function synthesizeSingleVoiceTurn(opts: {
     }
   }
 
-  // 2. Si no hay llaves Gemini locales en el navegador pero el servidor de WAPPY está disponible,
-  // delegar este turno individual al backend /api/studio/tts/synthesize
-  if (opts.keys.length === 0) {
+  // 2. Si es una voz clonada (que requiere OpenVoice V2 en el servidor) o no hay llaves Gemini locales en el navegador,
+  // delegar este turno individual al backend /api/studio/tts/synthesize incluyendo customVoiceProfile y customVoices
+  if (opts.keys.length === 0 || (isCloned && (await isServerAvailable()))) {
     const srvResp = await nativeFetch('/api/studio/tts/synthesize', {
       ...(opts.synthOpts?.authInit || {}),
       method: 'POST',
@@ -915,6 +945,8 @@ async function synthesizeSingleVoiceTurn(opts: {
         stylePrompt: opts.stylePrompt || opts.synthOpts?.stylePrompt || '',
         model: opts.modelsToTry[0] || 'gemini-3.8-flash-tts',
         multiSpeaker: false,
+        customVoiceProfile: profile || opts.synthOpts?.customVoiceProfile || undefined,
+        customVoices: opts.synthOpts?.customVoices || (profile ? [profile] : undefined),
       }),
     });
     const srvData = await srvResp.json().catch(() => ({}));
@@ -1930,32 +1962,6 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       if (body.customVoiceProfile) registerCustomVoiceInBrowserCache(body.customVoiceProfile);
       if (Array.isArray(body.customVoices)) body.customVoices.forEach(registerCustomVoiceInBrowserCache);
 
-      const usesClonedVoice = Boolean(body.multiSpeaker)
-        ? String(body.speaker1?.voiceName || '').startsWith('wappy_clone_') ||
-          String(body.speaker2?.voiceName || '').startsWith('wappy_clone_')
-        : String(body.voiceName || '').startsWith('wappy_clone_');
-
-      // Si usa una voz clonada (wappy_clone_*), sintetizar desde el navegador del cliente (IP residencial)
-      // contra OmniVoice Zero-Shot para evitar el bloqueo de IP de datacenter en HuggingFace ZeroGPU
-      if (usesClonedVoice) {
-        try {
-          const r = await synthesizeChunk({
-            ...body,
-            authInit,
-            text: String(body.text).slice(0, 4500),
-          });
-          return json({
-            success: true,
-            audioBase64: r.audioBase64,
-            durationSeconds: r.durationSeconds,
-            usedModel: r.usedModel,
-            usedKeyIndex: r.usedKeyIndex,
-          });
-        } catch (browserCloneErr: any) {
-          console.warn('[WappyStudio Browser Synthesize] Aviso:', browserCloneErr);
-        }
-      }
-
       if (await isServerAvailable()) {
         try {
           return await nativeFetch(url.pathname + url.search, authInit);
@@ -1973,12 +1979,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
       if (body.customVoiceProfile) registerCustomVoiceInBrowserCache(body.customVoiceProfile);
       if (Array.isArray(body.customVoices)) body.customVoices.forEach(registerCustomVoiceInBrowserCache);
 
-      const usesClonedVoice = Boolean(body.multiSpeaker)
-        ? String(body.speaker1?.voiceName || '').startsWith('wappy_clone_') ||
-          String(body.speaker2?.voiceName || '').startsWith('wappy_clone_')
-        : String(body.voiceName || '').startsWith('wappy_clone_');
-
-      if (!usesClonedVoice && (await isServerAvailable())) {
+      if (await isServerAvailable()) {
         try {
           return await nativeFetch(url.pathname + url.search, authInit);
         } catch {
@@ -1987,9 +1988,7 @@ async function handleStudioRequest(url: URL, init?: RequestInit): Promise<Respon
           }
         }
       }
-      if (!usesClonedVoice && !(await isServerAvailable())) {
-        requireKeys();
-      }
+      requireKeys();
       const chunks = splitTextIntoChunks(String(body.text || ''), body.maxWordsPerChunk, {
         multiSpeaker: Boolean(body.multiSpeaker),
         speaker1Name: body.speaker1?.name || 'Alex',

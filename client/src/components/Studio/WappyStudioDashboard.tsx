@@ -3540,6 +3540,32 @@ export default function WappyStudioDashboard({
     }
   };
 
+  /** Resuelve un nombre amigable (ej. "🧬 Mi Voz (Host SST)") o ID de vuelta a su ID técnico real (`wappy_clone_...` o `Orus`/`Kore`). */
+  const resolveVoiceIdFromNameOrId = (rawNameOrId?: string): string => {
+    const clean = (rawNameOrId || '').trim();
+    if (!clean) return 'Kore';
+    if (
+      clean.startsWith('wappy_clone_') ||
+      clean.startsWith('voice_') ||
+      clean.startsWith('voicekey_')
+    ) {
+      return clean;
+    }
+    const normalized = clean.replace(/^🧬\s*/, '').trim().toLowerCase();
+    const byId = [...clonedVoices, ...voices].find((v) => v.id === clean);
+    if (byId) return byId.id;
+    const byName = [...clonedVoices, ...voices].find(
+      (v) =>
+        v.name.toLowerCase() === clean.toLowerCase() ||
+        v.name.replace(/^🧬\s*/, '').trim().toLowerCase() === normalized,
+    );
+    if (byName) return byName.id;
+    if (clean.startsWith('🧬') && clonedVoices.length > 0) {
+      return clonedVoices[0].id;
+    }
+    return clean;
+  };
+
   /** Carga un podcast ya subido/creado en el Estudio de Edición para editar su título, guion o volver a sintetizarlo. */
   const handleEditLibraryAudio = async (item: LibraryItem) => {
     setEditingLibraryItemId(item.id);
@@ -3551,13 +3577,13 @@ export default function WappyStudioDashboard({
       setStylePrompt(item.stylePrompt);
     }
     if (item.voiceName && item.voiceName.includes('+')) {
-      const parts = item.voiceName.split('+').map((s) => s.trim());
+      const parts = item.voiceName.split('+').map((s) => resolveVoiceIdFromNameOrId(s));
       setMultiSpeaker(true);
       if (parts[0]) setSpeaker1Voice(parts[0]);
       if (parts[1]) setSpeaker2Voice(parts[1]);
     } else if (item.voiceName) {
       setMultiSpeaker(false);
-      setSelectedVoice(item.voiceName);
+      setSelectedVoice(resolveVoiceIdFromNameOrId(item.voiceName));
     }
     await openLibraryAudio(item, false);
     handleTabChange('tts');
@@ -4342,12 +4368,8 @@ export default function WappyStudioDashboard({
       setStylePrompt(clonedObj.styleDirective);
     }
 
-    // Si había un episodio previo cargado en el reproductor/Walkman con otra voz, limpiarlo para que PLAY sintetice con la nueva voz
-    setCurrentAudio((prev) => {
-      if (!prev) return null;
-      if (prev.title?.startsWith('Muestra Voz')) return prev;
-      return null;
-    });
+    // Si había un episodio o muestra previa en el reproductor/Walkman, limpiarlo para que PLAY sintetice el guion actual con la voz seleccionada
+    setCurrentAudio(null);
 
     setStatusBanner({
       type: 'success',
@@ -6923,6 +6945,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     setAntigravityCloudCount(cldCnt);
     setAntigravityActiveMode(modeVal);
     setAntigravityEffectiveEnv(effVal);
+    setAntigravityConnectionGuideTab(modeVal === 'local' ? 'local' : modeVal === 'cloud' ? 'cloud' : 'both');
     setAntigravityDaemonConnected(anyConn);
   };
 
@@ -7006,6 +7029,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
               : 'local';
     setAntigravityActiveMode(nextMode);
     setAntigravityEffectiveEnv(optimisticEffective);
+    setAntigravityConnectionGuideTab(nextMode === 'local' ? 'local' : nextMode === 'cloud' ? 'cloud' : 'both');
     try {
       const effKey = resolveEffectiveAntigravityKey() || antigravityBridgeKey || '';
       let resp = await fetch('/api/studio/antigravity/mode', {
@@ -8188,6 +8212,11 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                           selectActiveStudioVoice(cvId, 'solo');
                           return;
                         }
+                        if (val.startsWith('clone_dual_host2_')) {
+                          const cvId = val.replace('clone_dual_host2_', '');
+                          selectActiveStudioVoice(cvId, 'host2');
+                          return;
+                        }
                         if (val.startsWith('clone_dual_')) {
                           const cvId = val.replace('clone_dual_', '');
                           selectActiveStudioVoice(cvId, 'host1');
@@ -8198,22 +8227,29 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                         if (!isVoiceSupported(preset.voiceName)) {
                           setSelectedModel('gemini-3.8-flash-tts');
                         }
+                        const isCloneId = (v?: string) =>
+                          Boolean(
+                            v &&
+                              (v.startsWith('wappy_clone_') ||
+                                v.startsWith('voice_') ||
+                                v.startsWith('voicekey_')),
+                          );
                         if (preset.multiSpeaker) {
                           setMultiSpeaker(true);
-                          if (preset.speaker1) {
+                          if (preset.speaker1 && !isCloneId(speaker1Voice)) {
                             setSpeaker1Voice(preset.speaker1.voiceName);
                           }
-                          if (preset.speaker2) {
+                          if (preset.speaker2 && !isCloneId(speaker2Voice)) {
                             setSpeaker2Voice(preset.speaker2.voiceName);
                           }
                         } else {
                           setMultiSpeaker(false);
-                          setSelectedVoice(preset.voiceName);
+                          if (!isCloneId(selectedVoice)) {
+                            setSelectedVoice(preset.voiceName);
+                          }
                         }
                         setStylePrompt(preset.style);
-                        setCurrentAudio((prev) =>
-                          prev && prev.title?.startsWith('Muestra Voz') ? prev : null,
-                        );
+                        setCurrentAudio(null);
                       }}
                       className="w-full appearance-none rounded-xl border border-teal-500/40 dark:border-[#c7f303]/40 bg-slate-900/95 text-white text-xs font-extrabold px-3.5 py-2.5 pr-9 shadow-inner focus:outline-none focus:border-[#c7f303] focus:ring-2 focus:ring-[#c7f303]/20 transition cursor-pointer"
                     >
@@ -8237,7 +8273,13 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                                 value={`clone_dual_${cv.id}`}
                                 className="bg-slate-950 text-teal-300 py-1.5 font-bold"
                               >
-                                👥 {cv.name} — Podcast Dual (Host 1 + {formatVoiceDisplayName(speaker2Voice)})
+                                👥 {cv.name} — Podcast Dual (Host 1 Alex + {formatVoiceDisplayName(speaker2Voice)})
+                              </option>
+                              <option
+                                value={`clone_dual_host2_${cv.id}`}
+                                className="bg-slate-950 text-purple-300 py-1.5 font-bold"
+                              >
+                                👥 {cv.name} — Podcast Dual ({formatVoiceDisplayName(speaker1Voice)} + Host 2 Sam)
                               </option>
                             </React.Fragment>
                           ))}
@@ -8393,13 +8435,24 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                                 <ExpandableButton
                                   size="sm"
                                   icon={<Users />}
-                                  label={isActiveHost1 ? 'Activa (Host 1)' : 'Usar en Host 1 (Dual)'}
+                                  label={isActiveHost1 ? 'Activa (Host 1)' : 'Usar en Host 1 (Alex)'}
                                   variant={isActiveHost1 ? 'emerald' : 'purple'}
                                   onClick={(e) => {
                                     e?.stopPropagation();
                                     selectActiveStudioVoice(cv.id, 'host1');
                                   }}
-                                  title="Seleccionar esta voz clonada como Host 1 en Podcast de 2 Voces"
+                                  title="Seleccionar esta voz clonada como Host 1 (Alex) en Podcast de 2 Voces"
+                                />
+                                <ExpandableButton
+                                  size="sm"
+                                  icon={<Users />}
+                                  label={isActiveHost2 ? 'Activa (Host 2)' : 'Usar en Host 2 (Sam)'}
+                                  variant={isActiveHost2 ? 'emerald' : 'violet'}
+                                  onClick={(e) => {
+                                    e?.stopPropagation();
+                                    selectActiveStudioVoice(cv.id, 'host2');
+                                  }}
+                                  title="Seleccionar esta voz clonada como Host 2 (Sam) en Podcast de 2 Voces"
                                 />
                                 <ExpandableButton
                                   size="sm"
@@ -12445,44 +12498,41 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                   </div>
                 </div>
 
-                {/* Selector de Pestañas de Conexión: Cloud vs Local */}
-                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-fit">
-                  <button
-                    type="button"
-                    onClick={() => setAntigravityConnectionGuideTab('cloud')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
-                      antigravityConnectionGuideTab === 'cloud'
-                        ? 'bg-sky-500/15 border border-sky-500/40 text-sky-700 dark:text-sky-300'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
-                    )}
-                  >
-                    ☁️ Conectar Antigravity Cloud (Sin instalar nada)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAntigravityConnectionGuideTab('local')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
-                      antigravityConnectionGuideTab === 'local'
-                        ? 'bg-teal-500/15 border border-teal-500/40 text-teal-700 dark:text-teal-300'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
-                    )}
-                  >
-                    🖥️ Conectar Antigravity Local (Mac/PC)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAntigravityConnectionGuideTab('both')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer',
-                      antigravityConnectionGuideTab === 'both'
-                        ? 'bg-purple-500/15 border border-purple-500/40 text-purple-700 dark:text-purple-300'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white',
-                    )}
-                  >
-                    🔀 Ver Ambos
-                  </button>
+                {/* Título contextual según modo activo — sin sub-selector redundante */}
+                <div className="flex items-center gap-2 pb-1">
+                  {antigravityConnectionGuideTab === 'cloud' && (
+                    <>
+                      <span className="text-base">☁️</span>
+                      <span className="text-xs font-extrabold text-sky-700 dark:text-sky-300">
+                        Instrucciones de Conexión Cloud (antigravity.google.com)
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                        — Sin instalar nada en tu PC
+                      </span>
+                    </>
+                  )}
+                  {antigravityConnectionGuideTab === 'local' && (
+                    <>
+                      <span className="text-base">🖥️</span>
+                      <span className="text-xs font-extrabold text-teal-700 dark:text-teal-300">
+                        Instrucciones de Conexión Local (Mac / Windows)
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                        — Corre en tu computador
+                      </span>
+                    </>
+                  )}
+                  {antigravityConnectionGuideTab === 'both' && (
+                    <>
+                      <span className="text-base">⚡</span>
+                      <span className="text-xs font-extrabold text-purple-700 dark:text-purple-300">
+                        Modo Automático — Conexión Cloud y Local
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                        — Puedes usar ambos entornos
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {/* OPCIÓN A: ☁️ Antigravity Cloud (antigravity.google.com) — Sin instalar nada en tu PC */}

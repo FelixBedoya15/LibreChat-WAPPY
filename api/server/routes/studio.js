@@ -678,7 +678,7 @@ function parseSpeakerTurns(
 
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const turnRegex = new RegExp(
-    `(?:^|\\n)\\s*(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2)\\s*:\\s*`,
+    `(?:^|\\n)\\s*(?:\\*\\*\\s*)?(${esc(s1)}|${esc(s2)}|Hablante\\s*1|Hablante\\s*2|Speaker\\s*1|Speaker\\s*2|Host\\s*1|Host\\s*2|Locutor\\s*1|Locutor\\s*2)(?:\\s*\\*\\*)?\\s*:\\s*`,
     'gi',
   );
 
@@ -1306,17 +1306,77 @@ setTimeout(() => {
 
 const OMNIVOICE_SPACES = [
   'https://k2-fsa-omnivoice.hf.space',
-  'https://yoshinishii-omnivoice-personal.hf.space',
-  'https://d3vshoaib-omnivoice.hf.space',
+  'https://harmonyshoes-omnivoice.hf.space',
+  'https://archivartaunik-omnivoice.hf.space',
+  'https://nitrox-omnivoice.hf.space',
+  'https://shelplank8-omnivoice.hf.space',
+  'https://oddadmix-lahgtna-omnivoice-demo.hf.space',
 ];
 
 const omnivoiceUploadCache = new Map();
+let omnivoiceQuotaCooldownUntil = 0;
+
+const OPENVOICE_V2_ENDPOINTS = [
+  process.env.OPENVOICE_V2_URL || 'http://rag_api:9455/convert',
+  'http://127.0.0.1:9455/convert',
+  'http://172.17.0.1:9455/convert',
+];
 
 /**
- * Divide un turno largo en sub-oraciones de ~25 a 35 palabras para que cada llamada a OmniVoice ZeroGPU
- * se complete en ~4-6 segundos sin agotar la cuota por petición ni degradar la similitud vocal.
+ * Convierte el timbre vocal (tracto vocal, formantes y color de voz) de un audio WAV sintetizado
+ * hacia la grabación real del usuario (`referenceVoiceBase64`) usando el microservicio neural local
+ * OpenVoice V2 ToneColorConverter (`http://rag_api:9455/convert`), sin límites de cuota ni degradación.
  */
-function splitZeroShotTextIntoSubSentences(cleanText, maxWords = 32) {
+async function convertSpeechTimbreWithOpenVoiceV2(
+  sourceWavBuffer,
+  referenceVoiceBase64,
+  tau = 0.25,
+) {
+  const cleanRefB64 = String(referenceVoiceBase64 || '')
+    .replace(/^data:[^;]+;base64,/, '')
+    .trim();
+  if (!cleanRefB64 || !sourceWavBuffer || sourceWavBuffer.length < 100) {
+    throw new Error('Datos insuficientes para conversión de timbre OpenVoice V2.');
+  }
+
+  const srcWavB64 = Buffer.isBuffer(sourceWavBuffer)
+    ? sourceWavBuffer.toString('base64')
+    : Buffer.from(sourceWavBuffer).toString('base64');
+
+  let lastErr = null;
+  for (const endpoint of OPENVOICE_V2_ENDPOINTS) {
+    try {
+      const resp = await axios.post(
+        endpoint,
+        {
+          source_wav_b64: srcWavB64,
+          ref_wav_b64: cleanRefB64,
+          tau,
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 65000,
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+        },
+      );
+      if (resp.data?.ok && resp.data?.audio_b64) {
+        const rawConverted = Buffer.from(resp.data.audio_b64, 'base64');
+        return normalizeAudioBufferToWav(rawConverted, 24000);
+      }
+      throw new Error(resp.data?.error || 'Respuesta inválida de OpenVoice V2');
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('No se pudo conectar con el motor neural OpenVoice V2 local.');
+}
+
+/**
+ * Divide un turno largo en sub-oraciones de hasta ~110 palabras para minimizar el número de llamadas
+ * a OmniVoice ZeroGPU por turno y preservar la prosodia continua.
+ */
+function splitZeroShotTextIntoSubSentences(cleanText, maxWords = 110) {
   const words = String(cleanText || '').split(/\s+/).filter(Boolean);
   if (words.length <= maxWords) {
     return [words.join(' ')];
@@ -1375,7 +1435,19 @@ async function synthesizeSingleZeroShotSegment({
   refTranscript = '',
   omniLang = 'Spanish',
 }) {
+  if (Date.now() < omnivoiceQuotaCooldownUntil) {
+    throw new Error('OmniVoice ZeroGPU en enfriamiento de cuota; delegando a OpenVoice V2 local.');
+  }
+
   let lastOmniErr = null;
+  const hfToken = (
+    process.env.HUGGINGFACE_TOKEN ||
+    process.env.HF_TOKEN ||
+    process.env.HUGGING_FACE_HUB_TOKEN ||
+    ''
+  ).trim();
+  const authHeaders = hfToken ? { Authorization: `Bearer ${hfToken}` } : {};
+  const hasRefTranscript = Boolean(refTranscript && String(refTranscript).trim().length > 5);
 
   for (const spaceBase of OMNIVOICE_SPACES) {
     const cacheKey = `${spaceBase}::${refHash}`;
@@ -1385,8 +1457,9 @@ async function synthesizeSingleZeroShotSegment({
       form.append('files', new Blob([refWavBuf], { type: 'audio/wav' }), `ref_${refHash}.wav`);
       const upResp = await fetch(`${spaceBase}/gradio_api/upload`, {
         method: 'POST',
+        headers: { ...authHeaders },
         body: form,
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(20000),
       });
       if (!upResp.ok) {
         throw new Error(`Upload HTTP ${upResp.status} en ${spaceBase}`);
@@ -1403,115 +1476,112 @@ async function synthesizeSingleZeroShotSegment({
       return uploadedPath;
     };
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const cached = omnivoiceUploadCache.get(cacheKey);
-        const uploadedPath =
-          attempt === 0 && cached && cached.expiresAt > Date.now()
-            ? cached.uploadedPath
-            : await uploadRefWav();
+    try {
+      const cached = omnivoiceUploadCache.get(cacheKey);
+      const uploadedPath =
+        cached && cached.expiresAt > Date.now() ? cached.uploadedPath : await uploadRefWav();
 
-        const callResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            data: [
-              segmentText,
-              omniLang,
-              { path: uploadedPath, meta: { _type: 'gradio.FileData' } },
-              String(refTranscript || '').trim(),
-              '',
-              32,
-              2.5,
-              true,
-              1.0,
-              null,
-              true,
-              true,
-            ],
-          }),
-          signal: AbortSignal.timeout(25000),
-        });
+      const callResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          data: [
+            segmentText,
+            omniLang,
+            { path: uploadedPath, meta: { _type: 'gradio.FileData' } },
+            String(refTranscript || '').trim(),
+            '',
+            20,
+            2.5,
+            true,
+            1.0,
+            null,
+            !hasRefTranscript,
+            true,
+          ],
+        }),
+        signal: AbortSignal.timeout(20000),
+      });
 
-        if (!callResp.ok) {
-          throw new Error(`Call _clone_fn HTTP ${callResp.status}`);
-        }
-        const callData = await callResp.json();
-        const eventId = callData?.event_id;
-        if (!eventId) {
-          throw new Error('No se recibió event_id de OmniVoice');
-        }
+      if (!callResp.ok) {
+        throw new Error(`Call _clone_fn HTTP ${callResp.status}`);
+      }
+      const callData = await callResp.json();
+      const eventId = callData?.event_id;
+      if (!eventId) {
+        throw new Error('No se recibió event_id de OmniVoice');
+      }
 
-        const sseResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn/${eventId}`, {
-          signal: AbortSignal.timeout(65000),
-        });
-        if (!sseResp.ok) {
-          throw new Error(`SSE HTTP ${sseResp.status}`);
-        }
-        const sseText = await sseResp.text();
-        if (sseText.includes('event: error')) {
-          omnivoiceUploadCache.delete(cacheKey);
-          throw new Error(`OmniVoice devolvió event: error (${sseText.slice(0, 160)})`);
-        }
-
-        const sseLines = sseText.split(/\r?\n/);
-        let completeJsonStr = '';
-        for (let li = 0; li < sseLines.length; li++) {
-          if (/^event:\s*complete\b/i.test(sseLines[li].trim())) {
-            for (let nj = li + 1; nj < sseLines.length; nj++) {
-              const cand = sseLines[nj].trim();
-              if (cand.startsWith('data:')) {
-                completeJsonStr = cand.replace(/^data:\s*/, '').trim();
-                break;
-              }
-            }
-            if (completeJsonStr) break;
-          }
-        }
-        if (!completeJsonStr) {
-          throw new Error(`Stream SSE incompleto en ${spaceBase}`);
-        }
-
-        const parsed = JSON.parse(completeJsonStr);
-        const fileObj = parsed?.[0];
-        const audioUrl =
-          fileObj?.url ||
-          (fileObj?.path ? `${spaceBase}/gradio_api/file=${fileObj.path}` : null);
-        if (!audioUrl) {
-          throw new Error('OmniVoice no devolvió URL de audio WAV');
-        }
-
-        const wavResp = await fetch(audioUrl, {
-          signal: AbortSignal.timeout(30000),
-        });
-        if (!wavResp.ok) {
-          throw new Error(`Descarga WAV HTTP ${wavResp.status}`);
-        }
-        const outBuf = Buffer.from(await wavResp.arrayBuffer());
-        const { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
-          outBuf,
-          24000,
-        );
-
-        return {
-          wavBuffer,
-          pcmBuffer,
-          audioBase64: wavBuffer.toString('base64'),
-          durationSeconds,
-          sampleRate,
-          usedModel: 'omnivoice-zero-shot-24khz',
-          usedKeyIndex: 0,
-        };
-      } catch (err) {
-        lastOmniErr = err;
+      const sseResp = await fetch(`${spaceBase}/gradio_api/call/_clone_fn/${eventId}`, {
+        headers: { ...authHeaders },
+        signal: AbortSignal.timeout(45000),
+      });
+      if (!sseResp.ok) {
+        throw new Error(`SSE HTTP ${sseResp.status}`);
+      }
+      const sseText = await sseResp.text();
+      if (sseText.includes('event: error')) {
         omnivoiceUploadCache.delete(cacheKey);
-        if (attempt === 0) {
-          continue;
+        throw new Error(`OmniVoice devolvió event: error (${sseText.slice(0, 160)})`);
+      }
+
+      const sseLines = sseText.split(/\r?\n/);
+      let completeJsonStr = '';
+      for (let li = 0; li < sseLines.length; li++) {
+        if (/^event:\s*complete\b/i.test(sseLines[li].trim())) {
+          for (let nj = li + 1; nj < sseLines.length; nj++) {
+            const cand = sseLines[nj].trim();
+            if (cand.startsWith('data:')) {
+              completeJsonStr = cand.replace(/^data:\s*/, '').trim();
+              break;
+            }
+          }
+          if (completeJsonStr) break;
         }
       }
+      if (!completeJsonStr) {
+        throw new Error(`Stream SSE incompleto en ${spaceBase}`);
+      }
+
+      const parsed = JSON.parse(completeJsonStr);
+      const fileObj = parsed?.[0];
+      const audioUrl =
+        fileObj?.url ||
+        (fileObj?.path ? `${spaceBase}/gradio_api/file=${fileObj.path}` : null);
+      if (!audioUrl) {
+        throw new Error('OmniVoice no devolvió URL de audio WAV');
+      }
+
+      const wavResp = await fetch(audioUrl, {
+        headers: { ...authHeaders },
+        signal: AbortSignal.timeout(25000),
+      });
+      if (!wavResp.ok) {
+        throw new Error(`Descarga WAV HTTP ${wavResp.status}`);
+      }
+      const outBuf = Buffer.from(await wavResp.arrayBuffer());
+      const { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
+        outBuf,
+        24000,
+      );
+
+      return {
+        wavBuffer,
+        pcmBuffer,
+        audioBase64: wavBuffer.toString('base64'),
+        durationSeconds,
+        sampleRate,
+        usedModel: 'omnivoice-zero-shot-24khz',
+        usedKeyIndex: 0,
+      };
+    } catch (err) {
+      lastOmniErr = err;
+      omnivoiceUploadCache.delete(cacheKey);
     }
   }
 
+  // Si todos los espacios fallaron por cuota ZeroGPU, activar enfriamiento de 90 segundos para no demorar los siguientes turnos del podcast
+  omnivoiceQuotaCooldownUntil = Date.now() + 90 * 1000;
   throw lastOmniErr || new Error('No se pudo sintetizar el clon acústico Zero-Shot en OmniVoice.');
 }
 
@@ -1527,7 +1597,7 @@ async function synthesizeZeroShotVoiceStudioClone({
   languageCode = 'es-CO',
 }) {
   const cleanTurnText = sanitizeScriptText(text)
-    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2)\s*:\s*/gim, '')
+    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2|Host\s*1|Host\s*2|Locutor\s*1|Locutor\s*2)\s*:\s*/gim, '')
     .replace(/\[Estilo Vocal:[^\]]*\]/gi, '')
     .replace(/<(?:breath|laugh|sigh|cough|chuckle|gasp|yawn|clear_throat)>/gi, ' ')
     .replace(/\s+/g, ' ')
@@ -1557,7 +1627,7 @@ async function synthesizeZeroShotVoiceStudioClone({
         ? 'French'
         : 'Spanish';
 
-  const subSentences = splitZeroShotTextIntoSubSentences(cleanTurnText, 32);
+  const subSentences = splitZeroShotTextIntoSubSentences(cleanTurnText, 110);
   if (subSentences.length === 1) {
     return synthesizeSingleZeroShotSegment({
       segmentText: subSentences[0],
@@ -1650,7 +1720,7 @@ function resolveCompatibleVoice(voiceName, modelId) {
   }
   if (modelId.includes('lite')) {
     const liteVoices = ['Kore', 'Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede'];
-    return liteVoices.includes(cleanVoice) ? cleanVoice : 'Kore';
+    return liteVoices.includes(cleanVoice) ? liteVoices : 'Kore';
   }
   return cleanVoice;
 }
@@ -1670,7 +1740,7 @@ async function synthesizeSingleVoiceTurn({
   onFailover,
 }) {
   const cleanTurnText = sanitizeScriptText(text)
-    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2)\s*:\s*/gim, '')
+    .replace(/^(?:Alex|Sam|Hablante\s*1|Hablante\s*2|Speaker\s*1|Speaker\s*2|Host\s*1|Host\s*2|Locutor\s*1|Locutor\s*2)\s*:\s*/gim, '')
     .trim();
 
   if (!cleanTurnText) {
@@ -1686,23 +1756,25 @@ async function synthesizeSingleVoiceTurn({
     customCloneEntry?.sourceAudioBase64 || customCloneEntry?.sampleAudioBase64 || '';
 
   // 0. Si es una voz clonada con grabación real (sourceAudioBase64 o sampleAudioBase64) y no tiene replicación nativa Tier 1 en Google,
-  // sintetizar directamente con el motor Zero-Shot de clonación por forma de onda (VoiceStudio OmniVoice 24kHz)
+  // intentar primero Zero-Shot OmniVoice (si no está en cooldown de cuota) y si no, usar Gemini TTS + OpenVoice V2 ToneColorConverter 24kHz
   if (cloneRefAudioB64 && customCloneEntry?.nativeMethod !== 'gemini_v1beta_voices') {
-    try {
-      const zeroShotRes = await synthesizeZeroShotVoiceStudioClone({
-        text: cleanTurnText,
-        sourceAudioBase64: cloneRefAudioB64,
-        refTranscript: customCloneEntry.refTranscript || '',
-        languageCode: customCloneEntry.languageCode || 'es-CO',
-      });
-      logger.info(
-        `[WappyStudio TTS] Turno sintetizado con clon acústico real Zero-Shot OmniVoice (voz=${cleanVoiceKey}, dur=${zeroShotRes.durationSeconds}s, bytes=${zeroShotRes.pcmBuffer.length})`,
-      );
-      return zeroShotRes;
-    } catch (zeroErr) {
-      logger.warn(
-        `[WappyStudio TTS] Aviso en motor Zero-Shot OmniVoice para ${cleanVoiceKey} (${zeroErr.message}). Usando respaldo Gemini TTS...`,
-      );
+    if (Date.now() >= omnivoiceQuotaCooldownUntil) {
+      try {
+        const zeroShotRes = await synthesizeZeroShotVoiceStudioClone({
+          text: cleanTurnText,
+          sourceAudioBase64: cloneRefAudioB64,
+          refTranscript: customCloneEntry.refTranscript || '',
+          languageCode: customCloneEntry.languageCode || 'es-CO',
+        });
+        logger.info(
+          `[WappyStudio TTS] Turno sintetizado con clon acústico real Zero-Shot OmniVoice (voz=${cleanVoiceKey}, dur=${zeroShotRes.durationSeconds}s, bytes=${zeroShotRes.pcmBuffer.length})`,
+        );
+        return zeroShotRes;
+      } catch (zeroErr) {
+        logger.info(
+          `[WappyStudio TTS] Redirigiendo turno de voz clonada ${cleanVoiceKey} al motor neural local OpenVoice V2 24kHz (${zeroErr.message}).`,
+        );
+      }
     }
   } else if (
     cleanVoiceKey.startsWith('wappy_clone_') &&
@@ -1872,15 +1944,45 @@ async function synthesizeSingleVoiceTurn({
         }
 
         const rawBuffer = Buffer.from(audioPart.inlineData.data, 'base64');
-        const { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
+        let { wavBuffer, pcmBuffer, durationSeconds, sampleRate } = normalizeAudioBufferToWav(
           rawBuffer,
           24000,
         );
+        let finalModelLabel = currentModel;
+
+        // Si el turno corresponde a una voz clonada del usuario con grabación de referencia,
+        // transferir el timbre vocal real del usuario mediante nuestro motor neural local OpenVoice V2 ToneColorConverter (24kHz)
+        if (
+          cloneRefAudioB64 &&
+          isCustomClonedVoiceId(cleanVoiceKey) &&
+          customCloneEntry?.nativeMethod !== 'gemini_v1beta_voices'
+        ) {
+          try {
+            const converted = await convertSpeechTimbreWithOpenVoiceV2(
+              wavBuffer,
+              cloneRefAudioB64,
+              0.25,
+            );
+            wavBuffer = converted.wavBuffer;
+            pcmBuffer = converted.pcmBuffer;
+            durationSeconds = converted.durationSeconds;
+            sampleRate = converted.sampleRate;
+            finalModelLabel = `${currentModel}+openvoice-v2-24khz`;
+            logger.info(
+              `[WappyStudio TTS] Turno clonado con OpenVoice V2 ToneColorConverter 24kHz (voz=${cleanVoiceKey}, base=${resolvedVoice}, dur=${durationSeconds}s, bytes=${pcmBuffer.length})`,
+            );
+          } catch (ovErr) {
+            logger.warn(
+              `[WappyStudio TTS] Aviso en conversión OpenVoice V2 para ${cleanVoiceKey}: ${ovErr.message}`,
+            );
+          }
+        } else {
+          logger.info(
+            `[WappyStudio TTS] Turno sintetizado limpio (modelo=${currentModel}, voz=${resolvedVoice}, dur=${durationSeconds}s, bytes=${pcmBuffer.length})`,
+          );
+        }
 
         geminiPoolManager.reportKeySuccess(apiKey, currentModel);
-        logger.info(
-          `[WappyStudio TTS] Turno sintetizado limpio (modelo=${currentModel}, voz=${resolvedVoice}, dur=${durationSeconds}s, bytes=${pcmBuffer.length})`,
-        );
 
         return {
           wavBuffer,
@@ -1888,7 +1990,7 @@ async function synthesizeSingleVoiceTurn({
           audioBase64: wavBuffer.toString('base64'),
           durationSeconds,
           sampleRate,
-          usedModel: currentModel,
+          usedModel: finalModelLabel,
           usedKeyIndex: kIdx,
         };
       } catch (err) {
