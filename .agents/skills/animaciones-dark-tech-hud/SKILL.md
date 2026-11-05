@@ -1,11 +1,13 @@
 ---
 name: animaciones-dark-tech-hud
-description: Sistema maestro de animación y motion graphics estilo Dark Tech Cyberpunk / HUD Glassmorphism para Reels y vídeos verticales de WAPPY (9:16). Incluye paleta cósmica oscura (#0c192e a #020409), rejilla cyber-grid, haz láser de escaneo (scanline-beam), radar holográfico SVG rotatorio, esquinas tácticas (corner-bracket), ecualizador reactivo, entradas cinéticas escalonadas desde los laterales (slide-in stagger L/R), diseño de núcleo central rodeado por satélites orbitales conectados por láser (como la Huella Biocéntrica), y tipografía de gran escala optimizada para pantallas de móvil.
+description: Catálogo opcional de estética Dark Tech Cyberpunk / HUD Glassmorphism para Reels (9:16). NO usar como estilo por defecto (el estándar por defecto de WAPPY es el Estilo Pro Limpio de protocolo-produccion-videos / editor-reels, sin rejillas ni HUD). Activar únicamente cuando el usuario pida explícitamente estética Cyberpunk, consola futurista o HUD pericial.
 ---
 
-# Animaciones Dark Tech HUD · WAPPY Motion Design System
+# Animaciones Dark Tech HUD · Catálogo Opcional (Solo Bajo Pedido Explícito)
 
-Este estándar define la producción visual para reels, tutoriales y vídeos promocionales de WAPPY con la estética **Dark Tech Cyberpunk / HUD Glassmorphism**, inspirada en consolas de ingeniería pericial, interfaces de ciencia ficción y dashboards biomecánicos.
+> [!IMPORTANT]
+> **REGLA DE NO SATURACIÓN:** El estilo por defecto de los videos de WAPPY IA es el **Estilo Pro Limpio** (`protocolo-produccion-videos` / `editor-reels`: fondo `#06080d` liso, tarjetas sólidas `#10151e`, una sola pieza a la vez, cero ruido visual).
+> **NO apliques rejillas, rayos láser, radares ni brackets de esta skill** a menos que el usuario pida explícitamente un video «estilo HUD / Cyberpunk». Si se usa, elegir solo los elementos pedidos sin amontonar paneles.
 
 ---
 
@@ -36,9 +38,9 @@ background: radial-gradient(circle at 50% 18%, #0c192e 0%, #050a14 58%, #020409 
 
 ---
 
-## 2. Componentes Tácticos HUD Obligatorios
+## 2. Componentes Tácticos HUD Disponibles (Usar con Moderación)
 
-Ningún video de este estilo debe carecer de estos elementos vivos de instrumentación:
+Selecciona únicamente 1 o 2 de estos componentes cuando el usuario solicite estética HUD (nunca combinarlos todos a la vez):
 
 ### A. Rejilla Cibernética (`.bg-cyber-grid`)
 ```css

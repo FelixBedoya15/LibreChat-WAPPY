@@ -1,11 +1,15 @@
 ---
 name: animaciones-17-efectos-reels
-description: "Catálogo maestro y motor de Efectos Virales y Transiciones de Alto Impacto para Reels/TikTok/YouTube (@prompteafacil + Ricardo Cabascango @aupria + WAPPY IA): 01 Orbit (Órbita 3D), 02 Frame break, 03 UI world, 04 Digital zoom con retícula, 05 Phone mockup con Dynamic Island, 06 Headline wall, 07 Zoom-through (transición inmersiva sin corte), 08 Chart grow, 09 Doodle boil, 10 Glass type (cristal 3D), 11 Giro 3D, 12 Couch wall, 13 Checklist, 14 Corte con zoom, 15 Zoom out, 16 Green screen, 17 Paper cut, 18 Vértigo (Dolly Zoom), y 19 Cover story. Incluye Showcase interactivo con menú lateral y contador (09/17). Úsala SIEMPRE que el usuario pida animar vídeos, reels verticales, transiciones de alto impacto, efectos nivel After Effects en código, o que el guión encadene múltiples efectos dinámicos."
+description: "Catálogo selectivo de 17 Efectos y Transiciones para Reels/TikTok/YouTube (01 Orbit, 02 Frame break, 03 UI world, 04 Digital zoom, 05 Phone mockup, 07 Zoom-through, 08 Chart grow, 13 Checklist, etc.). REGLA: NO aplicar múltiples efectos de golpe; el estilo base es el Estilo Pro Limpio (protocolo-produccion-videos / editor-reels: una sola pieza a la vez). Usa este catálogo solo para elegir 1 transición o efecto puntual cuando la frase del guion lo pida."
 ---
 
-# Catálogo Maestro de Efectos Virales y Transiciones para Reels (`animaciones-17-efectos-reels`)
+# Catálogo Selectivo de Efectos y Transiciones para Reels (`animaciones-17-efectos-reels`)
 
-Esta skill implementa la librería definitiva de **motion graphics, transiciones y efectos de cámara de nivel After Effects programados en código puro** (HTML5, GSAP, Canvas y Three.js), combinando los referentes más virales de la industria (@prompteafacil, Ricardo Cabascango @aupria) con la identidad visual de **WAPPY IA `#c7f303`**, las **Leyes Cinéticas de Dinamismo** y el **Avatar de Mauricio / Tenshi 3D**.
+> [!IMPORTANT]
+> **REGLA DE DISCRIMINACIÓN («Una frase, una idea, una pieza»):**
+> Esta librería es un **catálogo de consulta**, NO una lista de efectos para meter todos juntos en el mismo video.
+> - El diseño base es siempre el **Estilo Pro Limpio** (`protocolo-produccion-videos` / `editor-reels`).
+> - Discrimina según la frase: elige **como máximo 1 efecto puntual** cuando realmente aporte a lo que dice la voz, manteniendo el fondo limpio `#06080d` y sin saturar la pantalla.
 
 La plantilla carga automáticamente:
 - `motor/efectos-17-reels.js`

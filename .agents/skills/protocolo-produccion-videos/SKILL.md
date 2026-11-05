@@ -1,99 +1,61 @@
 ---
 name: protocolo-produccion-videos
-description: "Protocolo obligatorio de consulta, pre-producción, Ficha de Marca WAPPY IA y Sistema de las 7 Piezas para la creación de cualquier vídeo promocional, reel o animación en WAPPY IA. Debe ejecutarse SIEMPRE antes de escribir código o renderizar un MP4."
+description: "Protocolo maestro unificado de producción de vídeos WAPPY IA: combina el Estilo Pro Limpio (una sola pieza a la vez, cero ruido visual), el Avatar 3D con Lip-Sync (wappy-avatar3d.js / Voxel / Chibi) y el Selector Inteligente de Efectos de todas las skills (editor-reels, piezas.js, editorial.js, efectos-17-reels.js y wappy-brand.js) para elegir siempre el mejor efecto según cada frase del guion."
 ---
 
-# Protocolo Obligatorio para Producción de Vídeos WAPPY IA (Sistema de las 7 Piezas + Brandbook Oficial)
+# Protocolo Maestro Unificado de Producción de Vídeos WAPPY IA
 
-Este protocolo establece el flujo de trabajo estándar e inquebrantable para cualquier producción audiovisual (Reels verticales `9:16` a `1080x1920` o vídeos horizontales `16:9` a `1920x1080` a `60 fps`) en el ecosistema **WAPPY IA (`wappy.club`)**.
-
----
-
-## REGLA DE ORO: Nunca renderizar a ciegas sin las 7 Piezas y las 3 Vistas Previas
-Está **ESTRICTAMENTE PROHIBIDO** lanzar renders completos en MP4 sin antes estructurar el pedido con las **7 Piezas Oficiales**, presentar la **Tabla Segundo a Segundo (incluyendo la Miniatura de 2.0s al inicio)** y validar **3 imágenes de vista previa (inicio, mitad y final)** para comprobar que ningún texto se corte.
+Este protocolo unifica **todas las librerías de animación instaladas en el proyecto** bajo una sola dirección de arte limpia, asegurando que cada frase del guion utilice **el mejor efecto disponible** sin saturar nunca la pantalla.
 
 ---
 
-## PARTE 1 · Ficha de Marca Oficial de WAPPY IA (1 Página · 7 Puntos)
+## 1. Tres Reglas Inquebrantables de Limpieza y Render
 
-1. **Nombre y promesa:** **WAPPY IA (`wappy.club`)** — *«Impulsamos la gestión de Seguridad y Salud en el Trabajo (SG-SST) con Inteligencia Artificial para transformar semanas de papeleo y hojas de Excel obsoletas en segundos de prevención real, 100% gratis.»*
-2. **Colores Oficiales:**
-   - **Modo Claro / Editorial (`wappy.club`):** Verde Lima Eléctrico (`#C7F303`, acento primario, botones CTA y badges activos), Negro Oliva Profundo (`#0E1300`, texto titular sobre claro/lima y tarjetas oscuras), Turquesa SST (`#0D9488`, acento secundario SST e iconos duotone), Crema Cálido Editorial (`#F6F5EF`, fondo limpio), Cielo WAPPY (`#5BB8F5` → `#EAF6FE`).
-   - **Modo Dark Tech HUD (Reels `9:16`):** Azul Cósmico (`#0C192E` → `#1B2B4B`), Cyan Eléctrico (`#00D4FF`), Esmeralda Neón (`#00FF87`), Blanco (`#F8FAFC`).
-   - **Semáforo GTC 45:** Rojo Nivel I (`#EF4444`), Naranja Nivel II (`#F97316`), Ámbar Nivel III (`#F59E0B`), Verde Nivel IV (`#10B981`).
-3. **Letras (Tipografías):**
-   - **Títulos y Cifras Gigantes:** `Plus Jakarta Sans` o `Outfit` (`800 ExtraBold` / `900 Black`), tracking `-0.03em`.
-   - **Cuerpo de texto y UI:** `Inter` (`400 Regular`, `500 Medium`, `600 SemiBold`).
-   - **Fórmulas (`NP = ND × NE`), NIT y Datos Técnicos:** `JetBrains Mono` (`600` / `700`).
-4. **Cómo se siente y cómo se mueve:**
-   - **En 3 palabras:** Innovadora, Preventiva y Cercana.
-   - **Movimiento:** Con rebote elástico suave (`spring` / `cubic-bezier(0.16, 1, 0.3, 1)`), ágil, limpio y determinista cuadro a cuadro a `60 fps`.
-5. **Contrastes permitidos vs. prohibidos:**
-   - **SÍ USAR:** Texto `#0E1300` sobre `#C7F303` o `#F6F5EF`; Texto `#FFFFFF` o `#C7F303` sobre `#0E1300` o `#0C192E`; Texto `#FFFFFF` sobre `#0D9488` o `#EF4444`.
-   - **PROHIBIDO USAR:** Texto blanco (`#FFFFFF`) sobre fondo Verde Lima (`#C7F303`); texto Verde Lima (`#C7F303`) o Cyan (`#00D4FF`) sobre fondo claro (`#F6F5EF` / `#FFFFFF`).
-6. **Tono de voz y palabras clave:**
-   - Experto en SST pero cero burocrático, empático, directo y energético (*«Matriz IPEVR con IA»*, *«GTC 45»*, *«Resolución 0312»*, *«Firma Digital»*, *«Informe Gerencial»*, *«100% GRATIS»*, *«Escribe SOMOS SST»*, *«wappy.club»*).
-7. **Logos Oficiales, Avatares y Elementos Prohibidos:**
-   - **Isotipo `W` Sonriente (Pestañas del navegador / Favicon / Bolsillo del Avatar):** `client/public/assets/icon-192x192.png` (`client/public/assets/brandbook/isotipo_w_favicon.png`).
-   - **Logo del Gato Prevencionista SST (Pantalla de Login):** `client/public/assets/logo-bg.png` y `client/public/wappy-cat-logo.png` (`client/public/assets/brandbook/logo_gato_login_sst.png`).
-   - **Imagotipo Oficial Completo (`Gato SST + WAPPY`):** Vertical Verde Esmeralda (`client/public/wappy-official-logo.png`) y Horizontal Negro (`client/public/assets/wappy_horizontal_black_logo.png`).
-   - **Wordmark 3D Comic (`WAPPY`) y Mascota `Tenshi 3D`:** `client/public/marketing/wappy-wordmark.png` y `client/public/assets/tenshi.png`.
-   - **Avatares Oficiales de Mauricio (Fundador):**
-     * **`avatar2.png` (Chibi 3D con camisa de cuadros amarilla y logo `W` en el bolsillo):** `/Users/felixbedoya/Downloads/avatar2.png` y `client/public/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png` (Protagonista obligatorio de las miniaturas/portadas de `0.00s a 2.00s`).
-     * **2 Avatares Voxel Minecraft 3D (con camisa de cuadros amarilla y logo `W` en el bolsillo):** Cuerpo Completo (`client/public/assets/brandbook/avatar_mauricio_voxel_cuerpo_completo.png`) y Señalando (`client/public/assets/brandbook/avatar_mauricio_voxel_senalando.jpg` / `/Users/felixbedoya/Downloads/Mauricio_Avatar_Minecraft_Senalando.jpg`).
-     * **Variantes adicionales Chibi 3D:** `Avatar1.png` (Deportivo azul con `W` naranja: `client/public/assets/brandbook/avatar1_mauricio_deportivo_azul.png`) y `avatar3.png` (Ejecutivo traje gris con corbata: `client/public/assets/brandbook/avatar3_mauricio_ejecutivo_traje.png`).
-   - **Prohibido** incluir barras de navegación web falsas (`Inicio · Funciones · Precios · Entrar`) dentro de los vídeos.
-   - **Prohibido** que el logo o el avatar 3D tapen textos, fórmulas o tarjetas.
+1. **Lienzo Puro `1080 × 1920` (Sin botones ni controles falsos fuera o dentro del video):**
+   - El archivo de video o previsualización **NO debe incluir barras de botones de configuración superiores** (selectores de tema, pestañas ni barras de herramientas web), ya que en el render MP4 final no existen ni funcionan. El lienzo debe ser 100% el video puro.
+2. **«Una Frase, Una Idea, Una Pieza» (Variedad sin Ruido Visual):**
+   - En cada tramo del guion se muestra **1 sola pieza protagonista** elegida estratégicamente del catálogo unificado (Sección 3).
+   - **Prohibido repetir la misma tarjeta genérica dos veces seguidas:** si el tramo 2 usó una tarjeta de filas, el tramo 3 debe cambiar a un documento real subrayado (`VisorNormaReal`), una cuadrícula porcentual (`Cuadricula100`), una comparativa (`columnas`) o una órbita (`Orbita`).
+3. **Presentador con Lip-Sync Real (Boca sincronizada con la voz):**
+   - Cuando aparece el presentador en el **Plano 1** o **Plano 3**, debe mover la boca/mandíbula, parpadear y gesticular en sincronía con el audio:
+     * **Opción A (Por Defecto) — Avatar 3D Minecraft Voxel Oficial (`WappyAvatarVoxel3D` en `client/public/assets/wappy/wappy-avatar-voxel3d.js`):** Nuestro presentador 3D Voxel en Three.js (camisa a cuadros amarilla/negra sobre camiseta blanca, bolsillo amarillo con logo `"W"` en píxeles negros, cabello pompadour Voxel, gafas negras rectangulares, barba Voxel, boca articulada `mouthGroup` con dientes y lengua, parpadeo `eyeL`/`eyeR`, cejas `browL`/`browR` y brazo con dedo índice señalador `dedoIndice`).
+     * **Opción B — Avatares Oficiales Voxel Minecraft / Chibi 3D (`avatar_mauricio_voxel_cuerpo_completo.png`, `avatar2_mauricio_camisa_cuadros_amarilla.png`):** Con animación de mandíbula/boca articulada por sílaba y respiración orgánica.
 
 ---
 
-## PARTE 2 · Las 7 Piezas Obligatorias en Cada Video
+## 2. Alternancia de los 3 Planos
 
-Siempre que el usuario pida un video, construye y verifica estas **7 piezas**:
-
-### Pieza 1 · Quién Eres (Enfoque y Plantilla Base)
-Seleccionar cuál de los **8 arquetipos del manual** se adapta mejor al pedido:
-1. **Frase que detiene el dedo** (`12s` Vertical)
-2. **Cinco ideas para guardar / Carrusel** (`20s` Vertical)
-3. **Tutorial de chat con Tenshi / IA** (`15s` Horizontal o Vertical)
-4. **Antes y Después: Excel vs. WAPPY IA** (`15s` Vertical)
-5. **Intro Oficial de Marca WAPPY IA** (`5s` Horizontal)
-6. **Anuncio de Lanzamiento de Herramienta SST (3 Tarjetas + ¡GRATIS!)** (`15s–72s` Vertical u Horizontal)
-7. **Resultados que Crecen / Indicadores Res. 0312** (`14s` Horizontal)
-8. **Frase de Marca Palabra por Palabra** (`8s` Horizontal)
-
-### Pieza 2 · Mi Marca (WAPPY IA)
-Aplicar la Ficha Oficial de Marca de la Parte 1, los logos reales (`icon-192x192.png`, `logo-bg.png`, `wappy-official-logo.png`) y los avatares oficiales del usuario:
-- **Miniatura / Portada (`0.00s - 2.00s`):** `avatar2.png` (Mauricio Chibi 3D con camisa de cuadros amarilla y logo `W` en el bolsillo: `client/public/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png`).
-- **Desarrollo del Video (`2.00s` en adelante):** Los 2 Avatares 3D Voxel Minecraft con camisa de cuadros amarilla (`client/public/assets/brandbook/avatar_mauricio_voxel_cuerpo_completo.png` y `avatar_mauricio_voxel_senalando.jpg`) en esquina segura (`265px`) sin tapar el contenido.
-
-### Pieza 3 · Para Quién y Qué Mensaje
-- Verificar que la norma técnica sea 100% exacta (ej. **Guía Técnica Colombiana GTC 45**, **Resolución 0312**, **Decreto 1072**).
-- **Prohibido inventar datos o mezclar normas** (ej. no mezclar ISO 45001 cuando la herramienta es de la GTC 45).
-
-### Pieza 4 · Qué Pasa Segundo a Segundo (LA CLAVE)
-Presentar siempre una tabla cronológica segundo a segundo donde:
-- **Tramo `0.00s – 2.00s` (Obligatorio en Reels):** **Miniatura / Portada Magnética de Marketing** de 2 segundos completos antes de que inicie la voz, con:
-  - Título gancho gigante,
-  - El avatar del usuario,
-  - Las **3 insignias clave** (ej. `✨ Matriz IPEVR con IA`, `✍️ Firma Digital`, `📊 Informe Gerencial`), y
-  - El badge gigante **`🔥 ¡GRATIS!`**.
-- **Tramos siguientes (`2.00s` al final):** Sincronizados palabra a palabra con los archivos de audio del usuario.
-
-### Pieza 5 · Cómo se Mueve (Transiciones y Ritmo)
-- Animación determinista cuadro a cuadro (`60 fps`), combinando rebote elástico suave (`spring`) y al menos **4 efectos del catálogo `animaciones-17-efectos-reels`** (Zoom-through, Giro 3D, Spotlight, Barrido diagonal, Conteo dinámico, Check elástico).
-
-### Pieza 6 · Sonido
-- Locución oficial del usuario (concatenada y normalizada sin silencios rotos) + efectos sonoros sincronizados (`whoosh`, `pop`, `ding`).
-
-### Pieza 7 · Tamaño, 3 Vistas Previas y Entrega Final
-1. Mostrar **3 imágenes de vista previa (Inicio/Miniatura, Mitad y Cierre)** para confirmar que ningún texto se corta ni se solapa.
-2. Exportar el video en **MP4 (`1080x1920` o `1920x1080`, `60 fps`, H.264 `crf 18`, AAC `192k`)** usando Remotion o el motor determinista HTML 60fps + FFmpeg.
-3. Dejar copia lista en `/Users/felixbedoya/Downloads/` (o `/Users/felixbedoya/Desktop/` si el usuario lo solicita).
+| Plano | Qué se ve en el lienzo `1080 × 1920` | Cuándo usarlo |
+|---|---|---|
+| **Plano 1 (Presentador + Pieza sobre el pecho)** | El **Avatar con Lip-Sync** en la zona superior (`y: 180–880`) y **1 pieza** debajo (`y: 900–1380`). | Gancho inicial (`0.0s`), comparativas rápidas, advertencias y llamadas a la acción. |
+| **Plano 2 (Escena a pantalla completa con Cortina)** | Sube una cortina oscura con filo de luz (`6px`) que **oculta al avatar** y dedica todo el lienzo (`y: 240–1360`) a un efecto visual rico. | Explicaciones de normas, documentos oficiales subrayados, mecanismos o estadísticas (cada 8–12 s). |
+| **Plano 3 (Primer plano de Cierre)** | El **Avatar con Lip-Sync** más cerca (`scale: 1.15–1.20`) acompañado del remate (`sentencia` o `Buscador` con clic en `wappy.club`). | Conclusión y cierre del reel. |
 
 ---
 
-## PARTE 3 · Cómo Corregir sin Empezar de Cero
-Cuando el usuario pida un ajuste sobre un video ya generado, aplicar siempre la fórmula:
-> **`Qué cambia` + `En qué tramo de segundos` + `Qué queda igual`**
-Reutilizando los frames ya renderizados que no cambian para entregar la corrección en segundos.
+## 3. Catálogo Maestro Unificado: Qué Efecto Elegir Según el Guion
+
+Antes de programar el video, analiza cada frase del guion y elige **el mejor efecto** de entre todas nuestras librerías instaladas (nunca metas dos al mismo tiempo):
+
+| Qué dice o pide la frase del guion… | Mejor Efecto / Pieza a Elegir | Librería Origen |
+|---|---|---|
+| **1. Gancho inicial (`0.0s – 3.5s`)** | **`titular` + Marcador Fluorescente Lima (`hl-lime`)**: 2 líneas gigantes donde la palabra clave se subraya o encaja en `#c7f303` con golpe en la sílaba. | `editor-reels` + `wappy-brand.js` |
+| **2. Cita una Ley, Resolución, Decreto o Sentencia** | **`VisorNormaReal`**: Hoja oficial en papel blanco donde un **resaltador amarillo fluorescente subraya en vivo** el artículo o los requisitos mientras habla la voz. | `editorial.js` (`animaciones-explicativas-sst`) |
+| **3. Da un porcentaje o proporción fuerte (`-45%`, `8 de cada 10`)** | **`Cuadricula100` o `monedas`**: Matriz `10×10` donde se encienden las celdas exactas con contador numérico gigante, o pilas de monedas comparativas. | `piezas.js` / `editor-reels` |
+| **4. Explica cómo funciona un mecanismo (A → B → C)** | **`flujo` o `RutaPasos`**: 3 bloques conectados por línea de progreso donde cada etapa espera apagada en gris y se enciende en su palabra. | `editor-reels` / `piezas.js` |
+| **5. Enumera 3 o 4 dominios, pilares o requisitos** | **`filas` con Check Elástico o `Orbita 3D`**: Filas sólidas que encienden su visto bueno verde `✓` al nombrarlas, o satélites 3D orbitando el núcleo (`FXOrbit`). | `editor-reels` / `efectos-17-reels.js` |
+| **6. Desmiente un mito o duda común de WhatsApp** | **`ChatRumores`**: Burbuja de mensaje con el mito común que se tacha o verifica con el sello técnico oficial. | `editorial.js` (`animaciones-explicativas-sst`) |
+| **7. Compara Antes vs. Después o Nivel Alto vs. Controlado** | **`cambio` o `columnas` (`ChartGrowFX`)**: Tabla que abre la columna «Después» en la sílaba exacta, o barras que crecen con resorte. | `editor-reels` / `efectos-17-reels.js` |
+| **8. Muestra entregables (Formatos, Matrices, Protocolos)** | **`Carpeta 3D` (`carpeta`) o `AbanicoDocumentos`**: Carpeta 3D que se abre mostrando las hojas dentro, o abanico de 3 documentos con metáfora visual. | `piezas.js` / `editorial.js` |
+| **9. Énfasis orgánico sobre una cifra crítica** | **`DoodleBoilFX`**: Círculo o flecha trazada a mano que vibra suavemente alrededor del dato clave. | `efectos-17-reels.js` |
+| **10. Cierre / Ir a `wappy.club` o comentar** | **`Buscador con Cursor + Onda de Clic` o `comenta` + `acciones`**: Barra donde se escribe `wappy.club`, el cursor hace clic con onda expansiva y se encienden los botones finales. | `piezas.js` / `editor-reels` |
+
+---
+
+## 4. Sincronía Palabra a Palabra y Diseño Sonoro
+
+1. **Subtítulos Inteligentes (`y: 1430`, `58px` Inter 900 Mayúsculas):**
+   - La palabra que suena en ese instante se pinta en el color de acento (`#c7f303` o `#4b8cf7`) y da un salto de `-6px`.
+   - **Auto-ocultación:** Cuando la pieza en pantalla ya es un texto gigante (`titular` o `sentencia`), los subtítulos se ocultan solos para no duplicar texto.
+2. **Sonido (`sonidos/`):**
+   - Cada elemento que se enciende dispara un `tick-suave` (`-16 dB`), las cortinas disparan un `barrido` suave, el resaltador de norma suena como trazo suave y solo hay de 4 a 6 `golpe-grave` en todo el reel.

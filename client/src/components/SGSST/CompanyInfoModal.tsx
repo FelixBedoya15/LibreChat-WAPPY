@@ -127,7 +127,19 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const [saving, setSaving] = useState(false);
     const [showMcpModal, setShowMcpModal] = useState(false);
     const [activeSignatureField, setActiveSignatureField] = useState<'legalRepSignature' | 'sstRespSignature' | null>(null);
+    const [activeSection, setActiveSection] = useState<string>('ficha');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const contentPanelRef = useRef<HTMLDivElement>(null);
+
+    const scrollToSection = useCallback((sectionId: string) => {
+        setActiveSection(sectionId);
+        const container = contentPanelRef.current;
+        if (!container) return;
+        const target = container.querySelector(`#company-sec-${sectionId}`) as HTMLElement | null;
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, []);
 
     const [companyLimit, setCompanyLimit] = useState<number>(1);
     const [userPlanName, setUserPlanName] = useState<string>('free');
@@ -637,98 +649,163 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
     const optionalLabelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary';
 
+    const isCurrentCompanyActive = Boolean(
+        data.isActive || (data._id && companies.some(c => c._id === data._id && c.isActive))
+    );
+    const completedCount = REQUIRED_FIELDS.length - missingFields.length;
+    const completionPercent = Math.round((completedCount / REQUIRED_FIELDS.length) * 100);
+
+    const SECTION_NAV = [
+        { id: 'ficha', label: 'Ficha Corporativa', icon: Building2 },
+        { id: 'general', label: 'Datos Generales', icon: FileText },
+        { id: 'sst', label: 'Información SST', icon: Shield },
+        { id: 'firmas', label: 'Firmas Digitales', icon: UserCheck },
+        { id: 'contacto', label: 'Contacto y Actividades', icon: MapPin },
+        { id: 'antigravity', label: 'Google Antigravity', icon: Cpu },
+        { id: 'sedes', label: 'Sedes Adicionales', icon: Briefcase },
+    ];
+
     return ReactDOM.createPortal(
         <div 
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[9999] flex w-screen items-center justify-center p-3 sm:p-5 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm transition-opacity"
             onClick={(e) => {
                 if (e.target === e.currentTarget) {
                     onClose();
                 }
             }}
         >
-            <div className="relative mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-2xl">
+            <div className="w-[96vw] max-w-[1060px] h-[88vh] max-h-[850px] min-h-[520px] overflow-hidden rounded-3xl bg-white dark:bg-zinc-950 border border-slate-200/90 dark:border-zinc-800 shadow-2xl backdrop-blur-2xl transition-all duration-300 flex flex-col">
                 
-                {/* Header with Company Switcher */}
-                <div className="border-b border-border-medium px-6 py-4 bg-surface-tertiary">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-full bg-teal-500/10 p-2">
-                                <Building2 className="h-5 w-5 text-teal-500" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-bold text-text-primary">{t('com_ui_company_info_title', 'Perfiles de Empresa (Multi-Empresa)')}</h2>
-                                <p className="text-xs text-text-secondary">Gestiona hasta {effectiveLimit} empresa(s) de forma aislada. La empresa Activa será utilizada por la IA.</p>
-                            </div>
+                {/* Header con estilo Somos SST / WAPPY (Idéntico a Settings.tsx) */}
+                <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-sm shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
+                            <Building2 size={20} className="stroke-[2.2]" />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <ExpandingButton
-                                onClick={() => setShowMcpModal(true)}
-                                icon={Cpu}
-                                label="Conectar Antigravity (MCP)"
-                                variant="orange"
-                                title="Conectar este perfil de empresa con Antigravity vía MCP"
-                            />
-                            <button 
-                                type="button"
-                                onClick={onClose} 
-                                className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                                title="Cerrar"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
+                        <div>
+                            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 leading-tight">
+                                {t('com_ui_company_info_title', 'Perfiles de Empresa')}
+                            </h2>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 font-normal">
+                                Gestiona hasta {effectiveLimit} empresa(s) de forma aislada. La empresa Activa será utilizada por la IA.
+                            </p>
                         </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <ExpandingButton
+                            onClick={() => setShowMcpModal(true)}
+                            icon={Cpu}
+                            label="Conectar Antigravity (MCP)"
+                            variant="orange"
+                            title="Conectar este perfil de empresa con Antigravity vía MCP"
+                        />
+                        <button 
+                            type="button"
+                            onClick={onClose} 
+                            className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all active:scale-95 shadow-2xs shrink-0 cursor-pointer"
+                            title="Cerrar"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        {companiesWithLockStatus.map(c => (
-                            <div 
-                                key={c._id}
-                                id={`company-card-${c._id}`}
-                                data-company-id={c._id}
-                                data-company-name={c.companyName || ''}
-                                data-action="seleccionar-empresa"
-                                data-is-active={c.isActive ? 'true' : 'false'}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
+                {/* Panel Central con Sidebar Categorizado y Contenido (Split Layout como Configuraciones) */}
+                <div className="overflow-hidden p-4 sm:p-5 transition-all duration-300 flex-1 min-h-0 flex flex-col md:flex-row gap-4 sm:gap-5 w-full">
+                    
+                    {/* Lateral Sidebar */}
+                    <div className="w-full md:w-64 shrink-0 rounded-2xl bg-slate-50/80 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800/80 p-2.5 flex flex-col gap-1 shadow-xs max-h-48 md:max-h-full overflow-y-auto scrollbar-thin">
+                        
+                        {/* Categoría: MIS EMPRESAS */}
+                        <div className="px-3 pt-1 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center justify-between select-none">
+                            <span>MIS EMPRESAS</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/70 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
+                                {companies.length}/{effectiveLimit}
+                            </span>
+                        </div>
+
+                        {companiesWithLockStatus.map(c => {
+                            const isSelected = data._id === c._id;
+                            return (
+                                <div 
+                                    key={c._id}
+                                    id={`company-card-${c._id}`}
+                                    data-company-id={c._id}
+                                    data-company-name={c.companyName || ''}
+                                    data-action="seleccionar-empresa"
+                                    data-is-active={c.isActive ? 'true' : 'false'}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            if (c.isLocked) {
+                                                handleLockedCompanyClick(c);
+                                            } else {
+                                                handleSelectCompany(c);
+                                            }
+                                        }
+                                    }}
+                                    onClick={() => {
                                         if (c.isLocked) {
                                             handleLockedCompanyClick(c);
-                                        } else {
-                                            handleSelectCompany(c);
+                                            return;
                                         }
-                                    }
-                                }}
-                                onClick={() => {
-                                    if (c.isLocked) {
-                                        handleLockedCompanyClick(c);
-                                        return;
-                                    }
-                                    handleSelectCompany(c);
-                                }}
-                                className={cn(
-                                    "flex flex-col px-4 py-2 rounded-xl border transition-all min-w-[160px] relative justify-between min-h-[64px]",
-                                    c.isLocked
-                                        ? "border-border-medium bg-surface-primary/50 opacity-60 cursor-not-allowed"
-                                        : data._id === c._id 
-                                            ? "border-teal-500 bg-teal-500/5 shadow-sm cursor-pointer ring-1 ring-teal-500" 
-                                            : "border-border-medium bg-surface-primary hover:border-teal-400 cursor-pointer"
-                                )}
-                            >
-                                <div className="flex items-center justify-between gap-1.5 w-full">
-                                    <span className="text-sm font-bold text-text-primary truncate" title={c.companyName}>
-                                        {c.companyName || 'Sin Nombre'}
-                                    </span>
-                                    {c.isLocked && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-                                </div>
-                                <div className="flex items-center justify-between mt-1 w-full gap-2">
-                                    <span className="text-xs text-text-secondary truncate">NIT: {c.nit || 'N/A'}</span>
-                                    {!c.isLocked && (
-                                        c.isActive ? (
-                                            <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 rounded-full shrink-0">
-                                                <CheckCircle className="h-3 w-3" /> Activa
-                                            </span>
+                                        handleSelectCompany(c);
+                                    }}
+                                    className={cn(
+                                        "group relative flex items-center gap-2.5 rounded-xl w-full px-2.5 py-2 text-xs font-semibold text-left transition-all duration-200 ease-in-out",
+                                        c.isLocked
+                                            ? "opacity-60 cursor-not-allowed text-slate-400 dark:text-zinc-500 border border-transparent"
+                                            : isSelected
+                                                ? "bg-teal-50/90 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 font-bold border border-teal-500/30 shadow-xs cursor-pointer"
+                                                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/90 dark:hover:bg-zinc-800/80 border border-transparent hover:border-slate-200/60 dark:hover:border-zinc-700/60 cursor-pointer active:scale-[0.98]"
+                                    )}
+                                >
+                                    <div
+                                        className={cn(
+                                            "w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 shrink-0 overflow-hidden",
+                                            isSelected
+                                                ? "bg-teal-600 dark:bg-teal-500 text-white shadow-sm shadow-teal-600/30"
+                                                : "bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/70 dark:border-zinc-700/60 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/40 group-hover:text-teal-600 dark:group-hover:text-teal-400 group-hover:border-teal-300/40"
+                                        )}
+                                    >
+                                        {c.logoBase64 ? (
+                                            <img src={c.logoBase64} alt="" className="w-full h-full object-contain bg-white p-0.5" />
                                         ) : (
+                                            <Building2 size={15} className="stroke-[2.2]" />
+                                        )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="truncate leading-tight" title={c.companyName}>
+                                            {c.companyName || 'Sin Nombre'}
+                                        </div>
+                                        <div className={cn(
+                                            "text-[10px] truncate font-normal mt-0.5",
+                                            isSelected ? "text-teal-700/80 dark:text-teal-300/80" : "text-slate-400 dark:text-zinc-500"
+                                        )}>
+                                            NIT: {c.nit || 'N/A'}
+                                        </div>
+                                    </div>
+
+                                    {c.isLocked ? (
+                                        <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                    ) : c.isActive ? (
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <span className={cn(
+                                                "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border shrink-0 flex items-center gap-0.5",
+                                                isSelected
+                                                    ? "bg-teal-600 text-white border-transparent"
+                                                    : "bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-300/40"
+                                            )}>
+                                                Activa
+                                            </span>
+                                            {isSelected && (
+                                                <div className="w-1.5 h-3.5 rounded-full bg-teal-600 dark:bg-teal-400 shrink-0 animate-in fade-in zoom-in-50 duration-200" />
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 shrink-0">
                                             <button
                                                 type="button"
                                                 id={`btn-activar-card-${c._id}`}
@@ -739,468 +816,615 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                     e.stopPropagation();
                                                     handleActivateCompany(c._id!);
                                                 }}
-                                                className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 dark:text-amber-300 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 px-2 py-0.5 rounded-full transition-colors cursor-pointer shrink-0"
+                                                className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-700 dark:text-amber-300 border border-amber-300/40 transition-colors cursor-pointer shrink-0"
                                                 title={`Activar ${c.companyName}`}
                                             >
                                                 Activar
                                             </button>
-                                        )
+                                            {isSelected && (
+                                                <div className="w-1.5 h-3.5 rounded-full bg-teal-600 dark:bg-teal-400 shrink-0 animate-in fade-in zoom-in-50 duration-200" />
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
+
                         <button 
+                            type="button"
                             id="btn-nueva-empresa"
                             data-action="nueva-empresa"
                             onClick={handleNewCompanyClick}
                             className={cn(
-                                "flex items-center justify-center gap-2 px-4 py-4 rounded-xl border border-dashed cursor-pointer transition-all min-w-[160px]",
+                                "group relative flex items-center gap-2.5 rounded-xl w-full px-2.5 py-2 text-xs font-semibold text-left transition-all duration-200 ease-in-out cursor-pointer active:scale-[0.98] mt-0.5",
                                 !data._id && companies.length > 0 
-                                    ? "border-teal-500 bg-teal-500/5 text-teal-600" 
-                                    : "border-border-medium text-text-secondary hover:border-teal-400 hover:text-teal-500"
+                                    ? "bg-teal-50/90 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 font-bold border border-teal-500/30 shadow-xs" 
+                                    : "text-slate-600 dark:text-zinc-400 hover:text-teal-700 dark:hover:text-teal-300 hover:bg-white/90 dark:hover:bg-zinc-800/80 border border-dashed border-slate-300/80 dark:border-zinc-700/80 hover:border-teal-400"
                             )}
                         >
-                            <Plus className="h-4 w-4" />
-                            <span className="text-sm font-semibold">Nueva Empresa</span>
+                            <div
+                                className={cn(
+                                    "w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 shrink-0",
+                                    !data._id && companies.length > 0
+                                        ? "bg-teal-600 dark:bg-teal-500 text-white shadow-sm shadow-teal-600/30"
+                                        : "bg-white dark:bg-zinc-800 text-teal-600 dark:text-teal-400 border border-slate-200/70 dark:border-zinc-700/60 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/40"
+                                )}
+                            >
+                                <Plus size={15} className="stroke-[2.4]" />
+                            </div>
+                            <span className="truncate">Nueva Empresa</span>
+                            {!data._id && companies.length > 0 && (
+                                <div className="ml-auto w-1.5 h-3.5 rounded-full bg-teal-600 dark:bg-teal-400 shrink-0 animate-in fade-in zoom-in-50 duration-200" />
+                            )}
                         </button>
+
+                        {/* Categoría: SECCIONES DEL PERFIL (Navegación rápida igual que Preferencias en Settings) */}
+                        <div className="hidden md:flex px-3 pt-3 pb-1 mt-1.5 border-t border-slate-200/60 dark:border-zinc-800/60 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 items-center gap-1.5 select-none">
+                            SECCIONES DEL PERFIL
+                        </div>
+
+                        <div className="hidden md:flex flex-col gap-1">
+                            {SECTION_NAV.map(({ id, label, icon: SecIcon }) => {
+                                const isSecActive = activeSection === id;
+                                return (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => scrollToSection(id)}
+                                        className={cn(
+                                            "group relative flex items-center gap-2.5 rounded-xl w-full px-2.5 py-1.5 text-xs font-semibold text-left transition-all duration-200 ease-in-out cursor-pointer active:scale-[0.98]",
+                                            isSecActive
+                                                ? "bg-white dark:bg-zinc-800/90 text-slate-900 dark:text-zinc-100 font-bold border border-slate-200/80 dark:border-zinc-700/80 shadow-2xs"
+                                                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/80 dark:hover:bg-zinc-800/60 border border-transparent"
+                                        )}
+                                    >
+                                        <div
+                                            className={cn(
+                                                "w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-200 shrink-0",
+                                                isSecActive
+                                                    ? "bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-500/30"
+                                                    : "bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200/70 dark:border-zinc-700/60 group-hover:text-teal-600 dark:group-hover:text-teal-400"
+                                            )}
+                                        >
+                                            <SecIcon size={13} className="stroke-[2.2]" />
+                                        </div>
+                                        <span className="truncate">{label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Right Content Panel */}
+                    <div
+                        ref={contentPanelRef}
+                        className="flex-1 min-w-0 bg-white/70 dark:bg-zinc-900/40 rounded-2xl border border-slate-200/70 dark:border-zinc-800/80 p-4 sm:p-6 overflow-y-auto max-h-full shadow-xs transition-all duration-300"
+                    >
+                        {loading ? (
+                            <div className="flex h-64 items-center justify-center">
+                                <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-6 pb-4">
+                                
+                                {/* Banner de Empresa Inactiva */}
+                                {data._id && companies.some(c => c._id === data._id && !c.isActive) && (
+                                    <div id="banner-empresa-inactiva" className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                                        <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
+                                            <Shield className="h-5 w-5 shrink-0" />
+                                            <div>
+                                                <p className="font-bold text-sm">Esta empresa NO es la activa</p>
+                                                <p className="text-xs opacity-90">Debes activarla para que el sistema y los agentes de IA comiencen a trabajar con su Matriz IPEVR, Hitos y Documentos.</p>
+                                            </div>
+                                        </div>
+                                        <div id="btn-activar-empresa-modal" data-action="activar-empresa-modal" className="shrink-0">
+                                            <ExpandingButton 
+                                                onClick={() => handleActivateCompany(data._id!)}
+                                                icon={Shield}
+                                                label="Activar esta Empresa"
+                                                variant="orange"
+                                                title="Activar esta empresa como la activa"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Hero Card: Ficha Corporativa (Idéntica a Opciones de Cuenta en Imagen 2) */}
+                                <div id="company-sec-ficha" className="p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-base font-semibold text-text-primary">
+                                            Opciones y Ficha de Empresa
+                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                ref={fileInputRef}
+                                                type="file" 
+                                                accept="image/*" 
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onload = (readerEvent) => {
+                                                            handleChange('logoBase64', readerEvent.target?.result as string);
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                    e.target.value = '';
+                                                }} 
+                                                className="hidden" 
+                                            />
+                                            <ExpandingButton
+                                                icon={ImageIcon}
+                                                label={data.logoBase64 ? "Cambiar Logo" : "Subir Logo"}
+                                                variant="teal"
+                                                size="sm"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                title="Seleccionar logotipo de la empresa"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="relative w-full flex flex-col items-center">
+                                        {/* Gradient Banner (igual que Avatar.tsx en Opciones de Cuenta) */}
+                                        <div className="w-full h-24 bg-gradient-to-r from-indigo-400 via-purple-400 to-amber-200 rounded-t-xl opacity-80" />
+
+                                        {/* Circular Logo / Avatar */}
+                                        <div className="relative -mt-12 group">
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="relative block rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-transform hover:scale-105 active:scale-95 bg-surface-primary shadow-md cursor-pointer"
+                                                title="Clic para cambiar el logotipo de la empresa"
+                                            >
+                                                <div className="w-24 h-24 rounded-full border-4 border-surface-primary bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center">
+                                                    {data.logoBase64 ? (
+                                                        <img src={data.logoBase64} alt="Logotipo Empresa" className="w-full h-full object-contain p-2" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center bg-surface-tertiary text-text-tertiary font-black text-3xl uppercase">
+                                                            {(data.companyName || 'E')[0]}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Online / Active Status Dot */}
+                                                <div
+                                                    className={cn(
+                                                        "absolute top-1 right-1 w-4 h-4 rounded-full border-2 border-surface-primary shadow-sm",
+                                                        isCurrentCompanyActive ? "bg-green-500" : "bg-amber-400"
+                                                    )}
+                                                    title={isCurrentCompanyActive ? "Empresa Activa" : "Empresa Inactiva"}
+                                                />
+
+                                                {/* Hover overlay hint */}
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full bg-black/40">
+                                                    <ImageIcon className="text-white w-6 h-6" />
+                                                </div>
+                                            </button>
+
+                                            {data.logoBase64 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleChange('logoBase64', null)}
+                                                    className="absolute top-0 -left-1 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors shadow-md z-20 cursor-pointer"
+                                                    title="Eliminar Logotipo"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            )}
+
+                                            {/* Status Badge (idéntico al badge Admin de Avatar.tsx) */}
+                                            <div className={cn(
+                                                "absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 text-white text-xs font-bold rounded shadow-sm border-2 border-surface-primary whitespace-nowrap z-10",
+                                                !data._id
+                                                    ? "bg-teal-600"
+                                                    : isCurrentCompanyActive
+                                                        ? "bg-indigo-600"
+                                                        : "bg-amber-500"
+                                            )}>
+                                                {!data._id ? 'Nueva' : isCurrentCompanyActive ? 'Activa' : 'Inactiva'}
+                                            </div>
+                                        </div>
+
+                                        {/* Company Summary Info */}
+                                        <div className="mt-5 text-center px-4 w-full">
+                                            <h2 className="text-2xl font-black text-text-primary truncate">
+                                                {data.companyName || 'Nueva Empresa'}
+                                            </h2>
+                                            <p className="text-sm font-medium text-text-tertiary mt-0.5 opacity-80">
+                                                NIT: {data.nit || 'Sin registrar'} • {data.sector || 'Sector sin definir'} • ARL {data.arl || 'N/A'} {data.riskLevel ? `(Riesgo ${data.riskLevel})` : ''}
+                                            </p>
+                                            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1">
+                                                {data.phone ? `Tel: ${data.phone}` : 'Tel: Sin registrar'}
+                                                {data.email ? ` • ${data.email}` : ''}
+                                            </p>
+
+                                            {/* Completitud del Perfil SG-SST (idéntico al bloque ALMACENAMIENTO de Avatar.tsx) */}
+                                            <div className="mt-5 max-w-xs mx-auto text-left rounded-2xl border border-border-light bg-surface-secondary/40 p-4 shadow-sm">
+                                                <div className="flex justify-between items-center mb-2 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                                                    <span>Ficha SG-SST</span>
+                                                    <span>
+                                                        {completedCount} / {REQUIRED_FIELDS.length} campos
+                                                    </span>
+                                                </div>
+                                                <div className="w-full h-2.5 bg-border-light rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-500"
+                                                        style={{ width: `${completionPercent}%` }}
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between items-center mt-3 text-[11px] font-semibold text-text-tertiary">
+                                                    <span>
+                                                        Trabajadores: {data.workerCount || 0}
+                                                    </span>
+                                                    <span>
+                                                        {completionPercent}% completado
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* General Info Card */}
+                                <div id="company-sec-general" className="p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
+                                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
+                                        <Building2 className="h-4 w-4 text-teal-600 dark:text-teal-400" /> {t('com_ui_company_data_general', 'Datos Generales')}
+                                    </h3>
+                                    <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+                                        <div className="md:col-span-2">
+                                            <label className={labelClass}><Building2 className="h-3 w-3" />{t('com_ui_company_name', 'Razón Social')}</label>
+                                            <input id="input-companyName" name="companyName" className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Building2 className="h-3 w-3" />Tipo de Empresa</label>
+                                            <SingleSelect id="select-companyType" name="companyType" value={data.companyType || 'Persona Jurídica'} onChange={val => handleChange('companyType', val)} placeholder="Seleccione..." options={['Persona Jurídica', 'Persona Natural']} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Hash className="h-3 w-3" />{data.companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT'}</label>
+                                            <input id="input-nit" name="nit" className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder={data.companyType === 'Persona Natural' ? 'Ej. 123456789' : '123456789-0'} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_company_legal_rep', 'Representante Legal')}</label>
+                                            <input id="input-legalRepresentative" name="legalRepresentative" className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Hash className="h-3 w-3" />Cédula Rep. Legal</label>
+                                            <input id="input-legalRepresentativeId" name="legalRepresentativeId" className={inputClass} value={data.legalRepresentativeId || ''} onChange={e => handleChange('legalRepresentativeId', e.target.value)} placeholder="Ej. 12345678" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Users className="h-3 w-3" />{t('com_ui_company_workers', 'Número de Trabajadores')}</label>
+                                            <input id="input-workerCount" name="workerCount" className={inputClass} type="number" min="0" value={data.workerCount || ''} onChange={e => handleChange('workerCount', parseInt(e.target.value) || 0)} placeholder="0" />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
+                                            <SingleSelect id="select-sector" name="sector" value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* SST Info Card */}
+                                <div id="company-sec-sst" className="p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
+                                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
+                                        <Shield className="h-4 w-4 text-teal-600 dark:text-teal-400" /> {t('com_ui_company_sst_info', 'Información SST')}
+                                    </h3>
+                                    <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+                                        <div>
+                                            <label className={labelClass}><Shield className="h-3 w-3" />ARL</label>
+                                            <SingleSelect id="select-arl" name="arl" value={data.arl} onChange={val => handleChange('arl', val)} placeholder={t('com_ui_select_arl', 'Seleccionar ARL')} options={ARL_OPTIONS} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Activity className="h-3 w-3" />{t('com_ui_risk_level', 'Nivel de Riesgo')}</label>
+                                            <SingleSelect id="select-riskLevel" name="riskLevel" value={data.riskLevel} onChange={val => handleChange('riskLevel', val)} placeholder={t('com_ui_select_level', 'Seleccionar nivel')} options={RISK_LEVELS} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Hash className="h-3 w-3" />Código CIIU</label>
+                                            <input id="input-ciiu" name="ciiu" className={inputClass} value={data.ciiu} onChange={e => handleChange('ciiu', e.target.value)} placeholder="Ej: 4711" />
+                                        </div>
+                                        <div className="md:col-span-3">
+                                            <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_economic_activity', 'Actividad Económica')}</label>
+                                            <input id="input-economicActivity" name="economicActivity" className={inputClass} value={data.economicActivity} onChange={e => handleChange('economicActivity', e.target.value)} placeholder={t('com_ui_economic_activity_placeholder', 'Descripción de la actividad')} />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className={labelClass}><UserCheck className="h-3 w-3" />{t('com_ui_sst_responsible', 'Responsable del SG-SST')}</label>
+                                            <input id="input-responsibleSST" name="responsibleSST" className={inputClass} value={data.responsibleSST} onChange={e => handleChange('responsibleSST', e.target.value)} placeholder={t('com_ui_sst_responsible_placeholder', 'Nombre del responsable')} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_sst_responsible_phone', 'Contacto del Responsable')}</label>
+                                            <input id="input-responsibleSSTPhone" name="responsibleSSTPhone" className={inputClass} value={data.responsibleSSTPhone} onChange={e => handleChange('responsibleSSTPhone', e.target.value)} placeholder="+57 300 000 0000" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Briefcase className="h-3 w-3" />Nivel de Formación</label>
+                                            <input id="input-formationLevel" name="formationLevel" className={inputClass} value={data.formationLevel} onChange={e => handleChange('formationLevel', e.target.value)} placeholder="Técnico, Tecnólogo, Profesional, Especialista" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Award className="h-3 w-3" />Número de Licencia SST</label>
+                                            <input id="input-licenseNumber" name="licenseNumber" className={inputClass} value={data.licenseNumber} onChange={e => handleChange('licenseNumber', e.target.value)} placeholder="Ej: 1234 de 2024" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Calendar className="h-3 w-3" />Vigencia de Licencia</label>
+                                            <input id="input-licenseExpiry" name="licenseExpiry" type="date" className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} />
+                                        </div>
+                                        <div className="md:col-span-3">
+                                            <label className={labelClass}><FileText className="h-3 w-3" />Curso 50H / Actualización 20H</label>
+                                            <input id="input-courseStatus" name="courseStatus" type="date" className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Firmas y Consentimiento Card */}
+                                <div id="company-sec-firmas" className="p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
+                                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
+                                        <UserCheck className="h-4 w-4 text-teal-600 dark:text-teal-400" /> Firmas Digitales y Consentimiento
+                                    </h3>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        {/* Legal Representative */}
+                                        <div className="rounded-xl border border-border-medium bg-surface-secondary/30 p-4">
+                                            <h4 className="font-semibold text-sm mb-3">Firma Representante Legal</h4>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
+                                                    <SingleSelect id="select-legalRepConsent" name="legalRepConsent" value={data.legalRepConsent || 'No'} onChange={val => handleChange('legalRepConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                    <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
+                                                    {data.legalRepSignature ? (
+                                                        <div className="relative group w-full flex items-center justify-center">
+                                                            <img src={data.legalRepSignature} alt="Firma Representante Legal" className="max-h-16 object-contain" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleChange('legalRepSignature', null)}
+                                                                className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
+                                                            >
+                                                                <AnimatedIcon name="trash" size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col gap-2 w-full">
+                                                            <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
+                                                                <ImageIcon size={16} className="text-indigo-400" />
+                                                                <span className="text-xs uppercase">Cargar Archivo</span>
+                                                                <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('legalRepSignature', e)} className="hidden" />
+                                                            </label>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setActiveSignatureField('legalRepSignature')}
+                                                                className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+                                                            >
+                                                                <PenTool size={16} />
+                                                                <span className="text-xs uppercase">Dibujar en Pantalla</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* SST Responsible */}
+                                        <div className="rounded-xl border border-border-medium bg-surface-secondary/30 p-4">
+                                            <h4 className="font-semibold text-sm mb-3">Firma Responsable SG-SST</h4>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
+                                                    <SingleSelect id="select-sstRespConsent" name="sstRespConsent" value={data.sstRespConsent || 'No'} onChange={val => handleChange('sstRespConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                    <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
+                                                    {data.sstRespSignature ? (
+                                                        <div className="relative group w-full flex items-center justify-center">
+                                                            <img src={data.sstRespSignature} alt="Firma Responsable SG-SST" className="max-h-16 object-contain" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleChange('sstRespSignature', null)}
+                                                                className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
+                                                            >
+                                                                <AnimatedIcon name="trash" size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col gap-2 w-full">
+                                                            <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
+                                                                <ImageIcon size={16} className="text-indigo-400" />
+                                                                <span className="text-xs uppercase">Cargar Archivo</span>
+                                                                <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('sstRespSignature', e)} className="hidden" />
+                                                            </label>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setActiveSignatureField('sstRespSignature')}
+                                                                className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+                                                            >
+                                                                <PenTool size={16} />
+                                                                <span className="text-xs uppercase">Dibujar en Pantalla</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Contact & Activities Card */}
+                                <div id="company-sec-contacto" className="p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm space-y-5">
+                                    <div>
+                                        <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
+                                            <MapPin className="h-4 w-4 text-teal-600 dark:text-teal-400" /> {t('com_ui_contact_location', 'Contacto y Ubicación')}
+                                        </h3>
+                                        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                                            <div>
+                                                <label className={labelClass}><MapPin className="h-3 w-3" />{t('com_ui_address', 'Dirección')}</label>
+                                                <input id="input-address" name="address" className={inputClass} value={data.address} onChange={e => handleChange('address', e.target.value)} placeholder={t('com_ui_address_placeholder', 'Dirección de la empresa')} />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}><MapPin className="h-3 w-3" />{t('com_ui_city', 'Ciudad')}</label>
+                                                <input id="input-city" name="city" className={inputClass} value={data.city} onChange={e => handleChange('city', e.target.value)} placeholder={t('com_ui_city', 'Ciudad')} />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}><MapPin className="h-3 w-3" />Departamento</label>
+                                                <input id="input-departamento" name="departamento" className={inputClass} value={data.departamento || ''} onChange={e => handleChange('departamento', e.target.value)} placeholder="Ej. Antioquia" />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_phone', 'Teléfono')}</label>
+                                                <input id="input-phone" name="phone" className={inputClass} value={data.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="+57 300 123 4567" />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className={labelClass}><Mail className="h-3 w-3" />{t('com_ui_email', 'Correo Electrónico')}</label>
+                                                <input id="input-email" name="email" className={inputClass} type="email" value={data.email} onChange={e => handleChange('email', e.target.value)} placeholder="empresa@ejemplo.com" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-border-light">
+                                        <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-text-primary">
+                                            <FileText className="h-4 w-4 text-teal-600 dark:text-teal-400" /> {t('com_ui_activities', 'Actividades')}
+                                        </h3>
+                                        <div>
+                                            <label className={labelClass}><FileText className="h-3 w-3" />{t('com_ui_activities_desc', 'Descripción de Actividades Generales')}</label>
+                                            <textarea
+                                                id="input-generalActivities"
+                                                name="generalActivities"
+                                                className={cn(inputClass, 'min-h-[80px] resize-y')}
+                                                value={data.generalActivities}
+                                                onChange={e => handleChange('generalActivities', e.target.value)}
+                                                placeholder={t('com_ui_activities_placeholder', 'Describa las actividades principales que se desarrollan en la empresa...')}
+                                                rows={3}
+                                            />
+                                            <p className="mt-1.5 text-xs italic text-amber-500/90">
+                                                ⚠️ Describa con el mayor detalle posible las actividades de su empresa. Esta información alimenta todos los informes, diagnósticos, políticas y análisis generados por IA en el sistema.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Proyecto Google Antigravity Card */}
+                                <div id="company-sec-antigravity" className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-teal-500/5 to-transparent p-5 shadow-sm transition-all duration-300 hover:border-cyan-500/50">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <h3 className="flex items-center gap-2 text-base font-semibold text-text-primary">
+                                            <Cpu className="h-4 w-4 text-cyan-500" /> Proyecto Google Antigravity (Local)
+                                        </h3>
+                                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[10.5px] font-bold tracking-wide text-cyan-600 dark:text-cyan-400">
+                                            Puente Reactivo Push
+                                        </span>
+                                    </div>
+                                    <p className="mb-3 text-xs text-text-secondary leading-relaxed">
+                                        Ruta de la carpeta del proyecto asociada a esta empresa (en tu disco local, servidor o unidad sincronizada como Google Drive). Cuando delegues requerimientos desde Tenshi o los agentes de WAPPY, Google Antigravity abrirá automáticamente este espacio de trabajo y mantendrá un hilo de chat dedicado sin mezclar empresas.
+                                    </p>
+                                    <div>
+                                        <label className={optionalLabelClass}>
+                                            <FolderGit2 className="h-3 w-3 text-cyan-500" />
+                                            Directorio o Carpeta del Proyecto (Opcional)
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                id="input-antigravityWorkspace"
+                                                name="antigravityWorkspace"
+                                                className={cn(
+                                                    inputClass,
+                                                    'font-mono text-xs border-cyan-500/30 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 pr-8'
+                                                )}
+                                                value={data.antigravityWorkspace || ''}
+                                                onChange={e => handleChange('antigravityWorkspace', e.target.value)}
+                                                placeholder="~/Documents/Proyectos/EmpresaA o G:\Mi unidad\EmpresaA"
+                                            />
+                                            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-500/60" title="Terminal / Carpeta del Proyecto">
+                                                <Terminal className="h-3.5 w-3.5" />
+                                            </div>
+                                        </div>
+                                        <p className="mt-1.5 text-[10.5px] text-text-secondary">
+                                            💡 Ejemplos: <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">~/Documents/Proyectos/EmpresaA</code> · <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">G:\Mi unidad\SST\EmpresaA</code> · <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">C:\Proyectos\EmpresaA</code>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Sedes Adicionales Card */}
+                                <div id="company-sec-sedes" className="p-5 rounded-2xl border border-border-light bg-surface-primary shadow-sm">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <h3 className="flex items-center gap-2 text-base font-semibold text-text-primary">
+                                            <Briefcase className="h-4 w-4 text-teal-600 dark:text-teal-400" /> Sedes Adicionales
+                                        </h3>
+                                        <ExpandingButton
+                                            onClick={handleAddSede}
+                                            icon={Plus}
+                                            label="Agregar Sede"
+                                            variant="outline-teal"
+                                            size="sm"
+                                            title="Agregar Sede"
+                                        />
+                                    </div>
+                                    
+                                    {(!Array.isArray(data.sedes) || data.sedes.length === 0) ? (
+                                        <div className="rounded-xl border border-dashed border-border-medium bg-surface-secondary/30 p-6 text-center">
+                                            <p className="text-sm text-text-secondary">No hay sedes adicionales registradas.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {data.sedes.map((sede, idx) => (
+                                                <div key={idx} className="relative rounded-xl border border-border-medium bg-surface-secondary/30 p-4 shadow-sm">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveSede(idx)}
+                                                        className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 absolute right-3 top-3"
+                                                        title="Eliminar Sede"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
+                                                            <span className="text-[10px] font-bold">Eliminar</span>
+                                                        </div>
+                                                    </button>
+                                                    
+                                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
+                                                        <div>
+                                                            <label className={labelClass}>Nombre de la Sede</label>
+                                                            <input className={inputClass} value={sede.nombre} onChange={e => handleSedeChange(idx, 'nombre', e.target.value)} placeholder="Ej. Sede Norte" />
+                                                        </div>
+                                                        <div>
+                                                            <label className={labelClass}>Dirección</label>
+                                                            <input className={inputClass} value={sede.address} onChange={e => handleSedeChange(idx, 'address', e.target.value)} placeholder="Dirección de la sede" />
+                                                        </div>
+                                                        <div>
+                                                            <label className={labelClass}>Ciudad</label>
+                                                            <input className={inputClass} value={sede.city} onChange={e => handleSedeChange(idx, 'city', e.target.value)} placeholder="Ciudad" />
+                                                        </div>
+                                                        <div>
+                                                            <label className={labelClass}>Departamento</label>
+                                                            <input className={inputClass} value={sede.departamento || ''} onChange={e => handleSedeChange(idx, 'departamento', e.target.value)} placeholder="Ej. Cundinamarca" />
+                                                        </div>
+                                                        <div>
+                                                            <label className={labelClass}>Teléfono</label>
+                                                            <input className={inputClass} value={sede.phone} onChange={e => handleSedeChange(idx, 'phone', e.target.value)} placeholder="Teléfono" />
+                                                        </div>
+                                                        <div>
+                                                            <label className={labelClass}>Correo Electrónico</label>
+                                                            <input className={inputClass} type="email" value={sede.email} onChange={e => handleSedeChange(idx, 'email', e.target.value)} placeholder="correo@sede.com" />
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <label className={labelClass}>Actividades de la Sede</label>
+                                                            <textarea
+                                                                className={cn(inputClass, 'min-h-[60px] resize-y')}
+                                                                value={sede.generalActivities}
+                                                                onChange={e => handleSedeChange(idx, 'generalActivities', e.target.value)}
+                                                                placeholder="Describa las actividades específicas de esta sede..."
+                                                                rows={2}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto px-6 py-4">
-                    {loading ? (
-                        <div className="flex h-32 items-center justify-center">
-                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            
-                            {data._id && companies.some(c => c._id === data._id && !c.isActive) && (
-                                <div id="banner-empresa-inactiva" className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
-                                        <Shield className="h-5 w-5" />
-                                        <div>
-                                            <p className="font-bold text-sm">Esta empresa NO es la activa</p>
-                                            <p className="text-xs opacity-90">Debes activarla para que el sistema y los agentes de IA comiencen a trabajar con su Matriz IPEVR, Hitos y Documentos.</p>
-                                        </div>
-                                    </div>
-                                    <div id="btn-activar-empresa-modal" data-action="activar-empresa-modal">
-                                        <ExpandingButton 
-                                            onClick={() => handleActivateCompany(data._id!)}
-                                            icon={Shield}
-                                            label="Activar esta Empresa"
-                                            variant="orange"
-                                            title="Activar esta empresa como la activa"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* General Info */}
-                            <div>
-                                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                    <Building2 className="h-4 w-4" /> {t('com_ui_company_data_general', 'Datos Generales')}
-                                </h3>
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                    <div className="md:col-span-3">
-                                        <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary"><ImageIcon className="h-3.5 w-3.5 text-teal-500" />Logotipo de la Empresa (Opcional)</label>
-                                        <div className="flex flex-col md:flex-row items-center gap-4 rounded-xl border border-border-medium bg-surface-primary p-4">
-                                            {data.logoBase64 ? (
-                                                <div className="relative group rounded-xl border border-border-medium p-2 bg-white dark:bg-zinc-800 shadow-sm transition-all hover:border-red-400">
-                                                    <img src={data.logoBase64} alt="Logotipo Empresa" className="h-16 w-16 object-contain rounded-lg" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleChange('logoBase64', null)}
-                                                        className="absolute -top-2 -right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors shadow-md"
-                                                        title="Eliminar Logotipo"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="h-16 w-16 rounded-xl border-2 border-dashed border-border-medium flex items-center justify-center bg-surface-secondary text-text-secondary shadow-inner shrink-0">
-                                                    <Building2 className="h-6 w-6 text-text-secondary/60" />
-                                                </div>
-                                            )}
-                                            <div className="flex-1 text-center md:text-left space-y-2">
-                                                <input 
-                                                    ref={fileInputRef}
-                                                    type="file" 
-                                                    accept="image/*" 
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) {
-                                                            const reader = new FileReader();
-                                                            reader.onload = (readerEvent) => {
-                                                                handleChange('logoBase64', readerEvent.target?.result as string);
-                                                            };
-                                                            reader.readAsDataURL(file);
-                                                        }
-                                                        e.target.value = '';
-                                                    }} 
-                                                    className="hidden" 
-                                                />
-                                                <div>
-                                                    <ExpandingButton
-                                                        icon={ImageIcon}
-                                                        label={data.logoBase64 ? "Cambiar Imagen" : "Seleccionar Imagen"}
-                                                        variant="teal"
-                                                        onClick={() => fileInputRef.current?.click()}
-                                                        title="Seleccionar logotipo de la empresa"
-                                                    />
-                                                </div>
-                                                <p className="text-[10.5px] text-text-secondary font-medium">Recomendado: imagen cuadrada o rectangular horizontal, formato PNG/JPG, peso menor a 1MB. Se utilizará para estampar tu marca en los portales QR y reportes.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className={labelClass}><Building2 className="h-3 w-3" />{t('com_ui_company_name', 'Razón Social')}</label>
-                                        <input id="input-companyName" name="companyName" className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Building2 className="h-3 w-3" />Tipo de Empresa</label>
-                                        <SingleSelect id="select-companyType" name="companyType" value={data.companyType || 'Persona Jurídica'} onChange={val => handleChange('companyType', val)} placeholder="Seleccione..." options={['Persona Jurídica', 'Persona Natural']} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Hash className="h-3 w-3" />{data.companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT'}</label>
-                                        <input id="input-nit" name="nit" className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder={data.companyType === 'Persona Natural' ? 'Ej. 123456789' : '123456789-0'} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_company_legal_rep', 'Representante Legal')}</label>
-                                        <input id="input-legalRepresentative" name="legalRepresentative" className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Hash className="h-3 w-3" />Cédula Rep. Legal</label>
-                                        <input id="input-legalRepresentativeId" name="legalRepresentativeId" className={inputClass} value={data.legalRepresentativeId || ''} onChange={e => handleChange('legalRepresentativeId', e.target.value)} placeholder="Ej. 12345678" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Users className="h-3 w-3" />{t('com_ui_company_workers', 'Número de Trabajadores')}</label>
-                                        <input id="input-workerCount" name="workerCount" className={inputClass} type="number" min="0" value={data.workerCount || ''} onChange={e => handleChange('workerCount', parseInt(e.target.value) || 0)} placeholder="0" />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
-                                        <SingleSelect id="select-sector" name="sector" value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* SST Info */}
-                            <div>
-                                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                    <Shield className="h-4 w-4" /> {t('com_ui_company_sst_info', 'Información SST')}
-                                </h3>
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                    <div>
-                                        <label className={labelClass}><Shield className="h-3 w-3" />ARL</label>
-                                        <SingleSelect id="select-arl" name="arl" value={data.arl} onChange={val => handleChange('arl', val)} placeholder={t('com_ui_select_arl', 'Seleccionar ARL')} options={ARL_OPTIONS} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Activity className="h-3 w-3" />{t('com_ui_risk_level', 'Nivel de Riesgo')}</label>
-                                        <SingleSelect id="select-riskLevel" name="riskLevel" value={data.riskLevel} onChange={val => handleChange('riskLevel', val)} placeholder={t('com_ui_select_level', 'Seleccionar nivel')} options={RISK_LEVELS} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Hash className="h-3 w-3" />Código CIIU</label>
-                                        <input id="input-ciiu" name="ciiu" className={inputClass} value={data.ciiu} onChange={e => handleChange('ciiu', e.target.value)} placeholder="Ej: 4711" />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_economic_activity', 'Actividad Económica')}</label>
-                                        <input id="input-economicActivity" name="economicActivity" className={inputClass} value={data.economicActivity} onChange={e => handleChange('economicActivity', e.target.value)} placeholder={t('com_ui_economic_activity_placeholder', 'Descripción de la actividad')} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className={labelClass}><UserCheck className="h-3 w-3" />{t('com_ui_sst_responsible', 'Responsable del SG-SST')}</label>
-                                        <input id="input-responsibleSST" name="responsibleSST" className={inputClass} value={data.responsibleSST} onChange={e => handleChange('responsibleSST', e.target.value)} placeholder={t('com_ui_sst_responsible_placeholder', 'Nombre del responsable')} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_sst_responsible_phone', 'Contacto del Responsable')}</label>
-                                        <input id="input-responsibleSSTPhone" name="responsibleSSTPhone" className={inputClass} value={data.responsibleSSTPhone} onChange={e => handleChange('responsibleSSTPhone', e.target.value)} placeholder="+57 300 000 0000" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Briefcase className="h-3 w-3" />Nivel de Formación</label>
-                                        <input id="input-formationLevel" name="formationLevel" className={inputClass} value={data.formationLevel} onChange={e => handleChange('formationLevel', e.target.value)} placeholder="Técnico, Tecnólogo, Profesional, Especialista" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Award className="h-3 w-3" />Número de Licencia SST</label>
-                                        <input id="input-licenseNumber" name="licenseNumber" className={inputClass} value={data.licenseNumber} onChange={e => handleChange('licenseNumber', e.target.value)} placeholder="Ej: 1234 de 2024" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Calendar className="h-3 w-3" />Vigencia de Licencia</label>
-                                        <input id="input-licenseExpiry" name="licenseExpiry" type="date" className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className={labelClass}><FileText className="h-3 w-3" />Curso 50H / Actualización 20H</label>
-                                        <input id="input-courseStatus" name="courseStatus" type="date" className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} />
-                                    </div>
-
-                                </div>
-                            </div>
-
-                            {/* Firmas y Consentimiento */}
-                            <div>
-                                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                    <UserCheck className="h-4 w-4" /> Firmas Digitales y Consentimiento
-                                </h3>
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    {/* Legal Representative */}
-                                    <div className="rounded-xl border border-border-medium bg-surface-primary p-4">
-                                        <h4 className="font-semibold text-sm mb-3">Firma Representante Legal</h4>
-                                        <div className="space-y-4">
-                                             <div>
-                                                <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
-                                                <SingleSelect id="select-legalRepConsent" name="legalRepConsent" value={data.legalRepConsent || 'No'} onChange={val => handleChange('legalRepConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
-                                                <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
-                                            </div>
-                                            <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
-                                                {data.legalRepSignature ? (
-                                                    <div className="relative group w-full flex items-center justify-center">
-                                                        <img src={data.legalRepSignature} alt="Firma Representante Legal" className="max-h-16 object-contain" />
-                                                        <button
-                                                            onClick={() => handleChange('legalRepSignature', null)}
-                                                            className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
-                                                        >
-                                                            <AnimatedIcon name="trash" size={14} />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col gap-2 w-full">
-                                                        <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
-                                                            <ImageIcon size={16} className="text-indigo-400" />
-                                                            <span className="text-xs uppercase">Cargar Archivo</span>
-                                                            <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('legalRepSignature', e)} className="hidden" />
-                                                        </label>
-                                                        <button 
-                                                            onClick={() => setActiveSignatureField('legalRepSignature')}
-                                                            className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
-                                                        >
-                                                            <PenTool size={16} />
-                                                            <span className="text-xs uppercase">Dibujar en Pantalla</span>
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {/* SST Responsible */}
-                                    <div className="rounded-xl border border-border-medium bg-surface-primary p-4">
-                                        <h4 className="font-semibold text-sm mb-3">Firma Responsable SG-SST</h4>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
-                                                <SingleSelect id="select-sstRespConsent" name="sstRespConsent" value={data.sstRespConsent || 'No'} onChange={val => handleChange('sstRespConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
-                                                <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
-                                            </div>
-                                            <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
-                                                {data.sstRespSignature ? (
-                                                    <div className="relative group w-full flex items-center justify-center">
-                                                        <img src={data.sstRespSignature} alt="Firma Responsable SG-SST" className="max-h-16 object-contain" />
-                                                        <button
-                                                            onClick={() => handleChange('sstRespSignature', null)}
-                                                            className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
-                                                        >
-                                                            <AnimatedIcon name="trash" size={14} />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col gap-2 w-full">
-                                                        <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
-                                                            <ImageIcon size={16} className="text-indigo-400" />
-                                                            <span className="text-xs uppercase">Cargar Archivo</span>
-                                                            <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('sstRespSignature', e)} className="hidden" />
-                                                        </label>
-                                                        <button 
-                                                            onClick={() => setActiveSignatureField('sstRespSignature')}
-                                                            className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
-                                                        >
-                                                            <PenTool size={16} />
-                                                            <span className="text-xs uppercase">Dibujar en Pantalla</span>
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Contact Info */}
-                            <div>
-                                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                    <MapPin className="h-4 w-4" /> {t('com_ui_contact_location', 'Contacto y Ubicación')}
-                                </h3>
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    <div>
-                                        <label className={labelClass}><MapPin className="h-3 w-3" />{t('com_ui_address', 'Dirección')}</label>
-                                        <input id="input-address" name="address" className={inputClass} value={data.address} onChange={e => handleChange('address', e.target.value)} placeholder={t('com_ui_address_placeholder', 'Dirección de la empresa')} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><MapPin className="h-3 w-3" />{t('com_ui_city', 'Ciudad')}</label>
-                                        <input id="input-city" name="city" className={inputClass} value={data.city} onChange={e => handleChange('city', e.target.value)} placeholder={t('com_ui_city', 'Ciudad')} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><MapPin className="h-3 w-3" />Departamento</label>
-                                        <input id="input-departamento" name="departamento" className={inputClass} value={data.departamento || ''} onChange={e => handleChange('departamento', e.target.value)} placeholder="Ej. Antioquia" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_phone', 'Teléfono')}</label>
-                                        <input id="input-phone" name="phone" className={inputClass} value={data.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="+57 300 123 4567" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}><Mail className="h-3 w-3" />{t('com_ui_email', 'Correo Electrónico')}</label>
-                                        <input id="input-email" name="email" className={inputClass} type="email" value={data.email} onChange={e => handleChange('email', e.target.value)} placeholder="empresa@ejemplo.com" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Activities */}
-                            <div>
-                                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                    <FileText className="h-4 w-4" /> {t('com_ui_activities', 'Actividades')}
-                                </h3>
-                                <div>
-                                    <label className={labelClass}><FileText className="h-3 w-3" />{t('com_ui_activities_desc', 'Descripción de Actividades Generales')}</label>
-                                    <textarea
-                                        id="input-generalActivities"
-                                        name="generalActivities"
-                                        className={cn(inputClass, 'min-h-[80px] resize-y')}
-                                        value={data.generalActivities}
-                                        onChange={e => handleChange('generalActivities', e.target.value)}
-                                        placeholder={t('com_ui_activities_placeholder', 'Describa las actividades principales que se desarrollan en la empresa...')}
-                                        rows={3}
-                                    />
-                                    <p className="mt-1.5 text-xs italic text-amber-500/90">
-                                        ⚠️ Describa con el mayor detalle posible las actividades de su empresa. Esta información alimenta todos los informes, diagnósticos, políticas y análisis generados por IA en el sistema.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Proyecto Google Antigravity */}
-                            <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-teal-500/5 to-transparent p-4 shadow-sm transition-all duration-300 hover:border-cyan-500/50">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                        <Cpu className="h-4 w-4 text-cyan-500" /> Proyecto Google Antigravity
-                                    </h3>
-                                    <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[10.5px] font-bold tracking-wide text-cyan-600 dark:text-cyan-400">
-                                        Puente Reactivo Push
-                                    </span>
-                                </div>
-                                <p className="mb-3 text-xs text-text-secondary leading-relaxed">
-                                    Ruta de la carpeta del proyecto asociada a esta empresa (en tu disco local, servidor o unidad sincronizada como Google Drive). Cuando delegues requerimientos desde Tenshi o los agentes de WAPPY, Google Antigravity abrirá automáticamente este espacio de trabajo y mantendrá un hilo de chat dedicado sin mezclar empresas.
-                                </p>
-                                <div>
-                                    <label className={optionalLabelClass}>
-                                        <FolderGit2 className="h-3 w-3 text-cyan-500" />
-                                        Directorio o Carpeta del Proyecto (Opcional)
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            id="input-antigravityWorkspace"
-                                            name="antigravityWorkspace"
-                                            className={cn(
-                                                inputClass,
-                                                'font-mono text-xs border-cyan-500/30 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 pr-8'
-                                            )}
-                                            value={data.antigravityWorkspace || ''}
-                                            onChange={e => handleChange('antigravityWorkspace', e.target.value)}
-                                            placeholder="~/Documents/Proyectos/EmpresaA o G:\Mi unidad\EmpresaA"
-                                        />
-                                        <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-500/60" title="Terminal / Carpeta del Proyecto">
-                                            <Terminal className="h-3.5 w-3.5" />
-                                        </div>
-                                    </div>
-                                    <p className="mt-1.5 text-[10.5px] text-text-secondary">
-                                        💡 Ejemplos: <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">~/Documents/Proyectos/EmpresaA</code> · <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">G:\Mi unidad\SST\EmpresaA</code> · <code className="rounded bg-surface-tertiary px-1 py-0.5 font-mono text-[10px] text-cyan-600 dark:text-cyan-400">C:\Proyectos\EmpresaA</code>
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Sedes Adicionales */}
-                            <div>
-                                <div className="mb-3 flex items-center justify-between">
-                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                        <Building2 className="h-4 w-4" /> Sedes Adicionales
-                                    </h3>
-                                    <ExpandingButton
-                                        onClick={handleAddSede}
-                                        icon={Plus}
-                                        label="Agregar Sede"
-                                        variant="outline-teal"
-                                        size="sm"
-                                        title="Agregar Sede"
-                                    />
-                                </div>
-                                
-                                {(!Array.isArray(data.sedes) || data.sedes.length === 0) ? (
-                                    <div className="rounded-xl border border-dashed border-border-medium bg-surface-primary/50 p-6 text-center">
-                                        <p className="text-sm text-text-secondary">No hay sedes adicionales registradas.</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {data.sedes.map((sede, idx) => (
-                                            <div key={idx} className="relative rounded-xl border border-border-medium bg-surface-primary p-4 shadow-sm">
-                                                <button
-                                                    onClick={() => handleRemoveSede(idx)}
-                                                    className="group flex rounded-xl h-7 min-w-[28px] items-center justify-center rounded-lg transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 px-1.5 shadow-sm active:scale-95 text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 absolute right-3 top-3"
-                                                    title="Eliminar Sede"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                    <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1 group-hover:max-w-[100px] group-hover:opacity-100 sm:flex">
-                                                        <span className="text-[10px] font-bold">Eliminar</span>
-                                                    </div>
-                                                </button>
-                                                
-                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
-                                                    <div>
-                                                        <label className={labelClass}>Nombre de la Sede</label>
-                                                        <input className={inputClass} value={sede.nombre} onChange={e => handleSedeChange(idx, 'nombre', e.target.value)} placeholder="Ej. Sede Norte" />
-                                                    </div>
-                                                    <div>
-                                                        <label className={labelClass}>Dirección</label>
-                                                        <input className={inputClass} value={sede.address} onChange={e => handleSedeChange(idx, 'address', e.target.value)} placeholder="Dirección de la sede" />
-                                                    </div>
-                                                    <div>
-                                                        <label className={labelClass}>Ciudad</label>
-                                                        <input className={inputClass} value={sede.city} onChange={e => handleSedeChange(idx, 'city', e.target.value)} placeholder="Ciudad" />
-                                                    </div>
-                                                    <div>
-                                                        <label className={labelClass}>Departamento</label>
-                                                        <input className={inputClass} value={sede.departamento || ''} onChange={e => handleSedeChange(idx, 'departamento', e.target.value)} placeholder="Ej. Cundinamarca" />
-                                                    </div>
-                                                    <div>
-                                                        <label className={labelClass}>Teléfono</label>
-                                                        <input className={inputClass} value={sede.phone} onChange={e => handleSedeChange(idx, 'phone', e.target.value)} placeholder="Teléfono" />
-                                                    </div>
-                                                    <div>
-                                                        <label className={labelClass}>Correo Electrónico</label>
-                                                        <input className={inputClass} type="email" value={sede.email} onChange={e => handleSedeChange(idx, 'email', e.target.value)} placeholder="correo@sede.com" />
-                                                    </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className={labelClass}>Actividades de la Sede</label>
-                                                        <textarea
-                                                            className={cn(inputClass, 'min-h-[60px] resize-y')}
-                                                            value={sede.generalActivities}
-                                                            onChange={e => handleSedeChange(idx, 'generalActivities', e.target.value)}
-                                                            placeholder="Describa las actividades específicas de esta sede..."
-                                                            rows={2}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                        </div>
-                    )}
-                </div>
-
                 {/* Footer */}
-                <div className="flex items-center justify-between border-t border-border-medium px-6 py-4">
-                    <div className="flex-1 mr-4">
-                        <div className="text-xs text-text-secondary">
+                <div className="flex items-center justify-between border-t border-slate-100 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-900/60 px-6 py-3.5 shrink-0">
+                    <div className="flex-1 mr-4 min-w-0">
+                        <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 truncate">
                             {data._id ? `Editando: ${data.companyName || 'Sin Nombre'}` : 'Creando Nueva Empresa'}
                         </div>
                         {!isFormValid && missingFields.length > 0 && (
-                            <div className="mt-1 text-xs text-red-500">
+                            <div className="mt-0.5 text-xs text-red-500 truncate">
                                 <span className="font-semibold">Faltan:</span>{' '}
                                 <span className="hidden md:inline">
                                     {missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}
@@ -1211,7 +1435,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
                         <div id="btn-cancelar-empresa" data-action="cancelar-empresa">
                             <ExpandingButton
                                 onClick={() => {
