@@ -8,7 +8,9 @@ const {
   getScopedAuthValue,
   updateScopedAuthValue,
   deleteScopedAuthValue,
+  getCompanyOneDriveAuthSummary,
 } = require('~/server/services/oneDriveAuthHelper');
+const CompanyInfo = require('~/models/CompanyInfo');
 
 const router = express.Router();
 
@@ -26,7 +28,19 @@ const getRedirectUri = () => {
 router.get('/auth', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    let company = null;
+    const requestedCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
+    if (requestedCompanyId) {
+      company = await CompanyInfo.findOne({ _id: requestedCompanyId, user: userId }).lean();
+      if (company && !company.isActive) {
+        await CompanyInfo.updateMany({ user: userId }, { $set: { isActive: false } });
+        await CompanyInfo.updateOne({ _id: company._id }, { $set: { isActive: true } });
+        company.isActive = true;
+      }
+    }
+    if (!company) {
+      company = await getActiveCompany(userId);
+    }
     const companyId = company ? String(company._id) : null;
 
     const referer = req.headers.referer || req.headers.origin || process.env.DOMAIN_CLIENT;
@@ -46,10 +60,11 @@ router.get('/auth', requireJwtAuth, async (req, res) => {
       `&response_type=code` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&response_mode=query` +
+      `&prompt=select_account` +
       `&scope=${encodeURIComponent(SCOPES)}` +
       `&state=${state}`;
 
-    res.json({ url: authorizationUrl });
+    res.json({ url: authorizationUrl, companyId, companyName: company?.companyName || null });
   } catch (err) {
     logger.error('[OneDriveAuth] Error generating auth URL:', err);
     res.status(500).json({ error: 'Fallo al iniciar la autenticación con OneDrive' });
@@ -143,9 +158,17 @@ router.get('/callback', async (req, res) => {
 router.get('/status', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    const requestedCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
+    let company = null;
+    if (requestedCompanyId) {
+      company = await CompanyInfo.findOne({ _id: requestedCompanyId, user: userId }).lean();
+    }
+    if (!company) {
+      company = await getActiveCompany(userId);
+    }
     const companyName = company ? (company.companyName || company.nombreComercial) : null;
     const companyId = company ? String(company._id) : null;
+    const companyEmail = company?.email || null;
 
     let connected = false;
     let email = null;
@@ -160,7 +183,9 @@ router.get('/status', requireJwtAuth, async (req, res) => {
       // User doesn't have the token stored yet
     }
 
-    res.json({ connected, email, companyName });
+    const companies = await getCompanyOneDriveAuthSummary(userId);
+
+    res.json({ connected, email, companyId, companyName, companyEmail, companies });
   } catch (err) {
     logger.error('[OneDriveStatus] Error checking connection status:', err);
     res.status(500).json({ error: 'Fallo al verificar el estado de OneDrive' });
@@ -173,13 +198,20 @@ router.get('/status', requireJwtAuth, async (req, res) => {
 router.delete('/disconnect', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    const requestedCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
+    let company = null;
+    if (requestedCompanyId) {
+      company = await CompanyInfo.findOne({ _id: requestedCompanyId, user: userId }).lean();
+    }
+    if (!company) {
+      company = await getActiveCompany(userId);
+    }
     const companyId = company ? String(company._id) : null;
 
     await deleteScopedAuthValue(userId, companyId);
 
     logger.info(`[OneDriveDisconnect] OneDrive disconnected for user: ${userId} in company ${companyId}`);
-    res.json({ success: true });
+    res.json({ success: true, companyId });
   } catch (err) {
     logger.error('[OneDriveDisconnect] Error disconnecting OneDrive:', err);
     res.status(500).json({ error: 'Fallo al desconectar OneDrive' });

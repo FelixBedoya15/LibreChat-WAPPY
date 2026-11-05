@@ -462,6 +462,15 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     } else {
                         localStorage.removeItem('wappy_sst_global_logo');
                     }
+                    const evtDetail = {
+                        companyId: id,
+                        empresaId: id,
+                        companyName: activated.companyName,
+                        empresa: activated.companyName,
+                        companyData: activated,
+                    };
+                    window.dispatchEvent(new CustomEvent('wappy-company-changed', { detail: evtDetail }));
+                    window.dispatchEvent(new CustomEvent('wappy-empresa-cambiada', { detail: evtDetail }));
                 }
                 try {
                     sessionStorage.clear();

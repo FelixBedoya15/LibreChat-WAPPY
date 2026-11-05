@@ -1,7 +1,6 @@
 const { google } = require('googleapis');
 const { logger } = require('@librechat/data-schemas');
-const { getUserPluginAuthValue, updateUserPluginAuth } = require('./PluginService');
-const { getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelper');
+const { getActiveCompany, getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelper');
 
 /**
  * Returns an authorized OAuth2 client for the given user.
@@ -18,16 +17,23 @@ const getOAuth2Client = (redirectUri) => {
 };
 
 /**
- * Resolves the calendar client for a given user, auto-refreshing the access token if needed.
+ * Resolves the calendar client for a given user and company, auto-refreshing the access token if needed.
+ * Strictly isolated per company — never steals tokens from sibling companies.
  */
 const getCalendarClient = async (userId, companyId = null) => {
   try {
-    const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
-    const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
-    const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', false);
+    let targetCompanyId = companyId ? String(companyId) : null;
+    if (!targetCompanyId) {
+      const activeCompany = await getActiveCompany(userId);
+      targetCompanyId = activeCompany ? String(activeCompany._id) : null;
+    }
+
+    const accessToken = await getScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
+    const refreshToken = await getScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+    const expiryStr = await getScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_EXPIRY', false);
     
     if (!accessToken || !refreshToken) {
-      return null; // Not connected
+      return null; // Not connected for this company
     }
 
     const expiry = Number(expiryStr);
@@ -41,47 +47,21 @@ const getCalendarClient = async (userId, companyId = null) => {
     // Check if access token is expired or close to expiry (within 1 minute)
     const isExpired = expiry ? (expiry - Date.now() < 60000) : true;
     if (isExpired) {
-      logger.info(`[GoogleCalendarService] Refreshing access token for user: ${userId}`);
+      logger.info(`[GoogleCalendarService] Refreshing access token for user: ${userId} (company: ${targetCompanyId || 'global'})`);
       try {
         const { credentials } = await oauth2Client.refreshAccessToken();
         oauth2Client.setCredentials(credentials);
 
         if (credentials.access_token) {
-          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
+          await updateScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
         }
         if (credentials.expiry_date) {
-          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
+          await updateScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
         }
-        logger.info(`[GoogleCalendarService] Token refreshed successfully for user: ${userId}`);
+        logger.info(`[GoogleCalendarService] Token refreshed successfully for user: ${userId} (company: ${targetCompanyId || 'global'})`);
       } catch (refreshErr) {
-        logger.error(`[GoogleCalendarService] Failed to refresh token for user ${userId}:`, refreshErr.message);
-        // Fallback: check if another company of the same user has a valid refreshed token
-        try {
-          const CompanyInfo = require('~/models/CompanyInfo');
-          const allCompanies = await CompanyInfo.find({ user: userId }).lean();
-          for (const comp of allCompanies) {
-            const altCid = String(comp._id);
-            const altRt = await getUserPluginAuthValue(userId, `GOOGLE_DRIVE_REFRESH_TOKEN_${altCid}`, false, 'google_drive');
-            const altAt = await getUserPluginAuthValue(userId, `GOOGLE_DRIVE_ACCESS_TOKEN_${altCid}`, false, 'google_drive');
-            if (!altRt || altRt === refreshToken) continue;
-            const altClient = getOAuth2Client();
-            altClient.setCredentials({ access_token: altAt, refresh_token: altRt });
-            const { credentials: altCreds } = await altClient.refreshAccessToken();
-            altClient.setCredentials(altCreds);
-            if (altCreds.access_token) {
-              await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', altCreds.access_token);
-              await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', altRt);
-            }
-            if (altCreds.expiry_date) {
-              await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(altCreds.expiry_date));
-            }
-            logger.info(`[GoogleCalendarService] Recovered valid token from sibling company ${altCid} for user ${userId}`);
-            return google.calendar({ version: 'v3', auth: altClient });
-          }
-        } catch (_) {
-          // Ignore fallback errors
-        }
-        return null; // Token revoked or invalid
+        logger.error(`[GoogleCalendarService] Failed to refresh token for user ${userId} (company: ${targetCompanyId || 'global'}):`, refreshErr.message);
+        return null; // Token revoked or invalid for this company
       }
     }
 
@@ -147,7 +127,14 @@ const normalizeColombiaDateTime = (val, addHours = 0) => {
  */
 const upsertCalendarEvent = async (userId, eventData, syncId, companyId = null) => {
   try {
-    const calendar = await getCalendarClient(userId, companyId);
+    let resolvedSyncId = syncId;
+    let resolvedCompanyId = companyId;
+    if (resolvedCompanyId === null && eventData?.syncId) {
+      resolvedSyncId = String(eventData.syncId);
+      resolvedCompanyId = syncId ? String(syncId) : null;
+    }
+
+    const calendar = await getCalendarClient(userId, resolvedCompanyId);
     if (!calendar) {
       return null;
     }
@@ -155,7 +142,7 @@ const upsertCalendarEvent = async (userId, eventData, syncId, companyId = null) 
     // Check if the event already exists
     const existing = await calendar.events.list({
       calendarId: 'primary',
-      privateExtendedProperty: `wappySyncId=${syncId}`,
+      privateExtendedProperty: `wappySyncId=${resolvedSyncId}`,
       maxResults: 1,
     });
 
@@ -170,7 +157,7 @@ const upsertCalendarEvent = async (userId, eventData, syncId, companyId = null) 
       colorId: eventData.colorId || null,
       extendedProperties: {
         private: {
-          wappySyncId: syncId,
+          wappySyncId: resolvedSyncId,
         },
       },
       reminders: {

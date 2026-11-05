@@ -4445,6 +4445,17 @@ async function handleStudioAntigravityGuestOrUserKey(req, res) {
       const bridge = getAntigravityBridgeStatus(req, targetUserId);
       const oneLineCommand = `curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node - --key=${existingKeyDoc.rawKey} --url=${originUrl}`;
 
+      let activeGoogleConnected = false;
+      let activeOneDriveConnected = false;
+      try {
+        const { getScopedAuthValue: getGoogleScoped } = require('~/server/services/googleAuthHelper');
+        const { getScopedAuthValue: getOneDriveScoped } = require('~/server/services/oneDriveAuthHelper');
+        const gRt = await getGoogleScoped(targetUserId, null, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+        const oRt = await getOneDriveScoped(targetUserId, null, 'ONEDRIVE_REFRESH_TOKEN', false);
+        activeGoogleConnected = Boolean(gRt);
+        activeOneDriveConnected = Boolean(oRt);
+      } catch (_) {}
+
       return res.json({
         ok: true,
         success: true,
@@ -4464,8 +4475,8 @@ async function handleStudioAntigravityGuestOrUserKey(req, res) {
         },
         connections: {
           antigravityConnected: bridge.userDaemonConnected,
-          googleDriveConnected: Boolean(req.user.googleDriveTokens?.refresh_token || req.user.googleDriveConnected),
-          oneDriveConnected: Boolean(req.user.oneDriveTokens?.refresh_token || req.user.oneDriveConnected),
+          googleDriveConnected: activeGoogleConnected || Boolean(req.user.googleDriveTokens?.refresh_token || req.user.googleDriveConnected),
+          oneDriveConnected: activeOneDriveConnected || Boolean(req.user.oneDriveTokens?.refresh_token || req.user.oneDriveConnected),
         },
       });
     }

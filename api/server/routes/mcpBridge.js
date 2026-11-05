@@ -4914,6 +4914,10 @@ router.post(['/companies/:id/activate', '/companies/:id/select', '/companies/act
     company.isActive = true;
     await company.save();
 
+    if (global.__wappyGcalBriefingCache) {
+      global.__wappyGcalBriefingCache.clear();
+    }
+
     syncCompanyAiMemory(targetUserId, company).catch(() => {});
 
     return res.json({
@@ -7335,7 +7339,7 @@ const handleUpdateAgendaEvent = async (req, res) => {
 
     // 1. Intentar buscar en KanbanTask por ObjectId
     if (rawId && mongoose.Types.ObjectId.isValid(rawId)) {
-      targetTask = await KanbanTask.findOne({ _id: rawId, user: targetUserId });
+      targetTask = await KanbanTask.findOne({ _id: rawId, ...companyScope(targetUserId, companyId) });
     }
 
     // 2. Si no se encontró por ID, buscar por título o palabra clave
@@ -7343,7 +7347,7 @@ const handleUpdateAgendaEvent = async (req, res) => {
       const searchTerm = rawId || titulo || title;
       if (searchTerm) {
         targetTask = await KanbanTask.findOne({
-          user: targetUserId,
+          ...companyScope(targetUserId, companyId),
           title: { $regex: new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
         }).sort({ dueDate: -1 });
       }
@@ -7451,7 +7455,7 @@ const handleDeleteAgendaEvent = async (req, res) => {
     // 1. Intentar buscar y eliminar por ObjectId de Mongo
     const mongoose = require('mongoose');
     if (mongoose.Types.ObjectId.isValid(rawId)) {
-      const task = await KanbanTask.findOneAndDelete({ _id: rawId, user: targetUserId });
+      const task = await KanbanTask.findOneAndDelete({ _id: rawId, ...companyScope(targetUserId, companyId) });
       if (task) {
         deletedFromKanban = true;
         deletedTaskTitle = task.title;
@@ -7461,7 +7465,7 @@ const handleDeleteAgendaEvent = async (req, res) => {
     // 2. Si no se eliminó por ObjectId, intentar buscar por coincidencia en el título
     if (!deletedFromKanban && rawId) {
       const task = await KanbanTask.findOneAndDelete({
-        user: targetUserId,
+        ...companyScope(targetUserId, companyId),
         title: { $regex: new RegExp(rawId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
       });
       if (task) {
@@ -7503,7 +7507,7 @@ router.post('/agenda/events', requireApiKeyOrJwt, async (req, res) => {
       const fromDate = new Date(Date.now() - 7 * 24 * 3600 * 1000);
       const toDate = new Date(Date.now() + 30 * 24 * 3600 * 1000);
       const tasks = await KanbanTask.find({
-        user: targetUserId,
+        ...companyScope(targetUserId, companyId),
         dueDate: { $gte: fromDate, $lte: toDate },
       }).sort({ dueDate: 1 }).limit(30).lean();
 
@@ -7675,12 +7679,12 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
     const fetchGcal = async () => {
       try {
         global.__wappyGcalBriefingCache = global.__wappyGcalBriefingCache || new Map();
-        const cacheKey = `${String(targetUserId)}:${colNowStr}`;
+        const cacheKey = `${String(targetUserId)}:${companyId || 'default'}:${colNowStr}`;
         const cached = global.__wappyGcalBriefingCache.get(cacheKey);
         if (cached && Date.now() - cached.ts < 90000) {
           return cached.items;
         }
-        const cal = await getCalendarClient(String(targetUserId));
+        const cal = await getCalendarClient(String(targetUserId), companyId);
         if (!cal) return [];
         const resCal = await cal.events.list({
           calendarId: 'primary',

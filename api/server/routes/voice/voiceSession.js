@@ -3306,16 +3306,16 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         const startOfTomorrow = new Date(endOfToday.getTime() + 1);
                         const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
 
-                        // Consultar Google Calendar con caché compartida (0ms si /briefing ya lo cargó) y timeout de 600ms
+                        // Consultar Google Calendar con caché compartida por empresa activa y timeout de 600ms
                         const fetchGoogleCalendarEvents = async () => {
                             try {
                                 global.__wappyGcalBriefingCache = global.__wappyGcalBriefingCache || new Map();
-                                const cacheKey = `${String(targetUserId)}:${colNowStr}`;
+                                const cacheKey = `${String(targetUserId)}:${activeCompId || 'default'}:${colNowStr}`;
                                 const cached = global.__wappyGcalBriefingCache.get(cacheKey);
                                 if (cached && Date.now() - cached.ts < 90000) {
                                     return cached.items;
                                 }
-                                const cal = await getCalendarClient(String(targetUserId));
+                                const cal = await getCalendarClient(String(targetUserId), activeCompId);
                                 if (!cal) return [];
                                 const resCal = await cal.events.list({
                                     calendarId: 'primary',

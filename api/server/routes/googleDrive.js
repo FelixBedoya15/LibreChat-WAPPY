@@ -13,7 +13,10 @@ const {
   getScopedAuthValue,
   updateScopedAuthValue,
   deleteScopedAuthValue,
+  isGoogleTokenSharedWithOtherCompany,
+  getCompanyGoogleAuthSummary,
 } = require('~/server/services/googleAuthHelper');
+const CompanyInfo = require('~/models/CompanyInfo');
 
 const router = express.Router();
 
@@ -38,11 +41,14 @@ const getOAuth2Client = (redirectUri) => {
 };
 
 /**
- * Obtiene el cliente OAuth2 autenticado y con auto-refresco de tokens para un usuario y su empresa activa.
+ * Obtiene el cliente OAuth2 autenticado y con auto-refresco de tokens para un usuario y su empresa activa (o especificada).
  */
-const getUserOAuth2Client = async (userId) => {
-  const company = await getActiveCompany(userId);
-  const companyId = company ? String(company._id) : null;
+const getUserOAuth2Client = async (userId, overrideCompanyId = null) => {
+  let companyId = overrideCompanyId ? String(overrideCompanyId) : null;
+  if (!companyId) {
+    const company = await getActiveCompany(userId);
+    companyId = company ? String(company._id) : null;
+  }
 
   const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
   const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
@@ -63,7 +69,7 @@ const getUserOAuth2Client = async (userId) => {
   // Verificar si el token de acceso expiró o está a menos de 1 minuto de expirar
   const isExpired = expiry ? (expiry - Date.now() < 60000) : true;
   if (isExpired && refreshToken) {
-    logger.info(`[GoogleDriveRoute] Token expirado para usuario: ${userId}. Refrescando...`);
+    logger.info(`[GoogleDriveRoute] Token expirado para usuario: ${userId} (empresa: ${companyId}). Refrescando...`);
     try {
       const { credentials } = await oauth2Client.refreshAccessToken();
       oauth2Client.setCredentials(credentials);
@@ -74,7 +80,7 @@ const getUserOAuth2Client = async (userId) => {
       if (credentials.expiry_date) {
         await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
       }
-      logger.info(`[GoogleDriveRoute] Token de Google refrescado exitosamente para usuario: ${userId}`);
+      logger.info(`[GoogleDriveRoute] Token de Google refrescado exitosamente para usuario: ${userId} (empresa: ${companyId})`);
     } catch (refreshErr) {
       logger.error('[GoogleDriveRoute] Error refrescando token de Google:', refreshErr.message);
       return null;
@@ -91,7 +97,20 @@ const getUserOAuth2Client = async (userId) => {
 router.get('/auth', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    let company = null;
+    const requestedCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
+
+    if (requestedCompanyId) {
+      company = await CompanyInfo.findOne({ _id: requestedCompanyId, user: userId }).lean();
+      if (company && !company.isActive) {
+        await CompanyInfo.updateMany({ user: userId }, { $set: { isActive: false } });
+        await CompanyInfo.updateOne({ _id: company._id }, { $set: { isActive: true } });
+        company.isActive = true;
+      }
+    }
+    if (!company) {
+      company = await getActiveCompany(userId);
+    }
     const companyId = company ? String(company._id) : null;
 
     // Get the referer to redirect back to the correct domain
@@ -110,13 +129,13 @@ router.get('/auth', requireJwtAuth, async (req, res) => {
 
     const oauth2Client = getOAuth2Client();
     const authorizationUrl = oauth2Client.generateAuthUrl({
-      access_type: 'offline', // Essential to get the refresh token
-      prompt: 'consent',      // Force consent screen to guarantee refresh token is returned
+      access_type: 'offline',          // Essential to get the refresh token
+      prompt: 'select_account consent', // Always let the user pick a different Google account per company + guarantee refresh token
       scope: SCOPES,
       state: state,
     });
 
-    res.json({ url: authorizationUrl });
+    res.json({ url: authorizationUrl, companyId, companyName: company?.companyName || null });
   } catch (err) {
     logger.error('[GoogleDriveAuth] Error generating auth URL:', err);
     res.status(500).json({ error: 'Fallo al iniciar la autenticación con Google Drive' });
@@ -197,14 +216,23 @@ router.get('/callback', async (req, res) => {
 });
 
 /**
- * Checks connection status of the active user.
+ * Checks connection status of the active user and company (strictly isolated per company).
  */
 router.get('/status', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    const requestedCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
+    let company = null;
+    if (requestedCompanyId) {
+      company = await CompanyInfo.findOne({ _id: requestedCompanyId, user: userId }).lean();
+    }
+    if (!company) {
+      company = await getActiveCompany(userId);
+    }
+
     const companyName = company ? (company.companyName || company.nombreComercial) : null;
     const companyId = company ? String(company._id) : null;
+    const companyEmail = company?.email || null;
 
     let connected = false;
     let email = null;
@@ -213,7 +241,7 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     try {
       const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
       if (refreshToken) {
-        const validClient = await getUserOAuth2Client(userId);
+        const validClient = await getUserOAuth2Client(userId, companyId);
         if (validClient) {
           connected = true;
           email = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
@@ -223,10 +251,20 @@ router.get('/status', requireJwtAuth, async (req, res) => {
         }
       }
     } catch (authErr) {
-      // User doesn't have the token stored yet
+      // User doesn't have the token stored for this company yet
     }
 
-    res.json({ connected, email, companyName, tokenExpired });
+    const companies = await getCompanyGoogleAuthSummary(userId);
+
+    res.json({
+      connected,
+      email,
+      companyId,
+      companyName,
+      companyEmail,
+      tokenExpired,
+      companies,
+    });
   } catch (err) {
     logger.error('[GoogleDriveStatus] Error checking connection status:', err);
     res.status(500).json({ error: 'Fallo al verificar el estado de Google Drive' });
@@ -234,30 +272,46 @@ router.get('/status', requireJwtAuth, async (req, res) => {
 });
 
 /**
- * Disconnects Google Drive by removing the stored tokens.
+ * Disconnects Google Drive by removing the stored tokens for the active (or specified) company.
  */
 router.delete('/disconnect', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const company = await getActiveCompany(userId);
+    const requestedCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
+    let company = null;
+    if (requestedCompanyId) {
+      company = await CompanyInfo.findOne({ _id: requestedCompanyId, user: userId }).lean();
+    }
+    if (!company) {
+      company = await getActiveCompany(userId);
+    }
     const companyId = company ? String(company._id) : null;
 
-    // Optional: Attempt to revoke token with Google
+    // Attempt to revoke token with Google ONLY if no other company of this user shares the same Google account
     try {
       const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+      const email = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EMAIL', false);
       if (refreshToken) {
-        const oauth2Client = getOAuth2Client();
-        await oauth2Client.revokeToken(refreshToken);
+        const isShared = await isGoogleTokenSharedWithOtherCompany(userId, companyId, refreshToken, email);
+        if (!isShared) {
+          const oauth2Client = getOAuth2Client();
+          await oauth2Client.revokeToken(refreshToken);
+        }
       }
     } catch (revokeErr) {
       logger.warn('[GoogleDriveDisconnect] Failed to revoke token with Google, deleting locally anyway:', revokeErr.message);
     }
 
-    // Delete credentials from pluginAuth
+    // Delete credentials from pluginAuth for this company
     await deleteScopedAuthValue(userId, companyId);
 
+    // Clear Google Calendar briefing cache for this user/company
+    if (global.__wappyGcalBriefingCache) {
+      global.__wappyGcalBriefingCache.clear();
+    }
+
     logger.info(`[GoogleDriveDisconnect] Google Drive disconnected for user: ${userId} in company ${companyId}`);
-    res.json({ success: true });
+    res.json({ success: true, companyId });
   } catch (err) {
     logger.error('[GoogleDriveDisconnect] Error disconnecting Google Drive:', err);
     res.status(500).json({ error: 'Fallo al desconectar Google Drive' });

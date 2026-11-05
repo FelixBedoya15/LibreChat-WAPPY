@@ -2685,16 +2685,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
 
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema.`;
+            const companyEvtDetail = {
+              empresa: companyName,
+              companyName,
+              companyId,
+              empresaId: companyId,
+              companyData,
+            };
             window.dispatchEvent(
-              new CustomEvent('wappy-empresa-cambiada', { 
-                detail: { 
-                  empresa: companyName, 
-                  companyName, 
-                  companyId, 
-                  empresaId: companyId,
-                  companyData 
-                } 
-              })
+              new CustomEvent('wappy-empresa-cambiada', { detail: companyEvtDetail })
+            );
+            window.dispatchEvent(
+              new CustomEvent('wappy-company-changed', { detail: companyEvtDetail })
             );
             window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
             triggerRichVoiceCard({

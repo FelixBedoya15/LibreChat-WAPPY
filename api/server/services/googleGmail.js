@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const { logger } = require('@librechat/data-schemas');
-const { getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelper');
+const { getActiveCompany, getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelper');
 
 /**
  * Returns an authorized OAuth2 client for the given user.
@@ -16,16 +16,22 @@ const getOAuth2Client = (redirectUri) => {
 };
 
 /**
- * Resolves the Gmail client for a given user, auto-refreshing the access token if needed.
+ * Resolves the Gmail client for a given user and company, auto-refreshing the access token if needed.
  */
 const getGmailClient = async (userId, companyId = null) => {
   try {
-    const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
-    const refreshToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
-    const expiryStr = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', false);
+    let targetCompanyId = companyId ? String(companyId) : null;
+    if (!targetCompanyId) {
+      const activeCompany = await getActiveCompany(userId);
+      targetCompanyId = activeCompany ? String(activeCompany._id) : null;
+    }
+
+    const accessToken = await getScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
+    const refreshToken = await getScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+    const expiryStr = await getScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_EXPIRY', false);
     
     if (!accessToken || !refreshToken) {
-      return null; // Not connected
+      return null; // Not connected for this company
     }
 
     const expiry = Number(expiryStr);
@@ -39,18 +45,18 @@ const getGmailClient = async (userId, companyId = null) => {
     // Check if access token is expired or close to expiry (within 1 minute)
     const isExpired = expiry ? (expiry - Date.now() < 60000) : true;
     if (isExpired) {
-      logger.info(`[GoogleGmailService] Refreshing access token for user: ${userId}`);
+      logger.info(`[GoogleGmailService] Refreshing access token for user: ${userId} (company: ${targetCompanyId || 'global'})`);
       try {
         const { credentials } = await oauth2Client.refreshAccessToken();
         oauth2Client.setCredentials(credentials);
 
         if (credentials.access_token) {
-          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
+          await updateScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
         }
         if (credentials.expiry_date) {
-          await updateScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
+          await updateScopedAuthValue(userId, targetCompanyId, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
         }
-        logger.info(`[GoogleGmailService] Token refreshed successfully for user: ${userId}`);
+        logger.info(`[GoogleGmailService] Token refreshed successfully for user: ${userId} (company: ${targetCompanyId || 'global'})`);
       } catch (refreshErr) {
         logger.error(`[GoogleGmailService] Failed to refresh token for user ${userId}:`, refreshErr.message);
         return null;

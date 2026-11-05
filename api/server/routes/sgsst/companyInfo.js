@@ -117,6 +117,10 @@ Descripción General de Actividades (Sede Principal): ${companyData.generalActiv
         
         await setMemory({ userId, agentId: 'global', key: memoryKey, value: memoryContentFinal, tokenCount });
 
+        if (global.__wappyGcalBriefingCache) {
+            global.__wappyGcalBriefingCache.clear();
+        }
+
         logger.debug(`[SGSST CompanyInfo] Synced single empresa_sgsst memory for user ${userId} (agentId=global)`);
     } catch (memError) {
         logger.error('[SGSST CompanyInfo] Error syncing automatic memory:', memError);
