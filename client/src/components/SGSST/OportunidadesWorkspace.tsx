@@ -2509,6 +2509,11 @@ export const OportunidadesWorkspace: React.FC = () => {
       {/* ─── CUADRO DE INFORME EXPANDIBLE / LIVE EDITOR ─── */}
       <CollapsibleReportBox
         defaultCollapsed={false}
+        onAnalyze={handleCompileReport}
+        isLoading={isCompilingReport}
+        onSave={handleSaveData}
+        isSaving={isSavingData}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         isHistoryOpen={isHistoryOpen}
         title="Matriz de Oportunidades y Riesgos del Sistema (ISO 45001 Num. 6.1.1 y 6.1.2.3)"
         icon={<Sparkles className="h-5 w-5 text-teal-700" />}

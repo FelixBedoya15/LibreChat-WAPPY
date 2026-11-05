@@ -1850,6 +1850,11 @@ export const GestionCambioWorkspace: React.FC = () => {
       {/* ─── CUADRO DE INFORME EXPANDIBLE / LIVE EDITOR ─── */}
       <CollapsibleReportBox
         defaultCollapsed={false}
+        onAnalyze={handleGenerateReport}
+        isLoading={isGenerating}
+        onSave={handleSaveData}
+        isSaving={isSaving}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         isHistoryOpen={isHistoryOpen}
         title="Procedimiento y Dictamen de Gestión del Cambio (Res. 0312 Est. 2.11.1 · Dec. 1072 Art. 2.2.4.6.26)"
         icon={<GitMerge className="h-5 w-5 text-teal-700" />}

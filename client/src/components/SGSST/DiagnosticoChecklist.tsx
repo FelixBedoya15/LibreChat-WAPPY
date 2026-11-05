@@ -1412,25 +1412,11 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         initialActions={diagActionPlanItems}
       />
 
-      {/* Bottom Action Button */}
-      <div className="mb-4 mt-6 flex justify-center gap-4">
-        <button
-          onClick={handleAnalyze}
-          disabled={isAnalyzing || completedCount === 0}
-          className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 items-center justify-center rounded-xl border border-border-medium/40 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
-        >
-          {isAnalyzing ? (
-            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-          ) : (
-            <AnimatedIcon name="sparkles" size={20} />
-          )}
-          <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100">
-            Generar Análisis con IA
-          </span>
-        </button>
-      </div>
       {/* Analysis Report - Editable */}
       <CollapsibleReportBox
+        onAnalyze={handleAnalyze}
+        analyzeDisabled={completedCount === 0}
+        isLoading={isAnalyzing}
         onSave={handleSave}
         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         isHistoryOpen={isHistoryOpen}

@@ -2465,8 +2465,9 @@ export default function MatrizCompatibilidadTable({
         {/* 4. Informe Ejecutivo en Editor en Vivo (CollapsibleReportBox + LiveEditor) */}
         <CollapsibleReportBox
           title="Informe de Auditoría Técnica y Almacenamiento Seguro de Sustancias Químicas (SGA)"
-          hasContent={!!reportContent}
-          defaultExpanded={!!reportContent}
+          onAnalyze={handleAnalyzeMatrix}
+          analyzeDisabled={matrixRows.length === 0}
+          isLoading={isAnalyzing}
           onHistory={() => setShowHistory(true)}
           onSave={async () => {
             const currentHtml = editorRef.current?.getHTML() || reportContent || '';
@@ -2657,10 +2658,11 @@ export default function MatrizCompatibilidadTable({
             </span>
           </button>
 
-          {/* Auditar con IA */}
+          {/* Generar IA (Auditar con IA) */}
           <button
             onClick={handleAnalyzeMatrix}
             disabled={isAnalyzing || matrixRows.length === 0}
+            title="Generar Informe con IA"
             className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
           >
             {isAnalyzing ? (
@@ -2669,7 +2671,7 @@ export default function MatrizCompatibilidadTable({
               <Sparkles className="h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" />
             )}
             <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
-              {isAnalyzing ? 'Generando…' : 'Auditar con IA'}
+              {isAnalyzing ? 'Generando…' : 'Generar IA'}
             </span>
           </button>
 
@@ -2781,34 +2783,36 @@ export default function MatrizCompatibilidadTable({
         )}
 
         {activeTab === 'reporte' && (
-          <div className="p-6 h-full flex flex-col gap-6">
-            {!reportContent ? (
-              <div className="flex-1 flex flex-col items-center justify-center gap-4 text-text-secondary py-16">
-                <FileTextIcon className="h-12 w-12 opacity-30 text-purple-600 animate-bounce" />
-                <p className="text-center text-sm font-semibold max-w-sm">
-                  Aún no se ha generado la Auditoría Técnica e Informe de Almacenamiento Seguro.
-                </p>
-                <button
-                  onClick={handleAnalyzeMatrix}
-                  disabled={isAnalyzing || matrixRows.length === 0}
-                  className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-purple-700 disabled:opacity-50"
-                >
-                  {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  <span>Auditar con IA ahora</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col gap-4">
-                <div className="rounded-2xl border border-border-medium bg-surface-primary p-6 shadow-sm">
-                  <LiveEditor
-                    initialContent={reportContent}
-                    onUpdate={(html) => setReportContent(html)}
-                    ref={editorRef}
-                    isEditable={true}
-                  />
-                </div>
-              </div>
-            )}
+          <div className="p-4 sm:p-6 h-full flex flex-col gap-6">
+            <CollapsibleReportBox
+              title="Informe de Auditoría Técnica y Almacenamiento Seguro de Sustancias Químicas (SGA)"
+              defaultCollapsed={false}
+              onAnalyze={handleAnalyzeMatrix}
+              analyzeDisabled={matrixRows.length === 0}
+              isLoading={isAnalyzing}
+              onHistory={() => setShowHistory(true)}
+              onSave={async () => {
+                const currentHtml = editorRef.current?.getHTML() || reportContent || '';
+                setReportContent(currentHtml);
+                await saveMatrix(matrixRows, true, currentHtml);
+              }}
+              isSaving={isSaving}
+              actions={
+                <ExportDropdown
+                  content={reportContent || ''}
+                  fileName={`Auditoria_Compatibilidad_Quimica_${new Date().toISOString().slice(0, 10)}`}
+                  title="Auditoría Técnica y Matriz de Compatibilidad Química"
+                  onExportExcel={handleExportExcel}
+                />
+              }
+            >
+              <LiveEditor
+                initialContent={reportContent}
+                onUpdate={(html) => setReportContent(html)}
+                ref={editorRef}
+                isEditable={true}
+              />
+            </CollapsibleReportBox>
           </div>
         )}
       </div>

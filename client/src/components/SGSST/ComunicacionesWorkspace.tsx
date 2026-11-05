@@ -513,6 +513,11 @@ export const ComunicacionesWorkspace: React.FC = () => {
       {/* ─── CUADRO DE INFORME EXPANDIBLE / LIVE EDITOR ─── */}
       <CollapsibleReportBox
         defaultCollapsed={false}
+        onAnalyze={handleGenerate}
+        isLoading={isGenerating}
+        onSave={handleSaveLocal}
+        isSaving={isSavingLocal}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         isHistoryOpen={isHistoryOpen}
         title="Plan y Protocolo de Comunicaciones SST (ISO 45001 Num. 7.4)"
         icon={<MessageSquare className="h-5 w-5 text-teal-700" />}

@@ -1174,30 +1174,17 @@ const ReporteActosCondiciones = () => {
                                 )}
                             </div>
                         </div>
-
-                        {/* Bottom generate button */}
-                        <div className="flex justify-center pt-4 gap-4">
-                            <button
-                                onClick={handleGenerate}
-                                disabled={isGenerating}
-                                className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 shadow-xs "
-                            >
-                                {isGenerating ? (
-                                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                                ) : (
-                                    <AnimatedIcon name="sparkles" size={20} />
-                                )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-1.5">Generar Reporte con IA</span>
-                            </button>
-                        </div>
                     </div>
                 )}
             </div>
 
             {/* Generated Report Editor */}
-                <CollapsibleReportBox onSave={handleSave}
-                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                        isHistoryOpen={isHistoryOpen}
+                <CollapsibleReportBox
+                    onAnalyze={handleGenerate}
+                    isLoading={isGenerating}
+                    onSave={handleSave}
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
                     title="Reporte de Actos y Condiciones Inseguras"
                     icon={<AlertTriangle className="h-5 w-5" />}
                     actions={

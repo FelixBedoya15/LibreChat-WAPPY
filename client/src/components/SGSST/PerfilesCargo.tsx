@@ -562,7 +562,8 @@ const PerfilesCargo = () => {
     const [activePerfilId, setActivePerfilId] = useState<string | null>(null);
     const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
     const [formData, setFormData] = useState<PerfilCargoData>(createInitialPerfil());
-    const [isFormExpanded, setIsFormExpanded] = useState(true);
+    const [isFormExpanded, setIsFormExpanded] = useState(false);
+    const inlineFormPanelRef = useRef<HTMLDivElement>(null);
     const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
@@ -1005,6 +1006,9 @@ const PerfilesCargo = () => {
         editorContentRef.current = '';
         liveEditorRef.current?.setHTML('');
         setIsFormExpanded(true);
+        setTimeout(() => {
+            inlineFormPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 120);
         showToast({ message: 'Nuevo perfil de cargo creado', severity: NotificationSeverity.INFO });
     };
 
@@ -1039,6 +1043,18 @@ const PerfilesCargo = () => {
     };
 
     const handleSelectPerfil = (id: string) => {
+        if (activePerfilId === id) {
+            setIsFormExpanded(prev => {
+                const next = !prev;
+                if (next) {
+                    setTimeout(() => {
+                        inlineFormPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                }
+                return next;
+            });
+            return;
+        }
         const perfil = perfiles.find(p => p.id === id);
         if (perfil) {
             setActivePerfilId(id);
@@ -1052,6 +1068,9 @@ const PerfilesCargo = () => {
             setReportMessageId(null);
             setSelectedWorkerId(null);
             setRefreshTrigger(p => p + 1);
+            setTimeout(() => {
+                inlineFormPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 120);
         }
     };
 
@@ -1724,508 +1743,581 @@ const PerfilesCargo = () => {
                 tags={['sgsst-perfil-cargo', `sgsst-perfil-cargo-${activePerfilId}`]}
             />
 
-            {/* ── Profiles Quick Access ── */}
-            <div className="rounded-3xl border border-border-medium bg-surface-secondary/70 backdrop-blur-sm p-5 sm:p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-5 px-1">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-teal-500/10 dark:bg-teal-400/10 flex items-center justify-center border border-teal-500/20">
-                            <Briefcase className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-xs font-black text-text-primary dark:text-text-primary uppercase tracking-widest bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Listado de Perfiles</span>
-                            <span className="text-[10px] text-text-tertiary font-medium">Arrastra las tarjetas para reorganizar a tu gusto</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <ExpandingButton
-                            label="Sincronizar Matriz"
-                            icon={RefreshCw}
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleSyncAllFromMatrix}
-                            title="Sincronizar cargos faltantes creados en la Matriz IPEVR"
-                        />
-                        <ExpandingButton
-                            label="Nuevo Cargo"
-                            icon={Plus}
-                            variant="teal"
-                            size="sm"
-                            onClick={handleAddPerfil}
-                            title="Crear un nuevo perfil de cargo"
-                        />
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4" data-tenshi-section="perfiles-cargo-lista">
-                    {/* Resumen semántico accesible para Tenshi IA y lectores de pantalla */}
-                    <div className="sr-only" aria-hidden="false" data-tenshi-data="resumen-perfiles-cargo">
-                        <h6>Catálogo completo de Perfiles de Cargo de la Empresa (Total: {perfiles.length})</h6>
-                        <ul>
-                            {perfiles.map((p) => (
-                                <li key={p.id}>
-                                    Cargo: {p.nombreCargo} | Área: {p.area} | Nivel: {p.nivelCargo} | Vacantes: {p.numVacantes || '0'} | Estado en pantalla: {activePerfilId === p.id ? 'Seleccionado actualmente' : 'No seleccionado'} | Informe: {p.report ? 'Generado' : 'Pendiente'}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    {isLoadingPerfiles ? (
-                        <>
-                            {[...Array(4)].map((_, i) => (
-                                <div key={i} className="animate-pulse rounded-2xl border border-border-medium/40 bg-surface-secondary p-4 space-y-3">
-                                    <div className="h-4 bg-surface-tertiary rounded-lg w-3/4" />
-                                    <div className="h-3 bg-surface-tertiary rounded-lg w-1/2" />
-                                    <div className="h-3 bg-surface-tertiary rounded-lg w-2/3" />
-                                    <div className="h-7 bg-surface-tertiary rounded-xl w-full mt-2" />
+            {/* ── Profiles Quick Access (Con despliegue en línea bajo la fila del cargo seleccionado) ── */}
+            {(() => {
+                const hasActiveInList = perfiles.some((item) => item.id === activePerfilId);
+                const activePerfilInlineEditor = (
+                    <div
+                        ref={inlineFormPanelRef}
+                        data-tenshi-section="perfil-cargo-editor-inline"
+                        className={cn(
+                            'col-span-full my-2 rounded-3xl border-2 border-teal-500/40 bg-surface-primary/95 dark:bg-surface-secondary/95 backdrop-blur-md p-4 sm:p-6 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-2 duration-300',
+                            !isFormExpanded && 'hidden',
+                        )}
+                    >
+                        {/* Encabezado del panel en línea del perfil seleccionado */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-teal-500/20">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white flex items-center justify-center shadow-md shrink-0">
+                                    <Briefcase className="w-5 h-5" />
                                 </div>
-                            ))}
-                        </>
-                    ) : perfiles.map((p, index) => {
-                        const isActive = activePerfilId === p.id;
-                        const isDragging = draggedPerfilIndex === index;
-                        const isDragOver = dragOverPerfilIndex === index && draggedPerfilIndex !== index;
-                        return (
-                            <div 
-                                key={p.id} 
-                                draggable
-                                data-tenshi-perfil-card="true"
-                                data-cargo-id={p.id}
-                                data-cargo-nombre={p.nombreCargo}
-                                data-cargo-area={p.area || 'Sin área'}
-                                data-cargo-nivel={p.nivelCargo || 'N/A'}
-                                data-cargo-vacantes={p.numVacantes || '0'}
-                                data-cargo-activo={isActive ? 'true' : 'false'}
-                                data-cargo-tiene-informe={Boolean(p.report) ? 'true' : 'false'}
-                                onDragStart={(e) => handlePerfilDragStart(e, index)}
-                                onDragOver={(e) => handlePerfilDragOver(e, index)}
-                                onDrop={(e) => handlePerfilDrop(e, index)}
-                                onDragEnd={handlePerfilDragEnd}
-                                className={cn(
-                                    "report-card perfil-cargo-card group relative flex flex-col justify-between p-5 rounded-3xl transition-all duration-200 cursor-grab active:cursor-grabbing border select-none transform overflow-hidden h-[150px] shadow-sm hover:shadow-md",
-                                    isDragging && "opacity-30 scale-95 border-2 border-dashed border-teal-500 shadow-none z-10",
-                                    isDragOver && "ring-2 ring-teal-500 scale-[1.04] shadow-2xl z-20 border-teal-500 bg-teal-500/10",
-                                    !isDragging && !isDragOver && (
-                                        isActive 
-                                            ? "bg-gradient-to-br from-teal-900 via-teal-850 to-cyan-900 text-white border-transparent ring-2 ring-teal-500/20 shadow-[0_4px_20px_rgba(20,184,166,0.25)] hover:scale-[1.02] active:scale-[0.98]" 
-                                            : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500/50 hover:text-text-primary hover:shadow-[0_4px_20px_rgba(20,184,166,0.1)] hover:bg-surface-secondary/90 hover:scale-[1.02] active:scale-[0.98] dark:bg-surface-primary/20"
-                                    )
-                                )}
-                                onClick={() => {
-                                    handleSelectPerfil(p.id);
-                                }}
-                            >
-                                {/* Active subtle top glowing bar */}
-                                {isActive && (
-                                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 to-cyan-400 shadow-[0_0_10px_rgba(45,212,191,0.8)]" />
-                                )}
-
-                                <div className="space-y-2">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                            {/* Grip drag handle icon */}
-                                            <div 
-                                                className={cn(
-                                                    "cursor-grab active:cursor-grabbing p-0.5 rounded-lg opacity-40 group-hover:opacity-100 transition-opacity",
-                                                    isActive ? "text-teal-200" : "text-text-tertiary"
-                                                )}
-                                                title="Arrastra para reordenar"
-                                            >
-                                                <GripVertical className="w-4 h-4" />
-                                            </div>
-                                            <div className={cn(
-                                                "flex items-center justify-center w-8 h-8 rounded-2xl shadow-inner transition-colors",
-                                                isActive ? "bg-white/20 text-white" : "bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400"
-                                            )}>
-                                                <Briefcase className="w-4.5 h-4.5" />
-                                            </div>
-                                        </div>
-                                        {/* Action Buttons: Ficha Técnica & Delete */}
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                type="button"
-                                                draggable={false}
-                                                onMouseDown={(e) => e.stopPropagation()}
-                                                onClick={(e) => { e.stopPropagation(); setSummaryPerfil(p); }}
-                                                className={cn(
-                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 active:scale-95",
-                                                    isActive 
-                                                        ? "hover:bg-white/20 text-white/80 hover:text-white" 
-                                                        : "hover:bg-teal-50 hover:text-teal-600 text-text-tertiary dark:hover:bg-teal-900/30 dark:text-teal-400"
-                                                )}
-                                                title="Ver ficha técnica del cargo"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                draggable={false}
-                                                onMouseDown={(e) => e.stopPropagation()}
-                                                onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
-                                                className={cn(
-                                                    "p-1.5 rounded-xl transition-all duration-200 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 active:scale-95",
-                                                    isActive 
-                                                        ? "hover:bg-red-500 hover:text-white text-white/70" 
-                                                        : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
-                                                )}
-                                                title="Eliminar cargo"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="pt-1">
-                                        <h5 className={cn(
-                                            "font-extrabold text-xs tracking-tight leading-tight line-clamp-2",
-                                            isActive ? "text-white font-black" : "text-text-primary"
-                                        )}>
-                                            {toTitleCase(p.nombreCargo) || 'Cargo sin nombre'}
-                                        </h5>
-                                        <p className={cn(
-                                            "text-[9px] font-black uppercase tracking-wider mt-1 truncate",
-                                            isActive ? "text-teal-200" : "text-text-tertiary"
-                                        )}>
-                                            {toTitleCase(p.area) || 'Sin área asignada'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center justify-between pt-2 border-t border-border-medium/20 mt-auto">
-                                    <span className={cn(
-                                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-md",
-                                        isActive 
-                                            ? "bg-white/10 text-white" 
-                                            : "bg-surface-secondary text-text-secondary border border-border-medium/30"
-                                    )}>
-                                        {p.nivelCargo ? p.nivelCargo.split(' ')[0] : 'Nivel N/A'}
-                                    </span>
-                                    {p.numVacantes && (
-                                        <span className={cn(
-                                            "text-[9px] font-extrabold",
-                                            isActive ? "text-cyan-200" : "text-teal-600 dark:text-teal-400"
-                                        )}>
-                                            {p.numVacantes} {Number(p.numVacantes) === 1 ? 'vacante' : 'vacantes'}
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+                                            Editando Perfil de Cargo
                                         </span>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* ── Core Form ── */}
-            <div className="space-y-8">
-                    {FIELD_SECTIONS.map(section => (
-                        <div key={section.title} className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
-                            <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
-                                <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm">{section.icon}</div>
-                                <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">{section.title}</h4>
-                            </div>
-                            <div className={cn("grid gap-5", section.fields.length >= 5 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4")}>
-                                {section.fields.map(field => (
-                                    <div key={field.key} className="flex flex-col justify-end h-full space-y-2">
-                                        <label className="text-[11px] font-extrabold text-text-secondary uppercase tracking-wider">
-                                            {field.label}
-                                        </label>
-                                        <div className="mt-auto">
-                                            {renderField(field)}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                    {/* ── CARD: Articulación Parametrizada con Matriz IPEVR ── */}
-                    <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-emerald-500/10 dark:from-teal-950/30 dark:via-cyan-950/20 dark:to-emerald-950/30 p-5 rounded-3xl border border-teal-500/30 shadow-lg relative transition-all duration-300">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-teal-500/20 text-teal-600 dark:text-teal-300 rounded-2xl shrink-0 shadow-sm">
-                                    <ShieldAlert className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h4 className="font-extrabold text-sm text-text-primary">
-                                            Articulación con Matriz de Peligros IPEVR (GTC-45)
-                                        </h4>
-                                        {matchingIpevarRows.length > 0 ? (
-                                            <span className="rounded-full bg-teal-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm">
-                                                {matchingIpevarRows.length} Peligros Vinculados
-                                            </span>
-                                        ) : (
-                                            <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-bold">
-                                                Sin vincular
+                                        {formData.area && (
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
+                                                • {toTitleCase(formData.area)}
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-text-secondary mt-0.5">
-                                        {matchingIpevarRows.length > 0
-                                            ? `Riesgos vinculados en la Matriz IPEVR para "${formData.nombreCargo || 'este cargo'}". Sincroniza controles y EPPs sin escribir nada a mano.`
-                                            : `Asigna el cargo "${formData.nombreCargo || 'este cargo'}" en la Matriz de Peligros para sincronizar EPPs y controles automáticamente.`}
-                                    </p>
+                                    <h3 className="text-base sm:text-lg font-black text-text-primary truncate mt-0.5">
+                                        {toTitleCase(formData.nombreCargo) || 'Nuevo Perfil de Cargo'}
+                                    </h3>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <ExpandingButton
+                                    label="Ficha Técnica"
+                                    icon={Eye}
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setSummaryPerfil(formData)}
+                                    title="Ver vista previa de la ficha técnica"
+                                />
+                                <ExpandingButton
+                                    label="Guardar Datos"
+                                    icon={Save}
+                                    variant="teal"
+                                    size="sm"
+                                    onClick={() => handleSaveData(false)}
+                                    loading={isSaving}
+                                    title="Guardar cambios del perfil de cargo"
+                                />
+                                <ExpandingButton
+                                    label="Ocultar Edición"
+                                    icon={X}
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setIsFormExpanded(false)}
+                                    title="Contraer panel de edición de este perfil"
+                                />
+                            </div>
+                        </div>
+
+                        {/* ── Core Form ── */}
+                        <div className="space-y-8">
+                            {FIELD_SECTIONS.map(section => (
+                                <div key={section.title} className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
+                                    <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
+                                        <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm">{section.icon}</div>
+                                        <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">{section.title}</h4>
+                                    </div>
+                                    <div className={cn("grid gap-5", section.fields.length >= 5 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4")}>
+                                        {section.fields.map(field => (
+                                            <div key={field.key} className="flex flex-col justify-end h-full space-y-2">
+                                                <label className="text-[11px] font-extrabold text-text-secondary uppercase tracking-wider">
+                                                    {field.label}
+                                                </label>
+                                                <div className="mt-auto">
+                                                    {renderField(field)}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            {/* ── CARD: Articulación Parametrizada con Matriz IPEVR ── */}
+                            <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-emerald-500/10 dark:from-teal-950/30 dark:via-cyan-950/20 dark:to-emerald-950/30 p-5 rounded-3xl border border-teal-500/30 shadow-lg relative transition-all duration-300">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-teal-500/20 text-teal-600 dark:text-teal-300 rounded-2xl shrink-0 shadow-sm">
+                                            <ShieldAlert className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-extrabold text-sm text-text-primary">
+                                                    Articulación con Matriz de Peligros IPEVR (GTC-45)
+                                                </h4>
+                                                {matchingIpevarRows.length > 0 ? (
+                                                    <span className="rounded-full bg-teal-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm">
+                                                        {matchingIpevarRows.length} Peligros Vinculados
+                                                    </span>
+                                                ) : (
+                                                    <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-bold">
+                                                        Sin vincular
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-text-secondary mt-0.5">
+                                                {matchingIpevarRows.length > 0
+                                                    ? `Riesgos vinculados en la Matriz IPEVR para "${formData.nombreCargo || 'este cargo'}". Sincroniza controles y EPPs sin escribir nada a mano.`
+                                                    : `Asigna el cargo "${formData.nombreCargo || 'este cargo'}" en la Matriz de Peligros para sincronizar EPPs y controles automáticamente.`}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {matchingIpevarRows.length > 0 && (
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <ExpandingButton
+                                                label={isIpevarHazardsExpanded ? 'Ocultar Peligros' : `Ver ${matchingIpevarRows.length} Peligros`}
+                                                icon={ShieldAlert}
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => setIsIpevarHazardsExpanded(prev => !prev)}
+                                            />
+                                            <ExpandingButton
+                                                label="Sincronizar desde IPEVR"
+                                                icon={Sparkles}
+                                                variant="teal"
+                                                size="sm"
+                                                onClick={handleSyncFromIpevar}
+                                                title="Importar controles y EPPs evaluados en la matriz"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Listado desplegable de los peligros IPEVR para este cargo */}
+                                {isIpevarHazardsExpanded && matchingIpevarRows.length > 0 && (
+                                    <div className="mt-4 pt-3 border-t border-teal-500/20 space-y-2">
+                                        <div className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
+                                            Peligros identificados en la Matriz IPEVR para este puesto:
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                                            {matchingIpevarRows.map((r, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="flex items-start justify-between gap-3 p-2.5 rounded-xl bg-surface-primary/80 border border-border-light text-xs shadow-sm"
+                                                >
+                                                    <div className="space-y-0.5">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-teal-700 dark:text-teal-400">
+                                                                [{r.peligro_clasificacion || 'General'}]
+                                                            </span>
+                                                            <span className="text-text-primary font-medium">
+                                                                {r.peligro_descripcion}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[11px] text-text-secondary">
+                                                            Proceso: <span className="font-semibold">{r.proceso}</span> | Actividad: {r.actividad}
+                                                            {r.medida_eppu && r.medida_eppu !== 'Ninguno' && (
+                                                                <span className="ml-2 text-teal-600 dark:text-teal-400 font-semibold">
+                                                                    • EPP: {r.medida_eppu}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="shrink-0 flex items-center gap-1.5">
+                                                        <span
+                                                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                                r.interpretacion_nr === 'I'
+                                                                    ? 'bg-red-500/10 text-red-600 border border-red-500/20'
+                                                                    : r.interpretacion_nr === 'II'
+                                                                    ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20'
+                                                                    : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                                            }`}
+                                                        >
+                                                            NR {r.interpretacion_nr || r.nr}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
+                                <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
+                                    <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm"><Shield className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /></div>
+                                    <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">Controles y Equipos de Protección</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <MultiSelect
+                                        label="Controles en la Fuente (Ingeniería / Diseño)"
+                                        placeholder="Seleccionar controles en la fuente..."
+                                        options={CONTROLES_FUENTE_OPTIONS}
+                                        selected={toStringArray(formData.controlesFuenteSeleccionados)}
+                                        onChange={(val) => handleInput('controlesFuenteSeleccionados', val)}
+                                    />
+                                    <MultiSelect
+                                        label="Controles en el Medio (Organización / Entorno)"
+                                        placeholder="Seleccionar controles en el medio..."
+                                        options={CONTROLES_MEDIO_OPTIONS}
+                                        selected={toStringArray(formData.controlesMedioSeleccionados)}
+                                        onChange={(val) => handleInput('controlesMedioSeleccionados', val)}
+                                    />
+                                    <MultiSelect
+                                        label="EPP Requeridos (GTC 45 / Res. 4272)"
+                                        placeholder="Seleccionar EPP..."
+                                        options={EPP_OPTIONS}
+                                        selected={toStringArray(formData.eppSeleccionados)}
+                                        onChange={(val) => handleInput('eppSeleccionados', val)}
+                                    />
+                                    <MultiSelect
+                                        label="Entrenamiento / Certificación SST"
+                                        placeholder="Seleccionar capacitación..."
+                                        options={ENTRENAMIENTO_OPTIONS}
+                                        selected={toStringArray(formData.entrenamientosSeleccionados)}
+                                        onChange={(val) => handleInput('entrenamientosSeleccionados', val)}
+                                    />
                                 </div>
                             </div>
 
-                            {matchingIpevarRows.length > 0 && (
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <ExpandingButton
-                                        label={isIpevarHazardsExpanded ? 'Ocultar Peligros' : `Ver ${matchingIpevarRows.length} Peligros`}
-                                        icon={ShieldAlert}
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() => setIsIpevarHazardsExpanded(prev => !prev)}
-                                    />
-                                    <ExpandingButton
-                                        label="Sincronizar desde IPEVR"
-                                        icon={Sparkles}
-                                        variant="teal"
-                                        size="sm"
-                                        onClick={handleSyncFromIpevar}
-                                        title="Importar controles y EPPs evaluados en la matriz"
-                                    />
+                            {/* Microphone Interface (Matching Alturas Permit) */}
+                            <div className="space-y-4 pt-4 border-t border-border-medium">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4 text-teal-600" /> Descripción Detallada (Dictado o Texto)
+                                    </h4>
+                                    <button
+                                        onClick={handleVoiceInput}
+                                        className={cn(
+                                            "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all shadow-md border flex items-center gap-2.5 hover:scale-105 active:scale-95 transform",
+                                            isListening 
+                                                ? "bg-red-50 text-red-600 border-red-200 animate-pulse" 
+                                                : "bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light"
+                                        )}
+                                    >
+                                        <span className="relative flex h-3 w-3">
+                                            {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
+                                            <span className={cn("relative inline-flex rounded-full h-3 w-3", isListening ? "bg-red-500" : "bg-teal-500")}></span>
+                                        </span>
+                                        {isListening ? 'Escuchando...' : 'Activar Micrófono'}
+                                    </button>
                                 </div>
-                            )}
-                        </div>
+                                <div className="relative group">
+                                    <textarea
+                                        value={formData.contextoAdicional + (interimText ? (formData.contextoAdicional && !formData.contextoAdicional.endsWith(' ') ? ' ' : '') + interimText : '')}
+                                        onChange={e => {
+                                            if (!isListening) {
+                                                handleInput('contextoAdicional', e.target.value);
+                                            }
+                                        }}
+                                        readOnly={isListening}
+                                        placeholder="Ej: Describe aquí funciones específicas, equipos a operar, o condiciones especiales de riesgo..."
+                                        className={cn(
+                                            "w-full rounded-2xl border-2 p-5 text-sm text-text-primary min-h-[180px] transition-all duration-300 focus:outline-none shadow-inner",
+                                            isListening 
+                                                ? "border-solid border-red-300 bg-red-50/10 focus:border-red-400" 
+                                                : "border-dashed border-teal-500/30 bg-surface-primary/50 text-text-primary placeholder:text-text-tertiary focus:bg-surface-primary/80 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 focus:shadow-[0_0_15px_rgba(20,184,166,0.15)]"
+                                        )}
+                                    />
+                                    {!isListening && (
+                                        <div className="absolute top-4 right-4 text-teal-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <FileText className="h-5 w-5" />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
 
-                        {/* Listado desplegable de los peligros IPEVR para este cargo */}
-                        {isIpevarHazardsExpanded && matchingIpevarRows.length > 0 && (
-                            <div className="mt-4 pt-3 border-t border-teal-500/20 space-y-2">
-                                <div className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-                                    Peligros identificados en la Matriz IPEVR para este puesto:
-                                </div>
-                                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
-                                    {matchingIpevarRows.map((r, i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-start justify-between gap-3 p-2.5 rounded-xl bg-surface-primary/80 border border-border-light text-xs shadow-sm"
-                                        >
-                                            <div className="space-y-0.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-teal-700 dark:text-teal-400">
-                                                        [{r.peligro_clasificacion || 'General'}]
-                                                    </span>
-                                                    <span className="text-text-primary font-medium">
-                                                        {r.peligro_descripcion}
-                                                    </span>
-                                                </div>
-                                                <div className="text-[11px] text-text-secondary">
-                                                    Proceso: <span className="font-semibold">{r.proceso}</span> | Actividad: {r.actividad}
-                                                    {r.medida_eppu && r.medida_eppu !== 'Ninguno' && (
-                                                        <span className="ml-2 text-teal-600 dark:text-teal-400 font-semibold">
-                                                            • EPP: {r.medida_eppu}
-                                                        </span>
+                            {/* ── SECCIÓN: Registro Fotográfico de Evidencias ── */}
+                            <div className="space-y-4 pt-4 border-t border-border-medium/60">
+                                <h4 className="font-extrabold text-sm text-text-primary flex items-center gap-2">
+                                    <Camera className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /> Registro Fotográfico del Cargo
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {['foto1', 'foto2', 'foto3'].map((foto, idx) => {
+                                        const labels = ['Actividad Principal', 'Ambiente de Trabajo', 'Controles / Herramientas'];
+                                        const fieldName = foto as 'foto1' | 'foto2' | 'foto3';
+                                        const descName = `${foto}Desc`;
+                                        return (
+                                            <div key={foto} className="flex flex-col items-center gap-3">
+                                                <span className="font-extrabold text-xs text-text-secondary text-center uppercase tracking-wide">{labels[idx]}</span>
+                                                <div className="relative w-full aspect-square bg-surface-primary/40 hover:bg-surface-primary/70 dark:bg-surface-primary/10 dark:hover:bg-surface-primary/20 rounded-3xl border-2 border-dashed border-teal-500/30 dark:border-teal-500/20 flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 focus-within:ring-4 focus-within:ring-teal-500/10 transition-all duration-300 shadow-lg">
+                                                    {formData.images?.[fieldName] ? (
+                                                        <>
+                                                            <img
+                                                                src={formData.images[fieldName] as string}
+                                                                className="w-full h-full object-cover"
+                                                                alt={labels[idx]}
+                                                                onError={() => {
+                                                                    removeImage(fieldName);
+                                                                }}
+                                                            />
+                                                            <button onClick={() => removeImage(fieldName)} className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full text-white hover:bg-red-500 transition-colors">
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-text-secondary hover:text-teal-500 transition-colors">
+                                                            <Camera className="h-8 w-8 mb-2 text-text-tertiary" />
+                                                            <span className="text-xs font-bold text-center px-4">Subir foto</span>
+                                                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(fieldName, e)} />
+                                                        </label>
                                                     )}
                                                 </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Descripción de la foto..."
+                                                    value={formData.images?.[descName as keyof typeof formData.images] || ''}
+                                                    onChange={e => handleImageDescUpdate(descName, e.target.value)}
+                                                    className="w-full rounded-2xl border border-border-medium/60 px-4 py-2.5 text-xs bg-surface-primary/70 text-text-primary focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 focus:shadow-[0_0_10px_rgba(20,184,166,0.15)] transition-all hover:border-teal-500/80 shadow-sm font-medium"
+                                                />
                                             </div>
-                                            <div className="shrink-0 flex items-center gap-1.5">
-                                                <span
-                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                        r.interpretacion_nr === 'I'
-                                                            ? 'bg-red-500/10 text-red-600 border border-red-500/20'
-                                                            : r.interpretacion_nr === 'II'
-                                                            ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20'
-                                                            : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                                                    }`}
-                                                >
-                                                    NR {r.interpretacion_nr || r.nr}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
+
+                            {/* ── SECCIÓN: Evidencia en Video ── */}
+                            <div className="space-y-4 pt-4 border-t border-border-medium/60">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-extrabold text-sm text-text-primary flex items-center gap-2">
+                                        <Film className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /> Video de la Actividad (Opcional)
+                                    </h4>
+                                    <span className="text-[10px] bg-teal-100/50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 px-3 py-1 rounded-full font-black uppercase border border-teal-200/50 dark:border-teal-800/40">Máximo 10 Segundos</span>
+                                </div>
+
+                                <div className="bg-surface-primary/30 border-2 border-dashed border-teal-500/30 rounded-3xl p-6 transition-all duration-300 hover:bg-surface-primary/50 hover:border-teal-500 hover:shadow-xl">
+                                    {!formData.video ? (
+                                        <div className="flex flex-col items-center justify-center space-y-3">
+                                            <div className="w-16 h-16 bg-teal-500/10 dark:bg-teal-400/10 border border-teal-500/20 rounded-full flex items-center justify-center text-teal-600 dark:text-teal-400">
+                                                {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-extrabold text-text-primary uppercase tracking-wide">Sube un video corto de la labor</p>
+                                                <p className="text-xs text-text-secondary mt-1">Suministra contexto dinámico para autocompletar la Matriz IPEVR</p>
+                                            </div>
+                                            <label className="cursor-pointer bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 hover:scale-105 active:scale-95 text-white px-6 py-2.5 rounded-2xl text-xs font-black transition-all shadow-lg duration-300">
+                                                {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
+                                                <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-500/50">
+                                                <video src={formData.video} controls className="w-full h-full" />
+                                                <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Normative Badge Re-styled */}
+                            <div className="px-6 py-4 bg-teal-500/5 dark:bg-teal-900/10 border border-teal-500/20 flex items-center gap-3 rounded-2xl">
+                                <CheckCircle2 className="h-5 w-5 text-teal-500" />
+                                <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">
+                                    Cumple Art. 16 de la Resolución 1843 de 2025 & GTC 45 (2012)
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Workers Profile List (Bio-Individuos) */}
+                        {activePerfilId && (
+                            <WorkersProfileList
+                                perfilId={activePerfilId}
+                                perfilNombre={formData.nombreCargo || 'Cargo seleccionado'}
+                                onSelectWorker={(workerId) => setSelectedWorkerId(workerId)}
+                            />
                         )}
                     </div>
+                );
 
-                    <div className="space-y-5 bg-surface-primary/30 backdrop-blur-md p-6 rounded-3xl border border-border-medium/20 shadow-xl relative transition-all duration-300 hover:shadow-2xl hover:border-teal-500/20">
-                        <div className="flex items-center gap-3 pb-3 border-b border-border-medium/30">
-                            <div className="p-2.5 bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-400/15 dark:to-cyan-400/15 border border-teal-500/20 dark:border-teal-400/20 rounded-2xl shrink-0 shadow-sm"><Shield className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /></div>
-                            <h4 className="font-extrabold text-sm bg-gradient-to-r from-teal-600 via-teal-700 to-cyan-600 dark:from-teal-300 dark:to-cyan-300 bg-clip-text text-transparent uppercase tracking-wider">Controles y Equipos de Protección</h4>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <MultiSelect
-                                label="Controles en la Fuente (Ingeniería / Diseño)"
-                                placeholder="Seleccionar controles en la fuente..."
-                                options={CONTROLES_FUENTE_OPTIONS}
-                                selected={toStringArray(formData.controlesFuenteSeleccionados)}
-                                onChange={(val) => handleInput('controlesFuenteSeleccionados', val)}
-                            />
-                            <MultiSelect
-                                label="Controles en el Medio (Organización / Entorno)"
-                                placeholder="Seleccionar controles en el medio..."
-                                options={CONTROLES_MEDIO_OPTIONS}
-                                selected={toStringArray(formData.controlesMedioSeleccionados)}
-                                onChange={(val) => handleInput('controlesMedioSeleccionados', val)}
-                            />
-                            <MultiSelect
-                                label="EPP Requeridos (GTC 45 / Res. 4272)"
-                                placeholder="Seleccionar EPP..."
-                                options={EPP_OPTIONS}
-                                selected={toStringArray(formData.eppSeleccionados)}
-                                onChange={(val) => handleInput('eppSeleccionados', val)}
-                            />
-                            <MultiSelect
-                                label="Entrenamiento / Certificación SST"
-                                placeholder="Seleccionar capacitación..."
-                                options={ENTRENAMIENTO_OPTIONS}
-                                selected={toStringArray(formData.entrenamientosSeleccionados)}
-                                onChange={(val) => handleInput('entrenamientosSeleccionados', val)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Microphone Interface (Matching Alturas Permit) */}
-                    <div className="space-y-4 pt-4 border-t border-border-medium">
-                        <div className="flex items-center justify-between">
-                            <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 text-teal-600" /> Descripción Detallada (Dictado o Texto)
-                            </h4>
-                            <button
-                                onClick={handleVoiceInput}
-                                className={cn(
-                                    "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all shadow-md border flex items-center gap-2.5 hover:scale-105 active:scale-95 transform",
-                                    isListening 
-                                        ? "bg-red-50 text-red-600 border-red-200 animate-pulse" 
-                                        : "bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light"
-                                )}
-                            >
-                                <span className="relative flex h-3 w-3">
-                                    {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
-                                    <span className={cn("relative inline-flex rounded-full h-3 w-3", isListening ? "bg-red-500" : "bg-teal-500")}></span>
-                                </span>
-                                {isListening ? 'Escuchando...' : 'Activar Micrófono'}
-                            </button>
-                        </div>
-                        <div className="relative group">
-                            <textarea
-                                value={formData.contextoAdicional + (interimText ? (formData.contextoAdicional && !formData.contextoAdicional.endsWith(' ') ? ' ' : '') + interimText : '')}
-                                onChange={e => {
-                                    if (!isListening) {
-                                        handleInput('contextoAdicional', e.target.value);
-                                    }
-                                }}
-                                readOnly={isListening}
-                                placeholder="Ej: Describe aquí funciones específicas, equipos a operar, o condiciones especiales de riesgo..."
-                                className={cn(
-                                    "w-full rounded-2xl border-2 p-5 text-sm text-text-primary min-h-[180px] transition-all duration-300 focus:outline-none shadow-inner",
-                                    isListening 
-                                        ? "border-solid border-red-300 bg-red-50/10 focus:border-red-400" 
-                                        : "border-dashed border-teal-500/30 bg-surface-primary/50 text-text-primary placeholder:text-text-tertiary focus:bg-surface-primary/80 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 focus:shadow-[0_0_15px_rgba(20,184,166,0.15)]"
-                                )}
-                            />
-                            {!isListening && (
-                                <div className="absolute top-4 right-4 text-teal-200 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <FileText className="h-5 w-5" />
+                return (
+                    <div className="rounded-3xl border border-border-medium bg-surface-secondary/70 backdrop-blur-sm p-5 sm:p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-5 px-1">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-teal-500/10 dark:bg-teal-400/10 flex items-center justify-center border border-teal-500/20">
+                                    <Briefcase className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
                                 </div>
-                            )}
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-black text-text-primary dark:text-text-primary uppercase tracking-widest bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Listado de Perfiles</span>
+                                    <span className="text-[10px] text-text-tertiary font-medium">Haz clic en cualquier tarjeta para desplegar su edición debajo de su fila, o arrástrala para reordenar</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <ExpandingButton
+                                    label="Sincronizar Matriz"
+                                    icon={RefreshCw}
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleSyncAllFromMatrix}
+                                    title="Sincronizar cargos faltantes creados en la Matriz IPEVR"
+                                />
+                                <ExpandingButton
+                                    label="Nuevo Cargo"
+                                    icon={Plus}
+                                    variant="teal"
+                                    size="sm"
+                                    onClick={handleAddPerfil}
+                                    title="Crear un nuevo perfil de cargo"
+                                />
+                            </div>
                         </div>
-                    </div>
-
-                    {/* ── SECCIÓN: Registro Fotográfico de Evidencias ── */}
-                    <div className="space-y-4 pt-4 border-t border-border-medium/60">
-                        <h4 className="font-extrabold text-sm text-text-primary flex items-center gap-2">
-                            <Camera className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /> Registro Fotográfico del Cargo
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {['foto1', 'foto2', 'foto3'].map((foto, idx) => {
-                                const labels = ['Actividad Principal', 'Ambiente de Trabajo', 'Controles / Herramientas'];
-                                const fieldName = foto as 'foto1' | 'foto2' | 'foto3';
-                                const descName = `${foto}Desc`;
-                                return (
-                                    <div key={foto} className="flex flex-col items-center gap-3">
-                                        <span className="font-extrabold text-xs text-text-secondary text-center uppercase tracking-wide">{labels[idx]}</span>
-                                        <div className="relative w-full aspect-square bg-surface-primary/40 hover:bg-surface-primary/70 dark:bg-surface-primary/10 dark:hover:bg-surface-primary/20 rounded-3xl border-2 border-dashed border-teal-500/30 dark:border-teal-500/20 flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 focus-within:ring-4 focus-within:ring-teal-500/10 transition-all duration-300 shadow-lg">
-                                            {formData.images?.[fieldName] ? (
-                                                <>
-                                                    <img
-                                                        src={formData.images[fieldName] as string}
-                                                        className="w-full h-full object-cover"
-                                                        alt={labels[idx]}
-                                                        onError={() => {
-                                                            removeImage(fieldName);
-                                                        }}
-                                                    />
-                                                    <button onClick={() => removeImage(fieldName)} className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full text-white hover:bg-red-500 transition-colors">
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-text-secondary hover:text-teal-500 transition-colors">
-                                                    <Camera className="h-8 w-8 mb-2 text-text-tertiary" />
-                                                    <span className="text-xs font-bold text-center px-4">Subir foto</span>
-                                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(fieldName, e)} />
-                                                </label>
-                                            )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 grid-flow-row-dense gap-3.5 sm:gap-4" data-tenshi-section="perfiles-cargo-lista">
+                            {/* Resumen semántico accesible para Tenshi IA y lectores de pantalla */}
+                            <div className="sr-only" aria-hidden="false" data-tenshi-data="resumen-perfiles-cargo">
+                                <h6>Catálogo completo de Perfiles de Cargo de la Empresa (Total: {perfiles.length})</h6>
+                                <ul>
+                                    {perfiles.map((p) => (
+                                        <li key={p.id}>
+                                            Cargo: {p.nombreCargo} | Área: {p.area} | Nivel: {p.nivelCargo} | Vacantes: {p.numVacantes || '0'} | Estado en pantalla: {activePerfilId === p.id ? 'Seleccionado actualmente' : 'No seleccionado'} | Informe: {p.report ? 'Generado' : 'Pendiente'}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            {isLoadingPerfiles ? (
+                                <>
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className="animate-pulse rounded-2xl border border-border-medium/40 bg-surface-secondary p-4 space-y-3">
+                                            <div className="h-4 bg-surface-tertiary rounded-lg w-3/4" />
+                                            <div className="h-3 bg-surface-tertiary rounded-lg w-1/2" />
+                                            <div className="h-3 bg-surface-tertiary rounded-lg w-2/3" />
+                                            <div className="h-7 bg-surface-tertiary rounded-xl w-full mt-2" />
                                         </div>
-                                        <input
-                                            type="text"
-                                            placeholder="Descripción de la foto..."
-                                            value={formData.images?.[descName as keyof typeof formData.images] || ''}
-                                            onChange={e => handleImageDescUpdate(descName, e.target.value)}
-                                            className="w-full rounded-2xl border border-border-medium/60 px-4 py-2.5 text-xs bg-surface-primary/70 text-text-primary focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 focus:shadow-[0_0_10px_rgba(20,184,166,0.15)] transition-all hover:border-teal-500/80 shadow-sm font-medium"
-                                        />
-                                    </div>
+                                    ))}
+                                </>
+                            ) : perfiles.map((p, index) => {
+                                const isActive = activePerfilId === p.id;
+                                const isDragging = draggedPerfilIndex === index;
+                                const isDragOver = dragOverPerfilIndex === index && draggedPerfilIndex !== index;
+                                return (
+                                    <React.Fragment key={p.id}>
+                                        <div 
+                                            draggable
+                                            data-tenshi-perfil-card="true"
+                                            data-cargo-id={p.id}
+                                            data-cargo-nombre={p.nombreCargo}
+                                            data-cargo-area={p.area || 'Sin área'}
+                                            data-cargo-nivel={p.nivelCargo || 'N/A'}
+                                            data-cargo-vacantes={p.numVacantes || '0'}
+                                            data-cargo-activo={isActive ? 'true' : 'false'}
+                                            data-cargo-tiene-informe={Boolean(p.report) ? 'true' : 'false'}
+                                            onDragStart={(e) => handlePerfilDragStart(e, index)}
+                                            onDragOver={(e) => handlePerfilDragOver(e, index)}
+                                            onDrop={(e) => handlePerfilDrop(e, index)}
+                                            onDragEnd={handlePerfilDragEnd}
+                                            className={cn(
+                                                "report-card perfil-cargo-card group relative flex flex-col justify-between p-5 rounded-3xl transition-all duration-200 cursor-grab active:cursor-grabbing border select-none transform overflow-hidden h-[150px] shadow-sm hover:shadow-md",
+                                                isDragging && "opacity-30 scale-95 border-2 border-dashed border-teal-500 shadow-none z-10",
+                                                isDragOver && "ring-2 ring-teal-500 scale-[1.04] shadow-2xl z-20 border-teal-500 bg-teal-500/10",
+                                                !isDragging && !isDragOver && (
+                                                    isActive 
+                                                        ? "bg-gradient-to-br from-teal-900 via-teal-850 to-cyan-900 text-white border-transparent ring-2 ring-teal-500/20 shadow-[0_4px_20px_rgba(20,184,166,0.25)] hover:scale-[1.02] active:scale-[0.98]" 
+                                                        : "bg-surface-primary/70 text-text-secondary border-border-medium/60 hover:border-teal-500/50 hover:text-text-primary hover:shadow-[0_4px_20px_rgba(20,184,166,0.1)] hover:bg-surface-secondary/90 hover:scale-[1.02] active:scale-[0.98] dark:bg-surface-primary/20"
+                                                )
+                                            )}
+                                            onClick={() => {
+                                                handleSelectPerfil(p.id);
+                                            }}
+                                        >
+                                            {/* Active subtle top glowing bar */}
+                                            {isActive && (
+                                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 to-cyan-400 shadow-[0_0_10px_rgba(45,212,191,0.8)]" />
+                                            )}
+
+                                            <div className="space-y-2">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex items-center gap-1.5">
+                                                        {/* Grip drag handle icon */}
+                                                        <div 
+                                                            className={cn(
+                                                                "cursor-grab active:cursor-grabbing p-0.5 rounded-lg opacity-40 group-hover:opacity-100 transition-opacity",
+                                                                isActive ? "text-teal-200" : "text-text-tertiary"
+                                                            )}
+                                                            title="Arrastra para reordenar"
+                                                        >
+                                                            <GripVertical className="w-4 h-4" />
+                                                        </div>
+                                                        <div className={cn(
+                                                            "flex items-center justify-center w-8 h-8 rounded-2xl shadow-inner transition-colors",
+                                                            isActive ? "bg-white/20 text-white" : "bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400"
+                                                        )}>
+                                                            <Briefcase className="w-4.5 h-4.5" />
+                                                        </div>
+                                                    </div>
+                                                    {/* Action Buttons: Ficha Técnica & Delete */}
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            draggable={false}
+                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                            onClick={(e) => { e.stopPropagation(); setSummaryPerfil(p); }}
+                                                            className={cn(
+                                                                "p-1.5 rounded-xl transition-all duration-200 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 active:scale-95",
+                                                                isActive 
+                                                                    ? "hover:bg-white/20 text-white/80 hover:text-white" 
+                                                                    : "hover:bg-teal-50 hover:text-teal-600 text-text-tertiary dark:hover:bg-teal-900/30 dark:text-teal-400"
+                                                            )}
+                                                            title="Ver ficha técnica del cargo"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            draggable={false}
+                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                            onClick={(e) => { e.stopPropagation(); handleDeletePerfil(p.id); }}
+                                                            className={cn(
+                                                                "p-1.5 rounded-xl transition-all duration-200 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 active:scale-95",
+                                                                isActive 
+                                                                    ? "hover:bg-red-500 hover:text-white text-white/70" 
+                                                                    : "hover:bg-red-50 hover:text-red-600 text-text-tertiary dark:hover:bg-red-900/30 dark:text-red-400"
+                                                            )}
+                                                            title="Eliminar cargo"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="pt-1">
+                                                    <h5 className={cn(
+                                                        "font-extrabold text-xs tracking-tight leading-tight line-clamp-2",
+                                                        isActive ? "text-white font-black" : "text-text-primary"
+                                                    )}>
+                                                        {toTitleCase(p.nombreCargo) || 'Cargo sin nombre'}
+                                                    </h5>
+                                                    <p className={cn(
+                                                        "text-[9px] font-black uppercase tracking-wider mt-1 truncate",
+                                                        isActive ? "text-teal-200" : "text-text-tertiary"
+                                                    )}>
+                                                        {toTitleCase(p.area) || 'Sin área asignada'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-2 border-t border-border-medium/20 mt-auto">
+                                                <span className={cn(
+                                                    "text-[9px] font-black uppercase px-2 py-0.5 rounded-md",
+                                                    isActive 
+                                                        ? "bg-white/10 text-white" 
+                                                        : "bg-surface-secondary text-text-secondary border border-border-medium/30"
+                                                )}>
+                                                    {p.nivelCargo ? p.nivelCargo.split(' ')[0] : 'Nivel N/A'}
+                                                </span>
+                                                {p.numVacantes && (
+                                                    <span className={cn(
+                                                        "text-[9px] font-extrabold",
+                                                        isActive ? "text-cyan-200" : "text-teal-600 dark:text-teal-400"
+                                                    )}>
+                                                        {p.numVacantes} {Number(p.numVacantes) === 1 ? 'vacante' : 'vacantes'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {isActive && activePerfilInlineEditor}
+                                    </React.Fragment>
                                 );
                             })}
+                            {!hasActiveInList && activePerfilInlineEditor}
                         </div>
                     </div>
-
-                    {/* ── SECCIÓN: Evidencia en Video ── */}
-                    <div className="space-y-4 pt-4 border-t border-border-medium/60">
-                        <div className="flex items-center justify-between">
-                            <h4 className="font-extrabold text-sm text-text-primary flex items-center gap-2">
-                                <Film className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" /> Video de la Actividad (Opcional)
-                            </h4>
-                            <span className="text-[10px] bg-teal-100/50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 px-3 py-1 rounded-full font-black uppercase border border-teal-200/50 dark:border-teal-800/40">Máximo 10 Segundos</span>
-                        </div>
-
-                        <div className="bg-surface-primary/30 border-2 border-dashed border-teal-500/30 rounded-3xl p-6 transition-all duration-300 hover:bg-surface-primary/50 hover:border-teal-500 hover:shadow-xl">
-                            {!formData.video ? (
-                                <div className="flex flex-col items-center justify-center space-y-3">
-                                    <div className="w-16 h-16 bg-teal-500/10 dark:bg-teal-400/10 border border-teal-500/20 rounded-full flex items-center justify-center text-teal-600 dark:text-teal-400">
-                                        {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-sm font-extrabold text-text-primary uppercase tracking-wide">Sube un video corto de la labor</p>
-                                        <p className="text-xs text-text-secondary mt-1">Suministra contexto dinámico para autocompletar la Matriz IPEVR</p>
-                                    </div>
-                                    <label className="cursor-pointer bg-gradient-to-r from-teal-500 via-teal-600 to-cyan-600 hover:scale-105 active:scale-95 text-white px-6 py-2.5 rounded-2xl text-xs font-black transition-all shadow-lg duration-300">
-                                        {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
-                                        <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
-                                    </label>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-500/50">
-                                        <video src={formData.video} controls className="w-full h-full" />
-                                        <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                {/* Normative Badge Re-styled */}
-                <div className="px-6 py-4 bg-teal-500/5 dark:bg-teal-900/10 border border-teal-500/20 flex items-center gap-3 rounded-2xl">
-                    <CheckCircle2 className="h-5 w-5 text-teal-500" />
-                    <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">
-                        Cumple Art. 16 de la Resolución 1843 de 2025 & GTC 45 (2012)
-                    </span>
-                </div>
-            </div>
-
-            {/* Workers Profile List (Bio-Individuos) */}
-            {activePerfilId && (
-                <WorkersProfileList 
-                    perfilId={activePerfilId} 
-                    perfilNombre={formData.nombreCargo || 'Cargo seleccionado'} 
-                    onSelectWorker={(workerId) => setSelectedWorkerId(workerId)} 
-                />
-            )}
+                );
+            })()}
 
             {/* Generated Report View */}
-                <CollapsibleReportBox onSave={handleSaveReport}
-                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                        isHistoryOpen={isHistoryOpen}
+                <CollapsibleReportBox
+                    onAnalyze={handleGenerate}
+                    isLoading={isGenerating}
+                    onSave={handleSaveReport}
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
                     title="Perfil de Cargos"
                     icon={<FileText className="h-5 w-5" />}
                     actions={

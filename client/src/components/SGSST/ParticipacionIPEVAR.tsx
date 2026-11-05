@@ -2684,40 +2684,18 @@ const ParticipacionIPEVAR = () => {
                                 placeholder="Notas internas sobre este hallazgo..."
                             />
                         </div>
-
-                        {/* Bottom generate button */}
-                        <div className="flex justify-center pt-4 gap-4">
-                            <button
-                                type="button"
-                                onClick={handleGenerate}
-                                disabled={isGenerating}
-                                title="Generar Análisis IA"
-                                aria-label="Generar Análisis IA"
-                                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 shrink-0 cursor-pointer items-center justify-center rounded-xl border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
-                            >
-                                <div className="relative flex shrink-0 items-center justify-center">
-                                    {isGenerating ? (
-                                        <Loader2 className="h-4 w-4 animate-spin " />
-                                    ) : (
-                                        <Sparkles className="h-4 w-4 " />
-                                    )}
-                                </div>
-                                <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100 sm:flex">
-                                    <span className="text-xs font-bold tracking-wide">
-                                        {isGenerating ? 'Generando...' : 'Generar Análisis IA'}
-                                    </span>
-                                </div>
-                            </button>
-                        </div>
                     </div>
                 )}
             </div>
 
             {/* Generated Report Editor */}
             <div ref={reportBoxRef}>
-                <CollapsibleReportBox onSave={handleSave}
-                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                        isHistoryOpen={isHistoryOpen}
+                <CollapsibleReportBox
+                    onAnalyze={handleGenerate}
+                    isLoading={isGenerating}
+                    onSave={handleSave}
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
                     title="Participación IPEVR"
                     icon={<AlertTriangle className="h-5 w-5 text-teal-600" />}
                     actions={

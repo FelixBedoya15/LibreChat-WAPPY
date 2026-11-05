@@ -2728,21 +2728,21 @@ export default function MatrizPESVTable({
                 </span>
               </button>
 
-              {/* Analizar Matriz Completa */}
+              {/* Generar Informe con IA */}
               <button
                 type="button"
                 onClick={handleAnalyzeMatrix}
                 disabled={isAnalyzing || matrixRows.length === 0}
-                title="Análisis PESV con IA"
+                title="Generar Informe PESV con IA"
                 className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
               >
                 {isAnalyzing ? (
                   <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
                 ) : (
-                  <FileTextIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 )}
                 <span className="flex max-w-0 items-center overflow-hidden whitespace-nowrap text-xs font-bold tracking-wide opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
-                  {isAnalyzing ? 'Generando…' : 'Análisis PESV'}
+                  {isAnalyzing ? 'Generando…' : 'Generar IA'}
                 </span>
               </button>
 
@@ -3675,6 +3675,9 @@ export default function MatrizPESVTable({
           {/* ── Informe Ejecutivo PESV (LiveEditor) en modo Chat / Maximizado ── */}
           <div id="pesv-report-editor" className="mb-4 mt-6">
             <CollapsibleReportBox
+              onAnalyze={handleAnalyzeMatrix}
+              analyzeDisabled={matrixRows.length === 0}
+              isLoading={isAnalyzing}
               onSave={handleSaveReport}
               onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
               isHistoryOpen={isHistoryOpen}
@@ -3718,33 +3721,9 @@ export default function MatrizPESVTable({
                   <div className="flex flex-col items-center justify-center gap-4 py-16 text-text-secondary">
                     <FileTextIcon className="h-12 w-12 opacity-20" />
                     <p className="max-w-sm text-center text-sm">
-                      Presiona <span className="font-bold text-teal-600">“Análisis PESV”</span> en
-                      la barra superior para que la IA genere el Informe Ejecutivo del PESV con
-                      auditorías de riesgo vial y controles recomendados.
+                      Presiona <span className="font-bold text-purple-600 dark:text-purple-400">“Generar IA”</span> en
+                      el encabezado de este editor o en la barra superior para elaborar el Informe Ejecutivo del PESV.
                     </p>
-                    <div className="mt-2 flex gap-4">
-                      <button
-                        type="button"
-                        onClick={handleAnalyzeMatrix}
-                        disabled={isAnalyzing || matrixRows.length === 0}
-                        className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-3.5 py-2 text-xs font-bold text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 disabled:opacity-50   cursor-pointer"
-                      >
-                        {isAnalyzing ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-4 w-4" />
-                        )}
-                        <span>{isAnalyzing ? 'Generando informe…' : 'Generar Informe con IA'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsHistoryOpen(true)}
-                        className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-all duration-300 hover:bg-surface-hover   cursor-pointer"
-                      >
-                        <History className="h-4 w-4" />
-                        <span>Cargar desde Historial</span>
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>
@@ -3757,6 +3736,9 @@ export default function MatrizPESVTable({
       {isOfficialApp && !isMaximized && (
         <div id="pesv-report-editor" className="mb-6">
           <CollapsibleReportBox
+            onAnalyze={handleAnalyzeMatrix}
+            analyzeDisabled={matrixRows.length === 0}
+            isLoading={isAnalyzing}
             onSave={handleSaveReport}
             onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
             isHistoryOpen={isHistoryOpen}
@@ -3800,36 +3782,9 @@ export default function MatrizPESVTable({
                 <div className="flex flex-col items-center justify-center gap-4 py-16 text-text-secondary">
                   <FileTextIcon className="h-12 w-12 opacity-20" />
                   <p className="max-w-sm text-center text-sm">
-                    Presiona <span className="font-bold text-teal-600">“Generar IA”</span> en la
-                    barra superior para que la IA elabore el Informe Ejecutivo del PESV con
-                    evaluación de actores viales, causas de siniestralidad y planes de acción bajo
-                    la Resolución 20223040040595.
+                    Presiona <span className="font-bold text-purple-600 dark:text-purple-400">“Generar IA”</span> en el
+                    encabezado de este editor o en la barra superior para elaborar el Informe Ejecutivo del PESV.
                   </p>
-                  <div className="mt-2 flex gap-4">
-                    <button
-                      type="button"
-                      onClick={handleAnalyzeMatrix}
-                      disabled={isAnalyzing || matrixRows.length === 0}
-                      title="Generar Informe con IA"
-                      className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium/40 bg-white dark:bg-gray-900 px-3.5 py-2 text-xs font-bold text-teal-600 dark:text-teal-400 shadow-sm transition-all duration-300 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 disabled:opacity-50   cursor-pointer"
-                    >
-                      {isAnalyzing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4" />
-                      )}
-                      <span>{isAnalyzing ? 'Generando informe…' : 'Generar Informe con IA'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsHistoryOpen(true)}
-                      title="Cargar desde Historial"
-                      className="group flex h-10 items-center justify-center gap-2 rounded-xl border border-border-medium bg-surface-primary px-4 py-2 text-sm font-bold text-text-primary shadow-sm transition-all duration-300 hover:bg-surface-hover   cursor-pointer"
-                    >
-                      <History className="h-4 w-4" />
-                      <span>Cargar desde Historial</span>
-                    </button>
-                  </div>
                 </div>
               )}
             </div>

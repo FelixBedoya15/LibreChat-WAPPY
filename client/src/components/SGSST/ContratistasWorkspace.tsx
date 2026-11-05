@@ -2090,6 +2090,11 @@ export const ContratistasWorkspace: React.FC = () => {
       {/* ─── CUADRO DE INFORME EXPANDIBLE / LIVE EDITOR ─── */}
       <CollapsibleReportBox
         defaultCollapsed={false}
+        onAnalyze={handleGenerateReport}
+        isLoading={isGenerating}
+        onSave={handleSaveData}
+        isSaving={isSaving}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         isHistoryOpen={isHistoryOpen}
         title="Manual y Protocolo de Control de Contratistas (Res. 0312 Est. 2.10.1 · Dec. 1072 Art. 2.2.4.6.28)"
         icon={<Briefcase className="h-5 w-5 text-teal-700" />}

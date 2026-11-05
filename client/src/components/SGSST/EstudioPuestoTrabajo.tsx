@@ -1340,7 +1340,11 @@ export default function EstudioPuestoTrabajo() {
               ? `Informe EPT: ${selectedStudy.workerName} (${selectedStudy.cargo})`
               : 'Informe Técnico Oficial de Evaluación de Puesto de Trabajo'
           }
-          defaultOpen={true}
+          defaultCollapsed={false}
+          onAnalyze={() => setShowNewModal(true)}
+          isLoading={isGeneratingAi}
+          onSave={handleSaveConfig}
+          isSaving={isSavingConfig}
           actions={
             <ExportDropdown
               content={editorContentRef.current || activeReportHtml || ''}

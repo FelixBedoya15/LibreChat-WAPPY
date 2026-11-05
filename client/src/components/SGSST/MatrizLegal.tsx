@@ -775,16 +775,6 @@ const MatrizLegal = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => handleGenerate()}
-                                disabled={isAnalyzing || completedCount === 0}
-                                className="shrink-0 group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
-                            >
-                                {isAnalyzing ? <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-1.5">{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
-                            </button>
-                        </div>
                     </div>
 
                     {/* Metadata Form */}
@@ -893,7 +883,10 @@ const MatrizLegal = () => {
 
                 {/* Report Viewer Section */}
                 <div className="mt-6">
-                    <CollapsibleReportBox onSave={handleSaveReport}
+                    <CollapsibleReportBox
+                        onAnalyze={handleGenerate}
+                        isLoading={isAnalyzing}
+                        onSave={handleSaveReport}
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Matriz Legal SST"

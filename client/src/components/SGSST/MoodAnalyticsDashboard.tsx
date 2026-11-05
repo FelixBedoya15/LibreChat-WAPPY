@@ -1198,34 +1198,12 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             placeholder="Notas u observaciones del especialista SST para contextualizar el diagnóstico psicosocial..."
           />
         </div>
-
-        {/* Generate button & Model selector */}
-        <div className="flex items-center justify-center pt-3 gap-3">
-          <ModelSelector
-            selectedModel={selectedModel}
-            onSelectModel={setSelectedModel}
-            disabled={isGenerating}
-          />
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs "
-          >
-            {isGenerating ? (
-              <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            )}
-            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-1.5">
-              Generar Análisis IA
-            </span>
-          </button>
-        </div>
       </div>
 
       {/* Generated Report Editor Box */}
       <CollapsibleReportBox
+        onAnalyze={handleGenerate}
+        isLoading={isGenerating}
         onSave={handleSave}
         isSaving={isSaving}
         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}

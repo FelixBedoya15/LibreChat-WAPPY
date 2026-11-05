@@ -746,6 +746,8 @@ export default function OraculoPredictivoH1() {
                                         defaultCollapsed={false}
                                         title={`Dictamen Predictivo H1 — ${worker.nombre}`}
                                         icon={<Sparkles className="h-5 w-5" />}
+                                        onAnalyze={() => handleConsultOracle(worker, profile, fit)}
+                                        isLoading={generatingId === worker.id}
                                         onSave={() => handleSaveDictamen(worker.id)}
                                         isSaving={savingId === worker.id}
                                         saveDisabled={savingId === worker.id}
@@ -755,28 +757,11 @@ export default function OraculoPredictivoH1() {
                                         }}
                                         isHistoryOpen={isHistoryOpen && historyWorkerId === worker.id}
                                         actions={
-                                            <>
-                                                <button
-                                                    onClick={() => handleConsultOracle(worker, profile, fit)}
-                                                    disabled={generatingId === worker.id}
-                                                    title="Re-evaluar y generar nuevo dictamen con IA"
-                                                    className="group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer border rounded-xl bg-surface-primary hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-border-medium hover:border-teal-400  "
-                                                >
-                                                    {generatingId === worker.id ? (
-                                                        <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-spin" />
-                                                    ) : (
-                                                        <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-teal-600 dark:text-teal-400" />
-                                                    )}
-                                                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                                        <span className="text-xs font-bold tracking-wide">Re-evaluar IA</span>
-                                                    </div>
-                                                </button>
-                                                <ExportDropdown
-                                                    content={conclusionContent}
-                                                    fileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
-                                                    reportType="general"
-                                                />
-                                            </>
+                                            <ExportDropdown
+                                                content={conclusionContent}
+                                                fileName={`Dictamen_Predictivo_${(worker.nombre || 'Trabajador').replace(/\s+/g, '_')}`}
+                                                reportType="general"
+                                            />
                                         }
                                     >
                                         <div className="w-full min-w-0">

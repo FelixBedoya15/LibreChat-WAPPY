@@ -95,25 +95,29 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
 }) => {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  const isAnalyzingRef = useRef<boolean>(Boolean(isAnalyzing));
-  isAnalyzingRef.current = Boolean(isAnalyzing);
-  const onAnalyzeRef = useRef(onAnalyze);
-  onAnalyzeRef.current = onAnalyze;
+  const effectiveAnalyzing = Boolean(
+    isAnalyzing || aiButtons.some((b) => b.isLoading || b.loading),
+  );
+  const primaryAiAction = onAnalyze || aiButtons[0]?.onClick;
+  const isAnalyzingRef = useRef<boolean>(effectiveAnalyzing);
+  isAnalyzingRef.current = effectiveAnalyzing;
+  const onAnalyzeRef = useRef(primaryAiAction);
+  onAnalyzeRef.current = primaryAiAction;
 
   // Broadcast AI generation status so CollapsibleReportBox auto-expands and shows loading indicator
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('wappy-report-generating-change', {
-          detail: { isGenerating: Boolean(isAnalyzing) },
+          detail: { isGenerating: effectiveAnalyzing },
         }),
       );
     }
-  }, [isAnalyzing]);
+  }, [effectiveAnalyzing]);
 
   // Listener global de respaldo para ejecutar la generación IA cuando el módulo padre no tenga su propio listener
   React.useEffect(() => {
-    if (!onAnalyze) return;
+    if (!primaryAiAction) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const handleTrigger = (e: Event) => {
       if ((e as any).__wappyHandled || isAnalyzingRef.current) return;
@@ -140,7 +144,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
       window.removeEventListener('wappy-generar-analisis-ia', handleTrigger);
       window.removeEventListener('wappy-generar-analisis-actual', handleTrigger);
     };
-  }, [ Boolean(onAnalyze) ]);
+  }, [Boolean(primaryAiAction)]);
 
   useLayoutEffect(() => {
     if (disableHeroPortal || typeof document === 'undefined') {

@@ -2733,6 +2733,11 @@ const PlanEmergenciasWorkspace: React.FC = () => {
       {/* ─── 5. DOCUMENTO MAESTRO OFICIAL EN LIVE EDITOR (EXPORTABLE WORD / PDF) ─── */}
       <CollapsibleReportBox
         defaultCollapsed={false}
+        onAnalyze={handleCompileReport}
+        isLoading={isCompilingReport}
+        onSave={handleSaveData}
+        isSaving={isSavingData}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         isHistoryOpen={isHistoryOpen}
         title="Documento Maestro: Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)"
         icon={<ShieldAlert className="h-5 w-5 text-teal-700" />}

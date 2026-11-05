@@ -24,6 +24,14 @@ interface CollapsibleReportBoxProps {
   saveDisabled?: boolean;
   /** Si true, indica que se está generando el informe con IA */
   isLoading?: boolean;
+  /** Acción para generar el informe con IA directamente desde el encabezado del editor */
+  onAnalyze?: () => void;
+  /** Etiqueta personalizada para el botón de IA (por defecto "Generar IA") */
+  analyzeLabel?: string;
+  /** Si true, deshabilita el botón de Generar IA */
+  analyzeDisabled?: boolean;
+  /** Si true, oculta el botón de Generar IA en casos excepcionales */
+  hideAnalyzeButton?: boolean;
 }
 
 const CollapsibleReportBox = ({
@@ -41,6 +49,10 @@ const CollapsibleReportBox = ({
   isSaving = false,
   saveDisabled = false,
   isLoading = false,
+  onAnalyze,
+  analyzeLabel = 'Generar IA',
+  analyzeDisabled = false,
+  hideAnalyzeButton = false,
 }: CollapsibleReportBoxProps) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [isEditorEmpty, setIsEditorEmpty] = useState(true);
@@ -48,6 +60,14 @@ const CollapsibleReportBox = ({
   const contentWrapperRef = useRef<HTMLDivElement>(null);
 
   const effectiveGenerating = Boolean(isLoading || isGeneratingIa);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setIsGeneratingIa(false);
+    } else {
+      setIsCollapsed(false);
+    }
+  }, [isLoading]);
 
   // Check if the inner LiveEditor (.live-editor-content / [contenteditable]) has real content
   useEffect(() => {
@@ -177,11 +197,52 @@ const CollapsibleReportBox = ({
           </div>
         </div>
 
-        {/* Right: history button + actions + collapse toggle */}
+        {/* Right: AI generate + save + history + actions + collapse toggle */}
         <div
           className="flex items-center gap-1 sm:gap-2 shrink-0 justify-end"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Generate AI button */}
+          {!hideAnalyzeButton && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (effectiveGenerating || analyzeDisabled) return;
+                setIsCollapsed(false);
+                if (onAnalyze) {
+                  setIsGeneratingIa(true);
+                  if (typeof window !== 'undefined') {
+                    (window as any).__wappyLastAiAnalyzeTriggerTs = Date.now();
+                  }
+                  onAnalyze();
+                } else if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('wappy-generar-analisis-actual'));
+                }
+              }}
+              disabled={effectiveGenerating || analyzeDisabled}
+              title={analyzeLabel || 'Generar con IA'}
+              aria-label={analyzeLabel || 'Generar con IA'}
+              className={cn(
+                'group flex items-center justify-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2 sm:px-2.5 transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shadow-sm shrink-0 border outline-none rounded-xl',
+                effectiveGenerating || analyzeDisabled
+                  ? 'opacity-50 cursor-not-allowed bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-300'
+                  : 'cursor-pointer bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300',
+              )}
+            >
+              {effectiveGenerating ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 shrink-0" />
+              )}
+              <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <span className="text-xs font-bold tracking-wide">
+                  {effectiveGenerating ? 'Generando...' : analyzeLabel}
+                </span>
+              </div>
+            </button>
+          )}
+
           {/* Save button */}
           {onSave && (
             <button
@@ -277,8 +338,8 @@ const CollapsibleReportBox = ({
               <FileText className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
               <p className="text-xs">
                 Sin informe cargado aún — Pulsa el botón morado{' '}
-                <strong className="text-purple-600 dark:text-purple-400">Generar IA</strong> en la
-                barra superior para redactarlo o abre{' '}
+                <strong className="text-purple-600 dark:text-purple-400">Generar IA</strong> aquí
+                mismo o en la barra superior para redactarlo, o abre{' '}
                 <strong className="text-orange-600 dark:text-orange-400">Historial</strong> para
                 cargar versiones previas.
               </p>

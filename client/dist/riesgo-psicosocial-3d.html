@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Vertical 3D Interactivo · Riesgo Psicosocial (Res. 2764/2022) | WAPPY IA</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #02050b;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Cyber Grid & Tactical HUD */
+    .bg-cyber-grid {
+      background-image:
+        linear-gradient(to right, rgba(0, 212, 255, 0.055) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(13, 148, 136, 0.055) 1px, transparent 1px);
+      background-size: 26px 26px;
+    }
+
+    .scanline-beam {
+      position: absolute;
+      left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent 0%, rgba(0, 212, 255, 0.35) 20%, #00d4ff 50%, rgba(199, 243, 3, 0.45) 80%, transparent 100%);
+      box-shadow: 0 0 18px #00d4ff, 0 0 36px #0d9488;
+      pointer-events: none;
+      animation: scanlineSweep 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+      z-index: 12;
+    }
+    @keyframes scanlineSweep {
+      0% { top: 8%; opacity: 0.15; }
+      50% { opacity: 0.75; }
+      100% { top: 88%; opacity: 0.15; }
+    }
+
+    .hud-bracket {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      pointer-events: none;
+      z-index: 25;
+      transition: border-color 0.3s ease, filter 0.3s ease;
+    }
+    .hud-tl { top: 10px; left: 10px; border-top: 2px solid #00d4ff; border-left: 2px solid #00d4ff; filter: drop-shadow(0 0 5px #00d4ff); }
+    .hud-tr { top: 10px; right: 10px; border-top: 2px solid #00d4ff; border-right: 2px solid #00d4ff; filter: drop-shadow(0 0 5px #00d4ff); }
+    .hud-bl { bottom: 10px; left: 10px; border-bottom: 2px solid #00d4ff; border-left: 2px solid #00d4ff; filter: drop-shadow(0 0 5px #00d4ff); }
+    .hud-br { bottom: 10px; right: 10px; border-bottom: 2px solid #00d4ff; border-right: 2px solid #00d4ff; filter: drop-shadow(0 0 5px #00d4ff); }
+
+    /* Custom Range Slider */
+    input[type=range].stress-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type=range].stress-slider::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #10b981 0%, #00d4ff 28%, #f59e0b 62%, #ef4444 100%);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.6);
+    }
+    input[type=range].stress-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #c7f303;
+      border: 2.5px solid #0e1300;
+      box-shadow: 0 0 14px #c7f303, 0 0 28px rgba(199, 243, 3, 0.55);
+      margin-top: -7px;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    input[type=range].stress-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.18);
+    }
+    input[type=range].stress-slider::-webkit-slider-thumb:active {
+      transform: scale(1.28);
+    }
+
+    /* WAPPY 14-Group ExpandableButton Physics */
+    .wappy-expand-btn {
+      transition: all 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @media (min-width: 640px) {
+      .wappy-expand-btn:hover {
+        transform: rotate(-3deg) scale(1.05);
+      }
+    }
+    .wappy-expand-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Spring Card Transitions */
+    .spring-pop {
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Subtitle Word Highlight */
+    .word-pill {
+      transition: all 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: inline-block;
+    }
+    .word-pill.active {
+      color: #0e1300;
+      background-color: #c7f303;
+      padding: 0 6px;
+      border-radius: 6px;
+      transform: scale(1.08) translateY(-1px);
+      font-weight: 800;
+      box-shadow: 0 0 14px rgba(199, 243, 3, 0.55);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#02050b] text-slate-100 flex flex-col items-center justify-center p-2 sm:p-4 select-none">
+
+  <!-- Ambient Backlights -->
+  <div class="fixed -top-28 -left-28 w-96 h-96 rounded-full bg-cyan-500/10 blur-[110px] pointer-events-none"></div>
+  <div class="fixed -bottom-28 -right-28 w-96 h-96 rounded-full bg-lime-400/10 blur-[110px] pointer-events-none"></div>
+
+  <!-- Top Controls Bar (Outside Phone Frame for Desktop/Tablet Convenience) -->
+  <div class="w-full max-w-[430px] flex items-center justify-between gap-2 mb-2 px-1">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] text-xs font-bold tracking-tight">
+        <span class="w-2 h-2 rounded-full bg-[#c7f303] animate-ping"></span>
+        WAPPY 3D STUDIO · 60 FPS
+      </span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <button id="btnToggleReel" class="px-3 py-1.5 rounded-xl bg-[#c7f303] text-[#0e1300] font-extrabold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(199,243,3,0.4)] hover:brightness-110 active:scale-95 transition-all cursor-pointer">
+        <span id="reelPlayIcon">▶</span>
+        <span id="reelPlayLabel">REPRODUCIR REEL (60s)</span>
+      </button>
+      <button id="btnSoundToggle" class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-bold hover:bg-slate-700 transition-all cursor-pointer" title="Activar/Silenciar Voz y Efectos">
+        🔊 ON
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== 9:16 VERTICAL SMARTPHONE FRAME ==================== -->
+  <main id="phoneFrame" class="relative w-full max-w-[430px] aspect-[9/16] min-h-[750px] max-h-[890px] rounded-[36px] border border-cyan-500/35 bg-gradient-to-b from-[#0c192e] via-[#060d1a] to-[#020409] shadow-[0_0_65px_rgba(0,212,255,0.14)] overflow-hidden flex flex-col justify-between">
+
+    <!-- Background Cyber Grid & Scanline -->
+    <div class="absolute inset-0 bg-cyber-grid pointer-events-none"></div>
+    <div class="scanline-beam"></div>
+
+    <!-- Tactical Corner Brackets -->
+    <div id="bracketTL" class="hud-bracket hud-tl"></div>
+    <div id="bracketTR" class="hud-bracket hud-tr"></div>
+    <div id="bracketBL" class="hud-bracket hud-bl"></div>
+    <div id="bracketBR" class="hud-bracket hud-br"></div>
+
+    <!-- Critical Overload Red Pulse Overlay -->
+    <div id="criticalStrobe" class="absolute inset-0 bg-rose-600/20 pointer-events-none opacity-0 transition-opacity duration-300 z-10"></div>
+
+    <!-- ==================== 1. TOP HUD HEADER ==================== -->
+    <header class="relative z-20 pt-3.5 px-4 pb-2 border-b border-white/10 bg-[#081223]/75 backdrop-blur-md flex flex-col gap-1.5">
+      <!-- Reel Progress Bar (Visible during Auto-Reel or Interactive) -->
+      <div class="w-full h-1.5 bg-slate-800/90 rounded-full overflow-hidden flex items-center">
+        <div id="reelProgressBar" class="h-full bg-gradient-to-r from-[#00d4ff] via-[#c7f303] to-[#ef4444] w-[8%] transition-all duration-150"></div>
+      </div>
+
+      <!-- Status Telemetry Line -->
+      <div class="flex items-center justify-between text-xs font-mono text-cyan-300/90">
+        <div class="flex items-center gap-1.5">
+          <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+          <span class="font-bold tracking-wider text-xs">NEURO-SST // 3D ENGINE</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="timecodeDisplay" class="text-xs font-mono text-[#c7f303] font-bold">00:00 / 01:00</span>
+          <span class="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-bold text-xs">
+            Res. 2764/22
+          </span>
+        </div>
+      </div>
+
+      <!-- Main Header Title & Normative Subtitle -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-base sm:text-lg font-black tracking-tight text-white leading-tight">
+            EL CEREBRO BAJO PRESIÓN
+          </h1>
+          <p class="text-xs text-cyan-300/80 font-mono">
+            Batería de Riesgo Psicosocial · MinTrabajo Colombia
+          </p>
+        </div>
+        <!-- Mini Cover Toggle Button -->
+        <button id="btnShowCover" class="px-2.5 py-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/20 text-xs font-bold transition-all cursor-pointer">
+          Portada 2s
+        </button>
+      </div>
+    </header>
+
+    <!-- ==================== 2. 3D INTERACTIVE STAGE (CEREBRO NEURONAL + SATÉLITES) ==================== -->
+    <div id="stageContainer" class="relative flex-1 w-full overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing">
+
+      <!-- 3D High-DPI Interactive Canvas -->
+      <canvas id="neuroCanvas" class="w-full h-full block"></canvas>
+
+      <!-- ==================== PORTADA MAGNÉTICA OVERLAY (0.00s - 2.00s) ==================== -->
+      <div id="magneticCoverOverlay" class="absolute inset-0 z-30 bg-gradient-to-b from-[#081529]/90 via-[#050b16]/80 to-[#02050b]/95 backdrop-blur-sm flex flex-col items-center justify-between p-5 transition-all duration-500 opacity-0 pointer-events-none">
+        <div class="w-full flex items-center justify-between">
+          <span class="px-3 py-1 rounded-full bg-[#c7f303] text-[#0e1300] font-black text-xs tracking-wide shadow-[0_0_20px_rgba(199,243,3,0.5)]">
+            🔥 EXPLICATIVO 3D INTERACTIVO
+          </span>
+          <span class="px-2.5 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 font-mono font-bold text-xs">
+            SG-SST COLOMBIA
+          </span>
+        </div>
+
+        <div class="text-center my-auto flex flex-col items-center gap-3">
+          <div class="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs font-mono font-bold animate-pulse">
+            ⚡ ALERTA NEUROBIOLÓGICA · RES. 2764 DE 2022
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white leading-none">
+            ¿QUÉ LE HACE EL <span class="text-[#c7f303]">ESTRÉS LABORAL</span> A TU CEREBRO?
+          </h2>
+          <p class="text-xs text-slate-300 max-w-[310px] leading-relaxed">
+            Explora en 3D cómo la sobrecarga mental secuestra la amígdala, dispara el cortisol y cómo intervenir con la Batería Oficial.
+          </p>
+
+          <!-- 3 Insignias Clave de Portada -->
+          <div class="flex flex-wrap items-center justify-center gap-1.5 mt-1">
+            <span class="px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-400/30 text-cyan-200 text-xs font-bold">
+              🧠 Neuro-Simulador 3D
+            </span>
+            <span class="px-2.5 py-1 rounded-lg bg-teal-500/15 border border-teal-400/30 text-teal-200 text-xs font-bold">
+              📊 3 Dominios Oficiales
+            </span>
+            <span class="px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-400/30 text-purple-200 text-xs font-bold">
+              🛡️ Custodia Legal SST
+            </span>
+          </div>
+        </div>
+
+        <button id="btnCloseCover" class="w-full py-2.5 rounded-2xl bg-[#c7f303] text-[#0e1300] font-black text-xs tracking-wider uppercase shadow-[0_0_25px_rgba(199,243,3,0.45)] hover:brightness-110 transition-all cursor-pointer">
+          ENTRAR AL LABORATORIO 3D →
+        </button>
+      </div>
+
+      <!-- Top-Left Anatomical Hotspot Selector Pills -->
+      <div class="absolute top-2.5 left-3 z-20 flex flex-wrap gap-1 max-w-[260px]">
+        <button data-node="prefrontal" class="node-pill px-2 py-0.5 rounded-lg bg-slate-900/85 border border-cyan-400/40 text-cyan-200 text-xs font-mono hover:bg-cyan-500/20 transition-all cursor-pointer">
+          🎯 Córtex Frontal
+        </button>
+        <button data-node="amygdala" class="node-pill px-2 py-0.5 rounded-lg bg-slate-900/85 border border-rose-400/40 text-rose-200 text-xs font-mono hover:bg-rose-500/20 transition-all cursor-pointer">
+          🔥 Amígdala
+        </button>
+        <button data-node="hpa" class="node-pill px-2 py-0.5 rounded-lg bg-slate-900/85 border border-amber-400/40 text-amber-200 text-xs font-mono hover:bg-amber-500/20 transition-all cursor-pointer">
+          ⚡ Eje HPA
+        </button>
+      </div>
+
+      <!-- Top-Right Live ECG Heartbeat Monitor -->
+      <div class="absolute top-2.5 right-3 z-20 bg-slate-950/80 border border-white/10 rounded-xl p-1.5 backdrop-blur-md flex flex-col items-end">
+        <div class="flex items-center gap-1 text-xs font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+          <span id="ecgBpmText" class="font-bold text-white">70 BPM</span>
+        </div>
+        <canvas id="ecgCanvas" width="88" height="26" class="mt-0.5"></canvas>
+      </div>
+
+      <!-- Floating Anatomical Node Diagnostic Card (Appears when clicking a brain zone) -->
+      <div id="nodeInspectorCard" class="absolute top-12 left-3 right-3 z-20 p-2.5 rounded-2xl bg-slate-950/90 border border-cyan-400/40 backdrop-blur-xl shadow-2xl transition-all duration-300 opacity-0 pointer-events-none translate-y-[-8px]">
+        <div class="flex items-center justify-between">
+          <span id="nodeCardTitle" class="text-xs font-black text-[#c7f303] uppercase tracking-wider">
+            CÓRTEX PREFRONTAL DORSOLATERAL
+          </span>
+          <button id="btnCloseNodeCard" class="text-xs text-slate-400 hover:text-white px-1.5 cursor-pointer">✕</button>
+        </div>
+        <p id="nodeCardBody" class="text-xs text-slate-200 mt-1 leading-snug">
+          Centro de funciones ejecutivas, toma de decisiones y regulación emocional. Bajo cortisol elevado (>25 μg/dL), pierde hasta 45% de conectividad sináptica.
+        </p>
+      </div>
+
+      <!-- Dynamic Subtitle Bar (Word-by-Word Synced during Reel Mode & Chapter changes) -->
+      <div class="absolute bottom-8 left-3 right-3 z-20 pointer-events-none flex justify-center">
+        <div id="subtitleContainer" class="px-3 py-1.5 rounded-xl bg-slate-950/85 border border-white/15 backdrop-blur-md text-center text-xs sm:text-sm font-medium text-white shadow-lg leading-snug max-w-[380px]">
+          Arrastra el cerebro 3D o mueve el deslizador de Carga Mental para simular el impacto neurobiológico.
+        </div>
+      </div>
+
+      <!-- Drag Interaction Hint -->
+      <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <span class="px-2.5 py-0.5 rounded-full bg-black/65 border border-white/10 text-xs font-mono text-cyan-200/75">
+          ↻ Arrastra 360° · Toca nodos · Rueda para Zoom
+        </span>
+      </div>
+    </div>
+
+    <!-- ==================== 3. TELEMETRÍA BIOMÉTRICA EN TIEMPO REAL ==================== -->
+    <section class="relative z-20 px-3.5 py-2 bg-[#071020]/90 border-t border-b border-white/10 backdrop-blur-md flex flex-col gap-2">
+      <!-- 3 Biometric Telemetry Cards -->
+      <div class="grid grid-cols-3 gap-2">
+        <!-- Card 1: Cortisol Sérico & HRV -->
+        <div class="p-2 rounded-xl border border-cyan-500/25 bg-slate-950/60 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-cyan-300 font-semibold">Cortisol</span>
+            <span id="valHrv" class="text-xs font-mono text-slate-400">HRV 64ms</span>
+          </div>
+          <div class="flex items-baseline gap-1 mt-0.5">
+            <span id="valCortisolUg" class="text-sm font-black font-mono text-white">11.2</span>
+            <span class="text-xs font-mono text-slate-400">μg/dL</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1">
+            <div id="barCortisolUg" class="h-full bg-gradient-to-r from-cyan-400 to-rose-500 w-[22%] transition-all duration-200"></div>
+          </div>
+        </div>
+
+        <!-- Card 2: Balance Neurotransmisores -->
+        <div class="p-2 rounded-xl border border-teal-500/25 bg-slate-950/60 flex flex-col justify-between">
+          <span class="text-xs font-mono text-teal-300 font-semibold">Dopa / Cortisol</span>
+          <div class="flex items-baseline justify-between mt-0.5 text-xs font-mono font-bold">
+            <span id="valDopaminaPct" class="text-cyan-300">78%</span>
+            <span class="text-slate-500">/</span>
+            <span id="valCortisolPct" class="text-rose-400">22%</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1 flex">
+            <div id="barDopaminaPct" class="h-full bg-cyan-400 w-[78%] transition-all duration-200"></div>
+            <div id="barCortisolPct" class="h-full bg-rose-500 w-[22%] transition-all duration-200"></div>
+          </div>
+        </div>
+
+        <!-- Card 3: Baremo Legal Res. 2764 -->
+        <div class="p-2 rounded-xl border border-amber-500/25 bg-slate-950/60 flex flex-col justify-between">
+          <span class="text-xs font-mono text-amber-300 font-semibold">Baremo Legal</span>
+          <div class="mt-0.5">
+            <span id="badgeBaremo" class="inline-block text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              SIN RIESGO
+            </span>
+          </div>
+          <span id="textAccionLegal" class="text-xs font-mono text-slate-400 truncate mt-0.5">Mantener bienestar</span>
+        </div>
+      </div>
+
+      <!-- Interactive Stress Slider -->
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span class="text-slate-200 font-semibold flex items-center gap-1.5">
+            <span>⚡ Simulador de Carga Mental y Estrés:</span>
+          </span>
+          <span id="labelStressState" class="font-extrabold text-[#c7f303]">18% · HOMEOSTASIS</span>
+        </div>
+        <input id="stressSlider" type="range" min="0" max="100" value="18" class="stress-slider w-full my-0.5" />
+      </div>
+    </section>
+
+    <!-- ==================== 4. SELECTOR DE 5 CAPÍTULOS (RES. 2764/2022) ==================== -->
+    <section class="relative z-20 px-3.5 py-2 bg-[#050b16]/95 flex flex-col gap-1.5">
+      <!-- 5 Chapter Tabs -->
+      <div class="grid grid-cols-5 gap-1">
+        <button data-chap="1" class="chap-tab py-1.5 px-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer border-[#c7f303] bg-[#c7f303]/20 text-[#c7f303] shadow-[0_0_12px_rgba(199,243,3,0.2)]">
+          01 Neuro
+        </button>
+        <button data-chap="2" class="chap-tab py-1.5 px-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer border-slate-700 bg-slate-800/50 text-slate-300 hover:border-cyan-400/50">
+          02 Domin
+        </button>
+        <button data-chap="3" class="chap-tab py-1.5 px-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer border-slate-700 bg-slate-800/50 text-slate-300 hover:border-cyan-400/50">
+          03 Baremo
+        </button>
+        <button data-chap="4" class="chap-tab py-1.5 px-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer border-slate-700 bg-slate-800/50 text-slate-300 hover:border-cyan-400/50">
+          04 Daño
+        </button>
+        <button data-chap="5" class="chap-tab py-1.5 px-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer border-slate-700 bg-slate-800/50 text-slate-300 hover:border-cyan-400/50">
+          05 WAPPY
+        </button>
+      </div>
+
+      <!-- Active Chapter Detail Card -->
+      <div id="chapterCard" class="p-2.5 rounded-2xl border border-white/10 bg-slate-900/70 flex items-start gap-2.5 spring-pop">
+        <div id="chapBadgeIcon" class="w-8 h-8 rounded-xl bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] flex items-center justify-center font-bold text-sm shrink-0">
+          🧠
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-1">
+            <h3 id="chapTitleText" class="text-xs sm:text-sm font-extrabold text-white truncate">
+              Cap 1 · Neurobiología del Estrés Laboral
+            </h3>
+            <span id="chapNormTag" class="text-xs font-mono px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shrink-0">
+              Eje HPA
+            </span>
+          </div>
+          <p id="chapDescText" class="text-xs text-slate-300 leading-snug mt-0.5">
+            La sobrecarga mental hiperactiva la amígdala, libera cortisol sérico y apaga la corteza prefrontal (toma de decisiones y empatía).
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 5. FOOTER: WAPPY 14-GROUP EXPANDABLE BUTTONS ==================== -->
+    <footer class="relative z-20 px-3.5 py-2.5 bg-[#020409] border-t border-white/10 flex items-center justify-between gap-1.5">
+      <!-- Grupo 6: IA / Diagnóstico (Purple) -->
+      <button id="btnActionProtocol" class="wappy-expand-btn group h-9 px-3 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 flex items-center justify-center font-bold text-xs cursor-pointer">
+        <span>✨</span>
+        <span class="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[220px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+          Protocolo IA Res. 2764
+        </span>
+      </button>
+
+      <!-- Grupo 1: Normativa / Custodia Psicólogo SST (Teal) -->
+      <button id="btnActionCustodia" class="wappy-expand-btn group h-9 px-3 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-300 hover:bg-teal-500/20 flex items-center justify-center font-bold text-xs cursor-pointer">
+        <span>🛡️</span>
+        <span class="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[220px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+          Custodia Art. 12
+        </span>
+      </button>
+
+      <!-- Grupo 12: Somatic / Burnout CIE-11 (Orange) -->
+      <button id="btnActionBurnout" class="wappy-expand-btn group h-9 px-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20 flex items-center justify-center font-bold text-xs cursor-pointer">
+        <span>🔥</span>
+        <span class="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[220px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+          Simular Crisis (95%)
+        </span>
+      </button>
+
+      <!-- Grupo 5: Restaurar Homeostasis Zen (Cyan) -->
+      <button id="btnActionZen" class="wappy-expand-btn group h-9 px-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 flex items-center justify-center font-bold text-xs ml-auto cursor-pointer">
+        <span>🧘</span>
+        <span class="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[220px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+          Homeostasis (10%)
+        </span>
+      </button>
+    </footer>
+
+  </main>
+
+  <!-- ==================== JAVASCRIPT: 3D NEURAL ENGINE + AUDIO + REEL DIRECTOR ==================== -->
+  <script>
+    /* =========================================================================
+       1. GENERATIVE WEB AUDIO & SPEECH ENGINE (ZERO EXTERNAL ASSETS REQUIRED)
+       ========================================================================= */
+    class NeuroAudioStudio {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.lastBeatTime = 0;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        if (this.muted && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+        return this.muted;
+      }
+
+      playClick(freq = 1100) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(280, t + 0.025);
+        gain.gain.setValueAtTime(0.06, t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.03);
+      }
+
+      playWhoosh() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const len = Math.floor(this.ctx.sampleRate * 0.22);
+        const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.Q.value = 2.8;
+        filter.frequency.setValueAtTime(280, t);
+        filter.frequency.exponentialRampToValueAtTime(2200, t + 0.09);
+        filter.frequency.exponentialRampToValueAtTime(180, t + 0.22);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(0.09, t + 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        src.start(t);
+        src.stop(t + 0.23);
+      }
+
+      playHeartbeat(stressRatio) {
+        if (this.muted || !this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const baseFreq = 52 + stressRatio * 28;
+        osc.frequency.setValueAtTime(baseFreq, t);
+        osc.frequency.exponentialRampToValueAtTime(26, t + 0.11);
+        gain.gain.setValueAtTime(0.03 + stressRatio * 0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.13);
+      }
+
+      speak(text) {
+        if (this.muted || !('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'es-CO';
+        utter.rate = 1.06;
+        utter.pitch = 1.0;
+        window.speechSynthesis.speak(utter);
+      }
+    }
+
+    const audio = new NeuroAudioStudio();
+
+    /* =========================================================================
+       2. CHAPTERS & NORMATIVE DATA (RESOLUCIÓN 2764 DE 2022)
+       ========================================================================= */
+    const CHAPTERS = {
+      1: {
+        icon: '🧠',
+        title: 'Cap 1 · El Cerebro Bajo Presión',
+        normTag: 'Neurobiología HPA',
+        stressPreset: 72,
+        camTarget: { rotY: 0.35, rotX: -0.15, zoom: 1.12 },
+        desc: 'Cuando la carga laboral rebasa el límite, la amígdala secuestra al cerebro y el cortisol apaga el lóbulo frontal.',
+        script: 'El estrés laboral no es falta de actitud: es una cascada química real donde la amígdala secuestra tu corteza prefrontal.'
+      },
+      2: {
+        icon: '🛰️',
+        title: 'Cap 2 · Los 3 Dominios (Res. 2764/2022)',
+        normTag: 'Batería MinTrabajo',
+        stressPreset: 42,
+        camTarget: { rotY: -0.65, rotX: 0.22, zoom: 0.94 },
+        desc: 'La Resolución 2764 exige evaluar 3 esferas: Intralaboral (Formas A y B), Extralaboral (entorno familiar) e Individual.',
+        script: 'En Colombia, la Resolución 2764 de 2022 exige evaluar tres dominios: intralaboral, extralaboral y factores individuales.'
+      },
+      3: {
+        icon: '🚦',
+        title: 'Cap 3 · Semáforo de 5 Niveles y Baremos',
+        normTag: 'Percentiles SST',
+        stressPreset: 82,
+        camTarget: { rotY: 0.85, rotX: 0.05, zoom: 1.05 },
+        desc: 'Clasificación oficial en 5 niveles: Sin Riesgo, Bajo, Medio, Alto y Muy Alto. Nivel Alto o Muy Alto obliga a intervención anual.',
+        script: 'El baremo oficial mide cinco niveles de riesgo. Marcar nivel Alto o Muy Alto obliga legalmente a intervención inmediata en el SG-SST.'
+      },
+      4: {
+        icon: '⚡',
+        title: 'Cap 4 · Impacto Somático y Burnout',
+        normTag: 'CIE-11 QD85',
+        stressPreset: 94,
+        camTarget: { rotY: -0.25, rotX: -0.28, zoom: 1.18 },
+        desc: 'Daño fisiológico, emocional y cognitivo: hipertensión, insomnio, caída del 45% en atención y accidentes laborales.',
+        script: 'El impacto somático dispara la hipertensión, el insomnio y el síndrome de Burnout, multiplicando los accidentes graves.'
+      },
+      5: {
+        icon: '🛡️',
+        title: 'Cap 5 · Intervención y Custodia WAPPY IA',
+        normTag: 'Art. 12 Res. 2764',
+        stressPreset: 12,
+        camTarget: { rotY: 0.0, rotX: 0.0, zoom: 1.0 },
+        desc: 'Custodia exclusiva por psicólogo especialista SST y activación de los 4 protocolos de intervención y vigilancia epidemiológica.',
+        script: 'Con WAPPY IA garantizas la custodia psicológica legal, aplicas los protocolos del Ministerio y devuelves la homeostasis a tu equipo.'
+      }
+    };
+
+    const ANATOMY_NODES = {
+      prefrontal: {
+        title: '🎯 Córtex Prefrontal Dorsolateral',
+        body: 'Regula la planificación, el foco atencional y el control de impulsos. El exceso de cortisol adelgaza sus conexiones dendríticas.',
+        pos3D: { x: 0.0, y: 0.35, z: 1.15 },
+        color: '#00d4ff'
+      },
+      amygdala: {
+        title: '🔥 Amígdala Cerebral (Centro de Alerta)',
+        body: 'Detector de amenazas. Bajo estrés crónico laboral entra en hiperreactividad permanente, disparando ansiedad y fatiga emocional.',
+        pos3D: { x: 0.38, y: -0.18, z: 0.25 },
+        color: '#ef4444'
+      },
+      hpa: {
+        title: '⚡ Eje Hipotálamo-Pituitaria-Adrenal (HPA)',
+        body: 'Autopista neuroendocrina que inunda el torrente sanguíneo de adrenalina y cortisol, reduciendo la variabilidad cardíaca (HRV).',
+        pos3D: { x: 0.0, y: -0.62, z: -0.15 },
+        color: '#f59e0b'
+      }
+    };
+
+    /* =========================================================================
+       3. BI-HEMISPHERIC 3D NEURAL ENGINE (60 FPS, SPRING PHYSICS, RAYCASTING)
+       ========================================================================= */
+    const canvas = document.getElementById('neuroCanvas');
+    const ctx = canvas.getContext('2d');
+    const stageContainer = document.getElementById('stageContainer');
+
+    let width = 380;
+    let height = 360;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    function resizeCanvas() {
+      const rect = stageContainer.getBoundingClientRect();
+      width = Math.max(280, rect.width);
+      height = Math.max(240, rect.height);
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Generate Bi-Hemispheric 3D Brain Point Cloud & Synaptic Axons
+    const NUM_NEURONS = 380;
+    const neurons = [];
+    const synapses = [];
+    const actionPotentials = [];
+
+    for (let i = 0; i < NUM_NEURONS; i++) {
+      // Distribute into Left and Right Hemispheres + Brainstem
+      const isStem = i < 35;
+      if (isStem) {
+        const angle = Math.random() * Math.PI * 2;
+        const rad = 0.18 + Math.random() * 0.22;
+        neurons.push({
+          baseX: Math.cos(angle) * rad,
+          baseY: -0.75 - Math.random() * 0.65,
+          baseZ: Math.sin(angle) * rad - 0.15,
+          hemisphere: 0,
+          phase: Math.random() * Math.PI * 2,
+          isAmygdala: false
+        });
+      } else {
+        const hemi = i % 2 === 0 ? 1 : -1;
+        // Spherical Fibonacci / Ellipsoid Brain Shaping
+        const u = Math.random();
+        const v = Math.random();
+        const theta = u * 2.0 * Math.PI;
+        const phi = Math.acos(2.0 * v - 1.0);
+        const r = 0.72 + 0.28 * Math.cbrt(Math.random());
+
+        let x = r * Math.sin(phi) * Math.cos(theta);
+        let y = r * Math.sin(phi) * Math.sin(theta) * 0.88;
+        let z = r * Math.cos(phi) * 1.22;
+
+        // Separate hemispheres with longitudinal fissure
+        x = Math.abs(x) * 0.78 * hemi + (hemi * 0.11);
+
+        // Identify inner limbic / amygdala cluster
+        const distToLimbic = Math.hypot(x - hemi * 0.32, y + 0.15, z - 0.15);
+        neurons.push({
+          baseX: x,
+          baseY: y,
+          baseZ: z,
+          hemisphere: hemi,
+          phase: Math.random() * Math.PI * 2,
+          isAmygdala: distToLimbic < 0.42
+        });
+      }
+    }
+
+    // Build Synaptic Axon Connections
+    for (let i = 0; i < NUM_NEURONS; i++) {
+      let connected = 0;
+      for (let j = i + 1; j < NUM_NEURONS; j++) {
+        if (connected >= 3) break;
+        const a = neurons[i];
+        const b = neurons[j];
+        const dist = Math.hypot(a.baseX - b.baseX, a.baseY - b.baseY, a.baseZ - b.baseZ);
+        if (dist > 0.14 && dist < 0.36 && (a.hemisphere === b.hemisphere || Math.random() < 0.08)) {
+          synapses.push({ a: i, b: j, dist });
+          connected++;
+        }
+      }
+    }
+
+    // Create Traveling Action Potentials (Sparks along axons)
+    for (let i = 0; i < 65; i++) {
+      actionPotentials.push({
+        synapseIndex: Math.floor(Math.random() * Math.max(1, synapses.length)),
+        progress: Math.random(),
+        speed: 0.4 + Math.random() * 0.9
+      });
+    }
+
+    // 3 Orbiting Satellites for Chapter 2 (Res. 2764/2022 Domains)
+    const SATELLITES = [
+      { id: 'INTRA', label: 'INTRALABORAL (A/B)', angleOffset: 0, color: '#00d4ff', radius: 1.72, yTilt: 0.35 },
+      { id: 'EXTRA', label: 'EXTRALABORAL', angleOffset: (Math.PI * 2) / 3, color: '#c7f303', radius: 1.72, yTilt: -0.35 },
+      { id: 'INDIV', label: 'INDIVIDUAL', angleOffset: (Math.PI * 4) / 3, color: '#2dd4bf', radius: 1.72, yTilt: 0.18 }
+    ];
+
+    // State & Spring Physics Variables
+    let stressPercent = 18;
+    let smoothStress = 0.18;
+    let activeChapter = 1;
+    let selectedAnatomyKey = null;
+
+    let rotY = 0.35;
+    let rotX = -0.12;
+    let targetRotY = 0.35;
+    let targetRotX = -0.12;
+    let zoom = 1.0;
+    let targetZoom = 1.0;
+
+    let isDragging = false;
+    let lastPointer = { x: 0, y: 0 };
+    let projectedHotspots = [];
+
+    // Pointer / Touch Orbit & Hotspot Click
+    stageContainer.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button') || e.target.closest('#nodeInspectorCard') || e.target.closest('#magneticCoverOverlay')) return;
+      audio.init();
+      isDragging = true;
+      lastPointer = { x: e.clientX, y: e.clientY };
+
+      // Check if user clicked on a 3D anatomical hotspot
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      for (const spot of projectedHotspots) {
+        if (Math.hypot(clickX - spot.screenX, clickY - spot.screenY) < 24) {
+          openAnatomyInspector(spot.key);
+          return;
+        }
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastPointer.x;
+      const dy = e.clientY - lastPointer.y;
+      targetRotY += dx * 0.0085;
+      targetRotX = Math.max(-1.1, Math.min(1.1, targetRotX + dy * 0.0085));
+      lastPointer = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointerup', () => {
+      isDragging = false;
+    });
+
+    stageContainer.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      targetZoom = Math.max(0.75, Math.min(1.45, targetZoom - e.deltaY * 0.001));
+    }, { passive: false });
+
+    function project3D(x, y, z, scaleFactor) {
+      // Rotate around Y
+      const cosY = Math.cos(rotY);
+      const sinY = Math.sin(rotY);
+      const x1 = x * cosY - z * sinY;
+      const z1 = z * cosY + x * sinY;
+
+      // Rotate around X
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+      const y2 = y * cosX - z1 * sinX;
+      const z2 = z1 * cosX + y * sinX;
+
+      const fov = 3.6;
+      const perspective = fov / (fov + z2 + 2.2);
+      return {
+        x: width * 0.5 + x1 * scaleFactor * perspective,
+        y: height * 0.48 - y2 * scaleFactor * perspective,
+        z: z2,
+        scale: perspective
+      };
+    }
+
+    /* =========================================================================
+       4. LIVE ECG WAVEFORM MONITOR
+       ========================================================================= */
+    const ecgCanvas = document.getElementById('ecgCanvas');
+    const ecgCtx = ecgCanvas.getContext('2d');
+    const ecgPoints = new Array(44).fill(13);
+    let ecgPhase = 0;
+
+    function updateEcg(dt, bpm, stressRatio) {
+      const freq = bpm / 60;
+      ecgPhase += dt * freq * Math.PI * 2;
+      let val = 13;
+      const cycle = ecgPhase % (Math.PI * 2);
+      if (cycle > 2.6 && cycle < 2.9) val = 3; // R-peak upward spike
+      else if (cycle >= 2.9 && cycle < 3.15) val = 23; // S-wave downward
+      else if (cycle >= 3.5 && cycle < 4.1) val = 9; // T-wave
+      else val = 13 + (Math.random() - 0.5) * (1.2 + stressRatio * 3.5);
+
+      ecgPoints.push(val);
+      if (ecgPoints.length > 44) ecgPoints.shift();
+
+      ecgCtx.clearRect(0, 0, 88, 26);
+      ecgCtx.beginPath();
+      ecgCtx.strokeStyle = stressRatio > 0.72 ? '#ef4444' : stressRatio > 0.45 ? '#f59e0b' : '#c7f303';
+      ecgCtx.lineWidth = 1.6;
+      for (let i = 0; i < ecgPoints.length; i++) {
+        const px = (i / (ecgPoints.length - 1)) * 88;
+        const py = ecgPoints[i];
+        if (i === 0) ecgCtx.moveTo(px, py);
+        else ecgCtx.lineTo(px, py);
+      }
+      ecgCtx.stroke();
+    }
+
+    /* =========================================================================
+       5. BIOMETRIC TELEMETRY & UI SYNCHRONIZATION
+       ========================================================================= */
+    const stressSlider = document.getElementById('stressSlider');
+    const labelStressState = document.getElementById('labelStressState');
+    const valCortisolUg = document.getElementById('valCortisolUg');
+    const valHrv = document.getElementById('valHrv');
+    const barCortisolUg = document.getElementById('barCortisolUg');
+    const valDopaminaPct = document.getElementById('valDopaminaPct');
+    const valCortisolPct = document.getElementById('valCortisolPct');
+    const barDopaminaPct = document.getElementById('barDopaminaPct');
+    const barCortisolPct = document.getElementById('barCortisolPct');
+    const badgeBaremo = document.getElementById('badgeBaremo');
+    const textAccionLegal = document.getElementById('textAccionLegal');
+    const ecgBpmText = document.getElementById('ecgBpmText');
+    const criticalStrobe = document.getElementById('criticalStrobe');
+    const subtitleContainer = document.getElementById('subtitleContainer');
+
+    function setStressLevel(pct, updateSlider = true) {
+      stressPercent = Math.max(0, Math.min(100, Math.round(pct)));
+      if (updateSlider) stressSlider.value = stressPercent;
+      const s = stressPercent / 100;
+
+      // 1. Biological formulas from wappy-video-studio spec
+      const cortisolSerum = (8.0 + 26.5 * Math.pow(s, 1.6)).toFixed(1);
+      const hrvMs = Math.round(75.0 * Math.exp(-1.35 * s));
+      const bpm = Math.round(62 + 76 * s);
+
+      const cortisolPct = Math.round(14 + s * 78);
+      const dopaminaPct = 100 - cortisolPct;
+
+      valCortisolUg.textContent = cortisolSerum;
+      valHrv.textContent = `HRV ${hrvMs}ms`;
+      barCortisolUg.style.width = `${Math.min(100, Math.round((cortisolSerum / 35) * 100))}%`;
+
+      valDopaminaPct.textContent = `${dopaminaPct}%`;
+      valCortisolPct.textContent = `${cortisolPct}%`;
+      barDopaminaPct.style.width = `${dopaminaPct}%`;
+      barCortisolPct.style.width = `${cortisolPct}%`;
+      ecgBpmText.textContent = `${bpm} BPM`;
+
+      // 2. Res. 2764/2022 5-Level Official Baremo
+      if (stressPercent < 25) {
+        labelStressState.textContent = `${stressPercent}% · SIN RIESGO (ZEN)`;
+        labelStressState.className = 'font-extrabold text-emerald-400';
+        badgeBaremo.textContent = 'SIN RIESGO';
+        badgeBaremo.className = 'inline-block text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        textAccionLegal.textContent = 'Promoción continua';
+        criticalStrobe.style.opacity = '0';
+      } else if (stressPercent < 50) {
+        labelStressState.textContent = `${stressPercent}% · RIESGO BAJO`;
+        labelStressState.className = 'font-extrabold text-cyan-300';
+        badgeBaremo.textContent = 'RIESGO BAJO';
+        badgeBaremo.className = 'inline-block text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
+        textAccionLegal.textContent = 'Evaluación bianual';
+        criticalStrobe.style.opacity = '0';
+      } else if (stressPercent < 75) {
+        labelStressState.textContent = `${stressPercent}% · RIESGO MEDIO`;
+        labelStressState.className = 'font-extrabold text-amber-400';
+        badgeBaremo.textContent = 'RIESGO MEDIO';
+        badgeBaremo.className = 'inline-block text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        textAccionLegal.textContent = 'Acción preventiva';
+        criticalStrobe.style.opacity = '0';
+      } else if (stressPercent < 90) {
+        labelStressState.textContent = `${stressPercent}% · RIESGO ALTO`;
+        labelStressState.className = 'font-extrabold text-orange-400';
+        badgeBaremo.textContent = 'RIESGO ALTO';
+        badgeBaremo.className = 'inline-block text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-orange-500/25 text-orange-300 border border-orange-500/50';
+        textAccionLegal.textContent = 'PVE + Batería Anual';
+        criticalStrobe.style.opacity = '0.16';
+      } else {
+        labelStressState.textContent = `${stressPercent}% · RIESGO MUY ALTO`;
+        labelStressState.className = 'font-extrabold text-rose-400 animate-pulse';
+        badgeBaremo.textContent = 'MUY ALTO 🚨';
+        badgeBaremo.className = 'inline-block text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-200 border border-rose-500 animate-pulse';
+        textAccionLegal.textContent = 'Intervención Crisis';
+        criticalStrobe.style.opacity = '0.35';
+      }
+    }
+
+    stressSlider.addEventListener('input', (e) => {
+      audio.init();
+      setStressLevel(parseInt(e.target.value, 10), false);
+    });
+
+    /* =========================================================================
+       6. CHAPTER SWITCHER & WORD-BY-WORD SUBTITLE RENDERER
+       ========================================================================= */
+    const chapTabs = document.querySelectorAll('.chap-tab');
+    const chapBadgeIcon = document.getElementById('chapBadgeIcon');
+    const chapTitleText = document.getElementById('chapTitleText');
+    const chapNormTag = document.getElementById('chapNormTag');
+    const chapDescText = document.getElementById('chapDescText');
+
+    let subtitleWords = [];
+    let activeWordIndex = -1;
+
+    function renderSubtitles(text, highlightIdx = -1) {
+      const words = text.split(' ');
+      subtitleWords = words;
+      subtitleContainer.innerHTML = words
+        .map((w, idx) => `<span class="word-pill ${idx === highlightIdx ? 'active' : ''}">${w}</span>`)
+        .join(' ');
+    }
+
+    function selectChapter(chapNum, speakAloud = false) {
+      activeChapter = chapNum;
+      const data = CHAPTERS[chapNum];
+      if (!data) return;
+
+      chapTabs.forEach((btn) => {
+        const n = parseInt(btn.getAttribute('data-chap'), 10);
+        if (n === chapNum) {
+          btn.className = 'chap-tab py-1.5 px-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer border-[#c7f303] bg-[#c7f303]/20 text-[#c7f303] shadow-[0_0_12px_rgba(199,243,3,0.25)]';
+        } else {
+          btn.className = 'chap-tab py-1.5 px-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer border-slate-700 bg-slate-800/50 text-slate-300 hover:border-cyan-400/50';
+        }
+      });
+
+      chapBadgeIcon.textContent = data.icon;
+      chapTitleText.textContent = data.title;
+      chapNormTag.textContent = data.normTag;
+      chapDescText.textContent = data.desc;
+
+      targetRotY = data.camTarget.rotY;
+      targetRotX = data.camTarget.rotX;
+      targetZoom = data.camTarget.zoom;
+
+      setStressLevel(data.stressPreset, true);
+      renderSubtitles(data.script, 0);
+
+      if (speakAloud) {
+        audio.speak(data.script);
+      }
+    }
+
+    chapTabs.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        audio.playWhoosh();
+        const num = parseInt(btn.getAttribute('data-chap'), 10);
+        selectChapter(num, true);
+      });
+    });
+
+    /* =========================================================================
+       7. ANATOMICAL 3D NODE INSPECTOR
+       ========================================================================= */
+    const nodeInspectorCard = document.getElementById('nodeInspectorCard');
+    const nodeCardTitle = document.getElementById('nodeCardTitle');
+    const nodeCardBody = document.getElementById('nodeCardBody');
+
+    function openAnatomyInspector(key) {
+      const info = ANATOMY_NODES[key];
+      if (!info) return;
+      selectedAnatomyKey = key;
+      audio.playClick(1350);
+      nodeCardTitle.textContent = info.title;
+      nodeCardBody.textContent = info.body;
+      nodeInspectorCard.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-[-8px]');
+      nodeInspectorCard.classList.add('opacity-100', 'translate-y-0');
+
+      // Rotate camera gently toward selected node
+      if (key === 'prefrontal') { targetRotY = 0.05; targetRotX = -0.25; targetZoom = 1.22; }
+      if (key === 'amygdala') { targetRotY = -0.45; targetRotX = 0.1; targetZoom = 1.25; setStressLevel(85, true); }
+      if (key === 'hpa') { targetRotY = 0.25; targetRotX = 0.35; targetZoom = 1.18; setStressLevel(76, true); }
+    }
+
+    document.querySelectorAll('.node-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        openAnatomyInspector(btn.getAttribute('data-node'));
+      });
+    });
+
+    document.getElementById('btnCloseNodeCard').addEventListener('click', () => {
+      selectedAnatomyKey = null;
+      nodeInspectorCard.classList.add('opacity-0', 'pointer-events-none', 'translate-y-[-8px]');
+      nodeInspectorCard.classList.remove('opacity-100', 'translate-y-0');
+      targetZoom = 1.0;
+    });
+
+    /* =========================================================================
+       8. AUTO-REEL 60s CINEMATIC DIRECTOR (PORTADA 2s + 5 CHAPTERS + KARAOKE SUBS)
+       ========================================================================= */
+    let isPlayingReel = false;
+    let reelTime = 0; // 0 to 60 seconds
+    let lastReelChap = -1;
+
+    const btnToggleReel = document.getElementById('btnToggleReel');
+    const reelPlayIcon = document.getElementById('reelPlayIcon');
+    const reelPlayLabel = document.getElementById('reelPlayLabel');
+    const reelProgressBar = document.getElementById('reelProgressBar');
+    const timecodeDisplay = document.getElementById('timecodeDisplay');
+    const magneticCoverOverlay = document.getElementById('magneticCoverOverlay');
+
+    function showCover(visible) {
+      if (visible) {
+        magneticCoverOverlay.classList.remove('opacity-0', 'pointer-events-none');
+        magneticCoverOverlay.classList.add('opacity-100');
+      } else {
+        magneticCoverOverlay.classList.add('opacity-0', 'pointer-events-none');
+        magneticCoverOverlay.classList.remove('opacity-100');
+      }
+    }
+
+    document.getElementById('btnShowCover').addEventListener('click', () => {
+      audio.playWhoosh();
+      showCover(true);
+    });
+
+    document.getElementById('btnCloseCover').addEventListener('click', () => {
+      audio.playClick(980);
+      showCover(false);
+    });
+
+    function toggleReelPlayback() {
+      audio.init();
+      isPlayingReel = !isPlayingReel;
+      if (isPlayingReel) {
+        if (reelTime >= 59.5) reelTime = 0;
+        lastReelChap = -1;
+        reelPlayIcon.textContent = '⏸';
+        reelPlayLabel.textContent = 'PAUSAR REEL';
+        audio.playWhoosh();
+      } else {
+        reelPlayIcon.textContent = '▶';
+        reelPlayLabel.textContent = 'REPRODUCIR REEL (60s)';
+        showCover(false);
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+      }
+    }
+
+    btnToggleReel.addEventListener('click', toggleReelPlayback);
+
+    document.getElementById('btnSoundToggle').addEventListener('click', (e) => {
+      const muted = audio.toggleMute();
+      e.currentTarget.textContent = muted ? '🔇 MUTE' : '🔊 ON';
+      e.currentTarget.className = muted
+        ? 'px-2.5 py-1.5 rounded-xl bg-rose-950/90 border border-rose-500/40 text-rose-300 text-xs font-mono font-bold transition-all cursor-pointer'
+        : 'px-2.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-bold transition-all cursor-pointer';
+    });
+
+    // Footer Expandable Buttons
+    document.getElementById('btnActionProtocol').addEventListener('click', () => {
+      audio.playWhoosh();
+      selectChapter(5, true);
+    });
+    document.getElementById('btnActionCustodia').addEventListener('click', () => {
+      audio.playClick(1200);
+      selectChapter(2, true);
+    });
+    document.getElementById('btnActionBurnout').addEventListener('click', () => {
+      audio.playWhoosh();
+      selectChapter(4, true);
+      setStressLevel(95, true);
+    });
+    document.getElementById('btnActionZen').addEventListener('click', () => {
+      audio.playClick(880);
+      setStressLevel(10, true);
+      renderSubtitles('Homeostasis restaurada: Corteza prefrontal activa, cortisol en rango basal (9.2 μg/dL) y alta variabilidad cardíaca.', 0);
+    });
+
+    /* =========================================================================
+       9. MAIN 60 FPS RENDER LOOP
+       ========================================================================= */
+    let prevTime = performance.now();
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - prevTime) / 1000);
+      prevTime = now;
+      const t = now * 0.001;
+
+      // A. Update Reel Director Timeline if playing
+      if (isPlayingReel) {
+        reelTime += dt;
+        if (reelTime >= 60) {
+          reelTime = 60;
+          isPlayingReel = false;
+          reelPlayIcon.textContent = '▶';
+          reelPlayLabel.textContent = 'REPETIR REEL (60s)';
+        }
+
+        // Format timecode
+        const sec = Math.floor(reelTime);
+        timecodeDisplay.textContent = `00:${sec < 10 ? '0' + sec : sec} / 01:00`;
+        reelProgressBar.style.width = `${(reelTime / 60) * 100}%`;
+
+        // 0.0s - 2.0s: Portada Magnética Obligatoria
+        if (reelTime < 2.2) {
+          showCover(true);
+        } else {
+          showCover(false);
+          let targetChap = 1;
+          let chapStart = 2.2;
+          let chapDur = 11.0;
+
+          if (reelTime < 13.5) { targetChap = 1; chapStart = 2.2; chapDur = 11.3; }
+          else if (reelTime < 25.0) { targetChap = 2; chapStart = 13.5; chapDur = 11.5; }
+          else if (reelTime < 37.0) { targetChap = 3; chapStart = 25.0; chapDur = 12.0; }
+          else if (reelTime < 48.5) { targetChap = 4; chapStart = 37.0; chapDur = 11.5; }
+          else { targetChap = 5; chapStart = 48.5; chapDur = 11.5; }
+
+          if (targetChap !== lastReelChap) {
+            lastReelChap = targetChap;
+            audio.playWhoosh();
+            selectChapter(targetChap, true);
+          }
+
+          // Word-by-word karaoke highlight
+          const localProgress = Math.max(0, Math.min(0.99, (reelTime - chapStart) / chapDur));
+          const wordIdx = Math.floor(localProgress * subtitleWords.length);
+          if (wordIdx !== activeWordIndex && subtitleWords.length > 0) {
+            activeWordIndex = wordIdx;
+            renderSubtitles(CHAPTERS[targetChap].script, wordIdx);
+          }
+        }
+      }
+
+      // B. Smooth Spring Interpolation
+      smoothStress += (stressPercent / 100 - smoothStress) * 0.08;
+      if (!isDragging) {
+        targetRotY += dt * (0.28 + smoothStress * 0.45);
+      }
+      rotY += (targetRotY - rotY) * 0.09;
+      rotX += (targetRotX - rotX) * 0.09;
+      zoom += (targetZoom - zoom) * 0.09;
+
+      // C. Heartbeat Audio & Pulse Timing
+      const currentBpm = 62 + smoothStress * 76;
+      const beatInterval = 60 / currentBpm;
+      if (t - audio.lastBeatTime >= beatInterval) {
+        audio.lastBeatTime = t;
+        if (isPlayingReel || smoothStress > 0.65) {
+          audio.playHeartbeat(smoothStress);
+        }
+      }
+      const beatWave = Math.pow(Math.max(0, Math.sin(t * (currentBpm / 60) * Math.PI * 2)), 4);
+
+      // Update Live ECG Monitor
+      updateEcg(dt, currentBpm, smoothStress);
+
+      // D. Render 3D Scene on Canvas
+      ctx.clearRect(0, 0, width, height);
+      const baseScale = Math.min(width, height) * 0.42 * zoom;
+
+      // 1. Background Dynamic Radial Aura
+      const auraGrad = ctx.createRadialGradient(
+        width * 0.5, height * 0.48, 8,
+        width * 0.5, height * 0.48, baseScale * 1.45
+      );
+      if (smoothStress < 0.45) {
+        auraGrad.addColorStop(0, 'rgba(0, 212, 255, 0.22)');
+        auraGrad.addColorStop(0.55, 'rgba(13, 148, 136, 0.08)');
+        auraGrad.addColorStop(1, 'rgba(2, 5, 11, 0)');
+      } else if (smoothStress < 0.78) {
+        auraGrad.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+        auraGrad.addColorStop(0.55, 'rgba(239, 68, 68, 0.10)');
+        auraGrad.addColorStop(1, 'rgba(2, 5, 11, 0)');
+      } else {
+        auraGrad.addColorStop(0, `rgba(239, 68, 68, ${0.28 + beatWave * 0.18})`);
+        auraGrad.addColorStop(0.55, 'rgba(190, 18, 60, 0.14)');
+        auraGrad.addColorStop(1, 'rgba(2, 5, 11, 0)');
+      }
+      ctx.fillStyle = auraGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Transform & Project All 3D Brain Neurons
+      const projected = new Array(NUM_NEURONS);
+      const jitterAmp = 0.012 + smoothStress * 0.065;
+      const pulseExpansion = 1.0 + beatWave * (0.025 + smoothStress * 0.065);
+
+      for (let i = 0; i < NUM_NEURONS; i++) {
+        const n = neurons[i];
+        const wave = Math.sin(t * (2.0 + smoothStress * 5.0) + n.phase) * jitterAmp;
+        const nx = n.baseX * pulseExpansion + wave * (n.isAmygdala ? 1.8 : 0.7);
+        const ny = n.baseY * pulseExpansion + Math.cos(t * 2.5 + n.phase) * jitterAmp * 0.7;
+        const nz = n.baseZ * pulseExpansion;
+
+        const p = project3D(nx, ny, nz, baseScale);
+        p.isAmygdala = n.isAmygdala;
+        p.hemisphere = n.hemisphere;
+        projected[i] = p;
+      }
+
+      // 3. Draw Synaptic Axons (Depth-modulated)
+      ctx.lineWidth = 0.85;
+      for (let i = 0; i < synapses.length; i++) {
+        const syn = synapses[i];
+        const pa = projected[syn.a];
+        const pb = projected[syn.b];
+        const avgZ = (pa.z + pb.z) * 0.5;
+        if (avgZ > 1.05) continue;
+
+        const depthAlpha = Math.max(0.06, Math.min(0.48, (1.1 - avgZ) * 0.32));
+        const isLimbic = pa.isAmygdala || pb.isAmygdala;
+
+        if (isLimbic && smoothStress > 0.35) {
+          ctx.strokeStyle = `rgba(239, 68, 68, ${depthAlpha * (0.7 + smoothStress * 0.8)})`;
+        } else if (smoothStress > 0.7) {
+          ctx.strokeStyle = `rgba(249, 115, 22, ${depthAlpha})`;
+        } else {
+          ctx.strokeStyle = `rgba(0, 212, 255, ${depthAlpha})`;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(pa.x, pa.y);
+        ctx.lineTo(pb.x, pb.y);
+        ctx.stroke();
+      }
+
+      // 4. Draw Traveling Synaptic Action Potentials (Sparks)
+      const sparkSpeedMultiplier = 0.6 + smoothStress * 2.8;
+      for (let i = 0; i < actionPotentials.length; i++) {
+        const ap = actionPotentials[i];
+        ap.progress += dt * ap.speed * sparkSpeedMultiplier;
+        if (ap.progress >= 1.0) {
+          ap.progress = 0;
+          ap.synapseIndex = Math.floor(Math.random() * synapses.length);
+        }
+        const syn = synapses[ap.synapseIndex];
+        if (!syn) continue;
+        const pa = projected[syn.a];
+        const pb = projected[syn.b];
+        const sx = pa.x + (pb.x - pa.x) * ap.progress;
+        const sy = pa.y + (pb.y - pa.y) * ap.progress;
+
+        ctx.fillStyle = smoothStress > 0.65 ? '#ef4444' : '#c7f303';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.9 * pa.scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. Draw 3D Neurons (Back-to-Front Depth feel)
+      for (let i = 0; i < NUM_NEURONS; i++) {
+        const p = projected[i];
+        const alpha = Math.max(0.15, Math.min(0.95, (1.2 - p.z) * 0.55));
+        let radius = Math.max(1.1, 2.3 * p.scale);
+
+        if (p.isAmygdala) {
+          const amyGlow = 0.35 + smoothStress * 0.65;
+          ctx.fillStyle = `rgba(239, 68, 68, ${amyGlow})`;
+          radius *= 1.25 + beatWave * smoothStress * 0.8;
+        } else if (smoothStress < 0.4) {
+          ctx.fillStyle = p.hemisphere === 1
+            ? `rgba(0, 212, 255, ${alpha})`
+            : `rgba(45, 212, 191, ${alpha})`;
+        } else if (smoothStress < 0.75) {
+          ctx.fillStyle = `rgba(245, 158, 11, ${alpha})`;
+        } else {
+          ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 6. Draw 3D Orbiting Normative Satellites (Highlighted in Chapter 2 or always subtle)
+      const satEmphasis = activeChapter === 2 ? 1.0 : 0.38;
+      SATELLITES.forEach((sat, idx) => {
+        const angle = t * 0.65 + sat.angleOffset;
+        const sx = Math.cos(angle) * sat.radius;
+        const sz = Math.sin(angle) * sat.radius;
+        const sy = Math.sin(angle * 1.5) * sat.yTilt;
+
+        const sp = project3D(sx, sy, sz, baseScale);
+
+        // Laser tether to brain center
+        ctx.strokeStyle = activeChapter === 2 ? 'rgba(199, 243, 3, 0.35)' : 'rgba(0, 212, 255, 0.12)';
+        ctx.lineWidth = activeChapter === 2 ? 1.3 : 0.7;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(width * 0.5, height * 0.48);
+        ctx.lineTo(sp.x, sp.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Satellite Node
+        ctx.fillStyle = sat.color;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, activeChapter === 2 ? 5.5 : 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (activeChapter === 2) {
+          ctx.font = 'bold 10px monospace';
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillText(sat.label, sp.x + 8, sp.y + 3);
+        }
+      });
+
+      // 7. Draw Interactive 3D Anatomical Hotspots
+      projectedHotspots = [];
+      Object.keys(ANATOMY_NODES).forEach((key) => {
+        const node = ANATOMY_NODES[key];
+        const hp = project3D(node.pos3D.x, node.pos3D.y, node.pos3D.z, baseScale);
+        projectedHotspots.push({ key, screenX: hp.x, screenY: hp.y });
+
+        const isSel = selectedAnatomyKey === key;
+        const pulseR = 7 + Math.sin(t * 4) * 2.5;
+
+        ctx.strokeStyle = isSel ? '#c7f303' : node.color;
+        ctx.lineWidth = isSel ? 2.2 : 1.4;
+        ctx.beginPath();
+        ctx.arc(hp.x, hp.y, pulseR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = isSel ? '#c7f303' : node.color;
+        ctx.beginPath();
+        ctx.arc(hp.x, hp.y, 3.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // Initialize Default State
+    setStressLevel(18, true);
+    selectChapter(1, false);
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

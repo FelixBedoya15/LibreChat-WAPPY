@@ -2899,6 +2899,11 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
       {/* ─── CUADRO DE INFORME EXPANDIBLE / LIVE EDITOR ─── */}
       <CollapsibleReportBox
         defaultCollapsed={false}
+        onAnalyze={handleCompileReport}
+        isLoading={isCompilingReport}
+        onSave={handleSaveData}
+        isSaving={isSavingData}
+        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         isHistoryOpen={isHistoryOpen}
         title="Informe Técnico de Contexto y Partes Interesadas (ISO 45001:2018 Cláusulas 4.1 y 4.2)"
         icon={<Compass className="h-5 w-5 text-teal-700" />}

@@ -1120,6 +1120,9 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
               {/* ── Collapsible Report Box con LiveEditor y ExportDropdown ── */}
               <div id="bio-report-editor" className="mt-8">
                 <CollapsibleReportBox
+                  onAnalyze={handleAnalyzeBioReport}
+                  analyzeDisabled={!worker?.riesgosBioIndividual?.length}
+                  isLoading={isAnalyzing}
                   onSave={handleSaveReport}
                   isSaving={isSavingReport}
                   saveDisabled={isSavingReport || (!reportContent && !reportContentRef.current)}
@@ -1176,33 +1179,8 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                             Dictamen Técnico Biocéntrico WAPPY
                           </h4>
                           <p className="text-xs text-text-secondary leading-relaxed">
-                            Presiona <span className="font-bold text-teal-600">“Generar Informe con IA”</span> para que la IA emita el dictamen pericial biocéntrico bajo la Metodología Bio-Individual WAPPY (Centricidad en el Trabajador), analizando los 8 dominios bio-fisiológicos, susceptibilidad clínica (NS), exposición (NE), modulador activo de percepción del riesgo y plan individualizado de readaptación para {worker.nombre}.
+                            Presiona <span className="font-bold text-purple-600 dark:text-purple-400">“Generar IA”</span> en el encabezado de este editor o en la barra superior para que la IA emita el dictamen pericial biocéntrico bajo la Metodología Bio-Individual WAPPY para {worker.nombre}.
                           </p>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-                          <button
-                            type="button"
-                            onClick={handleAnalyzeBioReport}
-                            disabled={isAnalyzing || (!worker?.riesgosBioIndividual?.length)}
-                            title="Generar Informe con IA"
-                            className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 px-5 py-2 text-xs font-bold text-white shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                          >
-                            {isAnalyzing ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-4 w-4" />
-                            )}
-                            <span>{isAnalyzing ? 'Generando informe…' : 'Generar Informe con IA'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsHistoryOpen(true)}
-                            title="Cargar desde Historial"
-                            className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-zinc-200 shadow-sm hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all active:scale-95 cursor-pointer"
-                          >
-                            <History className="h-4 w-4" />
-                            <span>Cargar desde Historial</span>
-                          </button>
                         </div>
                       </div>
                     )}
