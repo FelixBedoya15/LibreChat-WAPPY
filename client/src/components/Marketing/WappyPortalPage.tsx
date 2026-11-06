@@ -23,11 +23,12 @@ interface WappyAppCardItem {
   description: string;
   normative: string;
   image?: string;
-  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'wappy-podcast' | 'soon';
+  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'wappy-podcast' | 'wappy-colmena' | 'soon';
   icon: string;
   tags: string[];
   href?: string;
   ctaLabel: string;
+  adminOnly?: boolean;
   onOpen?: (e?: React.MouseEvent) => void;
 }
 
@@ -239,15 +240,21 @@ export default function WappyPortalPage() {
 
   const executeOpenPortalApp = (app: WappyAppCatalogItem) => {
     if (!app.path) return;
-    window.location.href = appendIgPassToUrl(resolveWappyAppUrl(app.path));
+    window.location.href = app.adminOnly
+      ? resolveWappyAppUrl(app.path)
+      : appendIgPassToUrl(resolveWappyAppUrl(app.path));
   };
 
   /**
-   * Todas las WAPPY APPs (actuales y futuras) exigen seguir a @wappy_ia en Instagram (Opción 1: a todos).
+   * Todas las WAPPY APPs públicas exigen seguir a @wappy_ia en Instagram; las apps exclusivas de Admin abren directo.
    */
   const handleOpenAppItem = (app: WappyAppCatalogItem) => (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
+    }
+    if (app.adminOnly && isAdmin) {
+      executeOpenPortalApp(app);
+      return;
     }
     requireFollowBeforeOpen(app, executeOpenPortalApp);
   };
@@ -261,8 +268,10 @@ export default function WappyPortalPage() {
     showToast('🔒 Wappy Dots estará disponible muy pronto · Acceso exclusivo para Administradores');
   };
 
-  /* Catálogo único compartido con la vista interna /aplicaciones (ver wappyAppsCatalog.ts) */
-  const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.map((app) => ({
+  /* Catálogo único compartido con la vista interna /aplicaciones (ver wappyAppsCatalog.ts). Filtra apps adminOnly. */
+  const wappyAppsCatalog: WappyAppCardItem[] = WAPPY_APPS_CATALOG.filter(
+    (app) => !app.adminOnly || isAdmin,
+  ).map((app) => ({
     ...app,
     onOpen: app.badgeTone === 'active' && app.path ? handleOpenAppItem(app) : undefined,
   }));
@@ -2201,6 +2210,73 @@ export default function WappyPortalPage() {
                               }}
                             >
                               <span>🎙️ Voces Neuronales · Dual Host 1 &amp; 2 · Show Notes IA</span>
+                            </div>
+                          </div>
+                        ) : app.visualType === 'wappy-colmena' ? (
+                          <div
+                            style={{
+                              position: 'relative',
+                              aspectRatio: '16 / 9',
+                              width: '100%',
+                              background:
+                                'radial-gradient(circle at 20% 20%, rgba(199, 243, 3, 0.22) 0%, transparent 45%), radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.22) 0%, transparent 50%), linear-gradient(135deg, #07111e 0%, #0c192e 55%, #0e1300 100%)',
+                              overflow: 'hidden',
+                              borderBottom: isDarkMode ? '1px solid rgba(51,65,85,0.8)' : '1px solid #e2e8f0',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              padding: '12px 14px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#c7f303', boxShadow: '0 0 8px #c7f303' }} />
+                                <span style={{ fontSize: 10.5, fontWeight: 900, color: '#c7f303', letterSpacing: '0.04em' }}>
+                                  ARL COLMENA × WAPPY LTDA
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 8.5, fontWeight: 900, color: '#fde68a', background: 'rgba(245,158,11,0.22)', border: '1px solid rgba(251,191,36,0.45)', borderRadius: 6, padding: '2px 7px' }}>
+                                CPS-A-26 V16 • SOLO ADMIN
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, zIndex: 2 }}>
+                              <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(199, 243, 3, 0.4)', borderRadius: 10, padding: '8px 10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                                  <span style={{ fontSize: 8, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Decreto 768</span>
+                                  <span style={{ fontSize: 7.5, fontWeight: 900, background: '#c7f303', color: '#0e1300', padding: '1px 5px', borderRadius: 4 }}>1.104 CIIU</span>
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 900, color: '#ffffff' }}>Autorización Plena</div>
+                                <div style={{ fontSize: 8.5, fontWeight: 700, color: '#6ee7b7', marginTop: 2 }}>425 Plenas · 115 Gemelos</div>
+                              </div>
+
+                              <div style={{ background: 'rgba(15, 23, 42, 0.88)', border: '1px solid rgba(45, 212, 191, 0.4)', borderRadius: 10, padding: '8px 10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                                  <span style={{ fontSize: 8, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Intermediación</span>
+                                  <span style={{ fontSize: 7.5, fontWeight: 900, background: 'rgba(13,148,136,0.35)', color: '#99f6e4', padding: '1px 5px', borderRadius: 4 }}>RADAR IA</span>
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 900, color: '#c7f303' }}>Simulador &amp; CRM</div>
+                                <div style={{ fontSize: 8.5, fontWeight: 700, color: '#fde68a', marginTop: 2 }}>Topes $3M/$40M + Carta A4</div>
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                zIndex: 2,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                                padding: '3px 10px',
+                                borderRadius: 9999,
+                                background: 'rgba(199, 243, 3, 0.14)',
+                                border: '1px solid rgba(199, 243, 3, 0.4)',
+                                color: '#c7f303',
+                                fontSize: 9,
+                                fontWeight: 800,
+                              }}
+                            >
+                              <span>🛡️ Calificador CPS-A-26 · Radar Somos SST · Propuestas &amp; Cartas IA</span>
                             </div>
                           </div>
                         ) : (

@@ -824,6 +824,20 @@ const startServer = async () => {
     next();
   });
 
+  app.get(['/wappycolmena', '/wappy-colmena', '/wappycolmena.html', '/wappy-colmena.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/wappycolmena.html'),
+      path.resolve(__dirname, '../../client/public/wappycolmena.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
   app.post('/api/embajadores/send-otp', async (req, res) => {
     try {
       const { email, name, otpCode } = req.body;

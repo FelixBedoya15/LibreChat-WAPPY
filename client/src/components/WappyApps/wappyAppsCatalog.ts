@@ -17,7 +17,7 @@ export interface WappyAppCatalogItem {
   description: string;
   normative: string;
   image?: string;
-  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'wappy-podcast' | 'soon';
+  visualType?: 'matriz-ipvr' | 'wappy-studio' | 'wappy-podcast' | 'wappy-colmena' | 'soon';
   icon: string;
   tags: string[];
   /** URL pública absoluta de producción (referencia / SEO). */
@@ -25,6 +25,8 @@ export interface WappyAppCatalogItem {
   /** Ruta relativa de la app dentro del dominio (p. ej. `/matrizipvr`). */
   path?: string;
   ctaLabel: string;
+  /** Si es true, la aplicación solo es visible y accesible para usuarios con rol ADMIN. */
+  adminOnly?: boolean;
 }
 
 export const WAPPY_APPS_CATALOG: WappyAppCatalogItem[] = [
@@ -92,6 +94,28 @@ export const WAPPY_APPS_CATALOG: WappyAppCatalogItem[] = [
     href: 'https://wappy.club/wappypodcast',
     path: '/wappypodcast',
     ctaLabel: 'Ingresar a WAPPY Podcast',
+  },
+  {
+    id: 'wappy-colmena',
+    badge: 'SOLO ADMIN · INTERMEDIACIÓN WAPPY LTDA',
+    badgeTone: 'active',
+    title: 'Wappy ARL Colmena',
+    subtitle: 'Motor de Venta Proactiva CPS-A-26 V16 · Intermediación WAPPY LTDA',
+    description:
+      'Consola ejecutiva exclusiva para Administración e Intermediación de WAPPY LTDA ante ARL Colmena Seguros. Incluye Calificador Decreto 768 (1.104 actividades + 322 ocupaciones + detector de 115 subcódigos gemelos con Autorización Plena), Simulador de Prima y Topes ($3M/$40M), Radar de Prospectos Internos (Somos SST / Matriz IPVR), Generador IA de Propuestas/Cartas A4 y CRM Kanban.',
+    normative: 'CPS-A-26 V16 (2026) · Decreto 768 de 2022',
+    visualType: 'wappy-colmena',
+    icon: '🛡️',
+    tags: [
+      'Matriz CPS-A-26 V16 (1.104 CIIU)',
+      'Simulador Prima & Comisión WAPPY',
+      'Radar Leads Somos SST → Colmena',
+      'Propuesta & Carta Intermediación A4',
+    ],
+    href: 'https://wappy.club/wappycolmena',
+    path: '/wappycolmena',
+    ctaLabel: 'Ingresar a Wappy ARL Colmena',
+    adminOnly: true,
   },
 ];
 

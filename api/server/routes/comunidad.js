@@ -12,6 +12,7 @@ const { getAppConfig } = require('../../server/services/Config');
 const controller = require('../controllers/ComunidadController');
 const MatrizIpvrMetric = require('../../models/MatrizIpvrMetric');
 const CompanyInfo = require('../../models/CompanyInfo');
+const ColmenaIntermediacionDeal = require('../../models/ColmenaIntermediacionDeal');
 
 /**
  * Middleware resiliente que autentica admin por Bearer token o por cookie refreshToken
@@ -1326,5 +1327,397 @@ async function handleVerifyIgFollow(req, res) {
 
 router.get('/ig-follow/verify', handleVerifyIgFollow);
 router.post('/ig-follow/verify', handleVerifyIgFollow);
+
+// ============================================================================
+// WAPPY ARL COLMENA · MOTOR DE INTERMEDIACIÓN & VENTA PROACTIVA CPS-A-26 V16
+// (Exclusivo para Administradores de WAPPY LTDA)
+// ============================================================================
+
+let cachedColmenaDataset = null;
+function loadColmenaDataset() {
+    if (cachedColmenaDataset) {
+        return cachedColmenaDataset;
+    }
+    try {
+        const datasetPath = path.resolve(__dirname, '../data/colmenaProactiva2026.json');
+        if (fs.existsSync(datasetPath)) {
+            cachedColmenaDataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
+            return cachedColmenaDataset;
+        }
+    } catch (err) {
+        console.error('[WappyColmena] Error cargando colmenaProactiva2026.json:', err.message);
+    }
+    return { version: 'CPS-A-26 V16 (2026)', activities: [], occupations: [], stats: {} };
+}
+
+const ARL_RATES_BY_CLASE = {
+    1: 0.00522,
+    2: 0.01044,
+    3: 0.02436,
+    4: 0.04350,
+    5: 0.06960,
+};
+
+function parseRomanOrDigitRisk(val) {
+    const s = String(val || '').trim().toUpperCase();
+    if (s === 'V' || s === '5' || s.includes('CLASE V') || s.includes('NIVEL V') || s.includes('5')) return 5;
+    if (s === 'IV' || s === '4' || s.includes('CLASE IV') || s.includes('NIVEL IV') || s.includes('4')) return 4;
+    if (s === 'III' || s === '3' || s.includes('CLASE III') || s.includes('NIVEL III') || s.includes('3')) return 3;
+    if (s === 'II' || s === '2' || s.includes('CLASE II') || s.includes('NIVEL II') || s.includes('2')) return 2;
+    return 1;
+}
+
+function matchCompanyToColmenaCPS(company, dataset) {
+    const activities = Array.isArray(dataset?.activities) ? dataset.activities : [];
+    const rawCiiu = String(company.ciiu || '').trim();
+    const rawAct = String(company.economicActivity || company.sector || '').trim();
+    const combined = `${rawCiiu} ${rawAct}`;
+
+    // 1. Buscar código Decreto 768 exacto de 7 dígitos
+    const match7 = combined.match(/\b([1-5]\d{6})\b/);
+    if (match7) {
+        const exact7 = activities.find((a) => a.cod768 === match7[1]);
+        if (exact7) return exact7;
+    }
+
+    // 2. Buscar código CIIU de 4 dígitos
+    const match4 = combined.match(/\b(\d{4})\b/);
+    if (match4) {
+        const ciiu4 = match4[1];
+        const byCiiu = activities.filter((a) => a.ciiu === ciiu4);
+        if (byCiiu.length > 0) {
+            const plena = byCiiu.find((a) => a.nivel === 'Autorización Plena');
+            return plena || byCiiu[0];
+        }
+    }
+
+    // 3. Buscar por coincidencia semántica en descripción / grupo / sector
+    const riskHint = parseRomanOrDigitRisk(company.riskLevel);
+    const words = rawAct
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length >= 4);
+
+    if (words.length > 0) {
+        let best = null;
+        let bestScore = 0;
+        for (const a of activities) {
+            const hay = `${a.descripcion} ${a.grupo} ${a.division} ${a.sector}`
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+            let score = 0;
+            for (const w of words) {
+                if (hay.includes(w)) score += 2;
+            }
+            if (score > 0 && a.clase === riskHint) score += 2;
+            if (score > 0 && a.nivel === 'Autorización Plena') score += 1;
+            if (score > bestScore) {
+                bestScore = score;
+                best = a;
+            }
+        }
+        if (best) return best;
+    }
+
+    // Fallback por clase de riesgo hacia actividad empresarial/consultoría estándar
+    const defaultByClase =
+        activities.find((a) => a.clase === riskHint && a.nivel === 'Autorización Plena') ||
+        activities[0] ||
+        null;
+    return defaultByClase;
+}
+
+// 1. Obtener Dataset completo CPS-A-26 V16 (1.104 actividades + 322 ocupaciones)
+router.get('/wappycolmena/dataset', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        const dataset = loadColmenaDataset();
+        return res.json({ success: true, ...dataset });
+    } catch (err) {
+        console.error('[WappyColmena] Error en /dataset:', err);
+        return res.status(500).json({ error: 'Error cargando matriz CPS-A-26 V16.' });
+    }
+});
+
+// 2. Radar de Prospectos Internos (Cruce automático de Somos SST + Matriz IPVR + Wappy Studio contra CPS-A-26 V16)
+router.get('/wappycolmena/radar', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        const dataset = loadColmenaDataset();
+        const [sgsstCompanies, ipvrMetrics] = await Promise.all([
+            CompanyInfo.find({ companyName: { $ne: '' } }).sort({ updatedAt: -1 }).lean(),
+            MatrizIpvrMetric.find({ companyName: { $ne: '' } }).sort({ updatedAt: -1 }).lean(),
+        ]);
+
+        const mapByKey = new Map();
+        const DEFAULT_IBC = 1750905;
+
+        const ingestRecord = (rec, originLabel) => {
+            const name = (rec.companyName || '').trim();
+            if (!name || name.toLowerCase() === 'empresa sin nombre') return;
+            const nitClean = String(rec.nit || '').replace(/[^0-9]/g, '').slice(0, 9);
+            const key = nitClean || name.toLowerCase();
+
+            const existing = mapByKey.get(key);
+            const workerCount = Math.max(Number(rec.workerCount) || 0, existing?.workerCount || 1);
+
+            const matched = matchCompanyToColmenaCPS(
+                {
+                    ciiu: rec.ciiu || existing?.ciiu || '',
+                    economicActivity: rec.economicActivity || rec.sector || existing?.economicActivity || '',
+                    riskLevel: rec.riskLevel || existing?.riskLevel || '',
+                },
+                dataset,
+            );
+
+            const clase = matched?.clase || parseRomanOrDigitRisk(rec.riskLevel || existing?.riskLevel);
+            const rate = ARL_RATES_BY_CLASE[clase] || 0.00522;
+            const monthlyPrima = Math.round(workerCount * DEFAULT_IBC * rate);
+            const annualPrima = monthlyPrima * 12;
+            const minPrima = matched?.minPrima || 0;
+            const meetsMinPrima = minPrima === 0 || annualPrima >= minPrima || monthlyPrima >= minPrima;
+
+            mapByKey.set(key, {
+                key,
+                sourceId: (rec._id || '').toString(),
+                companyName: name,
+                nit: rec.nit || existing?.nit || '',
+                legalRepresentative: rec.legalRepresentative || existing?.legalRepresentative || '',
+                legalRepresentativeId: rec.legalRepresentativeId || existing?.legalRepresentativeId || '',
+                workerCount,
+                currentArl: rec.arl || existing?.currentArl || 'Por confirmar',
+                city: rec.city || existing?.city || '',
+                address: rec.address || existing?.address || '',
+                phone: rec.phone || existing?.phone || '',
+                email: rec.email || existing?.email || '',
+                responsibleSST: rec.responsibleSST || existing?.responsibleSST || '',
+                rawCiiu: rec.ciiu || existing?.rawCiiu || '',
+                rawEconomicActivity: rec.economicActivity || rec.sector || existing?.rawEconomicActivity || '',
+                origin: existing && existing.origin !== originLabel ? `${existing.origin} + ${originLabel}` : originLabel,
+                cpsMatch: matched
+                    ? {
+                          cod768: matched.cod768,
+                          ciiu: matched.ciiu,
+                          clase: matched.clase,
+                          descripcion: matched.descripcion,
+                          nicho: matched.nicho,
+                          nivel: matched.nivel,
+                          excepcion: matched.excepcion,
+                          minPrima: matched.minPrima,
+                          plenaAlternatesInCiiu: matched.plenaAlternatesInCiiu || [],
+                      }
+                    : null,
+                monthlyPrima,
+                annualPrima,
+                meetsMinPrima,
+                estimatedAnnualCommission10: Math.round(annualPrima * 0.1),
+                updatedAt: rec.updatedAt || existing?.updatedAt || new Date(),
+            });
+        };
+
+        for (const c of sgsstCompanies) ingestRecord(c, 'Somos SST');
+        for (const m of ipvrMetrics) {
+            ingestRecord(m, m.source === 'wappystudio_live' ? 'Wappy Studio' : 'Matriz IPVR');
+        }
+
+        const prospects = Array.from(mapByKey.values()).sort((a, b) => {
+            const aPlena = a.cpsMatch?.nivel === 'Autorización Plena' ? 1 : 0;
+            const bPlena = b.cpsMatch?.nivel === 'Autorización Plena' ? 1 : 0;
+            if (aPlena !== bPlena) return bPlena - aPlena;
+            return b.annualPrima - a.annualPrima;
+        });
+
+        return res.json({
+            success: true,
+            totalProspects: prospects.length,
+            plenaCount: prospects.filter((p) => p.cpsMatch?.nivel === 'Autorización Plena').length,
+            totalPotentialAnnualPrima: prospects.reduce((acc, p) => acc + (p.annualPrima || 0), 0),
+            prospects,
+        });
+    } catch (err) {
+        console.error('[WappyColmena] Error en /radar:', err);
+        return res.status(500).json({ error: 'Error cruzando radar de prospectos.' });
+    }
+});
+
+// 3. Listar Negocios / Pipeline CRM de Intermediación WAPPY LTDA
+router.get('/wappycolmena/deals', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        const deals = await ColmenaIntermediacionDeal.find({}).sort({ updatedAt: -1 }).lean();
+        return res.json({
+            success: true,
+            deals: deals.map((d) => ({ ...d, _id: d._id.toString() })),
+        });
+    } catch (err) {
+        console.error('[WappyColmena] Error listando deals:', err);
+        return res.status(500).json({ error: 'Error consultando pipeline de intermediación.' });
+    }
+});
+
+// 4. Crear o Actualizar Negocio de Intermediación
+router.post('/wappycolmena/deals', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        const body = req.body || {};
+        const companyName = String(body.companyName || '').trim();
+        if (!companyName) {
+            return res.status(400).json({ error: 'La Razón Social de la empresa es obligatoria.' });
+        }
+
+        const updatePayload = {
+            companyName,
+            nit: String(body.nit || '').trim(),
+            legalRepresentative: String(body.legalRepresentative || '').trim(),
+            legalRepresentativeId: String(body.legalRepresentativeId || '').trim(),
+            city: String(body.city || '').trim(),
+            address: String(body.address || '').trim(),
+            phone: String(body.phone || '').trim(),
+            email: String(body.email || '').trim(),
+            responsibleSST: String(body.responsibleSST || '').trim(),
+            currentArl: String(body.currentArl || 'SURA').trim(),
+            targetType: body.targetType === 'VOLUNTARIO' ? 'VOLUNTARIO' : 'EMPRESA',
+            ciiu: String(body.ciiu || '').trim(),
+            cod768: String(body.cod768 || '').trim(),
+            claseRiesgo: Number(body.claseRiesgo) || 1,
+            descripcionActividad: String(body.descripcionActividad || '').trim(),
+            nicho2026: String(body.nicho2026 || 'Otras Actividades').trim(),
+            nivelAutorizacion: String(body.nivelAutorizacion || 'Autorización Plena').trim(),
+            excepcionPrima: String(body.excepcionPrima || '').trim(),
+            minPrimaRequerida: Number(body.minPrimaRequerida) || 0,
+            workerCount: Number(body.workerCount) || 1,
+            avgIbc: Number(body.avgIbc) || 1750905,
+            centers: Array.isArray(body.centers) ? body.centers : [],
+            monthlyPrimaColmena: Number(body.monthlyPrimaColmena) || 0,
+            annualPrimaColmena: Number(body.annualPrimaColmena) || 0,
+            meetsMinPrimaRule: body.meetsMinPrimaRule !== false,
+            commissionPct: Number(body.commissionPct) || 10,
+            estimatedMonthlyCommission: Number(body.estimatedMonthlyCommission) || 0,
+            estimatedAnnualCommission: Number(body.estimatedAnnualCommission) || 0,
+            reinvestmentSstPct: Number(body.reinvestmentSstPct) || 20,
+            estimatedReinvestmentSst: Number(body.estimatedReinvestmentSst) || 0,
+            stage: body.stage || 'PROSPECTO',
+            sourceOrigin: body.sourceOrigin || 'MANUAL',
+            notes: String(body.notes || ''),
+            aiProposalHtml: body.aiProposalHtml || '',
+            aiTechnicalSheetHtml: body.aiTechnicalSheetHtml || '',
+            aiBrokerLetterHtml: body.aiBrokerLetterHtml || '',
+            createdBy: req.user?.email || 'admin@wappy.club',
+        };
+
+        let saved;
+        if (body._id) {
+            saved = await ColmenaIntermediacionDeal.findByIdAndUpdate(
+                body._id,
+                { $set: updatePayload },
+                { new: true, upsert: true },
+            );
+        } else {
+            const query = updatePayload.nit
+                ? { nit: updatePayload.nit, companyName }
+                : { companyName };
+            saved = await ColmenaIntermediacionDeal.findOneAndUpdate(
+                query,
+                { $set: updatePayload },
+                { new: true, upsert: true, setDefaultsOnInsert: true },
+            );
+        }
+
+        return res.json({
+            success: true,
+            deal: { ...saved.toObject(), _id: saved._id.toString() },
+        });
+    } catch (err) {
+        console.error('[WappyColmena] Error guardando deal:', err);
+        return res.status(500).json({ error: 'Error al guardar gestión de intermediación.' });
+    }
+});
+
+// 5. Eliminar Negocio del Pipeline
+router.delete('/wappycolmena/deals/:id', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        await ColmenaIntermediacionDeal.findByIdAndDelete(req.params.id);
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('[WappyColmena] Error eliminando deal:', err);
+        return res.status(500).json({ error: 'Error eliminando registro.' });
+    }
+});
+
+// 6. Generador IA de Documentos Ejecutivos para Intermediación WAPPY LTDA × ARL Colmena
+router.post('/wappycolmena/ai-generate', requireAdminCookieOrJwt, async (req, res) => {
+    try {
+        const { docType, dealData, customApiKey } = req.body || {};
+        const d = dealData || {};
+        const sysKeys = (process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || '')
+            .split(',')
+            .map((k) => k.trim())
+            .filter(Boolean);
+        const apiKey = (customApiKey || '').trim() || sysKeys[0] || '';
+
+        const promptByType = {
+            propuesta: `Actúa como Director del Área de Intermediación de Seguros de Riesgos Laborales de WAPPY LTDA (Somos SST) aliado de ARL Colmena Seguros.
+Redacta en HTML limpio (solo etiquetas semánticas <h3>, <p>, <ul>, <li>, <table>, <strong>, sin bloques markdown \`\`\`) una PROPUESTA EJECUTIVA DE VALOR COMERCIAL Y TÉCNICA dirigida a la empresa "${d.companyName || 'Empresa Prospecto'}" (NIT: ${d.nit || 'N/A'}, Rep. Legal: ${d.legalRepresentative || 'Representante Legal'}, Ciudad: ${d.city || 'Colombia'}, ARL Actual: ${d.currentArl || 'Otra ARL'}).
+Datos técnicos CPS-A-26 V16 (2026):
+- Código Decreto 768: ${d.cod768 || 'N/A'} (CIIU ${d.ciiu || 'N/A'}) - Clase de Riesgo ${d.claseRiesgo || 1}
+- Actividad: ${d.descripcionActividad || 'N/A'}
+- Nicho Estratégico Colmena 2026: ${d.nicho2026 || 'General'}
+- Nivel de Autorización CPS-A-26 V16: ${d.nivelAutorizacion || 'Autorización Plena'}
+- N° Trabajadores: ${d.workerCount || 10} | Prima Mensual Estimada ARL: $${Number(d.monthlyPrimaColmena || 0).toLocaleString('es-CO')} COP | Prima Anual: $${Number(d.annualPrimaColmena || 0).toLocaleString('es-CO')} COP
+- Presupuesto de Reinversión Preventiva SST estimado: $${Number(d.estimatedReinvestmentSst || 0).toLocaleString('es-CO')} COP/año.
+Incluye: 1) Resumen Ejecutivo de la Alianza WAPPY LTDA + ARL Colmena Seguros; 2) Diagnóstico Tarifario y Clasificación Decreto 768 de 2022; 3) Beneficios Exclusivos Sin Costo Adicional al nombrar a WAPPY LTDA como Intermediario (Ecosistema WAPPY IA con +30 módulos de los 8 Hitos SG-SST, Agentes IA Especialistas, Auditoría Resolución 0312 de 2019 y Decreto 1072 de 2015, y Gestión de Reinversión ante ARL Colmena); 4) Cronograma de Transición / Afiliación en 4 pasos sin traumatismos operativos.`,
+
+            ficha_suscripcion: `Actúa como Director Técnico de Suscripción ARL de WAPPY LTDA presentando un caso de Venta Proactiva ante la Gerencia Comercial / Suscripción de ARL Colmena Seguros bajo el instructivo oficial CPS-A-26 V16 (2026).
+Redacta en HTML limpio (solo etiquetas <h3>, <p>, <ul>, <li>, <table>, <strong>, sin bloques markdown) el CONCEPTO TÉCNICO DE VIABILIDAD Y SUSCRIPCIÓN CPS-A-26 V16 para:
+- Razón Social: ${d.companyName || 'Empresa'} (NIT: ${d.nit || 'N/A'})
+- Código Decreto 768: ${d.cod768 || 'N/A'} | CIIU V4: ${d.ciiu || 'N/A'} | Clase de Riesgo: ${d.claseRiesgo || 1}
+- Descripción Decreto 768: ${d.descripcionActividad || 'N/A'}
+- Nicho Colmena 2026: ${d.nicho2026 || 'Otras Actividades'} | Nivel Autorización CPS-A-26 V16: ${d.nivelAutorizacion || 'Autorización Plena'}
+- Regla de Excepción Prima Mínima: ${d.excepcionPrima || 'Sin restricción de prima mínima'} (${d.meetsMinPrimaRule ? 'CUMPLE REGLA DE PRIMA' : 'REQUIERE VALIDACIÓN DE PRIMA'})
+- Masa Salarial / Trabajadores: ${d.workerCount || 10} trabajadores | Prima Mensual: $${Number(d.monthlyPrimaColmena || 0).toLocaleString('es-CO')} COP | Prima Anual: $${Number(d.annualPrimaColmena || 0).toLocaleString('es-CO')} COP.
+Incluye justificación de control de siniestralidad apalancada en el monitoreo continuo con WAPPY IA (Matriz GTC 45 en vivo, control de actos/condiciones inseguras y cumplimiento Resolución 0312/2019) para avalar su suscripción inmediata en ARL Colmena.`,
+        };
+
+        const selectedPrompt = promptByType[docType] || promptByType.propuesta;
+        const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+
+        if (apiKey) {
+            for (const modelId of modelsToTry) {
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`;
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: selectedPrompt }] }],
+                            generationConfig: { temperature: 0.35, maxOutputTokens: 2048 },
+                        }),
+                    });
+                    if (resp.ok) {
+                        const json = await resp.json();
+                        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        if (text.trim()) {
+                            const cleanHtml = text
+                                .replace(/^```html\s*/i, '')
+                                .replace(/^```\s*/i, '')
+                                .replace(/```\s*$/i, '')
+                                .trim();
+                            return res.json({ success: true, html: cleanHtml, modelUsed: modelId });
+                        }
+                    }
+                } catch (_e) {}
+            }
+        }
+
+        return res.json({
+            success: true,
+            html: '',
+            fallback: true,
+            message: 'Usando plantilla determinista de alta precisión WAPPY LTDA.',
+        });
+    } catch (err) {
+        console.error('[WappyColmena] Error en /ai-generate:', err);
+        return res.status(500).json({ error: 'Error generando documento.' });
+    }
+});
 
 module.exports = router;

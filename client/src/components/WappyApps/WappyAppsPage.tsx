@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { ArrowUpRight, Clock, LayoutGrid, Megaphone, Search, CheckCircle2, Lock } from 'lucide-react';
 import { useMediaQuery } from '@librechat/client';
 import type { ContextType } from '~/common';
-import { useDocumentTitle } from '~/hooks';
+import { useDocumentTitle, useAuthContext } from '~/hooks';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import { cn } from '~/utils';
@@ -176,6 +176,61 @@ function AppCardVisual({ app }: { app: WappyAppCatalogItem }) {
     );
   }
 
+  if (app.visualType === 'wappy-colmena') {
+    return (
+      <div className="relative flex h-full w-full flex-col justify-between overflow-hidden bg-gradient-to-br from-[#07111e] via-[#0c192e] to-[#0e1300] p-3">
+        <div className="pointer-events-none absolute -left-6 -top-6 h-28 w-28 rounded-full bg-[#c7f303]/25 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-6 -right-6 h-28 w-28 rounded-full bg-amber-400/25 blur-2xl" />
+
+        <div className="z-10 flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#c7f303] shadow-[0_0_8px_#c7f303]" />
+            <span className="text-[10px] font-black tracking-wider text-[#c7f303]">
+              ARL COLMENA × WAPPY LTDA
+            </span>
+          </div>
+          <span className="rounded-md border border-amber-400/50 bg-amber-500/20 px-1.5 py-0.5 text-[8.5px] font-black text-amber-200">
+            CPS-A-26 V16 • ADMIN
+          </span>
+        </div>
+
+        <div className="z-10 grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1 rounded-xl border border-[#c7f303]/40 bg-slate-950/80 p-2 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-bold uppercase text-slate-400">Decreto 768 / CIIU</span>
+              <span className="rounded bg-[#c7f303] px-1 py-0.2 text-[7px] font-black text-[#0e1300]">
+                1.104 ACT
+              </span>
+            </div>
+            <div className="text-xs font-black text-white">Autorización Plena</div>
+            <div className="flex items-center gap-1 text-[8px] font-bold text-emerald-300">
+              <span>● 425 Plenas</span>
+              <span>•</span>
+              <span>115 Gemelos</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 rounded-xl border border-teal-400/40 bg-slate-950/80 p-2 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-bold uppercase text-slate-400">Intermediación</span>
+              <span className="rounded bg-teal-500/30 px-1 py-0.2 text-[7px] font-black text-teal-200">
+                RADAR IA
+              </span>
+            </div>
+            <div className="text-xs font-black text-[#c7f303]">Simulador Prima</div>
+            <div className="text-[8px] font-bold text-amber-200">
+              Topes $3M / $40M + Carta A4
+            </div>
+          </div>
+        </div>
+
+        <div className="z-10 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#c7f303]/40 bg-[#c7f303]/15 px-2.5 py-0.5 text-[9px] font-bold text-[#c7f303]">
+          <span>🛡️ Uso Exclusivo Admin · Suscripción, Radar Somos SST &amp; CRM Colmena</span>
+        </div>
+      </div>
+    );
+  }
+
   const isSoon = app.badgeTone === 'soon';
   return (
     <div
@@ -310,6 +365,7 @@ function AppCard({ app, onOpen }: { app: WappyAppCatalogItem; onOpen: (app: Wapp
 export default function WappyAppsPage() {
   useDocumentTitle('WAPPY APPs | WAPPY IA');
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuthContext();
   const outletContext = useOutletContext<ContextType | undefined>();
   const navVisible = outletContext?.navVisible ?? true;
   const setNavVisible = outletContext?.setNavVisible;
@@ -317,8 +373,47 @@ export default function WappyAppsPage() {
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<AppsFilter>('all');
+  const [serverAdminVerified, setServerAdminVerified] = useState(false);
 
-  const hasSoonApps = useMemo(() => WAPPY_APPS_CATALOG.some((a) => a.badgeTone === 'soon'), []);
+  const adminEmails = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
+  const isContextAdmin = Boolean(
+    isAuthenticated &&
+      user &&
+      (user.role === 'ADMIN' ||
+        user.role === 'admin' ||
+        adminEmails.includes((user.email || '').toLowerCase())),
+  );
+  const isAdmin = isContextAdmin || serverAdminVerified;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function verifyAdminSession() {
+      if (isContextAdmin) {
+        setServerAdminVerified(true);
+        return;
+      }
+      try {
+        const r = await fetch('/api/comunidad/is-admin', { credentials: 'include' });
+        if (r.ok) {
+          const d = await r.json();
+          if (d?.isAdmin === true && !cancelled) {
+            setServerAdminVerified(true);
+          }
+        }
+      } catch (_e) {}
+    }
+    verifyAdminSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [isContextAdmin]);
+
+  const visibleCatalog = useMemo(
+    () => WAPPY_APPS_CATALOG.filter((a) => !a.adminOnly || isAdmin),
+    [isAdmin],
+  );
+
+  const hasSoonApps = useMemo(() => visibleCatalog.some((a) => a.badgeTone === 'soon'), [visibleCatalog]);
   const availableFilters = useMemo(
     () => ALL_FILTERS.filter((f) => (f.id === 'soon' ? hasSoonApps : true)),
     [hasSoonApps],
@@ -332,7 +427,7 @@ export default function WappyAppsPage() {
 
   const apps = useMemo(() => {
     const q = (query || '').trim().toLowerCase();
-    return WAPPY_APPS_CATALOG.filter((app) => {
+    return visibleCatalog.filter((app) => {
       if (filter === 'active' && app.badgeTone !== 'active') {
         return false;
       }
@@ -347,9 +442,9 @@ export default function WappyAppsPage() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [query, filter]);
+  }, [query, filter, visibleCatalog]);
 
-  const activeCount = WAPPY_APPS_CATALOG.filter((a) => a.badgeTone === 'active').length;
+  const activeCount = visibleCatalog.filter((a) => a.badgeTone === 'active').length;
 
   const {
     isVerified,
@@ -362,23 +457,27 @@ export default function WappyAppsPage() {
   } = useInstagramFollowGate();
 
   useEffect(() => {
-    if (!isVerified) {
+    if (!isVerified && !isAdmin) {
       setIsGateOpen(true);
     }
-  }, [isVerified, setIsGateOpen]);
+  }, [isVerified, isAdmin, setIsGateOpen]);
 
   const executeOpenApp = (app: WappyAppCatalogItem) => {
     if (!app.path) {
       return;
     }
-    const url = appendIgPassToUrl(resolveWappyAppUrl(app.path));
+    const url = app.adminOnly ? resolveWappyAppUrl(app.path) : appendIgPassToUrl(resolveWappyAppUrl(app.path));
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   /**
-   * Todas las WAPPY APPs (actuales y futuras) requieren verificación de seguidor en @wappy_ia (Opción 1: a todos).
+   * Todas las WAPPY APPs públicas requieren verificación de seguidor en @wappy_ia; las apps exclusivas de Admin abren directo.
    */
   const handleOpenApp = (app: WappyAppCatalogItem) => {
+    if (app.adminOnly && isAdmin) {
+      executeOpenApp(app);
+      return;
+    }
     requireFollowBeforeOpen(app, executeOpenApp);
   };
 

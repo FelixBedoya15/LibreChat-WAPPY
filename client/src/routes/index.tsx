@@ -126,6 +126,11 @@ const MatrizIpvrRedirect = () => {
   return null;
 };
 
+const WappyColmenaRedirect = () => {
+  window.location.replace('/wappycolmena.html');
+  return null;
+};
+
 const PortafolioRedirect = () => {
   return withSuspense(
     <AuthContextProvider>
@@ -486,6 +491,26 @@ export const router = createBrowserRouter(
     {
       path: 'wappy-podcast.html',
       element: withSuspense(<WappyPodcastPage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappycolmena',
+      element: <WappyColmenaRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappycolmena.html',
+      element: <WappyColmenaRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-colmena',
+      element: <WappyColmenaRedirect />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'wappy-colmena.html',
+      element: <WappyColmenaRedirect />,
       errorElement: <RouteErrorBoundary />,
     },
     {

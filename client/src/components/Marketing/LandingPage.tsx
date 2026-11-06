@@ -34,6 +34,40 @@ export default function LandingPage() {
   const sessionFirstName = sessionUserName.split(/\s+/)[0] || '';
   const sessionAvatar = (user as any)?.avatar || '';
   const sessionNeedsPlan = Boolean(isAuthenticated && user && !hasActivePlan(user));
+
+  const adminEmails = ['cristhian@mauricioposadac.com', 'mauricioposadac@gmail.com'];
+  const isContextAdmin = Boolean(
+    isAuthenticated &&
+      user &&
+      (user.role === 'ADMIN' ||
+        user.role === 'admin' ||
+        adminEmails.includes((user.email || '').toLowerCase())),
+  );
+  const [serverAdminVerified, setServerAdminVerified] = useState(false);
+  const isAdmin = isContextAdmin || serverAdminVerified;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function verifyAdmin() {
+      if (isContextAdmin) {
+        setServerAdminVerified(true);
+        return;
+      }
+      try {
+        const r = await fetch('/api/comunidad/is-admin', { credentials: 'include' });
+        if (r.ok) {
+          const d = await r.json();
+          if (d?.isAdmin === true && !cancelled) {
+            setServerAdminVerified(true);
+          }
+        }
+      } catch (_e) {}
+    }
+    verifyAdmin();
+    return () => {
+      cancelled = true;
+    };
+  }, [isContextAdmin]);
   const [isWelcomeDismissed, setIsWelcomeDismissed] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem('wappy_welcome_back_dismissed') === '1';
@@ -2622,6 +2656,76 @@ export default function LandingPage() {
             </p>
           </div>
 
+          {isAdmin && (
+            <div
+              style={{
+                maxWidth: 1080,
+                margin: '0 auto 28px',
+                padding: '20px 24px',
+                borderRadius: 24,
+                background: 'linear-gradient(135deg, #07111e 0%, #0c192e 55%, #0e1300 100%)',
+                border: '1.5px solid rgba(199, 243, 3, 0.5)',
+                boxShadow: '0 18px 40px -12px rgba(14, 19, 0, 0.38)',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 18,
+              }}
+            >
+              <div style={{ flex: '1 1 380px', minWidth: 0 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 900,
+                      padding: '3px 10px',
+                      borderRadius: 9999,
+                      background: '#c7f303',
+                      color: '#0e1300',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    🛡️ SOLO ADMIN · INTERMEDIACIÓN WAPPY LTDA
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 800,
+                      padding: '3px 10px',
+                      borderRadius: 9999,
+                      background: 'rgba(245, 158, 11, 0.2)',
+                      border: '1px solid rgba(251, 191, 36, 0.45)',
+                      color: '#fde68a',
+                    }}
+                  >
+                    CPS-A-26 V16 (2026) · Decreto 768
+                  </span>
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: '#ffffff', lineHeight: 1.2 }}>
+                  Wappy ARL Colmena · Motor de Venta Proactiva &amp; Suscripción
+                </div>
+                <div style={{ fontSize: 13, color: '#cbd5e1', marginTop: 4, lineHeight: 1.45 }}>
+                  Calificador instantáneo de las 1.104 actividades Decreto 768 + 322 ocupaciones, detector de 115 subcódigos gemelos con Autorización Plena, simulador de prima y topes ($3M/$40M), radar de prospectos Somos SST y generador IA de propuestas y cartas de intermediación A4.
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <a
+                  href="/wappycolmena"
+                  className="btn btn-lime"
+                  style={{
+                    textDecoration: 'none',
+                    fontWeight: 900,
+                    padding: '12px 20px',
+                    fontSize: 13.5,
+                  }}
+                >
+                  Abrir Wappy ARL Colmena →
+                </a>
+              </div>
+            </div>
+          )}
+
           <div className="intg">
             {/* 1. Diagnóstico 0312 */}
             <div className="i">
@@ -4941,6 +5045,20 @@ export default function LandingPage() {
             ×
           </button>
           <div className="mkt-welcome-back-actions">
+            {isAdmin && (
+              <a
+                href="/wappycolmena"
+                className="mkt-welcome-back-btn secondary"
+                style={{
+                  textDecoration: 'none',
+                  borderColor: 'rgba(199, 243, 3, 0.55)',
+                  color: '#c7f303',
+                  background: 'rgba(14, 19, 0, 0.85)',
+                }}
+              >
+                🛡️ ARL Colmena
+              </a>
+            )}
             {!sessionNeedsPlan && (
               <button type="button" className="mkt-welcome-back-btn secondary" onClick={handleOpenWappyAppsInternal}>
                 WAPPY APPs
