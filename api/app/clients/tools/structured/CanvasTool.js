@@ -283,17 +283,33 @@ async function buildMultimodalMediaContext(req, userId, stringContent = '', user
       try {
         const imgPath = imgItem.fullPath || path.join(OUTPUT_MEDIA_DIR, imgItem.filename);
         const stat = await fs.promises.stat(imgPath);
-        if (stat.isFile() && stat.size > 64 && stat.size <= 12 * 1024 * 1024) {
-          const buf = await fs.promises.readFile(imgPath);
-          const ext = path.extname(imgItem.filename).toLowerCase();
-          const mimeType =
-            ext === '.png'
-              ? 'image/png'
-              : ext === '.webp'
-              ? 'image/webp'
-              : ext === '.gif'
-              ? 'image/gif'
-              : 'image/jpeg';
+        if (stat.isFile() && stat.size > 64 && stat.size <= 15 * 1024 * 1024) {
+          let buf = null;
+          let mimeType = 'image/jpeg';
+          // Si el archivo supera 500 KB (ej. infografías PNG de 4-8 MB de NotebookLM), comprimir en memoria con sharp a JPEG 1600px (~200 KB) para evitar timeouts 503/fetch en Gemini Vision
+          if (stat.size > 500 * 1024) {
+            try {
+              const sharp = require('sharp');
+              buf = await sharp(imgPath)
+                .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+                .jpeg({ quality: 82 })
+                .toBuffer();
+              mimeType = 'image/jpeg';
+            } catch (_) {
+              buf = await fs.promises.readFile(imgPath);
+            }
+          } else {
+            buf = await fs.promises.readFile(imgPath);
+            const ext = path.extname(imgItem.filename).toLowerCase();
+            mimeType =
+              ext === '.png'
+                ? 'image/png'
+                : ext === '.webp'
+                ? 'image/webp'
+                : ext === '.gif'
+                ? 'image/gif'
+                : 'image/jpeg';
+          }
           inlineParts.push({
             inlineData: {
               data: buf.toString('base64'),
