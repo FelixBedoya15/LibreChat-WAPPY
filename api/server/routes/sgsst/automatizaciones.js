@@ -268,8 +268,10 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 9, minute: 0, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
-      triggers: ['schedule_cron', 'trigger_antigravity', 'trigger_webhook'],
-      inputs: ['google_drive', 'one_drive', 'google_antigravity', 'webhook_api'],
+      triggers: ['schedule_cron', 'trigger_antigravity_cloud', 'trigger_antigravity', 'trigger_webhook'],
+      aiEngine: 'antigravity_cloud',
+      aiModel: 'gemini-3.6-flash',
+      inputs: ['google_drive', 'one_drive', 'google_antigravity_cloud', 'google_antigravity', 'webhook_api'],
       hitos: ['hito1_diagnostico_0312', 'hito2_perfil_socio', 'hito7_acpm'],
       outputs: ['somos_sst_update', 'google_sheets', 'email_report'],
     },

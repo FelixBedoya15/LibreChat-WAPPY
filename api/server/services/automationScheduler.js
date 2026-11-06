@@ -431,7 +431,13 @@ async function runAutomation(automation, isManual = false) {
       } catch (_) {}
     }
 
-    const selectedAiEngine = automation.workflowNodes?.aiEngine === 'antigravity' ? 'antigravity' : 'wappy';
+    const rawEngine = automation.workflowNodes?.aiEngine;
+    const selectedAiEngine =
+      rawEngine === 'antigravity_cloud'
+        ? 'antigravity_cloud'
+        : rawEngine === 'antigravity'
+          ? 'antigravity'
+          : 'wappy';
     const allowedTextModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
     const requestedModel = automation.workflowNodes?.aiModel;
     const effectiveAiModel = allowedTextModels.includes(requestedModel)
@@ -439,9 +445,11 @@ async function runAutomation(automation, isManual = false) {
       : agent.model || 'gemini-3.6-flash';
 
     const antigravityEngineDirective =
-      selectedAiEngine === 'antigravity'
-        ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity IDE + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" (action: "delegate_task" o consulta por puente Push SSE) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
-        : `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
+      selectedAiEngine === 'antigravity_cloud'
+        ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity Cloud 24/7 (antigravity.google.com) + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" con entorno destino "cloud" (24/7 sin necesidad del PC encendido) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
+        : selectedAiEngine === 'antigravity'
+          ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity Local (Mac/PC) + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" (action: "delegate_task" o consulta por puente Push SSE con respaldo Cloud Failover automático) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
+          : `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
 
     const companyHeaderBlock = automationCompany
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +

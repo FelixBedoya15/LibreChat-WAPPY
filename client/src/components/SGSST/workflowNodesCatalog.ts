@@ -26,7 +26,7 @@ export interface CanvasWireEdge {
 export interface WorkflowNodesConfig {
   trigger: string;
   triggers?: string[];
-  aiEngine?: 'wappy' | 'antigravity';
+  aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
   aiModel?: string;
   memoryNode?: string;
   includeIfNode?: boolean;
@@ -41,7 +41,7 @@ export interface WorkflowNodesConfig {
 
 export interface AiEngineModelDef {
   id: string;
-  engine: 'wappy' | 'antigravity';
+  engine: 'wappy' | 'antigravity' | 'antigravity_cloud';
   model: string;
   label: string;
   shortLabel: string;
@@ -51,7 +51,7 @@ export interface AiEngineModelDef {
 
 /**
  * Modelos verificados en .env (GOOGLE_MODELS=gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash)
- * + Motor Google Antigravity IDE con Servidor MCP WAPPY (110+ tools).
+ * + Motor Google Antigravity Local (Mac/PC) y Google Antigravity Cloud 24/7 (antigravity.google.com) con Servidor MCP WAPPY (110+ tools).
  */
 export const AI_ENGINE_MODELS: AiEngineModelDef[] = [
   {
@@ -85,10 +85,19 @@ export const AI_ENGINE_MODELS: AiEngineModelDef[] = [
     id: 'antigravity_mcp_engine',
     engine: 'antigravity',
     model: 'gemini-3.6-flash',
-    label: 'Google Antigravity IDE + MCP WAPPY (110+ Tools)',
-    shortLabel: 'Antigravity + MCP',
-    subtitle: 'Puente Push SSE + MCP Directo',
-    description: 'Delega el procesamiento al cerebro de Google Antigravity conectado por Push SSE con las 110+ herramientas MCP.',
+    label: 'Google Antigravity Local (Mac/PC) + MCP WAPPY (110+ Tools)',
+    shortLabel: 'Antigravity Local + MCP',
+    subtitle: 'Puente Push SSE Mac/PC + Respaldo Cloud',
+    description: 'Delega el procesamiento a tu Antigravity en Mac/PC vía Push SSE con las 110+ herramientas MCP y respaldo automático.',
+  },
+  {
+    id: 'antigravity_cloud_mcp_engine',
+    engine: 'antigravity_cloud',
+    model: 'gemini-3.6-flash',
+    label: 'Google Antigravity Cloud 24/7 (antigravity.google.com) + MCP WAPPY',
+    shortLabel: 'Antigravity Cloud 24/7',
+    subtitle: 'Cloud 24/7 sin PC Prendido + MCP',
+    description: 'Delega el procesamiento a tu instancia conectada en Google Antigravity Cloud (antigravity.google.com) 24/7 sin depender de tu PC encendido.',
   },
 ];
 
@@ -144,13 +153,23 @@ export const TRIGGER_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'trigger_antigravity',
-    label: 'Google Antigravity (Puente MCP / PC)',
-    shortLabel: 'Antigravity',
+    label: 'Google Antigravity Local (Puente MCP / Mac / PC)',
+    shortLabel: 'Antigravity Local',
     category: 'trigger',
     badge: 'Orden MCP / PC',
-    description: 'Google Antigravity dispara esta tarea desde tu PC o mediante herramientas MCP.',
-    toolHint: 'Disparo desde Google Antigravity IDE / Servidor MCP WAPPY',
+    description: 'Google Antigravity dispara esta tarea desde tu Mac/PC conectado vía Push SSE + MCP.',
+    toolHint: 'Disparo desde Google Antigravity Local (Mac/PC) / Servidor MCP WAPPY',
     badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+  },
+  {
+    id: 'trigger_antigravity_cloud',
+    label: 'Google Antigravity Cloud 24/7 (antigravity.google.com)',
+    shortLabel: 'Antigravity Cloud',
+    category: 'trigger',
+    badge: 'Cloud 24/7',
+    description: 'Google Antigravity Cloud (antigravity.google.com) dispara o ejecuta esta tarea 24/7 en la nube sin tu PC prendido.',
+    toolHint: 'Disparo desde Google Antigravity Cloud 24/7 (antigravity.google.com) / Servidor MCP WAPPY',
+    badgeColor: 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300 border-sky-300 dark:border-sky-800',
   },
   {
     id: 'trigger_email',
@@ -286,11 +305,19 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'google_antigravity',
-    label: 'Google Antigravity (Puente PC)',
-    shortLabel: 'Antigravity',
+    label: 'Google Antigravity Local (Puente Mac / PC)',
+    shortLabel: 'Antigravity Local',
     category: 'IA, MCP & Web',
-    toolHint: 'google_antigravity (puente reactivo con el PC)',
+    toolHint: 'google_antigravity (puente reactivo con Mac/PC)',
     badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+  {
+    id: 'google_antigravity_cloud',
+    label: 'Google Antigravity Cloud 24/7 (antigravity.google.com)',
+    shortLabel: 'Antigravity Cloud',
+    category: 'IA, MCP & Web',
+    toolHint: 'google_antigravity (entorno Cloud 24/7 en antigravity.google.com sin PC prendido)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
   },
   {
     id: 'web_search',
@@ -736,9 +763,13 @@ export function buildPromptFromWorkflowNodes(
     `Actúa como ${agentName || 'Consultor SG-SST'} ejecutando el flujo automatizado "${taskName || 'Flujo Autónomo SG-SST'}" exclusivamente para la empresa activa.`,
   );
 
-  if (engineMode === 'antigravity') {
+  if (engineMode === 'antigravity_cloud') {
     lines.push(
-      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo apoyándote en Google Antigravity IDE + Servidor MCP WAPPY (herramienta google_antigravity por puente Push SSE) y el modelo ${modelId}.`,
+      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo apoyándote en Google Antigravity Cloud 24/7 (antigravity.google.com) + Servidor MCP WAPPY (herramienta google_antigravity con entorno Cloud 24/7 sin necesidad del PC encendido) y el modelo ${modelId}.`,
+    );
+  } else if (engineMode === 'antigravity') {
+    lines.push(
+      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo apoyándote en Google Antigravity Local (Mac/PC) + Servidor MCP WAPPY (herramienta google_antigravity por puente Push SSE con respaldo Cloud Failover) y el modelo ${modelId}.`,
     );
   } else {
     lines.push(

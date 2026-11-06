@@ -121,24 +121,14 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Tenshi IA (Asistente Oficial WAPPY con Halo Verde Lima #C7F303 y Gafas Visor)
+  // Tenshi IA (Avatar 3D Oficial de Tenshi en WAPPY)
   if (id.includes('trigger_tenshi') || id.includes('tenshi')) {
     return (
-      <svg viewBox="0 0 48 48" className={sizeClass}>
-        {/* Halo Verde Lima WAPPY */}
-        <ellipse cx="24" cy="7.5" rx="11" ry="3" fill="none" stroke="#84cc16" strokeWidth="2.8" />
-        {/* Orejas */}
-        <polygon points="11,20 14,11 20,16" fill="#0d9488" />
-        <polygon points="37,20 34,11 28,16" fill="#0d9488" />
-        {/* Cabeza */}
-        <rect x="10" y="15" width="28" height="24" rx="11" fill="#0f172a" />
-        {/* Visor / Gafas de Tenshi */}
-        <rect x="13.5" y="21" width="9" height="6.5" rx="3" fill="#C7F303" />
-        <rect x="25.5" y="21" width="9" height="6.5" rx="3" fill="#C7F303" />
-        <line x1="22.5" y1="24" x2="25.5" y2="24" stroke="#C7F303" strokeWidth="2" />
-        {/* Sonrisa / Onda de voz */}
-        <path d="M20 32.5 Q24 35.5 28 32.5" fill="none" stroke="#2dd4bf" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
+      <img
+        src="/assets/tenshi.png"
+        alt="Tenshi IA"
+        className={`${sizeClass} object-contain drop-shadow-sm select-none pointer-events-none scale-125`}
+      />
     );
   }
 
@@ -177,7 +167,29 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Google Antigravity + MCP (Icono Oficial de AgentSessionPanel.tsx)
+  // Google Antigravity Cloud 24/7 (antigravity.google.com + Nube)
+  if (id.includes('antigravity_cloud')) {
+    return (
+      <svg viewBox="0 0 28 28" fill="none" className={sizeClass}>
+        <path
+          d="M11.5 4 4.5 19l3-1.3L11.5 9.2l4 8.5 3 1.3L11.5 4z"
+          stroke="#0284c7"
+          strokeWidth="2.1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M8.3 15h6.4" stroke="#0284c7" strokeWidth="2.1" strokeLinecap="round" />
+        <path
+          d="M17.5 23.5h5.2a2.8 2.8 0 0 0 .4-5.57 3.8 3.8 0 0 0-7.2-1.18A2.5 2.5 0 0 0 17.5 23.5z"
+          fill="#38bdf8"
+          stroke="#0284c7"
+          strokeWidth="1.4"
+        />
+      </svg>
+    );
+  }
+
+  // Google Antigravity Local (Mac/PC) + MCP (Icono Oficial de AgentSessionPanel.tsx)
   if (id.includes('antigravity')) {
     return (
       <svg
@@ -365,6 +377,9 @@ export default function WappyWorkflowCanvas({
   const includeIfNode = workflowNodes?.includeIfNode !== false;
 
   const currentModelDef = useMemo(() => {
+    if (aiEngine === 'antigravity_cloud') {
+      return AI_ENGINE_MODELS.find((m) => m.engine === 'antigravity_cloud') || AI_ENGINE_MODELS[4] || AI_ENGINE_MODELS[3];
+    }
     if (aiEngine === 'antigravity') {
       return AI_ENGINE_MODELS.find((m) => m.engine === 'antigravity') || AI_ENGINE_MODELS[3];
     }
@@ -419,14 +434,19 @@ export default function WappyWorkflowCanvas({
       height: 86,
     });
 
-    // 3. SUB-NODO CIRCULAR: CHAT MODEL * (WAPPY Rotación de Claves vs Google Antigravity + MCP)
+    // 3. SUB-NODO CIRCULAR: CHAT MODEL * (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7)
     const modelPos = customPositions['sub_model'] || { x: 185, y: 245 };
     list.push({
       key: 'sub_model',
       nodeId: currentModelDef.id,
       shape: 'circle_model',
       title: currentModelDef.shortLabel,
-      subtitle: aiEngine === 'antigravity' ? 'Antigravity + MCP' : 'WAPPY Key Rotation',
+      subtitle:
+        aiEngine === 'antigravity_cloud'
+          ? 'Cloud 24/7 + MCP'
+          : aiEngine === 'antigravity'
+            ? 'Local Mac/PC + MCP'
+            : 'WAPPY Key Rotation',
       x: modelPos.x,
       y: modelPos.y,
       width: 62,
@@ -841,12 +861,17 @@ export default function WappyWorkflowCanvas({
     });
   };
 
-  // Cambiar Motor IA (WAPPY Rotación de Claves vs Google Antigravity + MCP) y Modelo
-  const handleSelectAiEngineModel = (engine: 'wappy' | 'antigravity', model: string) => {
+  // Cambiar Motor IA (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7) y Modelo
+  const handleSelectAiEngineModel = (
+    engine: 'wappy' | 'antigravity' | 'antigravity_cloud',
+    model: string,
+  ) => {
     if (!onChange || readOnly) return;
     const nextInputs = [...(workflowNodes.inputs || [])];
     if (engine === 'antigravity' && !nextInputs.includes('google_antigravity')) {
       nextInputs.push('google_antigravity');
+    } else if (engine === 'antigravity_cloud' && !nextInputs.includes('google_antigravity_cloud')) {
+      nextInputs.push('google_antigravity_cloud');
     }
     onChange({
       ...workflowNodes,
@@ -923,7 +948,16 @@ export default function WappyWorkflowCanvas({
               {[
                 { id: 'triggers', label: '⚡ 1. Disparadores / Entradas', badge: activeTriggers.length },
                 { id: 'connectors', label: '🔌 2. Conectores & Herramientas', badge: (workflowNodes.inputs || []).length },
-                { id: 'ai_engine', label: '🧠 3. Motor IA & Modelo (WAPPY / Antigravity)', badge: aiEngine === 'antigravity' ? 'MCP' : aiModel.replace('gemini-', '') },
+                {
+                  id: 'ai_engine',
+                  label: '🧠 3. Motor IA & Modelo (WAPPY / Antigravity Local & Cloud)',
+                  badge:
+                    aiEngine === 'antigravity_cloud'
+                      ? 'AGY Cloud'
+                      : aiEngine === 'antigravity'
+                        ? 'AGY Local'
+                        : aiModel.replace('gemini-', ''),
+                },
                 { id: 'hitos', label: '🛡️ 4. Hitos & Apps Somos SST', badge: (workflowNodes.hitos || []).length },
                 { id: 'outputs', label: '📤 5. Salidas & Acciones', badge: (workflowNodes.outputs || []).length },
               ].map((tab) => (
@@ -978,9 +1012,10 @@ export default function WappyWorkflowCanvas({
 
           {/* CUADRITOS ARRASTRABLES CON LOGOS SVG ORIGINALES */}
           {paletteTab === 'ai_engine' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
               {AI_ENGINE_MODELS.map((m) => {
                 const isSelected =
+                  (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
                   (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
                   (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
                 return (
@@ -1592,9 +1627,11 @@ export default function WappyWorkflowCanvas({
                   }}
                   className={`w-full h-full rounded-full bg-white dark:bg-slate-800 border-2 shadow-md flex items-center justify-center relative transition-transform group-hover/node:scale-105 ${
                     isModelCircle
-                      ? aiEngine === 'antigravity'
-                        ? 'border-orange-500 ring-2 ring-orange-500/20'
-                        : 'border-indigo-500 ring-2 ring-indigo-500/20'
+                      ? aiEngine === 'antigravity_cloud'
+                        ? 'border-sky-500 ring-2 ring-sky-500/20'
+                        : aiEngine === 'antigravity'
+                          ? 'border-orange-500 ring-2 ring-orange-500/20'
+                          : 'border-indigo-500 ring-2 ring-indigo-500/20'
                       : isMemoryCircle
                         ? 'border-pink-400 dark:border-pink-700'
                         : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
@@ -1635,12 +1672,14 @@ export default function WappyWorkflowCanvas({
                       onClick={() => {
                         if (aiEngine === 'wappy') {
                           handleSelectAiEngineModel('antigravity', 'gemini-3.6-flash');
+                        } else if (aiEngine === 'antigravity') {
+                          handleSelectAiEngineModel('antigravity_cloud', 'gemini-3.6-flash');
                         } else {
                           handleSelectAiEngineModel('wappy', 'gemini-3.6-flash');
                         }
                       }}
                       className="mt-1 px-2 py-0.5 rounded-full text-[8.5px] font-extrabold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition"
-                      title="Alternar entre WAPPY Cloud (Rotación de Claves) y Google Antigravity + MCP"
+                      title="Alternar entre WAPPY Cloud (Rotación de Claves), Antigravity Local (Mac/PC) y Antigravity Cloud 24/7"
                     >
                       Cambiar IA ⇄
                     </button>
