@@ -41,8 +41,31 @@ const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hi
 const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
 const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
 const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para el Generador Prioritario de Imágenes
-const DAEMON_VERSION = '2.6.3';
+const DAEMON_VERSION = '2.6.4';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
+
+/**
+ * Verifica si este equipo es exclusivamente el iMac o MacBook Pro de Félix Bedoya.
+ * Ningún otro usuario en ningún sistema operativo debe ejecutar bitácoras ni pruebas de conectores.
+ */
+function isOwnerAdminMac() {
+  if (process.platform !== 'darwin') return false;
+  let localUser = '';
+  let localHost = '';
+  try {
+    localUser = String(os.userInfo().username || '').toLowerCase().trim();
+  } catch (_) {}
+  try {
+    localHost = String(os.hostname() || '').toLowerCase().trim();
+  } catch (_) {}
+  return (
+    localUser === 'felixbedoya' ||
+    localUser === 'felix' ||
+    localUser.startsWith('felixbedoya') ||
+    localHost === 'felix' ||
+    localHost.includes('felixbedoya')
+  );
+}
 
 /**
  * Elimina de un objeto de entorno las variables de sesión de herramienta de Antigravity
@@ -2783,6 +2806,9 @@ let lastHealthcheckChatLoggedAt = 0;
 
 async function dispatchHealthcheckReportToChat(reportSpec = {}) {
   try {
+    if (!isOwnerAdminMac()) {
+      return { ok: true, skippedForPrivacy: true };
+    }
     ensureWappyProjectPermissions();
     ensureLiveAntigravityRunning(15);
 
@@ -2936,13 +2962,32 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const recurso = orden.recursoObjetivo || 'Datos Empresariales WAPPY MCP';
   const routingProfile = resolveOrderRoutingProfile(orden);
 
-  // Verificación pasiva y silenciosa (CERO apertura de chats y CERO invasión de la instancia de Antigravity del usuario):
+  // Exclusivo para el iMac / MacBook Pro de Félix: abre la Bitácora visual en su Antigravity; para cualquier otro usuario, cero invasión:
   if (orden.sourceModule === 'healthcheck_report' || /\[HEALTHCHECK-REPORT\]/i.test(String(titulo))) {
+    if (!isOwnerAdminMac()) {
+      await jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/completar`, 'POST', apiKey, {
+        ordenId,
+        formato: 'respuesta',
+        resultado: 'OK (bloqueado por privacidad en equipo de usuario).',
+        contenido: 'OK',
+      });
+      return;
+    }
+    const hcRes = await dispatchHealthcheckReportToChat({
+      corteHora: orden.corteHora,
+      titulo: String(titulo),
+      promptText: String(instruccion || ''),
+      empresa: String(empresa || ''),
+      companyWorkspace: String(orden.companyWorkspace || ''),
+    });
+    const hcSummary = hcRes.ok
+      ? `Bitácora de Conectores registrada en Antigravity (${hcRes.title}, conversación ${hcRes.conversationId || 'activa'}, proyecto ${hcRes.workspaceCwd}).`
+      : `Bitácora recibida (${hcRes.error || 'sin chat visual'}).`;
     await jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/completar`, 'POST', apiKey, {
       ordenId,
       formato: 'respuesta',
-      resultado: 'OK (verificación pasiva completada sin abrir chats en la instancia).',
-      contenido: 'OK',
+      resultado: hcSummary,
+      contenido: hcSummary,
     });
     return;
   }
@@ -2960,8 +3005,17 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         ].join('\n')
       : '';
 
-  // Verificación pasiva de proceso local (sin abrir ningún chat ni enviar prompts a la instancia de Antigravity):
+  // Verificación pasiva de proceso local (exclusiva para el iMac / MacBook Pro de Félix; cero ejecución en otros usuarios):
   if (orden.sourceModule === 'healthcheck_e2e' || String(titulo).includes('[HEALTHCHECK-E2E]')) {
+    if (!isOwnerAdminMac()) {
+      await jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/completar`, 'POST', apiKey, {
+        ordenId,
+        formato: 'respuesta',
+        resultado: 'OK (bloqueado por privacidad en equipo de usuario).',
+        contenido: 'OK',
+      });
+      return;
+    }
     const cands = ensureLiveAntigravityRunning(15);
     if (!cands || cands.length === 0) {
       log(`❌ [HealthCheck] Orden ${ordenId}: No hay instancia activa de language_server local.`);
@@ -3916,25 +3970,18 @@ function startSseWorker(cliArgs) {
         return '';
       }
     })();
-    const isOwnerMac =
-      process.platform === 'darwin' &&
-      (localUser === 'felixbedoya' ||
-        localUser === 'felix' ||
-        localUser.startsWith('felixbedoya') ||
-        localHost === 'felix' ||
-        localHost.includes('felix'));
-    if (!isOwnerMac) {
+    if (!isOwnerAdminMac()) {
       for (const staleFile of [
-        'wappy-connectors-healthcheck.js',
-        'wappy-healthcheck.log',
-        'wappy-healthcheck-state.json',
-        'wappy-healthcheck-bitacora.json',
-        'wappy-healthcheck-thread.json',
+        path.join(AGY_DIR, 'wappy-connectors-healthcheck.js'),
+        path.join(AGY_DIR, 'wappy-healthcheck.log'),
+        path.join(AGY_DIR, 'wappy-healthcheck-state.json'),
+        path.join(AGY_DIR, 'wappy-healthcheck-bitacora.json'),
+        path.join(AGY_DIR, 'wappy-healthcheck-thread.json'),
+        path.join(HOME_DIR, 'Desktop', 'Bitacora_Conectores_WAPPY_IA.docx'),
       ]) {
-        const fp = path.join(AGY_DIR, staleFile);
-        if (fs.existsSync(fp)) {
+        if (fs.existsSync(staleFile)) {
           try {
-            fs.unlinkSync(fp);
+            fs.unlinkSync(staleFile);
           } catch (_) {}
         }
       }
