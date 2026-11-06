@@ -1,59 +1,71 @@
 ---
 name: hyperframes-motion-design
-description: Estándar y sistema de diseño cinematográfico, motion graphics de alto impacto y animación GSAP avanzada para videos y reels en HyperFrames (basado en las directrices oficiales de HeyGen HyperFrames). Usar SIEMPRE que se diseñe, anime o edite cualquier video, reel o composición publicitaria.
+description: "Estándar de animación GSAP seek-safe y motion graphics cinematográfico para composiciones HyperFrames (curvas elásticas, tipografía cinética, Tenshi vivo y CTAs)."
+category: media-and-video
+bundle: wappy-video-production
+risk: safe
+source: self
+source_type: self
+date_added: "2026-10-09"
+author: wappy-ia
+agents: [wappy-video-studio]
+tags: [video, hyperframes, gsap, kinetic-typography, motion-design]
 ---
 
-# HyperFrames Motion Design & High-Impact Video Skill
+# HyperFrames Motion Design & GSAP Animation (`hyperframes-motion-design`)
 
-Esta skill define el estándar de producción visual, dirección de arte y motion graphics avanzados para composiciones en **HyperFrames**, asegurando videos dinámicos, inmersivos y con calidad publicitaria de nivel Silicon Valley / HeyGen.
+## Overview
+
+Define las reglas técnicas de animación con **GSAP (`gsap.timeline({ paused: true })`)** y puesta en escena cinematográfica para composiciones **HyperFrames**, garantizando animaciones *seek-safe* (aptas para captura fotograma a fotograma en Puppeteer/FFmpeg) sin elementos estáticos.
+
+## When to Use
+
+- **Usar cuando** el motor de renderizado elegido sea **HyperFrames con GSAP** (`window.__timelines["main"] = tl`) o se necesiten recetas de curvas GSAP, tipografía cinética (`clip-path`), burbujas de notificación iOS/WhatsApp y animación expresiva de Tenshi.
+- **Coordinación con el Protocolo Maestro:**
+  - Respetar siempre la dirección de arte del [`protocolo-produccion-videos`](../protocolo-produccion-videos/SKILL.md) («Una frase, una idea, una pieza», cero saturación de paneles).
+
+## Prerequisites
+
+- GSAP 3 cargado en la composición HTML.
+- Registro obligatorio del timeline pausado en `window.__timelines["main"]`.
 
 ---
 
-## 1. Principios de Dinamismo (Evitar Videos Planos)
+## How It Works
 
-Un video nunca debe ser una sucesión de cajas estáticas o fundidos simples. Todo elemento debe obedecer las leyes de la animación moderna:
+### 1. Principios de Dinamismo (Evitar Videos Planos)
 
-### A. Movimiento de Cámara Digital (Virtual Camera / Punch-ins)
+#### A. Movimiento de Cámara Digital (Virtual Camera / Punch-ins)
 - **Nunca dejar el metraje base completamente estático:** En momentos clave de énfasis o revelación, aplicar un sutil punch-in (`scale: 1.05` a `1.15`) con `transform-origin` enfocado en el punto de interés (el monitor, el rostro, el documento).
-- **Parallax de Capas:** El fondo se mueve a una velocidad suave, los elementos gráficos intermedios reaccionan y los textos en primer plano tienen entrada con inercia.
+- **Parallax de Capas:** El fondo se mueve a una velocidad suave (`0.25x`), los elementos gráficos intermedios a `1.0x` y los textos en primer plano a `1.45x`.
 
-### B. Curvas de Aceleración Orgánicas (GSAP Easing)
+#### B. Curvas de Aceleración Orgánicas (GSAP Easing)
 - **Entradas Impactantes:** Usar `back.out(1.7)` o `elastic.out(1, 0.4)` para elementos que entran en escena (notificaciones, badges, iconos).
 - **Movimientos Flotantes Continuos:** Usar `sine.inOut` con `yoyo: true, repeat: -1` para mantener vivos a avatares, mascotas (Tenshi) y orbes de luz de fondo.
-- **Transiciones Rápidas:** Salidas rápidas con `power2.in` (0.4s - 0.6s) para mantener alto el ritmo de retención (Hook Retention).
+- **Transiciones Rápidas:** Salidas rápidas con `power2.in` (`0.4s – 0.6s`) para mantener alto el ritmo de retención.
 
 ---
 
-## 2. Tipografía Cinética (Kinetic Typography)
+### 2. Tipografía Cinética (Kinetic Typography)
 
-- **Máscaras de Revelación (Clip-Path Reveals):** Las palabras clave no deben solo aparecer con opacidad; deben revelarse desde abajo como si salieran de una ranura:
+- **Máscaras de Revelación (Clip-Path Reveals):**
   ```css
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
   ```
 - **Gradientes Metálicos y Neón:**
   `bg-gradient-to-r from-teal-300 via-cyan-200 to-emerald-400 bg-clip-text text-transparent` o `from-amber-300 via-orange-400 to-yellow-200`.
 - **Efecto Resaltador Fluorescente:**
-  Subrayados o cajas de acento que se expanden de izquierda a derecha (`scaleX: 0 -> 1`, `transformOrigin: "left center"`) justo cuando la voz o el momento lo pronuncia.
-- **Subtítulos Estilo Hormozi:**
-  Contenedor oscuro con borde iluminado, tipografía `extrabold` o `black`, palabra activa destacada en amarillo o verde neón con escala temporal (`scale: 1.15`).
+  Subrayados o cajas de acento que se expanden de izquierda a derecha (`scaleX: 0 -> 1`, `transformOrigin: "left center"`) justo cuando la voz lo pronuncia.
+- **Subtítulos Dinámicos:**
+  Contenedor oscuro con borde iluminado, tipografía `extrabold` o `black`, palabra activa destacada en amarillo o verde lima (`#c7f303`) con escala temporal (`scale: 1.15`).
 
 ---
 
-## 3. Elementos Gráficos Futuristas & HUD (Sci-Fi / IA Visión Artificial)
-
-Para interfaces de inteligencia artificial, visión por computadora y dashboards tecnológicos:
-- **Láser de Escaneo (Scanline Sweep):** Una línea horizontal semitransparente con resplandor neón (`box-shadow: 0 0 15px #06b6d4`) que se desplaza verticalmente simulando un escaneo pericial.
-- **Brackets de Visor Angular:** Esquinas tipo mira de francotirador/HUD en las 4 esquinas de pantallas o áreas de interés (`border-t-2 border-l-2`, etc.) que parpadean con pulso cibernético.
-- **Líneas Guía con Punteros (Callout Lines):** Líneas finas conectando una etiqueta flotante con el objeto real en el video (ej: hombro ➔ ángulo 30°).
-- **Gráficas Circulares y Barras de Carga:** Indicadores circulares SVG con `stroke-dashoffset` animado para mostrar métricas (0% ➔ 100%).
-
----
-
-## 4. Microinteracciones de Notificaciones y Comentarios (Social Proof)
+### 3. Microinteracciones de Notificaciones y Comentarios (Social Proof)
 
 - **Burbujas de Notificación Estilo iOS / WhatsApp / Instagram:**
   - Fondo `backdrop-blur-xl` con borde de cristal (`rgba(255,255,255,0.15)`).
-  - Ícono circular con sombra profunda y badge de verificación animado (`animate-bounce` o scale pop).
+  - Ícono circular con sombra profunda y badge de verificación animado.
   - Entrada con rebote elástico:
     ```js
     tl.fromTo("#notif", { y: 60, scale: 0.8, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.8, ease: "elastic.out(1, 0.5)" });
@@ -61,84 +73,52 @@ Para interfaces de inteligencia artificial, visión por computadora y dashboards
 
 ---
 
-## 5. Puesta en Escena Dinámica de Tenshi (Mascota / Copiloto)
+### 4. Puesta en Escena Dinámica de Tenshi (Mascota / Copiloto)
 
-Tenshi es el alma de WAPPY y no debe ser un sticker congelado:
-- **Respiración y Flotación:** Debe flotar suavemente (`y: -8`, `duration: 2`, `yoyo: true, repeat: -1`).
-- **Halo Luminoso Pulsante:** Un orbe difuso detrás de Tenshi con escala y opacidad reactiva (`opacity: 0.4 -> 0.7`).
+Tenshi no debe ser un sticker congelado:
+- **Respiración y Flotación:** Flotación suave (`y: -8`, `duration: 2`, `yoyo: true, repeat: -1`).
+- **Halo Luminoso Pulsante:** Orbe difuso detrás de Tenshi con escala y opacidad reactiva (`opacity: 0.4 -> 0.7`).
 - **Interacción Expresiva:**
-  - Cuando apunta: Pequeño giro de inclinación (`rotation: -6deg -> 0deg`) y flechas neón que emiten ondas hacia el objetivo.
+  - Cuando apunta: Pequeño giro de inclinación (`rotation: -6deg -> 0deg`) y flechas que emiten ondas hacia el objetivo.
   - Cuando habla: Bocadillo de diálogo con punta dirigida hacia él, con entrada tipo pop.
 
 ---
 
-## 6. Llamados a la Acción (CTA) de Alta Conversión
+### 5. Llamados a la Acción (CTA) de Alta Conversión
 
-Para disparar comentarios en Reels / TikTok:
-- **Palabra Clave en Escala Máxima:** La palabra disparadora (ej: `"TENSHI"`) debe ser el centro gravitacional de la pantalla, con marco en degradado de alta energía (naranja/ámbar).
-- **Flechas Dinámicas en Cascada:** Indicadores luminosos apuntando hacia abajo (👇) con movimiento sincronizado.
-- **Simulación Social (Comment Bubbles):** Burbujas flotantes de otros usuarios comentando la palabra clave (`💬 TENSHI`) que van emergiendo y flotando hacia arriba con ligera rotación aleatoria.
+- **Palabra Clave en Escala Máxima:** La palabra disparadora (ej: `"TENSHI"` o `"WAPPY"`) como centro gravitacional de la pantalla.
+- **Flechas Dinámicas en Cascada:** Indicadores luminosos apuntando hacia abajo con movimiento sincronizado.
+- **Simulación Social (Comment Bubbles):** Burbujas flotantes comentando la palabra clave (`💬 TENSHI`) que emergen con ligera rotación.
 
 ---
 
-## 7. Buenas Prácticas Técnicas en HyperFrames
+### 6. Buenas Prácticas Técnicas en HyperFrames (Seek-Safe)
 
 1. **Línea de Tiempo Registrada y Pausada:**
-   `const tl = gsap.timeline({ paused: true });`
-   `window.__timelines["main"] = tl; tl.seek(0);`
+   ```js
+   const tl = gsap.timeline({ paused: true });
+   window.__timelines["main"] = tl;
+   tl.seek(0);
+   ```
 2. **Seek-Safe Animations:**
-   Nunca usar `setTimeout`, `setInterval` o animaciones CSS dependientes del tiempo real del navegador. Todo el movimiento debe estar atado al tiempo absoluto del timeline de GSAP (usando la posición temporal como tercer argumento: `tl.to(target, vars, time)`).
+   Nunca usar `setTimeout`, `setInterval` o animaciones CSS dependientes del tiempo real del navegador. Todo el movimiento debe estar atado al tiempo absoluto del timeline de GSAP (`tl.to(target, vars, time)`).
 3. **Optimización de Rendimiento:**
    Usar `will-change: transform, opacity;` en capas complejas.
-   Usar resoluciones 9:16 balanceadas (como 720x1280) que ofrecen máxima nitidez en pantallas de celular y tiempos de renderizado mucho más ágiles.
-
-
----
-
-## 8. Las 5 Leyes Cinéticas Obligatorias (Rebotes, Stagger, Parallax 3 Capas, Micro-Movimientos y Gestos Naturales)
-
-> [!IMPORTANT]
-> **DIRECTRIZ ESTRICTA DE DINAMISMO VISUAL:**
-> Ninguna animación, reel o vídeo puede tener elementos estáticos o movimientos planos. Siempre debes aplicar estas 5 leyes cinéticas en todas las escenas:
-
-1. **Curvas con Rebote Elástico (`elastic.out(1, 0.4)`, `back.out(1.7)`, `E.spring`, `E.back`):**
-   - Prohibido usar entradas lineales para tarjetas, insignias, iconos o botones. Usa siempre curvas con rebote físico y sobreimpulso para dar peso orgánico.
-2. **Entradas Escalonadas Uno Después de Otro (`Stagger`):**
-   - Nunca hagas aparecer un grupo de tarjetas, botones, ítems de lista o nodos al mismo tiempo. Escalónalos con `stagger: 0.1` a `0.15` segundos uno detrás de otro en cascada.
-3. **Separación de Profundidad en 3 Planos con Diferentes Velocidades (`Parallax Multicapa`):**
-   - Separa explícitamente **Fondo** (velocidad `0.25x`), **Plano Medio** (velocidad `1.0x`) y **Frente / Primer Plano** (velocidad `1.45x`), moviéndolos a distintas velocidades durante cada paneo o zoom de cámara.
-4. **Micro-Movimientos Constantes (`Living UI`):**
-   - Ningún elemento en pantalla puede quedarse quieto tras su entrada. Todos los contenedores, iconos, avatares y badges deben mantener flotación sinusoidal continua (`sine.inOut`), oscilación angular sutil (`±1°`) y pulso de luz.
-5. **Gesticulación Natural y Punteros Sutiles (ESTRICTAMENTE PROHIBIDO SABLE LÁSER):**
-   - Los avatares y presentadores usan gesticulación natural de oratoria humana. Está **terminantemente prohibido** añadir rayos láser, sables de energía o destellos saliendo de las manos. Para destacar elementos se usan anillos de pulso (`pulse-ring`), destellos o micro-tarjetas flotantes sobre el objeto de interés, nunca armas o rayos en las manos.
+4. **Gesticulación Natural y Punteros Sutiles:**
+   Los avatares y presentadores usan gesticulación natural de oratoria humana. Para destacar elementos se usan anillos de pulso (`pulse-ring`), destellos o micro-tarjetas flotantes sobre el objeto de interés.
 
 ---
 
-## 9. Catálogo de Transiciones de Alto Impacto (Nivel After Effects en GSAP)
+## Verification
 
-Todo proyecto en HyperFrames debe integrar las transiciones de la skill `animaciones-17-efectos-reels`, asegurando una experiencia visual hiperdinámica:
+- Comprobar que `window.__timelines["main"].seek(t)` reproduzca exactamente el estado visual de cualquier segundo `t` sin depender de `setInterval` ni `requestAnimationFrame` externos.
 
-1. **ORBIT 3D (Satélites en Órbita):**
-   Elementos y tarjetas orbitan en elipse 3D alrededor del presentador o de la tarjeta núcleo, ajustando escala y opacidad según su posición frontal o trasera.
-2. **FRAME BREAK (Ruptura de Límites):**
-   El avatar o elemento central traspasa la caja contenedora y se proyecta hacia la pantalla rompiendo la cuarta pared.
-3. **UI WORLD (Universo de Interfaces 3D):**
-   Múltiples ventanas, chats con Tenshi y métricas dispuestas en arco curvo tridimensional flotante.
-4. **DIGITAL ZOOM (Zoom con Retícula):**
-   Punch-in acelerado (`power3.out`) con visor HUD que enfoca el elemento clave.
-5. **PHONE MOCKUP 3D (Smartphone Animado):**
-   Celular con Dynamic Island interactiva que muestra notificaciones en vivo.
-6. **HEADLINE WALL (Muro de Titulares):**
-   Muro tipográfico dinámico con franjas inclinadas que se desplazan a contraflujo.
-7. **ZOOM-THROUGH (Transición Inmersiva sin Corte):**
-   La cámara atraviesa a gran escala (`scale: 1 -> 25+`) el hueco de una letra o marco para cambiar de escena fluidamente.
-8. **CHART GROW (Gráficos en Tiempo Real):**
-   Curvas y barras de métricas analíticas que crecen de 0 a 100% con contadores dinámicos.
-9. **DOODLE BOIL (Trazos Vibrantes a Mano):**
-   Líneas y garabatos orgánicos stop-motion a 10 Hz alrededor de las palabras o figuras clave.
-10. **GLASS TYPE (Tipografía 3D de Cristal):**
-    Titulares gruesos en vidrio translúcido con barrido especular continuo.
+## Safety and Side Effects
 
-> [!CRITICAL]
-> **REGLA MANDATORIA DE COMPOSICIÓN:**
-> Todo reel o video de 30 a 60 segundos **DEBE encadenar al menos 4 de estas transiciones maestras**, impidiendo que cualquier toma se sienta estática o lineal.
+- **Risk level:** `safe` — Animaciones GSAP deterministas en el cliente/renderizador local.
+
+## Sources and Related Skills
+
+- [`protocolo-produccion-videos`](../protocolo-produccion-videos/SKILL.md)
+- [`animaciones-17-efectos-reels`](../animaciones-17-efectos-reels/SKILL.md)
+- [`animaciones-wappy-brand`](../animaciones-wappy-brand/SKILL.md)

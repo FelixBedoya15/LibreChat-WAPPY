@@ -1,20 +1,48 @@
 ---
 name: protocolo-produccion-videos
-description: "Protocolo maestro unificado de producción de vídeos WAPPY IA: combina el Estilo Pro Limpio (una sola pieza a la vez, cero ruido visual), el Avatar 3D con Lip-Sync (wappy-avatar3d.js / Voxel / Chibi) y el Selector Inteligente de Efectos de todas las skills (editor-reels, piezas.js, editorial.js, efectos-17-reels.js y wappy-brand.js) para elegir siempre el mejor efecto según cada frase del guion."
+description: "Protocolo maestro de producción de vídeos WAPPY IA: Estilo Pro Limpio (una pieza por frase), alternancia de 3 planos, Avatar 3D con Lip-Sync y selector de efectos."
+category: media-and-video
+bundle: wappy-video-production
+risk: safe
+source: self
+source_type: self
+date_added: "2026-10-31"
+author: wappy-ia
+agents: [wappy-video-studio]
+tags: [video, reels, remotion, avatar-3d, lip-sync, motion-graphics, wappy-brand]
 ---
 
-# Protocolo Maestro Unificado de Producción de Vídeos WAPPY IA
+# Protocolo Maestro Unificado de Producción de Vídeos WAPPY IA (`protocolo-produccion-videos`)
 
-Este protocolo unifica **todas las librerías de animación instaladas en el proyecto** bajo una sola dirección de arte limpia, asegurando que cada frase del guion utilice **el mejor efecto disponible** sin saturar nunca la pantalla.
+## Overview
+
+Este protocolo unifica **todas las librerías de animación instaladas en el proyecto** bajo una sola dirección de arte limpia (**Estilo Pro Limpio**), asegurando que cada frase del guion utilice **el mejor efecto disponible** sin saturar nunca la pantalla.
+
+## When to Use
+
+- **Usar SIEMPRE como protocolo base por defecto** cuando el usuario pida crear, guionizar, animar o renderizar cualquier vídeo, reel vertical (`1080×1920`) o pieza audiovisual en WAPPY IA.
+- **Cuándo combinar con otras skills:**
+  - Si el vídeo analiza una ley, decreto, resolución o sentencia del Consejo de Estado/Corte en formato documental: combinar con [`animaciones-explicativas-sst`](../animaciones-explicativas-sst/SKILL.md).
+  - Si el vídeo recrea la identidad visual de `wappy.club`, cielo con nubes, tarjeta de Tenshi o iconos Lottie/Flaticon: combinar con [`animaciones-wappy-brand`](../animaciones-wappy-brand/SKILL.md).
+  - Si una frase puntual requiere una transición especial (`FXOrbit`, `fxZoomThrough`, `ChartGrowFX`, `FX14DoodleBoil`): consultar puntualmente [`animaciones-17-efectos-reels`](../animaciones-17-efectos-reels/SKILL.md).
+  - Si el usuario pide **explícitamente** estética Cyberpunk / consola HUD pericial: activar [`animaciones-dark-tech-hud`](../animaciones-dark-tech-hud/SKILL.md).
+
+## Prerequisites
+
+- Audio de locución (`.wav` / `.mp3`) o marcas de tiempo por palabra (`trabajo/tiempos.json` y `trabajo/voz_nivel.json`).
+- Activos del presentador 3D en `client/public/assets/wappy/wappy-avatar-voxel3d.js` o `motor/wappy-avatar3d.js` (`three.min.js`).
+- Motor de renderizado HTML a 60 fps (`scripts/anim.py`) o Remotion (`WappyRemotionKit.tsx`).
 
 ---
 
-## 1. Tres Reglas Inquebrantables de Limpieza y Render
+## How It Works
+
+### 1. Tres Reglas Inquebrantables de Limpieza y Render
 
 1. **Lienzo Puro `1080 × 1920` (Sin botones ni controles falsos fuera o dentro del video):**
    - El archivo de video o previsualización **NO debe incluir barras de botones de configuración superiores** (selectores de tema, pestañas ni barras de herramientas web), ya que en el render MP4 final no existen ni funcionan. El lienzo debe ser 100% el video puro.
 2. **«Una Frase, Una Idea, Una Pieza» (Variedad sin Ruido Visual):**
-   - En cada tramo del guion se muestra **1 sola pieza protagonista** elegida estratégicamente del catálogo unificado (Sección 3).
+   - En cada tramo del guion se muestra **1 sola pieza protagonista** elegida estratégicamente del catálogo unificado (Paso 3).
    - **Prohibido repetir la misma tarjeta genérica dos veces seguidas:** si el tramo 2 usó una tarjeta de filas, el tramo 3 debe cambiar a un documento real subrayado (`VisorNormaReal`), una cuadrícula porcentual (`Cuadricula100`), una comparativa (`columnas`) o una órbita (`Orbita`).
 3. **Presentador con Lip-Sync Real (Boca sincronizada con la voz):**
    - Cuando aparece el presentador en el **Plano 1** o **Plano 3**, debe mover la boca/mandíbula, parpadear y gesticular en sincronía con el audio:
@@ -23,7 +51,7 @@ Este protocolo unifica **todas las librerías de animación instaladas en el pro
 
 ---
 
-## 2. Alternancia de los 3 Planos
+### 2. Alternancia de los 3 Planos
 
 | Plano | Qué se ve en el lienzo `1080 × 1920` | Cuándo usarlo |
 |---|---|---|
@@ -33,7 +61,7 @@ Este protocolo unifica **todas las librerías de animación instaladas en el pro
 
 ---
 
-## 3. Catálogo Maestro Unificado: Qué Efecto Elegir Según el Guion
+### 3. Catálogo Maestro Unificado: Qué Efecto Elegir Según el Guion
 
 Antes de programar el video, analiza cada frase del guion y elige **el mejor efecto** de entre todas nuestras librerías instaladas (nunca metas dos al mismo tiempo):
 
@@ -52,10 +80,29 @@ Antes de programar el video, analiza cada frase del guion y elige **el mejor efe
 
 ---
 
-## 4. Sincronía Palabra a Palabra y Diseño Sonoro
+### 4. Sincronía Palabra a Palabra y Diseño Sonoro
 
 1. **Subtítulos Inteligentes (`y: 1430`, `58px` Inter 900 Mayúsculas):**
    - La palabra que suena en ese instante se pinta en el color de acento (`#c7f303` o `#4b8cf7`) y da un salto de `-6px`.
    - **Auto-ocultación:** Cuando la pieza en pantalla ya es un texto gigante (`titular` o `sentencia`), los subtítulos se ocultan solos para no duplicar texto.
 2. **Sonido (`sonidos/`):**
    - Cada elemento que se enciende dispara un `tick-suave` (`-16 dB`), las cortinas disparan un `barrido` suave, el resaltador de norma suena como trazo suave y solo hay de 4 a 6 `golpe-grave` en todo el reel.
+
+---
+
+## Verification
+
+- Generar y revisar **3 capturas previas** (inicio en Plano 1, escena central en Plano 2 y cierre en Plano 3) antes de entregar el render MP4 final.
+- Confirmar 0 solapamiento entre subtítulos y tarjetas principales, y que el lip-sync responda al nivel de voz.
+
+## Safety and Side Effects
+
+- **Risk level:** `safe` — Genera activos locales HTML/MP4/PNG sin modificar bases de datos de producción.
+
+## Sources and Related Skills
+
+- [`animaciones-explicativas-sst`](../animaciones-explicativas-sst/SKILL.md)
+- [`animaciones-wappy-brand`](../animaciones-wappy-brand/SKILL.md)
+- [`animaciones-17-efectos-reels`](../animaciones-17-efectos-reels/SKILL.md)
+- [`animaciones-dark-tech-hud`](../animaciones-dark-tech-hud/SKILL.md)
+- [`hyperframes-motion-design`](../hyperframes-motion-design/SKILL.md)

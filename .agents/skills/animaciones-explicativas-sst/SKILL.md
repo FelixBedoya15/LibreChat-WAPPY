@@ -1,15 +1,40 @@
 ---
 name: animaciones-explicativas-sst
-description: "Crea vídeos explicativos y análisis normativos de Seguridad y Salud en el Trabajo (SST) estilo SST para Dummies (1920x1080 o 1080x1920 a 60 fps, sin subtítulos por defecto) sincronizados palabra a palabra con la voz. Incluye visor de sentencias/decretos reales en papel blanco con subrayado fluorescente amarillo y datos personales censurados, pantalla dividida de rumores de WhatsApp vs verificación técnica, abanico de formatos/procedimientos con metáforas visuales (extintor normativo), índice de capítulos numerados, intro editorial y generador de portadas/miniaturas con expediente legal y gancho gigante. Úsala SIEMPRE que el usuario pida explicar una norma, resolución, decreto, sentencia del Consejo de Estado/Corte, cambio legal en SST o quiera un vídeo estilo SST para Dummies / explicativo documental."
+description: "Crea vídeos documentales y análisis normativos SST estilo 'SST para Dummies' (60 fps, sin subtítulos quemados) con VisorNormaReal, ChatRumores y AbanicoDocumentos."
+category: media-and-video
+bundle: wappy-video-production
+risk: safe
+source: self
+source_type: self
+date_added: "2026-11-06"
+author: wappy-ia
+agents: [wappy-video-studio]
+tags: [video, sst, normativa, editorial, sentencia, decreto, dummies]
 ---
 
 # Animaciones Explicativas y Normativas SST (`animaciones-explicativas-sst`)
 
-Esta skill transforma una locución, audio o grabación explicando una norma, sentencia, decreto o concepto de **Seguridad y Salud en el Trabajo (SST)** en un vídeo documental/editorial limpio, pedagógico y riguroso, inspirado en el lenguaje visual de **«SST para Dummies»**.
+## Overview
+
+Esta skill transforma una locución, audio o grabación explicando una norma, sentencia, decreto o concepto de **Seguridad y Salud en el Trabajo (SST)** en un vídeo documental/editorial limpio, pedagógico y riguroso (`1920×1080` o `1080×1920` a 60 fps), inspirado en el lenguaje visual de **«SST para Dummies»**.
+
+## When to Use
+
+- **Usar SIEMPRE** que el usuario pida explicar una norma, resolución, decreto, sentencia del Consejo de Estado/Corte, cambio legal en SST o quiera un vídeo estilo «SST para Dummies» / explicativo documental.
+- **Cuándo preferir otra skill:**
+  - Para reels promocionales generales con Avatar 3D en 3 planos: usar [`protocolo-produccion-videos`](../protocolo-produccion-videos/SKILL.md) (puedes importar `VisorNormaReal` o `ChatRumores` dentro del Plano 2).
+  - Para tutoriales de la interfaz web `wappy.club` o tarjetas de Tenshi: usar [`animaciones-wappy-brand`](../animaciones-wappy-brand/SKILL.md).
+
+## Prerequisites
+
+- Script `scripts/anim.py` y plantilla `plantilla/motor/editorial.js` incluidos en esta skill.
+- Audio de locución (`.wav`/`.mp3`) o grabación de vídeo (`.mp4`).
 
 ---
 
-## 1. ADN Visual y Reglas de Dirección de Arte
+## How It Works
+
+### 1. ADN Visual y Reglas de Dirección de Arte
 
 1. **Lienzo y Fondo Editorial (`body.editorial`):**
    - **Fondo:** Degradado radial petróleo profundo (`#082838` $\rightarrow$ `#041722` $\rightarrow$ `#020c13`), completamente limpio (sin rejilla de puntos ni ruido visual que distraiga de la lectura normativa).
@@ -22,11 +47,11 @@ Esta skill transforma una locución, audio o grabación explicando una norma, se
 
 ---
 
-## 2. Los 5 Componentes Insignia (`plantilla/motor/editorial.js`)
+### 2. Los 5 Componentes Insignia (`plantilla/motor/editorial.js`)
 
 La plantilla de esta skill ya incluye `motor/editorial.js` cargado automáticamente y `body.editorial` activo. Tienes disponibles 5 constructores especializados listos para instanciar en `index.html`:
 
-### 2.1. `IntroEditorialSST(o)` — Intro Clásica «SST para Dummies»
+#### 2.1. `IntroEditorialSST(o)` — Intro Clásica «SST para Dummies»
 Crea la apertura institucional con escudo animado, título en turquesa, píldora amarilla y los iconos inferiores del diccionario jurídico y la taza de café que se tachan en rojo cuando la voz dice *«sin diccionario jurídico ni cinco tazas de café»*.
 ```js
 const intro = new IntroEditorialSST({
@@ -44,7 +69,7 @@ const intro = new IntroEditorialSST({
 intro.pintar(t, { x: CX, y: CY, o: 1 });
 ```
 
-### 2.2. `ChatRumores(o)` — Rumores de WhatsApp vs. Verificación Técnica
+#### 2.2. `ChatRumores(o)` — Rumores de WhatsApp vs. Verificación Técnica
 Pantalla dividida: a la izquierda un teléfono con el chat grupal de colegas SST enviando cadenas de urgencia; a la derecha tarjetas con etiqueta ámbar `RUMOR / DUDA` y sello `POR VERIFICAR`.
 ```js
 const rumores = new ChatRumores({
@@ -68,7 +93,7 @@ const rumores = new ChatRumores({
 rumores.pintar(t, { x: CX, y: CY, o: 1 });
 ```
 
-### 2.3. `VisorNormaReal(o)` — Documento Oficial con Subrayado Fluorescente y Desglose
+#### 2.3. `VisorNormaReal(o)` — Documento Oficial con Subrayado Fluorescente y Desglose
 Muestra a la izquierda la hoja blanca oficial de la Sentencia, Decreto o Resolución con zoom suave, bloques `[dato personal oculto]` y subrayado amarillo (`<span class="hl"><i></i>texto</span>`) que se dibuja al ritmo de la voz; y a la derecha el desglose estructurado más el pie de fuente oficial.
 ```js
 const visor = new VisorNormaReal({
@@ -107,7 +132,7 @@ const visor = new VisorNormaReal({
 visor.pintar(t, { x: CX, y: CY, o: 1 });
 ```
 
-### 2.4. `AbanicoDocumentos(o)` — Procedimientos, Formatos y Metáfora Visual
+#### 2.4. `AbanicoDocumentos(o)` — Procedimientos, Formatos y Metáfora Visual
 Muestra a la izquierda las tarjetas inclinadas en abanico (*Procedimiento, Formato, Comunicado*) y a la derecha una ilustración vectorial con etiqueta (como el *«extintor normativo»*).
 ```js
 const abanico = new AbanicoDocumentos({
@@ -127,7 +152,7 @@ const abanico = new AbanicoDocumentos({
 abanico.pintar(t, { x: CX, y: CY, o: 1 });
 ```
 
-### 2.5. `IndiceCapitulos(o)` — Estructura Numerada del Vídeo
+#### 2.5. `IndiceCapitulos(o)` — Estructura Numerada del Vídeo
 Lista limpia con cajas numeradas en turquesa (`[1]`, `[2]`, `[3]`) que se iluminan secuencialmente cuando el narrador presenta la hoja de ruta del vídeo.
 ```js
 const indice = new IndiceCapitulos({
@@ -146,11 +171,11 @@ indice.pintar(t, { x: CX, y: CY, o: 1 });
 
 ---
 
-## 3. Flujo de Trabajo Paso a Paso
+### 3. Flujo de Trabajo Paso a Paso
 
 1. **Crear el proyecto con la skill:**
    ```bash
-   python3 "/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" nuevo <carpeta-proyecto> --audio <ruta-audio.wav>
+   python3 "/Users/venta/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" nuevo <carpeta-proyecto> --audio <ruta-audio.wav>
    ```
    *(Si es con grabación a cámara, usa `--video <ruta-video.mp4>`).*
 2. **Alinear tiempos palabra a palabra:**
@@ -165,13 +190,12 @@ indice.pintar(t, { x: CX, y: CY, o: 1 });
    - Abajo a todo el ancho: Pregunta gancho gigante en amarillo y blanco (`¿Y AHORA QUÉ?`).
 5. **Renderizar el MP4 a 60 fps e incrustar portada:**
    ```bash
-   python3 "/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" render <carpeta-proyecto>
+   python3 "/Users/venta/Documents/GitHub/LibreChat-WAPPY/.agents/skills/animaciones-explicativas-sst/scripts/anim.py" render <carpeta-proyecto>
    ```
-
 
 ---
 
-## 4. Las 5 Leyes Cinéticas Obligatorias (Rebotes, Stagger, Parallax 3 Capas, Micro-Movimientos y Sable Láser en Manos)
+### 4. Las 5 Leyes Cinéticas Obligatorias
 
 > [!IMPORTANT]
 > **DIRECTRIZ ESTRICTA DE DINAMISMO VISUAL:**
@@ -189,5 +213,21 @@ indice.pintar(t, { x: CX, y: CY, o: 1 });
 4. **Micro-Movimientos Constantes (`Living UI` / `microFloat`):**
    - Una vez que un elemento terminó de entrar, **jamás debe quedarse congelado como una foto fija**.
    - Aplícale flotación sinusoidal continua (`Math.sin(t * 2.2 + i)`), rotación sutil (`±0.5° a ±2°`) y respiración de escala (`1 ± 0.012`), además de iconos internos activos.
-5. **Efecto Sable Láser / Haz de Energía cuando Aparecen Manos (`SableLaserMano` / `WappyLightsaberHand`):**
-   - Siempre que en el vídeo (grabación a cámara, recorte de persona o avatar) **aparezcan las manos gesticulando, señalando o sosteniendo algo**, activa el efecto de **Sable Láser / Haz de Plasma Neón** con núcleo blanco incandescente (`#ffffff`), hoja de plasma de color de acento (`#c7f303` o `#14B8A6`), doble resplandor Gaussiano (`feGaussianBlur`), vibración de alta frecuencia (`flicker`) y chispas de ignición siguiendo la mano fotograma a fotograma.
+5. **Énfasis Visual en Manos o Elementos Clave:**
+   - Destaca puntos clave con anillos de pulso (`pulse-ring`), resaltadores en vivo o efectos de energía únicamente si el usuario los solicita expresamente.
+
+---
+
+## Verification
+
+- Comprobar que los datos personales en sentencias reales estén anonimizados con `<span class="redact">dato personal oculto</span>`.
+- Verificar sincronía del subrayado `<span class="hl"><i></i>...</span>` con los tiempos de `trabajo/tiempos.json`.
+
+## Safety and Side Effects
+
+- **Risk level:** `safe` — Ejecuta scripts locales de renderizado de vídeo (`anim.py`) y protege datos personales en documentos jurídicos.
+
+## Sources and Related Skills
+
+- [`protocolo-produccion-videos`](../protocolo-produccion-videos/SKILL.md)
+- [`animaciones-wappy-brand`](../animaciones-wappy-brand/SKILL.md)

@@ -1,19 +1,40 @@
 ---
 name: animaciones-dark-tech-hud
-description: Catálogo opcional de estética Dark Tech Cyberpunk / HUD Glassmorphism para Reels (9:16). NO usar como estilo por defecto (el estándar por defecto de WAPPY es el Estilo Pro Limpio de protocolo-produccion-videos / editor-reels, sin rejillas ni HUD). Activar únicamente cuando el usuario pida explícitamente estética Cyberpunk, consola futurista o HUD pericial.
+description: "Catálogo opcional de estética Dark Tech Cyberpunk / HUD Glassmorphism para Reels (9:16). Activar SOLO cuando el usuario pida explícitamente estilo Cyberpunk o HUD."
+category: media-and-video
+bundle: wappy-video-production
+risk: safe
+source: self
+source_type: self
+date_added: "2026-10-24"
+author: wappy-ia
+agents: [wappy-video-studio]
+tags: [video, cyberpunk, hud, dark-tech, glassmorphism, biocentric-core]
 ---
 
-# Animaciones Dark Tech HUD · Catálogo Opcional (Solo Bajo Pedido Explícito)
+# Animaciones Dark Tech HUD · Catálogo Opcional (`animaciones-dark-tech-hud`)
 
-> [!IMPORTANT]
-> **REGLA DE NO SATURACIÓN:** El estilo por defecto de los videos de WAPPY IA es el **Estilo Pro Limpio** (`protocolo-produccion-videos` / `editor-reels`: fondo `#06080d` liso, tarjetas sólidas `#10151e`, una sola pieza a la vez, cero ruido visual).
-> **NO apliques rejillas, rayos láser, radares ni brackets de esta skill** a menos que el usuario pida explícitamente un video «estilo HUD / Cyberpunk». Si se usa, elegir solo los elementos pedidos sin amontonar paneles.
+## Overview
+
+Catálogo opcional de estética **Dark Tech Cyberpunk / HUD Glassmorphism** para vídeos verticales (`9:16`) y representaciones radiales de la **Huella Biocéntrica**.
+
+## When to Use
+
+- **Activar ÚNICAMENTE** cuando el usuario pida explícitamente un vídeo con estética **Cyberpunk, consola futurista, escaneo biométrico o HUD pericial**.
+- **Cuándo NO usar:**
+  - **NO usar como estilo por defecto.** El estilo por defecto de los vídeos de WAPPY IA es el **Estilo Pro Limpio** ([`protocolo-produccion-videos`](../protocolo-produccion-videos/SKILL.md): fondo `#06080d` liso, tarjetas sólidas `#10151e`, una sola pieza a la vez, cero ruido visual).
+  - Incluso cuando se active bajo pedido explícito, seleccionar solo 1 o 2 componentes tácticos sin amontonar paneles.
+
+## Prerequisites
+
+- GSAP (`gsap.timeline({ paused: true })`) o motor HTML a 60 fps.
+- Tipografías *Plus Jakarta Sans* / *Outfit* (`800–900`) y *JetBrains Mono* para métricas técnicas.
 
 ---
 
-## 1. Paleta de Color y Atmósfera Cósmica
+## How It Works
 
-Todo fondo parte de un entorno espacial profundo con emisión perimetral de luz de alta energía:
+### 1. Paleta de Color y Atmósfera Cósmica
 
 ```css
 /* Fondo Cósmico HUD */
@@ -28,7 +49,7 @@ background: radial-gradient(circle at 50% 18%, #0c192e 0%, #050a14 58%, #020409 
   - **Lima Eléctrico WAPPY:** `#c7f303` (llamados de acción, ganchos clave, titulares).
   - **Ámbar / Naranja Alerta:** `#f59e0b` / `#f97316` (hallazgos, riesgos, alertas de control).
 
-### Orbes y Luces de Fondo (Parallax & Depth)
+#### Orbes y Luces de Fondo (Parallax & Depth)
 ```html
 <div class="bg-cyber-grid"></div>
 <div id="orb-teal" class="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-teal-500/20 blur-[110px] pointer-events-none"></div>
@@ -38,11 +59,11 @@ background: radial-gradient(circle at 50% 18%, #0c192e 0%, #050a14 58%, #020409 
 
 ---
 
-## 2. Componentes Tácticos HUD Disponibles (Usar con Moderación)
+### 2. Componentes Tácticos HUD Disponibles (Usar con Moderación)
 
 Selecciona únicamente 1 o 2 de estos componentes cuando el usuario solicite estética HUD (nunca combinarlos todos a la vez):
 
-### A. Rejilla Cibernética (`.bg-cyber-grid`)
+#### A. Rejilla Cibernética (`.bg-cyber-grid`)
 ```css
 .bg-cyber-grid {
   position: absolute; inset: 0;
@@ -50,12 +71,11 @@ Selecciona únicamente 1 o 2 de estos componentes cuando el usuario solicite est
     linear-gradient(to right, rgba(6, 182, 212, 0.05) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(20, 184, 166, 0.05) 1px, transparent 1px);
   background-size: 48px 48px;
-  pointer-events: none;
+  pointer-events-none: none;
 }
 ```
 
-### B. Haz Láser de Escaneo (`.scanline-beam`)
-Un haz horizontal luminoso que recorre el eje vertical simulando escaneo pericial de datos:
+#### B. Haz Láser de Escaneo (`.scanline-beam`)
 ```css
 .scanline-beam {
   position: absolute; left: 0; right: 0; height: 3px;
@@ -65,96 +85,70 @@ Un haz horizontal luminoso que recorre el eje vertical simulando escaneo pericia
 }
 ```
 
-### C. Radar Holográfico SVG (`#bg-radar`)
+#### C. Radar Holográfico SVG (`#bg-radar`)
 Colocado en una esquina superior o tras el núcleo central, girando a velocidad constante (360° en 8s).
 
-### D. Esquinas Cibernéticas Tácticas (`.corner-bracket`)
+#### D. Esquinas Cibernéticas Tácticas (`.corner-bracket`)
 Visores en las esquinas de tarjetas o contenedores principales (`border-t-2 border-l-2 border-cyan-400`, `drop-shadow(0 0 6px #22d3ee)`).
 
-### E. Ecualizador Dinámico Reactivo (`.eq-pulse`)
+#### E. Ecualizador Dinámico Reactivo (`.eq-pulse`)
 Barras luminosas en cian, teal y lima que simulan la transmisión de datos o la voz activa.
 
 ---
 
-## 3. Ley Estricta de Tipografía Mobile-First (Legibilidad en Celular)
+### 3. Ley Estricta de Tipografía Mobile-First (Legibilidad en Celular)
 
-> [!CRITICAL]
-> **PROHIBIDO EL TEXTO DIMINUTO EN DISPOSITIVOS MÓVILES:**
-> En vídeos verticales (720×1280 o 1080×1920), los textos pequeños se vuelven ilegibles al verse en la app de Instagram, TikTok o YouTube Shorts.
-
-- **Titulares Principales:**
-  - Tamaño: **44px a 56px** (en 1080p: **56px a 72px**).
-  - Tipografía: *Plus Jakarta Sans* o *Outfit*, pesos `800 ExtraBold` a `900 Black`.
-  - Resaltador: fondo lima `--w-lime` (`#c7f303`) o cian eléctrico (`#22d3ee`).
-- **Subtítulos y Bajadas:**
-  - Tamaño: **24px a 32px**, interlineado generoso (`line-height: 1.3`).
-- **Datos Técnicos, Métricas y Badges:**
-  - Tamaño: **18px a 24px**, utilizando fuente monoespaciada *JetBrains Mono*.
+- **Titulares Principales:** `44px a 56px` en 720p (`56px a 72px` en 1080p), *Plus Jakarta Sans* o *Outfit* (`800–900`), resaltador `--w-lime` (`#c7f303`) o cian eléctrico (`#22d3ee`).
+- **Subtítulos y Bajadas:** `24px a 32px`, `line-height: 1.3`.
+- **Datos Técnicos, Métricas y Badges:** `18px a 24px`, fuente monoespaciada *JetBrains Mono*.
 
 ---
 
-## 4. Leyes Cinéticas: Prohibición de Elementos Estáticos
+### 4. Leyes Cinéticas: Entradas Laterales y Micro-Flotación
 
-Ningún elemento gráfico puede entrar solo con opacidad (`fade-in`) o quedarse quieto tras entrar.
+#### A. Listas y Tarjetas que Entran desde los Lados (Slide-in Stagger L/R)
+- Elementos impares (1, 3, 5): Entran desde la **izquierda** (`x: -160px ➔ 0`) con inercia elástica `back.out(1.5)`.
+- Elementos pares (2, 4): Entran desde la **derecha** (`x: 160px ➔ 0`).
+- Escalonamiento (`stagger`): Desfase de `0.15s` a `0.22s` sincronizado con la locución.
 
-### A. Listas y Tarjetas que Entran desde los Lados (Slide-in Stagger L/R)
-Los elementos de una lista o comparación deben alternar sus puntos de origen:
-- Elementos impares (1, 3, 5): Entran disparados desde la **izquierda** (`x: -160px ➔ 0`) con inercia elástica `back.out(1.5)`.
-- Elementos pares (2, 4): Entran disparados desde la **derecha** (`x: 160px ➔ 0`).
-- Escalonamiento (`stagger`): Cada ítem entra con un desfase de `0.15s` a `0.22s` sincronizado con la locución.
-
-### B. Micro-Flotación Constante (Living UI)
-Todo elemento presente en pantalla debe tener una ondulación senoidal constante:
+#### B. Micro-Flotación Constante (Living UI)
 ```js
-// Micro-flotación permanente
 element.style.transform = `translateY(${Math.sin(t * 2.2 + index) * 6}px)`;
 ```
 
 ---
 
-## 5. Diseño del Núcleo Central Rodeado (Huella Biocéntrica & Ecosistemas)
+### 5. Diseño del Núcleo Central Rodeado (Huella Biocéntrica & Ecosistemas)
 
-Cuando se represente la **Huella Biocéntrica** o el **Ecosistema WAPPY**, está terminantemente prohibido mostrarlo como una simple lista vertical estática.
-
-### Arquitectura Orbital Radial:
-1. **Núcleo Central Holográfico:**
-   - En el centro de la pantalla se ubica el núcleo: Huella dactilar holográfica, avatar o escudo bio-seguridad con anillos pulsantes de ondas de choque (`pulse-ring`).
+Cuando se represente la **Huella Biocéntrica** o el **Ecosistema WAPPY** en modo HUD, usar arquitectura orbital radial en lugar de una lista estática:
+1. **Núcleo Central Holográfico:** Huella dactilar holográfica, avatar o escudo bio-seguridad con anillos pulsantes (`pulse-ring`).
 2. **5 Satélites Radiales Rodeando el Núcleo:**
    - **Nodo 1 (Arriba Izquierda):** Perfil del Cargo.
    - **Nodo 2 (Arriba Derecha):** Perfil Sociodemográfico.
    - **Nodo 3 (Centro Derecha):** Condiciones de Salud.
    - **Nodo 4 (Abajo Derecha):** Matriz Bio-IPVR.
    - **Nodo 5 (Abajo Izquierda):** Compatibilidad Cargo-Colaborador (92% FIT).
-3. **Líneas Láser Conectoras (SVG Lasers):**
-   - Rayos luminosos vectoriales conectan el núcleo central con cada uno de los 5 satélites.
-4. **Entrada en Cascada Orbital:**
-   - El núcleo central explota desde escala 0 (`scale: 0 ➔ 1.1 ➔ 1`).
-   - Las líneas conectoras se dibujan hacia afuera (`stroke-dashoffset`).
-   - Los satélites brotan sucesivamente en sentido de las agujas del reloj con rebote elástico.
+3. **Líneas Láser Conectoras (SVG Lasers):** Rayos vectoriales con `stroke-dashoffset` animado conectando el núcleo con cada satélite.
 
 ---
 
-## 6. Plantilla Estructural GSAP (HyperFrames / Puppeteer Safe)
+### 6. Plantilla Estructural GSAP (HyperFrames / Puppeteer Safe)
 
 ```javascript
-// Timeline central unificada en GSAP
 const tl = gsap.timeline({ paused: true });
 
-// 1. Entrada de la Escena con Cámara Dinámica
 tl.fromTo("#camera-stage", 
   { scale: 1.08, y: 30 }, 
   { scale: 1.0, y: 0, duration: 1.2, ease: "power3.out" }, 
   0
 );
 
-// 2. Scanline Láser barriendo verticalmente
 tl.fromTo(".scanline-beam", 
   { top: "0%", opacity: 0 }, 
   { top: "100%", opacity: 1, duration: 2.8, ease: "sine.inOut", repeat: -1 }, 
   0
 );
 
-// 3. Listas dinámicas entrando desde los laterales
 tl.fromTo(".hud-item-left", 
   { x: -220, opacity: 0, scale: 0.9 }, 
   { x: 0, opacity: 1, scale: 1, duration: 0.7, ease: "back.out(1.5)", stagger: 0.2 }, 
@@ -169,10 +163,17 @@ tl.fromTo(".hud-item-right",
 
 ---
 
-## 7. Transiciones Cyberpunk HUD Obligatorias (Orbit, Zoom-Through y Glass Type)
+## Verification
 
-Para mantener el estilo pericial de ciencia ficción de alta fidelidad, conecta directamente con `animaciones-17-efectos-reels`:
-- **FXOrbit 3D:** Los 5 módulos de la Huella Biocéntrica orbitan alrededor del núcleo en elipse tridimensional (`rx: 340, ry: 110`), conectándose con haces láser SVG.
-- **fxZoomThrough:** Cambios de escena atravesando el centro del radar holográfico o el visor biométrico (`scale: 1 -> 25x`).
-- **FX17GlassType:** Los titulares de módulos periciales se renderizan con tipografía de cristal táctica, aberración cromática ligera y barrido de luz.
-- **FX14DoodleBoil:** Resaltadores periciales y flechas holográficas vibrando a 10 Hz para señalar no conformidades o alertas de riesgo.
+- Confirmar que el usuario haya pedido explícitamente estética Cyberpunk / HUD antes de aplicar `.bg-cyber-grid` o `.scanline-beam`.
+- Verificar que todos los textos superen el tamaño mínimo mobile-first (`>= 18px`).
+
+## Safety and Side Effects
+
+- **Risk level:** `safe` — Estilos CSS y líneas de tiempo GSAP locales.
+
+## Sources and Related Skills
+
+- [`protocolo-produccion-videos`](../protocolo-produccion-videos/SKILL.md)
+- [`animaciones-17-efectos-reels`](../animaciones-17-efectos-reels/SKILL.md)
+- [`hyperframes-motion-design`](../hyperframes-motion-design/SKILL.md)

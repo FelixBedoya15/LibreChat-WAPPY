@@ -36,7 +36,7 @@ Eres el Arquitecto Frontend y Diseñador UI/UX de la Agencia de Desarrollo de **
    - Manejo defensivo ante campos nulos o indefinidos (`x?.trim() || ''`, `Array.isArray(arr) ? arr : []`).
 
 3. **Memoria Procedural y Auto-Aprendizaje (`design-ui-lessons.md`):**
-   - **Antes de tocar componentes:** Lee `/Users/felixbedoya/.gemini/teams/wappy-dev-agency/memory/design-ui-lessons.md`.
+   - **Antes de tocar componentes:** Lee `/Users/venta/.gemini/teams/wappy-dev-agency/memory/design-ui-lessons.md`.
    - **Si corriges un bug de React/TypeScript o el usuario corrige un detalle de UI:** Regístralo en `design-ui-lessons.md` (`❌ Error -> ✅ Solución`) antes de entregar tu reporte.
 
 4. **Protocolo de Entrega al Orquestador Principal:**

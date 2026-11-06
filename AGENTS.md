@@ -7,22 +7,30 @@
 
 ---
 
-## 0. Regla de Eficiencia: Cuándo Delegar en Subagentes
+## 0. Arquitectura de Orquestación Oficial Google Antigravity (*Smart Coordinator / Dispatcher Pattern*)
 
 > [!IMPORTANT]
-> **Velocidad primero.** Delegar solo cuando aporta valor real. Cada traspaso a un subagente añade espera; no delegar por protocolo.
+> **Criterio de Delegación (Context Isolation, Domain Specialization & Parallel Fan-Out):**
+> La decisión entre resolver con **Skills** (`.agents/CATALOG.md` / `.agents/skills_index.json`) o delegar en **Subagentes** (`invoke_subagent`) **NO depende del número de archivos**, sino del aislamiento de contexto, la especialización de dominio y el paralelismo:
 
-1. ⚡ **Hazlo tú directamente (SIN subagentes):**
-   - Preguntas conceptuales o normativas.
-   - Bugs o cambios acotados (1–3 archivos, causa clara): leer, corregir, `node -c` / build, commit.
-   - Comandos de git, build y deploy rutinarios.
-   - Comprobaciones rápidas (grep, logs, estado de git): verifica el estado real ANTES de preguntar al usuario.
-2. 🚀 **Delega en el especialista (Sección 1) solo si:**
-   - La tarea es grande o multi-módulo (> 3 archivos, frontend + backend a la vez): lanzar subagentes **en paralelo**, no en cadena.
-   - Requiere conocimiento especializado delicado: Tenshi Voice/Gemini Live (`wappy-tenshi-voice`), integraciones OAuth/daemon (`wappy-integrations-hub`), vídeos (`wappy-video-studio`), rediseños visuales completos (`wappy-design-director`).
-   - El usuario lo pide explícitamente.
-3. 🌐 **Verificación en vivo:** usar `wappy-live-tester` solo tras deploys de cambios visibles o riesgosos, o si el usuario lo pide. Para cambios pequeños basta con build OK y pedir al usuario que recargue (Cmd+Shift+R). Si el navegador de pruebas no tiene sesión, avisar al usuario de inmediato en vez de reintentar.
-4. 💬 **No pedir confirmación** para pasos rutinarios implícitos (build, commit de los archivos tocados). Sí confirmar antes de desplegar a producción si el usuario no lo pidió, o si hay cambios ajenos sin commitear en el área.
+1. ⚡ **Ejecución Directa en el Orquestador (usando las `Skills` bajo *Progressive Disclosure*):**
+   - Preguntas conceptuales, normativas o de arquitectura.
+   - Comprobaciones rápidas (`grep`, estado de git, lectura puntual) y comandos rutinarios de `git`, `node -c` o `npm run build:client`.
+   - **Ajustes quirúrgicos acotados** (ej. cambiar un texto, corregir un typo/import o un fix directo de pocas líneas con causa evidente), leyendo antes la `SKILL.md` correspondiente.
+2. 🚀 **Delegación OBLIGATORIA en Subagentes Especialistas (`invoke_subagent`), aunque sea en 1 solo archivo:**
+   - **Aislamiento de Ventana de Contexto (*Noise Reduction*):**
+     * 🎬 **Producción, guion o render de vídeos/reels** ➔ Invocar **SIEMPRE** a `wappy-video-studio`.
+     * 🌐 **Auditoría E2E en navegador (Chrome DevTools MCP) y logs post-deploy** ➔ Invocar **SIEMPRE** a `wappy-live-tester`.
+     * 🔍 **Exploración extensa del repositorio** ➔ Invocar a `research`.
+   - **Especialización Crítica de Dominio (con Memoria Procedural propia en `memory/*-lessons.md`):**
+     * 🎙️ **Tenshi Voice / Gemini Live (`geminiLive.js`, `voiceSession.js`, Push SSE)** ➔ Invocar **SIEMPRE** a `wappy-tenshi-voice`.
+     * 🔌 **Conectores Externos y Puentes (`wappy-push-daemon.js`, `mcpBridge.js`, Flow, NotebookLM, Drive, OneDrive)** ➔ Invocar **SIEMPRE** a `wappy-integrations-hub`.
+     * 🎨⚛️ **Creación de vistas nuevas, módulos de Hitos SG-SST o rediseños UI/UX completos** ➔ Invocar a `wappy-design-director` y/o `wappy-frontend-ui`.
+     * ⚙️ **Nuevos endpoints Express, esquemas Mongoose o herramientas MCP** ➔ Invocar a `wappy-backend-api`.
+   - **Ejecución en Paralelo (*Parallel Fan-Out*):**
+     * Cuando una tarea abarque múltiples dominios (ej. Backend API + Frontend UI, o Diseño + Implementación), lanzar los subagentes correspondientes **en paralelo en el mismo turno**, nunca en cadena secuencial innecesaria.
+3. 🌐 **Verificación en vivo (`wappy-live-tester`):** Invocar tras deploys o cambios visuales/funcionales relevantes, o siempre que el usuario pida probar en vivo. Si el navegador de pruebas no tiene sesión activa, avisar al usuario de inmediato en vez de reintentar en bucle.
+4. 💬 **Confirmación Inteligente:** No pedir confirmación para pasos técnicos implícitos (`node -c`, `npm run build:client`, commit de archivos tocados). Sí confirmar antes de desplegar a producción (`srv999875`) si el usuario no lo pidió explícitamente.
 
 ## 1. Equipo de Subagentes Especialistas (`invoke_subagent`)
 

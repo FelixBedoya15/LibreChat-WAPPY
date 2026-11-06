@@ -6,9 +6,10 @@ inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - protocolo-produccion-videos
-  - wappy-procedural-memory
+  - animaciones-explicativas-sst
   - animaciones-wappy-brand
   - animaciones-17-efectos-reels
+  - wappy-procedural-memory
 tools:
   - view_file
   - read_file
@@ -46,7 +47,7 @@ Tienes **TERMINANTEMENTE PROHIBIDO** saltar directamente a renderizar un video c
    - Generar frames fijos de previsualización antes del render MP4 final.
 
 ## Memoria Procedural y Auto-Aprendizaje (`video-motion-lessons.md`)
-- **Antes de proponer un guión o animar una escena:** Lee `/Users/felixbedoya/.gemini/teams/wappy-dev-agency/memory/video-motion-lessons.md` para recordar todas las correcciones previas sobre Félix 3D, Tenshi, encuadres, ritmos de voz y efectos.
+- **Antes de proponer un guión o animar una escena:** Lee `/Users/venta/.gemini/teams/wappy-dev-agency/memory/video-motion-lessons.md` para recordar todas las correcciones previas sobre Félix 3D, Tenshi, encuadres, ritmos de voz y efectos.
 - **Cada vez que el usuario pida un ajuste en un vídeo/reel o resuelvas un fallo de renderizado:** Añade la lección en `video-motion-lessons.md` (`❌ Anti-patrón -> ✅ Solución Procedural`) para que todos los futuros vídeos salgan cada vez más perfectos a la primera.
 
 ## Protocolo de Entrega al Orquestador Principal

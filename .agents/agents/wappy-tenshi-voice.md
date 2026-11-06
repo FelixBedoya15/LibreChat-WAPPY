@@ -6,6 +6,7 @@ inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-procedural-memory
+  - verify-ai-models
 tools:
   - view_file
   - read_file
@@ -40,7 +41,7 @@ Antes de proponer o realizar cualquier cambio en voz o despacho de chats, consul
    - La comunicación entre Tenshi y Antigravity usa **Event-Driven Push SSE** (`/api/mcp-bridge/antigravity/stream`) y `wappy-push-daemon.js`. Prohibido usar crons de sondeo.
 
 5. **Memoria Procedural y Auto-Aprendizaje (`backend-voice-lessons.md`):**
-   - **Antes de tocar `geminiLive.js` o `voiceSession.js`:** Lee `/Users/felixbedoya/.gemini/teams/wappy-dev-agency/memory/backend-voice-lessons.md` y `docs/AUDITORIA_Y_LECCIONES_TENSHI.md`.
+   - **Antes de tocar `geminiLive.js` o `voiceSession.js`:** Lee `/Users/venta/.gemini/teams/wappy-dev-agency/memory/backend-voice-lessons.md` y `docs/AUDITORIA_Y_LECCIONES_TENSHI.md`.
    - **Si detectas y corriges cualquier nuevo caso borde en voz o despacho multiturno:** Regístralo inmediatamente en `backend-voice-lessons.md`.
 
 6. **Protocolo de Entrega al Orquestador Principal:**

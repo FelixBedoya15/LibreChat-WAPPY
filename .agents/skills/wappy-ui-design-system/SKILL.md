@@ -1,31 +1,55 @@
 ---
 name: wappy-ui-design-system
-description: >-
-  Sistema de diseño oficial y biblia visual de WAPPY IA: los 14 Grupos Semánticos de Color (ExpandableButton.tsx), geometría e inclinación hover, tarjetas Glassmorphism, luces ambientales, micro-animaciones SVG y exportación de tablas para LiveEditor (html-docx). Úsala SIEMPRE que se diseñe, cree o refactorice cualquier interfaz, botón, modal, tarjeta o reporte en el frontend.
+description: "Sistema de diseño oficial de WAPPY IA: los 14 Grupos Semánticos de Color (ExpandableButton.tsx), tarjetas Glassmorphism, luces ambientales y tablas LiveEditor (html-docx)."
+category: frontend-and-design
+bundle: wappy-ui-and-content
+risk: safe
+source: self
+source_type: self
+date_added: "2026-10-28"
+author: wappy-ia
+agents: [wappy-design-director, wappy-frontend-ui]
+tags: [ui, design-system, expandable-button, tailwind, glassmorphism, live-editor, sgsst]
 ---
 
 # Sistema de Diseño Oficial de WAPPY IA (`wappy-ui-design-system`)
 
-Esta skill consolida la arquitectura visual de **WAPPY IA** (`WAPPY_DESIGN_RULES.md` + `ExpandableButton.tsx`). Todo agente o diseñador UI debe seguirla estrictamente al crear o editar vistas en `client/src/**/*`.
+## Overview
+
+Esta skill consolida la arquitectura visual oficial de **WAPPY IA** (`WAPPY_DESIGN_RULES.md` + `ExpandableButton.tsx`). Todo agente o diseñador UI debe seguirla estrictamente al crear o editar vistas en `client/src/**/*`.
+
+## When to Use
+
+- **Usar SIEMPRE** que se diseñe, cree, audite o refactorice cualquier interfaz, botón, modal, barra de herramientas (`SGSSTToolbar`), tarjeta o reporte exportable (`LiveEditor`) en el frontend (`client/src/**/*`).
+- **Cuándo usar otra skill:**
+  - Para animaciones de vídeo o reels con identidad WAPPY: usar [`animaciones-wappy-brand`](../animaciones-wappy-brand/SKILL.md).
+  - Para compilar `client/dist` después de editar el frontend: usar [`wappy-build-and-deploy`](../wappy-build-and-deploy/SKILL.md).
+
+## Prerequisites
+
+- Componente maestro `client/src/components/Common/ExpandableButton.tsx`.
+- Clases de superficie y tema en `client/src/` (`bg-surface-primary`, `text-text-primary`, Tailwind CSS).
 
 ---
 
-## 1. Botones e Insignias Expansibles (WAPPY 14-Group Design System)
+## How It Works
+
+### 1. Botones e Insignias Expansibles (WAPPY 14-Group Design System)
 
 > [!IMPORTANT]
 > **REGLA ESTRICTA DE BOTONES E INSIGNIAS (`client/src/components/Common/ExpandableButton.tsx`):**
 > Todos los botones auto-expansibles, insignias de conexión de Hitos, botones de barra de herramientas (toolbars), copiar, exportar, importar, generar con IA, selector de modelo, sincronizar, guardar o eliminar deben seguir estrictamente la geometría compacta con inclinación y los **14 Grupos Semánticos de Color**:
 
-### A. Geometría y Física Común
+#### A. Geometría y Física Común
 - **Componente Maestro:** `client/src/components/Common/ExpandableButton.tsx` (y adaptadores `ExpandingButton`, `ToolbarButton`, `WappyExpandButton`, `SGSSTLegalBadge`, `DummyGenerateButton`, `ModelSelector`, `ExportDropdown`).
 - **Dimensiones estándar responsive (`size="md"`):** `h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl`, ícono `h-4 w-4`, texto `text-sm font-bold tracking-wide`.
 - **Dimensiones para tablas (`size="sm"`):** `h-8 px-2 min-w-[32px] sm:h-9 sm:px-2.5 sm:min-w-[36px] rounded-xl`, ícono `h-3.5 w-3.5 sm:h-4 sm:w-4`, texto `text-xs font-bold tracking-wide`.
 - **Animación y Física al Hover (Ladeado + Expansión):**
   - Clase del botón: `transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95`
   - Contenedor del texto: `hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap`
-- **Prohibido:** Usar `rounded-full` (tipo píldora redonda) o rellenos sólidos pesados (`bg-teal-600 text-white`). Todos usan fondo translúcido (`/10`) y borde (`/30`) de su grupo semántico.
+- **Prohibido:** Desactivar la animación de expansión/contracción al pasar el cursor, forzar `w-full` que deforme el botón, usar `rounded-full` o rellenos sólidos pesados (`bg-teal-600 text-white`). Todos usan fondo translúcido (`/10`) y borde (`/30`) de su grupo semántico.
 
-### B. Los 14 Grupos Semánticos de Color (Obligatorios)
+#### B. Los 14 Grupos Semánticos de Color (Obligatorios)
 1. **Grupo 1 — Normatividad CUMPLIDA (`compliance-ok` / `SGSSTLegalBadge`):** `border-emerald-500/70 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30` (con punto esmeralda pulsante).
 2. **Grupo 2 — Normatividad PENDIENTE (`compliance-warn` / `SGSSTLegalBadge`):** `bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20`.
 3. **Grupo 3 — Confirmar / Guardar / Aprobar / Fijar (`teal`):** `bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20`.
@@ -43,13 +67,13 @@ Esta skill consolida la arquitectura visual de **WAPPY IA** (`WAPPY_DESIGN_RULES
 
 ---
 
-## 2. Botonera Flotante Isla (`SGSSTToolbar`)
+### 2. Botonera Flotante Isla (`SGSSTToolbar`)
 - **Contenedor:** `inline-flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-none`
 - **Estado Activo (Tab seleccionado):** `bg-teal-50 dark:bg-teal-950/50 border-teal-500 text-teal-600 dark:text-teal-300 font-bold`
 
 ---
 
-## 3. Superficies, Glassmorphism, Luces Ambientales y Tipografía
+### 3. Superficies, Glassmorphism, Luces Ambientales y Tipografía
 - **Superficies y Textos:** Usar clases nativas `bg-surface-primary`, `bg-surface-secondary`, `text-text-primary`, `text-text-secondary` para compatibilidad perfecta con Dark Mode.
 - **Títulos Principales (H1/H2):**
   `bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent font-extrabold tracking-tight`
@@ -61,7 +85,24 @@ Esta skill consolida la arquitectura visual de **WAPPY IA** (`WAPPY_DESIGN_RULES
 
 ---
 
-## 4. Renderizado de Informes y Tablas para Exportación (`LiveEditor` / `html-docx`)
+### 4. Renderizado de Informes y Tablas para Exportación (`LiveEditor` / `html-docx`)
 Al construir tablas o informes en aplicativos SGSST que se exportan a Word/PDF mediante `<LiveEditor />` y `<ExportDropdown />`:
 1. **Estilos CSS en línea obligatorios (`style={{...}}`):** No encerrar tablas complejas en `className="flex"` vacío.
 2. **Estructura de `<table/>`:** Siempre `border-collapse: collapse; width: 100%;` y colores hexadecimales planos (`#e2e8f0`, `#f1f5f9`, `#334155`) en lugar de variables CSS `var(--border)` para que `html-docx-js` conserve los bordes en Word.
+
+---
+
+## Verification
+
+- Comprobar `0px` de desbordamiento horizontal en móvil y escritorio (`md:flex-row`).
+- Verificar que todos los botones nuevos usen `ExpandableButton` con su grupo de color semántico (`1–14`) y mantengan la expansión suave al hover.
+- Compilar siempre con `npm run build:client` tras modificar archivos en `client/src/**/*`.
+
+## Safety and Side Effects
+
+- **Risk level:** `safe` — Modificaciones visuales y de componentes React en `client/src/**/*`. Requiere compilación posterior de `client/dist`.
+
+## Sources and Related Skills
+
+- [`wappy-build-and-deploy`](../wappy-build-and-deploy/SKILL.md)
+- [`animaciones-wappy-brand`](../animaciones-wappy-brand/SKILL.md)

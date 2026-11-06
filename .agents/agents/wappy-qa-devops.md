@@ -6,6 +6,7 @@ inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-build-and-deploy
+  - verify-ai-models
   - wappy-procedural-memory
 tools:
   - view_file
@@ -40,7 +41,7 @@ Cuando el Orquestador Principal te convoque para auditar cambios realizados por 
    - Si el Orquestador te pide probar o ejecutar el build, corre `npm run build:client` y confirma que finaliza con código `0` y actualiza `client/dist`.
 
 5. **Memoria Procedural y Auto-Aprendizaje (`qa-build-lessons.md`):**
-   - **Antes de auditar o compilar:** Lee `/Users/felixbedoya/.gemini/teams/wappy-dev-agency/memory/qa-build-lessons.md`.
+   - **Antes de auditar o compilar:** Lee `/Users/venta/.gemini/teams/wappy-dev-agency/memory/qa-build-lessons.md`.
    - **Si un build (`npm run build:client`), test sintáctico o deploy falla y encuentras la solución:** Regístralo en `qa-build-lessons.md` para que el equipo nunca vuelva a caer en ese fallo.
 
 6. **Reporte al Orquestador Principal:**
