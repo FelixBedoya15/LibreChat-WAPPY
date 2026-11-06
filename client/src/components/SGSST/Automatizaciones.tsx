@@ -32,7 +32,9 @@ import {
   Layers,
   ArrowRight,
   Download,
-  ShieldCheck
+  ShieldCheck,
+  Copy,
+  Wand2
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useAuthContext } from '~/hooks';
@@ -595,8 +597,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   // Alternar nodo en el constructor visual n8n
-  const toggleWorkflowNode = (group: 'inputs' | 'hitos' | 'outputs', nodeId: string) => {
+  const toggleWorkflowNode = (group: 'trigger' | 'inputs' | 'hitos' | 'outputs', nodeId: string) => {
     setFormWorkflowNodes((prev) => {
+      if (group === 'trigger') {
+        return {
+          ...prev,
+          trigger: nodeId,
+        };
+      }
       const current = prev[group] || [];
       const exists = current.includes(nodeId);
       const next = exists ? current.filter((id) => id !== nodeId) : [...current, nodeId];
@@ -1558,7 +1566,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => handleEditOpen(preset)}
+                                  onClick={() => handleEditOpen(preset, true)}
                                   className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition"
                                   title="Editar plantilla global (Admin)"
                                 >
@@ -1624,11 +1632,11 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
                           <button
                             type="button"
-                            disabled={installingPresetId === preset._id}
-                            onClick={() => handleInstallPreset(preset, false)}
+                            disabled={actionLoadingId === preset._id}
+                            onClick={() => handleInstallPreset(preset)}
                             className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
                           >
-                            {installingPresetId === preset._id ? (
+                            {actionLoadingId === preset._id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <Copy className="w-3.5 h-3.5" />
@@ -1755,7 +1763,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
                 <div>
                   <h2 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">
-                    {isEditingSystemPreset
+                    {isPresetModalMode
                       ? editingAutomation
                         ? 'Editar Tarea Preestablecida Global (Admin)'
                         : 'Nueva Tarea Preestablecida Global para Todos los Usuarios'
@@ -1779,7 +1787,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             {/* Form */}
             <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-y-auto px-6 py-5 gap-4">
               {/* Selector rápido de Plantilla Preestablecida (solo al crear tarea de empresa) */}
-              {!editingAutomation && !isEditingSystemPreset && presets.length > 0 && (
+              {!editingAutomation && !isPresetModalMode && presets.length > 0 && (
                 <div className="p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
@@ -1904,9 +1912,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     <button
                       key={step.id}
                       type="button"
-                      onClick={() => setBuilderStepTab(step.id as any)}
+                      onClick={() => setActiveNodeBuilderTab(step.id as any)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between border ${
-                        builderStepTab === step.id
+                        activeNodeBuilderTab === step.id
                           ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                           : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400'
                       }`}
@@ -1917,7 +1925,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                       </span>
                       <span
                         className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                          builderStepTab === step.id
+                          activeNodeBuilderTab === step.id
                             ? 'bg-white/20 text-white'
                             : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
                         }`}
@@ -1930,23 +1938,23 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
                 {/* Panel de Nodos seleccionables según la etapa */}
                 <div className="max-h-56 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {(builderStepTab === 'trigger'
+                  {(activeNodeBuilderTab === 'trigger'
                     ? TRIGGER_NODES
-                    : builderStepTab === 'inputs'
+                    : activeNodeBuilderTab === 'inputs'
                       ? INPUT_CONNECTOR_NODES
-                      : builderStepTab === 'hitos'
+                      : activeNodeBuilderTab === 'hitos'
                         ? HITO_APP_NODES
                         : OUTPUT_ACTION_NODES
                   ).map((node) => {
                     const isSelected =
-                      builderStepTab === 'trigger'
+                      activeNodeBuilderTab === 'trigger'
                         ? formWorkflowNodes.trigger === node.id
-                        : (formWorkflowNodes[builderStepTab] || []).includes(node.id);
+                        : (formWorkflowNodes[activeNodeBuilderTab] || []).includes(node.id);
                     return (
                       <button
                         key={node.id}
                         type="button"
-                        onClick={() => toggleWorkflowNode(builderStepTab, node.id)}
+                        onClick={() => toggleWorkflowNode(activeNodeBuilderTab, node.id)}
                         className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
                           isSelected
                             ? 'bg-purple-50/90 dark:bg-purple-950/50 border-purple-500 ring-1 ring-purple-500 shadow-sm'
@@ -2150,7 +2158,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema */}
                   {isAdmin && (
                     <div className="p-3 rounded-2xl border border-teal-300/70 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-950/20">
-                      {!isEditingSystemPreset && (
+                      {!isPresetModalMode && (
                         <label className="flex items-center gap-2 cursor-pointer text-xs font-extrabold text-teal-900 dark:text-teal-200">
                           <input
                             type="checkbox"
@@ -2161,7 +2169,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                           <span>🌐 Publicar también como Tarea Preestablecida para TODOS los usuarios</span>
                         </label>
                       )}
-                      {(isEditingSystemPreset || formSaveAsSystemPreset) && (
+                      {(isPresetModalMode || formSaveAsSystemPreset) && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                           <div>
                             <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
@@ -2231,7 +2239,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   type="submit"
                   className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-lg text-xs uppercase tracking-wider transition shadow-md"
                 >
-                  {isEditingSystemPreset
+                  {isPresetModalMode
                     ? 'Guardar Plantilla Global'
                     : editingAutomation
                       ? 'Guardar Cambios'
