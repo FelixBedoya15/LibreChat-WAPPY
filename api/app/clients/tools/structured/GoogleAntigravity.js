@@ -161,7 +161,7 @@ class GoogleAntigravity extends Tool {
         dueDate: new Date(Date.now() + 2 * 3600 * 1000),
         type: 'antigravity_delegation',
         priority: 'alta',
-        sourceModule: 'agent_tool',
+        sourceModule: 'sgsst_agent',
       });
 
       const finalOrdenId = kanbanTask._id.toString();
@@ -176,6 +176,8 @@ class GoogleAntigravity extends Tool {
         archivos: finalFiles,
         estado: 'todo',
         prioridad: 'alta',
+        sourceModule: 'sgsst_agent',
+        remitente: 'Agente Especialista SG-SST',
         companyId: company ? String(company._id || '') : '',
         companyName: company?.companyName || '',
         companyNit: company?.nit || '',

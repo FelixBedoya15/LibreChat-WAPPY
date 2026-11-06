@@ -8963,7 +8963,7 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
-const MIN_REQUIRED_DAEMON_VERSION = '2.5.5';
+const MIN_REQUIRED_DAEMON_VERSION = '2.6.1';
 
 function compareSemver(a, b) {
   const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
@@ -9480,6 +9480,8 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
         for (const t of pendingTasks) {
           const desc = String(t.description || '');
           const mFormato = desc.match(/Formato Esperado:\s*([a-z_]+)/i);
+          const mEmpresa = desc.match(/Empresa:\s*([^\n\r]+)/i);
+          const mRecurso = desc.match(/Recurso Objetivo:\s*([^\n\r]+)/i);
           const mInstr = desc.match(/Instrucci[oó]n:\s*([\s\S]*?)(?:\nRecurso Objetivo:|$)/i);
           const taskArchivos = Array.isArray(t.attachments)
             ? t.attachments.map((a) => (typeof a === 'string' ? a.trim() : String(a?.url || '').trim())).filter(Boolean)
@@ -9498,15 +9500,17 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
               titulo: t.title,
               instruccion: mInstr ? mInstr[1].trim() : desc,
               descripcion: desc,
+              recursoObjetivo: mRecurso ? mRecurso[1].trim() : 'Datos Empresariales WAPPY MCP',
               formatoEntregable: mFormato ? mFormato[1].toLowerCase() : 'respuesta',
               archivos: taskArchivos,
               estado: t.status,
               prioridad: t.priority,
+              sourceModule: t.sourceModule || 'tenshi_voice',
               companyId: taskCompany ? String(taskCompany._id || '') : (t.companyId ? String(t.companyId) : ''),
               companyName: taskCompany?.companyName || '',
               companyNit: taskCompany?.nit || '',
               companyWorkspace: taskCompany?.antigravityWorkspace || '',
-              empresa: taskCompany?.companyName || 'Empresa Activa',
+              empresa: taskCompany?.companyName || (mEmpresa ? mEmpresa[1].trim() : 'Empresa Activa'),
               fechaCreacion: t.createdAt,
             })}\n\n`
           );
@@ -10019,6 +10023,10 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       adjuntos,
       media,
       sourceModule,
+      remitente,
+      empresa,
+      corteHora,
+      targetProject,
       entorno_destino,
       targetEnv,
     } = req.body;
@@ -10052,7 +10060,10 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const rawPriority = String(prioridad || 'alta').toLowerCase();
     const finalPriority = (rawPriority === 'high' || rawPriority === 'alta') ? 'alta' : (rawPriority === 'low' || rawPriority === 'baja') ? 'baja' : 'media';
 
-    const companyName = company?.companyName || 'Empresa Activa';
+    const companyName = String(empresa || company?.companyName || 'Empresa Activa').trim();
+    const finalRemitente = String(remitente || '').trim() || undefined;
+    const finalCorteHora = String(corteHora || '').trim() || undefined;
+    const finalTargetProject = String(targetProject || '').trim() || undefined;
 
     let kanbanTask = null;
     try {
@@ -10101,11 +10112,14 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       estado: 'todo',
       prioridad: finalPriority,
       sourceModule: finalSourceModule,
+      remitente: finalRemitente,
       companyId: company ? String(company._id || '') : '',
-      companyName: company?.companyName || '',
+      companyName: company?.companyName || companyName,
       companyNit: company?.nit || '',
       companyWorkspace: company?.antigravityWorkspace || '',
-      empresa: company?.companyName || 'Empresa Activa',
+      empresa: companyName,
+      corteHora: finalCorteHora,
+      targetProject: finalTargetProject,
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
 
@@ -10129,7 +10143,12 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     // Respaldo Automático Inmediato (Cloud Failover):
     // 1. Si no hay ningún PC conectado, o el PC no reclama la orden en 10s, ejecutar en la nube automáticamente.
     // 2. Si el PC reclama la orden pero Antigravity local se cuelga sin completarla en 50s, ejecutar en la nube automáticamente.
-    if (kanbanTask?._id && finalOutputType !== 'copia_archivo' && finalSourceModule !== 'healthcheck_e2e') {
+    if (
+      kanbanTask?._id &&
+      finalOutputType !== 'copia_archivo' &&
+      finalSourceModule !== 'healthcheck_e2e' &&
+      finalSourceModule !== 'healthcheck_report'
+    ) {
       const taskIdStr = kanbanTask._id.toString();
       setTimeout(async () => {
         try {
@@ -10632,7 +10651,11 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         }
       : undefined;
 
-    if (task.sourceModule !== 'image_priority' && task.sourceModule !== 'healthcheck_e2e') {
+    if (
+      task.sourceModule !== 'image_priority' &&
+      task.sourceModule !== 'healthcheck_e2e' &&
+      task.sourceModule !== 'healthcheck_report'
+    ) {
       try {
         const tenshiBubbleContent = isOriginalFileCopy && mediaPayload
           ? mediaPayload.type === 'image' && savedPublicUrl
@@ -10666,7 +10689,7 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     }
 
     // ── EMISIÓN PUSH EN TIEMPO REAL AL STREAM SSE (NAVEGADOR / CELULAR / TENSHI) ─
-    if (task.sourceModule !== 'healthcheck_e2e') {
+    if (task.sourceModule !== 'healthcheck_e2e' && task.sourceModule !== 'healthcheck_report') {
       try {
         broadcastAntigravityEvent(targetUserId, 'orden_completada', {
           ordenId: task._id.toString(),
@@ -10685,39 +10708,41 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     }
 
     // ── NOTIFICACIÓN EN TIEMPO REAL A SESIÓN DE TENSHI VOICE / LIVE ───────────
-    try {
-      const { activeSessions } = require('./voice/voiceSession');
-      if (activeSessions) {
-        let userSession = activeSessions.get(String(targetUserId));
-        if (!userSession) {
-          for (const [key, sess] of activeSessions.entries()) {
-            if (String(key) === String(targetUserId)) {
-              userSession = sess;
-              break;
+    if (task.sourceModule !== 'healthcheck_e2e' && task.sourceModule !== 'healthcheck_report') {
+      try {
+        const { activeSessions } = require('./voice/voiceSession');
+        if (activeSessions) {
+          let userSession = activeSessions.get(String(targetUserId));
+          if (!userSession) {
+            for (const [key, sess] of activeSessions.entries()) {
+              if (String(key) === String(targetUserId)) {
+                userSession = sess;
+                break;
+              }
             }
           }
+          if (userSession && typeof userSession.sendToClient === 'function') {
+            userSession.sendToClient({
+              type: 'tenshi_report_delivered',
+              data: {
+                ordenId: task._id.toString(),
+                title: task.title,
+                formato: finalFormat,
+                isConversationalReply,
+                isOriginalFileCopy,
+                media: mediaPayload,
+                html: isHtml ? finalContent : undefined,
+                file: filePayload,
+                messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
+                summary: finalSummary,
+              },
+            });
+            logger.info(`[MCP Bridge] Evento en tiempo real emitido a la sesión de voz de Tenshi para usuario ${targetUserId}`);
+          }
         }
-        if (userSession && typeof userSession.sendToClient === 'function') {
-          userSession.sendToClient({
-            type: 'tenshi_report_delivered',
-            data: {
-              ordenId: task._id.toString(),
-              title: task.title,
-              formato: finalFormat,
-              isConversationalReply,
-              isOriginalFileCopy,
-              media: mediaPayload,
-              html: isHtml ? finalContent : undefined,
-              file: filePayload,
-              messageId: createdTenshiMsg?._id ? createdTenshiMsg._id.toString() : `antigravity-${Date.now()}`,
-              summary: finalSummary,
-            },
-          });
-          logger.info(`[MCP Bridge] Evento en tiempo real emitido a la sesión de voz de Tenshi para usuario ${targetUserId}`);
-        }
+      } catch (wsErr) {
+        logger.warn('[MCP Bridge] No se pudo emitir evento a sesión de voz (sesión inactiva):', wsErr.message);
       }
-    } catch (wsErr) {
-      logger.warn('[MCP Bridge] No se pudo emitir evento a sesión de voz (sesión inactiva):', wsErr.message);
     }
 
     return res.json({

@@ -391,6 +391,14 @@ router.post('/governance/:id/approve', requireJwtAuth, async (req, res) => {
         }
 
         const customArgs = req.body?.args ? { ...pendingAction.args, ...req.body.args } : { ...pendingAction.args };
+        if (
+            (pendingAction.toolName === 'wappy_delegar_orden_antigravity' ||
+                pendingAction.toolName === 'delegar_orden_antigravity') &&
+            !customArgs.sourceModule
+        ) {
+            customArgs.sourceModule = 'tenshi_chat';
+            customArgs.remitente = customArgs.remitente || 'Tenshi Chat Escrito';
+        }
         const execResult = await executeTenshiMcpTool(
             pendingAction.toolName,
             { ...customArgs, _hitlApproved: true },
@@ -3577,6 +3585,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                  } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
                                     const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;
                                     const targetArgs = call.name === 'wappy_mcp_sst' ? (call.args?.parametros || call.args?.args || call.args || {}) : (call.args || {});
+                                    if (targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') {
+                                        targetArgs.sourceModule = targetArgs.sourceModule || 'tenshi_chat';
+                                        targetArgs.remitente = targetArgs.remitente || 'Tenshi Chat Escrito';
+                                        if (companyInfo?.companyName && !targetArgs.empresa) {
+                                            targetArgs.empresa = companyInfo.companyName;
+                                        }
+                                    }
                                     if (isGovernedTool(targetTool, targetArgs)) {
                                         const staged = await stageGovernedAction(targetTool, targetArgs, targetUserId, companyInfo?._id);
                                         capturedWidget = staged.widget;

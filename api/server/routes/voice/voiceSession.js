@@ -5779,6 +5779,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 }
                             }
 
+                            targetArgs.sourceModule = targetArgs.sourceModule || 'tenshi_voice';
+                            targetArgs.remitente = targetArgs.remitente || 'Tenshi Voz en Vivo';
                             const camMedia = this.persistLiveCameraMediaForAntigravity();
                             if (camMedia && Array.isArray(camMedia.mediaUrls) && camMedia.mediaUrls.length > 0) {
                                 const existingArchivos = Array.isArray(targetArgs.archivos) ? targetArgs.archivos : [];

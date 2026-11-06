@@ -4279,6 +4279,8 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
       prioridad: 'alta',
       origen: 'wappy_studio',
       sourceModule: 'wappy_studio',
+      remitente: 'Wappy Studio',
+      empresa: orderSpec.companyName || req?.body?.companyName || 'Wappy Studio',
       sourceHtml: orderSpec.sourceHtml || undefined,
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };

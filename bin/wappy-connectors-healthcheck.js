@@ -84,18 +84,24 @@ function resolveAllCredentials() {
     candidates.push({ wappyUrl: cleanUrl, apiKey: cleanKey });
   };
 
-  try {
-    if (fs.existsSync(KEYS_FILE)) {
-      const arr = JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
-      if (Array.isArray(arr)) {
-        for (const item of arr) {
-          if (item && item.apiKey) add(item.wappyUrl, item.apiKey);
+  for (const kf of [KEYS_FILE, '/home/antigravity/upload/wappy-keys.json']) {
+    try {
+      if (fs.existsSync(kf)) {
+        const arr = JSON.parse(fs.readFileSync(kf, 'utf8'));
+        if (Array.isArray(arr)) {
+          for (const item of arr) {
+            if (item && item.apiKey) add(item.wappyUrl, item.apiKey);
+          }
         }
       }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
 
-  for (const cfgPath of [path.join(CONFIG_DIR, 'mcp_config.json'), path.join(AGY_DIR, 'mcp_config.json')]) {
+  for (const cfgPath of [
+    path.join(CONFIG_DIR, 'mcp_config.json'),
+    path.join(AGY_DIR, 'mcp_config.json'),
+    '/home/antigravity/upload/mcp_config.json',
+  ]) {
     try {
       if (!fs.existsSync(cfgPath)) continue;
       const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
@@ -1476,10 +1482,170 @@ function updateWordBitacora({
       fs.writeFileSync(DESKTOP_WAPPY_FOLDER_DOCX, docxBuf);
     }
 
+    if (fs.existsSync('/home/antigravity/upload')) {
+      try {
+        fs.writeFileSync('/home/antigravity/upload/Bitacora_Conectores_WAPPY_IA.docx', docxBuf);
+        fs.writeFileSync('/home/antigravity/upload/wappy-healthcheck-bitacora.json', JSON.stringify(entries, null, 2), 'utf8');
+      } catch (_) {}
+    }
+
     log(`📄 Bitácora Word actualizada en el Escritorio: ${DESKTOP_DOCX_FILE} (${entries.length} registros).`);
   } catch (err) {
     log(`⚠️ Error actualizando bitácora Word en el Escritorio: ${err.message}`);
   }
+}
+
+function formatTriggerLabel(rawTrigger) {
+  const t = String(rawTrigger || 'manual').toLowerCase().trim();
+  if (t === 'boot') return 'Arranque Mac';
+  if (t === 'schedule' || t === 'cron') return 'Corte Programado';
+  if (t === 'wake') return 'Despertar Reposo';
+  if (t === 'manual' || t === 'cron-test') return 'Verificación Manual';
+  return rawTrigger || 'Corte';
+}
+
+function formatShortColombianHour(dateInput = new Date()) {
+  try {
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(dateInput));
+  } catch (_) {
+    return new Date(dateInput).toLocaleTimeString();
+  }
+}
+
+/**
+ * 6. APERTURA Y REGISTRO EN EL CHAT DEDICADO DE ANTIGRAVITY (`🩺 [Cron Conectores · ...]`)
+ * Abre visiblemente la conversación dedicada de Bitácora (`wappy-healthcheck-thread.json`) en el proyecto
+ * principal `LibreChat-WAPPY` dejando el acta completa de las 3 pruebas E2E o la verificación de ventana de 90 min.
+ */
+async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {}) {
+  const mode = options.mode || 'full_report';
+  const trigger = String(options.trigger || 'schedule');
+  const triggerHuman = formatTriggerLabel(trigger);
+  const horaStr = formatShortColombianHour();
+  const corteHora = `${triggerHuman} · ${horaStr}`;
+
+  let titulo = '';
+  let promptText = '';
+
+  if (mode === 'window_verified') {
+    const prev = options.previousState || {};
+    const prevHora = prev.isoDate ? formatShortColombianHour(prev.isoDate) : 'reciente';
+    const prevTriggerHuman = formatTriggerLabel(prev.trigger || 'boot');
+    titulo = `Corte ${horaStr} Verificado (Cubierto por ${prevTriggerHuman} ${prevHora})`;
+    promptText = [
+      `🩺 **[ACTA DE VERIFICACIÓN DE CORTE PROGRAMADO — ${corteHora}]**`,
+      `- **Fecha y Hora (Colombia):** ${formatColombianDate(new Date())}`,
+      `- **Disparador Actual:** \`${trigger}\` (${triggerHuman})`,
+      `- **Estado de la Ventana de 90 Minutos:** El reporte E2E completo (3/3 módulos OK + Bitácora Word + Correo a \`${ALERT_EMAIL}\`) ya fue ejecutado hace **${options.elapsedMinutes || 0} minutos** durante el corte de **${prevTriggerHuman} (${prevHora})**.`,
+      `- **Acción Aplicada:** Se conserva la validación 3/3 OK del corte matutino y se omite el reenvío de correo duplicado a \`${ALERT_EMAIL}\`, dejando constancia oficial en este chat del corte de las ${horaStr}.`,
+      `- **Resumen del Corte Previo (${prevHora}):**`,
+      `  1. **Google Antigravity:** ${prev.finalResults?.antigravity?.ok ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.antigravity?.detail || prev.finalResults?.antigravity?.detail || 'Verificado'}`,
+      `  2. **Google NotebookLM:** ${prev.finalResults?.notebooklm?.ok ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.notebooklm?.detail || prev.finalResults?.notebooklm?.detail || 'Verificado'}`,
+      `  3. **Google Flow Studio:** ${prev.finalResults?.googleflow?.ok ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.googleflow?.detail || prev.finalResults?.googleflow?.detail || 'Verificado'}`,
+      ``,
+      `INSTRUCCIÓN PARA ANTIGRAVITY (MODO BITÁCORA CRON — CERO HERRAMIENTAS): Este mensaje es la constancia automática del corte programado de las ${horaStr}. NO ejecutes comandos de terminal ni herramientas MCP. Responde ÚNICAMENTE en 1 sola línea confirmando que el corte de las ${horaStr} verificó el reporte matutino ejecutado en el arranque (${prevHora}).`,
+    ].join('\n');
+  } else {
+    const finalResults = options.finalResults || {};
+    const functionalResults = options.functionalResults || {};
+    const allHealthyNow = Boolean(options.allHealthyNow);
+    const emailSent = Boolean(options.emailSent);
+
+    titulo = `Reporte E2E ${allHealthyNow ? '3/3 OK' : 'Con Alertas'} (Antigravity + NotebookLM + Flow)`;
+    promptText = [
+      `🩺 **[BITÁCORA OFICIAL DEL CRON DE CONECTORES WAPPY IA — ${corteHora}]**`,
+      `- **Fecha y Hora (Colombia):** ${formatColombianDate(new Date())}`,
+      `- **Disparador:** \`${trigger}\` (${triggerHuman})`,
+      `- **Equipo / Host:** \`${os.hostname()}\``,
+      `- **Proyecto Destino:** \`LibreChat-WAPPY\` (\`/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY\`)`,
+      `- **Resultado Global E2E:** ${allHealthyNow ? '🟢 **3/3 MÓDULOS OPERATIVOS Y VERIFICADOS**' : '🚨 **ALERTA DETECTADA EN REVISIÓN**'}`,
+      ``,
+      `### 🧪 Detalle de las 3 Pruebas Funcionales E2E:`,
+      `1. **Google Antigravity (Puente Reactivo Push SSE):** ${finalResults.antigravity?.ok ? '🟢 OK' : '🔴 FALLO'}`,
+      `   - Conectividad: ${finalResults.antigravity?.detail || 'N/A'}`,
+      `   - Prueba Funcional E2E: ${functionalResults.antigravity?.detail || 'N/A'}`,
+      `2. **Google NotebookLM (RAG & Cuadernos):** ${finalResults.notebooklm?.ok ? '🟢 OK' : '🔴 FALLO'}`,
+      `   - Conectividad: ${finalResults.notebooklm?.detail || 'N/A'}`,
+      `   - Prueba Funcional E2E: ${functionalResults.notebooklm?.detail || 'N/A'}`,
+      `3. **Google Flow Studio (Imagen IA / Veo):** ${finalResults.googleflow?.ok ? '🟢 OK' : '🔴 FALLO'}`,
+      `   - Conectividad: ${finalResults.googleflow?.detail || 'N/A'}`,
+      `   - Prueba Funcional E2E: ${functionalResults.googleflow?.detail || 'N/A'}${
+        functionalResults.googleflow?.imageUrl ? `\n   - Imagen Generada: ${functionalResults.googleflow.imageUrl}` : ''
+      }`,
+      ``,
+      `### 📁 Soportes y Notificaciones:`,
+      `- **Bitácora Word en Escritorio:** \`${DESKTOP_DOCX_FILE}\` (Actualizada)`,
+      `- **Notificación por Correo (\`${ALERT_EMAIL}\`):** ${
+        emailSent ? '✅ Enviado exitosamente' : 'ℹ️ No enviado en este corte'
+      }`,
+      ``,
+      `INSTRUCCIÓN PARA ANTIGRAVITY (MODO BITÁCORA CRON — CERO HERRAMIENTAS): Este mensaje es el acta automática oficial del Monitor de Conectores de WAPPY IA. NO ejecutes comandos de terminal ni herramientas MCP. Responde ÚNICAMENTE en 1 sola línea confirmando el registro en bitácora (ej. "✅ Bitácora del corte ${corteHora} registrada: 3/3 conectores operativos y correo enviado a ${ALERT_EMAIL}.").`,
+    ].join('\n');
+  }
+
+  // 1. Vía Directa Local en el Mac (`wappy-push-daemon.js --healthcheck-chat=<tmpFile>`):
+  //    Garantiza apertura inmediata de la pestaña en `LibreChat-WAPPY` sin depender del estado de red.
+  if (fs.existsSync(DAEMON_SCRIPT)) {
+    const tmpReportFile = path.join('/tmp', `wappy_hc_chat_${Date.now()}.json`);
+    try {
+      fs.writeFileSync(
+        tmpReportFile,
+        JSON.stringify(
+          {
+            corteHora,
+            titulo,
+            promptText,
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+      const out = execFileSync(process.execPath, [DAEMON_SCRIPT, `--healthcheck-chat=${tmpReportFile}`], {
+        encoding: 'utf8',
+        timeout: 28000,
+      });
+      log(`🩺 Chat de Bitácora abierto en Antigravity: ${String(out || '').trim()}`);
+      return true;
+    } catch (err) {
+      log(`⚠️ Aviso abriendo chat de bitácora por CLI local (${err.message}). Intentando vía puente SSE...`);
+    } finally {
+      try {
+        if (fs.existsSync(tmpReportFile)) fs.unlinkSync(tmpReportFile);
+      } catch (_) {}
+    }
+  }
+
+  // 2. Respaldo vía Puente SSE (`/api/mcp-bridge/antigravity/delegar` con `sourceModule: 'healthcheck_report'`)
+  if (wappyUrl && apiKey) {
+    try {
+      const delRes = await httpJson(`${wappyUrl}/api/mcp-bridge/antigravity/delegar`, {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+        body: {
+          titulo: `[HEALTHCHECK-REPORT] ${titulo}`,
+          instruccion: promptText,
+          tipo_entregable: 'respuesta',
+          sourceModule: 'healthcheck_report',
+          corteHora,
+        },
+        timeoutMs: 15000,
+      });
+      if (delRes.ok) {
+        log(`🩺 Reporte de bitácora enviado al chat de Antigravity vía Push SSE (orden: ${delRes.data?.ordenId || 'OK'}).`);
+        return true;
+      }
+    } catch (err) {
+      log(`⚠️ Error enviando reporte de bitácora vía Push SSE: ${err.message}`);
+    }
+  }
+
+  return false;
 }
 
 async function main() {
@@ -1505,15 +1671,33 @@ async function main() {
   try {
     // Unificación de ejecuciones automáticas (boot, wake, schedule, cron):
     // Evitar enviar múltiples correos en la mañana cuando coinciden el encendido del Mac (boot),
-    // LaunchAgent (schedule) y crontab (cron). Si ya se completó una prueba exitosa con correo en los últimos 90 minutos, omitir.
+    // LaunchAgent (schedule) y crontab (cron). Si ya se completó una prueba exitosa con correo en los últimos 90 minutos,
+    // no enviar un segundo correo repetido, PERO si entra el corte oficial `schedule`/`cron` tras un `boot` temprano,
+    // dejar la constancia escrita en el chat `🩺 [Cron Conectores]` de Antigravity.
     if (!isManualRun && fs.existsSync(STATE_FILE)) {
       try {
         const lastState = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
         const elapsedMs = Date.now() - (lastState.timestamp || 0);
         if (lastState.allHealthyNow && lastState.emailSent && elapsedMs < 90 * 60 * 1000) {
+          const elapsedMinutes = Math.round(elapsedMs / 60000);
           log(
-            `ℹ️ Reporte unificado ya fue ejecutado y enviado hace ${Math.round(elapsedMs / 60000)} min (trigger previo: ${lastState.trigger}). Omitiendo duplicado (${trigger}) para no enviar correos repetidos.`
+            `ℹ️ Reporte unificado ya fue ejecutado y enviado hace ${elapsedMinutes} min (trigger previo: ${lastState.trigger}). Omitiendo duplicado (${trigger}) para no enviar correos repetidos.`
           );
+          if (
+            (trigger === 'schedule' || trigger === 'cron') &&
+            lastState.trigger !== trigger &&
+            !lastState.windowChatLoggedForTrigger
+          ) {
+            const { wappyUrl: wUrl, apiKey: aKey } = resolveCredentials();
+            await openAntigravityHealthcheckChatLog(wUrl, aKey, {
+              mode: 'window_verified',
+              trigger,
+              previousState: lastState,
+              elapsedMinutes,
+            });
+            lastState.windowChatLoggedForTrigger = trigger;
+            fs.writeFileSync(STATE_FILE, JSON.stringify(lastState, null, 2), 'utf8');
+          }
           return;
         }
       } catch (_) {}
@@ -1684,6 +1868,18 @@ async function main() {
         recipientEmail: args.email || finalResults.antigravity?.userEmail || initAg.userEmail || '',
       });
     }
+
+    // Abrir y registrar el acta completa en el chat dedicado `🩺 [Cron Conectores · ...]` de Antigravity
+    await openAntigravityHealthcheckChatLog(wappyUrl, apiKey, {
+      mode: 'full_report',
+      trigger,
+      initialResults,
+      finalResults,
+      functionalResults,
+      hadInitialErrors,
+      allHealthyNow,
+      emailSent,
+    });
 
     // Guardar estado final (con emailSent=true para evitar correos repetidos en la misma ventana de 90 min)
     try {

@@ -34,9 +34,15 @@ const ACTIVE_CONVO_FILE = path.join(AGY_DIR, 'wappy-active-conversation.txt');
 const TENSHI_THREAD_FILE = path.join(AGY_DIR, 'wappy-tenshi-thread.json');
 const COMPANY_WORKSPACES_FILE = path.join(AGY_DIR, 'wappy-company-workspaces.json');
 const STUDIO_THREAD_FILE = path.join(AGY_DIR, 'wappy-studio-thread.json');
+const HEALTHCHECK_THREAD_FILE = path.join(AGY_DIR, 'wappy-healthcheck-thread.json');
+const IMAGE_THREAD_FILE = path.join(AGY_DIR, 'wappy-image-thread.json');
 const STUDIO_CURRENT_HTML_FILE = '/tmp/wappy_studio_current.html';
-const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi / Wappy Studio
-const DAEMON_VERSION = '2.6.0';
+const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi / Wappy Studio / Agentes SST
+const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
+const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
+const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para el Generador Prioritario de Imágenes
+const LIBRECHAT_PRIMARY_PROJECT_ID = '02b10c08-df81-4a56-af48-1b15f7e66c76';
+const DAEMON_VERSION = '2.6.1';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -1512,6 +1518,114 @@ function saveStudioThreadConversationId(convoId, workspaceCwd, uiVisible = false
 }
 
 /**
+ * Obtiene el ID de conversación activa desde un archivo de hilo específico (`threadFile`),
+ * validando su TTL (`ttlMs`), que exista su `.db`, que sea `uiVisible === true` y que coincida
+ * con el workspace esperado (`expectedWorkspaceCwd`) para no reutilizar chats de otros proyectos.
+ */
+function findThreadConversationId({
+  preferredId = null,
+  forceNewChat = false,
+  threadFile = TENSHI_THREAD_FILE,
+  ttlMs = TENSHI_THREAD_TTL_MS,
+  expectedWorkspaceCwd = null,
+} = {}) {
+  if (forceNewChat) {
+    return null;
+  }
+
+  if (preferredId && typeof preferredId === 'string') {
+    const clean = preferredId.trim();
+    if (/^[0-9a-fA-F-]{36}$/.test(clean)) {
+      const dbPath = path.join(AGY_DIR, 'conversations', `${clean}.db`);
+      if (fs.existsSync(dbPath)) {
+        return clean;
+      }
+    }
+  }
+
+  if (!threadFile) return null;
+
+  try {
+    if (fs.existsSync(threadFile)) {
+      const raw = JSON.parse(fs.readFileSync(threadFile, 'utf8'));
+      const convoId = String(raw?.conversationId || '').trim();
+      const lastUsedAt = Number(raw?.lastUsedAt || raw?.createdAt || 0);
+      const isUiVisible = raw?.uiVisible === true;
+      const savedWorkspace = String(raw?.workspaceCwd || '').trim();
+      const workspaceMatches =
+        !expectedWorkspaceCwd ||
+        !savedWorkspace ||
+        normalizeMacUserPath(savedWorkspace) === normalizeMacUserPath(expectedWorkspaceCwd);
+
+      if (
+        isUiVisible &&
+        workspaceMatches &&
+        /^[0-9a-fA-F-]{36}$/.test(convoId) &&
+        lastUsedAt > 0 &&
+        Date.now() - lastUsedAt <= ttlMs
+      ) {
+        const dbPath = path.join(AGY_DIR, 'conversations', `${convoId}.db`);
+        if (fs.existsSync(dbPath)) {
+          return convoId;
+        }
+      }
+    }
+  } catch (_) {}
+
+  return null;
+}
+
+/**
+ * Guarda o actualiza el ID de conversación en el archivo de hilo específico (`threadFile`).
+ * Si `alsoMirrorToTenshiThread` es true, actualiza también `wappy-tenshi-thread.json` por compatibilidad.
+ */
+function saveThreadConversationId(
+  threadFile,
+  convoId,
+  workspaceCwd,
+  uiVisible = false,
+  alsoMirrorToTenshiThread = false
+) {
+  if (!threadFile || !convoId || !/^[0-9a-fA-F-]{36}$/.test(String(convoId).trim())) return;
+  const cleanId = String(convoId).trim();
+  const writeOneFile = (targetFile) => {
+    let createdAt = Date.now();
+    let prevUiVisible = false;
+    try {
+      if (fs.existsSync(targetFile)) {
+        const prev = JSON.parse(fs.readFileSync(targetFile, 'utf8'));
+        if (prev?.conversationId === cleanId) {
+          if (prev?.createdAt) createdAt = prev.createdAt;
+          if (prev?.uiVisible === true) prevUiVisible = true;
+        }
+      }
+    } catch (_) {}
+    try {
+      fs.writeFileSync(
+        targetFile,
+        JSON.stringify(
+          {
+            conversationId: cleanId,
+            workspaceCwd: workspaceCwd || '',
+            uiVisible: Boolean(uiVisible || prevUiVisible),
+            createdAt,
+            lastUsedAt: Date.now(),
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+    } catch (_) {}
+  };
+
+  writeOneFile(threadFile);
+  if (alsoMirrorToTenshiThread && threadFile !== TENSHI_THREAD_FILE) {
+    writeOneFile(TENSHI_THREAD_FILE);
+  }
+}
+
+/**
  * Detecta el UUID de la conversación recién creada por `agentapi new-conversation`
  */
 function detectNewlyCreatedConversationId(beforeDbs, stdoutText) {
@@ -1951,11 +2065,35 @@ function findLocalFolderForGitHubRepo(owner, repo) {
  */
 function resolveWorkspaceTarget(orden = null) {
   if (orden && typeof orden === 'object') {
+    const rawSource = String(orden.sourceModule || orden.origen || '').toLowerCase().trim();
+    const rawTitle = String(orden.titulo || orden.title || '').trim();
+    if (
+      rawSource === 'healthcheck_e2e' ||
+      rawSource === 'healthcheck_report' ||
+      /\[HEALTHCHECK-(?:E2E|REPORT)\]/i.test(rawTitle)
+    ) {
+      const hcDirs = [
+        '/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY',
+        path.join(HOME_DIR, 'Documents', 'GitHub', 'LibreChat-WAPPY'),
+        '/Users/venta/Documents/GitHub/LibreChat-WAPPY',
+        '/home/antigravity/LibreChat-WAPPY',
+        '/home/antigravity',
+      ];
+      for (const dir of hcDirs) {
+        if (fs.existsSync(dir)) {
+          return {
+            cwd: dir,
+            projectId: findProjectIdForFolder(dir) || LIBRECHAT_PRIMARY_PROJECT_ID,
+          };
+        }
+      }
+    }
+
     // -------------------------------------------------------------------------
-    // Prioridad 1: companyWorkspace explícito en la base de datos de WAPPY
+    // Prioridad 1: companyWorkspace / targetProject explícito en la base de datos o en la orden
     // (Soporta Carpeta Local, Repositorio GitHub, Carpeta Google Drive o Nombre del Proyecto)
     // -------------------------------------------------------------------------
-    const rawCompanyWs = String(orden.companyWorkspace || orden.workspace || '').trim();
+    const rawCompanyWs = String(orden.companyWorkspace || orden.workspace || orden.targetProject || '').trim();
     const parsedRef = parseCompanyProjectReference(rawCompanyWs);
     if (parsedRef) {
       if (parsedRef.type === 'path' && fs.existsSync(parsedRef.path)) {
@@ -1989,9 +2127,19 @@ function resolveWorkspaceTarget(orden = null) {
     // Prioridad 2: Búsqueda en proyectos nativos de Google Antigravity (~/.gemini/config/projects/*.json)
     // Si el usuario creó un proyecto en Antigravity con el nombre o NIT de la empresa, priorizarlo siempre
     // -------------------------------------------------------------------------
-    const smartMatched = findProjectByCompanyMatch(orden.companyName || orden.empresa, orden.companyNit);
-    if (smartMatched) {
-      return smartMatched;
+    const candidateCompanyName = String(orden.companyName || orden.empresa || '').trim();
+    const isGenericCompanyPlaceholder =
+      !candidateCompanyName ||
+      /^empresa activa(\s+en\s+wappy)?$/i.test(candidateCompanyName) ||
+      /^wappy(\s+studio)?$/i.test(candidateCompanyName);
+    if (!isGenericCompanyPlaceholder || orden.companyNit) {
+      const smartMatched = findProjectByCompanyMatch(
+        isGenericCompanyPlaceholder ? '' : candidateCompanyName,
+        orden.companyNit
+      );
+      if (smartMatched) {
+        return smartMatched;
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -2029,34 +2177,29 @@ function resolveWorkspaceTarget(orden = null) {
   }
 
   // ---------------------------------------------------------------------------
-  // Prioridad 4: Respaldo actual (WAPPY_PROJECT_DIR, LS activo, conversaciones recientes, etc.)
+  // Prioridad 4: Respaldo determinista al proyecto primario LibreChat-WAPPY
   // ---------------------------------------------------------------------------
   if (process.env.WAPPY_PROJECT_DIR && fs.existsSync(process.env.WAPPY_PROJECT_DIR)) {
     return {
       cwd: process.env.WAPPY_PROJECT_DIR,
-      projectId: findProjectIdForFolder(process.env.WAPPY_PROJECT_DIR),
+      projectId: findProjectIdForFolder(process.env.WAPPY_PROJECT_DIR) || LIBRECHAT_PRIMARY_PROJECT_ID,
     };
   }
 
-  // 0. Priorizar el workspace oficial LibreChat-WAPPY si tiene un language_server activo en esta sesión
-  try {
-    const liveLs = discoverLiveLanguageServer();
-    if (liveLs.some((c) => c.isPreferredWorkspace)) {
-      const preferredDirs = [
-        path.join(HOME_DIR, 'Documents', 'GitHub', 'LibreChat-WAPPY'),
-        '/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY',
-        '/Users/venta/Documents/GitHub/LibreChat-WAPPY',
-      ];
-      for (const dir of preferredDirs) {
-        if (fs.existsSync(dir)) {
-          const pid = findProjectIdForFolder(dir);
-          if (pid) {
-            return { cwd: dir, projectId: pid };
-          }
-        }
-      }
+  // 0. Priorizar siempre el workspace oficial LibreChat-WAPPY cuando exista en disco (sin exigir --workspace_id en language_server)
+  const primaryDirs = [
+    '/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY',
+    path.join(HOME_DIR, 'Documents', 'GitHub', 'LibreChat-WAPPY'),
+    '/Users/venta/Documents/GitHub/LibreChat-WAPPY',
+    '/home/antigravity/LibreChat-WAPPY',
+    '/home/antigravity',
+  ];
+  for (const dir of primaryDirs) {
+    if (fs.existsSync(dir)) {
+      const pid = findProjectIdForFolder(dir) || LIBRECHAT_PRIMARY_PROJECT_ID;
+      return { cwd: dir, projectId: pid };
     }
-  } catch (_) {}
+  }
 
   // 1. Detectar el proyecto actualmente abierto en Antigravity a partir de las conversaciones recientes
   try {
@@ -2201,6 +2344,294 @@ function resolveWorkspaceTarget(orden = null) {
 
 function resolveWorkspaceDirectory(orden = null) {
   return resolveWorkspaceTarget(orden).cwd;
+}
+
+function formatColombianShortTime(dateInput = new Date()) {
+  try {
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(dateInput));
+  } catch (_) {
+    return new Date(dateInput).toLocaleTimeString();
+  }
+}
+
+function extractCleanCompanyName(orden) {
+  let raw = String(orden?.empresa || orden?.companyName || '').trim();
+  if (!raw || /^empresa activa(\s+en\s+wappy)?$/i.test(raw)) {
+    const descMatch = String(orden?.descripcion || orden?.description || '').match(/^Empresa:\s*(.+)$/m);
+    if (descMatch && descMatch[1] && !/^empresa activa(\s+en\s+wappy)?$/i.test(descMatch[1].trim())) {
+      raw = descMatch[1].trim();
+    }
+  }
+  if (!raw || /^empresa activa(\s+en\s+wappy)?$/i.test(raw)) {
+    return 'WAPPY';
+  }
+  return raw.slice(0, 34);
+}
+
+function slugifyCompanyKey(rawEmpresa) {
+  const clean = String(rawEmpresa || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  if (!clean || /^empresa activa(\s+en\s+wappy)?$/i.test(clean) || clean === 'wappy' || clean === 'default') {
+    return 'default';
+  }
+  const slug = clean.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  return slug || 'default';
+}
+
+function cleanOrderDisplayTitle(rawTitle) {
+  return (
+    String(rawTitle || 'Solicitud en WAPPY')
+      .replace(/^\[HEALTHCHECK-(?:E2E|REPORT)\]\s*/i, '')
+      .replace(/^\[AUTOMATIZACI[OÓ]N\s+PROGRAMADA\]\s*/i, '')
+      .replace(/^(?:🩺|🎙️|⚡|🎬|🤖|🛡️|🎨|📂)\s*(?:\[[^\]]+\]\s*)?/u, '')
+      .replace(
+        /^(?:Wappy Studio|Tenshi(?:\s+Voz|\s+Chat)?|Orden Antigravity|Imagen Antigravity|Agente SST|Tarea Programada|Cron Conectores)\s*[·:-]\s*/i,
+        ''
+      )
+      .trim()
+      .slice(0, 62) || 'Solicitud en WAPPY'
+  );
+}
+
+/**
+ * MATRIZ OFICIAL DE INDIVIDUALIZACIÓN ESTRICTA DE CHATS EN ANTIGRAVITY (`resolveOrderRoutingProfile`)
+ * Clasifica de forma determinista cada orden según quién la mandó (`sourceModule`), de qué empresa viene (`empresa`),
+ * con qué ícono y nombre debe titularse (`chatTitle`), en qué archivo de hilo aislado (`threadFile`) se guarda
+ * y en qué proyecto (`workspaceCwd` + `projectId`) debe abrirse.
+ */
+function resolveOrderRoutingProfile(orden = {}) {
+  const rawSource = String(orden.sourceModule || orden.origen || '').toLowerCase().trim();
+  const rawFormato = String(orden.formatoEntregable || orden.formato || 'respuesta').toLowerCase().trim();
+  const rawTitle = String(orden.titulo || orden.title || 'Consulta Delegada por Tenshi').trim();
+  const rawInstruccion = String(orden.instruccion || orden.descripcion || orden.description || '').trim();
+  const rawRecurso = String(orden.recursoObjetivo || '').trim();
+
+  const companyName = extractCleanCompanyName(orden);
+  const companySlug = slugifyCompanyKey(companyName);
+  const cleanTitle = cleanOrderDisplayTitle(rawTitle);
+  const { cwd: workspaceCwd, projectId, projectRef } = resolveWorkspaceTarget(orden);
+
+  const isOriginalFileCopy =
+    rawFormato === 'copia_archivo' ||
+    rawFormato === 'archivo_original' ||
+    rawFormato === 'copia';
+
+  const isImageGeneration =
+    !isOriginalFileCopy &&
+    (rawSource === 'image_priority' ||
+      rawFormato === 'imagen' ||
+      rawFormato === 'image');
+
+  const isWappyStudioOrder =
+    rawSource === 'wappy_studio' ||
+    /wappy studio/i.test(rawTitle) ||
+    /wappy studio/i.test(rawRecurso) ||
+    /SUPER-PROMPT/i.test(rawInstruccion);
+
+  const isWappyStudioEdit =
+    isWappyStudioOrder &&
+    (/editar animaci[oó]n/i.test(rawTitle) ||
+      /Edici[oó]n solicitada en Wappy Studio/i.test(rawInstruccion) ||
+      /MODO EDICI[OÓ]N/i.test(rawInstruccion));
+
+  const isWappyStudioRenderMp4 =
+    isWappyStudioOrder &&
+    (/render mp4/i.test(rawTitle) || /renderizar video/i.test(rawTitle));
+
+  // 1. Cron / Bitácora de Conectores (`healthcheck_e2e` o `healthcheck_report`)
+  if (
+    rawSource === 'healthcheck_e2e' ||
+    rawSource === 'healthcheck_report' ||
+    /\[HEALTHCHECK-(?:E2E|REPORT)\]/i.test(rawTitle)
+  ) {
+    const corteHora = String(orden.corteHora || orden.triggerLabel || formatColombianShortTime()).trim();
+    const hcTitle = cleanTitle.includes('Bitácora') || cleanTitle.includes('Reporte')
+      ? cleanTitle
+      : `Bitácora E2E (Antigravity + NotebookLM + Flow) · ${cleanTitle}`;
+    return {
+      category: 'healthcheck',
+      sourceModule: rawSource || 'healthcheck_report',
+      icon: '🩺',
+      channelLabel: `Cron Conectores · ${corteHora}`,
+      companyName,
+      companySlug: 'healthcheck',
+      cleanTitle: hcTitle,
+      chatTitlePrefix: `🩺 [Cron Conectores · ${corteHora}]`,
+      chatTitle: `🩺 [Cron Conectores · ${corteHora}] ${hcTitle}`,
+      threadFile: HEALTHCHECK_THREAD_FILE,
+      ttlMs: HEALTHCHECK_THREAD_TTL_MS,
+      workspaceCwd,
+      projectId,
+      projectRef,
+      alsoMirrorToTenshiThread: false,
+      forceNewChatByDefault: false,
+    };
+  }
+
+  // 8. Copia de Archivos Locales del PC (`isOriginalFileCopy` / `formato === 'copia_archivo'`)
+  if (isOriginalFileCopy) {
+    const isFromVoice = rawSource === 'tenshi_voice';
+    const callerThreadFile = isFromVoice
+      ? path.join(AGY_DIR, `wappy-tenshi-voice-thread-${companySlug}.json`)
+      : path.join(AGY_DIR, `wappy-tenshi-chat-thread-${companySlug}.json`);
+    return {
+      category: 'local_file_copy',
+      sourceModule: isFromVoice ? 'tenshi_voice' : 'tenshi_chat',
+      icon: '📂',
+      channelLabel: `Archivo PC · ${companyName}`,
+      companyName,
+      companySlug,
+      cleanTitle,
+      chatTitlePrefix: `📂 [Archivo PC · ${companyName}]`,
+      chatTitle: `📂 [Archivo PC · ${companyName}] ${cleanTitle}`,
+      threadFile: callerThreadFile,
+      ttlMs: TENSHI_THREAD_TTL_MS,
+      workspaceCwd,
+      projectId,
+      projectRef,
+      alsoMirrorToTenshiThread: !isFromVoice,
+      forceNewChatByDefault: false,
+    };
+  }
+
+  // 4. WAPPY Studio — Videos 60-FPS (`sourceModule === 'wappy_studio'` o `isWappyStudioOrder`)
+  if (isWappyStudioOrder) {
+    return {
+      category: 'wappy_studio',
+      sourceModule: 'wappy_studio',
+      icon: '🎬',
+      channelLabel: `Wappy Studio · ${companyName}`,
+      companyName,
+      companySlug,
+      cleanTitle,
+      chatTitlePrefix: `🎬 [Wappy Studio · ${companyName}]`,
+      chatTitle: `🎬 [Wappy Studio · ${companyName}] ${cleanTitle}`,
+      threadFile: STUDIO_THREAD_FILE,
+      ttlMs: TENSHI_THREAD_TTL_MS,
+      workspaceCwd,
+      projectId,
+      projectRef,
+      alsoMirrorToTenshiThread: false,
+      // Paso 02 Generar abre hilo nuevo; Paso 03 Editar y Render MP4 continúan en ese mismo hilo
+      forceNewChatByDefault: !(isWappyStudioEdit || isWappyStudioRenderMp4),
+    };
+  }
+
+  // 7. Generador Prioritario de Imágenes (`sourceModule === 'image_priority'` o `isImageGeneration`)
+  if (isImageGeneration) {
+    return {
+      category: 'image_priority',
+      sourceModule: 'image_priority',
+      icon: '🎨',
+      channelLabel: `Imagen IA · ${companyName}`,
+      companyName,
+      companySlug,
+      cleanTitle,
+      chatTitlePrefix: `🎨 [Imagen IA · ${companyName}]`,
+      chatTitle: `🎨 [Imagen IA · ${companyName}] ${cleanTitle}`,
+      threadFile: IMAGE_THREAD_FILE,
+      ttlMs: IMAGE_THREAD_TTL_MS,
+      workspaceCwd,
+      projectId,
+      projectRef,
+      alsoMirrorToTenshiThread: false,
+      forceNewChatByDefault: false,
+    };
+  }
+
+  // 5. Tareas y Automatizaciones Programadas (`/tareas` — `sourceModule === 'sgsst_automation'`)
+  if (rawSource === 'sgsst_automation' || rawSource === 'automation') {
+    return {
+      category: 'sgsst_automation',
+      sourceModule: 'sgsst_automation',
+      icon: '🤖',
+      channelLabel: `Tarea Programada · ${companyName}`,
+      companyName,
+      companySlug,
+      cleanTitle,
+      chatTitlePrefix: `🤖 [Tarea Programada · ${companyName}]`,
+      chatTitle: `🤖 [Tarea Programada · ${companyName}] ${cleanTitle}`,
+      threadFile: path.join(AGY_DIR, `wappy-automation-thread-${companySlug}.json`),
+      ttlMs: AUTOMATION_THREAD_TTL_MS,
+      workspaceCwd,
+      projectId,
+      projectRef,
+      alsoMirrorToTenshiThread: false,
+      forceNewChatByDefault: false,
+    };
+  }
+
+  // 6. Agentes Especialistas SG-SST (`sourceModule === 'sgsst_agent'` o `'agent_tool'`)
+  if (rawSource === 'sgsst_agent' || rawSource === 'agent_tool') {
+    return {
+      category: 'sgsst_agent',
+      sourceModule: 'sgsst_agent',
+      icon: '🛡️',
+      channelLabel: `Agente SST · ${companyName}`,
+      companyName,
+      companySlug,
+      cleanTitle,
+      chatTitlePrefix: `🛡️ [Agente SST · ${companyName}]`,
+      chatTitle: `🛡️ [Agente SST · ${companyName}] ${cleanTitle}`,
+      threadFile: path.join(AGY_DIR, `wappy-agent-sst-thread-${companySlug}.json`),
+      ttlMs: TENSHI_THREAD_TTL_MS,
+      workspaceCwd,
+      projectId,
+      projectRef,
+      alsoMirrorToTenshiThread: false,
+      forceNewChatByDefault: false,
+    };
+  }
+
+  // 3. Tenshi Chat Escrito / Copiloto (`sourceModule === 'tenshi_chat'` o `'mcp_delegate'`)
+  if (rawSource === 'tenshi_chat' || rawSource === 'mcp_delegate') {
+    return {
+      category: 'tenshi_chat',
+      sourceModule: rawSource,
+      icon: '⚡',
+      channelLabel: `Tenshi Chat · ${companyName}`,
+      companyName,
+      companySlug,
+      cleanTitle,
+      chatTitlePrefix: `⚡ [Tenshi Chat · ${companyName}]`,
+      chatTitle: `⚡ [Tenshi Chat · ${companyName}] ${cleanTitle}`,
+      threadFile: path.join(AGY_DIR, `wappy-tenshi-chat-thread-${companySlug}.json`),
+      ttlMs: TENSHI_THREAD_TTL_MS,
+      workspaceCwd,
+      projectId,
+      projectRef,
+      alsoMirrorToTenshiThread: true,
+      forceNewChatByDefault: false,
+    };
+  }
+
+  // 2. Tenshi Voz en Vivo (`sourceModule === 'tenshi_voice'` o por defecto)
+  return {
+    category: 'tenshi_voice',
+    sourceModule: 'tenshi_voice',
+    icon: '🎙️',
+    channelLabel: `Tenshi Voz · ${companyName}`,
+    companyName,
+    companySlug,
+    cleanTitle,
+    chatTitlePrefix: `🎙️ [Tenshi Voz · ${companyName}]`,
+    chatTitle: `🎙️ [Tenshi Voz · ${companyName}] ${cleanTitle}`,
+    threadFile: path.join(AGY_DIR, `wappy-tenshi-voice-thread-${companySlug}.json`),
+    ttlMs: TENSHI_THREAD_TTL_MS,
+    workspaceCwd,
+    projectId,
+    projectRef,
+    alsoMirrorToTenshiThread: false,
+    forceNewChatByDefault: false,
+  };
 }
 
 /**
@@ -2353,6 +2784,129 @@ async function materializeOrderMediaLocally(archivosList, wappyUrl, apiKey, orde
 }
 
 /**
+ * Abre o actualiza el chat dedicado `🩺 [Cron Conectores · {Corte/Hora}] Bitácora E2E (Antigravity + NotebookLM + Flow)`
+ * en la ventana de Antigravity para que el usuario vea en pantalla el reporte de las 3 pruebas E2E
+ * o la verificación de ventana de 90 minutos.
+ */
+let lastHealthcheckChatLoggedAt = 0;
+
+async function dispatchHealthcheckReportToChat(reportSpec = {}) {
+  try {
+    ensureWappyProjectPermissions();
+    ensureLiveAntigravityRunning(15);
+
+    const corteHora = String(
+      reportSpec.corteHora || reportSpec.triggerLabel || formatColombianShortTime()
+    ).trim();
+    const rawTitle = String(
+      reportSpec.titulo ||
+        reportSpec.title ||
+        `Bitácora E2E (Antigravity + NotebookLM + Flow)`
+    ).trim();
+
+    const profile = resolveOrderRoutingProfile({
+      sourceModule: 'healthcheck_report',
+      corteHora,
+      titulo: rawTitle,
+      empresa: 'WAPPY IA',
+    });
+
+    const bin = resolveAgentApiBinary();
+    const { workspaceCwd, projectId } = profile;
+    const spawnEnv = {
+      ...cleanAntigravitySessionEnv(process.env),
+      ...(projectId ? { ANTIGRAVITY_PROJECT_ID: projectId } : {}),
+    };
+
+    const targetConvoId = findThreadConversationId({
+      preferredId: null,
+      forceNewChat: Boolean(reportSpec.forceNewChat),
+      threadFile: profile.threadFile,
+      ttlMs: profile.ttlMs,
+      expectedWorkspaceCwd: workspaceCwd,
+    });
+
+    if (process.platform === 'darwin') {
+      try {
+        const appCandidates = [
+          '/Applications/Antigravity.app',
+          path.join(HOME_DIR, 'Applications', 'Antigravity.app'),
+        ];
+        const appPath = appCandidates.find((p) => fs.existsSync(p));
+        if (appPath) {
+          execFileSync('/usr/bin/open', ['-a', appPath], { stdio: 'ignore', timeout: 4000 });
+        }
+      } catch (_) {}
+    }
+
+    const promptBody =
+      String(reportSpec.prompt || reportSpec.instruccion || reportSpec.summary || '').trim() ||
+      [
+        `🩺 **[BITÁCORA AUTOMÁTICA DE CONECTORES WAPPY IA — ${corteHora}]**`,
+        `Se ejecutó la auditoría funcional E2E de los 3 conectores (Google Antigravity, Google NotebookLM y Google Flow Studio).`,
+        `INSTRUCCIÓN BREVE: Confirma en 1 sola línea la recepción de este corte en la bitácora del chat sin llamar ninguna herramienta adicional.`,
+      ].join('\n');
+
+    let finalConvoId = null;
+
+    if (targetConvoId) {
+      try {
+        runAgentApi(
+          bin,
+          ['send-message', `--title=${profile.chatTitle}`, targetConvoId, promptBody],
+          { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd, env: spawnEnv }
+        );
+        saveThreadConversationId(profile.threadFile, targetConvoId, workspaceCwd, true, false);
+        finalConvoId = targetConvoId;
+        lastHealthcheckChatLoggedAt = Date.now();
+        log(`🩺 [Bitácora Cron Conectores] Reporte registrado en el hilo existente ${targetConvoId} (${profile.chatTitle}).`);
+        return { ok: true, conversationId: targetConvoId, title: profile.chatTitle, workspaceCwd };
+      } catch (sendErr) {
+        log(`Aviso: send-message al hilo de bitácora ${targetConvoId} falló (${sendErr.message}). Creando nuevo hilo...`);
+      }
+    }
+
+    const convDir = path.join(AGY_DIR, 'conversations');
+    const beforeDbs = new Set(
+      fs.existsSync(convDir)
+        ? fs
+            .readdirSync(convDir)
+            .filter((f) => f.endsWith('.db'))
+            .map((f) => f.replace(/\.db$/, ''))
+        : []
+    );
+
+    const stdout =
+      runAgentApi(
+        bin,
+        ['new-conversation', `--title=${profile.chatTitle}`, promptBody],
+        {
+          timeout: 20000,
+          stdio: 'pipe',
+          cwd: workspaceCwd,
+          env: spawnEnv,
+          encoding: 'utf8',
+        }
+      ) || '';
+
+    finalConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
+    if (finalConvoId) {
+      saveThreadConversationId(profile.threadFile, finalConvoId, workspaceCwd, true, false);
+    }
+    lastHealthcheckChatLoggedAt = Date.now();
+    log(
+      `🩺 [Bitácora Cron Conectores] Hilo abierto en Antigravity (${
+        finalConvoId || 'new'
+      }, proyecto: ${workspaceCwd}, título: "${profile.chatTitle}").`
+    );
+    return { ok: true, conversationId: finalConvoId || 'new', title: profile.chatTitle, workspaceCwd };
+  } catch (err) {
+    log(`⚠️ [Bitácora Cron Conectores] No se pudo abrir el chat visual: ${err.message}`);
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
  * Despierta a Google Antigravity inmediatamente vía `agentapi` (Reactive Wakeup)
  */
 async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConvoId, dispatchedSet) {
@@ -2379,9 +2933,31 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   const titulo = orden.titulo || orden.title || 'Consulta Delegada por Tenshi';
   const instruccion = orden.instruccion || orden.descripcion || orden.description || '';
-  const empresa = orden.empresa || 'Empresa Activa en WAPPY';
+  const empresa = orden.empresa || orden.companyName || 'Empresa Activa en WAPPY';
   const rawFormato = String(orden.formatoEntregable || orden.formato || 'respuesta').toLowerCase().trim();
   const recurso = orden.recursoObjetivo || 'Datos Empresariales WAPPY MCP';
+  const routingProfile = resolveOrderRoutingProfile(orden);
+
+  // Reporte final de Bitácora Cron Conectores (`healthcheck_report`):
+  // Abre visiblemente el chat `🩺 [Cron Conectores · ...]` en Antigravity con el resumen 3/3 (o verificación de 90m)
+  // y cierra la orden en el servidor sin contaminar burbujas de Tenshi.
+  if (orden.sourceModule === 'healthcheck_report' || /\[HEALTHCHECK-REPORT\]/i.test(String(titulo))) {
+    const chatRes = await dispatchHealthcheckReportToChat({
+      corteHora: orden.corteHora || orden.triggerLabel || formatColombianShortTime(),
+      titulo: routingProfile.cleanTitle,
+      prompt: instruccion,
+    });
+    await jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/completar`, 'POST', apiKey, {
+      ordenId,
+      formato: 'respuesta',
+      resultado: chatRes.ok
+        ? `Bitácora registrada en el chat "${chatRes.title}" (${chatRes.conversationId}).`
+        : `Bitácora recibida (${chatRes.error || 'sin UI'}).`,
+      contenido: instruccion,
+    });
+    return;
+  }
+
   const archivos = Array.isArray(orden.archivos) && orden.archivos.length > 0
     ? `\nArchivos Adjuntos:\n${orden.archivos.map((f) => `- ${f}`).join('\n')}`
     : '';
@@ -2427,6 +3003,26 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       contenido: e2eReply,
     });
     log(`✅ [HealthCheck E2E] Pregunta ${ordenId} respondida en vivo por el puente local Antigravity (puerto ${activePort}).`);
+
+    // Respaldo automático: si el healthcheck corre desde otro host sin enviar `healthcheck_report` en 55s,
+    // registrar también la prueba de Antigravity en el hilo `🩺 [Cron Conectores]`.
+    const probeStartedAt = Date.now();
+    setTimeout(() => {
+      if (lastHealthcheckChatLoggedAt < probeStartedAt) {
+        dispatchHealthcheckReportToChat({
+          corteHora: formatColombianShortTime(probeStartedAt),
+          titulo: 'Bitácora E2E (Antigravity + NotebookLM + Flow)',
+          prompt: [
+            `🩺 **[BITÁCORA DE AUDITORÍA E2E — ${formatColombianShortTime(probeStartedAt)}]**`,
+            `- **Orden E2E verificada:** \`${ordenId}\``,
+            `- **Conector #1 (Google Antigravity Local):** ✅ Operativo en \`${os.hostname()}\` (Puerto gRPC \`${activePort}\` · Modelo \`${activeModel}\`)`,
+            `- **Respuesta E2E:** ${e2eReply}`,
+            ``,
+            `INSTRUCCIÓN BREVE: Confirma en 1 sola frase corta que este registro de bitácora del Cron quedó asentado en el hilo de Conectores (sin llamar ninguna herramienta adicional).`,
+          ].join('\n'),
+        }).catch(() => {});
+      }
+    }, 55000);
     return;
   }
 
@@ -2457,10 +3053,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   const helperScript = fs.existsSync(LISTENER_SCRIPT_DEST) ? LISTENER_SCRIPT_DEST : DAEMON_SCRIPT_DEST;
 
-  const isWappyStudioOrder =
-    /wappy studio/i.test(titulo) ||
-    /wappy studio/i.test(recurso) ||
-    /SUPER-PROMPT/i.test(instruccion);
+  const isWappyStudioOrder = routingProfile.category === 'wappy_studio';
   const isWappyStudioEdit =
     isWappyStudioOrder &&
     (/editar animaci[oó]n/i.test(titulo) ||
@@ -2573,9 +3166,9 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   }
 
   const bin = resolveAgentApiBinary();
-  const targetCompanyId = String(orden?.companyId || '').trim();
-  const { cwd: workspaceCwd, projectId } = resolveWorkspaceTarget(orden);
-  const parsedProjectRef = parseCompanyProjectReference(orden?.companyWorkspace || orden?.workspace || '');
+  const { workspaceCwd, projectId } = routingProfile;
+  const parsedProjectRef =
+    routingProfile.projectRef || parseCompanyProjectReference(orden?.companyWorkspace || orden?.workspace || '');
   const companyProjectContextLine = parsedProjectRef
     ? parsedProjectRef.type === 'github'
       ? `Proyecto Vinculado de la Empresa (Repositorio GitHub — Agente Remoto / Local): ${parsedProjectRef.url} (${parsedProjectRef.slug})${workspaceCwd ? ` | Clon local detectado: ${workspaceCwd}` : ''}`
@@ -2585,11 +3178,13 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     : '';
 
   const prompt = [
-    `⚡ [ORDEN EN TIEMPO REAL DE TENSHI — PUENTE REACTIVO PUSH WAPPY]`,
+    `${routingProfile.icon} [ORDEN EN TIEMPO REAL — CANAL: ${routingProfile.channelLabel.toUpperCase()} — PUENTE REACTIVO PUSH WAPPY]`,
     `ID de Orden: ${ordenId}`,
-    `Empresa: ${empresa}${orden.companyNit ? ` (NIT: ${orden.companyNit})` : ''}`,
+    `Canal / Origen: ${routingProfile.channelLabel} (${routingProfile.sourceModule})`,
+    `Empresa: ${routingProfile.companyName}${orden.companyNit ? ` (NIT: ${orden.companyNit})` : ''}`,
     companyProjectContextLine,
-    `Título: ${titulo}`,
+    `Proyecto Destino: ${workspaceCwd} (${projectId || 'auto'})`,
+    `Título: ${routingProfile.cleanTitle}`,
     `Tipo de Solicitud: ${
       isOriginalFileCopy
         ? 'copia_archivo (Enviar Copia Exacta de Archivo Original del PC)'
@@ -2625,32 +3220,40 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
   // Detectar si es el hilo auxiliar silencioso de terminal
   const combinedText = `${titulo} ${instruccion}`;
-  const forceNewChat = /(nuevo chat|nueva conversaci[oó]n|otro chat|chat nuevo|empezar de cero|desde cero)/i.test(
+  const explicitForceNewChat = /(nuevo chat|nueva conversaci[oó]n|otro chat|chat nuevo|empezar de cero|desde cero)/i.test(
     combinedText
   );
+  const forceNewChat = explicitForceNewChat || routingProfile.forceNewChatByDefault;
   const isInternalHelperThread =
     preferredConvoId === 'c6e3ecd3-bd9f-465a-9664-4572b7e7da50' ||
     /^Execute local terminal/i.test(String(titulo || '').trim());
 
-  // Separación estricta de chats en Antigravity:
-  // - Wappy Studio usa su propio archivo de hilo (`wappy-studio-thread.json`, `🎬 Wappy Studio: ...`):
-  //   * Paso 02 (Generar Animación) abre una NUEVA conversación dedicada de Wappy Studio.
-  //   * Paso 03 (Editar Animación) y Renderizar .MP4 continúan en esa misma conversación de Wappy Studio.
-  // - Tenshi y los Agentes usan su propio archivo de hilo (`wappy-tenshi-thread.json` o `wappy-tenshi-thread-${safeCompanyId}.json`), jamás mezclado con Wappy Studio ni entre empresas distintas.
-  const chatTitlePrefix = isWappyStudioOrder ? '🎬 Wappy Studio' : '⚡ Tenshi';
-  const cleanDisplayTitle = String(titulo)
-    .replace(/^(Wappy Studio|Tenshi)\s*[·:-]\s*/i, '')
-    .trim()
-    .slice(0, 58);
-  const saveThreadFn = isWappyStudioOrder ? saveStudioThreadConversationId : saveTenshiThreadConversationId;
+  const fullFormattedChatTitle = routingProfile.chatTitle;
+  const saveRoleThread = (convoId, wsCwd, uiVis) => {
+    saveThreadConversationId(
+      routingProfile.threadFile,
+      convoId,
+      wsCwd,
+      uiVis,
+      routingProfile.alsoMirrorToTenshiThread
+    );
+  };
 
   const targetConvoId = isInternalHelperThread
-    ? findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId, workspaceCwd)
-    : isWappyStudioEdit || isWappyStudioRenderMp4
-    ? findStudioConversationId(forceNewChat)
-    : isWappyStudioOrder
-    ? null
-    : findTargetConversationId(preferredConvoId, forceNewChat, targetCompanyId, workspaceCwd);
+    ? findThreadConversationId({
+        preferredId: preferredConvoId,
+        forceNewChat: explicitForceNewChat,
+        threadFile: TENSHI_THREAD_FILE,
+        ttlMs: TENSHI_THREAD_TTL_MS,
+        expectedWorkspaceCwd: workspaceCwd,
+      })
+    : findThreadConversationId({
+        preferredId: null,
+        forceNewChat,
+        threadFile: routingProfile.threadFile,
+        ttlMs: routingProfile.ttlMs,
+        expectedWorkspaceCwd: workspaceCwd,
+      });
 
   // Traer la ventana de Antigravity al frente en macOS para que el usuario vea el chat abrirse y trabajar en tiempo real
   if (!isInternalHelperThread && process.platform === 'darwin') {
@@ -2666,12 +3269,11 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     } catch (_) {}
   }
 
-  const companyLogLabel = (orden?.companyName || orden?.empresa) ? ` [Empresa: ${orden.companyName || orden.empresa}]` : '';
   log(
-    `Despachando orden "${titulo}" (ID: ${ordenId}, Tipo: ${rawFormato})${companyLogLabel} hacia Antigravity (Destino: ${
+    `Despachando orden "${fullFormattedChatTitle}" (ID: ${ordenId}, Canal: ${routingProfile.category}, Tipo: ${rawFormato}) hacia Antigravity (Destino: ${
       targetConvoId
-        ? `Hilo activo de ${isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'} ${targetConvoId}`
-        : `NUEVO HILO de ${isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'} en workspace ${workspaceCwd} [project=${projectId || 'auto'}]`
+        ? `Hilo dedicado existente (${routingProfile.channelLabel}) ${targetConvoId}`
+        : `NUEVO HILO dedicado (${routingProfile.channelLabel}) en workspace ${workspaceCwd} [project=${projectId || 'auto'}]`
     })...`
   );
 
@@ -2744,18 +3346,16 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
       const sendArgs = [
         'send-message',
-        `--title=${chatTitlePrefix}: ${cleanDisplayTitle}`,
+        `--title=${fullFormattedChatTitle}`,
         targetConvoId,
         prompt,
       ];
       runAgentApi(bin, sendArgs, { timeout: 15000, stdio: 'pipe', cwd: workspaceCwd, env: spawnEnv });
       dispatchedOk = true;
-      saveThreadFn(targetConvoId, workspaceCwd, true, targetCompanyId);
+      saveRoleThread(targetConvoId, workspaceCwd, true);
       attachWatcherForConversation(targetConvoId, prevStepCount);
       log(
-        `✅ Orden ${ordenId} continuada y abierta en pantalla en el hilo de ${
-          isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'
-        } (${targetConvoId}).`
+        `✅ Orden ${ordenId} continuada y abierta en pantalla en el hilo "${fullFormattedChatTitle}" (${targetConvoId}).`
       );
       jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
         ok: true,
@@ -2797,7 +3397,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
 
         const newArgs = [
           'new-conversation',
-          `--title=${chatTitlePrefix}: ${cleanDisplayTitle}`,
+          `--title=${fullFormattedChatTitle}`,
           prompt,
         ];
         const stdout =
@@ -2812,12 +3412,10 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         dispatchedOk = true;
         const createdConvoId = detectNewlyCreatedConversationId(beforeDbs, stdout);
         if (createdConvoId) {
-          saveThreadFn(createdConvoId, workspaceCwd, true, targetCompanyId);
+          saveRoleThread(createdConvoId, workspaceCwd, true);
           attachWatcherForConversation(createdConvoId, 0);
           log(
-            `✅ Orden ${ordenId} iniciada y abierta en pantalla en NUEVO hilo dedicado de ${
-              isWappyStudioOrder ? 'Wappy Studio' : 'Tenshi'
-            } (${createdConvoId}, workspace: ${workspaceCwd}, intento ${attempt}).`
+            `✅ Orden ${ordenId} iniciada y abierta en pantalla en NUEVO hilo dedicado "${fullFormattedChatTitle}" (${createdConvoId}, workspace: ${workspaceCwd}, intento ${attempt}).`
           );
         } else {
           log(`✅ Orden ${ordenId} iniciada en NUEVA conversación de Antigravity (workspace: ${workspaceCwd}, intento ${attempt}).`);
@@ -2837,7 +3435,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         const lateConvoId = beforeDbsForAttempt ? detectNewlyCreatedConversationId(beforeDbsForAttempt, '') : null;
         if (lateConvoId) {
           dispatchedOk = true;
-          saveThreadFn(lateConvoId, workspaceCwd, true, targetCompanyId);
+          saveRoleThread(lateConvoId, workspaceCwd, true);
           attachWatcherForConversation(lateConvoId, 0);
           log(`✅ Orden ${ordenId} sí fue creada en Antigravity (${lateConvoId}) pese al error de respuesta: ${err.message}`);
           jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/ordenes/${encodeURIComponent(ordenId)}/dispatch-log`, 'POST', apiKey, {
@@ -2871,7 +3469,7 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         });
         if (directRes && directRes.ok && directRes.cascadeId) {
           dispatchedOk = true;
-          saveThreadFn(directRes.cascadeId, workspaceCwd, false, targetCompanyId);
+          saveRoleThread(directRes.cascadeId, workspaceCwd, false);
           log(
             `✅ [Canal Directo QR / LanguageServerService] Orden ${ordenId} inyectada directo al motor de Antigravity (Hilo: ${directRes.cascadeId}, Puerto: ${directRes.port}, Modelo: ${directRes.model}).`
           );
@@ -3899,6 +4497,23 @@ if (require.main === module) {
     completeOrderCli(cliArgs);
   } else if (cliArgs['send-file'] || cliArgs.sendFile) {
     sendLocalFileCopyToWappy(cliArgs);
+  } else if (cliArgs['healthcheck-chat'] || cliArgs.healthcheckChat) {
+    const rawFile = cliArgs['healthcheck-chat'] || cliArgs.healthcheckChat;
+    let spec = {};
+    try {
+      if (typeof rawFile === 'string' && fs.existsSync(rawFile)) {
+        spec = JSON.parse(fs.readFileSync(rawFile, 'utf8'));
+      }
+    } catch (_) {}
+    dispatchHealthcheckReportToChat(spec)
+      .then((res) => {
+        console.log(JSON.stringify(res));
+        process.exit(res?.ok ? 0 : 1);
+      })
+      .catch((err) => {
+        console.error(JSON.stringify({ ok: false, error: err.message }));
+        process.exit(1);
+      });
   } else if (cliArgs.notebooklm || cliArgs.service === 'notebooklm') {
     const { wappyUrl, apiKey } = resolveCredentials(cliArgs);
     runLocalConnector('notebooklm', cliArgs.url || wappyUrl, cliArgs.token || apiKey || '', false)
@@ -3940,4 +4555,7 @@ module.exports = {
   completeOrderCli,
   buildMacLaunchAgentPlist,
   listOurWorkerPids,
+  resolveWorkspaceTarget,
+  resolveOrderRoutingProfile,
+  dispatchHealthcheckReportToChat,
 };

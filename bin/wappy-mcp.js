@@ -2487,7 +2487,11 @@ server.tool(
     try {
       const data = await wappyRequest('/antigravity/delegar', {
         method: 'POST',
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          ...params,
+          sourceModule: params.sourceModule || 'mcp_delegate',
+          remitente: params.remitente || 'Copiloto MCP',
+        }),
       });
       return formatMcpResponse(data);
     } catch (err) {
