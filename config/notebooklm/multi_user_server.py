@@ -15,6 +15,7 @@ cuadernos compartidos directamente en Google con el bot de WAPPY.
 """
 
 import os
+import re
 import sys
 import json
 import logging
@@ -1129,43 +1130,96 @@ async def studio_generate(
             instructions = input.get("instructions") or instructions
             language = input.get("language") or language
 
-        instructions = _sanitize_preventive_sst_text(instructions)
-
         t = (artifact_type or "").lower().strip()
         uid = _get_active_user_id()
 
-        if t in ("audio", "podcast", "audio_overview"):
-            res = await client.artifacts.generate_audio(
-                nb_id,
-                language=language or "es",
-                instructions=instructions,
-            )
-            norm_type = "audio"
-        elif t in ("quiz", "cuestionario", "evaluacion", "evaluación"):
-            res = await client.artifacts.generate_quiz(
-                nb_id,
-                instructions=instructions,
-            )
-            norm_type = "quiz"
-        elif t in ("report", "informe", "resumen", "briefing_doc"):
-            res = await client.artifacts.generate_report(
-                nb_id,
-                language=language or "es",
-                custom_prompt=instructions,
-            )
-            norm_type = "report"
-        elif t in ("flashcards", "flashcard", "fichas"):
-            res = await client.artifacts.generate_flashcards(
-                nb_id,
-                instructions=instructions,
-            )
-            norm_type = "flashcards"
-        elif t in ("mind_map", "mindmap", "mapa_conceptual", "mapa"):
-            res = await client.artifacts.generate_mind_map(
-                nb_id,
-                language=language or "es",
-                instructions=instructions,
-            )
+        async def _dispatch_studio_generation(inst_text: Optional[str]):
+            if t in ("audio", "podcast", "audio_overview"):
+                return await client.artifacts.generate_audio(
+                    nb_id,
+                    language=language or "es",
+                    instructions=inst_text,
+                ), "audio"
+            elif t in ("quiz", "cuestionario", "evaluacion", "evaluación"):
+                return await client.artifacts.generate_quiz(
+                    nb_id,
+                    instructions=inst_text,
+                ), "quiz"
+            elif t in ("report", "informe", "resumen", "briefing_doc"):
+                return await client.artifacts.generate_report(
+                    nb_id,
+                    language=language or "es",
+                    custom_prompt=inst_text,
+                ), "report"
+            elif t in ("flashcards", "flashcard", "fichas"):
+                return await client.artifacts.generate_flashcards(
+                    nb_id,
+                    instructions=inst_text,
+                ), "flashcards"
+            elif t in ("mind_map", "mindmap", "mapa_conceptual", "mapa"):
+                return await client.artifacts.generate_mind_map(
+                    nb_id,
+                    language=language or "es",
+                    instructions=inst_text,
+                ), "mind_map"
+            elif t in ("study_guide", "guia", "guia_estudio", "guía"):
+                return await client.artifacts.generate_study_guide(
+                    nb_id,
+                    language=language or "es",
+                    extra_instructions=inst_text,
+                ), "report"
+            elif t in ("slide_deck", "slides", "presentacion", "presentación"):
+                return await client.artifacts.generate_slide_deck(
+                    nb_id,
+                    language=language or "es",
+                    instructions=inst_text,
+                ), "slide_deck"
+            elif t in ("video", "cinematic_video"):
+                if hasattr(client.artifacts, "generate_video"):
+                    return await client.artifacts.generate_video(
+                        nb_id,
+                        language=language or "es",
+                        instructions=inst_text,
+                    ), "video"
+                else:
+                    return await client.artifacts.generate_cinematic_video(
+                        nb_id,
+                        language=language or "es",
+                        instructions=inst_text,
+                    ), "video"
+            elif t in ("infographic", "infografia", "infografía"):
+                return await client.artifacts.generate_infographic(
+                    nb_id,
+                    language=language or "es",
+                    instructions=inst_text,
+                ), "infographic"
+            elif t in ("data_table", "tabla", "tabla_datos", "table"):
+                return await client.artifacts.generate_data_table(
+                    nb_id,
+                    language=language or "es",
+                    instructions=inst_text,
+                ), "data_table"
+            else:
+                raise ValueError(
+                    f"Tipo de artefacto no reconocido: '{artifact_type}'. "
+                    "Opciones válidas: audio, quiz, report, flashcards, mind_map, study_guide, slide_deck, video, infographic, data_table."
+                )
+
+        # Enviar SIEMPRE las instrucciones exactas del usuario sin censura ni alteración en el primer intento;
+        # solo usar el filtro preventivo como respaldo si la API de Google rechaza el primer intento.
+        try:
+            res, norm_type = await _dispatch_studio_generation(instructions)
+        except ValueError:
+            raise
+        except Exception as first_gen_err:
+            fallback_instructions = _sanitize_preventive_sst_text(instructions)
+            if fallback_instructions and fallback_instructions != instructions:
+                logger.info(f"[studio_generate] Reintentando '{t}' con instrucciones de respaldo tras error inicial: {first_gen_err}")
+                res, norm_type = await _dispatch_studio_generation(fallback_instructions)
+            else:
+                raise
+
+        if norm_type == "mind_map":
             note_id = getattr(res, "note_id", None)
             mind_map_data = getattr(res, "mind_map", res)
             dl_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{note_id or 'latest'}?type=mind_map"
@@ -1181,53 +1235,6 @@ async def studio_generate(
                 "notebooklm_web_url": f"https://notebook.google.com/notebook/{nb_id}",
                 "message": "Mapa mental generado exitosamente. Presenta la estructura jerárquica al usuario y compártele el enlace de descarga.",
             }
-        elif t in ("study_guide", "guia", "guia_estudio", "guía"):
-            res = await client.artifacts.generate_study_guide(
-                nb_id,
-                language=language or "es",
-                extra_instructions=instructions,
-            )
-            norm_type = "report"
-        elif t in ("slide_deck", "slides", "presentacion", "presentación"):
-            res = await client.artifacts.generate_slide_deck(
-                nb_id,
-                language=language or "es",
-                instructions=instructions,
-            )
-            norm_type = "slide_deck"
-        elif t in ("video", "cinematic_video"):
-            if hasattr(client.artifacts, "generate_video"):
-                res = await client.artifacts.generate_video(
-                    nb_id,
-                    language=language or "es",
-                    instructions=instructions,
-                )
-            else:
-                res = await client.artifacts.generate_cinematic_video(
-                    nb_id,
-                    language=language or "es",
-                    instructions=instructions,
-                )
-            norm_type = "video"
-        elif t in ("infographic", "infografia", "infografía"):
-            res = await client.artifacts.generate_infographic(
-                nb_id,
-                language=language or "es",
-                instructions=instructions,
-            )
-            norm_type = "infographic"
-        elif t in ("data_table", "tabla", "tabla_datos", "table"):
-            res = await client.artifacts.generate_data_table(
-                nb_id,
-                language=language or "es",
-                instructions=instructions,
-            )
-            norm_type = "data_table"
-        else:
-            raise ValueError(
-                f"Tipo de artefacto no reconocido: '{artifact_type}'. "
-                "Opciones válidas: audio, quiz, report, flashcards, mind_map, study_guide, slide_deck, video, infographic, data_table."
-            )
 
         task_id = getattr(res, "task_id", getattr(res, "id", str(res)))
         wappy_download_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{task_id}?type={norm_type}"

@@ -1071,9 +1071,10 @@ async function executeFlowImageGeneration({
     styleSuffix = 'high-impact occupational safety campaign poster, professional graphic design';
   }
 
-  const safeBasePrompt = sanitizePreventiveSstPrompt(prompt);
-  const enhancedPrompt = `${safeBasePrompt}, ${styleSuffix}, aspect ratio ${cleanRatio}`;
-  const fallbackSafePrompt = buildFallbackSafeSstPrompt(safeBasePrompt, cleanRatio);
+  const rawCleanPrompt = String(prompt || '').trim();
+  const safeBasePrompt = sanitizePreventiveSstPrompt(rawCleanPrompt);
+  const enhancedPrompt = `${rawCleanPrompt}, ${styleSuffix}, aspect ratio ${cleanRatio}`;
+  const fallbackSafePrompt = `${safeBasePrompt}, ${styleSuffix}, aspect ratio ${cleanRatio}`;
 
   // INTENTO 0 (PRIORIDAD #1): Si Google Antigravity está conectado en el equipo del usuario, priorizar Antigravity sobre Google Flow.
   // Si Antigravity no está conectado o falla/no responde a tiempo, cae automáticamente a Google Flow Studio.
@@ -1083,7 +1084,7 @@ async function executeFlowImageGeneration({
       if (typeof mcpBridge.tryGenerateImageViaAntigravity === 'function') {
         const agRes = await mcpBridge.tryGenerateImageViaAntigravity({
           userId,
-          prompt: safeBasePrompt,
+          prompt: rawCleanPrompt,
           enhancedPrompt,
           aspectRatio: cleanRatio,
           style,
@@ -1348,9 +1349,10 @@ async function executeFlowVideoGeneration({
     pan_left: 'cinematic lateral tracking shot panning left',
   };
   const motionText = motionDescriptions[cameraMotion] || motionDescriptions.zoom_in;
-  const safeBaseVidPrompt = sanitizePreventiveSstPrompt(prompt);
-  const enhancedPrompt = `${safeBaseVidPrompt}, ${motionText}, 4k cinematic quality, realistic physics, natural lighting`;
-  const fallbackSafeVidPrompt = `${buildFallbackSafeSstPrompt(safeBaseVidPrompt, cleanRatio)}, ${motionText}`;
+  const rawCleanVidPrompt = String(prompt || '').trim();
+  const safeBaseVidPrompt = sanitizePreventiveSstPrompt(rawCleanVidPrompt);
+  const enhancedPrompt = `${rawCleanVidPrompt}, ${motionText}, 4k cinematic quality, realistic physics, natural lighting`;
+  const fallbackSafeVidPrompt = `${safeBaseVidPrompt}, ${motionText}, 4k cinematic quality, realistic physics, natural lighting`;
 
   let videoBuffer = null;
   let posterBuffer = null;
