@@ -7,6 +7,7 @@
     isAdmin: false,
     user: null,
     token: null,
+    showGuide: true,
     activeTab: 'calificador', // 'calificador' | 'simulador' | 'radar' | 'crm' | 'documentos'
     calificadorMode: 'empresas', // 'empresas' (1104 Dec 768) | 'independientes' (322 CIUO)
     searchQuery: '',
@@ -15,9 +16,10 @@
     filterNicho: 'ALL',
     filterSpecial: 'ALL', // 'ALL' | 'TWIN_PLENA' | 'MIN_PRIMA'
     dataset: {
-      summary: null,
+      summary: { totalActivities: 1104, totalVolunteerOccupations: 322, totalTwinCiiuWithPlenaAlternate: 115 },
       ventaProactiva: [],
       ocupacionesVoluntarios: [],
+      byCode768: {},
     },
     radarData: {
       totalProspects: 0,
@@ -28,7 +30,6 @@
       prospects: [],
     },
     deals: [],
-    companies: [],
     selectedActivity: null,
     simulator: {
       companyName: '',
@@ -39,7 +40,7 @@
       currentArl: 'SURA',
       smlmv: 1423500,
       ibcPromedio: 2200000,
-      code768: '1821901',
+      code768: '1620101',
       comisionPct: 10,
       reinversionPct: 30,
       centros: [
@@ -48,7 +49,7 @@
       ],
     },
     docBuilder: {
-      docType: 'propuesta_comercial', // 'propuesta_comercial' | 'ficha_suscripcion' | 'carta_intermediacion'
+      docType: 'propuesta_comercial',
       aiObservation: '',
       isGeneratingAi: false,
     },
@@ -100,7 +101,8 @@
   window.computeColmenaSimulation = function () {
     var sim = window.COLMENA_STATE.simulator;
     var act = window.COLMENA_STATE.selectedActivity ||
-      window.COLMENA_STATE.dataset.ventaProactiva.find(function (r) { return r.code768 === sim.code768; }) ||
+      window.COLMENA_STATE.dataset.byCode768[sim.code768] ||
+      window.COLMENA_STATE.dataset.ventaProactiva[0] ||
       null;
 
     var totalWorkers = 0;
@@ -120,7 +122,7 @@
 
     var primaAnual = primaMensual * 12;
     var minRequired = act ? Number(act.minPrimaRequired || 0) : 0;
-    var authStatus = act ? act.authorization : 'Sin seleccionar';
+    var authStatus = act ? act.authorization : 'Autorización Plena';
     var effectiveAuth = authStatus;
     var complianceAlert = '';
 
@@ -163,7 +165,6 @@
 
   window.initColmenaApp = async function () {
     try {
-      // 1. Refresh session & verify ADMIN role
       var refreshRes = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
       if (refreshRes.ok) {
         var refreshData = await refreshRes.json();
@@ -188,7 +189,7 @@
         var d = document.getElementById('adminGateDesc');
         var a = document.getElementById('adminGateActions');
         if (t) t.textContent = 'Acceso Restringido · Solo Administradores';
-        if (d) d.innerHTML = 'Tu sesión actual no tiene privilegios <b>ADMIN</b>. Inicia sesión con la cuenta administradora de <b>WAPPY LTDA</b> para usar el motor de Intermediación ARL Colmena.';
+        if (d) d.innerHTML = 'Tu sesión actual no tiene privilegios <b>ADMIN</b>. Inicia sesión con la cuenta administradora de <b>WAPPY LTDA</b>.';
         if (a) a.classList.remove('hidden');
         return;
       }
@@ -199,26 +200,120 @@
       if (gate) gate.classList.add('hidden');
       if (root) root.classList.remove('hidden');
 
-      // 2. Load dataset + radar + deals in parallel
       var results = await Promise.allSettled([
         fetch('/api/comunidad/wappycolmena/dataset', { credentials: 'include', headers: window.colmenaAuthHeaders() }).then(function (r) { return r.json(); }),
         fetch('/api/comunidad/wappycolmena/radar', { credentials: 'include', headers: window.colmenaAuthHeaders() }).then(function (r) { return r.json(); }),
         fetch('/api/comunidad/wappycolmena/deals', { credentials: 'include', headers: window.colmenaAuthHeaders() }).then(function (r) { return r.json(); }),
       ]);
 
-      if (results[0].status === 'fulfilled' && results[0].value && results[0].value.ok) {
+      // Normalize Dataset (supports both { success: true, activities, occupations } and { ok: true, ventaProactiva })
+      if (results[0].status === 'fulfilled' && results[0].value && (results[0].value.success || results[0].value.ok)) {
+        var rawDs = results[0].value;
+        var rawActs = rawDs.activities || rawDs.ventaProactiva || [];
+        var rawOccs = rawDs.occupations || rawDs.ocupacionesVoluntarios || [];
+        var byCode = {};
+
+        var normActs = rawActs.map(function (a) {
+          var item = {
+            code768: String(a.cod768 || a.code768 || ''),
+            ciiuCode: String(a.ciiu || a.ciiuCode || ''),
+            riskClass: Number(a.clase || a.riskClass || 1),
+            sector: a.sector || '',
+            division: a.division || '',
+            grupo: a.grupo || '',
+            description768: a.descripcion || a.description768 || '',
+            exceptionRule: a.excepcion || a.exceptionRule || '',
+            minPrimaRequired: Number(a.minPrima != null ? a.minPrima : (a.minPrimaRequired || 0)),
+            nicho2026: a.nicho || a.nicho2026 || 'Otras Actividades',
+            authorization: a.nivel || a.authorization || 'Autorización Plena',
+            rawTwinCodes: a.plenaAlternatesInCiiu || [],
+            plenaAlternatesInCiiu: [],
+          };
+          byCode[item.code768] = item;
+          return item;
+        });
+
+        normActs.forEach(function (item) {
+          item.plenaAlternatesInCiiu = (item.rawTwinCodes || []).map(function (c) {
+            return typeof c === 'string' ? (byCode[c] || { code768: c, riskClass: item.riskClass, description768: 'Subactividad con Autorización Plena en el mismo CIIU ' + item.ciiuCode }) : c;
+          });
+        });
+
+        var normOccs = rawOccs.map(function (o) {
+          return {
+            code768: String(o.cod768 || o.code768 || ''),
+            ciuoCode: String(o.codOcupacion || o.ciuoCode || ''),
+            riskClass: Number(o.clase || o.riskClass || 1),
+            occupation: o.ocupacion || o.occupation || '',
+            activityDescription: o.descripcionActividad || '',
+            authorization: o.nivel || o.authorization || 'AUTORIZACIÓN PLENA',
+            desconcentracion: o.desconcentracion || 'SI',
+            nicho2026: o.nicho || 'GENERAL',
+          };
+        });
+
         window.COLMENA_STATE.dataset = {
-          summary: results[0].value.summary,
-          ventaProactiva: results[0].value.ventaProactiva || [],
-          ocupacionesVoluntarios: results[0].value.ocupacionesVoluntarios || [],
+          summary: {
+            totalActivities: normActs.length || 1104,
+            totalVolunteerOccupations: normOccs.length || 322,
+            totalTwinCiiuWithPlenaAlternate: 115,
+          },
+          ventaProactiva: normActs,
+          ocupacionesVoluntarios: normOccs,
+          byCode768: byCode,
         };
-        window.COLMENA_STATE.selectedActivity = window.COLMENA_STATE.dataset.ventaProactiva.find(function (x) { return x.code768 === '1821901'; }) || window.COLMENA_STATE.dataset.ventaProactiva[0] || null;
+        window.COLMENA_STATE.selectedActivity = byCode['1620101'] || normActs.find(function (x) { return x.authorization === 'Autorización Plena'; }) || normActs[0] || null;
+        if (window.COLMENA_STATE.selectedActivity) {
+          window.COLMENA_STATE.simulator.code768 = window.COLMENA_STATE.selectedActivity.code768;
+        }
       }
-      if (results[1].status === 'fulfilled' && results[1].value && results[1].value.ok) {
-        window.COLMENA_STATE.radarData = results[1].value;
+
+      // Normalize Radar
+      if (results[1].status === 'fulfilled' && results[1].value && (results[1].value.success || results[1].value.ok)) {
+        var rawRd = results[1].value;
+        var normProspects = (rawRd.prospects || []).map(function (p) {
+          var m = p.cpsMatch || {};
+          return {
+            companyName: p.companyName || '',
+            nit: p.nit || '',
+            city: p.city || 'Colombia',
+            responsableSst: p.responsibleSST || p.legalRepresentative || '',
+            source: p.origin || p.source || 'Somos SST',
+            sector: p.rawEconomicActivity || m.descripcion || 'General',
+            workersCount: Number(p.workerCount || p.workersCount || 1),
+            riskLevel: m.clase || 1,
+            matchedCode768: m.cod768 || p.matchedCode768 || '',
+            nicho2026: m.nicho || p.nicho2026 || 'General',
+            authorizationLevel: m.nivel || p.authorizationLevel || 'Autorización Plena',
+            estimatedAnnualPrima: Number(p.annualPrima || p.estimatedAnnualPrima || 0),
+            estimatedAnnualCommission: Number(p.estimatedAnnualCommission10 || p.estimatedAnnualCommission || 0),
+          };
+        });
+        window.COLMENA_STATE.radarData = {
+          totalProspects: normProspects.length,
+          plenaCount: normProspects.filter(function (x) { return x.authorizationLevel.indexOf('Plena') !== -1; }).length,
+          condicionadaCount: normProspects.filter(function (x) { return x.authorizationLevel.indexOf('Condicionada') !== -1; }).length,
+          especialCount: normProspects.filter(function (x) { return x.authorizationLevel.indexOf('Especial') !== -1; }).length,
+          prospects: normProspects,
+        };
       }
-      if (results[2].status === 'fulfilled' && results[2].value && results[2].value.ok) {
-        window.COLMENA_STATE.deals = results[2].value.deals || [];
+
+      // Normalize CRM Deals
+      if (results[2].status === 'fulfilled' && results[2].value && (results[2].value.success || results[2].value.ok)) {
+        window.COLMENA_STATE.deals = (results[2].value.deals || []).map(function (d) {
+          return {
+            _id: d._id,
+            companyName: d.companyName || '',
+            nit: d.nit || '',
+            city: d.city || '',
+            code768: d.cod768 || d.code768 || '',
+            riskClass: d.claseRiesgo || d.riskClass || 1,
+            authorizationLevel: d.nivelAutorizacion || d.authorizationLevel || 'Autorización Plena',
+            estimatedAnnualPrima: d.annualPrimaColmena || d.estimatedAnnualPrima || 0,
+            estimatedAnnualCommission: d.estimatedAnnualCommission || 0,
+            stage: d.stage || 'prospeccion',
+          };
+        });
       }
 
       if (typeof window.renderColmenaApp === 'function') {

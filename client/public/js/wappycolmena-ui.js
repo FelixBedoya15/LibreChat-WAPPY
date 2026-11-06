@@ -98,27 +98,28 @@
       companyName: sim.companyName.trim(),
       nit: sim.companyNit || '',
       city: sim.city || 'Medellín',
-      contactName: sim.contactName || '',
-      contactPhone: sim.contactPhone || '',
+      phone: sim.contactPhone || '',
+      responsibleSST: sim.contactName || '',
       currentArl: sim.currentArl || 'Otra ARL',
+      cod768: act.code768 || sim.code768 || '',
       code768: act.code768 || sim.code768 || '',
+      claseRiesgo: act.riskClass || 1,
       riskClass: act.riskClass || 1,
-      ciiuCode: act.ciiuCode || '',
-      activityDescription: act.description768 || '',
+      ciiu: act.ciiuCode || '',
+      descripcionActividad: act.description768 || '',
       nicho2026: act.nicho2026 || 'Otras Actividades',
-      authorizationLevel: calc.effectiveAuth || act.authorization || 'Autorización Plena',
-      exceptionRule: act.exceptionRule || 'No Aplica',
-      workersCount: calc.totalWorkers,
-      ibcPromedio: sim.ibcPromedio || 2000000,
-      monthlyPayroll: calc.totalNominaMensual,
-      estimatedMonthlyPrima: calc.primaMensual,
-      estimatedAnnualPrima: calc.primaAnual,
-      meetsMinPrima: calc.minRequired > 0 ? calc.primaMensual >= calc.minRequired : true,
-      wappyCommissionPct: calc.comisionPct,
+      nivelAutorizacion: calc.effectiveAuth || act.authorization || 'Autorización Plena',
+      excepcionPrima: act.exceptionRule || 'No Aplica',
+      workerCount: calc.totalWorkers,
+      avgIbc: sim.ibcPromedio || 2000000,
+      monthlyPrimaColmena: calc.primaMensual,
+      annualPrimaColmena: calc.primaAnual,
+      meetsMinPrimaRule: calc.minRequired > 0 ? calc.primaMensual >= calc.minRequired : true,
+      commissionPct: calc.comisionPct,
       estimatedAnnualCommission: calc.comisionAnualWappy,
-      sstReinvestmentBudget: calc.bolsaSstCliente,
+      reinvestmentSstPct: calc.reinversionPct,
+      estimatedReinvestmentSst: calc.bolsaSstCliente,
       stage: stage || 'cotizacion',
-      source: 'simulador',
     };
     try {
       var res = await fetch('/api/comunidad/wappycolmena/deals', {
@@ -128,8 +129,20 @@
         body: JSON.stringify(payload),
       });
       var data = await res.json();
-      if (data && data.ok && data.deal) {
-        window.COLMENA_STATE.deals.unshift(data.deal);
+      if (data && (data.success || data.ok) && data.deal) {
+        var d = data.deal;
+        window.COLMENA_STATE.deals.unshift({
+          _id: d._id,
+          companyName: d.companyName,
+          nit: d.nit,
+          city: d.city,
+          code768: d.cod768 || d.code768,
+          riskClass: d.claseRiesgo || d.riskClass || 1,
+          authorizationLevel: d.nivelAutorizacion || d.authorizationLevel,
+          estimatedAnnualPrima: d.annualPrimaColmena || d.estimatedAnnualPrima || 0,
+          estimatedAnnualCommission: d.estimatedAnnualCommission || 0,
+          stage: d.stage || 'cotizacion',
+        });
         window.showColmenaToast('Negocio guardado en el Pipeline CRM de WAPPY LTDA', 'ok');
         window.COLMENA_STATE.activeTab = 'crm';
         window.renderColmenaApp();
@@ -182,31 +195,36 @@
         credentials: 'include',
         headers: window.colmenaAuthHeaders(),
         body: JSON.stringify({
-          docType: window.COLMENA_STATE.docBuilder.docType,
-          companyName: sim.companyName || 'Empresa Prospecto',
-          nit: sim.companyNit || '900.000.000-1',
-          city: sim.city || 'Medellín',
-          currentArl: sim.currentArl || 'Otra ARL',
-          code768: act.code768 || sim.code768,
-          riskClass: act.riskClass || 1,
-          activityDescription: act.description768 || '',
-          nicho2026: act.nicho2026 || 'General',
-          authorizationLevel: calc.effectiveAuth,
-          exceptionRule: act.exceptionRule || 'No Aplica',
-          workersCount: calc.totalWorkers,
-          estimatedMonthlyPrima: calc.primaMensual,
-          estimatedAnnualPrima: calc.primaAnual,
-          estimatedAnnualCommission: calc.comisionAnualWappy,
-          sstReinvestmentBudget: calc.bolsaSstCliente,
+          docType: window.COLMENA_STATE.docBuilder.docType === 'ficha_suscripcion' ? 'ficha_suscripcion' : 'propuesta',
+          dealData: {
+            companyName: sim.companyName || 'Empresa Prospecto',
+            nit: sim.companyNit || '900.000.000-1',
+            city: sim.city || 'Medellín',
+            currentArl: sim.currentArl || 'Otra ARL',
+            cod768: act.code768 || sim.code768,
+            ciiu: act.ciiuCode || '',
+            claseRiesgo: act.riskClass || 1,
+            descripcionActividad: act.description768 || '',
+            nicho2026: act.nicho2026 || 'General',
+            nivelAutorizacion: calc.effectiveAuth,
+            excepcionPrima: act.exceptionRule || 'No Aplica',
+            meetsMinPrimaRule: calc.minRequired > 0 ? calc.primaMensual >= calc.minRequired : true,
+            workerCount: calc.totalWorkers,
+            monthlyPrimaColmena: calc.primaMensual,
+            annualPrimaColmena: calc.primaAnual,
+            estimatedAnnualCommission: calc.comisionAnualWappy,
+            estimatedReinvestmentSst: calc.bolsaSstCliente,
+          },
         }),
       });
       var data = await res.json();
       window.COLMENA_STATE.docBuilder.isGeneratingAi = false;
-      if (data && data.ok && data.text) {
-        window.COLMENA_STATE.docBuilder.aiObservation = data.text;
-        window.showColmenaToast('Sustentación técnica generada con IA (' + (data.model || 'Gemini') + ')', 'ok');
+      var txt = (data && (data.html || data.text) || '').replace(/<[^>]+>/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+      if (data && (data.success || data.ok) && txt) {
+        window.COLMENA_STATE.docBuilder.aiObservation = txt;
+        window.showColmenaToast('Sustentación técnica generada con IA (' + (data.modelUsed || data.model || 'Gemini') + ')', 'ok');
       } else {
-        window.showColmenaToast(data.error || 'No se pudo generar con IA', 'warn');
+        window.showColmenaToast(data.message || data.error || 'Usando plantilla base de alta precisión', 'warn');
       }
       window.renderColmenaApp();
     } catch (e) {
@@ -684,7 +702,7 @@
           '</div>' +
         '</div>' +
       '</header>' +
-      '<main class="max-w-7xl mx-auto px-3 sm:px-6 pb-12">' +
+      '<main class="max-w-7xl mx-auto px-3 sm:px-6 pt-3 pb-12">' +
         '<section class="no-print wappy-card-surface bg-white/90 backdrop-blur-xl rounded-3xl border border-white/80 shadow-xl p-5 sm:p-7 mb-5">' +
           '<div class="flex flex-wrap items-center justify-between gap-4">' +
             '<div>' +
@@ -697,6 +715,24 @@
               '<div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center"><div class="text-[10px] font-black uppercase text-amber-800">CIIU Mellizos Plena</div><div class="font-display font-black text-xl text-amber-800">115</div></div>' +
               '<div class="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-center"><div class="text-[10px] font-black uppercase text-teal-700">Independientes SÍ</div><div class="font-display font-black text-xl text-teal-800">151 / 322</div></div>' +
               '<div class="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-center"><div class="text-[10px] font-black uppercase text-indigo-700">Radar Somos SST</div><div class="font-display font-black text-xl text-indigo-800">' + (st.radarData.totalProspects || 0) + '</div></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mt-4 pt-4 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">' +
+            '<div onclick="window.switchColmenaTab(\'calificador\')" class="p-3 rounded-2xl bg-slate-50 hover:bg-teal-50/60 border border-slate-200/80 cursor-pointer transition-all">' +
+              '<div class="text-[10px] font-black uppercase text-teal-700">Paso 1 · Calificar Actividad</div>' +
+              '<div class="text-xs font-bold text-slate-900 mt-0.5">Busca el CIIU o código 768 y mira si tiene 🟢 Autorización Plena o código mellizo.</div>' +
+            '</div>' +
+            '<div onclick="window.switchColmenaTab(\'radar\')" class="p-3 rounded-2xl bg-slate-50 hover:bg-indigo-50/60 border border-slate-200/80 cursor-pointer transition-all">' +
+              '<div class="text-[10px] font-black uppercase text-indigo-700">Paso 2 · Radar Clientes WAPPY</div>' +
+              '<div class="text-xs font-bold text-slate-900 mt-0.5">Mira las ' + (st.radarData.totalProspects || 0) + ' empresas de Somos SST / Matriz IPVR ya calificadas para Colmena.</div>' +
+            '</div>' +
+            '<div onclick="window.switchColmenaTab(\'simulador\')" class="p-3 rounded-2xl bg-slate-50 hover:bg-amber-50/60 border border-slate-200/80 cursor-pointer transition-all">' +
+              '<div class="text-[10px] font-black uppercase text-amber-700">Paso 3 · Cotizar Prima & Comisión</div>' +
+              '<div class="text-xs font-bold text-slate-900 mt-0.5">Calcula aporte ARL mensual/anual, topes ($3M/$40M) y comisión para WAPPY LTDA.</div>' +
+            '</div>' +
+            '<div onclick="window.switchColmenaTab(\'documentos\')" class="p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 cursor-pointer transition-all">' +
+              '<div class="text-[10px] font-black uppercase text-emerald-700">Paso 4 · Propuesta & Carta A4</div>' +
+              '<div class="text-xs font-bold text-slate-900 mt-0.5">Genera con IA la Propuesta Comercial, Ficha CPS-A-26 o Carta de Intermediario.</div>' +
             '</div>' +
           '</div>' +
           '<div class="flex lg:hidden flex-wrap gap-1.5 mt-4 pt-3 border-t border-slate-200">' +
