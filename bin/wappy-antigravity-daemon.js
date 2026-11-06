@@ -2799,7 +2799,8 @@ async function dispatchHealthcheckReportToChat(reportSpec = {}) {
       sourceModule: 'healthcheck_report',
       corteHora,
       titulo: rawTitle,
-      empresa: 'WAPPY IA',
+      empresa: String(reportSpec.empresa || '').trim(),
+      companyWorkspace: String(reportSpec.companyWorkspace || reportSpec.targetProject || '').trim(),
     });
 
     const bin = resolveAgentApiBinary();
@@ -2831,7 +2832,13 @@ async function dispatchHealthcheckReportToChat(reportSpec = {}) {
     }
 
     const promptBody =
-      String(reportSpec.prompt || reportSpec.instruccion || reportSpec.summary || '').trim() ||
+      String(
+        reportSpec.promptText ||
+          reportSpec.prompt ||
+          reportSpec.instruccion ||
+          reportSpec.summary ||
+          ''
+      ).trim() ||
       [
         `🩺 **[BITÁCORA AUTOMÁTICA DE CONECTORES WAPPY IA — ${corteHora}]**`,
         `Se ejecutó la auditoría funcional E2E de los 3 conectores (Google Antigravity, Google NotebookLM y Google Flow Studio).`,

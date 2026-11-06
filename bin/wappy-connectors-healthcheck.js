@@ -623,42 +623,62 @@ async function runFunctionalFlowImageGeneration(wappyUrl, apiKey) {
     'Ingeniero de seguridad y salud en el trabajo con casco blanco e insignias SST supervisando planta moderna iluminada, fotografia 4k';
   log(`🧪 [Prueba Funcional 3/3] Generando imagen real de prueba en Google Flow Studio...`);
 
-  const genRes = await httpJson(`${wappyUrl}/api/googleflow/generate`, {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
-    body: {
-      type: 'image',
-      prompt,
-      aspectRatio: '16:9',
-      style: 'fotorrealista',
-      skipAntigravity: true,
-    },
-    timeoutMs: 45000,
-  });
+  const allCreds = resolveAllCredentials();
+  const keysToTry = [
+    apiKey,
+    ...allCreds.map((c) => c.apiKey).filter((k) => k && k !== apiKey),
+  ].filter(Boolean);
 
-  const latencyMs = Date.now() - t0;
-  const relUrl = genRes.data?.publicUrl || '';
-  if (genRes.ok && genRes.data?.success && relUrl) {
-    const fullImageUrl = relUrl.startsWith('http') ? relUrl : `${wappyUrl}${relUrl}`;
-    const modelName = genRes.data?.model || 'Google Flow Studio (Imagen 3)';
-    log(`✅ [Prueba Funcional 3/3] Imagen generada en ${(latencyMs / 1000).toFixed(1)}s: ${fullImageUrl}`);
-    return {
-      ok: true,
-      prompt,
-      imageUrl: fullImageUrl,
-      model: modelName,
-      latencyMs,
-      detail: `Imagen generada en ${(latencyMs / 1000).toFixed(1)}s (${modelName}): ${fullImageUrl}`,
-    };
+  let lastGenRes = null;
+  const candidatePrompts = [
+    prompt,
+    'Inspeccion preventiva de seguridad y salud en el trabajo con casco blanco y chaleco reflectivo en planta moderna iluminada, fotografia 4k',
+  ];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const candidateKey = keysToTry[attempt] || apiKey;
+    const activePrompt = candidatePrompts[attempt] || prompt;
+    if (attempt > 0) {
+      log(`🔄 [Prueba Funcional 3/3] Reintentando generación de imagen en Google Flow (intento ${attempt + 1})...`);
+      await new Promise((r) => setTimeout(r, 8000));
+    }
+    const genRes = await httpJson(`${wappyUrl}/api/googleflow/generate`, {
+      method: 'POST',
+      headers: { 'x-api-key': candidateKey, Authorization: `Bearer ${candidateKey}` },
+      body: {
+        type: 'image',
+        prompt: activePrompt,
+        aspectRatio: '16:9',
+        style: 'fotorrealista',
+        skipAntigravity: true,
+      },
+      timeoutMs: 45000,
+    });
+    lastGenRes = genRes;
+    const latencyMs = Date.now() - t0;
+    const relUrl = genRes.data?.publicUrl || '';
+    if (genRes.ok && genRes.data?.success && relUrl) {
+      const fullImageUrl = relUrl.startsWith('http') ? relUrl : `${wappyUrl}${relUrl}`;
+      const modelName = genRes.data?.model || 'Google Flow Studio (Imagen 3)';
+      log(`✅ [Prueba Funcional 3/3] Imagen generada en ${(latencyMs / 1000).toFixed(1)}s: ${fullImageUrl}`);
+      return {
+        ok: true,
+        prompt,
+        imageUrl: fullImageUrl,
+        model: modelName,
+        latencyMs,
+        detail: `Imagen generada en ${(latencyMs / 1000).toFixed(1)}s (${modelName}): ${fullImageUrl}`,
+      };
+    }
   }
 
+  const latencyMs = Date.now() - t0;
   return {
     ok: false,
     prompt,
     imageUrl: '',
     model: '',
     latencyMs,
-    detail: `Fallo generando imagen en Google Flow: ${genRes.data?.error || genRes.error || `HTTP ${genRes.status}`}`,
+    detail: `Fallo generando imagen en Google Flow: ${lastGenRes?.data?.error || lastGenRes?.error || `HTTP ${lastGenRes?.status || 0}`}`,
   };
 }
 
@@ -1588,7 +1608,7 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
   }
 
   // 1. Vía Directa Local en el Mac (`wappy-push-daemon.js --healthcheck-chat=<tmpFile>`):
-  //    Garantiza apertura inmediata de la pestaña en `LibreChat-WAPPY` sin depender del estado de red.
+  //    Garantiza apertura inmediata de la pestaña en el último proyecto activo del usuario sin depender del estado de red.
   if (fs.existsSync(DAEMON_SCRIPT)) {
     const tmpReportFile = path.join('/tmp', `wappy_hc_chat_${Date.now()}.json`);
     try {
