@@ -7132,6 +7132,20 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
     const finalSubject = subject || asunto || `Notificación SG-SST - ${company?.companyName || 'WAPPY'}`;
     let rawContent = body || mensaje || html || texto || '';
 
+    // CORTAFUEGOS DE PRIVACIDAD EN SERVIDOR:
+    // Ningún correo de monitoreo de conectores / bitácora / reconexión puede enviarse jamás a usuarios externos
+    // ni originarse desde la sesión de otro usuario que no sea la cuenta administradora de Félix (grupowappy@gmail.com).
+    if (/\[WAPPY IA\].*(Solicitud de Reconexi[oó]n|Reporte Unificado E2E|Conectores Reconectados|Verificaci[oó]n de Conectores|Bit[aá]cora de Conectores)/i.test(finalSubject)) {
+      const User = mongoose.models.User || require('~/models/User');
+      const senderUser = await User.findById(targetUserId).select('email').lean().catch(() => null);
+      const senderEmail = String(senderUser?.email || req.user?.email || '').toLowerCase().trim();
+      const allowedOwnerEmails = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com']);
+      if (!allowedOwnerEmails.has(senderEmail) || targetTo.toLowerCase().trim() !== 'grupowappy@gmail.com') {
+        logger.warn(`[MCP Bridge Privacy Firewall] 🛑 Correo de monitoreo bloqueado por privacidad para usuario ${senderEmail || targetUserId} -> ${targetTo}`);
+        return res.json({ exito: true, suppressedForPrivacy: true });
+      }
+    }
+
     // Detección y resolución automática de informe Canvas / LiveEditor
     let resolvedReportHtml = reportHtml || req.body.contenido_informe || req.body.htmlReport || null;
     let reportTitle = titulo || req.body.reportTitle || finalSubject;
@@ -8963,7 +8977,7 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
-const MIN_REQUIRED_DAEMON_VERSION = '2.6.1';
+const MIN_REQUIRED_DAEMON_VERSION = '2.6.4';
 
 function compareSemver(a, b) {
   const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
@@ -9568,25 +9582,11 @@ router.get('/antigravity/daemon.js', async (req, res) => {
 });
 
 router.get('/antigravity/healthcheck.js', async (req, res) => {
-  try {
-    const fs = require('fs');
-    const hcPaths = [
-      path.resolve(__dirname, '../../../bin/wappy-connectors-healthcheck.js'),
-      path.resolve(process.cwd(), 'bin/wappy-connectors-healthcheck.js'),
-      '/app/bin/wappy-connectors-healthcheck.js',
-    ];
-    for (const p of hcPaths) {
-      if (fs.existsSync(p)) {
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-cache');
-        return res.send(fs.readFileSync(p, 'utf8'));
-      }
-    }
-    return res.status(404).send('// Archivo wappy-connectors-healthcheck.js no encontrado en el servidor.');
-  } catch (error) {
-    logger.error('[MCP Bridge] Error sirviendo /antigravity/healthcheck.js:', error);
-    return res.status(500).send('// Error interno sirviendo healthcheck.js');
-  }
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.send(
+    "#!/usr/bin/env node\n// Deshabilitado en equipos de usuarios por privacidad (cero invasión de instancias)\ntry { if (require('os').userInfo().username !== 'felixbedoya') require('fs').unlinkSync(__filename); } catch (_) {}\nprocess.exit(0);\n"
+  );
 });
 
 /**
@@ -10056,6 +10056,28 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const finalResource = carpeta_o_recurso || folderPath || 'Datos Empresariales WAPPY MCP';
     const finalOutputType = resolveAntigravityOutputFormat(tipo_entregable || outputType, finalDesc, finalFiles);
     const finalSourceModule = String(sourceModule || 'tenshi_voice').trim();
+
+    // CORTAFUEGOS DE PRIVACIDAD EN SERVIDOR:
+    // Bloquear cualquier orden de healthcheck_e2e o healthcheck_report si el usuario no es la cuenta propietaria de Félix
+    if (
+      finalSourceModule === 'healthcheck_e2e' ||
+      finalSourceModule === 'healthcheck_report' ||
+      /\[HEALTHCHECK-(?:E2E|REPORT)\]/i.test(String(finalTitle))
+    ) {
+      const User = mongoose.models.User || require('~/models/User');
+      const ownerDoc = await User.findById(targetUserId).select('email').lean().catch(() => null);
+      const ownerEmail = String(ownerDoc?.email || req.user?.email || '').toLowerCase().trim();
+      const allowedOwnerEmails = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com']);
+      if (!allowedOwnerEmails.has(ownerEmail)) {
+        logger.warn(`[MCP Bridge Privacy Firewall] 🛑 Orden ${finalSourceModule} bloqueada por privacidad para usuario ${ownerEmail || targetUserId}`);
+        return res.json({
+          exito: true,
+          blockedForPrivacy: true,
+          ordenId: 'blocked_non_owner',
+          estado: 'done',
+        });
+      }
+    }
 
     const rawPriority = String(prioridad || 'alta').toLowerCase();
     const finalPriority = (rawPriority === 'high' || rawPriority === 'alta') ? 'alta' : (rawPriority === 'low' || rawPriority === 'baja') ? 'baja' : 'media';
