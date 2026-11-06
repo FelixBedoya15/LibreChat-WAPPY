@@ -39,6 +39,7 @@ const DEFAULT_SKILL_TOOLS_MAP = {
   'skill-ingeniero-ambiental': ['matriz_ipevar', 'matriz_compatibilidad', 'consultar_analitica_actos_condiciones'],
   'skill-especialista-riesgo-climatico': ['matriz_ipevar', 'consultar_analitica_actos_condiciones'],
   'skill-redactor-creativo': ['blog_editor'],
+  'skill-admin-metricas-sistema': ['wappy_consultar_metricas_admin', 'wappy_admin_sistema', 'wappy_ejecutar_accion_usuario'],
 };
 
 /**
@@ -49,7 +50,7 @@ const DEFAULT_SKILL_TOOLS_MAP = {
  * @param {string[]} agentSkills - Lista de nombres de skills habilitados para el agente.
  * @returns {{ instructions: string, activeSkillNames: string[], activeTools: string[] }}
  */
-function getActiveSkillsData(lastUserMessageText, agentSkills) {
+function getActiveSkillsData(lastUserMessageText, agentSkills, options = {}) {
   if (!Array.isArray(agentSkills) || agentSkills.length === 0 || !fs.existsSync(SKILLS_DIR)) {
     return { instructions: '', activeSkillNames: [], activeTools: [] };
   }
@@ -81,6 +82,9 @@ function getActiveSkillsData(lastUserMessageText, agentSkills) {
       }
 
       const skillName = frontmatter.name || file.replace('.md', '');
+
+      // Proteger skills exclusivas de ADMIN (solo se inyectan si el usuario conectado es ADMIN)
+      if (frontmatter.adminOnly && !options.isAdmin) continue;
 
       // 1. Verificar si el agente tiene esta skill habilitada (o si se pasa '*' para todas)
       const isEnabled = agentSkills.includes('*') || agentSkills.includes(skillName);
