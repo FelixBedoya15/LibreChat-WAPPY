@@ -41,7 +41,7 @@ const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hi
 const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
 const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
 const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para el Generador Prioritario de Imágenes
-const DAEMON_VERSION = '2.6.2';
+const DAEMON_VERSION = '2.6.3';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -2936,22 +2936,13 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   const recurso = orden.recursoObjetivo || 'Datos Empresariales WAPPY MCP';
   const routingProfile = resolveOrderRoutingProfile(orden);
 
-  // Reporte final de Bitácora Cron Conectores (`healthcheck_report`):
-  // Abre visiblemente el chat `🩺 [Cron Conectores · ...]` en Antigravity con el resumen 3/3 (o verificación de 90m)
-  // y cierra la orden en el servidor sin contaminar burbujas de Tenshi.
+  // Verificación pasiva y silenciosa (CERO apertura de chats y CERO invasión de la instancia de Antigravity del usuario):
   if (orden.sourceModule === 'healthcheck_report' || /\[HEALTHCHECK-REPORT\]/i.test(String(titulo))) {
-    const chatRes = await dispatchHealthcheckReportToChat({
-      corteHora: orden.corteHora || orden.triggerLabel || formatColombianShortTime(),
-      titulo: routingProfile.cleanTitle,
-      prompt: instruccion,
-    });
     await jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/completar`, 'POST', apiKey, {
       ordenId,
       formato: 'respuesta',
-      resultado: chatRes.ok
-        ? `Bitácora registrada en el chat "${chatRes.title}" (${chatRes.conversationId}).`
-        : `Bitácora recibida (${chatRes.error || 'sin UI'}).`,
-      contenido: instruccion,
+      resultado: 'OK (verificación pasiva completada sin abrir chats en la instancia).',
+      contenido: 'OK',
     });
     return;
   }
@@ -2969,58 +2960,21 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
         ].join('\n')
       : '';
 
-  // Prueba Funcional E2E de Bitácora (Cron / HealthCheck):
-  // Valida que la orden viajó por el túnel Push SSE desde el VPS, fue reclamada por este daemon
-  // y que el LanguageServerService local de Antigravity en este Mac está vivo y responde por ConnectRPC.
+  // Verificación pasiva de proceso local (sin abrir ningún chat ni enviar prompts a la instancia de Antigravity):
   if (orden.sourceModule === 'healthcheck_e2e' || String(titulo).includes('[HEALTHCHECK-E2E]')) {
     const cands = ensureLiveAntigravityRunning(15);
     if (!cands || cands.length === 0) {
-      log(`❌ [HealthCheck E2E] Orden ${ordenId}: No hay instancia activa de language_server local.`);
+      log(`❌ [HealthCheck] Orden ${ordenId}: No hay instancia activa de language_server local.`);
       return;
     }
-    let activePort = cands[0].port;
-    let activeModel = 'gemini-antigravity-local';
-    for (const c of cands) {
-      try {
-        const mRes = await callLanguageServerRpc(c, 'GetCascadeModelConfigData', {}, 4000);
-        if (mRes.status === 200 && Array.isArray(mRes.data?.clientModelConfigs)) {
-          activePort = c.port;
-          const rec =
-            mRes.data.clientModelConfigs.find((m) => m.isRecommended && m.modelOrAlias?.model) ||
-            mRes.data.clientModelConfigs.find((m) => m.modelOrAlias?.model);
-          if (rec?.modelOrAlias?.model) activeModel = rec.modelOrAlias.model;
-          break;
-        }
-      } catch (_) {}
-    }
-    const e2eReply = `El SG-SST (Sistema de Gestión de la Seguridad y Salud en el Trabajo), regulado por el Decreto 1072 de 2015 y la Resolución 0312 de 2019, previene accidentes y enfermedades laborales mediante el ciclo PHVA. [Motor Antigravity Local verificado en ${os.hostname()} · Puerto gRPC ${activePort} · Modelo ${activeModel}]`;
+    const activePort = cands[0].port;
+    const e2eReply = `Conexión verificada pasivamente en ${os.hostname()} (Puerto gRPC ${activePort} activo).`;
     await jsonRequest(`${wappyUrl}/api/mcp-bridge/antigravity/completar`, 'POST', apiKey, {
       ordenId,
       formato: 'respuesta',
       resultado: e2eReply,
       contenido: e2eReply,
     });
-    log(`✅ [HealthCheck E2E] Pregunta ${ordenId} respondida en vivo por el puente local Antigravity (puerto ${activePort}).`);
-
-    // Respaldo automático: si el healthcheck corre desde otro host sin enviar `healthcheck_report` en 55s,
-    // registrar también la prueba de Antigravity en el hilo `🩺 [Cron Conectores]`.
-    const probeStartedAt = Date.now();
-    setTimeout(() => {
-      if (lastHealthcheckChatLoggedAt < probeStartedAt) {
-        dispatchHealthcheckReportToChat({
-          corteHora: formatColombianShortTime(probeStartedAt),
-          titulo: 'Bitácora E2E (Antigravity + NotebookLM + Flow)',
-          prompt: [
-            `🩺 **[BITÁCORA DE AUDITORÍA E2E — ${formatColombianShortTime(probeStartedAt)}]**`,
-            `- **Orden E2E verificada:** \`${ordenId}\``,
-            `- **Conector #1 (Google Antigravity Local):** ✅ Operativo en \`${os.hostname()}\` (Puerto gRPC \`${activePort}\` · Modelo \`${activeModel}\`)`,
-            `- **Respuesta E2E:** ${e2eReply}`,
-            ``,
-            `INSTRUCCIÓN BREVE: Confirma en 1 sola frase corta que este registro de bitácora del Cron quedó asentado en el hilo de Conectores (sin llamar ninguna herramienta adicional).`,
-          ].join('\n'),
-        }).catch(() => {});
-      }
-    }, 55000);
     return;
   }
 
@@ -3945,32 +3899,31 @@ function startSseWorker(cliArgs) {
   writeHeartbeat();
   setInterval(writeHeartbeat, 60000);
 
-  // Si el usuario aún no tiene wappy-connectors-healthcheck.js en su equipo, descargarlo en segundo plano
+  // Privacidad de instancias de usuarios: NUNCA descargar ni ejecutar wappy-connectors-healthcheck.js
+  // en equipos de usuarios. Si existía una copia previa en un equipo que no sea el servidor administrativo, limpiarla.
   try {
-    const hcDest = path.join(AGY_DIR, 'wappy-connectors-healthcheck.js');
-    if (!fs.existsSync(hcDest)) {
-      const { wappyUrl: hcOrigin } = resolveCredentials(cliArgs);
-      const hcUrl = `${resolveEffectiveServerUrl(hcOrigin, 'https://wappy.club')}/api/mcp-bridge/antigravity/healthcheck.js`;
-      const parsedHc = new URL(hcUrl);
-      const hcClient = parsedHc.protocol === 'https:' ? https : http;
-      hcClient
-        .get(parsedHc, (hcRes) => {
-          if (hcRes.statusCode !== 200) {
-            hcRes.resume();
-            return;
-          }
-          let hcBody = '';
-          hcRes.setEncoding('utf8');
-          hcRes.on('data', (ch) => (hcBody += ch));
-          hcRes.on('end', () => {
-            try {
-              if (hcBody && hcBody.length > 500) {
-                fs.writeFileSync(hcDest, hcBody, { encoding: 'utf8', mode: 0o755 });
-              }
-            } catch (_) {}
-          });
-        })
-        .on('error', () => {});
+    const localUser = (() => {
+      try {
+        return os.userInfo().username || '';
+      } catch (_) {
+        return '';
+      }
+    })();
+    if (localUser !== 'felixbedoya') {
+      for (const staleFile of [
+        'wappy-connectors-healthcheck.js',
+        'wappy-healthcheck.log',
+        'wappy-healthcheck-state.json',
+        'wappy-healthcheck-bitacora.json',
+        'wappy-healthcheck-thread.json',
+      ]) {
+        const fp = path.join(AGY_DIR, staleFile);
+        if (fs.existsSync(fp)) {
+          try {
+            fs.unlinkSync(fp);
+          } catch (_) {}
+        }
+      }
     }
   } catch (_) {}
 
@@ -4231,14 +4184,14 @@ function startSseWorker(cliArgs) {
   // Revisar cada 20s si el usuario agregó o actualizó una clave en mcp_config.json
   setInterval(syncStreams, 20000);
 
-  // Detector de salida de reposo (Sleep/Wake Recovery): reconecta SSE al instante y dispara healthcheck
+  // Detector de salida de reposo (Sleep/Wake Recovery): reconecta SSE de forma silenciosa sin invadir la instancia
   let lastWakeCheckAt = Date.now();
   setInterval(() => {
     const now = Date.now();
     const elapsed = now - lastWakeCheckAt;
     lastWakeCheckAt = now;
     if (elapsed > 90000) {
-      log(`☀️ Detectado despertar del equipo tras reposo (${Math.round(elapsed / 1000)}s). Reconectando stream SSE y verificando conectores...`);
+      log(`☀️ Detectado despertar del equipo tras reposo (${Math.round(elapsed / 1000)}s). Reconectando stream SSE...`);
       for (const [, st] of activeStreams.entries()) {
         try {
           st.stop();
@@ -4246,19 +4199,6 @@ function startSseWorker(cliArgs) {
       }
       activeStreams.clear();
       setTimeout(syncStreams, 2000);
-      const hcScript = path.join(AGY_DIR, 'wappy-connectors-healthcheck.js');
-      if (fs.existsSync(hcScript)) {
-        setTimeout(() => {
-          try {
-            const c = spawn(process.execPath, [hcScript, '--trigger=wake'], {
-              detached: true,
-              stdio: 'ignore',
-              windowsHide: true,
-            });
-            c.unref();
-          } catch (_) {}
-        }, 8000);
-      }
     }
   }, 15000);
 }

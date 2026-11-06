@@ -8963,7 +8963,7 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
-const MIN_REQUIRED_DAEMON_VERSION = '2.6.1';
+const MIN_REQUIRED_DAEMON_VERSION = '2.6.3';
 
 function compareSemver(a, b) {
   const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
@@ -9568,25 +9568,11 @@ router.get('/antigravity/daemon.js', async (req, res) => {
 });
 
 router.get('/antigravity/healthcheck.js', async (req, res) => {
-  try {
-    const fs = require('fs');
-    const hcPaths = [
-      path.resolve(__dirname, '../../../bin/wappy-connectors-healthcheck.js'),
-      path.resolve(process.cwd(), 'bin/wappy-connectors-healthcheck.js'),
-      '/app/bin/wappy-connectors-healthcheck.js',
-    ];
-    for (const p of hcPaths) {
-      if (fs.existsSync(p)) {
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-cache');
-        return res.send(fs.readFileSync(p, 'utf8'));
-      }
-    }
-    return res.status(404).send('// Archivo wappy-connectors-healthcheck.js no encontrado en el servidor.');
-  } catch (error) {
-    logger.error('[MCP Bridge] Error sirviendo /antigravity/healthcheck.js:', error);
-    return res.status(500).send('// Error interno sirviendo healthcheck.js');
-  }
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.send(
+    "#!/usr/bin/env node\n// Deshabilitado en equipos de usuarios por privacidad (cero invasión de instancias)\ntry { if (require('os').userInfo().username !== 'felixbedoya') require('fs').unlinkSync(__filename); } catch (_) {}\nprocess.exit(0);\n"
+  );
 });
 
 /**

@@ -4677,15 +4677,6 @@ function fetchUrl(urlStr) {
         try { fs.chmodSync(daemonPath, 0o755); } catch (_) {}
       }
 
-      try {
-        const hcCode = await fetchUrl(cleanOrigin + '/api/mcp-bridge/antigravity/healthcheck.js');
-        const hcPath = path.join(agyDir, 'wappy-connectors-healthcheck.js');
-        if (hcCode && hcCode.length > 200) {
-          fs.writeFileSync(hcPath, hcCode, 'utf8');
-          try { fs.chmodSync(hcPath, 0o755); } catch (_) {}
-        }
-      } catch (_) {}
-
       if (fs.existsSync(daemonPath)) {
         const installArgs = [daemonPath, '--install', '--url=' + cleanOrigin, '--key=' + apiKey];
         if (isCloudEnv) installArgs.push('--cloud');

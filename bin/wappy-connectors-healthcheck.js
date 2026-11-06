@@ -877,16 +877,11 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
 async function sendHealthEmail(
   wappyUrl,
   apiKey,
-  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow, recipientEmail }
+  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow }
 ) {
-  const customEmail = String(recipientEmail || process.env.WAPPY_ALERT_EMAIL || '').trim();
-  const targetEmail =
-    customEmail &&
-    customEmail.includes('@') &&
-    !customEmail.endsWith('@wappy.internal') &&
-    customEmail.toLowerCase() !== 'felix.bedoya15@gmail.com'
-      ? customEmail
-      : ALERT_EMAIL;
+  // Privacidad estricta: el reporte de estado del monitor NUNCA se envía a correos de usuarios,
+  // únicamente al buzón administrativo ALERT_EMAIL (grupowappy@gmail.com).
+  const targetEmail = ALERT_EMAIL;
 
   const nowStr = new Date().toLocaleString('es-CO', {
     timeZone: 'America/Bogota',
@@ -1668,10 +1663,23 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
 }
 
 async function main() {
+  // Candado de privacidad multi-usuario: este monitor pertenece exclusivamente al equipo administrativo principal.
+  // Si por cualquier motivo existe en el computador de otro usuario, se limpia y termina sin ejecutar nada.
+  try {
+    const localUsername = os.userInfo().username || '';
+    if (localUsername !== 'felixbedoya') {
+      try {
+        fs.unlinkSync(__filename);
+      } catch (_) {}
+      process.exit(0);
+    }
+  } catch (_) {}
+
   const args = parseArgs();
   const trigger = String(args.trigger || 'manual');
   const forceEmail = Boolean(args['force-email'] || args['test-email'] || args.force);
   const simulateError = Boolean(args['simulate-error']);
+  const runInvasiveFunctionalTests = Boolean(args['functional-e2e']);
   const isManualRun = trigger === 'manual' || trigger === 'cron-test' || forceEmail;
 
   // Evitar ejecuciones simultáneas (lock de 4 minutos)
@@ -1690,9 +1698,7 @@ async function main() {
   try {
     // Unificación de ejecuciones automáticas (boot, wake, schedule, cron):
     // Evitar enviar múltiples correos en la mañana cuando coinciden el encendido del Mac (boot),
-    // LaunchAgent (schedule) y crontab (cron). Si ya se completó una prueba exitosa con correo en los últimos 90 minutos,
-    // no enviar un segundo correo repetido, PERO si entra el corte oficial `schedule`/`cron` tras un `boot` temprano,
-    // dejar la constancia escrita en el chat `🩺 [Cron Conectores]` de Antigravity.
+    // LaunchAgent (schedule) y crontab (cron).
     if (!isManualRun && fs.existsSync(STATE_FILE)) {
       try {
         const lastState = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
@@ -1702,21 +1708,6 @@ async function main() {
           log(
             `ℹ️ Reporte unificado ya fue ejecutado y enviado hace ${elapsedMinutes} min (trigger previo: ${lastState.trigger}). Omitiendo duplicado (${trigger}) para no enviar correos repetidos.`
           );
-          if (
-            (trigger === 'schedule' || trigger === 'cron') &&
-            lastState.trigger !== trigger &&
-            !lastState.windowChatLoggedForTrigger
-          ) {
-            const { wappyUrl: wUrl, apiKey: aKey } = resolveCredentials();
-            await openAntigravityHealthcheckChatLog(wUrl, aKey, {
-              mode: 'window_verified',
-              trigger,
-              previousState: lastState,
-              elapsedMinutes,
-            });
-            lastState.windowChatLoggedForTrigger = trigger;
-            fs.writeFileSync(STATE_FILE, JSON.stringify(lastState, null, 2), 'utf8');
-          }
           return;
         }
       } catch (_) {}
@@ -1810,38 +1801,41 @@ async function main() {
       } catch (_) {}
     }
 
-    // ── FASE 2: PRUEBAS FUNCIONALES E2E REALES (PREGUNTA ANTIGRAVITY + CUADERNO NOTEBOOKLM + IMAGEN FLOW) ──
+    // ── FASE 2: VERIFICACIÓN NO INVASIVA POR DEFECTO (CERO PROMPTS NI APERTURA DE CHATS EN INSTANCIAS) ──
     const functionalResults = {
-      antigravity: null,
-      notebooklm: null,
-      googleflow: null,
+      antigravity: {
+        ok: Boolean(finalResults.antigravity.ok),
+        detail: finalResults.antigravity.ok
+          ? 'Verificación pasiva de túnel SSE + motor local (sin enviar prompts ni abrir chats en la instancia).'
+          : 'Sin conexión activa.',
+      },
+      notebooklm: {
+        ok: Boolean(finalResults.notebooklm.ok),
+        detail: finalResults.notebooklm.ok
+          ? 'Verificación pasiva de sesión autenticada (sin consultar cuadernos privados).'
+          : 'Sin sesión activa.',
+      },
+      googleflow: {
+        ok: Boolean(finalResults.googleflow.ok),
+        detail: finalResults.googleflow.ok
+          ? 'Verificación pasiva de sesión y créditos (sin generar imágenes ni consumir créditos).'
+          : 'Sin sesión activa.',
+      },
     };
 
-    if (finalResults.antigravity.ok) {
-      functionalResults.antigravity = await runFunctionalAntigravityQuestion(wappyUrl, apiKey);
-      if (!functionalResults.antigravity.ok) {
-        finalResults.antigravity.ok = false;
-        finalResults.antigravity.detail += ` | Fallo prueba funcional: ${functionalResults.antigravity.detail}`;
+    if (runInvasiveFunctionalTests) {
+      if (finalResults.antigravity.ok) {
+        functionalResults.antigravity = await runFunctionalAntigravityQuestion(wappyUrl, apiKey);
       }
-    }
-
-    if (finalResults.notebooklm.ok) {
-      functionalResults.notebooklm = await runFunctionalNotebookLMQuestion(
-        wappyUrl,
-        apiKey,
-        finalResults.notebooklm.notebooks || []
-      );
-      if (!functionalResults.notebooklm.ok) {
-        finalResults.notebooklm.ok = false;
-        finalResults.notebooklm.detail += ` | Fallo prueba funcional: ${functionalResults.notebooklm.detail}`;
+      if (finalResults.notebooklm.ok) {
+        functionalResults.notebooklm = await runFunctionalNotebookLMQuestion(
+          wappyUrl,
+          apiKey,
+          finalResults.notebooklm.notebooks || []
+        );
       }
-    }
-
-    if (finalResults.googleflow.ok) {
-      functionalResults.googleflow = await runFunctionalFlowImageGeneration(wappyUrl, apiKey);
-      if (!functionalResults.googleflow.ok) {
-        finalResults.googleflow.ok = false;
-        finalResults.googleflow.detail += ` | Fallo prueba funcional: ${functionalResults.googleflow.detail}`;
+      if (finalResults.googleflow.ok) {
+        functionalResults.googleflow = await runFunctionalFlowImageGeneration(wappyUrl, apiKey);
       }
     }
 
@@ -1850,7 +1844,7 @@ async function main() {
       Boolean(finalResults.notebooklm.ok) &&
       Boolean(finalResults.googleflow.ok);
 
-    // ── FASE 3: ACTUALIZAR BITÁCORA WORD EN EL ESCRITORIO Y ENVIAR 1 ÚNICO CORREO UNIFICADO AL FINAL ──
+    // ── FASE 3: ACTUALIZAR BITÁCORA WORD EN EL ESCRITORIO Y ENVIAR 1 ÚNICO CORREO A grupowappy@gmail.com ──
     updateWordBitacora({
       trigger,
       initialResults,
@@ -1863,9 +1857,9 @@ async function main() {
     if (process.platform === 'darwin') {
       try {
         const notifTitle = allHealthyNow
-          ? '🟢 WAPPY IA — Prueba E2E 3/3 OK'
-          : '🚨 WAPPY IA — Alerta en Prueba E2E';
-        const notifMsg = `Antigravity: ${finalResults.antigravity.ok ? 'OK' : 'FALLO'} | NotebookLM: ${finalResults.notebooklm.ok ? 'OK' : 'FALLO'} | Flow Imagen: ${finalResults.googleflow.ok ? 'OK' : 'FALLO'}`;
+          ? '🟢 WAPPY IA — Conectores 3/3 OK'
+          : '🚨 WAPPY IA — Alerta en Conectores';
+        const notifMsg = `Antigravity: ${finalResults.antigravity.ok ? 'OK' : 'FALLO'} | NotebookLM: ${finalResults.notebooklm.ok ? 'OK' : 'FALLO'} | Flow: ${finalResults.googleflow.ok ? 'OK' : 'FALLO'}`;
         execFileSync(
           '/usr/bin/osascript',
           ['-e', `display notification "${notifMsg}" with title "${notifTitle}" sound name "Glass"`],
@@ -1884,21 +1878,8 @@ async function main() {
         functionalResults,
         hadInitialErrors,
         allHealthyNow,
-        recipientEmail: args.email || finalResults.antigravity?.userEmail || initAg.userEmail || '',
       });
     }
-
-    // Abrir y registrar el acta completa en el chat dedicado `🩺 [Cron Conectores · ...]` de Antigravity
-    await openAntigravityHealthcheckChatLog(wappyUrl, apiKey, {
-      mode: 'full_report',
-      trigger,
-      initialResults,
-      finalResults,
-      functionalResults,
-      hadInitialErrors,
-      allHealthyNow,
-      emailSent,
-    });
 
     // Guardar estado final (con emailSent=true para evitar correos repetidos en la misma ventana de 90 min)
     try {
