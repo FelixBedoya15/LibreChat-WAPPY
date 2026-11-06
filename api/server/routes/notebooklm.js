@@ -574,39 +574,42 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     // 3. Probar conexión en vivo contra Google y rotar/sincronizar en caliente con notebooklm-mcp
     let testResult = validateCookiesLocally(mergedCookies);
     let notebooksCount = null;
+    let detectedNotebooks = null;
     if (testResult.success) {
       try {
-        const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
-        const mcpRes = await fetch(`${notebooklmUrl}/api/direct-tool`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': String(userId),
-            'x-user-email': String(effectiveEmail),
-            'x-notebooklm-auth': JSON.stringify(mergedCookies),
-          },
-          body: JSON.stringify({ name: 'notebook_list', arguments: {} }),
+        const mcpData = await callNotebookLmDirectTool({
+          userId,
+          email: effectiveEmail,
+          cookies: mergedCookies,
+          toolName: 'notebook_list',
+          toolArgs: {},
         });
-        const mcpData = await mcpRes.json().catch(() => ({}));
-        if (!mcpRes.ok || mcpData?.error) {
+        if (mcpData?.error) {
           testResult = {
             success: false,
-            reason: mcpData?.error || `Error de sesión en Google NotebookLM (HTTP ${mcpRes.status})`,
+            reason: mcpData.error,
           };
         } else if (Array.isArray(mcpData?.result)) {
-          notebooksCount = mcpData.result.length;
+          detectedNotebooks = normalizeNotebookList(mcpData.result);
+          notebooksCount = detectedNotebooks.length;
         }
       } catch (liveErr) {
         logger.warn(`[NotebookLM] Advertencia sincronizando con notebooklm-mcp: ${liveErr.message}`);
       }
     }
 
+    const sessionUpdate = {
+      isValid: testResult.success,
+      lastTestedAt: new Date(),
+    };
+    if (Array.isArray(detectedNotebooks)) {
+      sessionUpdate.cachedNotebooks = detectedNotebooks;
+      sessionUpdate.notebooksUpdatedAt = new Date();
+    }
+
     await NotebookSession.findOneAndUpdate(
       { user: userId },
-      {
-        isValid: testResult.success,
-        lastTestedAt: new Date(),
-      }
+      sessionUpdate
     );
 
     const latestNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
@@ -618,6 +621,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       cookieCount: finalCount,
       isValid: testResult.success,
       notebooksCount,
+      notebooks: detectedNotebooks || latestNb?.cachedNotebooks || [],
       testWarning: testResult.success ? null : testResult.reason,
       message: testResult.success
         ? `¡Sesión privada de Google NotebookLM vinculada y verificada con éxito!${notebooksCount !== null ? ` (${notebooksCount} cuadernos detectados)` : ''}`
@@ -630,6 +634,129 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 });
 
 /**
+ * Normaliza la lista de cuadernos devuelta por notebooklm-mcp
+ */
+function normalizeNotebookList(rawList) {
+  if (!Array.isArray(rawList)) return [];
+  return rawList
+    .filter((nb) => nb && (nb.id || nb.notebook_id))
+    .map((nb) => ({
+      id: String(nb.id || nb.notebook_id).trim(),
+      title: String(nb.title || nb.name || 'Cuaderno sin título').trim(),
+      emoji: String(nb.emoji || '📓').trim() || '📓',
+      sources_count: Number(nb.sources_count ?? nb.source_count ?? 0) || 0,
+      updated_at: String(nb.updated_at || nb.modified_at || ''),
+    }));
+}
+
+/**
+ * Invoca una herramienta en notebooklm-mcp (/api/direct-tool) con fallback automático a localhost:9420 en desarrollo local
+ */
+async function callNotebookLmDirectTool({ userId, email, cookies = [], toolName, toolArgs = {} }) {
+  const primaryUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+  const candidateUrls = [primaryUrl];
+  if (primaryUrl.includes('notebooklm-mcp')) {
+    candidateUrls.push('http://127.0.0.1:9420');
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-user-id': String(userId || ''),
+    'x-user-email': String(email || ''),
+  };
+  if (Array.isArray(cookies) && cookies.length > 0) {
+    headers['x-notebooklm-auth'] = JSON.stringify(cookies);
+  }
+
+  let lastErr = null;
+  for (const baseUrl of candidateUrls) {
+    try {
+      const mcpRes = await fetch(`${baseUrl}/api/direct-tool`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: toolName,
+          arguments: toolArgs,
+          user_id: String(userId || ''),
+          user_email: String(email || ''),
+        }),
+      });
+      const mcpData = await mcpRes.json().catch(() => ({}));
+      if (!mcpRes.ok || mcpData?.error) {
+        return {
+          ok: false,
+          status: mcpRes.status,
+          error: mcpData?.error || `Error en Google NotebookLM (HTTP ${mcpRes.status}).`,
+        };
+      }
+      return {
+        ok: true,
+        status: mcpRes.status,
+        result: mcpData?.result !== undefined ? mcpData.result : mcpData,
+      };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  return {
+    ok: false,
+    status: 503,
+    error: `No se pudo contactar al motor NotebookLM MCP: ${lastErr ? lastErr.message : 'Servicio no disponible'}`,
+  };
+}
+
+/**
+ * Resuelve las cookies y email activos de NotebookLM para un usuario (MongoDB -> Disco -> GoogleFlowSession)
+ */
+async function resolveUserNotebookCredentials(userId, fallbackEmail = '') {
+  let cookies = [];
+  let effectiveEmail = fallbackEmail || '';
+  let session = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+
+  if (session && Array.isArray(session.cookies) && session.cookies.length > 0) {
+    cookies = session.cookies;
+    effectiveEmail = session.email || effectiveEmail;
+  } else {
+    const primaryPath = getStoragePaths(userId)[0];
+    if (fs.existsSync(primaryPath)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(primaryPath, 'utf8'));
+        cookies = parsed.cookies || [];
+        effectiveEmail = parsed.notebooklm?.account?.email || effectiveEmail;
+      } catch (_) {}
+    }
+  }
+
+  if (cookies.length === 0) {
+    try {
+      const GoogleFlowSession = require('~/models/GoogleFlowSession');
+      const flowSess = await GoogleFlowSession.findOne({ user: userId }).lean();
+      if (flowSess && Array.isArray(flowSess.cookies) && flowSess.cookies.length > 0) {
+        cookies = flowSess.cookies;
+        effectiveEmail = flowSess.email || effectiveEmail;
+        session = await NotebookSession.findOneAndUpdate(
+          { user: userId },
+          {
+            $set: {
+              user: userId,
+              email: effectiveEmail,
+              cookies,
+              cookieCount: cookies.length,
+              isValid: true,
+              lastTestedAt: new Date(),
+            },
+          },
+          { upsert: true, new: true }
+        ).lean();
+      }
+    } catch (_) {}
+  }
+
+  return { session, cookies, effectiveEmail };
+}
+
+/**
  * POST /api/notebooklm/test
  * Prueba en vivo la sesión actual del usuario contra el contenedor notebooklm-mcp.
  * Si la sesión local de NotebookLM está vacía o expiró pero Google Flow tiene sesión activa,
@@ -638,66 +765,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 router.post('/test', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    let cookies = [];
-    let effectiveEmail = req.user.email || '';
-
-    // 1. Buscar en MongoDB primero (NotebookSession)
-    const session = await NotebookSession.findOne({ user: userId }).lean();
-    if (session && Array.isArray(session.cookies) && session.cookies.length > 0) {
-      cookies = session.cookies;
-      effectiveEmail = session.email || effectiveEmail;
-    } else {
-      // Buscar en disco
-      const primaryPath = getStoragePaths(userId)[0];
-      if (fs.existsSync(primaryPath)) {
-        try {
-          const parsed = JSON.parse(fs.readFileSync(primaryPath, 'utf8'));
-          cookies = parsed.cookies || [];
-          effectiveEmail = parsed.notebooklm?.account?.email || effectiveEmail;
-        } catch (_) {}
-      }
-    }
-
-    // 2. Si no hay cookies en NotebookLM, intentar sincronizar desde GoogleFlowSession
-    if (cookies.length === 0) {
-      try {
-        const GoogleFlowSession = require('~/models/GoogleFlowSession');
-        const flowSess = await GoogleFlowSession.findOne({ user: userId }).lean();
-        if (flowSess && Array.isArray(flowSess.cookies) && flowSess.cookies.length > 0) {
-          cookies = flowSess.cookies;
-          effectiveEmail = flowSess.email || effectiveEmail;
-          await NotebookSession.findOneAndUpdate(
-            { user: userId },
-            {
-              $set: {
-                user: userId,
-                email: effectiveEmail,
-                cookies,
-                isValid: true,
-                lastTestedAt: new Date(),
-              },
-            },
-            { upsert: true }
-          );
-          const storagePayload = JSON.stringify({
-            cookies,
-            origins: [],
-            notebooklm: {
-              updatedAt: new Date().toISOString(),
-              source: 'auto_sync_from_googleflow',
-              userId: String(userId),
-              account: { email: effectiveEmail },
-            },
-          }, null, 2);
-          for (const targetPath of getStoragePaths(userId)) {
-            try {
-              fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-              fs.writeFileSync(targetPath, storagePayload, 'utf8');
-            } catch (_) {}
-          }
-        }
-      } catch (_) {}
-    }
+    let { cookies, effectiveEmail } = await resolveUserNotebookCredentials(userId, req.user.email || '');
 
     if (cookies.length === 0) {
       return res.status(200).json({
@@ -710,45 +778,30 @@ router.post('/test', requireJwtAuth, async (req, res) => {
     const runLiveMcpCheck = async (cookiesToSend, emailToUse) => {
       const localCheck = validateCookiesLocally(cookiesToSend);
       if (!localCheck.success) {
-        return { success: false, notebooksCount: null, reason: localCheck.reason };
+        return { success: false, notebooksCount: null, notebooks: null, reason: localCheck.reason };
       }
-      try {
-        const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
-        const mcpRes = await fetch(`${notebooklmUrl}/api/direct-tool`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': String(userId),
-            'x-user-email': String(emailToUse),
-            'x-notebooklm-auth': JSON.stringify(cookiesToSend),
-          },
-          body: JSON.stringify({
-            name: 'notebook_list',
-            arguments: {},
-            user_id: String(userId),
-            user_email: String(emailToUse),
-          }),
-        });
-        const mcpData = await mcpRes.json().catch(() => ({}));
-        if (!mcpRes.ok || mcpData?.error) {
-          return {
-            success: false,
-            notebooksCount: null,
-            reason: mcpData?.error || `La sesión de Google NotebookLM ha expirado (HTTP ${mcpRes.status}).`,
-          };
-        }
-        return {
-          success: true,
-          notebooksCount: Array.isArray(mcpData?.result) ? mcpData.result.length : null,
-          reason: null,
-        };
-      } catch (liveErr) {
+      const mcpRes = await callNotebookLmDirectTool({
+        userId,
+        email: emailToUse,
+        cookies: cookiesToSend,
+        toolName: 'notebook_list',
+        toolArgs: {},
+      });
+      if (!mcpRes.ok || mcpRes.error) {
         return {
           success: false,
           notebooksCount: null,
-          reason: `No se pudo contactar al motor NotebookLM MCP: ${liveErr.message}`,
+          notebooks: null,
+          reason: mcpRes.error || 'La sesión de Google NotebookLM ha expirado.',
         };
       }
+      const normalized = Array.isArray(mcpRes.result) ? normalizeNotebookList(mcpRes.result) : [];
+      return {
+        success: true,
+        notebooksCount: normalized.length,
+        notebooks: normalized,
+        reason: null,
+      };
     };
 
     let liveRes = await runLiveMcpCheck(cookies, effectiveEmail);
@@ -774,14 +827,21 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       } catch (_) {}
     }
 
+    const updateFields = { isValid: liveRes.success, lastTestedAt: new Date() };
+    if (Array.isArray(liveRes.notebooks)) {
+      updateFields.cachedNotebooks = liveRes.notebooks;
+      updateFields.notebooksUpdatedAt = new Date();
+    }
+
     await NotebookSession.findOneAndUpdate(
       { user: userId },
-      { isValid: liveRes.success, lastTestedAt: new Date() }
+      updateFields
     );
 
     return res.json({
       success: liveRes.success,
       notebooksCount: liveRes.notebooksCount,
+      notebooks: liveRes.notebooks || [],
       reason: liveRes.reason || null,
       message: liveRes.success
         ? `¡Tu sesión privada contra Google NotebookLM está ACTIVA y funcionando!${liveRes.notebooksCount !== null ? ` Se detectaron ${liveRes.notebooksCount} cuadernos disponibles.` : ''}`
@@ -790,6 +850,238 @@ router.post('/test', requireJwtAuth, async (req, res) => {
   } catch (error) {
     logger.error('[NotebookLM] Error probando sesión:', error);
     return res.status(500).json({ error: 'Error al probar sesión de NotebookLM.' });
+  }
+});
+
+/**
+ * GET /api/notebooklm/notebooks
+ * Lista los cuadernos disponibles en la cuenta de Google NotebookLM del usuario
+ * y el mapa de cuadernos asignados por agente ("Segundo Cerebro / Fuente de Información").
+ */
+router.get('/notebooks', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const agentId = String(req.query.agentId || '').trim();
+
+    const { session, cookies, effectiveEmail } = await resolveUserNotebookCredentials(
+      userId,
+      req.user.email || ''
+    );
+
+    if (!cookies || cookies.length === 0) {
+      return res.json({
+        connected: false,
+        email: '',
+        isValid: false,
+        notebooks: [],
+        agentNotebooks: {},
+        assignedNotebooks: [],
+        message: 'Sin vincular. Conecta tu cuenta privada de Google NotebookLM.',
+      });
+    }
+
+    let notebooks = Array.isArray(session?.cachedNotebooks)
+      ? normalizeNotebookList(session.cachedNotebooks)
+      : [];
+    let notebooksUpdatedAt = session?.notebooksUpdatedAt || null;
+    let isValid = session?.isValid ?? true;
+    let syncWarning = null;
+
+    const cacheAgeMs = notebooksUpdatedAt
+      ? Date.now() - new Date(notebooksUpdatedAt).getTime()
+      : Infinity;
+    const shouldFetchLive = forceRefresh || notebooks.length === 0 || cacheAgeMs > 5 * 60 * 1000;
+
+    if (shouldFetchLive) {
+      const mcpRes = await callNotebookLmDirectTool({
+        userId,
+        email: effectiveEmail,
+        cookies,
+        toolName: 'notebook_list',
+        toolArgs: {},
+      });
+
+      if (mcpRes.ok && Array.isArray(mcpRes.result)) {
+        notebooks = normalizeNotebookList(mcpRes.result);
+        notebooksUpdatedAt = new Date();
+        isValid = true;
+        await NotebookSession.findOneAndUpdate(
+          { user: userId },
+          {
+            $set: {
+              cachedNotebooks: notebooks,
+              notebooksUpdatedAt,
+              isValid: true,
+              lastTestedAt: new Date(),
+            },
+          },
+          { upsert: true }
+        );
+      } else if (mcpRes.error) {
+        syncWarning = mcpRes.error;
+      }
+    }
+
+    const rawAgentMap =
+      session?.agentNotebooks && typeof session.agentNotebooks === 'object'
+        ? session.agentNotebooks
+        : {};
+
+    // Sincronizar metadatos frescos (título, emoji, sources_count) de los cuadernos asignados
+    const notebookById = new Map(notebooks.map((n) => [n.id, n]));
+    const agentNotebooks = {};
+    for (const [agId, list] of Object.entries(rawAgentMap)) {
+      if (!Array.isArray(list)) continue;
+      agentNotebooks[agId] = list
+        .map((item) => {
+          const id = typeof item === 'string' ? item : item?.id;
+          if (!id) return null;
+          const fresh = notebookById.get(String(id));
+          if (fresh) return fresh;
+          return typeof item === 'object'
+            ? {
+                id: String(item.id),
+                title: String(item.title || 'Cuaderno asignado'),
+                emoji: String(item.emoji || '📓'),
+                sources_count: Number(item.sources_count || 0),
+              }
+            : null;
+        })
+        .filter(Boolean);
+    }
+
+    const assignedNotebooks = agentId ? agentNotebooks[agentId] || [] : [];
+
+    return res.json({
+      connected: true,
+      email: effectiveEmail,
+      isValid,
+      notebooks,
+      notebooksCount: notebooks.length,
+      notebooksUpdatedAt,
+      agentNotebooks,
+      assignedNotebooks,
+      syncWarning,
+    });
+  } catch (error) {
+    logger.error('[NotebookLM] Error listando cuadernos:', error);
+    return res.status(500).json({ error: 'Error al consultar cuadernos de NotebookLM.' });
+  }
+});
+
+/**
+ * PUT /api/notebooklm/agent-notebooks/:agentId
+ * Asigna o actualiza los cuadernos de NotebookLM que actúan como "Segundo Cerebro / Fuente de Información"
+ * para un agente específico (mientras Tenshi conserva acceso total a todos los cuadernos).
+ */
+async function handleSaveAgentNotebooks(req, res) {
+  try {
+    const userId = req.user.id;
+    const agentId = String(req.params.agentId || req.body?.agentId || '').trim();
+    if (!agentId) {
+      return res.status(400).json({ error: 'El identificador del agente (agentId) es obligatorio.' });
+    }
+
+    const rawNotebooks = Array.isArray(req.body?.notebooks) ? req.body.notebooks : [];
+    const session = await NotebookSession.findOne({ user: userId }).lean();
+    const cachedList = Array.isArray(session?.cachedNotebooks)
+      ? normalizeNotebookList(session.cachedNotebooks)
+      : [];
+    const cachedById = new Map(cachedList.map((n) => [n.id, n]));
+
+    const seenIds = new Set();
+    const normalizedAssigned = [];
+    for (const item of rawNotebooks) {
+      const id = String(typeof item === 'string' ? item : item?.id || '').trim();
+      if (!id || seenIds.has(id)) continue;
+      seenIds.add(id);
+      const cached = cachedById.get(id);
+      normalizedAssigned.push({
+        id,
+        title: String((typeof item === 'object' && item?.title) || cached?.title || 'Cuaderno NotebookLM').trim(),
+        emoji: String((typeof item === 'object' && item?.emoji) || cached?.emoji || '📓').trim() || '📓',
+        sources_count: Number(
+          (typeof item === 'object' && item?.sources_count !== undefined
+            ? item.sources_count
+            : cached?.sources_count) || 0
+        ),
+      });
+    }
+
+    const currentMap =
+      session?.agentNotebooks && typeof session.agentNotebooks === 'object'
+        ? { ...session.agentNotebooks }
+        : {};
+    currentMap[agentId] = normalizedAssigned;
+
+    await NotebookSession.findOneAndUpdate(
+      { user: userId },
+      { $set: { agentNotebooks: currentMap } },
+      { upsert: true, new: true }
+    );
+
+    return res.json({
+      success: true,
+      agentId,
+      assignedNotebooks: normalizedAssigned,
+      agentNotebooks: currentMap,
+      message:
+        normalizedAssigned.length > 0
+          ? `Segundo Cerebro actualizado: ${normalizedAssigned.length} cuaderno(s) asignado(s) al agente.`
+          : 'Se desvincularon los cuadernos específicos de este agente.',
+    });
+  } catch (error) {
+    logger.error('[NotebookLM] Error guardando cuadernos del agente:', error);
+    return res.status(500).json({ error: 'Error al asignar cuadernos al agente.' });
+  }
+}
+
+router.put('/agent-notebooks/:agentId', requireJwtAuth, handleSaveAgentNotebooks);
+router.post('/agent-notebooks', requireJwtAuth, handleSaveAgentNotebooks);
+
+/**
+ * GET /api/notebooklm/notebooks/:notebookId/sources
+ * Lista las fuentes documentales dentro de un cuaderno específico de NotebookLM.
+ */
+router.get('/notebooks/:notebookId/sources', requireJwtAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const notebookId = String(req.params.notebookId || '').trim();
+    if (!notebookId) {
+      return res.status(400).json({ error: 'ID de cuaderno inválido.' });
+    }
+
+    const { cookies, effectiveEmail } = await resolveUserNotebookCredentials(
+      userId,
+      req.user.email || ''
+    );
+    if (!cookies || cookies.length === 0) {
+      return res.status(400).json({ error: 'Cuenta de Google NotebookLM no vinculada.' });
+    }
+
+    const mcpRes = await callNotebookLmDirectTool({
+      userId,
+      email: effectiveEmail,
+      cookies,
+      toolName: 'source_list',
+      toolArgs: { notebook: notebookId },
+    });
+
+    if (!mcpRes.ok || mcpRes.error) {
+      return res.status(mcpRes.status || 500).json({
+        error: mcpRes.error || 'No se pudieron consultar las fuentes del cuaderno.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      notebookId,
+      sources: Array.isArray(mcpRes.result) ? mcpRes.result : [],
+    });
+  } catch (error) {
+    logger.error('[NotebookLM] Error listando fuentes del cuaderno:', error);
+    return res.status(500).json({ error: 'Error al listar fuentes del cuaderno.' });
   }
 });
 

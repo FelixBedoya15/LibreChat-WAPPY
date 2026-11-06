@@ -123,14 +123,44 @@ const TOOL_ROUTES = {
 
   // 5. Cronograma, LMS, Blog & Agentes Autónomos
   wappy_consultar_cursos: { method: 'GET', path: '/courses' },
+  wappy_consultar_cursos_lms: { method: 'GET', path: '/courses' },
   wappy_leer_curso: {
     method: 'GET',
     path: (args) => `/courses/${encodeURIComponent(args.id || args.courseId || args.titulo || args.title || args.curso || '')}`,
   },
+  wappy_crear_curso_lms: { method: 'POST', path: '/courses' },
+  wappy_actualizar_curso_lms: {
+    method: 'PUT',
+    path: (args) => `/courses/${encodeURIComponent(args.id || args.courseId || '')}`,
+  },
+  wappy_eliminar_curso_lms: {
+    method: 'DELETE',
+    path: (args) => `/courses/${encodeURIComponent(args.id || args.courseId || '')}`,
+  },
+  wappy_consultar_progreso_cursos: { method: 'GET', path: '/courses/progress' },
   wappy_consultar_blog: { method: 'GET', path: '/blog' },
   wappy_leer_articulo_blog: {
     method: 'GET',
     path: (args) => `/blog/${encodeURIComponent(args.id || args.slug || args.titulo || args.title || args.articulo || '')}`,
+  },
+  wappy_crear_articulo_blog: { method: 'POST', path: '/blog' },
+  wappy_actualizar_articulo_blog: {
+    method: 'PUT',
+    path: (args) => `/blog/${encodeURIComponent(args.id || args.postId || '')}`,
+  },
+  wappy_eliminar_articulo_blog: {
+    method: 'DELETE',
+    path: (args) => `/blog/${encodeURIComponent(args.id || args.postId || '')}`,
+  },
+  wappy_consultar_eventos: { method: 'GET', path: '/events' },
+  wappy_crear_evento: { method: 'POST', path: '/events' },
+  wappy_actualizar_evento: {
+    method: 'PUT',
+    path: (args) => `/events/${encodeURIComponent(args.id || args.eventId || '')}`,
+  },
+  wappy_eliminar_evento: {
+    method: 'DELETE',
+    path: (args) => `/events/${encodeURIComponent(args.id || args.eventId || '')}`,
   },
   wappy_consultar_cronograma_sst: { method: 'GET', path: '/tasks' },
   wappy_crear_actividad_cronograma: { method: 'POST', path: '/tasks' },
@@ -161,6 +191,8 @@ const TOOL_ROUTES = {
     path: (args) => `/agentes/${encodeURIComponent(args.id || args.agentId || args.nombre || args.name || '')}`,
   },
   wappy_ejecutar_accion_usuario: { method: 'POST', path: '/accion-universal' },
+  wappy_consultar_metricas_admin: { method: 'POST', path: '/admin-metrics' },
+  wappy_admin_sistema: { method: 'POST', path: '/admin-action' },
   wappy_programar_automatizacion: { method: 'POST', path: '/agentes-automatizaciones' },
   wappy_actualizar_automatizacion: {
     method: 'PUT',
@@ -186,8 +218,39 @@ const TOOL_ROUTES = {
   wappy_consultar_marketplace: { method: 'GET', path: '/marketplace/products' },
   wappy_consultar_tienda: { method: 'GET', path: '/marketplace/products' },
   wappy_consultar_productos_tienda: { method: 'GET', path: '/marketplace/products' },
+  wappy_crear_producto_marketplace: { method: 'POST', path: '/marketplace/products' },
+  wappy_actualizar_producto_marketplace: {
+    method: 'PUT',
+    path: (args) => `/marketplace/products/${encodeURIComponent(args.id || args.productId || '')}`,
+  },
+  wappy_eliminar_producto_marketplace: {
+    method: 'DELETE',
+    path: (args) => `/marketplace/products/${encodeURIComponent(args.id || args.productId || '')}`,
+  },
   wappy_consultar_pedidos_marketplace: { method: 'GET', path: '/marketplace/orders' },
   wappy_consultar_compras_marketplace: { method: 'GET', path: '/marketplace/orders' },
+
+  // 5.2 Embajadores, Tickets, Leads, Tenshi Config y Notificaciones
+  wappy_consultar_embajador: { method: 'GET', path: '/ambassador/dashboard' },
+  wappy_consultar_comisiones_embajador: { method: 'GET', path: '/ambassador/commissions' },
+  wappy_solicitar_pago_embajador: { method: 'POST', path: '/ambassador/payout' },
+  wappy_consultar_tickets: { method: 'GET', path: '/tickets' },
+  wappy_crear_ticket: { method: 'POST', path: '/tickets' },
+  wappy_actualizar_ticket: {
+    method: 'PATCH',
+    path: (args) => `/tickets/${encodeURIComponent(args.id || args.ticketId || '')}`,
+  },
+  wappy_consultar_leads: { method: 'GET', path: '/leads' },
+  wappy_registrar_lead: { method: 'POST', path: '/leads' },
+  wappy_eliminar_lead: {
+    method: 'DELETE',
+    path: (args) => `/leads/${encodeURIComponent(args.id || args.leadId || '')}`,
+  },
+  wappy_consultar_config_tenshi: { method: 'GET', path: '/tenshi/config' },
+  wappy_actualizar_config_tenshi: { method: 'PUT', path: '/tenshi/config' },
+  wappy_consultar_notificaciones: { method: 'GET', path: '/notifications' },
+  wappy_crear_notificacion: { method: 'POST', path: '/notifications' },
+  wappy_consultar_plan_y_balance: { method: 'GET', path: '/user/plan-balance' },
 
   // 6. Lectura y Generación de Informes de Aplicativos
   wappy_leer_informe_aplicativo: { method: 'GET', path: '/informe' },
@@ -509,6 +572,24 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
         const errMsg = data?.error || `Error HTTP ${response.status}: ${response.statusText}`;
         logger.error(`[Tenshi MCP] Error en NotebookLM "${targetTool}": ${errMsg}`);
         return { error: errMsg };
+      }
+
+      if (targetTool === 'notebook_list' && Array.isArray(data?.result) && userId) {
+        NotebookSession.updateOne(
+          { user: userId },
+          {
+            $set: {
+              cachedNotebooks: data.result.map((nb) => ({
+                id: String(nb.id || nb.notebook_id || '').trim(),
+                title: String(nb.title || nb.name || 'Cuaderno sin título').trim(),
+                emoji: String(nb.emoji || '📓').trim() || '📓',
+                sources_count: Number(nb.sources_count ?? nb.source_count ?? 0) || 0,
+                updated_at: String(nb.updated_at || nb.modified_at || ''),
+              })),
+              notebooksUpdatedAt: new Date(),
+            },
+          }
+        ).catch(() => {});
       }
 
       return data.result !== undefined ? data.result : data;

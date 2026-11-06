@@ -1115,6 +1115,22 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 fullCompanyAndMemoryBlock += `${proceduralBlock}\n`;
             }
 
+            try {
+                const NotebookSession = mongoose.models.NotebookSession || require('~/models/NotebookSession');
+                const nbSess = await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
+                if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
+                    const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
+                    fullCompanyAndMemoryBlock += `### 📓 [ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n`;
+                    fullCompanyAndMemoryBlock += `- Como Tenshi (Orquestadora Universal), tienes acceso TOTAL e irrestricto a TODOS los cuadernos de Google NotebookLM del usuario (usando \`notebooklm_listar_cuadernos\`, \`notebooklm_consultar\` y \`notebooklm_generar_studio\`).\n`;
+                    if (cachedNbs.length > 0) {
+                        fullCompanyAndMemoryBlock += `- Cuadernos disponibles en su cuenta (${cachedNbs.length}):\n` +
+                            cachedNbs.map((nb) => `  * ${nb.emoji || '📓'} "${nb.title}" (ID: \`${nb.id}\`, ${nb.sources_count || 0} fuentes)`).join('\n') + '\n\n';
+                    } else {
+                        fullCompanyAndMemoryBlock += `- Cuenta vinculada activa (${nbSess.email || 'Google NotebookLM'}). Si el usuario pregunta por sus cuadernos, invoca \`notebooklm_listar_cuadernos\`.\n\n`;
+                    }
+                }
+            } catch (_) {}
+
             fullCompanyAndMemoryBlock += `### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO Y MEMORIA:
 - TIENES ACCESO PLENO E INMEDIATO a toda la información de la empresa activa y a la memoria del usuario descritas arriba.
 - Conoces de antemano la Razón Social, NIT, Representante Legal, Trabajadores, ARL, Sedes, Macroprocesos y datos de la memoria.
@@ -1159,6 +1175,42 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             hour12: true
         });
 
+        let isAdminUser = req.user?.role === 'ADMIN';
+        if (!req.user?.role && req.user?.id) {
+            try {
+                const UserModel = mongoose.models.User || require('~/models/User');
+                const uDoc = await UserModel.findById(req.user.id).select('role').lean();
+                if (uDoc?.role === 'ADMIN') isAdminUser = true;
+            } catch (_) {}
+        }
+
+        const adminRoleSystemBlock = isAdminUser
+            ? `\n### 👑 MODO SUPER-ADMINISTRADOR ACTIVO (ROL VERIFICADO: ADMIN)\n` +
+              `- Has identificado y verificado que el usuario conectado (${req.user.name || req.user.email || 'Admin'}) tiene rol **ADMIN** (Super-Administrador de WAPPY IA).\n` +
+              `- Tienes **acceso total y sin restricciones** a todos los módulos de Métricas y Administración global del sistema mediante tus herramientas exclusivas de Admin:\n` +
+              `  1. **\`wappy_consultar_metricas_admin\` (Consulta de Todos los Módulos de Métricas de Admin)**:\n` +
+              `     * \`modulo="resumen_global"\`: Panorama 360° de toda la plataforma (usuarios activos, adopción SST, embajadores, comisiones, embudo de pagos/checkout, telemetría de Matriz IPEVR, Wappy Studio, Radar ARL Colmena, Comunidad, tickets, leads, planes y promocodes).\n` +
+              `     * \`modulo="actividad_usuarios"\`: Métricas de actividad y adopción por usuario (\`totalUsers\`, \`activeThisMonth\`, \`avgAdoptionRate\`, \`powerUsersCount\`, distribución por niveles \`power_user\`/\`avanzado\`/\`intermedio\`/\`explorador\`/\`sin_inicio\`, semáforo \`green\`/\`yellow\`/\`red\`/\`gray\`, e hitos usados por cada usuario).\n` +
+              `     * \`modulo="embajadores"\`: Dashboard comercial, red de embajadores, KPIs de referidos, comisiones (\`pending\`, \`approved\`, \`paid\`) y pipeline CRM.\n` +
+              `     * \`modulo="pagos"\`: Analítica de pagos y embudo de checkout (\`page_view\`, \`plan_selected\`, \`payment_started\`, \`payment_approved\`, \`totalRevenueCOP\`, \`conversionRate\`, ingresos por plan y eventos recientes).\n` +
+              `     * \`modulo="matrizipvr"\`: Telemetría de empresas y riesgos creados en el aplicativo público \`/matrizipvr\`.\n` +
+              `     * \`modulo="wappystudio"\`: Telemetría de empresas, audios y videos generados en \`/wappystudio\`.\n` +
+              `     * \`modulo="colmena"\`: Radar e intermediación ARL Colmena y negocios en pipeline.\n` +
+              `     * \`modulo="comunidad"\`: Estadísticas de ventas Comunidad, compras y auditoría forense.\n` +
+              `     * \`modulo="usuarios"\`: Listado y búsqueda de todos los usuarios del sistema, sus planes, vencimientos, referidos y auditoría de conversaciones.\n` +
+              `     * \`modulo="empresas"\`: Todas las empresas registradas en Somos SST a nivel global.\n` +
+              `     * \`modulo="tickets"\`: Todos los tickets de soporte técnico (pendientes y resueltos).\n` +
+              `     * \`modulo="planes_y_promos"\`: Planes, visibilidad de planes, códigos promocionales, leads y permisos por rol.\n` +
+              `     * \`modulo="marketplace_admin"\`: Órdenes de compra, productos y cupones de la tienda.\n` +
+              `  2. **\`wappy_admin_sistema\` (Ejecución de Acciones de Administrador)**:\n` +
+              `     * **Usuarios (\`modulo="usuarios"\`)**: \`crear_usuario\`, \`actualizar_usuario\` (cambiar rol USER/ADMIN, plan, estado active/inactive, fechas, límites de empresas/automatizaciones/subusuarios, puntos, contraseña), \`eliminar_usuario\`, \`actualizacion_masiva\`, \`ver_conversaciones_usuario\`.\n` +
+              `     * **Embajadores, Comisiones y CRM (\`modulo="embajadores"\` / \`"comisiones"\` / \`"crm"\`)**: \`atribuir_embajador\`, \`actualizar_comision\` (pending/approved/paid/cancelled), \`eliminar_comision\`, \`renovar_periodo\`, \`actualizar_etapa_crm\`, \`agregar_nota_crm\`, \`generar_propuesta\`, \`enviar_propuesta\`, \`generar_email\`, \`enviar_email\`.\n` +
+              `     * **Planes y Códigos Promo (\`modulo="planes"\` / \`"promocodes"\`)**: \`actualizar_plan\`, \`visibilidad_planes\`, \`crear_promocode\`, \`toggle_promocode\`, \`eliminar_promocode\`.\n` +
+              `     * **Marketing, Push, Leads y Tickets (\`modulo="marketing"\` / \`"push"\` / \`"leads"\` / \`"tickets"\`)**: \`generar_campana\`, \`enviar_campana\`, \`enviar_notificacion_push\`, \`crear_lead\`, \`eliminar_lead\`, \`responder_ticket\`, \`sugerir_respuesta_ticket\`, \`eliminar_ticket\`.\n` +
+              `     * **Ruta Directa (\`ruta\` + \`metodo\` + \`datos\`)**: Puedes invocar cualquier endpoint administrativo de \`/api/admin/*\`, \`/api/referrals/*\`, \`/api/comunidad/*\`, \`/api/marketplace/admin/*\`, \`/api/training/admin/*\`, \`/api/ruta-aprendizaje/admin/*\`, \`/api/blog/*\`, \`/api/events/admin/*\`, \`/api/roadmap/*\`, \`/api/roles/*\` o \`/api/sgsst/sync-agents/*\`.\n`
+            : `\n### 🔒 ROL DEL USUARIO CONECTADO: USER (ESTÁNDAR)\n` +
+              `- El usuario conectado NO es administrador global (su rol es \`${req.user?.role || 'USER'}\`). Opera exclusivamente dentro de su propia cuenta y sus empresas registradas.\n`;
+
         let systemMessage = `${config.systemPrompt}
 
 MANUAL DE FUNCIONAMIENTO DE WAPPY IA:
@@ -1166,7 +1218,8 @@ ${manualContent}
 
 ${fullCompanyAndMemoryBlock}
 
-Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'}
+Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'} (Rol en el sistema: ${isAdminUser ? 'ADMIN — Super Administrador' : (req.user?.role || 'USER')})
+${adminRoleSystemBlock}
 
 ### 🕒 ZONA HORARIA Y FECHA ACTUAL EN VIVO (COLOMBIA):
 - País y Zona Horaria Oficial: Colombia (America/Bogota, UTC-5).
@@ -1948,7 +2001,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const gestorAutomatizacionesDeclaration = {
                 name: 'gestor_automatizaciones',
-                description: "Crea, lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene o elimina TAREAS programadas (antes llamadas 'Automatizaciones IA'): tareas periódicas autónomas de agentes en segundo plano en la sección 'Tareas' (/tareas). Puedes identificar la tarea por su ID, por su título en pantalla o usar 'todas'.",
+                description: "Lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene, elimina o crea TAREAS programadas en la sección 'Tareas' (/tareas). REGLA CRÍTICA: JAMÁS uses accion='crear' sin que el usuario te ordene explícitamente crear/programar una nueva tarea periódica; si solo consulta sus tareas usa accion='listar'.",
                 parameters: {
                     type: 'OBJECT',
                     properties: {
@@ -2345,6 +2398,97 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                     type: 'OBJECT',
                     properties: {
                         dummy: { type: 'STRING', description: 'Parámetro opcional' }
+                    }
+                }
+            };
+
+            const wappyEjecutarAccionUsuarioDeclaration = {
+                name: 'wappy_ejecutar_accion_usuario',
+                description: 'Ejecuta cualquier acción u operación dentro de la cuenta del usuario conectado (memorias, conversaciones, lienzo Canvas, subusuarios, ajustes o cualquier ruta interna /api/... permitida para su rol).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        modulo: { type: 'STRING', description: "Módulo directo: 'memorias', 'conversaciones' o 'canvas' (opcional si usas ruta)." },
+                        operacion: { type: 'STRING', description: "Operación: 'listar', 'crear', 'guardar', 'actualizar' o 'eliminar'." },
+                        ruta: { type: 'STRING', description: "Ruta interna de la API (ej: '/api/memories', '/api/convos', '/api/sub-users')." },
+                        metodo: { type: 'STRING', description: "'GET', 'POST', 'PUT', 'PATCH' o 'DELETE'." },
+                        datos: { type: 'OBJECT', description: 'Cuerpo o parámetros de la petición.' }
+                    }
+                }
+            };
+
+            const wappyConsultarMetricasAdminDeclaration = {
+                name: 'wappy_consultar_metricas_admin',
+                description: 'EXCLUSIVO ROL ADMIN: Consulta en tiempo real cualquiera de los módulos de Métricas y Administración global de WAPPY IA: resumen global 360°, métricas de actividad y adopción de usuarios (semáforo, niveles de adopción, hitos usados), dashboard de embajadores/comisiones/CRM, analítica de pagos y embudo de checkout, telemetría de Matriz IPEVR, telemetría de Wappy Studio, Radar ARL Colmena, ventas de Comunidad y auditoría forense, listado de usuarios del sistema, todas las empresas registradas, tickets de soporte, leads, planes, códigos promocionales y órdenes de tienda.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        modulo: {
+                            type: 'STRING',
+                            description: "Módulo a consultar: 'resumen_global' (panorama 360° de todos los módulos), 'actividad_usuarios' (adopción SST, semáforo, usuarios activos), 'embajadores' (referidos, comisiones, red de embajadores y CRM), 'pagos' (embudo checkout e ingresos COP), 'matrizipvr' (telemetría Matriz IPEVR), 'wappystudio' (telemetría Wappy Studio), 'colmena' (Radar e intermediación ARL Colmena), 'comunidad' (ventas y auditoría forense), 'usuarios' (todos los usuarios registrados y detalle/chats), 'empresas' (todas las empresas del sistema), 'tickets' (todos los tickets de soporte), 'planes_y_promos' (planes, promocodes, leads y roles) o 'marketplace_admin' (órdenes y cupones tienda)."
+                        },
+                        busqueda: {
+                            type: 'STRING',
+                            description: 'Filtro opcional por nombre, correo, teléfono, empresa, NIT, plan o estado.'
+                        },
+                        periodo: {
+                            type: 'STRING',
+                            description: "Periodo para analítica de pagos: 'today', 'week', 'month' o 'all'."
+                        },
+                        nivel: {
+                            type: 'STRING',
+                            description: "Filtro de nivel de adopción: 'power_user', 'avanzado', 'intermedio', 'explorador' o 'sin_inicio'."
+                        },
+                        semaforo: {
+                            type: 'STRING',
+                            description: "Filtro de semáforo de actividad: 'green', 'yellow', 'red' o 'gray'."
+                        },
+                        etapa_crm: {
+                            type: 'STRING',
+                            description: "Filtro de etapa CRM: 'nuevo', 'contactado', 'interesado', 'propuesta', 'ganado', 'frio' o 'invalido'."
+                        },
+                        estado_comision: {
+                            type: 'STRING',
+                            description: "Filtro de comisión: 'pending', 'approved', 'paid' o 'cancelled'."
+                        },
+                        userId: {
+                            type: 'STRING',
+                            description: 'ID de un usuario específico para consultar su detalle de referidos y conversaciones.'
+                        },
+                        limit: {
+                            type: 'NUMBER',
+                            description: 'Cantidad máxima de registros a retornar en listas detalladas (por defecto 40).'
+                        }
+                    }
+                }
+            };
+
+            const wappyAdminSistemaDeclaration = {
+                name: 'wappy_admin_sistema',
+                description: 'EXCLUSIVO ROL ADMIN: Ejecuta cualquier acción administrativa global en WAPPY IA: crear/editar/eliminar usuarios, cambiar planes/roles/vencimientos/límites/puntos, atribuir embajadores, aprobar/pagar/editar comisiones, renovar períodos de suscripción, actualizar etapas y notas del CRM, generar y enviar propuestas comerciales o emails con IA, editar planes y visibilidad, crear/activar/eliminar códigos promocionales, enviar campañas de marketing o notificaciones push, responder tickets de soporte, gestionar negocios ARL Colmena, sincronizar agentes del sistema o invocar cualquier ruta administrativa /api/admin/*, /api/referrals/*, /api/comunidad/*, /api/marketplace/admin/*, /api/training/admin/*, /api/blog/*, /api/events/admin/* o /api/roadmap/*.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        modulo: {
+                            type: 'STRING',
+                            description: "Módulo administrativo: 'usuarios', 'embajadores', 'comisiones', 'crm', 'planes', 'promocodes', 'marketing', 'push', 'leads', 'tickets', 'colmena', 'sync_agentes' o 'tenshi_config'."
+                        },
+                        accion: {
+                            type: 'STRING',
+                            description: "Acción a ejecutar (ej: 'crear_usuario', 'actualizar_usuario', 'eliminar_usuario', 'atribuir_embajador', 'actualizar_comision', 'renovar_periodo', 'actualizar_etapa_crm', 'agregar_nota_crm', 'generar_propuesta', 'enviar_propuesta', 'actualizar_plan', 'visibilidad_planes', 'crear_promocode', 'toggle_promocode', 'eliminar_promocode', 'enviar_notificacion_push', 'responder_ticket', 'sincronizar_agentes')."
+                        },
+                        datos: {
+                            type: 'OBJECT',
+                            description: 'Objeto con los datos de la operación (ej: { email, plan, role, accountStatus, partnerId, status, newStage, text, code, discountPercent, response, etc. }).'
+                        },
+                        ruta: {
+                            type: 'STRING',
+                            description: "Opcional: Ruta directa del endpoint administrativo (ej: '/api/admin/users/update', '/api/marketplace/admin/orders/123/status')."
+                        },
+                        metodo: {
+                            type: 'STRING',
+                            description: "Método HTTP cuando se usa ruta directa: 'GET', 'POST', 'PUT', 'PATCH' o 'DELETE'."
+                        }
                     }
                 }
             };
@@ -2951,6 +3095,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyActualizarAgenteDeclaration,
                 wappyEliminarAgenteDeclaration,
                 wappyConsultarAgentesDeclaration,
+                wappyEjecutarAccionUsuarioDeclaration,
                 wappyLeerInformeAplicativoDeclaration,
                 wappyActivarHerramientaAgenteDeclaration,
                 consultarAgenteDeclaration,
@@ -3002,6 +3147,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 /\b(trabajadores|colaboradores|empleados)\b[\s\S]{0,30}\b(activos|retirados|registrados|lista|censo|todos|empresa)\b/i.test(lastUserLower));
 
             let toolsToAttach = [...baseFunctionDeclarations];
+            if (isAdminUser) {
+                toolsToAttach.push(wappyConsultarMetricasAdminDeclaration, wappyAdminSistemaDeclaration);
+            }
             if (isInlineWidgetIntent && !lastUserLower.includes('canvas') && !lastUserLower.includes('lienzo')) {
                 // Evitar que Gemini gaste 15s generando HTML en canvas_tool cuando el usuario pide el widget nativo en el chat
                 toolsToAttach = toolsToAttach.filter(t => t.name !== 'canvas_tool');

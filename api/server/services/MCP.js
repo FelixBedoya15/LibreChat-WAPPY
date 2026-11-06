@@ -407,26 +407,84 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
       const customUserVars =
         config?.configurable?.userMCPAuthMap?.[`${Constants.mcp_prefix}${serverName}`];
 
-      const result = await mcpManager.callTool({
-        serverName,
-        toolName,
-        provider,
-        toolArguments,
-        options: {
-          signal: derivedSignal,
-        },
-        user: config?.configurable?.user,
-        requestBody: config?.configurable?.requestBody,
-        customUserVars,
-        flowManager,
-        tokenMethods: {
-          findToken,
-          createToken,
-          updateToken,
-        },
-        oauthStart,
-        oauthEnd,
-      });
+      // 🧠 Enfoque de Segundo Cerebro por Agente para Google NotebookLM
+      let effectiveToolArgs = toolArguments;
+      let assignedAgentNotebooks = [];
+      if (serverName === 'notebooklm' && userId) {
+        try {
+          const reqBody = config?.configurable?.requestBody;
+          const activeAgentId = reqBody?.agent_id;
+          const sessionOverride = reqBody?.ephemeralAgent?.notebooklmNotebooks;
+          const mongoose = require('mongoose');
+          const NotebookSession =
+            mongoose.models.NotebookSession || require('~/models/NotebookSession');
+          const nbSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+          const dbAssigned =
+            activeAgentId && nbSession?.agentNotebooks && typeof nbSession.agentNotebooks === 'object'
+              ? nbSession.agentNotebooks[activeAgentId]
+              : null;
+
+          assignedAgentNotebooks = Array.isArray(sessionOverride)
+            ? sessionOverride
+            : Array.isArray(dbAssigned)
+              ? dbAssigned
+              : [];
+
+          if (assignedAgentNotebooks.length > 0) {
+            if (toolName === 'notebook_list') {
+              const scopedText = JSON.stringify(assignedAgentNotebooks, null, 2);
+              return isGoogle ? [scopedText, null] : scopedText;
+            }
+            if (
+              typeof effectiveToolArgs === 'object' &&
+              effectiveToolArgs !== null &&
+              (!effectiveToolArgs.notebook || effectiveToolArgs.notebook === 'default')
+            ) {
+              effectiveToolArgs = {
+                ...effectiveToolArgs,
+                notebook: assignedAgentNotebooks[0].id,
+              };
+            }
+          }
+        } catch (scopeErr) {
+          logger.debug('[MCP][notebooklm] Could not resolve agent Second Brain scope:', scopeErr.message);
+        }
+      }
+
+      let result;
+      try {
+        result = await mcpManager.callTool({
+          serverName,
+          toolName,
+          provider,
+          toolArguments: effectiveToolArgs,
+          options: {
+            signal: derivedSignal,
+          },
+          user: config?.configurable?.user,
+          requestBody: config?.configurable?.requestBody,
+          customUserVars,
+          flowManager,
+          tokenMethods: {
+            findToken,
+            createToken,
+            updateToken,
+          },
+          oauthStart,
+          oauthEnd,
+        });
+      } catch (callErr) {
+        if (serverName === 'notebooklm' && userId) {
+          logger.info(
+            `[MCP][notebooklm] Fallback directo a /api/direct-tool para "${toolName}" (usuario ${userId})`,
+          );
+          const { executeTenshiMcpTool } = require('~/server/routes/voice/tenshiMcpDispatcher');
+          const directRes = await executeTenshiMcpTool(toolName, effectiveToolArgs || {}, userId);
+          const textOut = typeof directRes === 'string' ? directRes : JSON.stringify(directRes, null, 2);
+          return isGoogle ? [textOut, null] : textOut;
+        }
+        throw callErr;
+      }
 
       if (isAssistantsEndpoint(provider) && Array.isArray(result)) {
         return result[0];

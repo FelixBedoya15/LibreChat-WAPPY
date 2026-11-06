@@ -185,9 +185,25 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
 
     // External tool overrides: combine session selection with saved agent tools from DB
     if (Array.isArray(ephemeralAgent.tools)) {
+      if (ephemeralAgent._defaultsApplied) {
+        const hasNbInOverride = ephemeralAgent.tools.some(
+          (t) => typeof t === 'string' && t.includes('_mcp_notebooklm'),
+        );
+        if (!hasNbInOverride) {
+          for (const existingTool of [...toolSet]) {
+            if (typeof existingTool === 'string' && existingTool.includes('_mcp_notebooklm')) {
+              toolSet.delete(existingTool);
+            }
+          }
+        }
+      }
       for (const t of ephemeralAgent.tools) {
         toolSet.add(t);
       }
+    }
+
+    if (Array.isArray(ephemeralAgent.notebooklmNotebooks)) {
+      agent.notebooklmNotebooks = ephemeralAgent.notebooklmNotebooks;
     }
 
     if (Array.isArray(ephemeralAgent.mcp)) {

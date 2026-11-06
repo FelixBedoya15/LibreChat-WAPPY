@@ -19,10 +19,19 @@ const ALWAYS_ON_HIDDEN_TOOLS = new Set([
     'wappy_memoria_procedimental',
 ]);
 
+export interface NotebookLMNotebookItem {
+    id: string;
+    title: string;
+    emoji?: string;
+    sources_count?: number;
+    updated_at?: string;
+}
+
 /** Extended version while data-provider package is being rebuilt */
 type TEphemeralAgentExtended = TEphemeralAgent & {
     model?: string;
     tools?: string[];
+    notebooklmNotebooks?: NotebookLMNotebookItem[];
     _defaultsApplied?: string; // tracks which agentId defaults have been applied
 };
 
@@ -46,6 +55,10 @@ export interface AgentSessionOverrides {
     toggleExternalTool: (toolId: string) => void;
     /** Override the model for this session */
     setSessionModel: (model: string) => void;
+    /** Update the assigned NotebookLM Second Brain notebooks for this session */
+    setSessionNotebooklmNotebooks: (notebooks: NotebookLMNotebookItem[]) => void;
+    /** Agent's display name */
+    agentName: string | null;
     /** Agent's original model (fallback) */
     agentModel: string | null;
     /** Agent's original provider */
@@ -182,6 +195,15 @@ export default function useAgentSessionOverrides({
         [setEphemeralAgent],
     );
 
+    const setSessionNotebooklmNotebooks = useCallback(
+        (notebooks: NotebookLMNotebookItem[]) => {
+            setEphemeralAgent((prev) => {
+                return { ...(prev ?? {}), notebooklmNotebooks: notebooks } as TEphemeralAgent;
+            });
+        },
+        [setEphemeralAgent],
+    );
+
     return {
         hasWebSearch,
         hasFileSearch,
@@ -191,6 +213,8 @@ export default function useAgentSessionOverrides({
         toggleBuiltinTool,
         toggleExternalTool,
         setSessionModel,
+        setSessionNotebooklmNotebooks,
+        agentName: agent?.name ?? null,
         agentModel: agent?.model ?? null,
         agentProvider: agent?.provider,
     };

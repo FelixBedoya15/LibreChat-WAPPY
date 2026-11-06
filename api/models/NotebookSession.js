@@ -34,6 +34,18 @@ const notebookSessionSchema = new mongoose.Schema(
       type: String,
       default: 'extension', // 'extension' | 'manual' | 'cli'
     },
+    cachedNotebooks: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    notebooksUpdatedAt: {
+      type: Date,
+      default: null,
+    },
+    agentNotebooks: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );

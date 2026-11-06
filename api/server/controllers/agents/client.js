@@ -560,6 +560,71 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
       systemContent = `${NO_MEMORY_DIRECTIVE}\n\n---\n\n${systemContent}`;
     }
 
+    // 🧠 Inyección de Segundo Cerebro Documental (Google NotebookLM por Agente)
+    try {
+      const hasNotebookLMTool = (this.options.agent?.tools || []).some((t) => {
+        const toolName = typeof t === 'string' ? t : (t?.name || '');
+        return toolName.includes('_mcp_notebooklm');
+      });
+
+      if (hasNotebookLMTool && !isPublicChat && targetUserId) {
+        const mongoose = require('mongoose');
+        const NotebookSession =
+          mongoose.models.NotebookSession || require('~/models/NotebookSession');
+        const nbSession = await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
+
+        if (nbSession && Array.isArray(nbSession.cookies) && nbSession.cookies.length > 0) {
+          const sessionOverrideNotebooks =
+            this.options.agent?.notebooklmNotebooks ||
+            this.options.req?.body?.ephemeralAgent?.notebooklmNotebooks;
+          const dbAssignedNotebooks =
+            nbSession.agentNotebooks && typeof nbSession.agentNotebooks === 'object'
+              ? nbSession.agentNotebooks[agentId]
+              : null;
+
+          const assignedNotebooks = Array.isArray(sessionOverrideNotebooks)
+            ? sessionOverrideNotebooks
+            : Array.isArray(dbAssignedNotebooks)
+              ? dbAssignedNotebooks
+              : [];
+
+          if (assignedNotebooks.length > 0) {
+            const notebooksListText = assignedNotebooks
+              .map(
+                (nb) =>
+                  `- ${nb.emoji || '📓'} **"${nb.title || 'Cuaderno NotebookLM'}"** (ID exacto: \`${nb.id}\`${
+                    nb.sources_count ? `, ${nb.sources_count} fuentes documentales` : ''
+                  })`
+              )
+              .join('\n');
+
+            const SECOND_BRAIN_DIRECTIVE = `## 🧠 SEGUNDO CEREBRO / FUENTE DE INFORMACIÓN ASIGNADA (GOOGLE NOTEBOOKLM):
+El usuario ha vinculado su cuenta privada de Google NotebookLM y te ha asignado específicamente los siguientes cuadernos como tu **Segundo Cerebro y Fuente Oficial de Información**:
+${notebooksListText}
+
+### ⚡ REGLAS OBLIGATORIAS DE USO DE TU SEGUNDO CEREBRO (NOTEBOOKLM):
+1. **PRIORIDAD DOCUMENTAL (GROUNDED RAG):** Estos cuadernos constituyen tu memoria documental especializada y segundo cerebro. Siempre que el usuario realice una consulta técnica, normativa, clínica o procedimental relacionada con tus cuadernos asignados (o cuando te pida revisar tu segundo cerebro / fuentes / cuadernos), **DEBES invocar de inmediato \`chat_ask_mcp_notebooklm\`** pasando el \`notebook\` (usa el ID exacto de la lista superior) y \`query\` con la pregunta detallada.
+2. **LLAMADA DIRECTA SIN PASO INTERMEDIO:** Ya conoces los IDs y títulos exactos de tus cuadernos asignados arriba. **NO necesitas llamar primero a \`notebook_list_mcp_notebooklm\`** antes de consultar; llama directamente a \`chat_ask_mcp_notebooklm\`, \`source_list_mcp_notebooklm\` o \`studio_generate_mcp_notebooklm\` con el ID exacto.
+3. **ALCANCE DE ESTE AGENTE:** Restringe tus consultas y operaciones en Google NotebookLM exclusivamente a los cuadernos asignados a ti en la lista superior (a menos que el usuario te indique explícitamente el nombre de otro cuaderno).`;
+
+            systemContent = `${SECOND_BRAIN_DIRECTIVE}\n\n---\n\n${systemContent}`;
+          } else if (Array.isArray(nbSession.cachedNotebooks) && nbSession.cachedNotebooks.length > 0) {
+            const availablePreview = nbSession.cachedNotebooks
+              .slice(0, 12)
+              .map((nb) => `- ${nb.emoji || '📓'} "${nb.title}" (ID: \`${nb.id}\`)`)
+              .join('\n');
+            const AVAILABLE_NOTEBOOKS_HINT = `## 📓 CONEXIÓN ACTIVA CON GOOGLE NOTEBOOKLM:
+El usuario tiene conectada su cuenta de Google NotebookLM con los siguientes cuadernos disponibles:
+${availablePreview}
+*(Nota: El usuario puede asignarte cuadernos específicos como tu Segundo Cerebro dedicado desde el botón de Google [G] -> pestaña "📓 Cuadernos / 2° Cerebro").*`;
+            systemContent = `${AVAILABLE_NOTEBOOKS_HINT}\n\n---\n\n${systemContent}`;
+          }
+        }
+      }
+    } catch (nbCtxErr) {
+      logger.debug('[buildMessages] Could not inject NotebookLM Second Brain context:', nbCtxErr.message);
+    }
+
     if (systemContent) {
       this.options.agent.instructions = systemContent;
     }

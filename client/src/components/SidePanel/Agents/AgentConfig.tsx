@@ -33,6 +33,7 @@ import MCPTools from './MCPTools';
 import AgentWhatsAppToggle from './AgentWhatsAppToggle';
 import AgentSkill from './AgentSkill';
 import SkillSelectDialog from './SkillSelectDialog';
+import AgentNotebookLMPicker from './AgentNotebookLMPicker';
 
 const labelClass = 'mb-1.5 text-xs font-bold text-slate-700 dark:text-zinc-200 block';
 const inputClass = cn(
@@ -387,6 +388,11 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
           agentId={agent_id}
           mcpServerNames={mcpServerNames}
           setShowMCPToolDialog={setShowMCPToolDialog}
+        />
+        {/* NotebookLM Second Brain Section */}
+        <AgentNotebookLMPicker
+          agentId={agent_id}
+          agentName={agent?.name ?? undefined}
         />
         {/* Agent Skills */}
         <div className="mb-4">
