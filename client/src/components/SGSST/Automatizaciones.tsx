@@ -50,7 +50,7 @@ import {
   buildPromptFromWorkflowNodes,
   type WorkflowNodesConfig,
 } from './workflowNodesCatalog';
-import N8nWorkflowCanvas, { renderOfficialNodeSvg } from './N8nWorkflowCanvas';
+import WappyWorkflowCanvas, { renderOfficialNodeSvg } from './WappyWorkflowCanvas';
 
 interface ScheduleConfig {
   hour: number;
@@ -215,7 +215,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
   }, [showToast]);
 
-  // Fetch system preset workflows (n8n catalog)
+  // Fetch system preset workflows
   const fetchPresets = useCallback(async () => {
     setPresetsLoading(true);
     try {
@@ -617,7 +617,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
   };
 
-  // Alternar nodo en el constructor visual n8n
+  // Alternar nodo en el constructor visual de flujo
   const toggleWorkflowNode = (group: 'trigger' | 'inputs' | 'hitos' | 'outputs', nodeId: string) => {
     setFormWorkflowNodes((prev) => {
       if (group === 'trigger') {
@@ -636,7 +636,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     });
   };
 
-  // Autogenerar el prompt desde los nodos seleccionados en el flujo tipo n8n
+  // Autogenerar el prompt desde los nodos seleccionados en el lienzo
   const handleAutoBuildPrompt = () => {
     const selectedAgent = agents.find((a) => a.id === formAgentId);
     const agentName = selectedAgent ? selectedAgent.name : 'Consultor SG-SST';
@@ -647,7 +647,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     );
     setFormPrompt(generated);
     showToast({
-      message: 'Instrucción autónoma generada desde tu flujo de conectores n8n.',
+      message: 'Instrucción autónoma generada desde tu flujo de conectores WAPPY.',
       status: 'success',
     });
   };
@@ -896,7 +896,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
     return (
       <div className="mb-3.5">
-        <N8nWorkflowCanvas
+        <WappyWorkflowCanvas
           workflowNodes={safeNodes}
           agentName={agentLabel || 'Consultor SG-SST'}
           readOnly={true}
@@ -914,7 +914,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           <div>
             <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
               <Cpu className="w-7 h-7 text-purple-500" />
-              Tareas y Flujos Autónomos (n8n WAPPY)
+              Tareas y Flujos Autónomos WAPPY
             </h1>
           </div>
         ) : (
@@ -1184,7 +1184,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           }`}
         >
           <Workflow className="w-3.5 h-3.5" />
-          <span>Flujos Preestablecidos (n8n)</span>
+          <span>Flujos Preestablecidos</span>
           <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 font-extrabold">
             {presets.length || 12}
           </span>
@@ -1226,7 +1226,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No hay tareas programadas en esta empresa</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6">
-                Activa con 1 clic cualquiera de los <strong>Flujos Preestablecidos del Sistema (n8n)</strong> o diseña tu propio flujo con conectores de Google, APIs, MCP y los 7 Hitos de Somos SST.
+                Activa con 1 clic cualquiera de los <strong>Flujos Preestablecidos del Sistema</strong> o diseña tu propio flujo con conectores de Google, APIs, MCP y los 7 Hitos de Somos SST.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
@@ -1234,7 +1234,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-xl shadow-md transition duration-200 text-xs uppercase tracking-wider flex items-center gap-2"
                 >
                   <Workflow className="w-4 h-4" />
-                  Explorar Flujos Preestablecidos (n8n)
+                  Explorar Flujos Preestablecidos
                 </button>
                 <button
                   onClick={handleCreateOpen}
@@ -1293,7 +1293,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     </div>
                   </div>
 
-                  {/* Visual n8n Workflow Pipeline */}
+                  {/* Visual Workflow Pipeline */}
                   {renderWorkflowPipeline(auto.workflowNodes, auto.agentName)}
 
                   {/* Prompt Details */}
@@ -1440,7 +1440,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             </div>
           )
         ) : activeTab === 'presets' ? (
-          /* System Presets (n8n Flows Catalog) Tab */
+          /* System Presets (WAPPY Flows Catalog) Tab */
           <div>
             {/* Banner informativo */}
             <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-teal-900/90 via-slate-900 to-indigo-950 text-white border border-teal-500/30 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -1451,7 +1451,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-extrabold tracking-tight text-white">
-                      Catálogo Oficial de Tareas Preestablecidas & Flujos n8n WAPPY
+                      Catálogo Oficial de Tareas Preestablecidas & Flujos WAPPY
                     </h3>
                     <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-full bg-[#C7F303] text-[#0E1300]">
                       Disponible para todos los usuarios
@@ -1568,7 +1568,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                           </p>
                         )}
 
-                        {/* Visual n8n Pipeline */}
+                        {/* Visual Workflow Pipeline */}
                         {renderWorkflowPipeline(preset.workflowNodes, preset.agentName)}
 
                         {/* Prompt preview */}
@@ -1589,7 +1589,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                             className="px-3 py-2 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/60 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs font-bold transition flex items-center gap-1.5"
                           >
                             <Workflow className="w-3.5 h-3.5" />
-                            Personalizar Nodos (n8n)
+                            Personalizar Nodos
                           </button>
 
                           <button
@@ -1713,7 +1713,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         )}
       </div>
 
-      {/* Modal Creación / Edición con Constructor Visual de Flujos y Conectores (Estilo n8n) */}
+      {/* Modal Creación / Edición con Constructor Visual de Flujos y Conectores WAPPY */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-6xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
@@ -1730,8 +1730,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         ? 'Editar Tarea Preestablecida Global (Admin)'
                         : 'Nueva Tarea Preestablecida Global para Todos los Usuarios'
                       : editingAutomation
-                        ? 'Editar Tarea y Flujo de Conectores (n8n)'
-                        : 'Nueva Tarea Autónoma & Flujo de Conectores (n8n)'}
+                        ? 'Editar Tarea y Flujo de Conectores WAPPY'
+                        : 'Nueva Tarea Autónoma & Flujo de Conectores WAPPY'}
                   </h2>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
                     Conecta disparadores, herramientas de Google, APIs, MCP, Agentes IA y los 7 Hitos de Somos SST
@@ -1758,7 +1758,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         ¿Deseas partir de un Flujo Preestablecido del Sistema?
                       </div>
                       <div className="text-[11px] text-teal-700 dark:text-teal-400">
-                        Autocompleta los conectores n8n, el agente especialista, el horario y el prompt con 1 clic.
+                        Autocompleta los conectores, el agente especialista, el horario y el prompt con 1 clic.
                       </div>
                     </div>
                   </div>
@@ -1837,8 +1837,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
               </div>
 
-              {/* CONSTRUCTOR VISUAL DE FLUJOS Y CONECTORES ESTILO N8N REAL (LIENZO INTERACTIVO + LOGOS SVG) */}
-              <N8nWorkflowCanvas
+              {/* CONSTRUCTOR VISUAL DE FLUJOS Y CONECTORES WAPPY (LIENZO INTERACTIVO + LOGOS SVG) */}
+              <WappyWorkflowCanvas
                 workflowNodes={formWorkflowNodes}
                 onChange={setFormWorkflowNodes}
                 agentId={formAgentId}

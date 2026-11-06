@@ -46,7 +46,7 @@ async function getActiveCompanyId(userId) {
   return active ? active._id.toString() : null;
 }
 
-// Catálogo oficial de Tareas Preestablecidas del Sistema (Flujos tipo n8n de WAPPY IA)
+// Catálogo oficial de Tareas Preestablecidas del Sistema (Flujos Autónomos de WAPPY IA)
 const DEFAULT_SYSTEM_PRESETS = [
   {
     presetKey: 'preset_vencimientos_emo_epp',
@@ -247,7 +247,7 @@ const DEFAULT_SYSTEM_PRESETS = [
       'Realiza una auditoría integral de cierre mensual sobre la empresa activa utilizando somos_sst (resumen_empresa y consultar_centro_control_acpm) y matriz_ipevar (leer). Consolida en un Informe Gerencial en Markdown para la Alta Dirección: 1) Puntaje actual del Diagnóstico de Estándares Mínimos (Resolución 0312 de 2019); 2) Avance del Cronograma Anual y Plan de Trabajo; 3) Peligros prioritarios en Matriz GTC-45; 4) Estado de acciones correctivas, preventivas y de mejora (ACPM); y 5) Top 5 prioridades estratégicas para el próximo mes.',
   },
   {
-    presetKey: 'preset_antigravity_n8n_bridge',
+    presetKey: 'preset_antigravity_cloud_bridge',
     presetCategory: 'gerencia_auditoria',
     name: 'Auditoría Documental Cross-Cloud (Google Drive / OneDrive / Buk ➔ 7 Hitos Somos SST)',
     presetDescription:
@@ -257,7 +257,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 9, minute: 0, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
-      inputs: ['google_drive', 'one_drive', 'google_antigravity', 'n8n'],
+      inputs: ['google_drive', 'one_drive', 'google_antigravity', 'webhook_api'],
       hitos: ['hito1_diagnostico_0312', 'hito2_perfil_socio', 'hito7_acpm'],
       outputs: ['somos_sst_update', 'google_sheets', 'email_report'],
     },
@@ -478,7 +478,7 @@ async function getEffectiveAutomationLimit(userId, userRole) {
 
 /**
  * GET /api/sgsst/automatizaciones/presets
- * Lista todas las Tareas Preestablecidas del Sistema (plantillas de flujo n8n disponibles para todos los usuarios).
+ * Lista todas las Tareas Preestablecidas del Sistema (plantillas de flujo disponibles para todos los usuarios).
  */
 router.get('/presets', async (req, res) => {
   try {

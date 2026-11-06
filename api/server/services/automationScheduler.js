@@ -440,8 +440,8 @@ async function runAutomation(automation, isManual = false) {
 
     const antigravityEngineDirective =
       selectedAiEngine === 'antigravity'
-        ? `- MOTOR IA SELECCIONADO EN EL FLUJO N8N: Google Antigravity IDE + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" (action: "delegate_task" o consulta por puente Push SSE) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
-        : `- MOTOR IA SELECCIONADO EN EL FLUJO N8N: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
+        ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity IDE + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" (action: "delegate_task" o consulta por puente Push SSE) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
+        : `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
 
     const companyHeaderBlock = automationCompany
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
@@ -455,7 +455,7 @@ async function runAutomation(automation, isManual = false) {
       : antigravityEngineDirective;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
 
-    // Override agent model if specified in the n8n workflow canvas
+    // Override agent model if specified in the WAPPY workflow canvas
     if (effectiveAiModel) {
       agent.model = effectiveAiModel;
       agent.model_parameters = {

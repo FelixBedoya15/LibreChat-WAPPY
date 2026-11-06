@@ -239,11 +239,11 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   },
   {
-    id: 'n8n',
-    label: 'Webhook n8n / Integración Buk RRHH',
-    shortLabel: 'n8n / Buk',
+    id: 'webhook_api',
+    label: 'Webhook API / Integración Buk RRHH',
+    shortLabel: 'API / Buk',
     category: 'IA, MCP & Web',
-    toolHint: 'n8n webhook / sincronización externa',
+    toolHint: 'webhook externo / sincronización API RRHH',
     badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
   },
   // APIs Científicas y Motores WAPPY
@@ -638,7 +638,7 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
 }
 
 /**
- * Autogenera un prompt técnico estructurado para WAPPY a partir de los nodos conectados en el lienzo n8n.
+ * Autogenera un prompt técnico estructurado para WAPPY a partir de los nodos conectados en el lienzo.
  */
 export function buildPromptFromWorkflowNodes(
   taskName: string,
