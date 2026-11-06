@@ -74,18 +74,33 @@ function resolveNotebookArtifactFileMeta(artifactId, type = '', format = '', con
   if (lowerType.includes('infographic') || lowerType.includes('infografia') || lowerCt.includes('image/')) {
     prefix = 'nlm_infographic';
     ext = lowerCt.includes('jpeg') || lowerCt.includes('jpg') ? 'jpg' : 'png';
-  } else if (lowerType.includes('video') || lowerCt.includes('video/')) {
-    prefix = 'nlm_video';
-    ext = 'mp4';
   } else if (lowerType.includes('audio') || lowerType.includes('podcast') || lowerCt.includes('audio/')) {
     prefix = 'nlm_audio';
     ext = lowerCt.includes('wav') ? 'wav' : lowerCt.includes('mpeg') || lowerCt.includes('mp3') ? 'mp3' : 'mp4';
+  } else if (lowerType.includes('video') || lowerCt.includes('video/')) {
+    prefix = 'nlm_video';
+    ext = 'mp4';
+  } else if (lowerType.includes('quiz') || lowerType.includes('cuestionario') || lowerType.includes('examen') || lowerType.includes('evaluacion')) {
+    prefix = 'nlm_quiz';
+    ext = lowerFmt === 'json' || lowerCt.includes('json') ? 'json' : 'md';
+  } else if (lowerType.includes('flashcard') || lowerType.includes('fichas')) {
+    prefix = 'nlm_flashcards';
+    ext = lowerFmt === 'json' || lowerCt.includes('json') ? 'json' : 'md';
+  } else if (lowerType.includes('mind_map') || lowerType.includes('mindmap') || lowerType.includes('mapa')) {
+    prefix = 'nlm_mindmap';
+    ext = 'json';
+  } else if (lowerType.includes('data_table') || lowerType.includes('tabla') || lowerType.includes('table') || lowerFmt === 'csv' || lowerCt.includes('csv')) {
+    prefix = 'nlm_table';
+    ext = 'csv';
   } else if (lowerType.includes('slide') || lowerFmt === 'pptx' || lowerCt.includes('presentation')) {
     prefix = 'nlm_slides';
     ext = lowerFmt === 'pdf' || lowerCt.includes('pdf') ? 'pdf' : 'pptx';
   } else if (lowerFmt === 'pdf' || lowerCt.includes('pdf')) {
     prefix = 'nlm_doc';
     ext = 'pdf';
+  } else if (lowerType.includes('report') || lowerType.includes('study_guide') || lowerType.includes('informe') || lowerType.includes('guia') || lowerFmt === 'md' || lowerFmt === 'markdown' || lowerCt.includes('markdown')) {
+    prefix = 'nlm_report';
+    ext = 'md';
   } else if (lowerFmt) {
     ext = lowerFmt.replace(/[^a-z0-9]/g, '') || 'dat';
   }
@@ -109,7 +124,7 @@ function findCachedNotebookArtifact(artifactId, type = '', format = '') {
     if (match) {
       const fullPath = path.join(OUTPUT_MEDIA_DIR, match);
       const stat = fs.statSync(fullPath);
-      if (stat.isFile() && stat.size > 512) {
+      if (stat.isFile() && stat.size > 32) {
         return {
           filename: match,
           fullPath,
@@ -1640,7 +1655,7 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
               const meta = resolveNotebookArtifactFileMeta(artifactId, type, format, ct);
               await fs.promises.mkdir(OUTPUT_MEDIA_DIR, { recursive: true });
               const ab = await bgRes.arrayBuffer();
-              if (ab.byteLength > 512) {
+              if (ab.byteLength > 32) {
                 await fs.promises.writeFile(meta.fullPath, Buffer.from(ab));
                 parsedStatus.publicUrl = meta.publicUrl;
                 parsedStatus.filename = meta.filename;
@@ -1725,7 +1740,7 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
       const meta = resolveNotebookArtifactFileMeta(artifactId, type, format, ct);
       const arrayBuffer = await upstream.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      if (buffer.byteLength > 512) {
+      if (buffer.byteLength > 32) {
         try {
           await fs.promises.mkdir(OUTPUT_MEDIA_DIR, { recursive: true });
           await fs.promises.writeFile(meta.fullPath, buffer);

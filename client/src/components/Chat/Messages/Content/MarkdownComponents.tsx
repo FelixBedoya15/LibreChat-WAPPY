@@ -151,7 +151,6 @@ export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React
     }, [href, publicUrl]);
 
     const checkStatus = useCallback(async () => {
-      if (!isMedia) return;
       try {
         setChecking(true);
         const res = await fetch(statusUrl, { cache: 'no-store' });
@@ -168,16 +167,20 @@ export const NotebookLMArtifactPlayer: React.FC<{ href: string; children?: React
       } finally {
         setChecking(false);
       }
-    }, [isMedia, statusUrl]);
+    }, [statusUrl]);
 
     useEffect(() => {
+      // Ejecutar checkStatus para TODOS los artefactos (incluyendo quiz, flashcards, mind_map, tabla, slides, reporte)
+      // para que LibreChat los persista automáticamente en /images/nlm_* (30 días) y exponga publicUrl a Canvas 2.0
+      if (!publicUrl) {
+        checkStatus();
+      }
       if (!isMedia || ready) return;
-      checkStatus();
       const interval = setInterval(() => {
         checkStatus();
       }, 10000);
       return () => clearInterval(interval);
-    }, [isMedia, ready, checkStatus]);
+    }, [isMedia, ready, publicUrl, checkStatus]);
 
     const mediaSrc = useMemo(() => {
       const baseSrc = publicUrl || href;

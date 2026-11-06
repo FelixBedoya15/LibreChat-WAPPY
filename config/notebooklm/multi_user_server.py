@@ -1071,6 +1071,25 @@ async def _download_artifact_by_kind(
     if uid:
         wappy_download_url += f"&userId={uid}"
 
+    # Sincronizar automáticamente en segundo plano hacia /images/ de LibreChat para que Canvas 2.0 y la Biblioteca lo tengan al instante
+    async def _notify_librechat_media_cache():
+        import urllib.request
+        for base_host in ("http://LibreChat:3080", "http://api:3080", "https://wappy.club"):
+            try:
+                sync_url = f"{base_host}/api/notebooklm/download/{nb_id}/{artifact_id}?type={t or 'report'}&status_only=1"
+                if uid:
+                    sync_url += f"&userId={uid}"
+                req = urllib.request.Request(sync_url, headers={"User-Agent": "WappyNotebookLMSync/1.0"})
+                await asyncio.to_thread(urllib.request.urlopen, req, timeout=15)
+                break
+            except Exception:
+                continue
+
+    try:
+        asyncio.create_task(_notify_librechat_media_cache())
+    except Exception:
+        pass
+
     return {
         "saved_to": str(final_path),
         "artifact_type": t or "report",

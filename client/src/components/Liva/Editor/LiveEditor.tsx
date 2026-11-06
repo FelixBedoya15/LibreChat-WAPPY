@@ -79,12 +79,24 @@ export interface LiveEditorHandle {
  * con scroll horizontal interno visible para ordenadores de sobremesa y portátiles.
  */
 function wrapTablesInResponsiveContainer(html: string): string {
-  if (!html || typeof html !== 'string' || !html.includes('<table')) return html;
-  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return html;
+  if (!html || typeof html !== 'string') return html;
+  let normalizedHtml = html;
+  if (normalizedHtml.includes('![') && normalizedHtml.includes('](')) {
+    normalizedHtml = normalizedHtml.replace(
+      /(?:<p>\s*)?!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)(?:\s*<\/p>)?/gi,
+      (_, alt, url) => {
+        const cleanUrl = String(url || '').replace(/^https?:\/\/(?:app\.)?wappy\.club(?=\/images\/)/i, '');
+        const safeAlt = String(alt || 'Infografía / Recurso Visual Oficial').replace(/"/g, '&quot;');
+        return `<figure style="margin:24px 0;text-align:center;background:#f8fafc;padding:16px;border-radius:14px;border:1px solid #e2e8f0;"><img src="${cleanUrl}" alt="${safeAlt}" style="max-width:100%;height:auto;border-radius:10px;box-shadow:0 4px 20px rgba(15,23,42,0.08);display:block;margin:0 auto;" /><figcaption style="margin-top:10px;font-size:12px;color:#475569;font-style:italic;font-weight:600;">${safeAlt}</figcaption></figure>`;
+      },
+    );
+  }
+  if (!normalizedHtml.includes('<table')) return normalizedHtml;
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return normalizedHtml;
 
   try {
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const doc = parser.parseFromString(normalizedHtml, 'text/html');
     const tables = doc.querySelectorAll('table');
     let changed = false;
 

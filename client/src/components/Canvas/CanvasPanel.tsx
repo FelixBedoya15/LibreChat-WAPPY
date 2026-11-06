@@ -503,17 +503,96 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       return -1;
     };
 
+    const buildRichMediaBlock = (rawUrl: string, rawAlt = ''): string => {
+      const cleanUrl = String(rawUrl || '')
+        .trim()
+        .replace(/^https?:\/\/(?:app\.)?wappy\.club(?=\/(?:images|api\/notebooklm\/download)\/)/i, '');
+      const lower = cleanUrl.toLowerCase();
+      const safeAlt = String(rawAlt || '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/"/g, '&quot;')
+        .trim();
+
+      if (
+        lower.includes('_audio_') ||
+        lower.includes('_podcast_') ||
+        lower.includes('type=audio') ||
+        lower.includes('type=podcast') ||
+        /\.(mp3|wav|m4a|ogg)(?:$|\?)/i.test(lower)
+      ) {
+        const label = safeAlt || 'Podcast / Audio Explicativo';
+        return `<div style="margin:22px 0;padding:18px 22px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:14px;box-shadow:0 4px 14px rgba(13,148,136,0.08);"><div style="font-weight:700;color:#0f766e;font-size:14px;margin-bottom:10px;">🎙️ ${label}</div><audio controls preload="metadata" src="${cleanUrl}" style="width:100%;display:block;"></audio><div style="margin-top:10px;font-size:12px;"><a href="${cleanUrl}" download target="_blank" rel="noopener noreferrer" style="color:#0d9488;font-weight:700;text-decoration:underline;">⬇ Descargar Audio / Podcast</a></div></div>`;
+      }
+
+      if (
+        lower.includes('_vid_') ||
+        lower.includes('_video_') ||
+        lower.includes('type=video') ||
+        lower.includes('type=cinematic_video') ||
+        /\.(mp4|webm|mov)(?:$|\?)/i.test(lower)
+      ) {
+        const label = safeAlt || 'Video Explicativo';
+        return `<figure style="margin:24px 0;text-align:center;background:#0f172a;padding:18px;border-radius:14px;border:1px solid #334155;box-shadow:0 8px 24px rgba(15,23,42,0.18);"><video controls playsinline preload="metadata" src="${cleanUrl}" style="max-width:100%;max-height:480px;border-radius:10px;background:#000;display:block;margin:0 auto;"></video><figcaption style="margin-top:10px;font-size:12px;color:#cbd5e1;font-weight:600;">🎬 ${label} · <a href="${cleanUrl}" download target="_blank" rel="noopener noreferrer" style="color:#2dd4bf;text-decoration:underline;">⬇ Descargar Video MP4</a></figcaption></figure>`;
+      }
+
+      if (
+        lower.includes('_quiz_') ||
+        lower.includes('_flashcards_') ||
+        lower.includes('_mindmap_') ||
+        lower.includes('_table_') ||
+        lower.includes('_slides_') ||
+        lower.includes('_report_') ||
+        lower.includes('type=quiz') ||
+        lower.includes('type=flashcards') ||
+        lower.includes('type=mind_map') ||
+        lower.includes('type=data_table') ||
+        lower.includes('type=slide_deck') ||
+        lower.includes('type=report') ||
+        /\.(pdf|pptx|csv|md|markdown|json|docx|xlsx)(?:$|\?)/i.test(lower)
+      ) {
+        const label = safeAlt || 'Recurso / Documento Descargable';
+        return `<div style="margin:18px 0;padding:16px 20px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #0d9488;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div style="font-weight:700;color:#0f172a;font-size:13px;">📄 ${label}</div><a href="${cleanUrl}" download target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 14px;background:#0d9488;color:#ffffff;font-weight:700;font-size:12px;border-radius:8px;text-decoration:none;">⬇ Descargar Recurso</a></div>`;
+      }
+
+      const label = safeAlt || 'Infografía / Recurso Visual Oficial';
+      return `<figure style="margin:24px 0;text-align:center;background:#f8fafc;padding:16px;border-radius:14px;border:1px solid #e2e8f0;"><img src="${cleanUrl}" alt="${label}" style="max-width:100%;height:auto;border-radius:10px;box-shadow:0 4px 20px rgba(15,23,42,0.08);display:block;margin:0 auto;" /><figcaption style="margin-top:10px;font-size:12px;color:#475569;font-style:italic;font-weight:600;">${label}</figcaption></figure>`;
+    };
+
+    const convertMarkdownMediaAndHealHtml = (input: string): string => {
+      if (!input) return input;
+      return input
+        .replace(
+          /<p>\s*!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)\s*<\/p>/gi,
+          (_, alt, url) => buildRichMediaBlock(url, alt),
+        )
+        .replace(
+          /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g,
+          (_, alt, url) => buildRichMediaBlock(url, alt),
+        )
+        .replace(
+          /(?<![!">'=])\[([^\]]+)\]\(((?:https?:\/\/(?:app\.)?wappy\.club)?\/(?:images\/(?:flow_|nlm_|antigravity_|ag_|sst_)[^)\s]+|api\/notebooklm\/download\/[^)\s]+))\)/gi,
+          (_, label, url) => buildRichMediaBlock(url, label),
+        )
+        .replace(
+          /<p>\s*<em>\s*(<strong>[^<]+<\/strong>[\s\S]*?)<\/em>([^<*]+)\*([\s\S]*?)<\/p>/gi,
+          (_, beforeEm, italicWord, afterWord) =>
+            `<ul><li>${beforeEm}<em>${italicWord.trim()}</em>${afterWord}</li></ul>`,
+        )
+        .replace(/\*\*([^*\n<]+)\*(?!\*)/g, '<strong>$1</strong>')
+        .replace(/(?<!\*)\*([^*\n<]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/<\/strong>\*/g, '</strong>')
+        .replace(/<\/em>\*/g, '</em>');
+    };
+
     // Check if it's purely HTML (like from an old session or already parsed)
     // If it has markdown headers (#) or bold (**), we should parse it.
-    // The regex below might break if we parse HTML, so let's protect HTML blocks.
-    // A simple heuristic: if it contains # or **, it's probably markdown mixed with HTML.
     if (
       md.trim().startsWith('<') &&
       !md.includes('#') &&
       !md.includes('**') &&
       !md.includes('---')
     ) {
-      return md;
+      return convertMarkdownMediaAndHealHtml(md);
     }
 
     let header = '';
@@ -660,19 +739,29 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           .replace(/(\d+\.\s+[A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})/g, '$1\n\n$2');
 
         // Parse remaining markdown
-        return parsed
+        const htmlResult = parsed
+          .replace(
+            /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g,
+            (_, alt, url) => buildRichMediaBlock(url, alt),
+          )
+          .replace(
+            /(?<![!">'=])\[([^\]]+)\]\(((?:https?:\/\/(?:app\.)?wappy\.club)?\/(?:images\/(?:flow_|nlm_|antigravity_|ag_|sst_)[^)\s]+|api\/notebooklm\/download\/[^)\s]+))\)/gi,
+            (_, label, url) => buildRichMediaBlock(url, label),
+          )
           .replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>')
           .replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>')
           .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
           .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
           .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
           .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
-          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.+?)\*/g, '<em>$1</em>')
           .replace(/^---+$/gm, '<hr/>')
           .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
           .replace(/(<li>.*<\/li>\n?)+/g, (block) => `<ul>${block}</ul>`)
           .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
+          .replace(/\*\*([^*\n]+)\*(?!\*)/g, '<strong>$1</strong>')
+          .replace(/(?<!\*)\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
           .replace(/\n{2,}/g, '</p><p>')
           .replace(/\n/g, '<br/>')
           .replace(/^(?!<)(.+)$/gm, '<p>$1</p>')
@@ -681,11 +770,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
           .replace(/<p>(<ul>)/g, '$1')
           .replace(/(<\/ul>)<\/p>/g, '$1')
+          .replace(/<p>(<figure[\s>])/g, '$1')
+          .replace(/(<\/figure>)<\/p>/g, '$1')
+          .replace(/<p>(<div[\s>])/g, '$1')
+          .replace(/(<\/div>)<\/p>/g, '$1')
           .replace(/<p>(<hr\/>)<\/p>/g, '$1');
+
+        return convertMarkdownMediaAndHealHtml(htmlResult);
       })
       .join('');
 
-    return header + parsedBody + signature;
+    return convertMarkdownMediaAndHealHtml(header + parsedBody + signature);
   }, []);
 
   // ── Sync streaming content in real-time ───────────────────────────────────

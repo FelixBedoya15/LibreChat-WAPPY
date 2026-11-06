@@ -2380,7 +2380,8 @@ async function uploadCookies(cookies, email = '') {
 });
 
 /**
- * Lista todos los recursos multimedia descargados de Google Flow (flow_*) y Google NotebookLM (nlm_*)
+ * Lista todos los recursos multimedia y artefactos descargados de Google Flow (flow_*),
+ * Google NotebookLM (nlm_*) y Google Antigravity (antigravity_* / ag_*)
  * disponibles en el servidor durante su ventana de retención de 30 días.
  */
 async function listDownloadedMediaLibrary(filterSource = 'all') {
@@ -2391,11 +2392,14 @@ async function listDownloadedMediaLibrary(filterSource = 'all') {
   const items = [];
 
   for (const file of files) {
-    if (!file.startsWith('flow_') && !file.startsWith('nlm_')) continue;
-    if (file.startsWith('flow_poster_')) continue; // skip internal video posters
     const isFlow = file.startsWith('flow_');
-    if (filterSource === 'flow' && !isFlow) continue;
-    if (filterSource === 'notebooklm' && isFlow) continue;
+    const isNlm = file.startsWith('nlm_');
+    const isAntigravity = file.startsWith('antigravity_') || file.startsWith('ag_');
+    if (!isFlow && !isNlm && !isAntigravity) continue;
+    if (file.startsWith('flow_poster_')) continue; // skip internal video posters
+
+    const source = isFlow ? 'flow' : isNlm ? 'notebooklm' : 'antigravity';
+    if (filterSource && filterSource !== 'all' && filterSource !== source) continue;
 
     const fullPath = path.join(OUTPUT_MEDIA_DIR, file);
     try {
@@ -2406,30 +2410,98 @@ async function listDownloadedMediaLibrary(filterSource = 'all') {
 
       const daysRemaining = Math.max(1, Math.ceil((RETENTION_MS - ageMs) / (24 * 60 * 60 * 1000)));
       const lower = file.toLowerCase();
+
+      // Clasificar primero podcasts/audio (NotebookLM descarga audio en contenedor .mp4 con prefijo nlm_audio_)
       let mediaType = 'image';
-      if (lower.endsWith('.mp4') || lower.includes('_vid_') || lower.includes('_video_')) {
-        mediaType = 'video';
-      } else if (lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.includes('_audio_')) {
+      let artifactKind = 'image';
+      if (
+        lower.includes('_audio_') ||
+        lower.includes('_podcast_') ||
+        lower.endsWith('.mp3') ||
+        lower.endsWith('.wav') ||
+        lower.endsWith('.m4a') ||
+        lower.endsWith('.ogg')
+      ) {
         mediaType = 'audio';
-      } else if (lower.endsWith('.pdf') || lower.endsWith('.pptx')) {
+        artifactKind = 'audio';
+      } else if (
+        lower.endsWith('.mp4') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.mov') ||
+        lower.includes('_vid_') ||
+        lower.includes('_video_')
+      ) {
+        mediaType = 'video';
+        artifactKind = 'video';
+      } else if (
+        lower.endsWith('.png') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.svg') ||
+        lower.includes('_infographic_') ||
+        lower.includes('_img_')
+      ) {
+        mediaType = 'image';
+        artifactKind = lower.includes('_infographic_') ? 'infographic' : 'image';
+      } else {
         mediaType = 'document';
+        if (lower.includes('_quiz_')) artifactKind = 'quiz';
+        else if (lower.includes('_flashcards_')) artifactKind = 'flashcards';
+        else if (lower.includes('_mindmap_')) artifactKind = 'mindmap';
+        else if (lower.includes('_table_') || lower.endsWith('.csv')) artifactKind = 'table';
+        else if (lower.includes('_slides_') || lower.endsWith('.pptx')) artifactKind = 'slides';
+        else if (lower.includes('_report_')) artifactKind = 'report';
+        else artifactKind = 'document';
       }
 
-      let label = isFlow ? 'Imagen Google Flow (Nano Banana)' : 'Infografía NotebookLM';
-      if (isFlow && mediaType === 'video') label = 'Video Google Flow (Veo 3.1 Lite)';
-      else if (!isFlow && mediaType === 'video') label = 'Video Explicativo NotebookLM';
-      else if (!isFlow && mediaType === 'audio') label = 'Podcast / Audio NotebookLM';
-      else if (!isFlow && mediaType === 'document') label = 'Presentación / Doc NotebookLM';
+      let label = 'Recurso Multimedia WAPPY';
+      if (source === 'flow') {
+        label = mediaType === 'video' ? 'Video Google Flow (Veo 3.1 Lite)' : 'Imagen Google Flow (Nano Banana)';
+      } else if (source === 'notebooklm') {
+        if (artifactKind === 'infographic' || mediaType === 'image') label = 'Infografía NotebookLM';
+        else if (mediaType === 'video') label = 'Video Explicativo NotebookLM';
+        else if (mediaType === 'audio') label = 'Podcast / Audio NotebookLM';
+        else if (artifactKind === 'quiz') label = 'Examen / Cuestionario NotebookLM';
+        else if (artifactKind === 'flashcards') label = 'Tarjetas de Estudio (Flashcards) NotebookLM';
+        else if (artifactKind === 'mindmap') label = 'Mapa Mental NotebookLM';
+        else if (artifactKind === 'table') label = 'Tabla de Datos (CSV) NotebookLM';
+        else if (artifactKind === 'slides') label = 'Presentación / Diapositivas NotebookLM';
+        else if (artifactKind === 'report') label = 'Informe / Guía de Estudio NotebookLM';
+        else label = 'Documento / Presentación NotebookLM';
+      } else if (source === 'antigravity') {
+        if (mediaType === 'image') label = 'Imagen / Infografía Google Antigravity';
+        else if (mediaType === 'video') label = 'Video / Reel Google Antigravity';
+        else if (mediaType === 'audio') label = 'Audio / Podcast Google Antigravity';
+        else label = 'Documento / Entregable Google Antigravity';
+      }
+
+      let textPreview = '';
+      if (
+        mediaType === 'document' &&
+        stat.size > 0 &&
+        stat.size <= 300 * 1024 &&
+        /\.(md|markdown|json|csv|txt|html)$/i.test(lower)
+      ) {
+        try {
+          const rawText = await fs.promises.readFile(fullPath, 'utf8');
+          textPreview = String(rawText || '').trim().slice(0, 4500);
+        } catch (_) {}
+      }
 
       items.push({
         filename: file,
         publicUrl: `/images/${file}`,
-        source: isFlow ? 'flow' : 'notebooklm',
+        fullPath,
+        source,
         mediaType,
+        artifactKind,
         label,
         sizeBytes: stat.size,
         createdAt: new Date(stat.mtimeMs).toISOString(),
         daysRemaining,
+        ...(textPreview ? { textPreview } : {}),
       });
     } catch (_) {}
   }

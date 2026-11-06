@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const CanvasSession = require('~/models/CanvasSession');
@@ -8,6 +10,346 @@ const {
 } = require('~/server/routes/sgsst/reportHeader');
 const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
 const { logger } = require('@librechat/data-schemas');
+
+const OUTPUT_MEDIA_DIR = path.join(process.cwd(), 'client', 'public', 'images');
+
+/**
+ * Clasifica una URL de recurso (/images/... o /api/notebooklm/download/...) en image, audio, video o document.
+ */
+function classifyMediaUrlKind(rawUrl = '') {
+  const lower = String(rawUrl || '').toLowerCase();
+  if (
+    lower.includes('_audio_') ||
+    lower.includes('_podcast_') ||
+    lower.includes('type=audio') ||
+    lower.includes('type=podcast') ||
+    /\.(mp3|wav|m4a|ogg)(?:$|\?)/i.test(lower)
+  ) {
+    return 'audio';
+  }
+  if (
+    lower.includes('_vid_') ||
+    lower.includes('_video_') ||
+    lower.includes('type=video') ||
+    lower.includes('type=cinematic_video') ||
+    /\.(mp4|webm|mov)(?:$|\?)/i.test(lower)
+  ) {
+    return 'video';
+  }
+  if (
+    lower.includes('_quiz_') ||
+    lower.includes('_flashcards_') ||
+    lower.includes('_mindmap_') ||
+    lower.includes('_table_') ||
+    lower.includes('_slides_') ||
+    lower.includes('_report_') ||
+    lower.includes('type=quiz') ||
+    lower.includes('type=flashcards') ||
+    lower.includes('type=mind_map') ||
+    lower.includes('type=data_table') ||
+    lower.includes('type=slide_deck') ||
+    lower.includes('type=report') ||
+    /\.(pdf|pptx|csv|md|markdown|json|docx|xlsx)(?:$|\?)/i.test(lower)
+  ) {
+    return 'document';
+  }
+  return 'image';
+}
+
+/**
+ * Construye el bloque HTML enriquecido para una imagen/infografía, podcast/audio, video o documento/examen.
+ */
+function buildRichMediaHtmlBlock(rawUrl, rawAlt = '', forcedKind = '') {
+  let cleanUrl = String(rawUrl || '').trim();
+  cleanUrl = cleanUrl.replace(/^https?:\/\/(?:app\.)?wappy\.club(?=\/(?:images|api\/notebooklm\/download)\/)/i, '');
+
+  // Si es un enlace /api/notebooklm/download/:nbId/:artId, verificar si ya existe su copia local en /images/nlm_*
+  const dlMatch = cleanUrl.match(/\/api\/notebooklm\/download\/([^/?#]+)\/([^/?#]+)(?:\?([^#]*))?/i);
+  if (dlMatch) {
+    const artId = dlMatch[2].replace(/[^a-zA-Z0-9_-]/g, '');
+    const qs = new URLSearchParams(dlMatch[3] || '');
+    const qType = (qs.get('type') || '').toLowerCase();
+    try {
+      const candidates = [
+        `nlm_infographic_${artId}.png`,
+        `nlm_video_${artId}.mp4`,
+        `nlm_audio_${artId}.mp4`,
+        `nlm_audio_${artId}.mp3`,
+        `nlm_slides_${artId}.pdf`,
+        `nlm_slides_${artId}.pptx`,
+        `nlm_quiz_${artId}.md`,
+        `nlm_flashcards_${artId}.md`,
+        `nlm_mindmap_${artId}.json`,
+        `nlm_table_${artId}.csv`,
+        `nlm_report_${artId}.md`,
+      ];
+      for (const cand of candidates) {
+        const p = path.join(OUTPUT_MEDIA_DIR, cand);
+        if (fs.existsSync(p) && fs.statSync(p).size > 32) {
+          cleanUrl = `/images/${cand}`;
+          break;
+        }
+      }
+    } catch (_) {}
+    if (cleanUrl.startsWith('/api/notebooklm/download/') && qType && !forcedKind) {
+      forcedKind = classifyMediaUrlKind(`?type=${qType}`);
+    }
+  }
+
+  const kind = forcedKind || classifyMediaUrlKind(cleanUrl);
+  const safeAlt = String(rawAlt || '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/"/g, '&quot;')
+    .trim();
+
+  if (kind === 'audio') {
+    const label = safeAlt || 'Podcast / Audio Explicativo';
+    return `<div style="margin:22px 0;padding:18px 22px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:14px;box-shadow:0 4px 14px rgba(13,148,136,0.08);"><div style="font-weight:700;color:#0f766e;font-size:14px;margin-bottom:10px;">🎙️ ${label}</div><audio controls preload="metadata" src="${cleanUrl}" style="width:100%;display:block;"></audio><div style="margin-top:10px;font-size:12px;"><a href="${cleanUrl}" download target="_blank" rel="noopener noreferrer" style="color:#0d9488;font-weight:700;text-decoration:underline;">⬇ Descargar Audio / Podcast</a></div></div>`;
+  }
+
+  if (kind === 'video') {
+    const label = safeAlt || 'Video Explicativo';
+    return `<figure style="margin:24px 0;text-align:center;background:#0f172a;padding:18px;border-radius:14px;border:1px solid #334155;box-shadow:0 8px 24px rgba(15,23,42,0.18);"><video controls playsinline preload="metadata" src="${cleanUrl}" style="max-width:100%;max-height:480px;border-radius:10px;background:#000;display:block;margin:0 auto;"></video><figcaption style="margin-top:10px;font-size:12px;color:#cbd5e1;font-weight:600;">🎬 ${label} · <a href="${cleanUrl}" download target="_blank" rel="noopener noreferrer" style="color:#2dd4bf;text-decoration:underline;">⬇ Descargar Video MP4</a></figcaption></figure>`;
+  }
+
+  if (kind === 'document') {
+    const label = safeAlt || 'Recurso / Documento Descargable';
+    return `<div style="margin:18px 0;padding:16px 20px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #0d9488;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div style="font-weight:700;color:#0f172a;font-size:13px;">📄 ${label}</div><a href="${cleanUrl}" download target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 14px;background:#0d9488;color:#ffffff;font-weight:700;font-size:12px;border-radius:8px;text-decoration:none;">⬇ Descargar Recurso</a></div>`;
+  }
+
+  const label = safeAlt || 'Infografía / Recurso Visual Oficial';
+  return `<figure style="margin:24px 0;text-align:center;background:#f8fafc;padding:16px;border-radius:14px;border:1px solid #e2e8f0;"><img src="${cleanUrl}" alt="${label}" style="max-width:100%;height:auto;border-radius:10px;box-shadow:0 4px 20px rgba(15,23,42,0.08);display:block;margin:0 auto;" /><figcaption style="margin-top:10px;font-size:12px;color:#475569;font-style:italic;font-weight:600;">${label}</figcaption></figure>`;
+}
+
+/**
+ * Convierte cualquier sintaxis Markdown residual de imágenes/multimedia (![alt](url) o [label](/images/...))
+ * en bloques HTML5 ricos (<figure><img/></figure>, <video controls>, <audio controls>, tarjetas de recursos)
+ * y repara asteriscos desbalanceados (ej. * **Título:** ... *palabra* -> <li><strong>Título:</strong> ... <em>palabra</em></li>).
+ */
+function convertMarkdownMediaToRichHtml(html) {
+  if (!html || typeof html !== 'string') return html;
+  let out = html;
+
+  // 1. Reemplazar <p>![alt](url)</p> o ![alt](url)
+  out = out.replace(
+    /<p>\s*!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)\s*<\/p>/gi,
+    (_, alt, url) => buildRichMediaHtmlBlock(url, alt),
+  );
+  out = out.replace(
+    /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g,
+    (_, alt, url) => buildRichMediaHtmlBlock(url, alt),
+  );
+
+  // 2. Reemplazar enlaces Markdown [label](url) hacia /images/(flow_|nlm_|antigravity_|ag_|sst_) o /api/notebooklm/download/
+  out = out.replace(
+    /(?<![!">'=])\[([^\]]+)\]\(((?:https?:\/\/(?:app\.)?wappy\.club)?\/(?:images\/(?:flow_|nlm_|antigravity_|ag_|sst_)[^)\s]+|api\/notebooklm\/download\/[^)\s]+))\)/gi,
+    (_, label, url) => buildRichMediaHtmlBlock(url, label),
+  );
+
+  // 3. Reparar párrafos donde una viñeta '* ' colisionó con '*palabra*' (ej. <p><em> <strong>Demandas:</strong> ... incrementa las </em>demandas emocionales* y el ritmo.</p>)
+  out = out.replace(
+    /<p>\s*<em>\s*(<strong>[^<]+<\/strong>[\s\S]*?)<\/em>([^<*]+)\*([\s\S]*?)<\/p>/gi,
+    (_, beforeEm, italicWord, afterWord) =>
+      `<ul><li>${beforeEm}<em>${italicWord.trim()}</em>${afterWord}</li></ul>`,
+  );
+
+  // 4. Limpiar asteriscos huérfanos pegados a etiquetas o palabras (ej. **texto* o palabra* al cerrar frase)
+  out = out
+    .replace(/\*\*([^*\n<]+)\*(?!\*)/g, '<strong>$1</strong>')
+    .replace(/(?<!\*)\*([^*\n<]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/<\/strong>\*/g, '</strong>')
+    .replace(/<\/em>\*/g, '</em>');
+
+  return out;
+}
+
+/**
+ * Construye el contexto enriquecido de la Biblioteca Multimedia (Google Flow, NotebookLM y Google Antigravity)
+ * e incluye las partes multimodales (inlineData base64 para imágenes/infografías) y extractos de texto
+ * (para exámenes/quizzes, flashcards, mapas mentales, tablas CSV e informes) para que gemini-3.6-flash
+ * lea e interprete el contenido real de cada recurso.
+ */
+async function buildMultimodalMediaContext(req, userId, stringContent = '', userPrompt = '', toolsContext = '', mode = 'text') {
+  const inlineParts = [];
+  let mediaLibraryContext = '';
+
+  try {
+    const { listDownloadedMediaLibrary } = require('~/server/routes/googleflow');
+    let mediaItems = await listDownloadedMediaLibrary('all');
+    if (!Array.isArray(mediaItems)) mediaItems = [];
+
+    const combinedText = `${userPrompt || ''}\n${stringContent || ''}\n${toolsContext || ''}`;
+
+    // Si en el turno o texto hay enlaces /api/notebooklm/download/:nbId/:artId aún no cacheados en /images/, pre-descargarlos ahora
+    const dlRegex = /\/api\/notebooklm\/download\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)(?:\?([^\s)"']*))?/gi;
+    let dlMatch;
+    const seenArtIds = new Set();
+    while ((dlMatch = dlRegex.exec(combinedText)) !== null) {
+      const nbId = dlMatch[1];
+      const artId = dlMatch[2];
+      const qs = new URLSearchParams(dlMatch[3] || '');
+      const artType = qs.get('type') || 'infographic';
+      if (artId && !seenArtIds.has(artId)) {
+        seenArtIds.add(artId);
+        const alreadyInList = mediaItems.some((m) => m.filename && m.filename.includes(artId));
+        if (!alreadyInList) {
+          try {
+            const notebooklmUrl = process.env.NOTEBOOKLM_MCP_URL || 'http://notebooklm-mcp:8000';
+            const dlQs = new URLSearchParams({ notebook_id: nbId, artifact_id: artId, type: artType });
+            if (userId) dlQs.set('user_id', String(userId));
+            const bgRes = await fetch(`${notebooklmUrl}/api/download-artifact?${dlQs.toString()}`, {
+              headers: userId ? { 'x-user-id': String(userId) } : {},
+            });
+            if (bgRes.ok && bgRes.status === 200) {
+              const ab = await bgRes.arrayBuffer();
+              if (ab.byteLength > 32) {
+                const extMap = {
+                  infographic: '.png',
+                  video: '.mp4',
+                  audio: '.mp4',
+                  podcast: '.mp4',
+                  slide_deck: '.pdf',
+                  slides: '.pdf',
+                  quiz: '.md',
+                  flashcards: '.md',
+                  mind_map: '.json',
+                  data_table: '.csv',
+                  report: '.md',
+                };
+                const prefixMap = {
+                  infographic: 'nlm_infographic',
+                  video: 'nlm_video',
+                  audio: 'nlm_audio',
+                  podcast: 'nlm_audio',
+                  slide_deck: 'nlm_slides',
+                  slides: 'nlm_slides',
+                  quiz: 'nlm_quiz',
+                  flashcards: 'nlm_flashcards',
+                  mind_map: 'nlm_mindmap',
+                  data_table: 'nlm_table',
+                  report: 'nlm_report',
+                };
+                const ext = extMap[artType] || '.png';
+                const prefix = prefixMap[artType] || 'nlm_doc';
+                const fname = `${prefix}_${artId}${ext}`;
+                await fs.promises.mkdir(OUTPUT_MEDIA_DIR, { recursive: true });
+                await fs.promises.writeFile(path.join(OUTPUT_MEDIA_DIR, fname), Buffer.from(ab));
+                mediaItems = await listDownloadedMediaLibrary('all');
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (mediaItems.length === 0) {
+      return { mediaLibraryContext: '', inlineParts: [], mediaItems: [] };
+    }
+
+    const lowerCombined = combinedText.toLowerCase();
+    const mentionsMediaIntent =
+      /infograf[ií]a|imagen|foto|gr[aá]fico|diagrama|video|reel|podcast|audio|examen|cuestionario|quiz|flashcard|mapa mental|mind\s*map|tabla|diapositiva|presentaci[oó]n|notebooklm|flow|antigravity|\/images\/|\/api\/notebooklm\/download\//i.test(
+        combinedText,
+      );
+
+    // Identificar cuáles recursos están explícitamente referenciados o son muy recientes (< 45 min)
+    const nowMs = Date.now();
+    const scoredItems = mediaItems.map((item) => {
+      const fnameLower = item.filename.toLowerCase();
+      const urlLower = item.publicUrl.toLowerCase();
+      const artIdMatch = fnameLower.match(/(?:nlm_[a-z]+_|flow_[a-z]+_|antigravity_)([a-z0-9-]+)/i);
+      const itemArtId = artIdMatch ? artIdMatch[1] : '';
+      const explicitlyReferenced =
+        lowerCombined.includes(fnameLower) ||
+        lowerCombined.includes(urlLower) ||
+        (itemArtId && itemArtId.length > 6 && lowerCombined.includes(itemArtId));
+      const ageMinutes = (nowMs - new Date(item.createdAt).getTime()) / (60 * 1000);
+      const isVeryRecent = ageMinutes <= 45;
+      let score = 0;
+      if (explicitlyReferenced) score += 100;
+      if (isVeryRecent && mentionsMediaIntent) score += 40;
+      else if (ageMinutes <= 180 && mentionsMediaIntent) score += 15;
+      return { ...item, explicitlyReferenced, isVeryRecent, score };
+    });
+
+    // Adjuntar hasta 2 imágenes/infografías relevantes como Multimodal inlineData para que gemini-3.6-flash las VEA y ANALICE
+    const candidateImages = scoredItems
+      .filter((m) => m.mediaType === 'image' && (m.score >= 15 || m.explicitlyReferenced))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+
+    const attachedImageLabels = [];
+    for (const imgItem of candidateImages) {
+      try {
+        const imgPath = imgItem.fullPath || path.join(OUTPUT_MEDIA_DIR, imgItem.filename);
+        const stat = await fs.promises.stat(imgPath);
+        if (stat.isFile() && stat.size > 64 && stat.size <= 12 * 1024 * 1024) {
+          const buf = await fs.promises.readFile(imgPath);
+          const ext = path.extname(imgItem.filename).toLowerCase();
+          const mimeType =
+            ext === '.png'
+              ? 'image/png'
+              : ext === '.webp'
+              ? 'image/webp'
+              : ext === '.gif'
+              ? 'image/gif'
+              : 'image/jpeg';
+          inlineParts.push({
+            inlineData: {
+              data: buf.toString('base64'),
+              mimeType,
+            },
+          });
+          attachedImageLabels.push(`"${imgItem.label}" (${imgItem.publicUrl})`);
+        }
+      } catch (_) {}
+    }
+
+    // Extraer contenido textual de exámenes/quizzes, flashcards, mapas mentales, tablas CSV e informes recientes/referenciados
+    const candidateDocs = scoredItems
+      .filter((m) => m.textPreview && (m.score >= 15 || m.explicitlyReferenced || m.isVeryRecent))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+
+    const topMediaList = mediaItems.slice(0, 14).map((m, idx) => {
+      const tagHint =
+        mode === 'presentation'
+          ? `imageUrl: "${m.publicUrl}"`
+          : m.mediaType === 'image'
+          ? `Markdown: ![${m.label}](${m.publicUrl}) o HTML: <img src="${m.publicUrl}" alt="${m.label}" />`
+          : m.mediaType === 'video'
+          ? `HTML: <video controls src="${m.publicUrl}" style="max-width:100%;border-radius:12px;"></video>`
+          : m.mediaType === 'audio'
+          ? `HTML: <audio controls src="${m.publicUrl}" style="width:100%;"></audio>`
+          : `Enlace: [${m.label}](${m.publicUrl})`;
+      return `- [${idx + 1}] (${m.source.toUpperCase()} - ${m.artifactKind || m.mediaType}): "${m.label}" -> Ruta local: ${m.publicUrl} (${tagHint})`;
+    });
+
+    mediaLibraryContext = `\n## 📚 BIBLIOTECA DE RECURSOS DESCARGADOS EN SERVIDOR WAPPY (GOOGLE FLOW, NOTEBOOKLM & ANTIGRAVITY - RETENCIÓN 30 DÍAS):\n`;
+    mediaLibraryContext += `Si el usuario solicitó incluir o explicar infografías, imágenes, podcasts/audios, videos, exámenes/cuestionarios, mapas mentales, tablas o presentaciones generadas en Google NotebookLM, Google Flow o Google Antigravity, DEBES incrustar el recurso usando su ruta local exacta (\`/images/...\`) y explicar su contenido real:\n`;
+    mediaLibraryContext += `${topMediaList.join('\n')}\n`;
+
+    if (attachedImageLabels.length > 0) {
+      mediaLibraryContext += `\n### 👁️ INSPECCIÓN VISUAL MULTIMODAL ACTIVA (IMÁGENES / INFOGRAFÍAS ADJUNTAS):\n`;
+      mediaLibraryContext += `Se han adjuntado visualmente a esta petición las imágenes reales: ${attachedImageLabels.join(', ')}.\n`;
+      mediaLibraryContext += `INSTRUCCIÓN OBLIGATORIA: Inspecciona visualmente la infografía/imagen adjunta, lee todos sus títulos, bloques, porcentajes, diagramas, rutas e indicadores reales, e: \n`;
+      mediaLibraryContext += `1) Incrústala en el documento usando exactamente su ruta local (ej. \`![${candidateImages[0].label}](${candidateImages[0].publicUrl})\`).\n`;
+      mediaLibraryContext += `2) Desarrolla un análisis técnico detallado explicando punto por punto las secciones, hallazgos y datos exactos que se ven dentro de la infografía/imagen (PROHIBIDO redactar explicaciones genéricas sin leer los textos reales de la imagen).\n`;
+    }
+
+    if (candidateDocs.length > 0) {
+      mediaLibraryContext += `\n### 📋 CONTENIDO REAL DE EXÁMENES / QUIZZES, FLASHCARDS, MAPAS MENTALES Y TABLAS DESCARGADAS:\n`;
+      mediaLibraryContext += `Usa e integra fielmente las preguntas, respuestas, nodos o datos reales de estos recursos generados:\n`;
+      for (const docItem of candidateDocs) {
+        mediaLibraryContext += `\n#### 📄 ${docItem.label} (${docItem.publicUrl}):\n\`\`\`\n${docItem.textPreview}\n\`\`\`\n`;
+      }
+    }
+  } catch (err) {
+    logger.debug('[CanvasTool buildMultimodalMediaContext] Aviso:', err.message);
+  }
+
+  return { mediaLibraryContext, inlineParts };
+}
 
 function hasHeader(html) {
   if (!html || typeof html !== 'string') return false;
@@ -126,6 +468,8 @@ async function processTextDocument(content, fileType, title, userId, existingCon
   let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
   if (!stringContent) return stringContent;
 
+  stringContent = convertMarkdownMediaToRichHtml(stringContent);
+
   const currentHasHeader = hasHeader(stringContent);
   const currentHasSignature = hasSignature(stringContent);
   const hasPlaceholders = stringContent.includes('{{empresa_') || stringContent.includes('{{representante_');
@@ -164,7 +508,7 @@ async function processTextDocument(content, fileType, title, userId, existingCon
     }
   }
 
-  return stringContent;
+  return convertMarkdownMediaToRichHtml(stringContent);
 }
 
 /**
@@ -236,16 +580,15 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
     }
   }
 
-  // Cargar recursos multimedia recientes de Google Flow y Google NotebookLM (retención 30 días en /images/)
-  let mediaLibraryContext = '';
-  try {
-    const { listDownloadedMediaLibrary } = require('~/server/routes/googleflow');
-    const mediaItems = await listDownloadedMediaLibrary('all');
-    if (Array.isArray(mediaItems) && mediaItems.length > 0) {
-      const topMedia = mediaItems.slice(0, 12).map((m, idx) => `- [${idx + 1}] (${m.source.toUpperCase()} - ${m.mediaType}): "${m.label}" -> URL: ${m.publicUrl}`);
-      mediaLibraryContext = `\n## RECURSOS MULTIMEDIA DESCARGADOS EN SERVIDOR WAPPY (GOOGLE FLOW & NOTEBOOKLM - 30 DÍAS):\nSi el usuario pidió incluir imágenes, videos, infografías o podcasts de Google Flow o NotebookLM, usa exactamente estas rutas locales en etiquetas <img>, <video controls> o <audio controls>:\n${topMedia.join('\n')}\n`;
-    }
-  } catch (_) {}
+  // Cargar recursos multimedia y artefactos recientes (Google Flow, NotebookLM y Google Antigravity) con inspección multimodal
+  const { mediaLibraryContext, inlineParts } = await buildMultimodalMediaContext(
+    req,
+    userId,
+    stringContent,
+    userPrompt,
+    toolsContext,
+    'html',
+  );
 
   const companyName = companyInfo?.companyName || 'WAPPY LTDA';
   const companyNit = companyInfo?.nit || '9014373103';
@@ -381,7 +724,8 @@ RESPUESTA ESTRICTA: Responde ÚNICAMENTE con el documento HTML5 completo (empeza
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
     logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.6-flash (Diseño WAPPY Premium)...');
-    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, prompt);
+    const htmlPayload = inlineParts.length > 0 ? [{ text: prompt }, ...inlineParts] : prompt;
+    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, htmlPayload);
     const response = await result?.response;
     let generatedHtml = response?.text ? response.text() : '';
 
@@ -608,28 +952,7 @@ async function processTextReportDocument(content, fileType, title, userId, req, 
 
   let stringContent = typeof content === 'string' ? content.trim() : (content ? String(content) : '');
 
-  // Conteo de tablas (Markdown o HTML)
-  const markdownTableCount = (stringContent.match(/\|[\s-:]+\|/g) || []).length;
-  const htmlTableCount = (stringContent.match(/<table[\s>]/gi) || []).length;
-  const totalTables = markdownTableCount + htmlTableCount;
-
-  // Si ya es un documento exhaustivo (más de 3500 caracteres y al menos 2 tablas técnicas), preservarlo
-  const isAlreadyComprehensiveReport = stringContent.length >= 3500 && totalTables >= 2;
-  if (isAlreadyComprehensiveReport) {
-    return stringContent;
-  }
-
-  // Cargar información corporativa de la empresa
-  let companyInfo = null;
-  try {
-    companyInfo =
-      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
-      (await CompanyInfo.findOne({ user: userId }));
-  } catch (err) {
-    logger.warn('[CanvasTool Camino B - Text] Error cargando CompanyInfo:', err.message);
-  }
-
-  // Extraer requerimiento del usuario y contexto
+  // Extraer requerimiento del usuario y contexto antes de evaluar si requiere enriquecimiento multimodal
   const userPrompt =
     req?.body?.text ||
     req?.body?.userRequestText ||
@@ -652,16 +975,39 @@ async function processTextReportDocument(content, fileType, title, userId, req, 
     }
   }
 
-  // Cargar recursos multimedia recientes de Google Flow y Google NotebookLM (retención 30 días en /images/)
-  let mediaLibraryContext = '';
+  // Cargar recursos multimedia y artefactos recientes (Google Flow, NotebookLM y Google Antigravity) con inspección multimodal
+  const { mediaLibraryContext, inlineParts } = await buildMultimodalMediaContext(
+    req,
+    userId,
+    stringContent,
+    userPrompt,
+    toolsContext,
+    'text',
+  );
+
+  // Conteo de tablas (Markdown o HTML)
+  const markdownTableCount = (stringContent.match(/\|[\s-:]+\|/g) || []).length;
+  const htmlTableCount = (stringContent.match(/<table[\s>]/gi) || []).length;
+  const totalTables = markdownTableCount + htmlTableCount;
+
+  // Si ya es un documento exhaustivo (>= 3500 caracteres y >= 2 tablas) Y no requiere inspección multimodal de una infografía/imagen adjunta, preservarlo
+  const isAlreadyComprehensiveReport =
+    stringContent.length >= 3500 &&
+    totalTables >= 2 &&
+    inlineParts.length === 0;
+  if (isAlreadyComprehensiveReport) {
+    return convertMarkdownMediaToRichHtml(stringContent);
+  }
+
+  // Cargar información corporativa de la empresa
+  let companyInfo = null;
   try {
-    const { listDownloadedMediaLibrary } = require('~/server/routes/googleflow');
-    const mediaItems = await listDownloadedMediaLibrary('all');
-    if (Array.isArray(mediaItems) && mediaItems.length > 0) {
-      const topMedia = mediaItems.slice(0, 12).map((m, idx) => `- [${idx + 1}] (${m.source.toUpperCase()} - ${m.mediaType}): "${m.label}" -> URL: ${m.publicUrl}`);
-      mediaLibraryContext = `\n## RECURSOS MULTIMEDIA DESCARGADOS EN SERVIDOR WAPPY (GOOGLE FLOW & NOTEBOOKLM - 30 DÍAS):\nSi el usuario pidió incluir alguna imagen, infografía o recurso descargado de Google Flow o NotebookLM en este documento, incrústalo en Markdown usando exactamente su ruta local (ej. ![${mediaItems[0].label}](${mediaItems[0].publicUrl})):\n${topMedia.join('\n')}\n`;
-    }
-  } catch (_) {}
+    companyInfo =
+      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+      (await CompanyInfo.findOne({ user: userId }));
+  } catch (err) {
+    logger.warn('[CanvasTool Camino B - Text] Error cargando CompanyInfo:', err.message);
+  }
 
   const companyContext = companyInfo
     ? `Empresa: ${companyInfo.companyName || 'Empresa Activa'}\nNIT: ${companyInfo.nit || 'Sin NIT'}\nActividad Económica: ${companyInfo.economicActivity || companyInfo.sector || 'General'}\nSector: ${companyInfo.sector || 'General'}\nClase de Riesgo ARL: ${companyInfo.riskLevel || 'Riesgo III'}\nNúmero de Colaboradores: ${companyInfo.workerCount || companyInfo.numWorkers || companyInfo.employeeCount || 'No especificado'}\nCiudad / Sede: ${companyInfo.city || companyInfo.address || 'Colombia'}\nDirección: ${companyInfo.address || 'Colombia'}\nRepresentante Legal: ${companyInfo.legalRepresentative || 'Representante Legal'}\nResponsable SG-SST: ${companyInfo.responsibleSST || companyInfo.sstResponsible || 'Especialista SST'}\nLicencia SST: ${companyInfo.licenseNumber || 'Sin Licencia'} (Vence: ${companyInfo.licenseExpiry || 'N/A'})\nTeléfono Responsable SST: ${companyInfo.responsibleSSTPhone || companyInfo.phone || 'N/A'}`
@@ -708,10 +1054,11 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+    const reportPayload = inlineParts.length > 0 ? [{ text: prompt }, ...inlineParts] : prompt;
     const result = await generateWithKeyRotation(
       { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
       userId,
-      prompt,
+      reportPayload,
       { generationConfig: { maxOutputTokens: 65536 } }
     );
     const response = await result?.response;
@@ -726,15 +1073,15 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
 
     if (generatedReport && generatedReport.length > 500) {
       logger.info(
-        `[CanvasTool Camino B - Text] Informe enriquecido exitosamente por gemini-3.6-flash (${generatedReport.length} caracteres).`,
+        `[CanvasTool Camino B - Text] Informe enriquecido exitosamente por gemini-3.6-flash (${generatedReport.length} caracteres, inlineParts=${inlineParts.length}).`,
       );
-      return generatedReport;
+      return convertMarkdownMediaToRichHtml(generatedReport);
     }
   } catch (err) {
     logger.error('[CanvasTool Camino B - Text] Error delegando redacción a gemini-3.6-flash, preservando contenido original:', err);
   }
 
-  return stringContent;
+  return convertMarkdownMediaToRichHtml(stringContent);
 }
 
 /**
@@ -992,17 +1339,14 @@ async function processPresentationDocument(content, fileType, title, userId, req
     }
   }
 
-  let mediaLibraryContext = '';
-  try {
-    const { listDownloadedMediaLibrary } = require('~/server/routes/googleflow');
-    const mediaItems = await listDownloadedMediaLibrary('all');
-    if (Array.isArray(mediaItems) && mediaItems.length > 0) {
-      const topMedia = mediaItems
-        .slice(0, 8)
-        .map((m, idx) => `- [${idx + 1}] (${m.source.toUpperCase()} - ${m.mediaType}): "${m.label}" -> imageUrl: "${m.publicUrl}"`);
-      mediaLibraryContext = `\n## RECURSOS MULTIMEDIA DISPONIBLES EN SERVIDOR WAPPY:\nSi aplica incluir imágenes generadas o descargadas en alguna diapositiva, usa su ruta en el campo "imageUrl":\n${topMedia.join('\n')}\n`;
-    }
-  } catch (_) {}
+  const { mediaLibraryContext, inlineParts } = await buildMultimodalMediaContext(
+    req,
+    userId,
+    typeof content === 'string' ? content : JSON.stringify(content || ''),
+    userPrompt,
+    toolsContext,
+    'presentation',
+  );
 
   const companyContext = companyInfo
     ? `Empresa: ${companyInfo.companyName || 'WAPPY LTDA'} | NIT: ${companyInfo.nit || '9014373103'} | Sector/Actividad: ${companyInfo.economicActivity || companyInfo.sector || 'General'} | ARL: ${companyInfo.arl || 'Sura'} | Nivel de Riesgo: ${companyInfo.riskLevel || 'III'} | Trabajadores: ${companyInfo.workerCount || companyInfo.numWorkers || '17'} | Ciudad: ${companyInfo.city || 'Colombia'} | Responsable SG-SST: ${companyInfo.responsibleSST || 'Especialista SST'}`
@@ -1054,10 +1398,11 @@ RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON válido \`[ { ... }, { 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
     logger.info('[CanvasTool Camino B - Presentation] Delegando síntesis de presentación ejecutiva a gemini-3.6-flash...');
+    const presentationPayload = inlineParts.length > 0 ? [{ text: prompt }, ...inlineParts] : prompt;
     const result = await generateWithKeyRotation(
       { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
       userId,
-      prompt,
+      presentationPayload,
       { generationConfig: { maxOutputTokens: 65536 } },
     );
     const response = await result?.response;
@@ -2294,11 +2639,22 @@ ${existing}
 
 Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdown ni explicaciones.`;
 
+  const { mediaLibraryContext, inlineParts } = await buildMultimodalMediaContext(
+    null,
+    userId,
+    existing,
+    userRequest,
+    '',
+    session.fileType,
+  );
+  const fullModPrompt = mediaLibraryContext ? `${prompt}\n\n${mediaLibraryContext}` : prompt;
+
   const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+  const modPayload = inlineParts.length > 0 ? [{ text: fullModPrompt }, ...inlineParts] : fullModPrompt;
   const result = await generateWithKeyRotation(
     { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
     userId,
-    prompt,
+    modPayload,
   );
   const response = await result?.response;
   let updated = response?.text ? response.text() : '';
@@ -2310,6 +2666,8 @@ Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdo
 
   if (session.fileType === 'html') {
     updated = injectStandaloneCssIfMissing(updated);
+  } else if (session.fileType === 'text') {
+    updated = convertMarkdownMediaToRichHtml(updated);
   }
 
   const maxHistoryVersion = (session.history || []).reduce((m, i) => Math.max(m, i.version || 0), 0);
@@ -2334,5 +2692,6 @@ CanvasTool.normalizeSlideItem = normalizeSlideItem;
 CanvasTool.syncCanvasToLiveEditor = syncCanvasToLiveEditor;
 CanvasTool.applyCanvasModification = applyCanvasModification;
 CanvasTool.injectStandaloneCssIfMissing = injectStandaloneCssIfMissing;
+CanvasTool.convertMarkdownMediaToRichHtml = convertMarkdownMediaToRichHtml;
 
 module.exports = CanvasTool;

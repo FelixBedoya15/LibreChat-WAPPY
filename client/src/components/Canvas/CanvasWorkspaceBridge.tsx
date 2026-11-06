@@ -20,8 +20,10 @@ import { useAuthContext } from '~/hooks/AuthContext';
 export interface MediaLibraryItem {
   filename: string;
   publicUrl: string;
-  source: 'flow' | 'notebooklm';
+  source: 'flow' | 'notebooklm' | 'antigravity';
   mediaType: 'image' | 'video' | 'audio' | 'document';
+  artifactKind?: string;
+  textPreview?: string;
   label: string;
   sizeBytes: number;
   createdAt: string;
@@ -66,10 +68,10 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
   // Tab control
   const [activeTab, setActiveTab] = useState<'excel' | 'text' | 'media'>(initialTab);
   
-  // Media Library States (Flow & NotebookLM 30 days)
+  // Media Library States (Flow, NotebookLM & Antigravity 30 days)
   const [mediaItems, setMediaItems] = useState<MediaLibraryItem[]>([]);
   const [isLoadingMedia, setIsLoadingMedia] = useState<boolean>(false);
-  const [mediaFilter, setMediaFilter] = useState<'all' | 'flow' | 'notebooklm'>('all');
+  const [mediaFilter, setMediaFilter] = useState<'all' | 'flow' | 'notebooklm' | 'antigravity'>('all');
   
   // Selected Document States
   const [selectedDocId, setSelectedDocId] = useState<string>('');
@@ -122,11 +124,16 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
   const triggerInsertMediaItem = (item: MediaLibraryItem) => {
     let htmlBlock = '';
     if (item.mediaType === 'video') {
-      htmlBlock = `<div style="margin:20px 0; text-align:center; background:#090d16; padding:14px; border-radius:16px; border:1px solid rgba(168,85,247,0.3);"><video src="${item.publicUrl}" controls playsinline loop style="width:100%; max-height:460px; border-radius:12px; background:#000;"></video><p style="margin:8px 0 0; font-size:11px; color:#cbd5e1; font-weight:600;">🎬 ${item.label} (${item.filename})</p></div>`;
+      htmlBlock = `<figure style="margin:24px 0; text-align:center; background:#090d16; padding:16px; border-radius:16px; border:1px solid rgba(168,85,247,0.3);"><video src="${item.publicUrl}" controls playsinline preload="metadata" style="width:100%; max-height:460px; border-radius:12px; background:#000;"></video><figcaption style="margin:8px 0 0; font-size:11px; color:#cbd5e1; font-weight:600;">🎬 ${item.label} · <a href="${item.publicUrl}" download target="_blank" rel="noopener noreferrer" style="color:#2dd4bf; text-decoration:underline;">Descargar MP4</a></figcaption></figure>`;
     } else if (item.mediaType === 'audio') {
-      htmlBlock = `<div style="margin:18px 0; padding:14px; border-radius:14px; background:#0f172a; border:1px solid rgba(20,184,166,0.35);"><p style="margin:0 0 8px; font-size:12px; color:#5eead4; font-weight:700;">🎙️ ${item.label}</p><audio src="${item.publicUrl}" controls style="width:100%;"></audio></div>`;
+      htmlBlock = `<div style="margin:20px 0; padding:16px 20px; border-radius:14px; background:#f0fdfa; border:1px solid #99f6e4;"><div style="margin:0 0 8px; font-size:13px; color:#0f766e; font-weight:700;">🎙️ ${item.label}</div><audio src="${item.publicUrl}" controls preload="metadata" style="width:100%; display:block;"></audio><div style="margin-top:8px; font-size:11px;"><a href="${item.publicUrl}" download target="_blank" rel="noopener noreferrer" style="color:#0d9488; font-weight:700; text-decoration:underline;">⬇ Descargar Audio / Podcast</a></div></div>`;
+    } else if (item.mediaType === 'document') {
+      const previewHtml = item.textPreview
+        ? `<pre style="margin:12px 0 0; padding:12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; font-size:12px; color:#1e293b; white-space:pre-wrap; max-height:360px; overflow-y:auto;">${item.textPreview.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
+        : '';
+      htmlBlock = `<div style="margin:20px 0; padding:16px 20px; background:#f8fafc; border:1px solid #cbd5e1; border-left:4px solid #0d9488; border-radius:12px;"><div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;"><strong style="color:#0f172a; font-size:13px;">📄 ${item.label}</strong><a href="${item.publicUrl}" download target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:6px 12px; background:#0d9488; color:#ffffff; font-weight:700; font-size:11px; border-radius:8px; text-decoration:none;">⬇ Descargar Recurso</a></div>${previewHtml}</div>`;
     } else {
-      htmlBlock = `<div style="margin:20px 0; text-align:center;"><img src="${item.publicUrl}" alt="${item.label}" style="max-width:100%; height:auto; border-radius:14px; box-shadow:0 8px 25px rgba(0,0,0,0.12); border:1px solid rgba(148,163,184,0.25);" /><p style="margin:6px 0 0; font-size:11px; color:#64748b; font-style:italic;">✨ ${item.label}</p></div>`;
+      htmlBlock = `<figure style="margin:24px 0; text-align:center; background:#f8fafc; padding:16px; border-radius:14px; border:1px solid #e2e8f0;"><img src="${item.publicUrl}" alt="${item.label}" style="max-width:100%; height:auto; border-radius:10px; box-shadow:0 4px 20px rgba(15,23,42,0.08); display:block; margin:0 auto;" /><figcaption style="margin:10px 0 0; font-size:12px; color:#475569; font-style:italic; font-weight:600;">✨ ${item.label}</figcaption></figure>`;
     }
 
     if (onImportMedia) {
@@ -463,17 +470,17 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
           <div className="space-y-3.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg p-1 flex-1">
-                {(['all', 'flow', 'notebooklm'] as const).map((f) => (
+                {(['all', 'flow', 'notebooklm', 'antigravity'] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setMediaFilter(f)}
-                    className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold transition-all ${
+                    className={`flex-1 py-1 px-1.5 rounded-md text-[9.5px] font-bold transition-all ${
                       mediaFilter === f
                         ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {f === 'all' ? 'Todos' : f === 'flow' ? 'Google Flow' : 'NotebookLM'}
+                    {f === 'all' ? 'Todos' : f === 'flow' ? 'Flow' : f === 'notebooklm' ? 'NotebookLM' : 'Antigravity'}
                   </button>
                 ))}
               </div>
@@ -555,11 +562,27 @@ const CanvasWorkspaceBridge: React.FC<CanvasWorkspaceBridgeProps> = ({
                           <div className="p-3 bg-slate-950 border-b border-slate-800/80">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-[10px] font-bold text-teal-300 flex items-center gap-1">
-                                <Music className="h-3.5 w-3.5" /> Podcast / Audio NotebookLM
+                                <Music className="h-3.5 w-3.5" /> {item.label}
                               </span>
                               <span className="text-[9px] text-emerald-400 font-bold">⏳ {item.daysRemaining}d</span>
                             </div>
                             <audio src={item.publicUrl} controls className="w-full h-8" />
+                          </div>
+                        )}
+
+                        {item.mediaType === 'document' && (
+                          <div className="p-3 bg-slate-950/90 border-b border-slate-800/80">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
+                                <FileText className="h-3.5 w-3.5" /> {item.label}
+                              </span>
+                              <span className="text-[9px] text-emerald-400 font-bold">⏳ {item.daysRemaining}d</span>
+                            </div>
+                            {item.textPreview && (
+                              <p className="text-[10px] text-slate-400 line-clamp-3 font-mono bg-slate-900/80 p-2 rounded border border-slate-800">
+                                {item.textPreview.slice(0, 180)}...
+                              </p>
+                            )}
                           </div>
                         )}
 
