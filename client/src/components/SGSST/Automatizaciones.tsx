@@ -50,6 +50,7 @@ import {
   buildPromptFromWorkflowNodes,
   type WorkflowNodesConfig,
 } from './workflowNodesCatalog';
+import N8nWorkflowCanvas, { renderOfficialNodeSvg } from './N8nWorkflowCanvas';
 
 interface ScheduleConfig {
   hour: number;
@@ -430,9 +431,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormSaveAsSystemPreset(false);
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memoryNode: 'wappy_memory_company',
+      includeIfNode: true,
       inputs: ['somos_sst_empresa'],
       hitos: ['hito1_diagnostico_0312'],
       outputs: ['email_report'],
+      canvasLayout: null,
     });
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
@@ -461,9 +467,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormSaveAsSystemPreset(true);
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memoryNode: 'wappy_memory_company',
+      includeIfNode: true,
       inputs: ['google_drive', 'somos_sst_empresa'],
       hitos: ['hito2_perfil_socio'],
       outputs: ['somos_sst_update', 'email_report'],
+      canvasLayout: null,
     });
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
@@ -503,9 +514,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormSaveAsSystemPreset(false);
     setFormWorkflowNodes({
       trigger: automation.workflowNodes?.trigger || 'schedule_cron',
+      aiEngine: automation.workflowNodes?.aiEngine || 'wappy',
+      aiModel: automation.workflowNodes?.aiModel || 'gemini-3.6-flash',
+      memoryNode: automation.workflowNodes?.memoryNode || 'wappy_memory_company',
+      includeIfNode: automation.workflowNodes?.includeIfNode !== false,
       inputs: Array.isArray(automation.workflowNodes?.inputs) ? automation.workflowNodes!.inputs : [],
       hitos: Array.isArray(automation.workflowNodes?.hitos) ? automation.workflowNodes!.hitos : [],
       outputs: Array.isArray(automation.workflowNodes?.outputs) ? automation.workflowNodes!.outputs : ['email_report'],
+      canvasLayout: automation.workflowNodes?.canvasLayout || null,
     });
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
@@ -547,9 +563,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormSaveAsSystemPreset(false);
     setFormWorkflowNodes({
       trigger: preset.workflowNodes?.trigger || 'schedule_cron',
+      aiEngine: preset.workflowNodes?.aiEngine || 'wappy',
+      aiModel: preset.workflowNodes?.aiModel || 'gemini-3.6-flash',
+      memoryNode: preset.workflowNodes?.memoryNode || 'wappy_memory_company',
+      includeIfNode: preset.workflowNodes?.includeIfNode !== false,
       inputs: Array.isArray(preset.workflowNodes?.inputs) ? [...preset.workflowNodes!.inputs] : [],
       hitos: Array.isArray(preset.workflowNodes?.hitos) ? [...preset.workflowNodes!.hitos] : [],
       outputs: Array.isArray(preset.workflowNodes?.outputs) ? [...preset.workflowNodes!.outputs] : ['email_report'],
+      canvasLayout: preset.workflowNodes?.canvasLayout || null,
     });
     setActiveNodeBuilderTab('inputs');
     setIsModalOpen(true);
@@ -861,85 +882,26 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   const renderWorkflowPipeline = (nodes?: WorkflowNodesConfig, agentLabel?: string) => {
-    const triggerDef = getNodeDefById(nodes?.trigger || 'schedule_cron') || TRIGGER_NODES[0];
-    const inputDefs = (nodes?.inputs || []).map((id) => getNodeDefById(id)).filter(Boolean);
-    const hitoDefs = (nodes?.hitos || []).map((id) => getNodeDefById(id)).filter(Boolean);
-    const outputDefs = (nodes?.outputs || []).map((id) => getNodeDefById(id)).filter(Boolean);
+    const safeNodes: WorkflowNodesConfig = {
+      trigger: nodes?.trigger || 'schedule_cron',
+      aiEngine: nodes?.aiEngine || 'wappy',
+      aiModel: nodes?.aiModel || 'gemini-3.6-flash',
+      memoryNode: nodes?.memoryNode || 'wappy_memory_company',
+      includeIfNode: nodes?.includeIfNode !== false,
+      inputs: Array.isArray(nodes?.inputs) ? nodes!.inputs : ['somos_sst_empresa'],
+      hitos: Array.isArray(nodes?.hitos) ? nodes!.hitos : [],
+      outputs: Array.isArray(nodes?.outputs) && nodes!.outputs.length > 0 ? nodes!.outputs : ['email_report'],
+      canvasLayout: nodes?.canvasLayout || null,
+    };
 
     return (
-      <div className="mb-3.5 p-3 rounded-xl bg-gray-50/90 dark:bg-gray-950/60 border border-purple-500/20">
-        <div className="flex items-center justify-between mb-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-            <Workflow className="w-3.5 h-3.5" /> Flujo de Conectores (Pipeline n8n)
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-          {/* Trigger Node */}
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold border ${triggerDef.badgeColor}`}>
-            <Zap className="w-3 h-3 shrink-0" />
-            {triggerDef.shortLabel}
-          </span>
-
-          <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
-
-          {/* Input Connectors */}
-          {inputDefs.length > 0 ? (
-            inputDefs.map((def) => (
-              <span
-                key={def!.id}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold border ${def!.badgeColor}`}
-                title={def!.label}
-              >
-                {def!.shortLabel}
-              </span>
-            ))
-          ) : (
-            <span className="px-2 py-0.5 rounded-md font-medium bg-gray-100 dark:bg-gray-800 text-gray-500">
-              Entrada Directa
-            </span>
-          )}
-
-          <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
-
-          {/* AI Agent Node */}
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-extrabold bg-purple-600 text-white shadow-sm">
-            <Bot className="w-3 h-3 shrink-0" />
-            {agentLabel || 'Agente IA'}
-          </span>
-
-          {/* Hitos / Apps */}
-          {hitoDefs.length > 0 && (
-            <>
-              <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
-              {hitoDefs.map((def) => (
-                <span
-                  key={def!.id}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold border ${def!.badgeColor}`}
-                  title={def!.label}
-                >
-                  <ShieldCheck className="w-3 h-3 shrink-0" />
-                  {def!.shortLabel}
-                </span>
-              ))}
-            </>
-          )}
-
-          {/* Outputs */}
-          {outputDefs.length > 0 && (
-            <>
-              <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
-              {outputDefs.map((def) => (
-                <span
-                  key={def!.id}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold border ${def!.badgeColor}`}
-                  title={def!.label}
-                >
-                  {def!.shortLabel}
-                </span>
-              ))}
-            </>
-          )}
-        </div>
+      <div className="mb-3.5">
+        <N8nWorkflowCanvas
+          workflowNodes={safeNodes}
+          agentName={agentLabel || 'Consultor SG-SST'}
+          readOnly={true}
+          compact={true}
+        />
       </div>
     );
   };
@@ -1754,7 +1716,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       {/* Modal Creación / Edición con Constructor Visual de Flujos y Conectores (Estilo n8n) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-6xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4 bg-gradient-to-r from-purple-950/10 via-transparent to-teal-950/10">
               <div className="flex items-center gap-2.5">
@@ -1875,114 +1837,16 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
               </div>
 
-              {/* CONSTRUCTOR VISUAL DE FLUJOS Y CONECTORES ESTILO N8N */}
-              <div className="border border-purple-200/80 dark:border-purple-900/50 rounded-2xl p-4 bg-gradient-to-br from-purple-50/40 via-white to-teal-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-gray-850 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <Workflow className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-gray-900 dark:text-white">
-                      Constructor de Flujo & Conectores (Arquitectura n8n WAPPY)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAutoBuildPrompt}
-                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white text-[11px] font-extrabold uppercase tracking-wider shadow-sm transition flex items-center gap-1.5"
-                    title="Genera o actualiza automáticamente el Prompt Autónomo según los nodos seleccionados"
-                  >
-                    <Wand2 className="w-3.5 h-3.5" />
-                    Autogenerar Prompt desde los Nodos
-                  </button>
-                </div>
-
-                {/* Vista previa en vivo de la tubería n8n */}
-                {renderWorkflowPipeline(
-                  formWorkflowNodes,
-                  agents.find((a) => a.id === formAgentId)?.name || 'Consultor SG-SST'
-                )}
-
-                {/* Pestañas de las 4 etapas del flujo n8n */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                  {[
-                    { id: 'trigger', label: '1. Disparador', count: formWorkflowNodes.trigger ? 1 : 0, icon: '⚡' },
-                    { id: 'inputs', label: '2. Conectores / APIs', count: formWorkflowNodes.inputs.length, icon: '🔌' },
-                    { id: 'hitos', label: '3. Hitos & Apps SST', count: formWorkflowNodes.hitos.length, icon: '🛡️' },
-                    { id: 'outputs', label: '4. Salidas & Alertas', count: formWorkflowNodes.outputs.length, icon: '📤' },
-                  ].map((step) => (
-                    <button
-                      key={step.id}
-                      type="button"
-                      onClick={() => setActiveNodeBuilderTab(step.id as any)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between border ${
-                        activeNodeBuilderTab === step.id
-                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5 truncate">
-                        <span>{step.icon}</span>
-                        <span className="truncate">{step.label}</span>
-                      </span>
-                      <span
-                        className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                          activeNodeBuilderTab === step.id
-                            ? 'bg-white/20 text-white'
-                            : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
-                        }`}
-                      >
-                        {step.count}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Panel de Nodos seleccionables según la etapa */}
-                <div className="max-h-56 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {(activeNodeBuilderTab === 'trigger'
-                    ? TRIGGER_NODES
-                    : activeNodeBuilderTab === 'inputs'
-                      ? INPUT_CONNECTOR_NODES
-                      : activeNodeBuilderTab === 'hitos'
-                        ? HITO_APP_NODES
-                        : OUTPUT_ACTION_NODES
-                  ).map((node) => {
-                    const isSelected =
-                      activeNodeBuilderTab === 'trigger'
-                        ? formWorkflowNodes.trigger === node.id
-                        : (formWorkflowNodes[activeNodeBuilderTab] || []).includes(node.id);
-                    return (
-                      <button
-                        key={node.id}
-                        type="button"
-                        onClick={() => toggleWorkflowNode(activeNodeBuilderTab, node.id)}
-                        className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
-                          isSelected
-                            ? 'bg-purple-50/90 dark:bg-purple-950/50 border-purple-500 ring-1 ring-purple-500 shadow-sm'
-                            : 'bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-purple-300'
-                        }`}
-                      >
-                        <span className="text-base leading-none mt-0.5 shrink-0">{node.icon}</span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-extrabold text-gray-900 dark:text-white truncate">
-                              {node.label}
-                            </span>
-                            {isSelected && (
-                              <CheckCircle className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
-                            )}
-                          </div>
-                          <div className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 truncate">
-                            {node.badge}
-                          </div>
-                          <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5 leading-snug">
-                            {node.description}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* CONSTRUCTOR VISUAL DE FLUJOS Y CONECTORES ESTILO N8N REAL (LIENZO INTERACTIVO + LOGOS SVG) */}
+              <N8nWorkflowCanvas
+                workflowNodes={formWorkflowNodes}
+                onChange={setFormWorkflowNodes}
+                agentId={formAgentId}
+                agentName={agents.find((a) => a.id === formAgentId)?.name || 'Consultor SG-SST'}
+                agents={agents}
+                onSelectAgent={setFormAgentId}
+                onAutoBuildPrompt={handleAutoBuildPrompt}
+              />
 
               {/* Fila Horario + Correos */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

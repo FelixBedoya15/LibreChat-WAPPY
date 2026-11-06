@@ -5,14 +5,110 @@ export interface WorkflowNodeDef {
   category: string;
   toolHint: string;
   badgeColor: string;
+  icon?: string;
+  badge?: string;
+  description?: string;
+}
+
+export interface CanvasNodePosition {
+  x: number;
+  y: number;
+}
+
+export interface CanvasWireEdge {
+  id: string;
+  from: string;
+  to: string;
+  kind: 'main' | 'sub' | 'branch_true' | 'branch_false';
+  label?: string;
 }
 
 export interface WorkflowNodesConfig {
   trigger: string;
+  aiEngine?: 'wappy' | 'antigravity';
+  aiModel?: string;
+  memoryNode?: string;
+  includeIfNode?: boolean;
   inputs: string[];
   hitos: string[];
   outputs: string[];
+  canvasLayout?: {
+    positions?: Record<string, CanvasNodePosition>;
+    edges?: CanvasWireEdge[];
+  } | null;
 }
+
+export interface AiEngineModelDef {
+  id: string;
+  engine: 'wappy' | 'antigravity';
+  model: string;
+  label: string;
+  shortLabel: string;
+  subtitle: string;
+  description: string;
+}
+
+/**
+ * Modelos verificados en .env (GOOGLE_MODELS=gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash)
+ * + Motor Google Antigravity IDE con Servidor MCP WAPPY (110+ tools).
+ */
+export const AI_ENGINE_MODELS: AiEngineModelDef[] = [
+  {
+    id: 'wappy_gemini_3_6_flash',
+    engine: 'wappy',
+    model: 'gemini-3.6-flash',
+    label: 'WAPPY IA · Gemini 3.6 Flash (Key Rotation)',
+    shortLabel: 'Gemini 3.6 Flash',
+    subtitle: 'WAPPY Cloud · Rotación de Claves',
+    description: 'Motor en la nube 24/7 con rotación automática de claves WAPPY y balance óptimo de razonamiento.',
+  },
+  {
+    id: 'wappy_gemini_3_5_flash_lite',
+    engine: 'wappy',
+    model: 'gemini-3.5-flash-lite',
+    label: 'WAPPY IA · Gemini 3.5 Flash Lite (Ultra Rápido)',
+    shortLabel: 'Gemini 3.5 Lite',
+    subtitle: 'WAPPY Cloud · Alta Velocidad',
+    description: 'Ideal para barridos frecuentes de Drive, vencimientos y alertas rápidas con rotación de claves.',
+  },
+  {
+    id: 'wappy_gemini_3_8_flash',
+    engine: 'wappy',
+    model: 'gemini-3.8-flash',
+    label: 'WAPPY IA · Gemini 3.8 Flash (Análisis Profundo)',
+    shortLabel: 'Gemini 3.8 Flash',
+    subtitle: 'WAPPY Cloud · Máxima Precisión',
+    description: 'Máxima capacidad analítica para auditorías Res. 0312, investigación ATEL, Matriz Legal y DOFA.',
+  },
+  {
+    id: 'antigravity_mcp_engine',
+    engine: 'antigravity',
+    model: 'gemini-3.6-flash',
+    label: 'Google Antigravity IDE + MCP WAPPY (110+ Tools)',
+    shortLabel: 'Antigravity + MCP',
+    subtitle: 'Puente Push SSE + MCP Directo',
+    description: 'Delega el procesamiento al cerebro de Google Antigravity conectado por Push SSE con las 110+ herramientas MCP.',
+  },
+];
+
+export const MEMORY_NODES: WorkflowNodeDef[] = [
+  {
+    id: 'wappy_memory_company',
+    label: 'Memoria Procedural + Contexto Empresa Somos SST',
+    shortLabel: 'Memoria + Empresa',
+    category: 'memory',
+    toolHint: 'Memoria Procedural WAPPY + Contexto en vivo de la Empresa Activa (Somos SST)',
+    badgeColor: 'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300 border-pink-200 dark:border-pink-800',
+  },
+  {
+    id: 'wappy_rag_documental',
+    label: 'Buffer RAG Documental & Historial SG-SST',
+    shortLabel: 'RAG Documental',
+    category: 'memory',
+    toolHint: 'Motor RAG Documental + Historial de hallazgos previos de la empresa',
+    badgeColor: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
+  },
+];
 
 export const PRESET_CATEGORIES = [
   { id: 'all', label: 'Todos los Flujos' },
@@ -534,6 +630,7 @@ export const OUTPUT_ACTION_NODES: WorkflowNodeDef[] = [
 export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
   return (
     TRIGGER_NODES.find((n) => n.id === id) ||
+    MEMORY_NODES.find((n) => n.id === id) ||
     INPUT_CONNECTOR_NODES.find((n) => n.id === id) ||
     HITO_APP_NODES.find((n) => n.id === id) ||
     OUTPUT_ACTION_NODES.find((n) => n.id === id)
@@ -541,7 +638,7 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
 }
 
 /**
- * Autogenera un prompt técnico estructurado para WAPPY a partir de los nodos seleccionados en el flujo tipo n8n.
+ * Autogenera un prompt técnico estructurado para WAPPY a partir de los nodos conectados en el lienzo n8n.
  */
 export function buildPromptFromWorkflowNodes(
   taskName: string,
@@ -549,32 +646,52 @@ export function buildPromptFromWorkflowNodes(
   nodes: WorkflowNodesConfig,
 ): string {
   const triggerDef = TRIGGER_NODES.find((t) => t.id === nodes.trigger) || TRIGGER_NODES[0];
-  const inputDefs = nodes.inputs.map((id) => INPUT_CONNECTOR_NODES.find((n) => n.id === id)).filter(Boolean) as WorkflowNodeDef[];
-  const hitoDefs = nodes.hitos.map((id) => HITO_APP_NODES.find((n) => n.id === id)).filter(Boolean) as WorkflowNodeDef[];
-  const outputDefs = nodes.outputs.map((id) => OUTPUT_ACTION_NODES.find((n) => n.id === id)).filter(Boolean) as WorkflowNodeDef[];
+  const engineMode = nodes.aiEngine || 'wappy';
+  const modelId = nodes.aiModel || 'gemini-3.6-flash';
+  const inputDefs = (nodes.inputs || [])
+    .map((id) => INPUT_CONNECTOR_NODES.find((n) => n.id === id))
+    .filter(Boolean) as WorkflowNodeDef[];
+  const hitoDefs = (nodes.hitos || [])
+    .map((id) => HITO_APP_NODES.find((n) => n.id === id))
+    .filter(Boolean) as WorkflowNodeDef[];
+  const outputDefs = (nodes.outputs || [])
+    .map((id) => OUTPUT_ACTION_NODES.find((n) => n.id === id))
+    .filter(Boolean) as WorkflowNodeDef[];
 
   const lines: string[] = [];
-  lines.push(`Actúa como ${agentName || 'Consultor SG-SST'} ejecutando el flujo automatizado "${taskName || 'Tarea Programada SG-SST'}" exclusivamente para la empresa activa.`);
+  lines.push(
+    `Actúa como ${agentName || 'Consultor SG-SST'} ejecutando el flujo automatizado "${taskName || 'Flujo Autónomo SG-SST'}" exclusivamente para la empresa activa.`,
+  );
+
+  if (engineMode === 'antigravity') {
+    lines.push(
+      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo apoyándote en Google Antigravity IDE + Servidor MCP WAPPY (herramienta google_antigravity por puente Push SSE) y el modelo ${modelId}.`,
+    );
+  } else {
+    lines.push(
+      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo en WAPPY Cloud IA (Rotación Automática de Claves) utilizando el modelo ${modelId}.`,
+    );
+  }
 
   if (triggerDef) {
-    lines.push(`\n1. DISPARADOR DE ENTRADA: ${triggerDef.toolHint}.`);
+    lines.push(`\n1. DISPARADOR DE ENTRADA (TRIGGER): ${triggerDef.toolHint}.`);
   }
 
   if (inputDefs.length > 0) {
     lines.push(
-      `\n2. CONECTORES Y FUENTES A CONSULTAR: Utiliza las herramientas ${inputDefs.map((d) => d.toolHint).join(', ')}. Si alguna fuente externa (como Google Drive) no está vinculada o no tiene archivos nuevos reales, infórmalo con transparencia sin inventar ni simular datos.`,
+      `\n2. SUB-NODOS DE HERRAMIENTAS Y CONECTORES: Utiliza las herramientas ${inputDefs.map((d) => d.toolHint).join(', ')}. Si alguna fuente externa (como Google Drive) no está vinculada o no tiene archivos nuevos reales, infórmalo con transparencia sin inventar ni simular datos.`,
     );
   }
 
   if (hitoDefs.length > 0) {
     lines.push(
-      `\n3. HITOS Y APLICATIVOS DE SOMOS SST OBJETIVO: Cruza, audita o alimenta la información en: ${hitoDefs.map((h) => h.toolHint).join('; ')}.`,
+      `\n3. HITOS Y APLICATIVOS DE SOMOS SST CONECTADOS: Cruza, audita o alimenta la información en: ${hitoDefs.map((h) => h.toolHint).join('; ')}.`,
     );
   }
 
   if (outputDefs.length > 0) {
     lines.push(
-      `\n4. ACCIONES DE SALIDA Y ENTREGABLES: ${outputDefs.map((o) => o.toolHint).join('. ')}. No crees nuevas tareas programadas durante esta corrida.`,
+      `\n4. NODOS DE CONDICIÓN (IF) Y ACCIONES DE SALIDA: Evalúa si existen hallazgos/novedades (rama TRUE) o si todo está en regla (rama FALSE) y ejecuta: ${outputDefs.map((o) => o.toolHint).join('. ')}. No crees nuevas tareas programadas durante esta corrida.`,
     );
   } else {
     lines.push(

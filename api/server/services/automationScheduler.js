@@ -431,16 +431,38 @@ async function runAutomation(automation, isManual = false) {
       } catch (_) {}
     }
 
+    const selectedAiEngine = automation.workflowNodes?.aiEngine === 'antigravity' ? 'antigravity' : 'wappy';
+    const allowedTextModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+    const requestedModel = automation.workflowNodes?.aiModel;
+    const effectiveAiModel = allowedTextModels.includes(requestedModel)
+      ? requestedModel
+      : agent.model || 'gemini-3.6-flash';
+
+    const antigravityEngineDirective =
+      selectedAiEngine === 'antigravity'
+        ? `- MOTOR IA SELECCIONADO EN EL FLUJO N8N: Google Antigravity IDE + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" (action: "delegate_task" o consulta por puente Push SSE) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
+        : `- MOTOR IA SELECCIONADO EN EL FLUJO N8N: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
+
     const companyHeaderBlock = automationCompany
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
         `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
+        antigravityEngineDirective +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : '';
+      : antigravityEngineDirective;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
+
+    // Override agent model if specified in the n8n workflow canvas
+    if (effectiveAiModel) {
+      agent.model = effectiveAiModel;
+      agent.model_parameters = {
+        ...(agent.model_parameters || {}),
+        model: effectiveAiModel,
+      };
+    }
 
     // Build mock request & response with explicit companyId and isAutomation flag
     const req = {
