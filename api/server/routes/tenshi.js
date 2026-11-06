@@ -185,11 +185,16 @@ function getPlatformManual() {
 
 router.get('/config', async (req, res) => {
     try {
-        let config = await TenshiConfig.findOne().lean();
+        let config = await TenshiConfig.findOne();
         if (!config) {
-            config = await TenshiConfig.create({});
+            config = await TenshiConfig.create({
+                skills: ['skill-admin-metricas-sistema'],
+            });
+        } else if (Array.isArray(config.skills) && config.skills.length > 0 && !config.skills.includes('skill-admin-metricas-sistema')) {
+            config.skills.push('skill-admin-metricas-sistema');
+            await config.save().catch(() => {});
         }
-        res.json(config);
+        res.json(config.toObject ? config.toObject() : config);
     } catch (error) {
         console.error('Error fetching Tenshi config:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -1156,13 +1161,25 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             recentConvosBlock += `\n*REGLA DE MEMORIA DE INFORMES PROPIOS*: Estos informes están publicados directamente en TU propio chat de Tenshi. Si el usuario te dice "revisa nuestro chat", "el último informe que hiciste", "envíame el último informe del chat a mi correo" o te pregunta por el informe en vuestro chat, se refiere SIEMPRE al 🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI] listado arriba. NUNCA inventes que no tienes informes ni menciones chats viejos de otros agentes.\n\n`;
         }
 
-        const rawSkillsList = (config.skills && config.skills.length > 0) ? config.skills : ['*'];
-        const skillsList = rawSkillsList.filter(s => s !== 'wappy-cards');
-        const rawSkillData = getActiveSkillsData(userQuery, skillsList);
+        let isAdminUser = req.user?.role === 'ADMIN';
+        if (!req.user?.role && req.user?.id) {
+            try {
+                const UserModel = mongoose.models.User || require('~/models/User');
+                const uDoc = await UserModel.findById(req.user.id).select('role').lean();
+                if (uDoc?.role === 'ADMIN') isAdminUser = true;
+            } catch (_) {}
+        }
+
+        const rawSkillsList = (config.skills && config.skills.length > 0) ? [...config.skills] : ['*'];
+        if (isAdminUser && !rawSkillsList.includes('*') && !rawSkillsList.includes('skill-admin-metricas-sistema')) {
+            rawSkillsList.push('skill-admin-metricas-sistema');
+        }
+        const skillsList = rawSkillsList.filter(s => s !== 'wappy-cards' && (isAdminUser || s !== 'skill-admin-metricas-sistema'));
+        const rawSkillData = getActiveSkillsData(userQuery, skillsList, { isAdmin: isAdminUser });
         const skillInstructions = (rawSkillData.instructions || '').replace(/```wappy-card[\s\S]*?```/gi, '');
         const activeTools = rawSkillData.activeTools || [];
         const activeSkillNames = (rawSkillData.activeSkillNames || []).filter(s => s !== 'wappy-cards');
-        logger.info(`[Tenshi Skill Router] Skills activadas por trigger: ${activeSkillNames.join(', ') || 'ninguna'}, herramientas dinámicas: ${activeTools.join(', ') || 'ninguna'}`);
+        logger.info(`[Tenshi Skill Router] Skills activadas por trigger (isAdmin=${isAdminUser}): ${activeSkillNames.join(', ') || 'ninguna'}, herramientas dinámicas: ${activeTools.join(', ') || 'ninguna'}`);
 
         const nowColombiaStr = new Date().toLocaleString('es-CO', {
             timeZone: 'America/Bogota',
@@ -1174,15 +1191,6 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             minute: '2-digit',
             hour12: true
         });
-
-        let isAdminUser = req.user?.role === 'ADMIN';
-        if (!req.user?.role && req.user?.id) {
-            try {
-                const UserModel = mongoose.models.User || require('~/models/User');
-                const uDoc = await UserModel.findById(req.user.id).select('role').lean();
-                if (uDoc?.role === 'ADMIN') isAdminUser = true;
-            } catch (_) {}
-        }
 
         const adminRoleSystemBlock = isAdminUser
             ? `\n### 👑 MODO SUPER-ADMINISTRADOR ACTIVO (ROL VERIFICADO: ADMIN)\n` +

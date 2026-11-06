@@ -5,13 +5,40 @@ const automationSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
       index: true,
     },
     companyId: {
       type: String,
       required: true,
+      default: 'SYSTEM_PRESET',
       index: true,
+    },
+    isSystemPreset: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    presetKey: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    presetCategory: {
+      type: String,
+      default: 'general',
+      trim: true,
+    },
+    presetDescription: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    workflowNodes: {
+      trigger: { type: String, default: 'schedule_cron' },
+      inputs: { type: [String], default: [] },
+      hitos: { type: [String], default: [] },
+      outputs: { type: [String], default: [] },
     },
     name: {
       type: String,

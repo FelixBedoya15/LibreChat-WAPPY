@@ -807,6 +807,8 @@ async function checkAndRunAutomations() {
 
     // Query pending active automations (lean + projection + limit => mínimo uso de RAM)
     const pendingAutomations = await Automation.find({
+      isSystemPreset: { $ne: true },
+      companyId: { $ne: 'SYSTEM_PRESET' },
       status: 'active',
       lastRunStatus: { $ne: 'running' },
       $or: [

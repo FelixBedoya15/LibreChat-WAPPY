@@ -101,9 +101,13 @@ class GestorAutomatizaciones extends Tool {
   }
 
   async _findCompanyAutomations(companyId, userId) {
-    let list = await Automation.find({ companyId }).sort({ createdAt: -1 });
+    let list = await Automation.find({ companyId, isSystemPreset: { $ne: true } }).sort({ createdAt: -1 });
     if ((!list || list.length === 0) && userId) {
-      list = await Automation.find({ user: userId }).sort({ createdAt: -1 });
+      list = await Automation.find({
+        user: userId,
+        isSystemPreset: { $ne: true },
+        companyId: { $ne: 'SYSTEM_PRESET' },
+      }).sort({ createdAt: -1 });
     }
     return list || [];
   }
@@ -346,10 +350,20 @@ class GestorAutomatizaciones extends Tool {
           });
         }
 
-        // Idempotencia: evitar duplicar una tarea con el mismo nombre en la misma empresa
-        const existingAutos = await Automation.find({ user: userId, companyId });
+        // Idempotencia: evitar duplicar una tarea con el mismo nombre o propósito idéntico en la misma empresa
+        const existingAutos = await Automation.find({ user: userId, companyId, isSystemPreset: { $ne: true } });
         const normFinalName = this._normStr(finalName);
-        const duplicateAuto = existingAutos.find((a) => this._normStr(a.name) === normFinalName);
+        const stopWords = new Set(['para', 'con', 'del', 'las', 'los', 'una', 'por', 'que', 'tarea', 'automatizacion', 'automatica', 'automatico', 'monitoreo', 'vigilancia', 'vigilar', 'revisar', 'revision', 'sincronizacion', 'diaria', 'diario', 'semanal', 'mensual', 'ejemplo', 'admin']);
+        const newTokens = normFinalName.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
+        const duplicateAuto = existingAutos.find((a) => {
+          const aNorm = this._normStr(a.name);
+          if (aNorm === normFinalName) return true;
+          if (newTokens.length >= 2) {
+            const hits = newTokens.filter((t) => aNorm.includes(t)).length;
+            if (hits / newTokens.length >= 0.75) return true;
+          }
+          return false;
+        });
         if (duplicateAuto) {
           return JSON.stringify({
             success: true,

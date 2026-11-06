@@ -357,7 +357,7 @@ ${cleanContent}
   * Si el usuario te pide EXPLÍCITAMENTE un aplicativo interactivo o calculadora HTML ("crea un aplicativo interactivo en html"): invoca de inmediato la herramienta \`canvas\` con \`accion: "crear"\`, \`fileType: "html"\`. NUNCA escribas el código HTML en el chat de texto.
   * **EXCEPCIÓN CRÍTICA - MATRIZ DE PELIGROS / IPEVR (GTC-45):** Para la identificación, evaluación y valoración de peligros GTC-45 (matriz de peligros, matriz ipevr, evaluación de riesgos), está TERMINANTEMENTE PROHIBIDO usar la herramienta \`canvas\`. DEBES usar SIEMPRE y EXCLUSIVAMENTE la herramienta \`matriz_ipevar\` (\`accion: "escribir"\`) para que los registros se sincronicen directamente con la base de datos y se reflejen en tiempo real en la tabla Matriz IPEVR Live.`;
     const conciseResponseRule = `\n\n⚠️ REGLA DE CONCISIÓN: Si la solicitud del usuario es un saludo, una pregunta corta o un cambio simple en algún editor o herramienta, responde directamente de forma concisa y sin extender tu proceso de razonamiento.`;
-    const automationToolRule = `\n\n⚠️ REGLA DE ORO DE AUTOMATIZACIONES (gestor_automatizaciones): Si el usuario te pide automatizar, programar una tarea periódica, revisar periódicamente carpetas de Google Drive, monitorear indicadores, inspecciones o auditorías recurrentes, NO te limites a dar explicaciones teóricas ni a redactar scripts de Apps Script en Canvas si la herramienta \`gestor_automatizaciones\` está disponible o activa. DEBES llamar a \`gestor_automatizaciones\` con \`accion: "crear"\` para registrar y programar la tarea en la sección \"Tareas\" de WAPPY (antes \"Automatizaciones\"; menú lateral debajo de Centro de Control SST, ruta /tareas). Si no se indica hora o frecuencia, asume valores óptimos (ej. diario a las 8:00 AM) y confírmalos al usuario.`;
+    const automationToolRule = `\n\n⚠️ REGLA DE ORO DE AUTOMATIZACIONES (gestor_automatizaciones): ÚNICAMENTE debes llamar a \`gestor_automatizaciones\` con \`accion: "crear"\` cuando el usuario te ordene EXPLÍCITAMENTE crear o dejar programada una tarea periódica en el calendario (ej. "crea una tarea programada...", "programa una automatización diaria para..."). Está TERMINANTEMENTE PROHIBIDO crear tareas programadas por tu cuenta sin orden explícita del usuario, ni cuando el usuario solo te pida revisar una carpeta de Google Drive en el momento, ni al consultar o listar la sección \"Tareas\" (/tareas).`;
     const noPassiveConfirmationsRule = `\n\n⛔ PROHIBICIÓN ESTRICTA DE PREGUNTAS DE CONFIRMACIÓN O RESPUESTAS PASIVAS:
 Está TERMINANTEMENTE PROHIBIDO responder con frases como "¿Deseas que proceda?", "He analizado tu solicitud, ¿deseas que lo cree/registre?", "¿En qué aspecto te gustaría profundizar?" o anunciar que vas a hacer algo sin hacerlo.
 Si el usuario te solicita redactar un contenido, guion, política, informe, o registrar datos en una matriz: DEBES ENTREGAR EL CONTENIDO COMPLETO DIRECTAMENTE EN EL CHAT EN TEXTO NORMAL EN ESE MISMO TURNO (o ejecutar la herramienta especializada correspondiente). NUNCA te detengas a pedir confirmación para hacer lo que el usuario ya te pidió expresamente, y NUNCA inventes herramientas, código o aplicativos que el usuario no haya solicitado.`;
@@ -1074,154 +1074,8 @@ Formato (texto plano, 3 viñetas):
     console.error('⚠️ Error sincronizando Marketplace:', err.message);
   }
 
-  // Sembrar 2 ejemplos de automatizaciones Drive -> Somos SST exclusivamente para cuentas ADMIN
-  try {
-    const Automation = require('../models/Automation');
-    const AutomationLog = require('../models/AutomationLog');
-    const CompanyInfo = require('../models/CompanyInfo');
-
-    const adminUsers = await User.find({ role: 'ADMIN' }).lean();
-    const medicoAgent = await Agent.findOne({ name: /Médico Laboral|Consultor SG-SST/i }).lean();
-    const consultorAgent = await Agent.findOne({ name: /Consultor SG-SST/i }).lean();
-
-    const agent1Id = medicoAgent?.id || 'agent_medico_laboral';
-    const agent1Name = medicoAgent?.name || 'Médico Laboral';
-    const agent2Id = consultorAgent?.id || 'agent_consultor_sg_sst';
-    const agent2Name = consultorAgent?.name || 'Consultor SG-SST';
-
-    const sample1RunAt = new Date(Date.now() - 2 * 3600 * 1000);
-    const sample2RunAt = new Date(Date.now() - 14 * 3600 * 1000);
-    const nextRunEvening = new Date(Date.now() + 16 * 3600 * 1000);
-    const nextRunMorning = new Date(Date.now() + 8 * 3600 * 1000);
-
-    const sample1Result = `### 📂 Sincronización Google Drive → Perfil Sociodemográfico y Exámenes Médicos (Somos SST)
-
-**Carpeta vigilada en Google Drive:** \`SG-SST / Perfil Sociodemográfico y EMO\`
-**Herramientas ejecutadas:** \`google_drive\` (\`list_files_and_folders\`, \`read_document_content\`) → \`somos_sst\` (\`alimentar_sociodemografico_masivo\`, \`actualizar_examen_medico\`)
-
-| Archivo Detectado en Drive | Novedad Identificada | Aplicativo Alimentado en WAPPY | Estado de Sincronización |
-| :--- | :--- | :--- | :---: |
-| \`Actualizacion_Sociodemografica_Octubre.xlsx\` | 4 colaboradores actualizaron dirección, EPS, turno de trabajo y contacto de emergencia | **Hito 2: Perfil Sociodemográfico y Condiciones de Salud** | ✅ Sincronizado (4 perfiles actualizados) |
-| \`Concepto_Aptitud_Carlos_Ramirez.pdf\` | Examen médico periódico con recomendación ergonómica postural | **Hito 2: Seguimiento de Exámenes Médicos Ocupacionales** | ✅ Registrado + Alerta en Centro de Control |
-
-> **Dictamen del Agente:** Se compararon las marcas de tiempo y cédulas contra la base de datos de **Somos SST**. Los 4 expedientes modificados en el archivo de Drive y el concepto médico ocupacional ya quedaron asentados automáticamente en los aplicativos correspondientes sin duplicar registros.`;
-
-    const sample2Result = `### 🚨 Vigilancia de Carpeta Drive → Aplicativos de Accidentes (ATEL), Inspecciones y Actos Inseguros
-
-**Carpeta vigilada en Google Drive:** \`SG-SST / Reportes de Campo, Inspecciones y ATEL\`
-**Herramientas ejecutadas:** \`google_drive\` (\`list_files_and_folders\`, \`read_document_content\`) → \`somos_sst\` (\`registrar_accidente_atel\`, \`editar_cualquier_aplicativo\`, \`crear_actividad_acpm\`)
-
-* **1. Reporte de Accidente / Incidente detectado:** \`FURAT_Preliminar_Bodega_Norte.pdf\`
-  * **Acción ejecutada en WAPPY:** Se extrajo la información del suceso (lesión leve en mano derecha por manipulación de estiba, 2 días de incapacidad) y se alimentó automáticamente el **Aplicativo de Investigación de Accidentes e Incidentes (ATEL — Hito 7)** mediante \`registrar_accidente_atel\`.
-* **2. Reporte de Actos y Condiciones Inseguras:** \`Inspeccion_Locativa_y_Actos_Semana42.xlsx\`
-  * **Acción ejecutada en WAPPY:** Se identificaron 2 condiciones locativas (cableado expuesto en pasillo 3 y extintor multipropósito despresurizado) y se inyectaron en el **Aplicativo de Reporte de Actos y Condiciones Inseguras (Hito 4)** y **Plan de Acción ACPM (Centro de Control)**.
-
-\`\`\`wappy-card
-{
-  "title": "Automatización Drive → Aplicativos WAPPY Completada",
-  "subtitle": "2 archivos nuevos procesados e inyectados en Somos SST",
-  "items": [
-    {
-      "title": "Aplicativo ATEL (Hito 7)",
-      "description": "1 nuevo caso de accidente de trabajo registrado desde FURAT_Preliminar_Bodega_Norte.pdf."
-    },
-    {
-      "title": "Aplicativo Actos y Condiciones + ACPM (Hito 4)",
-      "description": "2 hallazgos locativos cargados desde Inspeccion_Locativa_y_Actos_Semana42.xlsx con tarea correctiva asignada."
-    }
-  ]
-}
-\`\`\``;
-
-    let seededCompanies = 0;
-    for (const admin of adminUsers) {
-      let company = await CompanyInfo.findOne({ user: admin._id, isActive: true }).lean();
-      if (!company) {
-        company = await CompanyInfo.findOne({ user: admin._id }).lean();
-      }
-      if (!company) continue;
-
-      const companyId = company._id.toString();
-
-      // Reemplazar los ejemplos anteriores [Ejemplo Admin] para que queden los nuevos orientados a Drive -> Somos SST
-      const oldSamples = await Automation.find({
-        companyId,
-        name: /^\[Ejemplo Admin\]/i,
-      }).select('_id').lean();
-      if (oldSamples.length > 0) {
-        const oldIds = oldSamples.map((s) => s._id);
-        await AutomationLog.deleteMany({ automation: { $in: oldIds } });
-        await Automation.deleteMany({ _id: { $in: oldIds } });
-      }
-
-      const adminEmail = admin.email ? [admin.email] : ['admin@wappy.club'];
-
-      const auto1 = await Automation.create({
-        user: admin._id,
-        companyId,
-        name: '[Ejemplo Admin] Vigilar Drive y Alimentar Perfil Sociodemográfico y Exámenes en Somos SST',
-        agentId: agent1Id,
-        agentName: agent1Name,
-        prompt:
-          'Conéctate a mi Google Drive usando la herramienta google_drive (list_files_and_folders y read_document_content) y revisa la carpeta o archivos recientes de "Perfil Sociodemográfico" y "Condiciones de Salud / Exámenes Médicos". Si Google Drive no está vinculado a esta empresa o no existen archivos nuevos reales, infórmalo de inmediato y detén el proceso sin simular ni inventar datos. Si existen documentos reales nuevos o actualizados (Excel, Google Sheets o PDF), identifica qué trabajadores tienen información nueva o modificada y ejecuta la herramienta somos_sst (acciones alimentar_sociodemografico_masivo, importar_sociodemografico_drive o actualizar_examen_medico) exclusivamente para esta empresa. Al finalizar, entrégame un resumen en Markdown de los archivos reales leídos y los trabajadores actualizados.',
-        scheduleType: 'daily',
-        scheduleConfig: { hour: 18, minute: 0 },
-        emails: adminEmail,
-        status: 'inactive',
-        lastRunAt: sample1RunAt,
-        lastRunStatus: 'success',
-        lastRunResult: sample1Result,
-        nextRunAt: null,
-      });
-
-      const auto2 = await Automation.create({
-        user: admin._id,
-        companyId,
-        name: '[Ejemplo Admin] Vigilar Drive y Registrar Accidentes ATEL, Inspecciones y Actos Inseguros',
-        agentId: agent2Id,
-        agentName: agent2Name,
-        prompt:
-          'Revisa en Google Drive (usando google_drive: list_files_and_folders y read_document_content) los archivos o carpetas donde se suban reportes de Accidentes/Incidentes de Trabajo (FURAT/ATEL), Inspecciones de Seguridad o Reportes de Actos y Condiciones Inseguras. Si Google Drive no está vinculado a esta empresa o no existen archivos nuevos reales, infórmalo con total transparencia y detén el proceso sin simular ni inventar datos ni crear nuevas tareas programadas. Solo cuando detectes un archivo real nuevo o actualizado en Drive: 1) Si contiene un accidente o incidente laboral nuevo, extrae los datos reales del evento y regístralo en el aplicativo de Accidentes ATEL de Somos SST usando somos_sst (acción registrar_accidente_atel). 2) Si contiene actos/condiciones inseguras o hallazgos reales de inspecciones, aliméntalos en el aplicativo correspondiente de Somos SST. Genera un informe en Markdown únicamente con los archivos reales procesados.',
-        scheduleType: 'daily',
-        scheduleConfig: { hour: 7, minute: 30 },
-        emails: adminEmail,
-        status: 'inactive',
-        lastRunAt: sample2RunAt,
-        lastRunStatus: 'success',
-        lastRunResult: sample2Result,
-        nextRunAt: null,
-      });
-
-      await AutomationLog.insertMany([
-        {
-          automation: auto1._id,
-          user: admin._id,
-          companyId,
-          agentId: agent1Id,
-          agentName: agent1Name,
-          prompt: auto1.prompt,
-          runAt: sample1RunAt,
-          status: 'success',
-          result: sample1Result,
-        },
-        {
-          automation: auto2._id,
-          user: admin._id,
-          companyId,
-          agentId: agent2Id,
-          agentName: agent2Name,
-          prompt: auto2.prompt,
-          runAt: sample2RunAt,
-          status: 'success',
-          result: sample2Result,
-        },
-      ]);
-      seededCompanies++;
-    }
-    console.log(`🤖 Automatizaciones Drive -> Somos SST para ADMIN sincronizadas (${seededCompanies} empresa(s)).`);
-  } catch (err) {
-    console.error('⚠️ Error sembrando automatizaciones de ejemplo para ADMIN:', err.message);
-  }
+  // NOTA: No sembrar automatizaciones automáticamente en las empresas de los usuarios al arrancar.
+  // Las tareas preestablecidas ahora viven en el catálogo global de Plantillas y Flujos n8n (/api/sgsst/automatizaciones/presets).
 
   console.log('🎉 PROCESO COMPLETADO CON ÉXITO.');
   process.exit(0);

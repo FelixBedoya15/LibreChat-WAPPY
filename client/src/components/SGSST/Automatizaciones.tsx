@@ -25,13 +25,29 @@ import {
   Eye,
   EyeOff,
   BarChart2,
-  AlertTriangle
+  AlertTriangle,
+  Workflow,
+  Zap,
+  Globe,
+  Layers,
+  ArrowRight,
+  Download,
+  ShieldCheck
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import ExpandableButton from '~/components/Common/ExpandableButton';
-import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import {
+  PRESET_CATEGORIES,
+  TRIGGER_NODES,
+  INPUT_CONNECTOR_NODES,
+  HITO_APP_NODES,
+  OUTPUT_ACTION_NODES,
+  getNodeDefById,
+  buildPromptFromWorkflowNodes,
+  type WorkflowNodesConfig,
+} from './workflowNodesCatalog';
 
 interface ScheduleConfig {
   hour: number;
@@ -51,6 +67,11 @@ interface Automation {
   scheduleConfig: ScheduleConfig;
   emails: string[];
   status: 'active' | 'inactive' | 'paused_error';
+  isSystemPreset?: boolean;
+  presetKey?: string;
+  presetCategory?: string;
+  presetDescription?: string;
+  workflowNodes?: WorkflowNodesConfig;
   lastRunAt?: string;
   lastRunStatus?: 'success' | 'failed' | 'running' | 'stopped';
   lastRunResult?: string;
@@ -73,7 +94,7 @@ interface AutomationLog {
 
 interface AutomatizacionesProps {
   hideMainHeader?: boolean;
-  defaultTab?: 'list' | 'logs';
+  defaultTab?: 'list' | 'presets' | 'logs';
 }
 
 export default function Automatizaciones({ hideMainHeader = false, defaultTab = 'list' }: AutomatizacionesProps = {}) {
@@ -84,8 +105,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const agents = agentsData?.data || [];
 
   const [automations, setAutomations] = useState<Automation[]>([]);
+  const [presets, setPresets] = useState<Automation[]>([]);
   const [logs, setLogs] = useState<AutomationLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'list' | 'logs'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'list' | 'presets' | 'logs'>(defaultTab);
+  const [selectedPresetCategory, setSelectedPresetCategory] = useState<string>('all');
   const [showDashboard, setShowDashboard] = useState(true);
 
   useEffect(() => {
@@ -96,6 +119,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   
   // Loading states
   const [loading, setLoading] = useState(false);
+  const [presetsLoading, setPresetsLoading] = useState(false);
   const [logsLoading, setLogsLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -121,6 +145,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
+  const [isPresetModalMode, setIsPresetModalMode] = useState(false);
   const [viewResultModal, setViewResultModal] = useState<{
     title: string;
     agentName: string;
@@ -141,6 +166,16 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const [formDayOfMonth, setFormDayOfMonth] = useState(1);
   const [formIntervalHours, setFormIntervalHours] = useState(1);
   const [formEmailsStr, setFormEmailsStr] = useState('');
+  const [formPresetCategory, setFormPresetCategory] = useState('salud_vencimientos');
+  const [formPresetDescription, setFormPresetDescription] = useState('');
+  const [formSaveAsSystemPreset, setFormSaveAsSystemPreset] = useState(false);
+  const [formWorkflowNodes, setFormWorkflowNodes] = useState<WorkflowNodesConfig>({
+    trigger: 'schedule_cron',
+    inputs: ['somos_sst_empresa'],
+    hitos: ['hito1_diagnostico_0312'],
+    outputs: ['email_report'],
+  });
+  const [activeNodeBuilderTab, setActiveNodeBuilderTab] = useState<'trigger' | 'inputs' | 'hitos' | 'outputs'>('inputs');
 
   // Dropdown open states
   const [isAgentOpen, setIsAgentOpen] = useState(false);
@@ -174,6 +209,22 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       });
     } finally {
       setLoading(false);
+    }
+  }, [showToast]);
+
+  // Fetch system preset workflows (n8n catalog)
+  const fetchPresets = useCallback(async () => {
+    setPresetsLoading(true);
+    try {
+      const res = await axios.get('/api/sgsst/automatizaciones/presets');
+      setPresets(res.data || []);
+    } catch (err: any) {
+      showToast({
+        message: 'Error al cargar el catálogo de tareas preestablecidas.',
+        status: 'error'
+      });
+    } finally {
+      setPresetsLoading(false);
     }
   }, [showToast]);
 
@@ -222,8 +273,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
   useEffect(() => {
     fetchAutomations();
+    fetchPresets();
     loadPlanLimit();
-  }, [fetchAutomations, loadPlanLimit]);
+  }, [fetchAutomations, fetchPresets, loadPlanLimit]);
 
   // Refresco silencioso en tiempo real cuando Tenshi o un agente crea/activa/desactiva/edita/elimina tareas
   useEffect(() => {
@@ -234,6 +286,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         if (activeTab === 'logs') {
           const logsRes = await axios.get('/api/sgsst/automatizaciones/logs');
           setLogs(logsRes.data || []);
+        } else if (activeTab === 'presets') {
+          const presetsRes = await axios.get('/api/sgsst/automatizaciones/presets');
+          setPresets(presetsRes.data || []);
         }
       } catch (_) {}
     };
@@ -250,8 +305,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   useEffect(() => {
     if (activeTab === 'logs') {
       fetchLogs();
+    } else if (activeTab === 'presets') {
+      fetchPresets();
     }
-  }, [activeTab, fetchLogs]);
+  }, [activeTab, fetchLogs, fetchPresets]);
 
   // Auto-polling cuando hay tareas en estado 'running'
   useEffect(() => {
@@ -322,6 +379,11 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     };
   }, [automations, logs]);
 
+  const filteredPresets = useMemo(() => {
+    if (selectedPresetCategory === 'all') return presets;
+    return presets.filter((p) => (p.presetCategory || 'general') === selectedPresetCategory);
+  }, [presets, selectedPresetCategory]);
+
   // Handle open modal for create
   const handleCreateOpen = () => {
     if (effectiveLimit <= 0) {
@@ -348,6 +410,38 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       return;
     }
 
+    setIsPresetModalMode(false);
+    setEditingAutomation(null);
+    setFormName('');
+    setFormAgentId(agents[0]?.id || '');
+    setFormPrompt('');
+    setFormScheduleType('daily');
+    setFormHour(8);
+    setFormMinute(0);
+    setFormDayOfWeek(1);
+    setFormDaysOfWeek([1]);
+    setFormDayOfMonth(1);
+    setFormIntervalHours(1);
+    setFormEmailsStr(user?.email || '');
+    setFormPresetCategory('salud_vencimientos');
+    setFormPresetDescription('');
+    setFormSaveAsSystemPreset(false);
+    setFormWorkflowNodes({
+      trigger: 'schedule_cron',
+      inputs: ['somos_sst_empresa'],
+      hitos: ['hito1_diagnostico_0312'],
+      outputs: ['email_report'],
+    });
+    setActiveNodeBuilderTab('inputs');
+    setIsAgentOpen(false);
+    setIsFreqOpen(false);
+    setIsDayOpen(false);
+    setIsModalOpen(true);
+  };
+
+  // Exclusivo ADMIN: abrir modal para crear una Tarea Preestablecida Global para todos los usuarios
+  const handleCreatePresetOpen = () => {
+    setIsPresetModalMode(true);
     setEditingAutomation(null);
     setFormName('');
     setFormAgentId(agents[0]?.id || '');
@@ -360,14 +454,25 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormDayOfMonth(1);
     setFormIntervalHours(1);
     setFormEmailsStr('');
+    setFormPresetCategory('salud_vencimientos');
+    setFormPresetDescription('');
+    setFormSaveAsSystemPreset(true);
+    setFormWorkflowNodes({
+      trigger: 'schedule_cron',
+      inputs: ['google_drive', 'somos_sst_empresa'],
+      hitos: ['hito2_perfil_socio'],
+      outputs: ['somos_sst_update', 'email_report'],
+    });
+    setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
     setIsFreqOpen(false);
     setIsDayOpen(false);
     setIsModalOpen(true);
   };
 
-  // Handle open modal for edit
-  const handleEditOpen = (automation: Automation) => {
+  // Handle open modal for edit (normal task or global preset)
+  const handleEditOpen = (automation: Automation, isPreset = false) => {
+    setIsPresetModalMode(isPreset);
     setEditingAutomation(automation);
     setFormName(automation.name);
     setFormAgentId(automation.agentId);
@@ -391,10 +496,131 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormDayOfMonth(automation.scheduleConfig?.dayOfMonth ?? 1);
     setFormIntervalHours(automation.scheduleConfig?.intervalHours ?? 1);
     setFormEmailsStr(automation.emails?.join(', ') || '');
+    setFormPresetCategory(automation.presetCategory || 'salud_vencimientos');
+    setFormPresetDescription(automation.presetDescription || '');
+    setFormSaveAsSystemPreset(false);
+    setFormWorkflowNodes({
+      trigger: automation.workflowNodes?.trigger || 'schedule_cron',
+      inputs: Array.isArray(automation.workflowNodes?.inputs) ? automation.workflowNodes!.inputs : [],
+      hitos: Array.isArray(automation.workflowNodes?.hitos) ? automation.workflowNodes!.hitos : [],
+      outputs: Array.isArray(automation.workflowNodes?.outputs) ? automation.workflowNodes!.outputs : ['email_report'],
+    });
+    setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
     setIsFreqOpen(false);
     setIsDayOpen(false);
     setIsModalOpen(true);
+  };
+
+  // Abrir una plantilla en el constructor visual para personalizarla antes de guardarla en la empresa
+  const handleCustomizeFromPreset = (preset: Automation) => {
+    setIsPresetModalMode(false);
+    setEditingAutomation(null);
+    setFormName(preset.name);
+    const matchingAgent =
+      agents.find((a) => a.id === preset.agentId) ||
+      agents.find((a) => a.name?.toLowerCase() === preset.agentName?.toLowerCase()) ||
+      agents[0];
+    setFormAgentId(matchingAgent?.id || preset.agentId);
+    setFormPrompt(preset.prompt);
+    setFormScheduleType(preset.scheduleType || 'daily');
+    setFormHour(preset.scheduleConfig?.hour ?? 8);
+    setFormMinute(preset.scheduleConfig?.minute ?? 0);
+    const rawDay = preset.scheduleConfig?.dayOfWeek;
+    if (Array.isArray(rawDay)) {
+      setFormDaysOfWeek(rawDay.map(Number));
+      setFormDayOfWeek(rawDay[0] ?? 1);
+    } else if (typeof rawDay === 'number') {
+      setFormDaysOfWeek([rawDay]);
+      setFormDayOfWeek(rawDay);
+    } else {
+      setFormDaysOfWeek([1]);
+      setFormDayOfWeek(1);
+    }
+    setFormDayOfMonth(preset.scheduleConfig?.dayOfMonth ?? 1);
+    setFormIntervalHours(preset.scheduleConfig?.intervalHours ?? 1);
+    setFormEmailsStr(user?.email || '');
+    setFormPresetCategory(preset.presetCategory || 'salud_vencimientos');
+    setFormPresetDescription(preset.presetDescription || '');
+    setFormSaveAsSystemPreset(false);
+    setFormWorkflowNodes({
+      trigger: preset.workflowNodes?.trigger || 'schedule_cron',
+      inputs: Array.isArray(preset.workflowNodes?.inputs) ? [...preset.workflowNodes!.inputs] : [],
+      hitos: Array.isArray(preset.workflowNodes?.hitos) ? [...preset.workflowNodes!.hitos] : [],
+      outputs: Array.isArray(preset.workflowNodes?.outputs) ? [...preset.workflowNodes!.outputs] : ['email_report'],
+    });
+    setActiveNodeBuilderTab('inputs');
+    setIsModalOpen(true);
+  };
+
+  // Instalar una tarea preestablecida directamente en la empresa activa
+  const handleInstallPreset = async (preset: Automation) => {
+    setActionLoadingId(preset._id);
+    try {
+      const res = await axios.post(`/api/sgsst/automatizaciones/presets/${preset._id}/install`, {
+        activateImmediately: false,
+      });
+      showToast({
+        message: res.data?.message || `Tarea "${preset.name}" agregada a Mis Tareas.`,
+        status: 'success',
+      });
+      await fetchAutomations();
+      setActiveTab('list');
+    } catch (err: any) {
+      showToast({
+        message: err.response?.data?.error || 'Error al instalar la tarea preestablecida.',
+        status: 'error',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Eliminar una tarea preestablecida del catálogo global (solo ADMIN)
+  const handleDeletePreset = async (id: string) => {
+    if (!window.confirm('¿Está seguro de eliminar esta tarea preestablecida del catálogo global de todos los usuarios?')) return;
+    try {
+      await axios.delete(`/api/sgsst/automatizaciones/presets/${id}`);
+      showToast({
+        message: 'Tarea preestablecida eliminada del catálogo global.',
+        status: 'success',
+      });
+      fetchPresets();
+    } catch (err: any) {
+      showToast({
+        message: err.response?.data?.error || 'Error al eliminar la plantilla.',
+        status: 'error',
+      });
+    }
+  };
+
+  // Alternar nodo en el constructor visual n8n
+  const toggleWorkflowNode = (group: 'inputs' | 'hitos' | 'outputs', nodeId: string) => {
+    setFormWorkflowNodes((prev) => {
+      const current = prev[group] || [];
+      const exists = current.includes(nodeId);
+      const next = exists ? current.filter((id) => id !== nodeId) : [...current, nodeId];
+      return {
+        ...prev,
+        [group]: next,
+      };
+    });
+  };
+
+  // Autogenerar el prompt desde los nodos seleccionados en el flujo tipo n8n
+  const handleAutoBuildPrompt = () => {
+    const selectedAgent = agents.find((a) => a.id === formAgentId);
+    const agentName = selectedAgent ? selectedAgent.name : 'Consultor SG-SST';
+    const generated = buildPromptFromWorkflowNodes(
+      formName.trim() || 'Flujo Automatizado SG-SST',
+      agentName,
+      formWorkflowNodes,
+    );
+    setFormPrompt(generated);
+    showToast({
+      message: 'Instrucción autónoma generada desde tu flujo de conectores n8n.',
+      status: 'success',
+    });
   };
 
   // Handle save
@@ -431,25 +657,53 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       prompt: formPrompt.trim(),
       scheduleType: formScheduleType,
       scheduleConfig,
-      emails
+      emails,
+      presetCategory: formPresetCategory,
+      presetDescription: formPresetDescription.trim(),
+      workflowNodes: formWorkflowNodes,
+      saveAsSystemPreset: isAdmin && formSaveAsSystemPreset,
     };
 
     try {
+      if (isPresetModalMode) {
+        if (editingAutomation) {
+          await axios.put(`/api/sgsst/automatizaciones/presets/${editingAutomation._id}`, payload);
+          showToast({
+            message: 'Tarea preestablecida global actualizada para todos los usuarios.',
+            status: 'success',
+          });
+        } else {
+          await axios.post('/api/sgsst/automatizaciones/presets', payload);
+          showToast({
+            message: 'Tarea preestablecida global publicada para todos los usuarios.',
+            status: 'success',
+          });
+        }
+        setIsModalOpen(false);
+        fetchPresets();
+        return;
+      }
+
       if (editingAutomation) {
         await axios.put(`/api/sgsst/automatizaciones/${editingAutomation._id}`, payload);
         showToast({
-          message: 'Automatización actualizada con éxito.',
+          message: formSaveAsSystemPreset
+            ? 'Tarea actualizada y publicada también en el catálogo global.'
+            : 'Automatización actualizada con éxito.',
           status: 'success'
         });
       } else {
         await axios.post('/api/sgsst/automatizaciones', payload);
         showToast({
-          message: 'Automatización creada con éxito.',
+          message: formSaveAsSystemPreset
+            ? 'Tarea creada en tu empresa y publicada para todos los usuarios.'
+            : 'Automatización creada con éxito.',
           status: 'success'
         });
       }
       setIsModalOpen(false);
       fetchAutomations();
+      if (formSaveAsSystemPreset) fetchPresets();
       if (activeTab === 'logs') fetchLogs();
     } catch (err: any) {
       showToast({
@@ -598,6 +852,90 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
   };
 
+  const renderWorkflowPipeline = (nodes?: WorkflowNodesConfig, agentLabel?: string) => {
+    const triggerDef = getNodeDefById(nodes?.trigger || 'schedule_cron') || TRIGGER_NODES[0];
+    const inputDefs = (nodes?.inputs || []).map((id) => getNodeDefById(id)).filter(Boolean);
+    const hitoDefs = (nodes?.hitos || []).map((id) => getNodeDefById(id)).filter(Boolean);
+    const outputDefs = (nodes?.outputs || []).map((id) => getNodeDefById(id)).filter(Boolean);
+
+    return (
+      <div className="mb-3.5 p-3 rounded-xl bg-gray-50/90 dark:bg-gray-950/60 border border-purple-500/20">
+        <div className="flex items-center justify-between mb-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+            <Workflow className="w-3.5 h-3.5" /> Flujo de Conectores (Pipeline n8n)
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+          {/* Trigger Node */}
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold border ${triggerDef.badgeColor}`}>
+            <Zap className="w-3 h-3 shrink-0" />
+            {triggerDef.shortLabel}
+          </span>
+
+          <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
+
+          {/* Input Connectors */}
+          {inputDefs.length > 0 ? (
+            inputDefs.map((def) => (
+              <span
+                key={def!.id}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold border ${def!.badgeColor}`}
+                title={def!.label}
+              >
+                {def!.shortLabel}
+              </span>
+            ))
+          ) : (
+            <span className="px-2 py-0.5 rounded-md font-medium bg-gray-100 dark:bg-gray-800 text-gray-500">
+              Entrada Directa
+            </span>
+          )}
+
+          <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
+
+          {/* AI Agent Node */}
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-extrabold bg-purple-600 text-white shadow-sm">
+            <Bot className="w-3 h-3 shrink-0" />
+            {agentLabel || 'Agente IA'}
+          </span>
+
+          {/* Hitos / Apps */}
+          {hitoDefs.length > 0 && (
+            <>
+              <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
+              {hitoDefs.map((def) => (
+                <span
+                  key={def!.id}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold border ${def!.badgeColor}`}
+                  title={def!.label}
+                >
+                  <ShieldCheck className="w-3 h-3 shrink-0" />
+                  {def!.shortLabel}
+                </span>
+              ))}
+            </>
+          )}
+
+          {/* Outputs */}
+          {outputDefs.length > 0 && (
+            <>
+              <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
+              {outputDefs.map((def) => (
+                <span
+                  key={def!.id}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold border ${def!.badgeColor}`}
+                  title={def!.label}
+                >
+                  {def!.shortLabel}
+                </span>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-12">
       {/* Upper header - Estilo ACPM */}
@@ -606,41 +944,33 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           <div>
             <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
               <Cpu className="w-7 h-7 text-purple-500" />
-              Tareas
+              Tareas y Flujos Autónomos (n8n WAPPY)
             </h1>
           </div>
         ) : (
           <div>
             <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
               <Cpu className="w-5 h-5 text-purple-500" />
-              Vigilancia y Tareas Autónomas de Agentes IA
+              Vigilancia y Flujos Autónomos de Agentes IA
             </h2>
           </div>
         )}
 
-        <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+          <ExpandableButton
+            onClick={() => setActiveTab(activeTab === 'presets' ? 'list' : 'presets')}
+            variant="teal"
+            isActive={activeTab === 'presets'}
+            icon={<Workflow className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label={`Flujos Preestablecidos (${presets.length})`}
+          />
+
           {isAdmin && (
-            <DummyGenerateButton
-              onClick={async () => {
-                try {
-                  setLoading(true);
-                  await axios.post('/api/sgsst/automatizaciones/seed-admin-examples');
-                  await fetchAutomations();
-                  await fetchLogs();
-                  showToast({
-                    message: '2 automatizaciones de ejemplo para Administrador cargadas correctamente.',
-                    status: 'success',
-                  });
-                } catch (err) {
-                  showToast({
-                    message: 'No se pudieron cargar las automatizaciones de ejemplo.',
-                    status: 'error',
-                  });
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              text="Cargar 2 Ejemplos Admin"
+            <ExpandableButton
+              onClick={handleCreatePresetOpen}
+              variant="indigo"
+              icon={<Globe className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+              label="Crear Plantilla para Todos"
             />
           )}
 
@@ -862,17 +1192,34 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-800 mx-6 mt-6 mb-4">
+      <div className="flex flex-wrap items-center border-b border-gray-200 dark:border-gray-800 mx-6 mt-6 mb-4 gap-1">
         <button
           onClick={() => setActiveTab('list')}
-          className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 ${
+          className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 ${
             activeTab === 'list'
               ? 'border-purple-600 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
-          Mis Tareas
+          <Bot className="w-3.5 h-3.5" />
+          Mis Tareas ({automations.length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('presets')}
+          className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 ${
+            activeTab === 'presets'
+              ? 'border-teal-600 text-teal-600 dark:text-teal-400 bg-teal-50/40 dark:bg-teal-950/20 rounded-t-xl'
+              : 'border-transparent text-gray-500 hover:text-teal-600 dark:hover:text-teal-400'
+          }`}
+        >
+          <Workflow className="w-3.5 h-3.5" />
+          <span>Flujos Preestablecidos (n8n)</span>
+          <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 font-extrabold">
+            {presets.length || 12}
+          </span>
+        </button>
+
         <button
           onClick={() => setActiveTab('logs')}
           className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 ${
@@ -885,12 +1232,12 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         </button>
 
         <button 
-          onClick={activeTab === 'list' ? fetchAutomations : fetchLogs}
-          disabled={loading || logsLoading}
+          onClick={activeTab === 'list' ? fetchAutomations : activeTab === 'presets' ? fetchPresets : fetchLogs}
+          disabled={loading || logsLoading || presetsLoading}
           className="ml-auto p-2 text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition duration-200"
           title="Actualizar"
         >
-          <RefreshCw className={`w-4 h-4 ${(loading || logsLoading) ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${(loading || logsLoading || presetsLoading) ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -907,16 +1254,25 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <div className="p-4 bg-purple-50 dark:bg-purple-950/20 rounded-full text-purple-500 mb-4">
                 <Cpu className="w-10 h-10" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No hay tareas programadas</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-6">
-                Las automatizaciones permiten que tus agentes ejecuten tareas de forma 100% autónoma en base a un calendario.
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No hay tareas programadas en esta empresa</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6">
+                Activa con 1 clic cualquiera de los <strong>Flujos Preestablecidos del Sistema (n8n)</strong> o diseña tu propio flujo con conectores de Google, APIs, MCP y los 7 Hitos de Somos SST.
               </p>
-              <button
-                onClick={handleCreateOpen}
-                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition duration-200 text-xs uppercase tracking-wider"
-              >
-                Crear mi primera tarea
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => setActiveTab('presets')}
+                  className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-xl shadow-md transition duration-200 text-xs uppercase tracking-wider flex items-center gap-2"
+                >
+                  <Workflow className="w-4 h-4" />
+                  Explorar Flujos Preestablecidos (n8n)
+                </button>
+                <button
+                  onClick={handleCreateOpen}
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition duration-200 text-xs uppercase tracking-wider"
+                >
+                  Crear tarea desde cero
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -951,14 +1307,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                       <Bot className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-gray-900 dark:text-white group-hover:text-purple-600 transition duration-200 text-sm">
-                        {auto.name}
-                      </h3>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h3 className="font-extrabold text-gray-900 dark:text-white group-hover:text-purple-600 transition duration-200 text-sm">
+                          {auto.name}
+                        </h3>
+                        {auto.presetKey && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                            <Sparkles className="w-2.5 h-2.5" /> Flujo WAPPY
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5">
                         Asignado a: {auto.agentName}
                       </p>
                     </div>
                   </div>
+
+                  {/* Visual n8n Workflow Pipeline */}
+                  {renderWorkflowPipeline(auto.workflowNodes, auto.agentName)}
 
                   {/* Prompt Details */}
                   <div className="bg-surface-secondary/20 dark:bg-gray-800/40 rounded-xl p-3.5 mb-4 flex-1">
@@ -1103,6 +1469,179 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               ))}
             </div>
           )
+        ) : activeTab === 'presets' ? (
+          /* System Presets (n8n Flows Catalog) Tab */
+          <div>
+            {/* Banner informativo */}
+            <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-teal-900/90 via-slate-900 to-indigo-950 text-white border border-teal-500/30 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-3 rounded-2xl bg-teal-500/20 border border-teal-400/30 text-teal-300 shrink-0">
+                  <Workflow className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-extrabold tracking-tight text-white">
+                      Catálogo Oficial de Tareas Preestablecidas & Flujos n8n WAPPY
+                    </h3>
+                    <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-full bg-[#C7F303] text-[#0E1300]">
+                      Disponible para todos los usuarios
+                    </span>
+                  </div>
+                  <p className="text-xs text-teal-100/90 mt-1 max-w-3xl leading-relaxed">
+                    Flujos autónomos preconfigurados que encadenan <strong>Google Workspace (Drive, Calendar, Gmail)</strong>, <strong>NotebookLM</strong>, <strong>Google Flow</strong>, <strong>Google Antigravity</strong>, <strong>OpenWeather / PubChem / MedlinePlus</strong>, <strong>Búsqueda Web Legal</strong> y los <strong>7 Hitos + 20 Aplicativos de Somos SST</strong>. Instálalos en 1 clic o personaliza sus nodos.
+                  </p>
+                </div>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={handleCreatePresetOpen}
+                  className="shrink-0 px-4 py-2.5 rounded-xl bg-[#C7F303] hover:bg-[#b5dd02] text-[#0E1300] font-extrabold text-xs uppercase tracking-wider transition shadow-md flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nueva Tarea Preestablecida (Admin)
+                </button>
+              )}
+            </div>
+
+            {/* Filtro de categorías */}
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              {PRESET_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedPresetCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                    selectedPresetCategory === cat.id
+                      ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-800 hover:border-teal-400'
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {presetsLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
+                <Loader2 className="w-10 h-10 text-teal-600 animate-spin mb-4" />
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando catálogo de flujos preestablecidos...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {presets
+                  .filter((p) => selectedPresetCategory === 'all' || p.presetCategory === selectedPresetCategory)
+                  .map((preset) => {
+                    const alreadyInstalled = automations.some(
+                      (a) => (preset.presetKey && a.presetKey === preset.presetKey) || a.name === preset.name
+                    );
+                    const catObj = PRESET_CATEGORIES.find((c) => c.id === preset.presetCategory);
+                    return (
+                      <div
+                        key={preset._id}
+                        className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-teal-400 dark:hover:border-teal-700 rounded-2xl shadow-sm transition-all duration-300 p-5 relative"
+                      >
+                        {/* Top category badge & admin actions */}
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                            <span>{catObj?.icon || '⚡'}</span>
+                            <span>{catObj?.label || 'Flujo Oficial SG-SST'}</span>
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            {alreadyInstalled && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <CheckCircle className="w-3 h-3" /> En Mis Tareas
+                              </span>
+                            )}
+                            {isAdmin && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditOpen(preset)}
+                                  className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition"
+                                  title="Editar plantilla global (Admin)"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePreset(preset._id)}
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 transition"
+                                  title="Eliminar plantilla global (Admin)"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Title & Agent */}
+                        <div className="flex items-start gap-3 mb-2.5">
+                          <div className="p-2.5 bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400 rounded-xl mt-0.5 shrink-0">
+                            <Layers className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-gray-900 dark:text-white text-sm leading-snug">
+                              {preset.name}
+                            </h3>
+                            <p className="text-xs font-semibold text-teal-600 dark:text-teal-400 mt-0.5">
+                              Agente Especialista: {preset.agentName} • {formatScheduleText(preset)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {preset.presetDescription && (
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mb-3 leading-relaxed">
+                            {preset.presetDescription}
+                          </p>
+                        )}
+
+                        {/* Visual n8n Pipeline */}
+                        {renderWorkflowPipeline(preset.workflowNodes, preset.agentName)}
+
+                        {/* Prompt preview */}
+                        <div className="bg-surface-secondary/20 dark:bg-gray-800/40 rounded-xl p-3 mb-4 flex-1">
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold mb-1 uppercase tracking-wider">
+                            Prompt Autónomo Preconfigurado:
+                          </p>
+                          <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-3 italic leading-relaxed">
+                            "{preset.prompt}"
+                          </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 dark:border-gray-800 pt-3.5">
+                          <button
+                            type="button"
+                            onClick={() => handleCustomizeFromPreset(preset)}
+                            className="px-3 py-2 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/60 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs font-bold transition flex items-center gap-1.5"
+                          >
+                            <Workflow className="w-3.5 h-3.5" />
+                            Personalizar Nodos (n8n)
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={installingPresetId === preset._id}
+                            onClick={() => handleInstallPreset(preset, false)}
+                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            {installingPresetId === preset._id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            <span>{alreadyInstalled ? 'Agregar Copia a Mis Tareas' : 'Usar en mi Empresa'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
         ) : (
           /* Logs History Tab */
           logsLoading ? (
@@ -1204,18 +1743,34 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         )}
       </div>
 
-      {/* Modal Creación / Edición */}
+      {/* Modal Creación / Edición con Constructor Visual de Flujos y Conectores (Estilo n8n) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4">
-              <h2 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">
-                {editingAutomation ? 'Editar Tarea' : 'Nueva Tarea'}
-              </h2>
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4 bg-gradient-to-r from-purple-950/10 via-transparent to-teal-950/10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                  <Workflow className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">
+                    {isEditingSystemPreset
+                      ? editingAutomation
+                        ? 'Editar Tarea Preestablecida Global (Admin)'
+                        : 'Nueva Tarea Preestablecida Global para Todos los Usuarios'
+                      : editingAutomation
+                        ? 'Editar Tarea y Flujo de Conectores (n8n)'
+                        : 'Nueva Tarea Autónoma & Flujo de Conectores (n8n)'}
+                  </h2>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Conecta disparadores, herramientas de Google, APIs, MCP, Agentes IA y los 7 Hitos de Somos SST
+                  </p>
+                </div>
+              </div>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition font-bold"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition font-bold p-1.5"
               >
                 ✖
               </button>
@@ -1223,247 +1778,448 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
             {/* Form */}
             <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-y-auto px-6 py-5 gap-4">
-              {/* Título de la tarea */}
-              <div>
-                <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                  Nombre de la Tarea / Identificador <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ej. Reporte semanal de Exámenes Médicos Vencidos"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
-                />
+              {/* Selector rápido de Plantilla Preestablecida (solo al crear tarea de empresa) */}
+              {!editingAutomation && !isEditingSystemPreset && presets.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-extrabold text-teal-900 dark:text-teal-200">
+                        ¿Deseas partir de un Flujo Preestablecido del Sistema?
+                      </div>
+                      <div className="text-[11px] text-teal-700 dark:text-teal-400">
+                        Autocompleta los conectores n8n, el agente especialista, el horario y el prompt con 1 clic.
+                      </div>
+                    </div>
+                  </div>
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      const chosen = presets.find((p) => p._id === e.target.value);
+                      if (chosen) handleCustomizeFromPreset(chosen);
+                    }}
+                    className="px-3 py-2 text-xs font-bold bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-xl text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 max-w-xs"
+                  >
+                    <option value="">⚡ Cargar plantilla preestablecida...</option>
+                    {presets.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Fila 1: Nombre + Agente */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Título de la tarea */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                    Nombre de la Tarea / Flujo <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ej. Vigilancia Drive -> Registro ATEL e Inspecciones"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Selector de Agente */}
+                <div className="relative">
+                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                    Agente Especialista IA (Nodo Central) <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsAgentOpen(!isAgentOpen); }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white text-left"
+                  >
+                    <span>🤖 {agents.find(a => a.id === formAgentId)?.name || 'Seleccione un agente'}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+                  </button>
+                  {isAgentOpen && (
+                    <div className="absolute z-[120] mt-1 w-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {agents.map((agent) => (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => {
+                            setFormAgentId(agent.id);
+                            setIsAgentOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-900 dark:text-white transition duration-150 ${
+                            formAgentId === agent.id ? 'bg-purple-50/50 dark:bg-purple-900/10 font-semibold text-purple-600 dark:text-purple-400' : ''
+                          }`}
+                        >
+                          {agent.name}
+                        </button>
+                      ))}
+                      {agents.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          No hay agentes disponibles
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Selector de Agente */}
-              <div className="relative">
-                <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                  Agente a Asignar <span className="text-red-500">*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setIsAgentOpen(!isAgentOpen); }}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white text-left"
-                >
-                  <span>{agents.find(a => a.id === formAgentId)?.name || 'Seleccione un agente'}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
-                </button>
-                {isAgentOpen && (
-                  <div className="absolute z-[120] mt-1 w-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {agents.map((agent) => (
-                      <button
-                        key={agent.id}
-                        type="button"
-                        onClick={() => {
-                          setFormAgentId(agent.id);
-                          setIsAgentOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-900 dark:text-white transition duration-150 ${
-                          formAgentId === agent.id ? 'bg-purple-50/50 dark:bg-purple-900/10 font-semibold text-purple-600 dark:text-purple-400' : ''
+              {/* CONSTRUCTOR VISUAL DE FLUJOS Y CONECTORES ESTILO N8N */}
+              <div className="border border-purple-200/80 dark:border-purple-900/50 rounded-2xl p-4 bg-gradient-to-br from-purple-50/40 via-white to-teal-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-gray-850 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Workflow className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-gray-900 dark:text-white">
+                      Constructor de Flujo & Conectores (Arquitectura n8n WAPPY)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoBuildPrompt}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white text-[11px] font-extrabold uppercase tracking-wider shadow-sm transition flex items-center gap-1.5"
+                    title="Genera o actualiza automáticamente el Prompt Autónomo según los nodos seleccionados"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    Autogenerar Prompt desde los Nodos
+                  </button>
+                </div>
+
+                {/* Vista previa en vivo de la tubería n8n */}
+                {renderWorkflowPipeline(
+                  formWorkflowNodes,
+                  agents.find((a) => a.id === formAgentId)?.name || 'Consultor SG-SST'
+                )}
+
+                {/* Pestañas de las 4 etapas del flujo n8n */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                  {[
+                    { id: 'trigger', label: '1. Disparador', count: formWorkflowNodes.trigger ? 1 : 0, icon: '⚡' },
+                    { id: 'inputs', label: '2. Conectores / APIs', count: formWorkflowNodes.inputs.length, icon: '🔌' },
+                    { id: 'hitos', label: '3. Hitos & Apps SST', count: formWorkflowNodes.hitos.length, icon: '🛡️' },
+                    { id: 'outputs', label: '4. Salidas & Alertas', count: formWorkflowNodes.outputs.length, icon: '📤' },
+                  ].map((step) => (
+                    <button
+                      key={step.id}
+                      type="button"
+                      onClick={() => setBuilderStepTab(step.id as any)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between border ${
+                        builderStepTab === step.id
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span>{step.icon}</span>
+                        <span className="truncate">{step.label}</span>
+                      </span>
+                      <span
+                        className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          builderStepTab === step.id
+                            ? 'bg-white/20 text-white'
+                            : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
                         }`}
                       >
-                        {agent.name}
-                      </button>
-                    ))}
-                    {agents.length === 0 && (
-                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                        No hay agentes disponibles
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Emails destinatarios */}
-              <div>
-                <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                  Correos de Destinatarios (separados por coma)
-                </label>
-                <input
-                  type="text"
-                  placeholder="ej. medico.laboral@gmail.com, sgsst@empresa.com"
-                  value={formEmailsStr}
-                  onChange={(e) => setFormEmailsStr(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
-                />
-              </div>
-
-              {/* Trigger / Frecuencia */}
-              <div className="border border-gray-100 dark:border-gray-800 rounded-2xl p-4 bg-gray-50 dark:bg-gray-850">
-                <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3">
-                  Disparador (Trigger) de Tiempo
-                </label>
-
-                <div className="grid grid-cols-2 gap-4 mb-3">
-                  <div className="relative">
-                    <label className="block text-[10px] text-gray-500 mb-1">Frecuencia</label>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setIsFreqOpen(!isFreqOpen); }}
-                      className="w-full flex items-center justify-between px-3 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 dark:text-white text-left"
-                    >
-                      <span>
-                        {formScheduleType === 'daily' ? 'Diario' :
-                         formScheduleType === 'weekly' ? 'Semanal' :
-                         formScheduleType === 'monthly' ? 'Mensual' :
-                         formScheduleType === 'hourly' ? 'Cada X Horas' : 'Seleccionar'}
+                        {step.count}
                       </span>
-                      <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
                     </button>
-                    {isFreqOpen && (
-                      <div className="absolute z-[120] mt-1 w-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {[
-                          { id: 'daily', name: 'Diario' },
-                          { id: 'weekly', name: 'Semanal' },
-                          { id: 'monthly', name: 'Mensual' },
-                          { id: 'hourly', name: 'Cada X Horas' }
-                        ].map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setFormScheduleType(item.id as any);
-                              setIsFreqOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-900 dark:text-white transition duration-150 ${
-                              formScheduleType === item.id ? 'bg-purple-50/50 dark:bg-purple-900/10 font-semibold text-purple-600 dark:text-purple-400' : ''
-                            }`}
-                          >
-                            {item.name}
-                          </button>
-                        ))}
+                  ))}
+                </div>
+
+                {/* Panel de Nodos seleccionables según la etapa */}
+                <div className="max-h-56 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {(builderStepTab === 'trigger'
+                    ? TRIGGER_NODES
+                    : builderStepTab === 'inputs'
+                      ? INPUT_CONNECTOR_NODES
+                      : builderStepTab === 'hitos'
+                        ? HITO_APP_NODES
+                        : OUTPUT_ACTION_NODES
+                  ).map((node) => {
+                    const isSelected =
+                      builderStepTab === 'trigger'
+                        ? formWorkflowNodes.trigger === node.id
+                        : (formWorkflowNodes[builderStepTab] || []).includes(node.id);
+                    return (
+                      <button
+                        key={node.id}
+                        type="button"
+                        onClick={() => toggleWorkflowNode(builderStepTab, node.id)}
+                        className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
+                          isSelected
+                            ? 'bg-purple-50/90 dark:bg-purple-950/50 border-purple-500 ring-1 ring-purple-500 shadow-sm'
+                            : 'bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                        }`}
+                      >
+                        <span className="text-base leading-none mt-0.5 shrink-0">{node.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-extrabold text-gray-900 dark:text-white truncate">
+                              {node.label}
+                            </span>
+                            {isSelected && (
+                              <CheckCircle className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                            )}
+                          </div>
+                          <div className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 truncate">
+                            {node.badge}
+                          </div>
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5 leading-snug">
+                            {node.description}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Fila Horario + Correos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Trigger / Frecuencia */}
+                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 bg-gray-50/70 dark:bg-gray-850">
+                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5">
+                    ⏱️ Programación del Disparador de Tiempo
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3 mb-2">
+                    <div className="relative">
+                      <label className="block text-[10px] text-gray-500 mb-1">Frecuencia</label>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setIsFreqOpen(!isFreqOpen); }}
+                        className="w-full flex items-center justify-between px-3 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 dark:text-white text-left"
+                      >
+                        <span>
+                          {formScheduleType === 'daily' ? 'Diario' :
+                           formScheduleType === 'weekly' ? 'Semanal' :
+                           formScheduleType === 'monthly' ? 'Mensual' :
+                           formScheduleType === 'hourly' ? 'Cada X Horas' : 'Seleccionar'}
+                        </span>
+                        <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                      </button>
+                      {isFreqOpen && (
+                        <div className="absolute z-[120] mt-1 w-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {[
+                            { id: 'daily', name: 'Diario', triggerNode: 'schedule_daily' },
+                            { id: 'weekly', name: 'Semanal', triggerNode: 'schedule_weekly' },
+                            { id: 'monthly', name: 'Mensual', triggerNode: 'schedule_monthly' },
+                            { id: 'hourly', name: 'Cada X Horas', triggerNode: 'schedule_hourly' }
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                setFormScheduleType(item.id as any);
+                                setFormWorkflowNodes((prev) => ({ ...prev, trigger: item.triggerNode }));
+                                setIsFreqOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-900 dark:text-white transition duration-150 ${
+                                formScheduleType === item.id ? 'bg-purple-50/50 dark:bg-purple-900/10 font-semibold text-purple-600 dark:text-purple-400' : ''
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hour and Minute (except hourly) */}
+                    {formScheduleType !== 'hourly' && (
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="block text-[10px] text-gray-500 mb-1">Hora (0-23)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={23}
+                            value={formHour}
+                            onChange={(e) => setFormHour(Number(e.target.value))}
+                            className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-[10px] text-gray-500 mb-1">Minuto</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={59}
+                            value={formMinute}
+                            onChange={(e) => setFormMinute(Number(e.target.value))}
+                            className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interval Hours for hourly */}
+                    {formScheduleType === 'hourly' && (
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">Horas de Intervalo</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={168}
+                          value={formIntervalHours}
+                          onChange={(e) => setFormIntervalHours(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 text-xs bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
+                        />
                       </div>
                     )}
                   </div>
 
-                  {/* Hour and Minute (except hourly) */}
-                  {formScheduleType !== 'hourly' && (
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block text-[10px] text-gray-500 mb-1">Hora</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={23}
-                          value={formHour}
-                          onChange={(e) => setFormHour(Number(e.target.value))}
-                          className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-[10px] text-gray-500 mb-1">Minuto</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={59}
-                          value={formMinute}
-                          onChange={(e) => setFormMinute(Number(e.target.value))}
-                          className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
-                        />
+                  {/* Additional Weekly Option */}
+                  {formScheduleType === 'weekly' && (
+                    <div className="mt-2">
+                      <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                        Días de la Semana
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { id: 1, label: 'L', name: 'Lunes' },
+                          { id: 2, label: 'M', name: 'Martes' },
+                          { id: 3, label: 'M', name: 'Miércoles' },
+                          { id: 4, label: 'J', name: 'Jueves' },
+                          { id: 5, label: 'V', name: 'Viernes' },
+                          { id: 6, label: 'S', name: 'Sábado' },
+                          { id: 0, label: 'D', name: 'Domingo' }
+                        ].map((day) => {
+                          const isSelected = formDaysOfWeek.includes(day.id);
+                          return (
+                            <button
+                              key={day.id}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  if (formDaysOfWeek.length > 1) {
+                                    setFormDaysOfWeek(formDaysOfWeek.filter(d => d !== day.id));
+                                  }
+                                } else {
+                                  setFormDaysOfWeek([...formDaysOfWeek, day.id]);
+                                }
+                              }}
+                              className={`w-8 h-8 flex items-center justify-center text-xs font-extrabold rounded-full border transition-all duration-200 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-transparent text-white shadow-md'
+                                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300'
+                              }`}
+                              title={day.name}
+                            >
+                              {day.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
-                  {/* Interval Hours for hourly */}
-                  {formScheduleType === 'hourly' && (
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Horas de Intervalo</label>
+                  {/* Additional Monthly Option */}
+                  {formScheduleType === 'monthly' && (
+                    <div className="mt-2">
+                      <label className="block text-[10px] text-gray-500 mb-1">Día del Mes (1-31)</label>
                       <input
                         type="number"
                         min={1}
-                        max={168}
-                        value={formIntervalHours}
-                        onChange={(e) => setFormIntervalHours(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
+                        max={31}
+                        value={formDayOfMonth}
+                        onChange={(e) => setFormDayOfMonth(Number(e.target.value))}
+                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
                       />
                     </div>
                   )}
                 </div>
 
-                {/* Additional Weekly Option (Calendar / Multi-day badge selector) */}
-                {formScheduleType === 'weekly' && (
-                  <div className="mt-3">
-                    <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-                      Días de la Semana (Selección Múltiple)
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { id: 1, label: 'L', name: 'Lunes' },
-                        { id: 2, label: 'M', name: 'Martes' },
-                        { id: 3, label: 'M', name: 'Miércoles' },
-                        { id: 4, label: 'J', name: 'Jueves' },
-                        { id: 5, label: 'V', name: 'Viernes' },
-                        { id: 6, label: 'S', name: 'Sábado' },
-                        { id: 0, label: 'D', name: 'Domingo' }
-                      ].map((day) => {
-                        const isSelected = formDaysOfWeek.includes(day.id);
-                        return (
-                          <button
-                            key={day.id}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                if (formDaysOfWeek.length > 1) {
-                                  setFormDaysOfWeek(formDaysOfWeek.filter(d => d !== day.id));
-                                }
-                              } else {
-                                setFormDaysOfWeek([...formDaysOfWeek, day.id]);
-                              }
-                            }}
-                            className={`w-9 h-9 flex items-center justify-center text-xs font-extrabold rounded-full border transition-all duration-200 cursor-pointer ${
-                              isSelected
-                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-transparent text-white shadow-md scale-105'
-                                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-750'
-                            }`}
-                            title={day.name}
-                          >
-                            {day.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[10px] text-gray-500 mt-1.5 italic">
-                      Selecciona uno o más días en que debe ejecutarse la automatización.
-                    </p>
-                  </div>
-                )}
-
-                {/* Additional Monthly Option */}
-                {formScheduleType === 'monthly' && (
+                {/* Destinatarios y Opciones de Plantilla Global Admin */}
+                <div className="flex flex-col gap-3 justify-between">
                   <div>
-                    <label className="block text-[10px] text-gray-500 mb-1">Día del Mes</label>
+                    <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                      📧 Correos de Destinatarios (separados por coma)
+                    </label>
                     <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={formDayOfMonth}
-                      onChange={(e) => setFormDayOfMonth(Number(e.target.value))}
-                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
+                      type="text"
+                      placeholder="ej. medico.laboral@gmail.com, gerencia@empresa.com"
+                      value={formEmailsStr}
+                      onChange={(e) => setFormEmailsStr(e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
                     />
                   </div>
-                )}
+
+                  {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema */}
+                  {isAdmin && (
+                    <div className="p-3 rounded-2xl border border-teal-300/70 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-950/20">
+                      {!isEditingSystemPreset && (
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-extrabold text-teal-900 dark:text-teal-200">
+                          <input
+                            type="checkbox"
+                            checked={formSaveAsSystemPreset}
+                            onChange={(e) => setFormSaveAsSystemPreset(e.target.checked)}
+                            className="rounded border-teal-400 text-teal-600 focus:ring-teal-500"
+                          />
+                          <span>🌐 Publicar también como Tarea Preestablecida para TODOS los usuarios</span>
+                        </label>
+                      )}
+                      {(isEditingSystemPreset || formSaveAsSystemPreset) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
+                              Categoría del Catálogo
+                            </label>
+                            <select
+                              value={formPresetCategory}
+                              onChange={(e) => setFormPresetCategory(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-lg dark:text-white"
+                            >
+                              {PRESET_CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.icon} {c.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
+                              Resumen para los usuarios
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Breve explicación del beneficio..."
+                              value={formPresetDescription}
+                              onChange={(e) => setFormPresetDescription(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-lg dark:text-white"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Instrucción / Prompt */}
               <div>
-                <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                  Instrucciones Autónomas (Prompt) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Instrucciones Autónomas para el Agente (Prompt de Ejecución) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                    Puedes escribirlo o pulsar "Autogenerar Prompt desde los Nodos"
+                  </span>
+                </div>
                 <textarea
                   required
-                  rows={4}
-                  placeholder="ej. Revisa los exámenes médicos ocupacionales de los trabajadores e identifica aquellos que estén vencidos. Genera un reporte detallado con el nombre de cada trabajador, cédula, examen vencido y cargo, y notifícalo a luisa.wappy@gmail.com."
+                  rows={5}
+                  placeholder="Selecciona los conectores arriba y pulsa 'Autogenerar Prompt desde los Nodos', o escribe aquí la orden detallada que ejecutará el agente..."
                   value={formPrompt}
                   onChange={(e) => setFormPrompt(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white font-mono text-xs"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white font-mono text-xs leading-relaxed"
                 />
               </div>
 
               {/* Botones de acción */}
-              <div className="flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800 pt-4 mt-2">
+              <div className="flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800 pt-4 mt-1">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -1475,7 +2231,11 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   type="submit"
                   className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-lg text-xs uppercase tracking-wider transition shadow-md"
                 >
-                  Guardar
+                  {isEditingSystemPreset
+                    ? 'Guardar Plantilla Global'
+                    : editingAutomation
+                      ? 'Guardar Cambios'
+                      : 'Guardar Tarea y Flujo'}
                 </button>
               </div>
             </form>

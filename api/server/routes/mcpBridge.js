@@ -3962,7 +3962,11 @@ router.get('/agentes-automatizaciones', requireApiKeyOrJwt, async (req, res) => 
             .select('id name description instructions avatar model provider category tools skills conversation_starters agent_ids author')
             .lean()
         : [],
-      Automation.find(companyId ? { $or: [{ companyId }, { user: userId }] } : { user: userId })
+      Automation.find(
+        companyId
+          ? { companyId, isSystemPreset: { $ne: true } }
+          : { user: userId, isSystemPreset: { $ne: true }, companyId: { $ne: 'SYSTEM_PRESET' } }
+      )
         .sort({ createdAt: -1 })
         .lean(),
     ]);
@@ -4439,9 +4443,14 @@ router.post('/accion-universal', requireApiKeyOrJwt, async (req, res) => {
       if (!cleanPath.startsWith('/api/')) cleanPath = `/api${cleanPath}`;
 
       // Proteger rutas exclusivas de super-administración global si el usuario no es ADMIN
-      if (!isAdmin && /^\/api\/(admin|roles|ban|users\/delete-all)/i.test(cleanPath)) {
+      const isGlobalAdminRoute =
+        /^\/api\/(admin|roles|ban|users\/delete-all)/i.test(cleanPath) ||
+        /^\/api\/referrals\/(dashboard|users-activity-metrics|attribute|commissions|crm|email|proposal)/i.test(cleanPath) ||
+        /^\/api\/comunidad\/(metrics|purchases|audit-forensic|matrizipvr\/metrics|wappystudio\/metrics|wappycolmena)/i.test(cleanPath) ||
+        /^\/api\/(tickets\/all|marketplace\/admin|training\/admin|ruta-aprendizaje\/admin|events\/admin|notifications\/admin-push|sgsst\/sync-agents)/i.test(cleanPath);
+      if (!isAdmin && isGlobalAdminRoute) {
         return res.status(403).json({
-          error: 'Esta ruta administrativa global requiere rol ADMIN. Puedes ejecutar cualquier acción dentro de tu propio usuario y empresas conectadas.',
+          error: 'Esta ruta administrativa o de métricas globales requiere rol ADMIN. Puedes ejecutar cualquier acción dentro de tu propio usuario y empresas conectadas.',
         });
       }
 
@@ -4599,6 +4608,758 @@ router.post('/accion-universal', requireApiKeyOrJwt, async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] POST /accion-universal error:', error);
     return res.status(500).json({ error: `Error ejecutando acción del usuario: ${error.message}` });
+  }
+});
+
+// ─── 18.D CENTRO MAESTRO DE MÉTRICAS Y OPERACIONES DE SUPER-ADMINISTRADOR (SOLO ROL ADMIN) ───
+
+async function callInternalAdminEndpoint(reqUser, method, apiPath, payload = null) {
+  const jwt = require('jsonwebtoken');
+  const internalToken = jwt.sign(
+    {
+      id: String(reqUser.id || reqUser._id),
+      email: reqUser.email || '',
+      role: reqUser.role || 'ADMIN',
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '10m' },
+  );
+  const port = process.env.PORT || 3080;
+  let cleanPath = String(apiPath || '').trim();
+  if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
+  if (!cleanPath.startsWith('/api/')) cleanPath = `/api${cleanPath}`;
+
+  let targetUrl = `http://127.0.0.1:${port}${cleanPath}`;
+  const upperMethod = String(method || 'GET').toUpperCase().trim();
+  if (upperMethod === 'GET' && payload && typeof payload === 'object' && Object.keys(payload).length > 0) {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== undefined && v !== null && v !== '') qs.set(k, String(v));
+    }
+    const qsStr = qs.toString();
+    if (qsStr) targetUrl += (targetUrl.includes('?') ? '&' : '?') + qsStr;
+  }
+
+  const fetchOpts = {
+    method: upperMethod,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${internalToken}`,
+      'User-Agent': 'WappyAdminTenshiBridge/1.0',
+    },
+  };
+  if (upperMethod !== 'GET' && upperMethod !== 'HEAD' && payload !== null && payload !== undefined) {
+    fetchOpts.body = JSON.stringify(payload);
+  }
+
+  const resp = await fetch(targetUrl, fetchOpts);
+  const text = await resp.text();
+  let data = text;
+  try {
+    data = JSON.parse(text);
+  } catch (_) {}
+  return { ok: resp.ok, status: resp.status, data };
+}
+
+async function resolveTargetUserForAdmin(identifier) {
+  if (!identifier) return null;
+  const { User } = require('~/db/models');
+  const raw = String(identifier).trim();
+  if (!raw) return null;
+  if (mongoose.Types.ObjectId.isValid(raw)) {
+    const byId = await User.findById(raw).select('_id name email username role currentPlan partnerSlug accountStatus').lean();
+    if (byId) return byId;
+  }
+  const safeRx = new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  return await User.findOne({
+    $or: [
+      { email: raw.toLowerCase() },
+      { username: safeRx },
+      { name: safeRx },
+      { partnerSlug: safeRx },
+      { phoneNumber: safeRx },
+    ],
+  })
+    .select('_id name email username role currentPlan partnerSlug accountStatus')
+    .lean();
+}
+
+const handleAdminMetricsMcp = async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        exito: false,
+        error: 'Acceso denegado: El módulo de métricas y administración global es exclusivo para cuentas con rol ADMIN.',
+      });
+    }
+
+    const params = { ...(req.query || {}), ...(req.body || {}) };
+    const rawModulo = String(params.modulo || params.module || params.seccion || 'resumen_global')
+      .toLowerCase()
+      .trim();
+    const busqueda = String(params.busqueda || params.search || params.query || params.filtro || params.email || params.nombre || '')
+      .toLowerCase()
+      .trim();
+    const limit = Math.min(Math.max(Number(params.limit) || 40, 5), 150);
+    const periodo = String(params.periodo || params.period || 'all').toLowerCase().trim();
+
+    const matchesSearch = (obj, fields = []) => {
+      if (!busqueda) return true;
+      return fields.some((f) => {
+        const val = typeof f === 'function' ? f(obj) : obj?.[f];
+        return val && String(val).toLowerCase().includes(busqueda);
+      });
+    };
+
+    // 1. MÓDULO DE ACTIVIDAD Y ADOPCIÓN DE USUARIOS (/api/referrals/users-activity-metrics)
+    if (
+      rawModulo.includes('actividad') ||
+      rawModulo.includes('adopcion') ||
+      rawModulo.includes('adopción') ||
+      rawModulo.includes('uso') ||
+      rawModulo === 'users_activity' ||
+      rawModulo === 'semaforo'
+    ) {
+      const actRes = await callInternalAdminEndpoint(req.user, 'GET', '/api/referrals/users-activity-metrics');
+      const rawData = actRes.data || {};
+      const allUsers = Array.isArray(rawData.users) ? rawData.users : [];
+      const nivelFiltro = String(params.nivel || params.adoptionLevel || '').toLowerCase().trim();
+      const semaforoFiltro = String(params.semaforo || params.trafficLight || '').toLowerCase().trim();
+
+      const filtered = allUsers.filter((u) => {
+        if (nivelFiltro && String(u.adoptionLevel || '').toLowerCase() !== nivelFiltro) return false;
+        if (semaforoFiltro && String(u.trafficLight || '').toLowerCase() !== semaforoFiltro) return false;
+        return matchesSearch(u, [
+          'name',
+          'email',
+          'phone',
+          'plan',
+          'adoptionLabel',
+          (x) => (x.companies || []).map((c) => c.companyName || c.nit).join(' '),
+        ]);
+      });
+
+      const byLevel = {
+        power_user: allUsers.filter((u) => u.adoptionLevel === 'power_user').length,
+        avanzado: allUsers.filter((u) => u.adoptionLevel === 'avanzado').length,
+        intermedio: allUsers.filter((u) => u.adoptionLevel === 'intermedio').length,
+        explorador: allUsers.filter((u) => u.adoptionLevel === 'explorador').length,
+        sin_inicio: allUsers.filter((u) => u.adoptionLevel === 'sin_inicio').length,
+      };
+      const byTrafficLight = {
+        green: allUsers.filter((u) => u.trafficLight === 'green').length,
+        yellow: allUsers.filter((u) => u.trafficLight === 'yellow').length,
+        red: allUsers.filter((u) => u.trafficLight === 'red').length,
+        gray: allUsers.filter((u) => u.trafficLight === 'gray').length,
+      };
+
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'actividad_usuarios',
+        resumenGlobal: rawData.summary || {},
+        distribucionNivelesAdopcion: byLevel,
+        distribucionSemaforo: byTrafficLight,
+        totalCoincidencias: filtered.length,
+        usuariosMuestra: filtered.slice(0, limit),
+      });
+    }
+
+    // 2. MÓDULO COMERCIAL, EMBAJADORES, COMISIONES Y CRM (/api/referrals/dashboard)
+    if (
+      rawModulo.includes('embajador') ||
+      rawModulo.includes('comision') ||
+      rawModulo.includes('referid') ||
+      rawModulo.includes('crm') ||
+      rawModulo === 'referrals'
+    ) {
+      const refRes = await callInternalAdminEndpoint(req.user, 'GET', '/api/referrals/dashboard');
+      const d = refRes.data || {};
+      const allReferred = Array.isArray(d.referredUsers) ? d.referredUsers : [];
+      const allCommissions = Array.isArray(d.commissions) ? d.commissions : [];
+      const networkStats = Array.isArray(d.networkStats) ? d.networkStats : [];
+      const etapaFiltro = String(params.etapa_crm || params.crmStage || '').toLowerCase().trim();
+      const estadoComision = String(params.estado_comision || params.commissionStatus || '').toLowerCase().trim();
+
+      const filteredUsers = allReferred.filter((u) => {
+        if (etapaFiltro && String(u.crmStage || '').toLowerCase() !== etapaFiltro) return false;
+        return matchesSearch(u, ['name', 'email', 'phoneNumber', 'referredByPartner', 'partnerName', 'currentPlan', 'crmStage']);
+      });
+
+      const filteredCommissions = allCommissions.filter((c) => {
+        if (estadoComision && String(c.status || '').toLowerCase() !== estadoComision) return false;
+        return matchesSearch(c, ['referredUserName', 'referredUserEmail', 'partnerName', 'partnerSlug', 'planName', 'status']);
+      });
+
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'embajadores_comisiones_crm',
+        kpis: d.kpis || {},
+        miPerfilEmbajador: d.partnerProfile || null,
+        redEmbajadores: networkStats,
+        totalUsuariosEnDashboard: filteredUsers.length,
+        usuariosCRM: filteredUsers.slice(0, limit),
+        totalComisiones: filteredCommissions.length,
+        comisiones: filteredCommissions.slice(0, limit),
+      });
+    }
+
+    // 3. MÓDULO DE ANALÍTICA DE PAGOS Y CHECKOUT (/api/admin/checkout/summary & /events)
+    if (
+      rawModulo.includes('pago') ||
+      rawModulo.includes('checkout') ||
+      rawModulo.includes('ingreso') ||
+      rawModulo.includes('facturacion') ||
+      rawModulo.includes('embudo')
+    ) {
+      const [sumRes, evRes] = await Promise.all([
+        callInternalAdminEndpoint(req.user, 'GET', '/api/admin/checkout/summary', { period: periodo }),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/admin/checkout/events', { page: params.page || 1 }),
+      ]);
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'analitica_pagos_checkout',
+        periodo,
+        resumenEmbudoPagos: sumRes.data || {},
+        eventosRecientesCheckout: evRes.data || {},
+      });
+    }
+
+    // 4. TELEMETRÍA DE MATRIZ IPEVR (/api/comunidad/matrizipvr/metrics)
+    if (rawModulo.includes('ipevr') || rawModulo.includes('ipvr') || rawModulo.includes('matrizipvr')) {
+      const ipvrRes = await callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/matrizipvr/metrics', {
+        search: params.busqueda || '',
+      });
+      const d = ipvrRes.data || {};
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'matrizipvr_telemetria',
+        estadisticas: d.stats || {},
+        totalEmpresas: Array.isArray(d.companies) ? d.companies.length : 0,
+        empresas: Array.isArray(d.companies) ? d.companies.slice(0, limit) : [],
+      });
+    }
+
+    // 5. TELEMETRÍA DE WAPPY STUDIO (/api/comunidad/wappystudio/metrics)
+    if (rawModulo.includes('studio') || rawModulo.includes('wappystudio')) {
+      const stRes = await callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/wappystudio/metrics');
+      const d = stRes.data || {};
+      const comps = Array.isArray(d.companies) ? d.companies.filter((c) => matchesSearch(c, ['companyName', 'nit', 'sector', 'city', 'userEmail'])) : [];
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'wappystudio_telemetria',
+        estadisticas: {
+          totalCompanies: d.totalCompanies || comps.length,
+          totalWorkers: d.totalWorkers || 0,
+          totalAudios: d.totalAudios || 0,
+          totalVideos: d.totalVideos || 0,
+        },
+        empresas: comps.slice(0, limit),
+      });
+    }
+
+    // 6. RADAR E INTERMEDIACIÓN ARL COLMENA (/api/comunidad/wappycolmena/*)
+    if (rawModulo.includes('colmena') || rawModulo.includes('arl') || rawModulo.includes('radar')) {
+      const [radarRes, dealsRes] = await Promise.all([
+        callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/wappycolmena/radar'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/wappycolmena/deals'),
+      ]);
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'wappycolmena_radar_arl',
+        radar: radarRes.data || {},
+        negociosPipeline: dealsRes.data || {},
+      });
+    }
+
+    // 7. COMUNIDAD, COMPRAS Y AUDITORÍA FORENSE (/api/comunidad/metrics/stats & /purchases & /audit-forensic)
+    if (rawModulo.includes('comunidad') || rawModulo.includes('forense') || rawModulo.includes('compras_comunidad')) {
+      const [statsRes, purRes, audRes] = await Promise.all([
+        callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/metrics/stats'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/purchases'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/audit-forensic'),
+      ]);
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'comunidad_ventas_auditoria',
+        estadisticasComunidad: statsRes.data || {},
+        comprasComunidad: purRes.data || {},
+        auditoriaForense: audRes.data || {},
+      });
+    }
+
+    // 8. GESTIÓN DE USUARIOS (/api/admin/users)
+    if (rawModulo === 'usuarios' || rawModulo === 'users' || rawModulo === 'gestion_usuarios') {
+      const usersRes = await callInternalAdminEndpoint(req.user, 'GET', '/api/admin/users');
+      const allUsers = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.users || []);
+      const rolFiltro = String(params.rol || params.role || '').toUpperCase().trim();
+      const estadoFiltro = String(params.estado || params.accountStatus || '').toLowerCase().trim();
+
+      const filtered = allUsers.filter((u) => {
+        if (rolFiltro && String(u.role || '').toUpperCase() !== rolFiltro) return false;
+        if (estadoFiltro && String(u.accountStatus || '').toLowerCase() !== estadoFiltro) return false;
+        return matchesSearch(u, ['name', 'email', 'username', 'phoneNumber', 'currentPlan', 'role', 'partnerSlug', 'referredByPartner']);
+      });
+
+      let detalleUsuarioEspecifico = null;
+      if (params.userId || (busqueda && filtered.length === 1)) {
+        const targetUid = params.userId || filtered[0]?._id || filtered[0]?.id;
+        if (targetUid) {
+          const [refDet, convDet] = await Promise.all([
+            callInternalAdminEndpoint(req.user, 'GET', `/api/admin/users/${targetUid}/referral-details`),
+            callInternalAdminEndpoint(req.user, 'GET', `/api/admin/users/${targetUid}/conversations`),
+          ]);
+          detalleUsuarioEspecifico = {
+            userId: targetUid,
+            usuario: filtered[0] || null,
+            referidosYComisiones: refDet.data || null,
+            conversacionesRecientes: Array.isArray(convDet.data) ? convDet.data.slice(0, 20) : convDet.data,
+          };
+        }
+      }
+
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'gestion_usuarios',
+        totalUsuariosSistema: allUsers.length,
+        totalCoincidencias: filtered.length,
+        usuarios: filtered.slice(0, limit),
+        detalleUsuarioEspecifico,
+      });
+    }
+
+    // 9. TODAS LAS EMPRESAS DEL SISTEMA (/api/admin/company-info)
+    if (rawModulo === 'empresas' || rawModulo === 'empresas_admin' || rawModulo === 'company_info') {
+      const compRes = await callInternalAdminEndpoint(req.user, 'GET', '/api/admin/company-info');
+      const allComps = Array.isArray(compRes.data) ? compRes.data : (compRes.data?.companies || []);
+      const filtered = allComps.filter((c) =>
+        matchesSearch(c, ['companyName', 'nit', 'legalRepresentative', 'arl', 'city', 'departamento', 'sector', 'email', (x) => x.user?.email || x.user?.name]),
+      );
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'empresas_sistema',
+        totalEmpresasSistema: allComps.length,
+        totalCoincidencias: filtered.length,
+        empresas: filtered.slice(0, limit),
+      });
+    }
+
+    // 10. TICKETS DE SOPORTE GLOBAL (/api/tickets/all)
+    if (rawModulo.includes('ticket') || rawModulo.includes('soporte') || rawModulo.includes('pqrs')) {
+      const tRes = await callInternalAdminEndpoint(req.user, 'GET', '/api/tickets/all');
+      const allTickets = Array.isArray(tRes.data) ? tRes.data : (tRes.data?.tickets || []);
+      const filtered = allTickets.filter((t) => matchesSearch(t, ['name', 'email', 'phone', 'type', 'description', 'status', 'response']));
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'tickets_soporte_admin',
+        totalTickets: allTickets.length,
+        pendientes: allTickets.filter((t) => t.status === 'pending').length,
+        respondidos: allTickets.filter((t) => t.status && t.status !== 'pending').length,
+        tickets: filtered.slice(0, limit),
+      });
+    }
+
+    // 11. PLANES, CÓDIGOS PROMOCIONALES, ROLES Y LEADS
+    if (
+      rawModulo.includes('plan') ||
+      rawModulo.includes('promo') ||
+      rawModulo.includes('rol') ||
+      rawModulo.includes('lead') ||
+      rawModulo.includes('prospecto')
+    ) {
+      const [plansRes, visRes, promosRes, leadsRes, rolesRes] = await Promise.all([
+        callInternalAdminEndpoint(req.user, 'GET', '/api/admin/plans'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/admin/plans-visibility'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/admin/promocodes'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/admin/leads'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/roles'),
+      ]);
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'planes_promocodes_leads_roles',
+        planes: plansRes.data || [],
+        visibilidadPlanes: visRes.data || {},
+        codigosPromocionales: promosRes.data || [],
+        leads: Array.isArray(leadsRes.data) ? leadsRes.data.slice(0, limit) : leadsRes.data,
+        rolesPermisos: rolesRes.data || {},
+      });
+    }
+
+    // 12. MARKETPLACE / TIENDA ADMIN
+    if (rawModulo.includes('marketplace') || rawModulo.includes('tienda') || rawModulo.includes('orden')) {
+      const [ordRes, coupRes, prodRes] = await Promise.all([
+        callInternalAdminEndpoint(req.user, 'GET', '/api/marketplace/admin/orders'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/marketplace/admin/coupons'),
+        callInternalAdminEndpoint(req.user, 'GET', '/api/marketplace/products'),
+      ]);
+      return res.json({
+        exito: true,
+        rolVerificado: 'ADMIN',
+        modulo: 'marketplace_admin',
+        ordenesCompra: ordRes.data || [],
+        cuponesTienda: coupRes.data || [],
+        productosTienda: prodRes.data || [],
+      });
+    }
+
+    // 13. RESUMEN GLOBAL 360° DE TODOS LOS MÓDULOS DE ADMIN Y MÉTRICAS (POR DEFECTO)
+    const [
+      actRes,
+      refRes,
+      chkRes,
+      ipvrRes,
+      studioRes,
+      colmenaRes,
+      comStatsRes,
+      ticketsRes,
+      leadsRes,
+      promosRes,
+      plansRes,
+    ] = await Promise.all([
+      callInternalAdminEndpoint(req.user, 'GET', '/api/referrals/users-activity-metrics').catch(() => ({ data: {} })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/referrals/dashboard').catch(() => ({ data: {} })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/admin/checkout/summary', { period: periodo }).catch(() => ({ data: {} })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/matrizipvr/metrics').catch(() => ({ data: {} })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/wappystudio/metrics').catch(() => ({ data: {} })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/wappycolmena/radar').catch(() => ({ data: {} })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/comunidad/metrics/stats').catch(() => ({ data: {} })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/tickets/all').catch(() => ({ data: [] })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/admin/leads').catch(() => ({ data: [] })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/admin/promocodes').catch(() => ({ data: [] })),
+      callInternalAdminEndpoint(req.user, 'GET', '/api/admin/plans').catch(() => ({ data: [] })),
+    ]);
+
+    const actUsers = Array.isArray(actRes.data?.users) ? actRes.data.users : [];
+    const allTickets = Array.isArray(ticketsRes.data) ? ticketsRes.data : (ticketsRes.data?.tickets || []);
+    const allLeads = Array.isArray(leadsRes.data) ? leadsRes.data : (leadsRes.data?.leads || []);
+    const allPromos = Array.isArray(promosRes.data) ? promosRes.data : (promosRes.data?.promoCodes || []);
+
+    return res.json({
+      exito: true,
+      rolVerificado: 'ADMIN',
+      modulo: 'resumen_global_admin_360',
+      adminConectado: {
+        id: String(req.user.id || req.user._id),
+        nombre: req.user.name || req.user.username || 'Administrador',
+        email: req.user.email || '',
+        rol: req.user.role,
+      },
+      metricasActividadYAdopcion: {
+        resumen: actRes.data?.summary || {},
+        topUsuariosActivos: actUsers
+          .slice()
+          .sort((a, b) => (b.adoptionScore || 0) - (a.adoptionScore || 0))
+          .slice(0, 12)
+          .map((u) => ({
+            id: u._id,
+            nombre: u.name,
+            email: u.email,
+            plan: u.plan,
+            adoptionScore: u.adoptionScore,
+            adoptionLabel: u.adoptionLabel,
+            trafficLight: u.trafficLight,
+            empresas: u.companiesCount,
+            trabajadores: u.workersCount,
+            conversaciones: u.chatMetrics?.totalConversations || 0,
+          })),
+      },
+      metricasComercialesYEmbajadores: {
+        kpis: refRes.data?.kpis || {},
+        redEmbajadores: Array.isArray(refRes.data?.networkStats) ? refRes.data.networkStats.slice(0, 15) : [],
+        ultimasComisiones: Array.isArray(refRes.data?.commissions) ? refRes.data.commissions.slice(0, 10) : [],
+      },
+      analiticaPagosYCheckout: chkRes.data || {},
+      telemetriaAplicativosPublicos: {
+        matrizIpevr: ipvrRes.data?.stats || {},
+        wappyStudio: {
+          totalCompanies: studioRes.data?.totalCompanies || 0,
+          totalWorkers: studioRes.data?.totalWorkers || 0,
+          totalAudios: studioRes.data?.totalAudios || 0,
+          totalVideos: studioRes.data?.totalVideos || 0,
+        },
+        radarArlColmena: colmenaRes.data?.stats || colmenaRes.data?.summary || {},
+        comunidadStats: comStatsRes.data || {},
+      },
+      soporteYMarketing: {
+        ticketsTotales: allTickets.length,
+        ticketsPendientes: allTickets.filter((t) => t.status === 'pending').length,
+        ultimosTickets: allTickets.slice(0, 5),
+        leadsTotales: allLeads.length,
+        ultimosLeads: allLeads.slice(0, 5),
+        codigosPromoActivos: allPromos.filter((p) => p.isActive !== false).length,
+        planesConfigurados: Array.isArray(plansRes.data) ? plansRes.data.length : 0,
+      },
+      modulosDisponiblesParaProfundizar: [
+        'actividad_usuarios',
+        'embajadores',
+        'pagos',
+        'matrizipvr',
+        'wappystudio',
+        'colmena',
+        'comunidad',
+        'usuarios',
+        'empresas',
+        'tickets',
+        'planes_y_promos',
+        'marketplace_admin',
+      ],
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] /admin-metrics error:', error);
+    return res.status(500).json({ error: `Error consultando métricas de administrador: ${error.message}` });
+  }
+};
+
+router.get('/admin-metrics', requireApiKeyOrJwt, handleAdminMetricsMcp);
+router.post('/admin-metrics', requireApiKeyOrJwt, handleAdminMetricsMcp);
+
+router.post('/admin-action', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        exito: false,
+        error: 'Acceso denegado: Solo los usuarios con rol ADMIN pueden ejecutar acciones administrativas globales en WAPPY.',
+      });
+    }
+
+    const body = req.body || {};
+    const rawPath = body.ruta || body.path || body.endpoint;
+    const rawMethod = String(body.metodo || body.method || 'POST').toUpperCase().trim();
+    const datos = { ...(body.datos || body.data || body.parametros || {}) };
+    // Copiar parámetros de primer nivel si el modelo los pasó directamente en args
+    for (const [k, v] of Object.entries(body)) {
+      if (!['ruta', 'path', 'endpoint', 'metodo', 'method', 'datos', 'data', 'parametros', 'modulo', 'module', 'accion', 'action', 'operacion'].includes(k) && datos[k] === undefined) {
+        datos[k] = v;
+      }
+    }
+
+    const modulo = String(body.modulo || body.module || '').toLowerCase().trim();
+    const accion = String(body.accion || body.action || body.operacion || '').toLowerCase().trim();
+
+    // Si especificó ruta directa, ejecutarla directamente con token de ADMIN
+    if (rawPath && typeof rawPath === 'string') {
+      const out = await callInternalAdminEndpoint(req.user, rawMethod, rawPath, datos);
+      return res.status(out.status).json({
+        exito: out.ok,
+        rolVerificado: 'ADMIN',
+        metodo: rawMethod,
+        ruta: rawPath,
+        resultado: out.data,
+      });
+    }
+
+    // Resolver userId / targetUserId automáticamente si pasaron email, nombre o usuario
+    const userHint = datos.userId || datos.targetUserId || datos.email || datos.usuario || datos.nombre_usuario;
+    if (userHint && (!datos.userId || !mongoose.Types.ObjectId.isValid(String(datos.userId)))) {
+      const resolved = await resolveTargetUserForAdmin(userHint);
+      if (resolved) {
+        datos.userId = String(resolved._id);
+        datos.targetUserId = String(resolved._id);
+      }
+    }
+
+    // Resolver partnerId automáticamente si pasaron nombre/email/slug del embajador
+    const partnerHint = datos.partnerId || datos.embajador || datos.partnerSlug;
+    if (partnerHint && (!datos.partnerId || !mongoose.Types.ObjectId.isValid(String(datos.partnerId)))) {
+      const resolvedPartner = await resolveTargetUserForAdmin(partnerHint);
+      if (resolvedPartner) {
+        datos.partnerId = String(resolvedPartner._id);
+      }
+    }
+
+    // ── A. GESTIÓN DE USUARIOS (/api/admin/users/*) ──
+    if (modulo.includes('usuario') || modulo === 'users' || accion.includes('usuario')) {
+      if (accion.includes('crear') || accion === 'create') {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/admin/users/create', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'crear_usuario', resultado: out.data });
+      }
+      if (accion.includes('eliminar') || accion.includes('borrar') || accion === 'delete') {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/admin/users/delete', { userId: datos.userId });
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'eliminar_usuario', resultado: out.data });
+      }
+      if (accion.includes('masiv') || accion.includes('bulk')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/admin/users/bulk-update', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'actualizacion_masiva_usuarios', resultado: out.data });
+      }
+      if (accion.includes('conversacion') || accion.includes('chat')) {
+        const path = datos.conversationId
+          ? `/api/admin/users/${datos.userId}/conversations/${datos.conversationId}`
+          : `/api/admin/users/${datos.userId}/conversations`;
+        const out = await callInternalAdminEndpoint(req.user, 'GET', path);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'ver_conversaciones_usuario', resultado: out.data });
+      }
+      // Por defecto en usuarios: actualizar usuario (rol, plan, estado, fecha expiración, límites, puntos, contraseña)
+      const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/admin/users/update', datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'actualizar_usuario', resultado: out.data });
+    }
+
+    // ── B. EMBAJADORES, COMISIONES, RENOVACIONES Y CRM (/api/referrals/*) ──
+    if (
+      modulo.includes('embajador') ||
+      modulo.includes('comision') ||
+      modulo.includes('referid') ||
+      modulo.includes('crm') ||
+      modulo.includes('propuesta')
+    ) {
+      if (accion.includes('atribuir') || accion.includes('asignar')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/attribute', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'atribuir_embajador', resultado: out.data });
+      }
+      if (accion.includes('renovar') || accion.includes('renew')) {
+        const payload = { confirmedPaid: true, ...datos };
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/commissions/renew-period', payload);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'renovar_periodo_comision', resultado: out.data });
+      }
+      if (accion.includes('eliminar_comision') || (modulo.includes('comision') && accion.includes('eliminar'))) {
+        const commId = datos.commissionId || datos.id;
+        const out = await callInternalAdminEndpoint(req.user, 'DELETE', `/api/referrals/commissions/${commId}`);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'eliminar_comision', resultado: out.data });
+      }
+      if (accion.includes('comision') || modulo.includes('comision')) {
+        const commId = datos.commissionId || datos.id;
+        const out = await callInternalAdminEndpoint(req.user, 'PUT', `/api/referrals/commissions/${commId}`, datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'actualizar_comision', resultado: out.data });
+      }
+      if (accion.includes('etapa') || accion.includes('stage')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/crm/update-stage', {
+          targetUserId: datos.targetUserId || datos.userId,
+          newStage: datos.newStage || datos.etapa || datos.stage,
+          note: datos.note || datos.nota,
+        });
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'actualizar_etapa_crm', resultado: out.data });
+      }
+      if (accion.includes('nota') || accion.includes('note')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/crm/add-note', {
+          targetUserId: datos.targetUserId || datos.userId,
+          text: datos.text || datos.nota || datos.mensaje,
+          type: datos.type || 'note',
+        });
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'agregar_nota_crm', resultado: out.data });
+      }
+      if (accion.includes('generar_propuesta')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/proposal/generate', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'generar_propuesta_comercial', resultado: out.data });
+      }
+      if (accion.includes('enviar_propuesta')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/proposal/send-email', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'enviar_propuesta_comercial', resultado: out.data });
+      }
+      if (accion.includes('generar_correo') || accion.includes('generar_email')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/email/generate', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'generar_email_crm', resultado: out.data });
+      }
+      if (accion.includes('enviar_correo') || accion.includes('enviar_email')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/referrals/email/send', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'enviar_email_crm', resultado: out.data });
+      }
+    }
+
+    // ── C. PLANES Y CÓDIGOS PROMOCIONALES (/api/admin/plans* & /api/admin/promocodes*) ──
+    if (modulo.includes('plan')) {
+      if (accion.includes('visibilidad') || accion.includes('visibility')) {
+        const out = await callInternalAdminEndpoint(req.user, 'PUT', '/api/admin/plans-visibility', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'visibilidad_planes', resultado: out.data });
+      }
+      const planId = datos.planId || datos.id;
+      const out = await callInternalAdminEndpoint(req.user, 'PUT', `/api/admin/plans/${planId}`, datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'actualizar_plan', resultado: out.data });
+    }
+
+    if (modulo.includes('promo') || modulo.includes('cupon_plan') || accion.includes('promo')) {
+      if (accion.includes('crear') || accion === 'create') {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/admin/promocodes', datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'crear_promocode', resultado: out.data });
+      }
+      if (accion.includes('toggle') || accion.includes('activar') || accion.includes('desactivar')) {
+        const promoId = datos.id || datos.promoId;
+        const out = await callInternalAdminEndpoint(req.user, 'PATCH', `/api/admin/promocodes/${promoId}/toggle`, datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'toggle_promocode', resultado: out.data });
+      }
+      if (accion.includes('eliminar') || accion.includes('delete')) {
+        const promoId = datos.id || datos.promoId;
+        const out = await callInternalAdminEndpoint(req.user, 'DELETE', `/api/admin/promocodes/${promoId}`);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'eliminar_promocode', resultado: out.data });
+      }
+    }
+
+    // ── D. MARKETING, NOTIFICACIONES PUSH Y LEADS ──
+    if (modulo.includes('marketing')) {
+      const path = accion.includes('enviar') || accion.includes('send') ? '/api/admin/marketing/send' : '/api/admin/marketing/generate';
+      const out = await callInternalAdminEndpoint(req.user, 'POST', path, datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: path, resultado: out.data });
+    }
+
+    if (modulo.includes('push') || modulo.includes('notificacion')) {
+      const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/notifications/admin-push', datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'enviar_notificacion_push', resultado: out.data });
+    }
+
+    if (modulo.includes('lead') || modulo.includes('prospecto')) {
+      if (accion.includes('eliminar') || accion.includes('delete')) {
+        const out = await callInternalAdminEndpoint(req.user, 'DELETE', `/api/admin/leads/${datos.id || datos.leadId}`);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'eliminar_lead', resultado: out.data });
+      }
+      const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/admin/leads', datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'crear_lead', resultado: out.data });
+    }
+
+    // ── E. TICKETS DE SOPORTE (/api/tickets/*) ──
+    if (modulo.includes('ticket') || modulo.includes('soporte')) {
+      const ticketId = datos.ticketId || datos.id;
+      if (accion.includes('eliminar') || accion.includes('delete')) {
+        const out = await callInternalAdminEndpoint(req.user, 'DELETE', `/api/tickets/${ticketId}`);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'eliminar_ticket', resultado: out.data });
+      }
+      if (accion.includes('sugerir') || accion.includes('ia') || accion.includes('suggest')) {
+        const out = await callInternalAdminEndpoint(req.user, 'POST', `/api/tickets/${ticketId}/ai-suggest`, datos);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'sugerir_respuesta_ticket', resultado: out.data });
+      }
+      const out = await callInternalAdminEndpoint(req.user, 'POST', `/api/tickets/${ticketId}/respond`, {
+        response: datos.response || datos.respuesta || datos.mensaje,
+        status: datos.status || datos.estado || 'resolved',
+      });
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'responder_ticket', resultado: out.data });
+    }
+
+    // ── F. COMUNIDAD, TELEMETRÍA Y RADAR ARL COLMENA (/api/comunidad/*) ──
+    if (modulo.includes('colmena')) {
+      if (accion.includes('eliminar') || accion.includes('delete')) {
+        const out = await callInternalAdminEndpoint(req.user, 'DELETE', `/api/comunidad/wappycolmena/deals/${datos.id || datos.dealId}`);
+        return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'eliminar_negocio_colmena', resultado: out.data });
+      }
+      const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/comunidad/wappycolmena/deals', datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'guardar_negocio_colmena', resultado: out.data });
+    }
+
+    // ── G. SINCRONIZACIÓN DE AGENTES DEL SISTEMA Y CONFIGURACIÓN DE TENSHI ──
+    if (modulo.includes('sync_agentes') || accion.includes('sincronizar_agentes')) {
+      const path = accion.includes('cleanup') || accion.includes('limpiar') ? '/api/sgsst/sync-agents/cleanup-and-sync' : '/api/sgsst/sync-agents/sync';
+      const out = await callInternalAdminEndpoint(req.user, 'POST', path, datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'sincronizar_agentes', resultado: out.data });
+    }
+
+    if (modulo.includes('tenshi_config') || accion.includes('config_tenshi')) {
+      const out = await callInternalAdminEndpoint(req.user, 'POST', '/api/tenshi/config', datos);
+      return res.status(out.status).json({ exito: out.ok, rolVerificado: 'ADMIN', accion: 'actualizar_config_tenshi', resultado: out.data });
+    }
+
+    return res.status(400).json({
+      error:
+        'Indica "modulo" ("usuarios", "embajadores", "comisiones", "crm", "planes", "promocodes", "marketing", "push", "leads", "tickets", "colmena", "sync_agentes", "tenshi_config") + "accion" + "datos", o envía directamente "ruta" (ej. "/api/admin/users/update") + "metodo" ("GET"|"POST"|"PUT"|"PATCH"|"DELETE") + "datos".',
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /admin-action error:', error);
+    return res.status(500).json({ error: `Error ejecutando acción de administrador: ${error.message}` });
   }
 });
 
@@ -5944,9 +6705,11 @@ router.delete('/alturas/:workerId/:equipoId', requireApiKeyOrJwt, async (req, re
 router.get('/tickets', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
-    const tickets = await Ticket.find({ user: userId }).sort({ createdAt: -1 }).lean();
+    const isAdmin = req.user.role === 'ADMIN';
+    const tickets = await Ticket.find(isAdmin ? {} : { user: userId }).sort({ createdAt: -1 }).lean();
 
     return res.json({
+      rolVerificado: isAdmin ? 'ADMIN' : 'USER',
       total: tickets.length,
       tickets: tickets.map((t) => ({
         id: t._id.toString(),
@@ -6047,6 +6810,9 @@ router.get('/tenshi/config', requireApiKeyOrJwt, async (req, res) => {
 
 router.put('/tenshi/config', requireApiKeyOrJwt, async (req, res) => {
   try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acceso denegado: Solo un ADMIN puede actualizar la configuración global de Tenshi.' });
+    }
     const updates = req.body || {};
 
     let config = await TenshiConfig.findOne();
