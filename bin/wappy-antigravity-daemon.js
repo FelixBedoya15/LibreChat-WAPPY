@@ -41,8 +41,7 @@ const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hi
 const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
 const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
 const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para el Generador Prioritario de Imágenes
-const LIBRECHAT_PRIMARY_PROJECT_ID = '02b10c08-df81-4a56-af48-1b15f7e66c76';
-const DAEMON_VERSION = '2.6.1';
+const DAEMON_VERSION = '2.6.2';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -1850,8 +1849,41 @@ function saveCompanyWorkspaceMapping(identifier, workspacePath) {
 }
 
 /**
- * Búsqueda difusa (smart match) contra los proyectos registrados en ~/.gemini/config/projects/*.json:
- * busca si alguna carpeta de proyecto coincide o contiene el nombre de la empresa normalizado o su NIT.
+ * Calcula similitud de bigramas (coeficiente de Sørensen–Dice) entre dos cadenas normalizadas (0.0 a 1.0)
+ * para encontrar siempre el proyecto con el nombre más parecido en el computador del usuario.
+ */
+function computeStringSimilarity(a, b) {
+  const s1 = String(a || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const s2 = String(b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!s1 || !s2) return 0;
+  if (s1 === s2) return 1;
+  if (s1.length < 2 || s2.length < 2) return 0;
+  const bigrams1 = new Map();
+  for (let i = 0; i < s1.length - 1; i++) {
+    const bg = s1.slice(i, i + 2);
+    bigrams1.set(bg, (bigrams1.get(bg) || 0) + 1);
+  }
+  let intersection = 0;
+  for (let i = 0; i < s2.length - 1; i++) {
+    const bg = s2.slice(i, i + 2);
+    const count = bigrams1.get(bg) || 0;
+    if (count > 0) {
+      bigrams1.set(bg, count - 1);
+      intersection++;
+    }
+  }
+  return (2 * intersection) / (s1.length - 1 + (s2.length - 1));
+}
+
+function isUserHomeRootFolder(folderPath) {
+  if (!folderPath) return false;
+  return normalizeMacUserPath(folderPath) === normalizeMacUserPath(HOME_DIR);
+}
+
+/**
+ * Búsqueda inteligente y difusa (smart match por similitud de nombre) contra los proyectos del usuario
+ * registrados en ~/.gemini/config/projects/*.json:
+ * Busca el proyecto con el nombre más parecido a la empresa o su NIT.
  */
 function findProjectByCompanyMatch(companyName, companyNit) {
   try {
@@ -1890,6 +1922,7 @@ function findProjectByCompanyMatch(companyName, companyNit) {
             if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(folderPath)) {
               folderPath = folderPath.slice(1);
             }
+            if (isUserHomeRootFolder(folderPath)) continue;
             let folderExists = true;
             if (!/\/(Library\/CloudStorage|Desktop)\//i.test(folderPath)) {
               try {
@@ -1909,24 +1942,40 @@ function findProjectByCompanyMatch(companyName, companyNit) {
               const normProjName = normalizeCompanyKey(projName);
               let score = 0;
 
-              // 1. Coincidencia EXACTA por nombre completo del proyecto o de la carpeta (ej. "wappy ltda" === "wappy ltda")
+              // 1. Coincidencia EXACTA por nombre completo del proyecto o de la carpeta
               if (rawCompanyLower && projName === rawCompanyLower) score += 100;
               if (rawCompanyLower && folderBasename === rawCompanyLower) score += 100;
 
-              // 2. Coincidencia EXACTA normalizada sin sufijo societario (ej. "wappy" === "wappy", frente a "librechatwappy")
-              if (normCompanyKey && normProjName === normCompanyKey) score += 40;
-              if (normCompanyKey && normFolder === normCompanyKey) score += 40;
+              // 2. Coincidencia EXACTA normalizada sin sufijo societario
+              if (normCompanyKey && normProjName === normCompanyKey) score += 60;
+              if (normCompanyKey && normFolder === normCompanyKey) score += 60;
 
-              // 3. Coincidencia por NIT en la ruta o nombre
-              if (nitClean && nitClean.length >= 5 && (folderPath.includes(nitClean) || projName.includes(nitClean))) {
-                score += 15;
+              // 3. Contención / Subcadena directa
+              if (normCompanyKey && normCompanyKey.length >= 3) {
+                if (normProjName.includes(normCompanyKey) || normCompanyKey.includes(normProjName)) score += 25;
+                if (normFolder.includes(normCompanyKey) || normCompanyKey.includes(normFolder)) score += 25;
               }
 
-              // 4. Coincidencia parcial por palabras clave de la razón social
+              // 4. Coincidencia por NIT en la ruta o nombre
+              if (nitClean && nitClean.length >= 5 && (folderPath.includes(nitClean) || projName.includes(nitClean))) {
+                score += 30;
+              }
+
+              // 5. Coincidencia parcial por palabras clave de la razón social
               for (const kw of nameKeys) {
-                if (normFolder.includes(kw)) score += 3;
-                if (normProjName.includes(kw)) score += 3;
-                if (folderPath.toLowerCase().includes(kw)) score += 1;
+                if (normFolder.includes(kw)) score += 8;
+                if (normProjName.includes(kw)) score += 8;
+                if (folderPath.toLowerCase().includes(kw)) score += 2;
+              }
+
+              // 6. Similitud difusa de caracteres (Dice bigram similarity) para hallar el nombre más parecido
+              if (normCompanyKey) {
+                const simProj = computeStringSimilarity(normCompanyKey, normProjName);
+                const simFolder = computeStringSimilarity(normCompanyKey, normFolder);
+                const maxSim = Math.max(simProj, simFolder);
+                if (maxSim >= 0.35) {
+                  score += Math.round(maxSim * 25);
+                }
               }
 
               if (score > bestScore) {
@@ -1942,7 +1991,7 @@ function findProjectByCompanyMatch(companyName, companyNit) {
       } catch (_) {}
     }
 
-    if (bestScore >= 3 && bestMatch) {
+    if (bestScore >= 5 && bestMatch) {
       return bestMatch;
     }
   } catch (_) {}
@@ -2059,39 +2108,18 @@ function findLocalFolderForGitHubRepo(owner, repo) {
 }
 
 /**
- * Resuelve el directorio de trabajo (workspace) y el ANTIGRAVITY_PROJECT_ID activo para `agentapi new-conversation`.
- * Soporta resolución inteligente por empresa cuando un usuario tiene múltiples empresas en WAPPY
- * y múltiples proyectos locales, en Google Drive o en GitHub (agentes remotos/locales de Google Antigravity).
+ * Resuelve el directorio de trabajo (workspace) y el ANTIGRAVITY_PROJECT_ID activo para cualquier usuario de WAPPY:
+ * 1. Proyecto explícitamente configurado en la empresa (`companyWorkspace`, GitHub, Drive, Carpeta Local o `wappy-company-workspaces.json`).
+ * 2. Si no tiene proyecto configurado, busca entre los proyectos de Antigravity del usuario (`~/.gemini/config/projects/*.json`)
+ *    el proyecto con el NOMBRE MÁS PARECIDO a la empresa (`findProjectByCompanyMatch`).
+ * 3. Si no hay coincidencia por nombre, utiliza el ÚLTIMO PROYECTO que el usuario utilizó en su Antigravity
+ *    (conversación más reciente o proyecto usado más recientemente).
  */
 function resolveWorkspaceTarget(orden = null) {
   if (orden && typeof orden === 'object') {
-    const rawSource = String(orden.sourceModule || orden.origen || '').toLowerCase().trim();
-    const rawTitle = String(orden.titulo || orden.title || '').trim();
-    if (
-      rawSource === 'healthcheck_e2e' ||
-      rawSource === 'healthcheck_report' ||
-      /\[HEALTHCHECK-(?:E2E|REPORT)\]/i.test(rawTitle)
-    ) {
-      const hcDirs = [
-        '/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY',
-        path.join(HOME_DIR, 'Documents', 'GitHub', 'LibreChat-WAPPY'),
-        '/Users/venta/Documents/GitHub/LibreChat-WAPPY',
-        '/home/antigravity/LibreChat-WAPPY',
-        '/home/antigravity',
-      ];
-      for (const dir of hcDirs) {
-        if (fs.existsSync(dir)) {
-          return {
-            cwd: dir,
-            projectId: findProjectIdForFolder(dir) || LIBRECHAT_PRIMARY_PROJECT_ID,
-          };
-        }
-      }
-    }
-
     // -------------------------------------------------------------------------
-    // Prioridad 1: companyWorkspace / targetProject explícito en la base de datos o en la orden
-    // (Soporta Carpeta Local, Repositorio GitHub, Carpeta Google Drive o Nombre del Proyecto)
+    // Prioridad 1: Proyecto explícito configurado en la empresa de WAPPY (`companyWorkspace` / `targetProject`)
+    // o en `~/.gemini/antigravity/wappy-company-workspaces.json`
     // -------------------------------------------------------------------------
     const rawCompanyWs = String(orden.companyWorkspace || orden.workspace || orden.targetProject || '').trim();
     const parsedRef = parseCompanyProjectReference(rawCompanyWs);
@@ -2113,7 +2141,6 @@ function resolveWorkspaceTarget(orden = null) {
           };
         }
       }
-      // Si el usuario escribió el nombre del proyecto de Antigravity (ej. "WAPPY LTDA"), buscarlo en projects/*.json
       const namedProj = findProjectByCompanyMatch(rawCompanyWs, '');
       if (namedProj) {
         return {
@@ -2123,29 +2150,6 @@ function resolveWorkspaceTarget(orden = null) {
       }
     }
 
-    // -------------------------------------------------------------------------
-    // Prioridad 2: Búsqueda en proyectos nativos de Google Antigravity (~/.gemini/config/projects/*.json)
-    // Si el usuario creó un proyecto en Antigravity con el nombre o NIT de la empresa, priorizarlo siempre
-    // -------------------------------------------------------------------------
-    const candidateCompanyName = String(orden.companyName || orden.empresa || '').trim();
-    const isGenericCompanyPlaceholder =
-      !candidateCompanyName ||
-      /^empresa activa(\s+en\s+wappy)?$/i.test(candidateCompanyName) ||
-      /^wappy(\s+studio)?$/i.test(candidateCompanyName);
-    if (!isGenericCompanyPlaceholder || orden.companyNit) {
-      const smartMatched = findProjectByCompanyMatch(
-        isGenericCompanyPlaceholder ? '' : candidateCompanyName,
-        orden.companyNit
-      );
-      if (smartMatched) {
-        return smartMatched;
-      }
-    }
-
-    // -------------------------------------------------------------------------
-    // Prioridad 3: Buscar en ~/.gemini/antigravity/wappy-company-workspaces.json
-    // Permite mapear manualmente companyId, NIT o nombre de empresa a una ruta local
-    // -------------------------------------------------------------------------
     const mappings = loadCompanyWorkspacesMap();
     const lookupCandidates = [
       orden.companyId,
@@ -2174,34 +2178,35 @@ function resolveWorkspaceTarget(orden = null) {
         }
       }
     }
+
+    // -------------------------------------------------------------------------
+    // Prioridad 2: Buscar el proyecto de Antigravity del usuario con el NOMBRE MÁS PARECIDO a la empresa
+    // -------------------------------------------------------------------------
+    const candidateCompanyName = String(orden.companyName || orden.empresa || '').trim();
+    const isUnsetPlaceholder =
+      !candidateCompanyName || /^empresa activa(\s+en\s+wappy)?$/i.test(candidateCompanyName);
+    if (!isUnsetPlaceholder || orden.companyNit) {
+      const smartMatched = findProjectByCompanyMatch(
+        isUnsetPlaceholder ? '' : candidateCompanyName,
+        orden.companyNit
+      );
+      if (smartMatched) {
+        return smartMatched;
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Prioridad 4: Respaldo determinista al proyecto primario LibreChat-WAPPY
+  // Prioridad 3: El ÚLTIMO PROYECTO que el usuario utilizó en su Antigravity
   // ---------------------------------------------------------------------------
   if (process.env.WAPPY_PROJECT_DIR && fs.existsSync(process.env.WAPPY_PROJECT_DIR)) {
     return {
       cwd: process.env.WAPPY_PROJECT_DIR,
-      projectId: findProjectIdForFolder(process.env.WAPPY_PROJECT_DIR) || LIBRECHAT_PRIMARY_PROJECT_ID,
+      projectId: findProjectIdForFolder(process.env.WAPPY_PROJECT_DIR),
     };
   }
 
-  // 0. Priorizar siempre el workspace oficial LibreChat-WAPPY cuando exista en disco (sin exigir --workspace_id en language_server)
-  const primaryDirs = [
-    '/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY',
-    path.join(HOME_DIR, 'Documents', 'GitHub', 'LibreChat-WAPPY'),
-    '/Users/venta/Documents/GitHub/LibreChat-WAPPY',
-    '/home/antigravity/LibreChat-WAPPY',
-    '/home/antigravity',
-  ];
-  for (const dir of primaryDirs) {
-    if (fs.existsSync(dir)) {
-      const pid = findProjectIdForFolder(dir) || LIBRECHAT_PRIMARY_PROJECT_ID;
-      return { cwd: dir, projectId: pid };
-    }
-  }
-
-  // 1. Detectar el proyecto actualmente abierto en Antigravity a partir de las conversaciones recientes
+  // 3.A: Detectar el último proyecto utilizado por el usuario a partir de sus conversaciones más recientes
   try {
     const convDir = path.join(AGY_DIR, 'conversations');
     if (fs.existsSync(convDir)) {
@@ -2227,7 +2232,7 @@ function resolveWorkspaceTarget(orden = null) {
       for (const item of candidates) {
         if (seenIds.has(item.id)) continue;
         seenIds.add(item.id);
-        if (seenIds.size > 3) break;
+        if (seenIds.size > 5) break;
         try {
           const out = runAgentApi(bin, ['get-conversation-metadata', item.id], {
             timeout: 2500,
@@ -2248,15 +2253,16 @@ function resolveWorkspaceTarget(orden = null) {
               if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(folderPath)) {
                 folderPath = folderPath.slice(1);
               }
+              if (isUserHomeRootFolder(folderPath)) continue;
               let folderExists = true;
-            if (!/\/(Library\/CloudStorage|Desktop)\//i.test(folderPath)) {
-              try {
-                folderExists = fs.existsSync(folderPath);
-              } catch (_) {
-                folderExists = true;
+              if (!/\/(Library\/CloudStorage|Desktop)\//i.test(folderPath)) {
+                try {
+                  folderExists = fs.existsSync(folderPath);
+                } catch (_) {
+                  folderExists = true;
+                }
               }
-            }
-            if (folderExists) {
+              if (folderExists) {
                 const matchedProjId = findProjectIdForFolder(folderPath);
                 if (matchedProjId) {
                   return {
@@ -2272,23 +2278,7 @@ function resolveWorkspaceTarget(orden = null) {
     }
   } catch (_) {}
 
-  // 2. Respaldo prioritario: entorno explícito capturado en wappy-env.json si pertenece a un proyecto registrado
-  try {
-    if (fs.existsSync(ENV_FILE)) {
-      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
-      if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
-        const matchedProjId = findProjectIdForFolder(savedEnv.workspaceCwd);
-        if (matchedProjId) {
-          return {
-            cwd: savedEnv.workspaceCwd,
-            projectId: matchedProjId,
-          };
-        }
-      }
-    }
-  } catch (_) {}
-
-  // 3. Proyecto activo registrado en ~/.gemini/config/projects/*.json (ej. Wappy IA)
+  // 3.B: Último proyecto modificado/usado en ~/.gemini/config/projects/*.json del usuario
   try {
     const projectsDir = path.join(CONFIG_DIR, 'projects');
     if (fs.existsSync(projectsDir)) {
@@ -2310,6 +2300,7 @@ function resolveWorkspaceTarget(orden = null) {
               if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(folderPath)) {
                 folderPath = folderPath.slice(1);
               }
+              if (isUserHomeRootFolder(folderPath)) continue;
               if (fs.existsSync(folderPath) && st.mtimeMs >= bestMtime) {
                 bestMtime = st.mtimeMs;
                 bestFolder = folderPath;
@@ -2326,14 +2317,15 @@ function resolveWorkspaceTarget(orden = null) {
     }
   } catch (_) {}
 
-  // 4. Respaldo final de wappy-env.json aunque sea outside-of-project
+  // 3.C: Entorno guardado en wappy-env.json del usuario
   try {
     if (fs.existsSync(ENV_FILE)) {
       const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
       if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
+        const matchedProjId = findProjectIdForFolder(savedEnv.workspaceCwd);
         return {
           cwd: savedEnv.workspaceCwd,
-          projectId: findProjectIdForFolder(savedEnv.workspaceCwd) || 'outside-of-project',
+          projectId: matchedProjId || 'outside-of-project',
         };
       }
     }
@@ -2732,11 +2724,10 @@ async function materializeOrderMediaLocally(archivosList, wappyUrl, apiKey, orde
       const basename = rawBasename.replace(/[^a-zA-Z0-9._-]/g, '_');
       const tmpDest = path.join('/tmp', `wappy_media_${safeOrdenId}_${basename}`);
 
-      // Primero verificar si el archivo ya existe localmente en el workspace `/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/client/public${relativePath}`
+      // Primero verificar si el archivo ya existe localmente en el workspace activo del usuario
       let copiedFromLocalWorkspace = false;
       if (relativePath.startsWith('/images/')) {
         const workspaceCandidates = [
-          `/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY/client/public${relativePath}`,
           path.join(resolveWorkspaceDirectory(), 'client', 'public', relativePath),
         ];
         for (const candidate of workspaceCandidates) {

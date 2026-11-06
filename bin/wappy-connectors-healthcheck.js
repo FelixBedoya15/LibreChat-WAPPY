@@ -1520,7 +1520,7 @@ function formatShortColombianHour(dateInput = new Date()) {
 /**
  * 6. APERTURA Y REGISTRO EN EL CHAT DEDICADO DE ANTIGRAVITY (`🩺 [Cron Conectores · ...]`)
  * Abre visiblemente la conversación dedicada de Bitácora (`wappy-healthcheck-thread.json`) en el proyecto
- * principal `LibreChat-WAPPY` dejando el acta completa de las 3 pruebas E2E o la verificación de ventana de 90 min.
+ * activo del usuario dejando el acta completa de las 3 pruebas E2E o la verificación de ventana de 90 min.
  */
 async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {}) {
   const mode = options.mode || 'full_report';
@@ -1562,7 +1562,6 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
       `- **Fecha y Hora (Colombia):** ${formatColombianDate(new Date())}`,
       `- **Disparador:** \`${trigger}\` (${triggerHuman})`,
       `- **Equipo / Host:** \`${os.hostname()}\``,
-      `- **Proyecto Destino:** \`LibreChat-WAPPY\` (\`/Users/felixbedoya/Documents/GitHub/LibreChat-WAPPY\`)`,
       `- **Resultado Global E2E:** ${allHealthyNow ? '🟢 **3/3 MÓDULOS OPERATIVOS Y VERIFICADOS**' : '🚨 **ALERTA DETECTADA EN REVISIÓN**'}`,
       ``,
       `### 🧪 Detalle de las 3 Pruebas Funcionales E2E:`,
