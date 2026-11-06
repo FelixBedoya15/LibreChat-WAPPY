@@ -6,6 +6,9 @@ const mongoose = require('mongoose');
 const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
 const CompanyInfo = require('~/models/CompanyInfo');
+const Notification = require('~/models/Notification');
+const TenshiMessage = require('~/models/TenshiMessage');
+const KanbanTask = require('~/models/KanbanTask');
 const sendEmail = require('~/server/utils/sendEmail');
 
 let schedulerInterval = null;
@@ -451,16 +454,39 @@ async function runAutomation(automation, isManual = false) {
           ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity Local (Mac/PC) + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" (action: "delegate_task" o consulta por puente Push SSE con respaldo Cloud Failover automático) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
           : `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
 
+    // Memoria Anti-Duplicados (wappy_memory_antiduplicate): inyecta el resumen de la última corrida exitosa
+    const activeMemories = Array.isArray(automation.workflowNodes?.memories)
+      ? automation.workflowNodes.memories
+      : ['wappy_memory_company'];
+    let previousRunMemoryBlock = '';
+    if (activeMemories.includes('wappy_memory_antiduplicate')) {
+      try {
+        const lastSuccessLog = await AutomationLog.findOne({
+          automation: automation._id,
+          status: 'success',
+          _id: { $ne: log._id },
+        })
+          .sort({ runAt: -1 })
+          .select('runAt result')
+          .lean();
+        if (lastSuccessLog?.result) {
+          previousRunMemoryBlock =
+            `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS (${new Date(lastSuccessLog.runAt).toISOString()})]: En la ejecución anterior ya se procesó lo siguiente (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(lastSuccessLog.result).substring(0, 600)}\n`;
+        }
+      } catch (_) {}
+    }
+
     const companyHeaderBlock = automationCompany
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
         `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
         antigravityEngineDirective +
+        previousRunMemoryBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : antigravityEngineDirective;
+      : `${antigravityEngineDirective}${previousRunMemoryBlock}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
@@ -628,6 +654,59 @@ async function runAutomation(automation, isManual = false) {
           }
         } catch (tagErr) {
           // No-op
+        }
+      }
+
+      const configuredOutputs = Array.isArray(automation.workflowNodes?.outputs)
+        ? automation.workflowNodes.outputs
+        : ['email_report'];
+      const compLabel = automationCompany?.companyName || 'Somos SST';
+
+      // 11A. Notificación Directa en WAPPY + Chat de Tenshi (cuando wappy_notification está activo)
+      if (configuredOutputs.includes('wappy_notification')) {
+        try {
+          const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 260);
+          await Notification.create({
+            user: automation.user,
+            title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
+            body: `${shortSummary}${resultText.length > 260 ? '...' : ''}`,
+            type: 'system_update',
+            read: false,
+          });
+          await TenshiMessage.create({
+            user: automation.user,
+            sender: 'tenshi',
+            text:
+              `📋 **Bitácora de Flujo Completada — ${automation.name} (${compLabel})**\n\n` +
+              `${resultText.substring(0, 900)}${resultText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
+          });
+        } catch (notifErr) {
+          console.warn('[AutomationScheduler] Non-blocking WAPPY notification error:', notifErr.message);
+        }
+      }
+
+      // 11B. Envío de Bitácora Final a Google Antigravity (PC Local o Cloud 24/7)
+      if (
+        configuredOutputs.includes('antigravity_local_report') ||
+        configuredOutputs.includes('antigravity_cloud_report')
+      ) {
+        try {
+          const targetEnv = configuredOutputs.includes('antigravity_cloud_report')
+            ? 'Antigravity Cloud 24/7'
+            : 'Antigravity Local (Mi PC)';
+          await KanbanTask.create({
+            user: automation.user,
+            companyId: targetCompanyIdStr || 'DEFAULT',
+            title: `[Bitácora ${targetEnv}] ${automation.name} — ${compLabel}`,
+            description: resultText.substring(0, 4000),
+            status: 'done',
+            priority: 'medium',
+            category: 'Automatización WAPPY',
+            assignedAgent: targetEnv,
+            dueDate: new Date().toISOString().split('T')[0],
+          });
+        } catch (agyErr) {
+          console.warn('[AutomationScheduler] Non-blocking Antigravity bitácora error:', agyErr.message);
         }
       }
     });

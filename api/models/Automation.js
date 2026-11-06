@@ -37,9 +37,11 @@ const automationSchema = new mongoose.Schema(
     workflowNodes: {
       trigger: { type: String, default: 'schedule_cron' },
       triggers: { type: [String], default: ['schedule_cron'] },
+      extractors: { type: [String], default: [] },
       aiEngine: { type: String, enum: ['wappy', 'antigravity', 'antigravity_cloud'], default: 'wappy' },
       aiModel: { type: String, default: 'gemini-3.6-flash' },
       memoryNode: { type: String, default: 'wappy_memory_company' },
+      memories: { type: [String], default: ['wappy_memory_company'] },
       includeIfNode: { type: Boolean, default: true },
       inputs: { type: [String], default: [] },
       hitos: { type: [String], default: [] },

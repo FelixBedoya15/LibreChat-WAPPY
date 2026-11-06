@@ -23,12 +23,23 @@ export interface CanvasWireEdge {
   label?: string;
 }
 
+export interface CanvasExtraAgentNode {
+  key: string;
+  agentId?: string;
+  agentName?: string;
+  aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
+  aiModel?: string;
+  roleLabel?: string;
+}
+
 export interface WorkflowNodesConfig {
   trigger: string;
   triggers?: string[];
+  extractors?: string[];
   aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
   aiModel?: string;
   memoryNode?: string;
+  memories?: string[];
   includeIfNode?: boolean;
   inputs: string[];
   hitos: string[];
@@ -36,6 +47,8 @@ export interface WorkflowNodesConfig {
   canvasLayout?: {
     positions?: Record<string, CanvasNodePosition>;
     edges?: CanvasWireEdge[];
+    removedWires?: string[];
+    extraAgents?: CanvasExtraAgentNode[];
   } | null;
 }
 
@@ -104,21 +117,145 @@ export const AI_ENGINE_MODELS: AiEngineModelDef[] = [
 export const MEMORY_NODES: WorkflowNodeDef[] = [
   {
     id: 'wappy_memory_company',
-    label: 'Memoria Procedural + Contexto Empresa Somos SST',
-    shortLabel: 'Memoria + Empresa',
+    label: 'Memoria de Empresa Activa (Somos SST)',
+    shortLabel: 'Memoria Empresa SST',
+    badge: 'NIT, CIIU, ARL y Sedes',
+    description:
+      'Inyecta automáticamente Razón Social, NIT, CIIU, Nivel de Riesgo ARL, número de trabajadores, sedes y Responsable SST de la empresa seleccionada.',
     category: 'memory',
-    toolHint: 'Memoria Procedural WAPPY + Contexto en vivo de la Empresa Activa (Somos SST)',
+    toolHint: 'Memoria de Empresa Activa en Somos SST (NIT, CIIU, Nivel de Riesgo ARL, sedes y trabajadores)',
     badgeColor: 'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300 border-pink-200 dark:border-pink-800',
   },
   {
-    id: 'wappy_rag_documental',
-    label: 'Buffer RAG Documental & Historial SG-SST',
-    shortLabel: 'RAG Documental',
+    id: 'wappy_memory_antiduplicate',
+    label: 'Memoria de Bitácora Previa (Anti-Duplicados)',
+    shortLabel: 'Memoria Bitácora',
+    badge: 'Evita Repetir Registros',
+    description:
+      'Recuerda qué correos de Gmail, archivos de Google Drive o registros ya fueron procesados en corridas anteriores para no duplicar información.',
     category: 'memory',
-    toolHint: 'Motor RAG Documental + Historial de hallazgos previos de la empresa',
+    toolHint: 'Memoria de Historial de Ejecuciones Anteriores (AutomationLog) para procesar únicamente novedades reales sin duplicar registros',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'wappy_rag_documental',
+    label: 'Memoria Documental RAG (NotebookLM + Docs Vivo)',
+    shortLabel: 'RAG Documental',
+    badge: 'Cuadernos y Protocolos',
+    description:
+      'Consulta los manuales, protocolos internos, reglamentos y cuadernos de Google NotebookLM vinculados a la empresa.',
+    category: 'memory',
+    toolHint: 'Memoria RAG Documental (Cuadernos de Google NotebookLM y Documentos Vivo de la empresa)',
     badgeColor: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
   },
+  {
+    id: 'wappy_memory_procedural',
+    label: 'Memoria Normativa del Especialista (Reglas SST)',
+    shortLabel: 'Memoria Normativa',
+    badge: 'Dec. 1072, 0312 y GTC-45',
+    description:
+      'Aplica las reglas técnicas del especialista SST en Colombia (Decreto 1072, Res. 0312, GTC-45, Res. 2764, PESV Res. 40595 y SGA Dec. 1496).',
+    category: 'memory',
+    toolHint: 'Memoria Procedural y Normativa SG-SST Colombia (Dec. 1072, Res. 0312, GTC-45, Res. 2764, PESV y SGA)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
 ];
+
+export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
+  {
+    id: 'extract_gmail',
+    label: 'Leer Bandeja de Gmail (Extraer Correos y Reportes)',
+    shortLabel: 'Leer Gmail',
+    badge: 'Extrae Correos',
+    description:
+      'Lee correos entrantes en Gmail (incapacidades, reportes FURAT/ATEL, conceptos médicos o requerimientos ARL) y envía su contenido al Agente.',
+    category: 'extractor',
+    toolHint: 'Extraer información de correos entrantes en Gmail usando google_gmail',
+    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
+  },
+  {
+    id: 'extract_drive',
+    label: 'Extraer de Google Drive (Carpetas / Excel / PDF)',
+    shortLabel: 'Extraer de Drive',
+    badge: 'Lee Archivos Drive',
+    description:
+      'Revisa carpetas de Google Drive, lee hojas de cálculo, documentos o PDFs nuevos y le envía los datos extraídos al Agente IA.',
+    category: 'extractor',
+    toolHint: 'Extraer información de carpetas y archivos recientes en Google Drive (google_drive: list_files_and_folders, read_document_content)',
+    badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+  },
+  {
+    id: 'extract_onedrive',
+    label: 'Extraer de Microsoft OneDrive / SharePoint',
+    shortLabel: 'Extraer OneDrive',
+    badge: 'Lee OneDrive',
+    description:
+      'Lee carpetas y documentos corporativos alojados en Microsoft OneDrive / SharePoint y entrega los datos al Agente IA.',
+    category: 'extractor',
+    toolHint: 'Extraer información de carpetas y archivos en Microsoft OneDrive (one_drive)',
+    badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
+  },
+  {
+    id: 'extract_pc_folder',
+    label: 'Extraer de Carpeta en mi Computador (vía Antigravity)',
+    shortLabel: 'Carpeta en mi PC',
+    badge: 'Lee Disco Local',
+    description:
+      'Lee archivos o carpetas alojados directamente en tu computador (Mac/PC) a través del puente local de Google Antigravity.',
+    category: 'extractor',
+    toolHint: 'Extraer información de una carpeta local en el computador del usuario mediante Google Antigravity Local (google_antigravity)',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'extract_sst_workers',
+    label: 'Extraer Trabajadores y Expedientes (Somos SST)',
+    shortLabel: 'Extraer Trabajadores',
+    badge: 'Lee Expedientes SST',
+    description:
+      'Extrae la lista de colaboradores, cargos, exámenes médicos (EMO), cursos de alturas y entregas de EPP desde Somos SST.',
+    category: 'extractor',
+    toolHint: 'Extraer expedientes de trabajadores, exámenes médicos, alturas y EPP desde Somos SST (somos_sst: listar_trabajadores, consultar_expediente_integral)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'extract_sst_app',
+    label: 'Extraer Datos de Aplicativo / Matriz (Somos SST)',
+    shortLabel: 'Extraer Aplicativo SST',
+    badge: 'Lee los 7 Hitos',
+    description:
+      'Extrae los datos actuales de cualquier aplicativo o matriz de los 7 Hitos de Somos SST (0312, GTC-45, PESV, Químicos, Comités, ATEL, ACPM).',
+    category: 'extractor',
+    toolHint: 'Extraer información actual de los aplicativos y matrices de Somos SST (somos_sst: resumen_empresa, consultar_informacion_empresa)',
+    badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+  },
+];
+
+export function normalizeExtractorsList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
+  if (Array.isArray(nodes?.extractors) && nodes!.extractors!.length > 0) {
+    const valid = nodes!.extractors!.filter((id) => EXTRACTOR_NODES.some((e) => e.id === id));
+    if (valid.length > 0) return Array.from(new Set(valid));
+  }
+  const derived: string[] = [];
+  const ins = Array.isArray(nodes?.inputs) ? nodes!.inputs! : [];
+  if (ins.includes('google_drive')) derived.push('extract_drive');
+  if (ins.includes('google_gmail')) derived.push('extract_gmail');
+  if (ins.includes('one_drive')) derived.push('extract_onedrive');
+  if (ins.includes('google_antigravity')) derived.push('extract_pc_folder');
+  if (ins.includes('somos_sst_trabajadores')) derived.push('extract_sst_workers');
+  if (ins.includes('somos_sst_empresa') || derived.length === 0) derived.push('extract_sst_app');
+  return Array.from(new Set(derived));
+}
+
+export function normalizeMemoriesList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
+  if (Array.isArray(nodes?.memories) && nodes!.memories!.length > 0) {
+    const valid = nodes!.memories!.filter((id) => MEMORY_NODES.some((m) => m.id === id));
+    if (valid.length > 0) return Array.from(new Set(valid));
+  }
+  if (nodes?.memoryNode && MEMORY_NODES.some((m) => m.id === nodes.memoryNode)) {
+    return [nodes.memoryNode];
+  }
+  return ['wappy_memory_company'];
+}
 
 export const PRESET_CATEGORIES = [
   { id: 'all', label: 'Todos los Flujos' },
@@ -651,68 +788,103 @@ export const HITO_APP_NODES: WorkflowNodeDef[] = [
 
 export const OUTPUT_ACTION_NODES: WorkflowNodeDef[] = [
   {
-    id: 'somos_sst_update',
-    label: 'Alimentar / Actualizar Aplicativo en Somos SST',
-    shortLabel: 'Actualizar Somos SST',
+    id: 'email_report',
+    label: 'Enviar Bitácora Completa a Gmail / Correo Electrónico',
+    shortLabel: 'Bitácora a Gmail',
+    badge: 'Informe Email',
     category: 'output',
-    toolHint: 'Actualiza directamente los registros reales en el aplicativo de Somos SST correspondiente',
+    toolHint: 'Envía una bitácora ejecutiva detallada en Markdown con tablas de todo lo realizado al correo electrónico (Gmail / SMTP)',
+    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+  {
+    id: 'wappy_notification',
+    label: 'Enviar Notificación Directa en WAPPY + Chat de Tenshi',
+    shortLabel: 'Notificar en WAPPY',
+    badge: 'Alerta WAPPY',
+    category: 'output',
+    toolHint: 'Envía una notificación directa a la campana de WAPPY y al chat de Tenshi IA con el resumen de la bitácora',
+    badgeColor: 'bg-lime-50 text-lime-800 dark:bg-lime-950/40 dark:text-lime-300 border-lime-200 dark:border-lime-800',
+  },
+  {
+    id: 'antigravity_local_report',
+    label: 'Enviar Resultado / Bitácora a Google Antigravity (Mi PC)',
+    shortLabel: 'Enviar a Antigravity PC',
+    badge: 'Entrega en PC',
+    category: 'output',
+    toolHint: 'Envía el resultado y bitácora directamente a Google Antigravity en tu Mac/PC vía Push SSE',
+    badgeColor: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'antigravity_cloud_report',
+    label: 'Enviar Resultado / Bitácora a Google Antigravity Cloud 24/7',
+    shortLabel: 'Enviar a AGY Cloud',
+    badge: 'Entrega Cloud',
+    category: 'output',
+    toolHint: 'Envía el resultado y bitácora directamente a tu instancia de Google Antigravity Cloud 24/7 (antigravity.google.com)',
+    badgeColor: 'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'somos_sst_update',
+    label: 'Alimentar / Guardar Cambios en Aplicativo Somos SST',
+    shortLabel: 'Guardar en Somos SST',
+    badge: 'Actualiza BD SST',
+    category: 'output',
+    toolHint: 'Actualiza directamente los registros reales en el aplicativo o Hito de Somos SST correspondiente',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   },
   {
     id: 'acpm_task',
-    label: 'Crear Acción Correctiva / Preventiva en ACPM',
+    label: 'Crear Acción Correctiva / Preventiva en Centro de Control ACPM',
     shortLabel: 'Crear Tarea ACPM',
+    badge: 'Kanban ACPM',
     category: 'output',
     toolHint: 'Registra automáticamente hallazgos o alertas pendientes en el Centro de Control ACPM (crear_actividad_acpm)',
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   },
   {
-    id: 'email_report',
-    label: 'Enviar Informe Ejecutivo por Correo Electrónico',
-    shortLabel: 'Enviar Email',
+    id: 'canvas_doc',
+    label: 'Crear Documento Formal en Editor en Vivo WAPPY (LiveEditor)',
+    shortLabel: 'Documento LiveEditor',
+    badge: 'Cabezote + Firmas',
     category: 'output',
-    toolHint: 'Entrega un informe ejecutivo estructurado en Markdown con tablas para despacho por correo electrónico',
-    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    toolHint: 'Presenta tablas comparativas en Markdown, documento formal y resumen ejecutivo wappy-card',
+    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
     id: 'google_docs',
     label: 'Crear / Actualizar Informe en Google Docs',
     shortLabel: 'Exportar Google Docs',
+    badge: 'Google Docs',
     category: 'output',
     toolHint: 'Crea un documento formal en Google Docs (google_docs) si la cuenta está vinculada',
     badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
   },
   {
     id: 'google_sheets',
-    label: 'Registrar Filas en Google Sheets',
+    label: 'Registrar / Actualizar Filas en Google Sheets',
     shortLabel: 'Exportar Google Sheets',
+    badge: 'Google Sheets',
     category: 'output',
     toolHint: 'Añade o actualiza filas de control en Google Sheets (google_sheets)',
     badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
   },
   {
-    id: 'google_slides',
-    label: 'Generar Presentación en Google Slides',
-    shortLabel: 'Crear Google Slides',
-    category: 'output',
-    toolHint: 'Estructura diapositivas ejecutivas en Google Slides (google_slides)',
-    badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
-  },
-  {
     id: 'google_calendar',
     label: 'Agendar Recordatorio / Auditoría en Google Calendar',
     shortLabel: 'Agendar Calendar',
+    badge: 'Google Calendar',
     category: 'output',
     toolHint: 'Programa el evento o fecha límite de seguimiento en Google Calendar (google_calendar)',
     badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
   },
   {
-    id: 'canvas_doc',
-    label: 'Consolidar Dictamen Técnico con Tablas y Tarjetas WAPPY',
-    shortLabel: 'Dictamen Ejecutivo',
+    id: 'google_slides',
+    label: 'Generar Presentación en Google Slides',
+    shortLabel: 'Crear Google Slides',
+    badge: 'Google Slides',
     category: 'output',
-    toolHint: 'Presenta tablas comparativas en Markdown y resumen ejecutivo wappy-card',
-    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
+    toolHint: 'Estructura diapositivas ejecutivas en Google Slides (google_slides)',
+    badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
   },
 ];
 
@@ -727,6 +899,7 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
           : id;
   return (
     TRIGGER_NODES.find((n) => n.id === normId) ||
+    EXTRACTOR_NODES.find((n) => n.id === normId) ||
     MEMORY_NODES.find((n) => n.id === normId) ||
     INPUT_CONNECTOR_NODES.find((n) => n.id === normId) ||
     HITO_APP_NODES.find((n) => n.id === normId) ||
@@ -735,7 +908,7 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
 }
 
 /**
- * Autogenera un prompt técnico estructurado para WAPPY a partir de los nodos conectados en el lienzo.
+ * Autogenera un prompt técnico estructurado de 5 etapas para WAPPY a partir de los nodos conectados en el lienzo.
  */
 export function buildPromptFromWorkflowNodes(
   taskName: string,
@@ -745,6 +918,14 @@ export function buildPromptFromWorkflowNodes(
   const triggerIds = normalizeTriggersList(nodes);
   const triggerDefs = triggerIds
     .map((tid) => TRIGGER_NODES.find((t) => t.id === tid))
+    .filter(Boolean) as WorkflowNodeDef[];
+  const extractorIds = normalizeExtractorsList(nodes);
+  const extractorDefs = extractorIds
+    .map((eid) => EXTRACTOR_NODES.find((e) => e.id === eid))
+    .filter(Boolean) as WorkflowNodeDef[];
+  const memoryIds = normalizeMemoriesList(nodes);
+  const memoryDefs = memoryIds
+    .map((mid) => MEMORY_NODES.find((m) => m.id === mid))
     .filter(Boolean) as WorkflowNodeDef[];
   const engineMode = nodes.aiEngine || 'wappy';
   const modelId = nodes.aiModel || 'gemini-3.6-flash';
@@ -760,48 +941,82 @@ export function buildPromptFromWorkflowNodes(
 
   const lines: string[] = [];
   lines.push(
-    `Actúa como ${agentName || 'Consultor SG-SST'} ejecutando el flujo automatizado "${taskName || 'Flujo Autónomo SG-SST'}" exclusivamente para la empresa activa.`,
+    `Actúa como ${agentName || 'Consultor SG-SST'} ejecutando el flujo automatizado de 5 etapas "${taskName || 'Flujo Autónomo SG-SST'}" exclusivamente para la empresa activa.`,
   );
-
-  if (engineMode === 'antigravity_cloud') {
-    lines.push(
-      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo apoyándote en Google Antigravity Cloud 24/7 (antigravity.google.com) + Servidor MCP WAPPY (herramienta google_antigravity con entorno Cloud 24/7 sin necesidad del PC encendido) y el modelo ${modelId}.`,
-    );
-  } else if (engineMode === 'antigravity') {
-    lines.push(
-      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo apoyándote en Google Antigravity Local (Mac/PC) + Servidor MCP WAPPY (herramienta google_antigravity por puente Push SSE con respaldo Cloud Failover) y el modelo ${modelId}.`,
-    );
-  } else {
-    lines.push(
-      `\n0. MOTOR IA Y ORQUESTACIÓN (NODO CHAT MODEL): Ejecuta este flujo en WAPPY Cloud IA (Rotación Automática de Claves) utilizando el modelo ${modelId}.`,
-    );
-  }
 
   if (triggerDefs.length > 0) {
     lines.push(
-      `\n1. DISPARADORES / MEDIOS DE ENTRADA ACTIVOS: ${triggerDefs.map((t) => `${t.shortLabel} (${t.toolHint})`).join(' + ')}.`,
+      `\n1. DISPARADORES / ENTRADAS ACTIVAS: ${triggerDefs.map((t) => `${t.shortLabel} (${t.toolHint})`).join(' + ')}.`,
     );
   }
 
-  if (inputDefs.length > 0) {
+  if (extractorDefs.length > 0) {
     lines.push(
-      `\n2. SUB-NODOS DE HERRAMIENTAS Y CONECTORES: Utiliza las herramientas ${inputDefs.map((d) => d.toolHint).join(', ')}. Si alguna fuente externa (como Google Drive) no está vinculada o no tiene archivos nuevos reales, infórmalo con transparencia sin inventar ni simular datos.`,
+      `\n2. EXTRACCIÓN E INGESTA DE DATOS (LECTURA PREVIA): Extrae primero la información desde: ${extractorDefs.map((e) => `${e.shortLabel} (${e.toolHint})`).join('; ')}. Si alguna fuente externa (como Google Drive o Gmail) no está vinculada o no tiene registros nuevos reales, infórmalo con total transparencia sin simular ni inventar datos.`,
     );
   }
+
+  const engineLabel =
+    engineMode === 'antigravity_cloud'
+      ? `Google Antigravity Cloud 24/7 (antigravity.google.com) + Servidor MCP WAPPY con el modelo ${modelId}`
+      : engineMode === 'antigravity'
+        ? `Google Antigravity Local (Mac/PC) + Servidor MCP WAPPY por puente Push SSE con el modelo ${modelId}`
+        : `WAPPY Cloud IA (Rotación Automática de Claves) con el modelo ${modelId}`;
+
+  lines.push(
+    `\n3. CEREBRO IA, MEMORIAS Y TOOLS DEL AGENTE:\n   - Motor IA: ${engineLabel}.\n   - Memorias Conectadas: ${memoryDefs.map((m) => `${m.shortLabel} (${m.toolHint})`).join('; ')}.\n   - Tools y Motores de Análisis: ${inputDefs.length > 0 ? inputDefs.map((d) => d.toolHint).join(', ') : 'Herramientas nativas del especialista'}.`,
+  );
 
   if (hitoDefs.length > 0) {
     lines.push(
-      `\n3. HITOS Y APLICATIVOS DE SOMOS SST CONECTADOS: Cruza, audita o alimenta la información en: ${hitoDefs.map((h) => h.toolHint).join('; ')}.`,
+      `\n4. ACCIÓN Y MODIFICACIÓN EN HITOS / APLICATIVOS SOMOS SST: Con la información extraída y analizada, actualiza o alimenta: ${hitoDefs.map((h) => h.toolHint).join('; ')}.`,
     );
   }
 
   if (outputDefs.length > 0) {
     lines.push(
-      `\n4. NODOS DE CONDICIÓN (IF) Y ACCIONES DE SALIDA: Evalúa si existen hallazgos/novedades (rama TRUE) o si todo está en regla (rama FALSE) y ejecuta: ${outputDefs.map((o) => o.toolHint).join('. ')}. No crees nuevas tareas programadas durante esta corrida.`,
+      `\n5. BITÁCORA FINAL Y NOTIFICACIÓN DE SALIDA: Entrega una bitácora completa en Markdown con tablas de todo lo leído y modificado, y ejecuta los canales de salida: ${outputDefs.map((o) => `${o.shortLabel} (${o.toolHint})`).join('; ')}. No crees nuevas tareas programadas durante esta ejecución.`,
     );
   } else {
     lines.push(
-      `\n4. ENTREGABLE: Genera un informe ejecutivo claro en Markdown con los hallazgos reales procesados.`,
+      `\n5. BITÁCORA FINAL: Genera una bitácora ejecutiva detallada en Markdown con tablas de los datos extraídos y las acciones realizadas.`,
+    );
+  }
+
+  const extraAgents = nodes.canvasLayout?.extraAgents || [];
+  if (extraAgents.length > 0) {
+    const extraDescriptions = extraAgents.map((ea, idx) => {
+      const eng =
+        ea.aiEngine === 'antigravity_cloud'
+          ? 'Antigravity Cloud 24/7'
+          : ea.aiEngine === 'antigravity'
+            ? 'Antigravity Local (Mi PC)'
+            : `WAPPY Cloud (${ea.aiModel || 'gemini-3.6-flash'})`;
+      return `Agente IA Adicional #${idx + 2} (${ea.agentName || 'Auditor / Revisor SST'} — Motor: ${eng}${ea.roleLabel ? `, Rol: ${ea.roleLabel}` : ''})`;
+    });
+    lines.push(
+      `\n6. REVISIÓN / ORQUESTACIÓN MULTI-AGENTE EN EL LIENZO: Coordina también la intervención de: ${extraDescriptions.join(' + ')} para validar, auditar o complementar los resultados antes del cierre del flujo.`,
+    );
+  }
+
+  const customEdges = nodes.canvasLayout?.edges || [];
+  if (customEdges.length > 0) {
+    const resolveKeyLabel = (key: string): string => {
+      if (key === 'agent_root') return `AI Agent Principal (${agentName || 'Consultor SG-SST'})`;
+      if (key === 'if_router') return 'Condicional If (Hallazgos/Alerta)';
+      if (key === 'trigger_root') return triggerDefs[0]?.shortLabel || 'Disparador Principal';
+      const extraAg = extraAgents.find((a) => a.key === key);
+      if (extraAg) return `AI Agent Revisor (${extraAg.agentName || 'Segunda IA'})`;
+      const cleanedId = key
+        .replace(/^(trigger_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
+      const def = getNodeDefById(cleanedId);
+      return def ? def.shortLabel : cleanedId;
+    };
+    const routeStrings = customEdges.map(
+      (ed) => `[${resolveKeyLabel(ed.from)}] ──▶ [${resolveKeyLabel(ed.to)}]`,
+    );
+    lines.push(
+      `\n7. SECUENCIA E INTERCONEXIONES PERSONALIZADAS DEL LIENZO: Respeta estrictamente este orden de conexión definido en el campo: ${routeStrings.join(' ; ')}.`,
     );
   }
 

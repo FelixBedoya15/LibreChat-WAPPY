@@ -48,6 +48,8 @@ import {
   OUTPUT_ACTION_NODES,
   getNodeDefById,
   normalizeTriggersList,
+  normalizeExtractorsList,
+  normalizeMemoriesList,
   buildPromptFromWorkflowNodes,
   type WorkflowNodesConfig,
 } from './workflowNodesCatalog';
@@ -433,13 +435,15 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
+      extractors: ['extract_sst_workers'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
       includeIfNode: true,
       inputs: ['somos_sst_empresa'],
       hitos: ['hito1_diagnostico_0312'],
-      outputs: ['email_report'],
+      outputs: ['email_report', 'wappy_notification'],
       canvasLayout: null,
     });
     setActiveNodeBuilderTab('inputs');
@@ -470,13 +474,15 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
+      extractors: ['extract_drive', 'extract_sst_workers'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       includeIfNode: true,
       inputs: ['google_drive', 'somos_sst_empresa'],
       hitos: ['hito2_perfil_socio'],
-      outputs: ['somos_sst_update', 'email_report'],
+      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
       canvasLayout: null,
     });
     setActiveNodeBuilderTab('inputs');
@@ -516,12 +522,16 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetDescription(automation.presetDescription || '');
     setFormSaveAsSystemPreset(false);
     const normTrigs = normalizeTriggersList(automation.workflowNodes);
+    const normExts = normalizeExtractorsList(automation.workflowNodes);
+    const normMems = normalizeMemoriesList(automation.workflowNodes);
     setFormWorkflowNodes({
       trigger: normTrigs[0] || 'schedule_cron',
       triggers: normTrigs,
+      extractors: normExts,
       aiEngine: automation.workflowNodes?.aiEngine || 'wappy',
       aiModel: automation.workflowNodes?.aiModel || 'gemini-3.6-flash',
-      memoryNode: automation.workflowNodes?.memoryNode || 'wappy_memory_company',
+      memoryNode: normMems[0] || 'wappy_memory_company',
+      memories: normMems,
       includeIfNode: automation.workflowNodes?.includeIfNode !== false,
       inputs: Array.isArray(automation.workflowNodes?.inputs) ? automation.workflowNodes!.inputs : [],
       hitos: Array.isArray(automation.workflowNodes?.hitos) ? automation.workflowNodes!.hitos : [],
@@ -567,12 +577,16 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetDescription(preset.presetDescription || '');
     setFormSaveAsSystemPreset(false);
     const normPresetTrigs = normalizeTriggersList(preset.workflowNodes);
+    const normPresetExts = normalizeExtractorsList(preset.workflowNodes);
+    const normPresetMems = normalizeMemoriesList(preset.workflowNodes);
     setFormWorkflowNodes({
       trigger: normPresetTrigs[0] || 'schedule_cron',
       triggers: normPresetTrigs,
+      extractors: normPresetExts,
       aiEngine: preset.workflowNodes?.aiEngine || 'wappy',
       aiModel: preset.workflowNodes?.aiModel || 'gemini-3.6-flash',
-      memoryNode: preset.workflowNodes?.memoryNode || 'wappy_memory_company',
+      memoryNode: normPresetMems[0] || 'wappy_memory_company',
+      memories: normPresetMems,
       includeIfNode: preset.workflowNodes?.includeIfNode !== false,
       inputs: Array.isArray(preset.workflowNodes?.inputs) ? [...preset.workflowNodes!.inputs] : [],
       hitos: Array.isArray(preset.workflowNodes?.hitos) ? [...preset.workflowNodes!.hitos] : [],
@@ -890,12 +904,16 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
   const renderWorkflowPipeline = (nodes?: WorkflowNodesConfig, agentLabel?: string) => {
     const normalizedTriggers = normalizeTriggersList(nodes);
+    const normalizedExtractors = normalizeExtractorsList(nodes);
+    const normalizedMemories = normalizeMemoriesList(nodes);
     const safeNodes: WorkflowNodesConfig = {
       trigger: normalizedTriggers[0] || 'schedule_cron',
       triggers: normalizedTriggers,
+      extractors: normalizedExtractors,
       aiEngine: nodes?.aiEngine || 'wappy',
       aiModel: nodes?.aiModel || 'gemini-3.6-flash',
-      memoryNode: nodes?.memoryNode || 'wappy_memory_company',
+      memoryNode: normalizedMemories[0] || 'wappy_memory_company',
+      memories: normalizedMemories,
       includeIfNode: nodes?.includeIfNode !== false,
       inputs: Array.isArray(nodes?.inputs) ? nodes!.inputs : ['somos_sst_empresa'],
       hitos: Array.isArray(nodes?.hitos) ? nodes!.hitos : [],

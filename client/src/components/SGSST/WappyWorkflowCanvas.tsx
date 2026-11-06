@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import {
   TRIGGER_NODES,
+  EXTRACTOR_NODES,
   INPUT_CONNECTOR_NODES,
   HITO_APP_NODES,
   OUTPUT_ACTION_NODES,
@@ -49,6 +50,8 @@ import {
   MEMORY_NODES,
   getNodeDefById,
   normalizeTriggersList,
+  normalizeExtractorsList,
+  normalizeMemoriesList,
   type WorkflowNodesConfig,
   type CanvasNodePosition,
   type CanvasWireEdge,
@@ -61,8 +64,8 @@ import {
 export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): React.ReactNode {
   const id = (nodeId || '').toLowerCase();
 
-  // Google Drive (Logo Oficial Tricolor/Cuatricolor)
-  if (id.includes('google_drive') || id.includes('drive_folder')) {
+  // Google Drive / Extraer de Drive (Logo Oficial Tricolor/Cuatricolor)
+  if (id.includes('google_drive') || id.includes('drive_folder') || id.includes('extract_drive')) {
     return (
       <svg viewBox="0 0 87.3 78" className={sizeClass}>
         <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
@@ -121,8 +124,8 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Tenshi IA (Avatar 3D Oficial de Tenshi en WAPPY)
-  if (id.includes('trigger_tenshi') || id.includes('tenshi')) {
+  // Tenshi IA / Notificación Directa WAPPY + Tenshi (Avatar 3D Oficial de Tenshi en WAPPY)
+  if (id.includes('trigger_tenshi') || id.includes('tenshi') || id.includes('wappy_notification')) {
     return (
       <img
         src="/assets/tenshi.png"
@@ -146,8 +149,8 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Microsoft OneDrive
-  if (id.includes('onedrive')) {
+  // Microsoft OneDrive / Extraer OneDrive
+  if (id.includes('onedrive') || id.includes('one_drive')) {
     return (
       <svg viewBox="0 0 48 48" className={sizeClass}>
         <path fill="#0078D4" d="M38.5,24.2c-0.7-5.8-5.6-10.2-11.6-10.2c-4.6,0-8.6,2.6-10.5,6.5c-0.7-0.2-1.5-0.3-2.3-0.3 c-4.9,0-8.9,3.9-9.1,8.8C2.7,30.2,1,32.6,1,35.4C1,39.1,4,42,7.7,42h29.8c4.7,0,8.5-3.8,8.5-8.5C46,28.8,42.7,24.9,38.5,24.2z" />
@@ -156,7 +159,7 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   }
 
   // Google NotebookLM
-  if (id.includes('notebooklm')) {
+  if (id.includes('notebooklm') || id.includes('rag_documental')) {
     return (
       <svg viewBox="0 0 48 48" className={sizeClass}>
         <rect x="6" y="6" width="36" height="36" rx="10" fill="#0F172A" />
@@ -189,8 +192,8 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Google Antigravity Local (Mac/PC) + MCP (Icono Oficial de AgentSessionPanel.tsx)
-  if (id.includes('antigravity')) {
+  // Google Antigravity Local (Mac/PC) + MCP / Carpeta en mi PC
+  if (id.includes('antigravity') || id.includes('extract_pc_folder')) {
     return (
       <svg
         viewBox="0 0 24 24"
@@ -235,8 +238,17 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('web_search') || id === 'google') {
     return <Globe className={`${sizeClass} text-blue-500`} />;
   }
-  if (id.includes('somos_sst') || id.includes('sgsst_db_audit') || id.includes('medlineplus') || id.includes('examenes_medicos')) {
+  if (id.includes('somos_sst') || id.includes('sgsst_db_audit') || id.includes('medlineplus') || id.includes('examenes_medicos') || id.includes('extract_sst_app') || id.includes('memory_company')) {
     return <HeartPulse className={`${sizeClass} text-rose-500`} />;
+  }
+  if (id.includes('extract_sst_workers')) {
+    return <Users className={`${sizeClass} text-teal-600`} />;
+  }
+  if (id.includes('memory_antiduplicate')) {
+    return <Clock className={`${sizeClass} text-amber-500`} />;
+  }
+  if (id.includes('memory_procedural')) {
+    return <Scale className={`${sizeClass} text-teal-600`} />;
   }
   if (id.includes('canvas') || id.includes('dictamen')) {
     return <Palette className={`${sizeClass} text-fuchsia-500`} />;
@@ -330,7 +342,16 @@ interface WappyWorkflowCanvasProps {
 interface VisualNodeInstance {
   key: string;
   nodeId: string;
-  shape: 'trigger' | 'agent' | 'if' | 'square_output' | 'circle_model' | 'circle_memory' | 'circle_tool';
+  shape:
+    | 'trigger'
+    | 'square_extractor'
+    | 'agent'
+    | 'if'
+    | 'square_hito'
+    | 'square_output'
+    | 'circle_model'
+    | 'circle_memory'
+    | 'circle_tool';
   title: string;
   subtitle: string;
   x: number;
@@ -338,7 +359,7 @@ interface VisualNodeInstance {
   width: number;
   height: number;
   removable?: boolean;
-  group?: 'triggers' | 'inputs' | 'hitos' | 'outputs';
+  group?: 'triggers' | 'extractors' | 'memories' | 'inputs' | 'hitos' | 'outputs';
 }
 
 export default function WappyWorkflowCanvas({
@@ -353,8 +374,10 @@ export default function WappyWorkflowCanvas({
   compact = false,
 }: WappyWorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const [paletteTab, setPaletteTab] = useState<'triggers' | 'connectors' | 'hitos' | 'ai_engine' | 'outputs'>('triggers');
-  const [zoom, setZoom] = useState<number>(compact ? 0.72 : 0.94);
+  const [paletteTab, setPaletteTab] = useState<
+    'triggers' | 'extractors' | 'ai_engine' | 'memories' | 'connectors' | 'hitos' | 'outputs'
+  >('triggers');
+  const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
 
   // Estado de arrastre de nodos en el lienzo
   const [draggingNodeKey, setDraggingNodeKey] = useState<string | null>(null);
@@ -371,9 +394,10 @@ export default function WappyWorkflowCanvas({
   } | null>(null);
 
   const activeTriggers = useMemo(() => normalizeTriggersList(workflowNodes), [workflowNodes]);
+  const activeExtractors = useMemo(() => normalizeExtractorsList(workflowNodes), [workflowNodes]);
+  const activeMemories = useMemo(() => normalizeMemoriesList(workflowNodes), [workflowNodes]);
   const aiEngine = workflowNodes?.aiEngine || 'wappy';
   const aiModel = workflowNodes?.aiModel || 'gemini-3.6-flash';
-  const memoryNodeId = workflowNodes?.memoryNode || 'wappy_memory_company';
   const includeIfNode = workflowNodes?.includeIfNode !== false;
 
   const currentModelDef = useMemo(() => {
@@ -390,11 +414,11 @@ export default function WappyWorkflowCanvas({
 
   const customPositions = workflowNodes?.canvasLayout?.positions || {};
 
-  // Construir todos los nodos con las figuras geométricas del flujo visual WAPPY
+  // Construir todos los nodos de las 5 Etapas del Flujo Visual WAPPY
   const visualNodes = useMemo<VisualNodeInstance[]>(() => {
     const list: VisualNodeInstance[] = [];
 
-    // 1. NODOS DISPARADORES / ENTRADAS (Múltiples medios posibles: Cron, Tenshi, Antigravity, Correo, Agente, QR, Webhook)
+    // ETAPA 1. NODOS DISPARADORES / ENTRADAS (Forma en "D" con rayo ⚡)
     activeTriggers.forEach((trigId, idx) => {
       const triggerDef = getNodeDefById(trigId) || TRIGGER_NODES[0];
       const key = idx === 0 ? 'trigger_root' : `trigger_${triggerDef.id}`;
@@ -404,24 +428,50 @@ export default function WappyWorkflowCanvas({
           : activeTriggers.length === 2
             ? 24 + idx * 108
             : 14 + idx * 96;
-      const trigPos = customPositions[key] || { x: 44, y: defaultY };
+      const trigPos = customPositions[key] || { x: 24, y: defaultY };
       list.push({
         key,
         nodeId: triggerDef.id,
         shape: 'trigger',
         title: triggerDef.shortLabel,
-        subtitle: triggerDef.badge || 'Disparador',
+        subtitle: triggerDef.badge || '1. Disparador',
         x: trigPos.x,
         y: trigPos.y,
-        width: 72,
-        height: 72,
+        width: 70,
+        height: 70,
         removable: activeTriggers.length > 1,
         group: 'triggers',
       });
     });
 
-    // 2. ROOT AI AGENT NODE (Rectángulo ancho central con 3 rombos abajo: Chat Model *, Memory, Tool +)
-    const agentPos = customPositions['agent_root'] || { x: 268, y: 70 };
+    // ETAPA 2. NODOS DE EXTRACCIÓN DE DATOS / LECTURA PREVIA (Entre el Disparador y el Agente IA)
+    activeExtractors.forEach((extId, idx) => {
+      const extDef = getNodeDefById(extId) || EXTRACTOR_NODES[0];
+      const key = `extractor_${extDef.id}`;
+      const defaultY =
+        activeExtractors.length === 1
+          ? 76
+          : activeExtractors.length === 2
+            ? 24 + idx * 108
+            : 14 + idx * 96;
+      const extPos = customPositions[key] || { x: 146, y: defaultY };
+      list.push({
+        key,
+        nodeId: extDef.id,
+        shape: 'square_extractor',
+        title: extDef.shortLabel,
+        subtitle: extDef.badge || '2. Extraer Datos',
+        x: extPos.x,
+        y: extPos.y,
+        width: 70,
+        height: 70,
+        removable: activeExtractors.length > 1,
+        group: 'extractors',
+      });
+    });
+
+    // ETAPA 3. ROOT AI AGENT NODE (Rectángulo ancho central con 3 rombos abajo: Chat Model *, Memory ◆, Tool +)
+    const agentPos = customPositions['agent_root'] || { x: 274, y: 70 };
     list.push({
       key: 'agent_root',
       nodeId: 'ai_agent_root',
@@ -434,8 +484,8 @@ export default function WappyWorkflowCanvas({
       height: 86,
     });
 
-    // 3. SUB-NODO CIRCULAR: CHAT MODEL * (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7)
-    const modelPos = customPositions['sub_model'] || { x: 185, y: 245 };
+    // 3A. SUB-NODO CIRCULAR: CHAT MODEL * (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7)
+    const modelPos = customPositions['sub_model'] || { x: 180, y: 245 };
     list.push({
       key: 'sub_model',
       nodeId: currentModelDef.id,
@@ -453,52 +503,56 @@ export default function WappyWorkflowCanvas({
       height: 62,
     });
 
-    // 4. SUB-NODO CIRCULAR: MEMORY / EMPRESA ACTIVA
-    const memDef = MEMORY_NODES.find((m) => m.id === memoryNodeId) || MEMORY_NODES[0];
-    const memPos = customPositions['sub_memory'] || { x: 295, y: 245 };
-    list.push({
-      key: 'sub_memory',
-      nodeId: memDef.id,
-      shape: 'circle_memory',
-      title: memDef.shortLabel,
-      subtitle: 'Window Memory',
-      x: memPos.x,
-      y: memPos.y,
-      width: 62,
-      height: 62,
+    // 3B. SUB-NODOS CIRCULARES: MEMORIAS DEL AGENTE (Empresa SST, Bitácora Anti-Duplicados, RAG NotebookLM, Normativa)
+    activeMemories.forEach((memId, idx) => {
+      const memDef = MEMORY_NODES.find((m) => m.id === memId) || MEMORY_NODES[0];
+      const key = idx === 0 ? 'sub_memory' : `sub_memory_${memDef.id}`;
+      const defaultX = 285 + idx * 88;
+      const defaultY = idx % 2 === 0 ? 245 : 262;
+      const memPos = customPositions[key] || { x: defaultX, y: defaultY };
+      list.push({
+        key,
+        nodeId: memDef.id,
+        shape: 'circle_memory',
+        title: memDef.shortLabel,
+        subtitle: memDef.badge || 'Memoria Activa',
+        x: memPos.x,
+        y: memPos.y,
+        width: 62,
+        height: 62,
+        removable: activeMemories.length > 1,
+        group: 'memories',
+      });
     });
 
-    // 5. SUB-NODOS CIRCULARES: TOOLS (Conectores Google, APIs, MCP y Aplicativos Hitos 1–7)
-    const allTools: Array<{ id: string; group: 'inputs' | 'hitos' }> = [
-      ...(workflowNodes?.inputs || []).map((id) => ({ id, group: 'inputs' as const })),
-      ...(workflowNodes?.hitos || []).map((id) => ({ id, group: 'hitos' as const })),
-    ];
-
-    allTools.forEach((item, idx) => {
-      const def = getNodeDefById(item.id);
+    // 3C. SUB-NODOS CIRCULARES: TOOLS DEL AGENTE (Conectores y Motores de Consulta/Análisis)
+    const toolInputs = workflowNodes?.inputs || [];
+    const memoryRightEdge = 285 + Math.max(1, activeMemories.length) * 88;
+    toolInputs.forEach((toolId, idx) => {
+      const def = getNodeDefById(toolId);
       if (!def) return;
-      const key = `tool_${item.group}_${item.id}`;
-      const defaultX = 405 + idx * 102;
+      const key = `tool_inputs_${toolId}`;
+      const defaultX = Math.max(395, memoryRightEdge) + idx * 92;
       const defaultY = idx % 2 === 0 ? 245 : 262;
       const pos = customPositions[key] || { x: defaultX, y: defaultY };
       list.push({
         key,
-        nodeId: item.id,
+        nodeId: toolId,
         shape: 'circle_tool',
         title: def.shortLabel,
-        subtitle: item.group === 'hitos' ? def.category : 'Tool Connector',
+        subtitle: 'Tool del Agente',
         x: pos.x,
         y: pos.y,
         width: 62,
         height: 62,
         removable: true,
-        group: item.group,
+        group: 'inputs',
       });
     });
 
-    // 6. NODO CONDICIONAL IF (Cuadrado con icono de bifurcación y salidas true / false)
+    // ETAPA 4A. NODO CONDICIONAL IF (Cuadrado con icono de bifurcación y salidas true / false)
     if (includeIfNode) {
-      const ifPos = customPositions['if_router'] || { x: 590, y: 76 };
+      const ifPos = customPositions['if_router'] || { x: 548, y: 76 };
       list.push({
         key: 'if_router',
         nodeId: 'if_node_router',
@@ -507,48 +561,113 @@ export default function WappyWorkflowCanvas({
         subtitle: 'Hallazgos / Alerta',
         x: ifPos.x,
         y: ifPos.y,
-        width: 74,
-        height: 74,
+        width: 72,
+        height: 72,
       });
     }
 
-    // 7. NODOS CUADRADOS DE SALIDA (Acciones finales de entrega y notificación)
+    // ETAPA 4B. NODOS DE ACCIÓN EN HITOS / APLICATIVOS SOMOS SST (Cambiar / Alimentar Hitos 1–7)
+    const hitosList = workflowNodes?.hitos || [];
+    const hitoBaseX = includeIfNode ? 662 : 556;
+    hitosList.forEach((hitoId, idx) => {
+      const def = getNodeDefById(hitoId);
+      if (!def) return;
+      const key = `tool_hitos_${hitoId}`;
+      const defaultY =
+        hitosList.length === 1
+          ? 76
+          : hitosList.length === 2
+            ? 24 + idx * 108
+            : 14 + idx * 96;
+      const pos = customPositions[key] || { x: hitoBaseX, y: defaultY };
+      list.push({
+        key,
+        nodeId: hitoId,
+        shape: 'square_hito',
+        title: def.shortLabel,
+        subtitle: '4. Cambiar en Hito',
+        x: pos.x,
+        y: pos.y,
+        width: 72,
+        height: 72,
+        removable: true,
+        group: 'hitos',
+      });
+    });
+
+    // ETAPA 5. NODOS DE BITÁCORA Y NOTIFICACIÓN FINAL (Gmail, WAPPY Notification, Antigravity PC/Cloud)
     const outputs = workflowNodes?.outputs?.length ? workflowNodes.outputs : ['email_report'];
+    const outBaseX = hitosList.length > 0 ? hitoBaseX + 128 : includeIfNode ? 674 : 566;
     outputs.forEach((outId, idx) => {
       const def = getNodeDefById(outId);
       if (!def) return;
       const key = `out_${outId}`;
-      const baseX = includeIfNode ? 765 : 610;
-      const baseY = outputs.length === 1 ? 76 : 24 + idx * 112;
-      const pos = customPositions[key] || { x: baseX, y: baseY };
+      const baseY =
+        outputs.length === 1
+          ? 76
+          : outputs.length === 2
+            ? 24 + idx * 108
+            : 14 + idx * 96;
+      const pos = customPositions[key] || { x: outBaseX, y: baseY };
       list.push({
         key,
         nodeId: outId,
         shape: 'square_output',
         title: def.shortLabel,
-        subtitle: idx === 0 ? 'Success · Action' : 'Branch · Action',
+        subtitle: def.badge || '5. Bitácora Final',
         x: pos.x,
         y: pos.y,
-        width: 74,
-        height: 74,
+        width: 72,
+        height: 72,
         removable: outputs.length > 1,
         group: 'outputs',
       });
     });
 
-    return list;
-  }, [workflowNodes, activeTriggers, agentName, currentModelDef, aiEngine, memoryNodeId, includeIfNode, customPositions]);
+    // AGENTES IA ADICIONALES / REVISORES EN EL MISMO LIENZO (Orquestación Multi-IA libre)
+    const extraAgents = workflowNodes?.canvasLayout?.extraAgents || [];
+    extraAgents.forEach((ea, idx) => {
+      const pos = customPositions[ea.key] || { x: 540 + idx * 250, y: 188 };
+      list.push({
+        key: ea.key,
+        nodeId: ea.agentId || 'ai_agent_extra',
+        shape: 'agent',
+        title: `AI Agent #${idx + 2}`,
+        subtitle: ea.agentName || 'IA Revisora / Auditora',
+        x: pos.x,
+        y: pos.y,
+        width: 224,
+        height: 82,
+        removable: true,
+      });
+    });
 
-  // Calcular los cables curvos Bezier entre los puertos (Círculos ● y Rombos ◆)
+    return list;
+  }, [
+    workflowNodes,
+    activeTriggers,
+    activeExtractors,
+    activeMemories,
+    agentName,
+    currentModelDef,
+    aiEngine,
+    includeIfNode,
+    customPositions,
+  ]);
+
+  // Calcular los cables curvos Bezier entre los módulos (con soporte para borrar cables automáticos y conectar libremente)
   const wires = useMemo(() => {
     const map = new Map<string, VisualNodeInstance>();
     visualNodes.forEach((n) => map.set(n.key, n));
 
+    const removedSet = new Set(workflowNodes?.canvasLayout?.removedWires || []);
     const triggerNodes = visualNodes.filter((n) => n.shape === 'trigger');
+    const extractorNodes = visualNodes.filter((n) => n.shape === 'square_extractor');
     const agentNode = map.get('agent_root');
     const ifNode = map.get('if_router');
+    const hitoNodes = visualNodes.filter((n) => n.shape === 'square_hito');
     const modelNode = map.get('sub_model');
-    const memNode = map.get('sub_memory');
+    const memNodes = visualNodes.filter((n) => n.shape === 'circle_memory');
     const toolNodes = visualNodes.filter((n) => n.shape === 'circle_tool');
     const outputNodes = visualNodes.filter((n) => n.shape === 'square_output');
 
@@ -557,148 +676,308 @@ export default function WappyWorkflowCanvas({
       d: string;
       dashed: boolean;
       color: string;
+      midX: number;
+      midY: number;
       label?: string;
       labelX?: number;
       labelY?: number;
     }> = [];
 
-    // Helper para curva horizontal suave (flujo principal de izquierda a derecha)
-    const makeHorizontalCurve = (x1: number, y1: number, x2: number, y2: number) => {
-      const dx = Math.max(45, Math.abs(x2 - x1) * 0.48);
-      return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    const pushWire = (w: {
+      id: string;
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      dashed: boolean;
+      color: string;
+      isSub?: boolean;
+      label?: string;
+      labelX?: number;
+      labelY?: number;
+    }) => {
+      if (removedSet.has(w.id)) return;
+      const d = w.isSub
+        ? (() => {
+            const dy = Math.max(38, Math.abs(w.y2 - w.y1) * 0.52);
+            return `M ${w.x1} ${w.y1} C ${w.x1} ${w.y1 + dy}, ${w.x2} ${w.y2 - dy}, ${w.x2} ${w.y2}`;
+          })()
+        : (() => {
+            const dx = Math.max(36, Math.abs(w.x2 - w.x1) * 0.48);
+            return `M ${w.x1} ${w.y1} C ${w.x1 + dx} ${w.y1}, ${w.x2 - dx} ${w.y2}, ${w.x2} ${w.y2}`;
+          })();
+      paths.push({
+        id: w.id,
+        d,
+        dashed: w.dashed,
+        color: w.color,
+        midX: Math.round((w.x1 + w.x2) / 2),
+        midY: Math.round((w.y1 + w.y2) / 2),
+        label: w.label,
+        labelX: w.labelX,
+        labelY: w.labelY,
+      });
     };
 
-    // Helper para curva vertical punteada (rombos inferiores del AI Agent -> círculos de sub-nodos)
-    const makeSubNodeCurve = (x1: number, y1: number, x2: number, y2: number) => {
-      const dy = Math.max(38, Math.abs(y2 - y1) * 0.52);
-      return `M ${x1} ${y1} C ${x1} ${y1 + dy}, ${x2} ${y2 - dy}, ${x2} ${y2}`;
-    };
-
-    // 1. Todos los Disparadores / Entradas ● ──> ● AI Agent
-    if (agentNode) {
+    // 1. Etapa 1 (Disparadores) ● ──> ● Etapa 2 (Extraer Datos) ● ──> ● Etapa 3 (AI Agent)
+    if (extractorNodes.length > 0 && agentNode) {
       triggerNodes.forEach((trigNode) => {
-        const x1 = trigNode.x + trigNode.width;
-        const y1 = trigNode.y + trigNode.height / 2;
-        const x2 = agentNode.x;
-        const y2 = agentNode.y + agentNode.height / 2;
-        paths.push({
-          id: `wire_trigger_agent_${trigNode.key}`,
-          d: makeHorizontalCurve(x1, y1, x2, y2),
-          dashed: false,
-          color: '#94a3b8',
+        extractorNodes.forEach((extNode) => {
+          pushWire({
+            id: `wire_trig_ext_${trigNode.key}_${extNode.key}`,
+            x1: trigNode.x + trigNode.width,
+            y1: trigNode.y + trigNode.height / 2,
+            x2: extNode.x,
+            y2: extNode.y + extNode.height / 2,
+            dashed: false,
+            color: '#94a3b8',
+          });
         });
       });
-    }
 
-    // 2. AI Agent ● ──> ● If Node (o directo a Outputs)
-    if (agentNode && ifNode) {
-      const x1 = agentNode.x + agentNode.width;
-      const y1 = agentNode.y + agentNode.height / 2;
-      const x2 = ifNode.x;
-      const y2 = ifNode.y + ifNode.height / 2;
-      paths.push({
-        id: 'wire_agent_if',
-        d: makeHorizontalCurve(x1, y1, x2, y2),
-        dashed: false,
-        color: '#94a3b8',
-      });
-
-      // If (true / false) ● ──> ● Output Square Nodes
-      outputNodes.forEach((outNode, idx) => {
-        const isTrueBranch = idx === 0;
-        const x1Port = ifNode.x + ifNode.width;
-        const y1Port = ifNode.y + (isTrueBranch ? 24 : 52);
-        const x2Port = outNode.x;
-        const y2Port = outNode.y + outNode.height / 2;
-        paths.push({
-          id: `wire_if_out_${outNode.key}`,
-          d: makeHorizontalCurve(x1Port, y1Port, x2Port, y2Port),
+      extractorNodes.forEach((extNode) => {
+        pushWire({
+          id: `wire_ext_agent_${extNode.key}`,
+          x1: extNode.x + extNode.width,
+          y1: extNode.y + extNode.height / 2,
+          x2: agentNode.x,
+          y2: agentNode.y + agentNode.height / 2,
           dashed: false,
-          color: isTrueBranch ? '#10b981' : '#94a3b8',
-          label: isTrueBranch ? 'true' : 'false',
-          labelX: x1Port + 22,
-          labelY: y1Port - 5,
+          color: '#0ea5e9',
         });
       });
     } else if (agentNode) {
-      outputNodes.forEach((outNode) => {
-        const x1 = agentNode.x + agentNode.width;
-        const y1 = agentNode.y + agentNode.height / 2;
-        const x2 = outNode.x;
-        const y2 = outNode.y + outNode.height / 2;
-        paths.push({
-          id: `wire_agent_out_${outNode.key}`,
-          d: makeHorizontalCurve(x1, y1, x2, y2),
+      triggerNodes.forEach((trigNode) => {
+        pushWire({
+          id: `wire_trigger_agent_${trigNode.key}`,
+          x1: trigNode.x + trigNode.width,
+          y1: trigNode.y + trigNode.height / 2,
+          x2: agentNode.x,
+          y2: agentNode.y + agentNode.height / 2,
           dashed: false,
           color: '#94a3b8',
         });
       });
     }
 
-    // 3. AI Agent ◆ (Chat Model *) ── - - ──> ◆ Sub-Nodo Circular Modelo
-    if (agentNode && modelNode) {
-      const x1 = agentNode.x + 44;
-      const y1 = agentNode.y + agentNode.height;
-      const x2 = modelNode.x + modelNode.width / 2;
-      const y2 = modelNode.y;
-      paths.push({
-        id: 'wire_sub_model',
-        d: makeSubNodeCurve(x1, y1, x2, y2),
-        dashed: true,
-        color: '#818cf8',
-      });
-    }
-
-    // 4. AI Agent ◆ (Memory) ── - - ──> ◆ Sub-Nodo Circular Memoria
-    if (agentNode && memNode) {
-      const x1 = agentNode.x + 114;
-      const y1 = agentNode.y + agentNode.height;
-      const x2 = memNode.x + memNode.width / 2;
-      const y2 = memNode.y;
-      paths.push({
-        id: 'wire_sub_memory',
-        d: makeSubNodeCurve(x1, y1, x2, y2),
-        dashed: true,
-        color: '#818cf8',
-      });
-    }
-
-    // 5. AI Agent ◆ (Tool +) ── - - ──> ◆ Sub-Nodos Circulares de Conectores y Hitos
+    // 2. Etapa 3 (AI Agent) ● ──> ● If Node ──> ● Etapa 4 (Hitos/Apps) ──> ● Etapa 5 (Bitácora Final)
+    const stageAfterAgent = ifNode ? [ifNode] : hitoNodes.length > 0 ? hitoNodes : outputNodes;
     if (agentNode) {
-      const x1 = agentNode.x + 184;
-      const y1 = agentNode.y + agentNode.height;
-      toolNodes.forEach((tNode) => {
-        const x2 = tNode.x + tNode.width / 2;
-        const y2 = tNode.y;
-        paths.push({
-          id: `wire_sub_tool_${tNode.key}`,
-          d: makeSubNodeCurve(x1, y1, x2, y2),
+      stageAfterAgent.forEach((target) => {
+        pushWire({
+          id: `wire_agent_${target.key}`,
+          x1: agentNode.x + agentNode.width,
+          y1: agentNode.y + agentNode.height / 2,
+          x2: target.x,
+          y2: target.y + target.height / 2,
+          dashed: false,
+          color: '#94a3b8',
+        });
+      });
+    }
+
+    if (ifNode) {
+      const nextTargets = hitoNodes.length > 0 ? hitoNodes : outputNodes;
+      nextTargets.forEach((target, idx) => {
+        const isTrueBranch = idx === 0;
+        const x1Port = ifNode.x + ifNode.width;
+        const y1Port = ifNode.y + (isTrueBranch ? 24 : 50);
+        pushWire({
+          id: `wire_if_${target.key}`,
+          x1: x1Port,
+          y1: y1Port,
+          x2: target.x,
+          y2: target.y + target.height / 2,
+          dashed: false,
+          color: isTrueBranch ? '#10b981' : '#94a3b8',
+          label: isTrueBranch ? 'true' : 'false',
+          labelX: x1Port + 16,
+          labelY: y1Port - 5,
+        });
+      });
+    }
+
+    if (hitoNodes.length > 0 && outputNodes.length > 0) {
+      hitoNodes.forEach((hNode) => {
+        outputNodes.forEach((outNode) => {
+          pushWire({
+            id: `wire_hito_out_${hNode.key}_${outNode.key}`,
+            x1: hNode.x + hNode.width,
+            y1: hNode.y + hNode.height / 2,
+            x2: outNode.x,
+            y2: outNode.y + outNode.height / 2,
+            dashed: false,
+            color: '#10b981',
+          });
+        });
+      });
+    }
+
+    // 3A. AI Agent ◆ (Chat Model *) ── - - ──> ◆ Sub-Nodo Circular Modelo
+    if (agentNode && modelNode) {
+      pushWire({
+        id: 'wire_sub_model',
+        x1: agentNode.x + 44,
+        y1: agentNode.y + agentNode.height,
+        x2: modelNode.x + modelNode.width / 2,
+        y2: modelNode.y,
+        dashed: true,
+        isSub: true,
+        color: '#818cf8',
+      });
+    }
+
+    // 3B. AI Agent ◆ (Memory) ── - - ──> ◆ Sub-Nodos Circulares de Memoria
+    if (agentNode) {
+      memNodes.forEach((mNode) => {
+        pushWire({
+          id: `wire_sub_memory_${mNode.key}`,
+          x1: agentNode.x + 114,
+          y1: agentNode.y + agentNode.height,
+          x2: mNode.x + mNode.width / 2,
+          y2: mNode.y,
           dashed: true,
+          isSub: true,
+          color: '#ec4899',
+        });
+      });
+    }
+
+    // 3C. AI Agent ◆ (Tool +) ── - - ──> ◆ Sub-Nodos Circulares de Tools del Agente
+    if (agentNode) {
+      toolNodes.forEach((tNode) => {
+        pushWire({
+          id: `wire_sub_tool_${tNode.key}`,
+          x1: agentNode.x + 184,
+          y1: agentNode.y + agentNode.height,
+          x2: tNode.x + tNode.width / 2,
+          y2: tNode.y,
+          dashed: true,
+          isSub: true,
           color: '#818cf8',
         });
       });
     }
 
-    // 6. Cables personalizados adicionales creados con el mouse por el usuario
+    // 6. Cables personalizados adicionales creados con el mouse por el usuario (conectando cualquier módulo a cualquier otro)
     const customEdges = workflowNodes?.canvasLayout?.edges || [];
     customEdges.forEach((edge) => {
       const fromNode = map.get(edge.from);
       const toNode = map.get(edge.to);
       if (!fromNode || !toNode) return;
-      const x1 = fromNode.x + fromNode.width;
-      const y1 = fromNode.y + fromNode.height / 2;
-      const x2 = toNode.x;
-      const y2 = toNode.y + toNode.height / 2;
-      paths.push({
+      pushWire({
         id: edge.id,
-        d: makeHorizontalCurve(x1, y1, x2, y2),
+        x1: fromNode.x + fromNode.width,
+        y1: fromNode.y + fromNode.height / 2,
+        x2: toNode.x,
+        y2: toNode.y + toNode.height / 2,
         dashed: edge.kind === 'sub',
         color: '#14b8a6',
       });
     });
 
     return paths;
-  }, [visualNodes, workflowNodes?.canvasLayout?.edges]);
+  }, [visualNodes, workflowNodes?.canvasLayout?.edges, workflowNodes?.canvasLayout?.removedWires]);
+
+  // Eliminar un cable individual (ya sea automático o creado por el usuario) para reconectar libremente
+  const handleRemoveWire = (wireId: string) => {
+    if (!onChange || readOnly) return;
+    if (wireId.startsWith('custom_')) {
+      const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter((e) => e.id !== wireId);
+      onChange({
+        ...workflowNodes,
+        canvasLayout: {
+          ...(workflowNodes?.canvasLayout || {}),
+          edges: nextEdges,
+        },
+      });
+    } else {
+      const prevRemoved = workflowNodes?.canvasLayout?.removedWires || [];
+      if (!prevRemoved.includes(wireId)) {
+        onChange({
+          ...workflowNodes,
+          canvasLayout: {
+            ...(workflowNodes?.canvasLayout || {}),
+            removedWires: [...prevRemoved, wireId],
+          },
+        });
+      }
+    }
+  };
+
+  // Cortar todos los cables principales automáticos para conectar desde cero en modo 100% libre
+  const handleDisconnectAllMainWires = () => {
+    if (!onChange || readOnly) return;
+    const mainAutoIds = wires
+      .filter((w) => !w.dashed && !w.id.startsWith('custom_'))
+      .map((w) => w.id);
+    const prevRemoved = workflowNodes?.canvasLayout?.removedWires || [];
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        removedWires: Array.from(new Set([...prevRemoved, ...mainAutoIds])),
+      },
+    });
+  };
+
+  // Agregar un Agente IA adicional (ej. Segunda IA Revisora / Auditora en el mismo flujo)
+  const handleAddExtraAgent = () => {
+    if (!onChange || readOnly) return;
+    const prevExtra = workflowNodes?.canvasLayout?.extraAgents || [];
+    const newKey = `agent_extra_${Date.now()}`;
+    const defaultAgent = agents[1] || agents[0];
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        extraAgents: [
+          ...prevExtra,
+          {
+            key: newKey,
+            agentId: defaultAgent?.id || '',
+            agentName: defaultAgent?.name || 'IA Revisora / Auditora SST',
+            aiEngine: 'wappy',
+            aiModel: 'gemini-3.6-flash',
+          },
+        ],
+      },
+    });
+  };
+
+  // Actualizar o quitar un Agente IA adicional
+  const handleUpdateExtraAgent = (key: string, newAgentId: string) => {
+    if (!onChange || readOnly) return;
+    const found = agents.find((a) => a.id === newAgentId);
+    const nextExtra = (workflowNodes?.canvasLayout?.extraAgents || []).map((ea) =>
+      ea.key === key
+        ? { ...ea, agentId: newAgentId, agentName: found?.name || ea.agentName }
+        : ea,
+    );
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        extraAgents: nextExtra,
+      },
+    });
+  };
+
+  const handleRemoveExtraAgent = (key: string) => {
+    if (!onChange || readOnly) return;
+    const nextExtra = (workflowNodes?.canvasLayout?.extraAgents || []).filter((ea) => ea.key !== key);
+    const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
+      (ed) => ed.from !== key && ed.to !== key,
+    );
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        extraAgents: nextExtra,
+        edges: nextEdges,
+      },
+    });
+  };
 
   // Actualizar posición de un nodo al arrastrarlo
   const updateNodePosition = useCallback(
@@ -797,9 +1076,9 @@ export default function WappyWorkflowCanvas({
     }
   };
 
-  // Agregar o quitar un disparador/conector/herramienta/hito/salida o cambiar motor IA
+  // Agregar o quitar un disparador/extractor/memoria/herramienta/hito/salida o cambiar motor IA
   const toggleOrAddCatalogNode = (
-    group: 'trigger' | 'inputs' | 'hitos' | 'outputs',
+    group: 'trigger' | 'extractors' | 'memories' | 'inputs' | 'hitos' | 'outputs',
     nodeId: string,
     dropPos?: { x: number; y: number },
   ) => {
@@ -836,13 +1115,47 @@ export default function WappyWorkflowCanvas({
       return;
     }
 
-    const currentList = workflowNodes[group] || [];
+    if (group === 'memories') {
+      const exists = activeMemories.includes(nodeId);
+      const nextMemories = exists
+        ? activeMemories.length > 1
+          ? activeMemories.filter((id) => id !== nodeId)
+          : activeMemories
+        : [...activeMemories, nodeId];
+      const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+      if (!exists && dropPos) {
+        nextPositions[`sub_memory_${nodeId}`] = {
+          x: Math.max(20, Math.round(dropPos.x - 31)),
+          y: Math.max(20, Math.round(dropPos.y - 31)),
+        };
+      }
+      onChange({
+        ...workflowNodes,
+        memory: nextMemories[0] || 'wappy_memory_company',
+        memories: nextMemories,
+        canvasLayout: {
+          ...(workflowNodes?.canvasLayout || {}),
+          positions: nextPositions,
+        },
+      });
+      return;
+    }
+
+    const currentList =
+      group === 'extractors' ? activeExtractors : workflowNodes[group] || [];
     const exists = currentList.includes(nodeId);
     const nextList = exists
       ? currentList.filter((id) => id !== nodeId)
       : [...currentList, nodeId];
 
-    const key = group === 'outputs' ? `out_${nodeId}` : `tool_${group}_${nodeId}`;
+    const key =
+      group === 'extractors'
+        ? `ext_${nodeId}`
+        : group === 'hitos'
+          ? `hito_${nodeId}`
+          : group === 'outputs'
+            ? `out_${nodeId}`
+            : `tool_${group}_${nodeId}`;
     const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
     if (!exists && dropPos) {
       nextPositions[key] = {
@@ -908,13 +1221,28 @@ export default function WappyWorkflowCanvas({
             const key = idx === 0 ? 'trigger_root' : `trigger_${parsed.nodeId}`;
             updateNodePosition(key, dropPos.x - 36, dropPos.y - 36);
           }
+        } else if (parsed.group === 'memories') {
+          if (!activeMemories.includes(parsed.nodeId)) {
+            toggleOrAddCatalogNode('memories', parsed.nodeId, dropPos);
+          } else if (dropPos) {
+            updateNodePosition(`sub_memory_${parsed.nodeId}`, dropPos.x - 31, dropPos.y - 31);
+          }
         } else {
-          const arr = workflowNodes[parsed.group as 'inputs' | 'hitos' | 'outputs'] || [];
+          const arr =
+            parsed.group === 'extractors'
+              ? activeExtractors
+              : workflowNodes[parsed.group as 'inputs' | 'hitos' | 'outputs'] || [];
           if (!arr.includes(parsed.nodeId)) {
             toggleOrAddCatalogNode(parsed.group, parsed.nodeId, dropPos);
           } else if (dropPos) {
             const key =
-              parsed.group === 'outputs' ? `out_${parsed.nodeId}` : `tool_${parsed.group}_${parsed.nodeId}`;
+              parsed.group === 'extractors'
+                ? `ext_${parsed.nodeId}`
+                : parsed.group === 'hitos'
+                  ? `hito_${parsed.nodeId}`
+                  : parsed.group === 'outputs'
+                    ? `out_${parsed.nodeId}`
+                    : `tool_${parsed.group}_${parsed.nodeId}`;
             updateNodePosition(key, dropPos.x - 32, dropPos.y - 32);
           }
         }
@@ -942,15 +1270,15 @@ export default function WappyWorkflowCanvas({
       {/* ─── BARRA DE PALETA DE CUADRITOS CON LOGOS SVG ORIGINALES (Solo en modo editor) ─── */}
       {!readOnly && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-sm">
-          {/* Pestañas de categorías + Botón Autogenerar Prompt */}
+          {/* Pestañas de las 5 Etapas del Flujo + 3 Rombos del Agente + Botón Autogenerar Prompt */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
               {[
-                { id: 'triggers', label: '⚡ 1. Disparadores / Entradas', badge: activeTriggers.length },
-                { id: 'connectors', label: '🔌 2. Conectores & Herramientas', badge: (workflowNodes.inputs || []).length },
+                { id: 'triggers', label: '⚡ 1. Disparador', badge: activeTriggers.length },
+                { id: 'extractors', label: '📥 2. Extraer Datos', badge: activeExtractors.length },
                 {
                   id: 'ai_engine',
-                  label: '🧠 3. Motor IA & Modelo (WAPPY / Antigravity Local & Cloud)',
+                  label: '🧠 3. Motor IA',
                   badge:
                     aiEngine === 'antigravity_cloud'
                       ? 'AGY Cloud'
@@ -958,8 +1286,10 @@ export default function WappyWorkflowCanvas({
                         ? 'AGY Local'
                         : aiModel.replace('gemini-', ''),
                 },
-                { id: 'hitos', label: '🛡️ 4. Hitos & Apps Somos SST', badge: (workflowNodes.hitos || []).length },
-                { id: 'outputs', label: '📤 5. Salidas & Acciones', badge: (workflowNodes.outputs || []).length },
+                { id: 'memories', label: '💾 4. Memorias del Agente', badge: activeMemories.length },
+                { id: 'connectors', label: '🔧 5. Tools del Agente', badge: (workflowNodes.inputs || []).length },
+                { id: 'hitos', label: '🛡️ 6. Cambiar en Hito / App', badge: (workflowNodes.hitos || []).length },
+                { id: 'outputs', label: '📤 7. Bitácora & Salida', badge: (workflowNodes.outputs || []).length },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -997,11 +1327,27 @@ export default function WappyWorkflowCanvas({
             )}
           </div>
 
-          {/* Instrucción rápida de uso del lienzo interactivo */}
+          {/* Instrucción rápida de uso según la etapa activa */}
           <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-2 px-1">
             {paletteTab === 'triggers' ? (
               <span>
-                ⚡ <strong>Múltiples Disparadores / Entradas:</strong> Una tarea puede iniciarse por varios medios a la vez (<strong>Cron Programado</strong>, <strong>Tenshi IA</strong>, <strong>Google Antigravity</strong>, <strong>Correo Entrante</strong>, <strong>Otro Agente IA</strong>, <strong>Reporte QR</strong> o <strong>Webhook API</strong>). Haz clic o arrástralos al lienzo para combinarlos.
+                ⚡ <strong>Etapa 1 — Disparador:</strong> Elige quién o qué inicia la tarea (<strong>Cron Programado</strong>, <strong>Tenshi IA</strong>, <strong>Antigravity Local/Cloud</strong>, <strong>Correo Entrante</strong>, <strong>Agente IA</strong>, <strong>Reporte QR</strong> o <strong>Webhook API</strong>). Puedes activar varios a la vez.
+              </span>
+            ) : paletteTab === 'extractors' ? (
+              <span>
+                📥 <strong>Etapa 2 — Extracción / Lectura Previa:</strong> Antes de que el Agente IA piense, extrae información de <strong>Gmail</strong>, <strong>Google Drive</strong>, <strong>OneDrive</strong>, una <strong>Carpeta en tu Computador (vía Antigravity)</strong> o un <strong>Aplicativo / Base de Trabajadores de Somos SST</strong> y envíasela al Agente.
+              </span>
+            ) : paletteTab === 'memories' ? (
+              <span>
+                💾 <strong>Rombo Memory (◆) — Las 4 Memorias del Agente:</strong> Define qué recuerda el Agente antes de analizar los datos (datos de la <strong>Empresa Activa</strong>, <strong>Bitácora Anti-Duplicados</strong>, <strong>Cuadernos RAG NotebookLM</strong> o <strong>Reglas Normativas SST</strong>).
+              </span>
+            ) : paletteTab === 'hitos' ? (
+              <span>
+                🛡️ <strong>Etapa 4 — Acción en Hito o Aplicativo:</strong> Elige en qué matriz o aplicativo de los <strong>7 Hitos de Somos SST</strong> el Agente debe guardar, actualizar o modificar registros tras procesar la información.
+              </span>
+            ) : paletteTab === 'outputs' ? (
+              <span>
+                📤 <strong>Etapa 5 — Bitácora Final y Notificación:</strong> Al terminar todo el flujo, envía el informe detallado de la bitácora a <strong>Gmail</strong>, como <strong>Notificación Directa en WAPPY + Tenshi</strong> o de regreso a <strong>Google Antigravity (PC o Cloud)</strong>.
               </span>
             ) : (
               <span>
@@ -1059,28 +1405,78 @@ export default function WappyWorkflowCanvas({
                 );
               })}
             </div>
+          ) : paletteTab === 'memories' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {MEMORY_NODES.map((mem) => {
+                const isSelected = activeMemories.includes(mem.id);
+                return (
+                  <div
+                    key={mem.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        'application/wappy-flow-node',
+                        JSON.stringify({ kind: 'node', group: 'memories', nodeId: mem.id }),
+                      );
+                    }}
+                    onClick={() => toggleOrAddCatalogNode('memories', mem.id)}
+                    className={`cursor-grab active:cursor-grabbing p-3 rounded-2xl border transition-all flex items-start gap-3 select-none ${
+                      isSelected
+                        ? 'bg-pink-50/90 dark:bg-pink-950/30 border-pink-500 ring-2 ring-pink-500/30 shadow-sm'
+                        : 'bg-slate-50/70 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-pink-400'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-pink-300 dark:border-pink-700 shadow-sm flex items-center justify-center shrink-0 relative">
+                      {renderOfficialNodeSvg(mem.id, 'w-7 h-7')}
+                      {isSelected && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-pink-600 text-white flex items-center justify-center shadow">
+                          <Check className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight">
+                        {mem.label}
+                      </div>
+                      <div className="text-[10px] font-bold text-pink-600 dark:text-pink-400 mt-0.5">
+                        {mem.subtitle}
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                        {mem.promptHint}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
-              {(paletteTab === 'connectors'
-                ? INPUT_CONNECTOR_NODES
-                : paletteTab === 'hitos'
-                  ? HITO_APP_NODES
-                  : paletteTab === 'triggers'
-                    ? TRIGGER_NODES
-                    : OUTPUT_ACTION_NODES
+              {(paletteTab === 'extractors'
+                ? EXTRACTOR_NODES
+                : paletteTab === 'connectors'
+                  ? INPUT_CONNECTOR_NODES
+                  : paletteTab === 'hitos'
+                    ? HITO_APP_NODES
+                    : paletteTab === 'triggers'
+                      ? TRIGGER_NODES
+                      : OUTPUT_ACTION_NODES
               ).map((node) => {
                 const groupKey =
-                  paletteTab === 'connectors'
-                    ? 'inputs'
-                    : paletteTab === 'hitos'
-                      ? 'hitos'
-                      : paletteTab === 'triggers'
-                        ? 'trigger'
-                        : 'outputs';
+                  paletteTab === 'extractors'
+                    ? 'extractors'
+                    : paletteTab === 'connectors'
+                      ? 'inputs'
+                      : paletteTab === 'hitos'
+                        ? 'hitos'
+                        : paletteTab === 'triggers'
+                          ? 'trigger'
+                          : 'outputs';
                 const isSelected =
                   groupKey === 'trigger'
                     ? activeTriggers.includes(node.id)
-                    : (workflowNodes[groupKey] || []).includes(node.id);
+                    : groupKey === 'extractors'
+                      ? activeExtractors.includes(node.id)
+                      : (workflowNodes[groupKey] || []).includes(node.id);
 
                 return (
                   <div
@@ -1101,9 +1497,7 @@ export default function WappyWorkflowCanvas({
                       className={`relative w-14 h-14 flex items-center justify-center bg-white dark:bg-slate-800 border-2 transition-all duration-150 shadow-sm group-hover/tile:-translate-y-0.5 group-hover/tile:shadow-md ${
                         groupKey === 'trigger'
                           ? 'rounded-l-[22px] rounded-r-[10px]'
-                          : groupKey === 'inputs' || groupKey === 'hitos'
-                            ? 'rounded-2xl'
-                            : 'rounded-2xl'
+                          : 'rounded-2xl'
                       } ${
                         isSelected
                           ? 'border-purple-600 dark:border-[#C7F303] ring-2 ring-purple-500/25 dark:ring-[#C7F303]/25'
@@ -1176,6 +1570,15 @@ export default function WappyWorkflowCanvas({
                 <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
                 <button
                   type="button"
+                  onClick={handleAddExtraAgent}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 transition flex items-center gap-1"
+                  title="Agregar otra Inteligencia Artificial / Agente Revisor al campo para conectarlo donde quieras"
+                >
+                  <Plus className="w-3 h-3" />
+                  Otra IA / Agente
+                </button>
+                <button
+                  type="button"
                   onClick={() =>
                     onChange({
                       ...workflowNodes,
@@ -1194,9 +1597,18 @@ export default function WappyWorkflowCanvas({
                 </button>
                 <button
                   type="button"
+                  onClick={handleDisconnectAllMainWires}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 transition flex items-center gap-1"
+                  title="Cortar los cables automáticos para interconectar los módulos 100% a tu gusto arrastrando desde los puertos (●)"
+                >
+                  <X className="w-3 h-3" />
+                  Conectar a mi Gusto
+                </button>
+                <button
+                  type="button"
                   onClick={handleResetLayout}
                   className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1"
-                  title="Auto-organizar posiciones de los nodos"
+                  title="Restablecer posiciones y conexiones por defecto"
                 >
                   <RotateCcw className="w-3 h-3" />
                   Auto-Organizar
@@ -1216,7 +1628,7 @@ export default function WappyWorkflowCanvas({
             transform: `scale(${zoom})`,
           }}
         >
-          {/* ─── CAPA SVG DE CABLES CURVOS Y FLECHAS (S-CURVES & DASHED SUB-WIRES) ─── */}
+          {/* ─── CAPA SVG DE CABLES CURVOS Y FLECHAS (CON BOTÓN × PARA CORTAR CUALQUIER CABLE) ─── */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none z-10"
             style={{ overflow: 'visible' }}
@@ -1247,7 +1659,7 @@ export default function WappyWorkflowCanvas({
             </defs>
 
             {wires.map((w) => (
-              <g key={w.id}>
+              <g key={w.id} className="group/wire">
                 <path
                   d={w.d}
                   fill="none"
@@ -1262,6 +1674,39 @@ export default function WappyWorkflowCanvas({
                         : 'url(#wappy-arrow)'
                   }
                 />
+                {!readOnly && (
+                  <>
+                    <path
+                      d={w.d}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth="14"
+                      className="pointer-events-auto cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveWire(w.id);
+                      }}
+                    >
+                      <title>Haz clic para desconectar este cable y reconectar a tu gusto</title>
+                    </path>
+                    <g
+                      transform={`translate(${w.midX}, ${w.midY})`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveWire(w.id);
+                      }}
+                      className="pointer-events-auto cursor-pointer opacity-0 group-hover/wire:opacity-100 transition-opacity"
+                    >
+                      <circle r="7.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                      <path
+                        d="M -2.5 -2.5 L 2.5 2.5 M 2.5 -2.5 L -2.5 2.5"
+                        stroke="#ffffff"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  </>
+                )}
                 {w.label && w.labelX !== undefined && w.labelY !== undefined && (
                   <text
                     x={w.labelX}
@@ -1288,9 +1733,9 @@ export default function WappyWorkflowCanvas({
             )}
           </svg>
 
-          {/* ─── CAPA DE NODOS CON LAS 5 FIGURAS DEL FLUJO WAPPY ─── */}
+          {/* ─── CAPA DE NODOS DE LAS 5 ETAPAS DEL FLUJO WAPPY ─── */}
           {visualNodes.map((node) => {
-            // 1. FIGURA TRIGGER NODE (Forma en "D" con rayo ⚡ a la izquierda y puerto circular derecho)
+            // 1. ETAPA 1: FIGURA TRIGGER NODE (Forma en "D" con rayo ⚡ a la izquierda y puerto circular derecho)
             if (node.shape === 'trigger') {
               return (
                 <div
@@ -1350,8 +1795,76 @@ export default function WappyWorkflowCanvas({
               );
             }
 
-            // 2. FIGURA ROOT AI AGENT NODE (Rectángulo ancho central + 3 Rombos inferiores ◆)
+            // 1B. ETAPA 2: FIGURA NODO DE EXTRACCIÓN / LECTURA PREVIA (O en cualquier punto del flujo libre)
+            if (node.shape === 'square_extractor') {
+              return (
+                <div
+                  key={node.key}
+                  onPointerDown={(e) => handleNodePointerDown(e, node)}
+                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  className={`absolute z-20 group/node select-none ${
+                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                  }`}
+                >
+                  {/* Insignia superior de etapa */}
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-sky-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                    Extraer
+                  </span>
+
+                  {/* Puerto de entrada izquierdo (●) */}
+                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-500 border-2 border-white dark:border-slate-900" />
+
+                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500 shadow-md flex items-center justify-center relative transition-colors">
+                    {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
+
+                    {!readOnly && node.removable && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => toggleOrAddCatalogNode('extractors', node.nodeId)}
+                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                        title="Quitar nodo de extracción"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Puerto circular de salida derecho (●) hacia cualquier otro módulo */}
+                  <div
+                    onPointerDown={(e) =>
+                      handlePortPointerDown(
+                        e,
+                        node.key,
+                        'main_out',
+                        node.x + node.width,
+                        node.y + node.height / 2,
+                      )
+                    }
+                    title="Arrastra desde este puerto para conectar a cualquier módulo o IA"
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-sky-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                  />
+
+                  <div className="mt-1.5 w-[116px] -ml-[23px] text-center pointer-events-none">
+                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                      {node.title}
+                    </div>
+                    <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
+                      {node.subtitle}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // 2. ETAPA 3: FIGURA AI AGENT NODE (Principal o IA Adicional / Revisora en cualquier punto del campo)
             if (node.shape === 'agent') {
+              const isExtraAgent = node.key.startsWith('agent_extra_');
+              const extraConfig = isExtraAgent
+                ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === node.key)
+                : null;
+
               return (
                 <div
                   key={node.key}
@@ -1366,26 +1879,44 @@ export default function WappyWorkflowCanvas({
                   <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-lg bg-slate-400 border-2 border-white dark:border-slate-900" />
 
                   {/* Cuerpo rectangular del AI Agent */}
-                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md px-3.5 flex items-center gap-3 transition-colors">
+                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md px-3.5 flex items-center gap-3 relative transition-colors">
+                    {!readOnly && isExtraAgent && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => handleRemoveExtraAgent(node.key)}
+                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                        title="Quitar este Agente IA adicional"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+
                     <div className="w-11 h-11 rounded-xl bg-slate-900 dark:bg-purple-950/80 text-white dark:text-[#C7F303] flex items-center justify-center shrink-0 shadow-sm">
                       <Bot className="w-6 h-6" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-black text-slate-900 dark:text-white tracking-tight">
-                          AI Agent
+                          {node.title}
                         </span>
                         <span className="px-1.5 py-0.2 rounded text-[8.5px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
-                          Tools Agent
+                          {isExtraAgent ? 'IA Revisora' : 'Tools Agent'}
                         </span>
                       </div>
 
                       {/* Selector directo de Agente Especialista dentro del nodo */}
-                      {!readOnly && agents.length > 0 && onSelectAgent ? (
+                      {!readOnly && agents.length > 0 && (onSelectAgent || isExtraAgent) ? (
                         <select
-                          value={agentId || ''}
+                          value={isExtraAgent ? extraConfig?.agentId || '' : agentId || ''}
                           onPointerDown={(e) => e.stopPropagation()}
-                          onChange={(e) => onSelectAgent(e.target.value)}
+                          onChange={(e) => {
+                            if (isExtraAgent) {
+                              handleUpdateExtraAgent(node.key, e.target.value);
+                            } else if (onSelectAgent) {
+                              onSelectAgent(e.target.value);
+                            }
+                          }}
                           className="mt-1 w-full text-[11px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50/70 dark:bg-slate-900 border border-purple-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 focus:outline-none cursor-pointer truncate"
                         >
                           {agents.map((ag) => (
@@ -1413,7 +1944,7 @@ export default function WappyWorkflowCanvas({
                         node.y + node.height / 2,
                       )
                     }
-                    title="Arrastra para conectar la salida del Agente"
+                    title="Arrastra para conectar la salida de esta IA hacia otro módulo, correo, acta u otra IA"
                     className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-400 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
                   />
 
@@ -1429,8 +1960,13 @@ export default function WappyWorkflowCanvas({
                         node.y + node.height,
                       )
                     }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!readOnly) setPaletteTab('ai_engine');
+                    }}
                     style={{ left: 38 }}
-                    className="absolute -bottom-2 flex flex-col items-center cursor-crosshair"
+                    className="absolute -bottom-2 flex flex-col items-center cursor-pointer"
+                    title="Cambiar Motor IA (WAPPY Cloud / Antigravity Local / Antigravity Cloud 24/7)"
                   >
                     <div className="w-3 h-3 rotate-45 bg-indigo-500 border-2 border-white dark:border-slate-900 shadow-sm" />
                     <span className="mt-1 text-[8.5px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">
@@ -1438,7 +1974,7 @@ export default function WappyWorkflowCanvas({
                     </span>
                   </div>
 
-                  {/* Rombo 2: Memory */}
+                  {/* Rombo 2: Memory [+] */}
                   <div
                     onPointerDown={(e) =>
                       handlePortPointerDown(
@@ -1449,12 +1985,22 @@ export default function WappyWorkflowCanvas({
                         node.y + node.height,
                       )
                     }
-                    style={{ left: 108 }}
-                    className="absolute -bottom-2 flex flex-col items-center cursor-crosshair"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!readOnly) setPaletteTab('memories');
+                    }}
+                    style={{ left: 104 }}
+                    className="absolute -bottom-2 flex flex-col items-center cursor-pointer group/memport"
+                    title="Configurar las 4 Memorias del Agente (Empresa Activa, Bitácora Anti-Duplicados, RAG NotebookLM, Reglas Normativas SST)"
                   >
-                    <div className="w-3 h-3 rotate-45 bg-indigo-500 border-2 border-white dark:border-slate-900 shadow-sm" />
-                    <span className="mt-1 text-[8.5px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    <div className="w-3 h-3 rotate-45 bg-pink-500 group-hover/memport:bg-pink-600 border-2 border-white dark:border-slate-900 shadow-sm" />
+                    <span className="mt-1 text-[8.5px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-0.5">
                       Memory
+                      {!readOnly && (
+                        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-[9px] font-black text-pink-600">
+                          +
+                        </span>
+                      )}
                     </span>
                   </div>
 
@@ -1475,7 +2021,7 @@ export default function WappyWorkflowCanvas({
                     }}
                     style={{ left: 178 }}
                     className="absolute -bottom-2 flex flex-col items-center cursor-pointer group/toolport"
-                    title="Conectar más herramientas y aplicativos de los 7 Hitos"
+                    title="Conectar Tools y Motores de Análisis al Agente IA"
                   >
                     <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/toolport:bg-purple-600 border-2 border-white dark:border-slate-900 shadow-sm" />
                     <span className="mt-1 text-[8.5px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-0.5">
@@ -1542,7 +2088,70 @@ export default function WappyWorkflowCanvas({
               );
             }
 
-            // 4. FIGURA NODOS CUADRADOS DE SALIDA (Con botón [+])
+            // 3B. ETAPA 4: FIGURA NODO DE ACCIÓN EN HITO / APLICATIVO SOMOS SST (Conectable en cualquier orden)
+            if (node.shape === 'square_hito') {
+              return (
+                <div
+                  key={node.key}
+                  onPointerDown={(e) => handleNodePointerDown(e, node)}
+                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  className={`absolute z-20 group/node select-none ${
+                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                  }`}
+                >
+                  {/* Insignia superior de etapa */}
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-teal-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                    Hito / App
+                  </span>
+
+                  {/* Puerto de entrada izquierdo (●) */}
+                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-teal-500 border-2 border-white dark:border-slate-900" />
+
+                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-teal-400 dark:border-teal-600 group-hover/node:border-teal-500 shadow-md flex items-center justify-center relative transition-colors">
+                    {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
+
+                    {!readOnly && node.removable && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => toggleOrAddCatalogNode('hitos', node.nodeId)}
+                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                        title="Quitar acción en Hito / App"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Puerto circular de salida derecho (●) hacia cualquier otro módulo o IA */}
+                  <div
+                    onPointerDown={(e) =>
+                      handlePortPointerDown(
+                        e,
+                        node.key,
+                        'main_out',
+                        node.x + node.width,
+                        node.y + node.height / 2,
+                      )
+                    }
+                    title="Arrastra desde este puerto para conectar a un correo, otra IA revisora o cualquier módulo"
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-teal-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                  />
+
+                  <div className="mt-1.5 w-[116px] -ml-[23px] text-center pointer-events-none">
+                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                      {node.title}
+                    </div>
+                    <div className="text-[9px] text-teal-600 dark:text-teal-400 font-semibold truncate">
+                      {node.subtitle}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // 4. ETAPA 5: FIGURA NODOS CUADRADOS DE BITÁCORA Y SALIDA (Con puerto de salida ● y botón [+])
             if (node.shape === 'square_output') {
               return (
                 <div
@@ -1554,6 +2163,11 @@ export default function WappyWorkflowCanvas({
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
                 >
+                  {/* Insignia superior de etapa */}
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-purple-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                    Bitácora
+                  </span>
+
                   {/* Puerto de entrada izquierdo */}
                   <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
 
@@ -1573,17 +2187,29 @@ export default function WappyWorkflowCanvas({
                     )}
                   </div>
 
-                  {/* Extensión derecha: ● ── [+] */}
+                  {/* Puerto de salida arrastrable (●) + botón [+] para encadenar con otra IA o módulo */}
                   <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex items-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                    <div className="w-3 h-[1.5px] bg-slate-300 dark:bg-slate-600" />
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'main_out',
+                          node.x + node.width,
+                          node.y + node.height / 2,
+                        )
+                      }
+                      title="Arrastra desde este puerto para continuar el flujo hacia otra IA o módulo"
+                      className="w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                    />
+                    <div className="w-2.5 h-[1.5px] bg-slate-300 dark:bg-slate-600" />
                     {!readOnly && (
                       <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => setPaletteTab('outputs')}
                         className="w-4 h-4 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-500 hover:text-purple-600 hover:border-purple-400 flex items-center justify-center text-[10px] font-bold shadow-xs"
-                        title="Añadir otra acción de salida"
+                        title="Añadir otro destino o acción en el flujo"
                       >
                         +
                       </button>
@@ -1600,7 +2226,7 @@ export default function WappyWorkflowCanvas({
               );
             }
 
-            // 5. FIGURA SUB-NODOS CIRCULARES (Chat Model *, Memory y Tools/Hitos con Rombo superior ◆)
+            // 5. FIGURA SUB-NODOS CIRCULARES (Chat Model *, Memory y Tools con Rombo superior ◆)
             const isModelCircle = node.shape === 'circle_model';
             const isMemoryCircle = node.shape === 'circle_memory';
 
@@ -1615,7 +2241,11 @@ export default function WappyWorkflowCanvas({
                 }`}
               >
                 {/* Puerto superior en forma de Rombo (◆) que conecta al AI Agent */}
-                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-indigo-500 border-2 border-white dark:border-slate-900 shadow-xs" />
+                <div
+                  className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border-2 border-white dark:border-slate-900 shadow-xs ${
+                    isMemoryCircle ? 'bg-pink-500' : 'bg-indigo-500'
+                  }`}
+                />
 
                 {/* Círculo perfecto de Sub-Nodo */}
                 <div
@@ -1623,6 +2253,8 @@ export default function WappyWorkflowCanvas({
                     if (readOnly) return;
                     if (isModelCircle) {
                       setPaletteTab('ai_engine');
+                    } else if (isMemoryCircle) {
+                      setPaletteTab('memories');
                     }
                   }}
                   className={`w-full h-full rounded-full bg-white dark:bg-slate-800 border-2 shadow-md flex items-center justify-center relative transition-transform group-hover/node:scale-105 ${
@@ -1633,13 +2265,13 @@ export default function WappyWorkflowCanvas({
                           ? 'border-orange-500 ring-2 ring-orange-500/20'
                           : 'border-indigo-500 ring-2 ring-indigo-500/20'
                       : isMemoryCircle
-                        ? 'border-pink-400 dark:border-pink-700'
+                        ? 'border-pink-400 dark:border-pink-700 hover:border-pink-500'
                         : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
                   }`}
                 >
                   {renderOfficialNodeSvg(node.nodeId, 'w-7 h-7')}
 
-                  {/* Botón para quitar herramienta/hito */}
+                  {/* Botón para quitar memoria o tool */}
                   {!readOnly && node.removable && node.group && (
                     <button
                       type="button"
