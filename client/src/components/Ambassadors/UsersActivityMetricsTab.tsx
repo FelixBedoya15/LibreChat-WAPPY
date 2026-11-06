@@ -203,6 +203,37 @@ export default function UsersActivityMetricsTab({
     });
   }, [ambassadorFilteredUsers, searchTerm, levelFilter, planFilter, activityFilter, milestoneFilter]);
 
+  const activeSummary = useMemo<ActivitySummary | null>(() => {
+    if (!summary) return null;
+    if (selectedAmbassadorFilter === 'all') return summary;
+    const totalUsers = ambassadorFilteredUsers.length;
+    const activeThisWeek = ambassadorFilteredUsers.filter((u) => u.daysInactive <= 7).length;
+    const activeThisMonth = ambassadorFilteredUsers.filter((u) => u.daysInactive <= 30).length;
+    const powerUsersCount = ambassadorFilteredUsers.filter((u) => u.adoptionLevel === 'power_user' || u.adoptionLevel === 'avanzado').length;
+    const inactive30DaysCount = ambassadorFilteredUsers.filter((u) => u.daysInactive > 30).length;
+    const totalConversations = ambassadorFilteredUsers.reduce((acc, u) => acc + (u.chatMetrics?.totalConversations || 0), 0);
+    const totalMessages = ambassadorFilteredUsers.reduce((acc, u) => acc + (u.chatMetrics?.totalMessages || 0), 0);
+    const totalCompanies = ambassadorFilteredUsers.reduce((acc, u) => acc + (u.milestoneMetrics?.companiesCount || 0), 0);
+    const totalWorkers = ambassadorFilteredUsers.reduce((acc, u) => acc + (u.milestoneMetrics?.workersCount || 0), 0);
+    const totalMatrices = ambassadorFilteredUsers.reduce((acc, u) => acc + (u.milestoneMetrics?.gtc45Count || 0) + (u.milestoneMetrics?.pesvCount || 0), 0);
+    const avgAdoptionRate = totalUsers > 0
+      ? Math.round(ambassadorFilteredUsers.reduce((acc, u) => acc + (u.adoptionScore || 0), 0) / totalUsers)
+      : 0;
+    return {
+      totalUsers,
+      activeThisWeek,
+      activeThisMonth,
+      powerUsersCount,
+      inactive30DaysCount,
+      totalConversations,
+      totalMessages,
+      totalCompanies,
+      totalWorkers,
+      totalMatrices,
+      avgAdoptionRate,
+    };
+  }, [summary, selectedAmbassadorFilter, ambassadorFilteredUsers]);
+
   const handleCopyMessage = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
@@ -277,101 +308,101 @@ export default function UsersActivityMetricsTab({
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       {/* 1. Header KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {/* Total Users & Active */}
-        <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+        <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
               Usuarios Activos
             </span>
-            <div className="w-8 h-8 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400">
+            <div className="w-9 h-9 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400">
               <Users className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-text-primary">
-              {summary?.activeThisMonth || 0}
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+              {activeSummary?.activeThisMonth || 0}
             </span>
-            <span className="text-xs text-text-secondary">
-              de {summary?.totalUsers || users.length} reg.
+            <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+              de {activeSummary?.totalUsers || ambassadorFilteredUsers.length} reg.
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold">
             <Clock className="w-3.5 h-3.5" />
             <span>Actividad en los últimos 30 días</span>
           </div>
         </div>
 
         {/* Chats & IA Engagement */}
-        <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+        <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
               Uso de IA & Chats
             </span>
-            <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-400">
+            <div className="w-9 h-9 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400">
               <Bot className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-text-primary">
-              {summary?.totalConversations || 0}
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+              {activeSummary?.totalConversations || 0}
             </span>
-            <span className="text-xs text-text-secondary">conversaciones</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">conversaciones</span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-orange-600 dark:text-orange-400 font-semibold">
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-orange-600 dark:text-orange-400 font-bold">
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>{summary?.totalMessages || 0} mensajes intercambiados</span>
+            <span>{activeSummary?.totalMessages || 0} mensajes intercambiados</span>
           </div>
         </div>
 
         {/* Hitos SST Operativos */}
-        <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+        <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
               Hitos SST Generados
             </span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <FileSpreadsheet className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-text-primary">
-              {summary?.totalMatrices || 0}
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+              {activeSummary?.totalMatrices || 0}
             </span>
-            <span className="text-xs text-text-secondary">matrices (GTC45/PESV)</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">matrices (GTC45/PESV)</span>
           </div>
-          <div className="mt-2 flex items-center gap-2 text-[10px] sm:text-xs text-indigo-600 dark:text-indigo-400 font-semibold truncate">
-            <span>🏢 {summary?.totalCompanies || 0} empresas</span>
+          <div className="mt-2 flex items-center gap-2 text-[10px] sm:text-xs text-indigo-600 dark:text-indigo-400 font-bold truncate">
+            <span>🏢 {activeSummary?.totalCompanies || 0} empresas</span>
             <span>•</span>
-            <span>👷 {summary?.totalWorkers || 0} trab.</span>
+            <span>👷 {activeSummary?.totalWorkers || 0} trab.</span>
           </div>
         </div>
 
         {/* Adoption & Retention Rate */}
-        <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+        <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
               Tasa de Adopción
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
-              {summary?.avgAdoptionRate || 0}%
+            <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
+              {activeSummary?.avgAdoptionRate || 0}%
             </span>
-            <span className="text-xs text-text-secondary">promedio</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">promedio</span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-text-secondary font-semibold">
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 font-bold">
             <Flame className="w-3.5 h-3.5 text-amber-500" />
-            <span>{summary?.powerUsersCount || 0} Power Users activos</span>
+            <span>{activeSummary?.powerUsersCount || 0} Power Users activos</span>
           </div>
         </div>
       </div>
 
       {/* 2. Control Bar & Search Filters */}
-      <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-4 shadow-sm space-y-3">
+      <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-5 shadow-sm space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[240px]">
@@ -483,17 +514,17 @@ export default function UsersActivityMetricsTab({
       </div>
 
       {/* 3. Table of Active Users & Milestones */}
-      <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-border-medium/30 flex items-center justify-between">
+      <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-slate-200/70 dark:border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs sm:text-sm font-extrabold text-text-primary">
+            <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
               Métricas Detalladas de Uso por Usuario
             </h3>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-500/10 text-teal-700 dark:text-teal-300">
               {filteredUsers.length} {filteredUsers.length === 1 ? 'usuario' : 'usuarios'}
             </span>
           </div>
-          <span className="text-[11px] text-text-secondary hidden sm:inline">
+          <span className="text-[11px] text-slate-500 dark:text-zinc-400 hidden sm:inline">
             Haz clic en WhatsApp para abrir el chat con asesoría sugerida
           </span>
         </div>

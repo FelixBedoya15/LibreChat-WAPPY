@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { 
   Briefcase, 
@@ -41,14 +41,63 @@ interface ProposalPlan {
   key: string;
   planName: string;
   interval: string;
+  listBasePrice?: number;
+  basePrice?: number;
+  discountedBasePrice?: number;
+  adminDiscountPercentage?: number;
+  adminPromoText?: string;
+  ambassadorDiscountPercentage?: number;
+  additionalCompaniesCost?: number;
+  automationsCost?: number;
   regularPrice: number;
+  planesPageTotal?: number;
   discountPercentage: number;
   finalPrice: number;
+  totalSavingsCop?: number;
   pricePerMonth: number;
   features: string[];
   isRecommended: boolean;
   paymentUrl: string;
 }
+
+interface ConfiguredPlanData {
+  key: string;
+  prices: {
+    monthly: number;
+    quarterly: number;
+    semiannual: number;
+    annual: number;
+  };
+  promotions: {
+    monthly: { active: boolean; text: string; discountPercentage: number };
+    quarterly: { active: boolean; text: string; discountPercentage: number };
+    semiannual: { active: boolean; text: string; discountPercentage: number };
+    annual: { active: boolean; text: string; discountPercentage: number };
+  };
+}
+
+const DEFAULT_CONFIGURED_PLANS: Record<string, ConfiguredPlanData> = {
+  pro: {
+    key: 'pro',
+    prices: { monthly: 179000, quarterly: 518600, semiannual: 1005000, annual: 1790000 },
+    promotions: {
+      monthly: { active: false, text: '', discountPercentage: 0 },
+      quarterly: { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+      semiannual: { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+      annual: { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+    },
+  },
+  ipevar: {
+    key: 'ipevar',
+    prices: { monthly: 119000, quarterly: 345000, semiannual: 669000, annual: 1190000 },
+    promotions: {
+      monthly: { active: false, text: '', discountPercentage: 0 },
+      quarterly: { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+      semiannual: { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+      annual: { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+    },
+  },
+};
 
 interface ProposalTimeline {
   phase: string;
@@ -146,8 +195,158 @@ export default function CommercialProposalGenerator({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [proposal, setProposal] = useState<GeneratedProposal | null>(null);
   const [isEditable, setIsEditable] = useState(false);
+  const [configuredPlans, setConfiguredPlans] = useState<Record<string, ConfiguredPlanData>>(DEFAULT_CONFIGURED_PLANS);
 
   const printContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync advisor props when parent data finishes loading
+  useEffect(() => {
+    if (ambassadorName && ambassadorName !== 'Asesor WAPPY IA') setAdvisorName(ambassadorName);
+    if (ambassadorPhone) setAdvisorPhone(ambassadorPhone);
+    if (ambassadorEmail) setAdvisorEmail(ambassadorEmail);
+  }, [ambassadorName, ambassadorPhone, ambassadorEmail]);
+
+  // Fetch live parameterized prices & promotions from Admin Panel (/api/wompi/configured-plans)
+  useEffect(() => {
+    let isMounted = true;
+    axios.get('/api/wompi/configured-plans')
+      .then((res) => {
+        if (!isMounted || !Array.isArray(res.data)) return;
+        const map: Record<string, ConfiguredPlanData> = { ...DEFAULT_CONFIGURED_PLANS };
+        res.data.forEach((doc: any) => {
+          if (doc?.key === 'pro' || doc?.key === 'ipevar' || doc?.key === 'vital') {
+            const targetKey = doc.key === 'vital' ? 'ipevar' : doc.key;
+            const fallback = DEFAULT_CONFIGURED_PLANS[targetKey];
+            map[targetKey] = {
+              key: targetKey,
+              prices: {
+                monthly: Number(doc.prices?.monthly) || fallback.prices.monthly,
+                quarterly: Number(doc.prices?.quarterly) || fallback.prices.quarterly,
+                semiannual: Number(doc.prices?.semiannual) || fallback.prices.semiannual,
+                annual: Number(doc.prices?.annual) || fallback.prices.annual,
+              },
+              promotions: {
+                monthly: doc.promotions?.monthly || fallback.promotions.monthly,
+                quarterly: doc.promotions?.quarterly || fallback.promotions.quarterly,
+                semiannual: doc.promotions?.semiannual || fallback.promotions.semiannual,
+                annual: doc.promotions?.annual || fallback.promotions.annual,
+              },
+            };
+          }
+        });
+        setConfiguredPlans(map);
+      })
+      .catch(() => {
+        // Fallback to DEFAULT_CONFIGURED_PLANS silently
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Build dynamic quotable plans with live Admin Panel prices, Admin promotions, and Ambassador discount
+  const quotablePlans = useMemo(() => {
+    const pro = configuredPlans.pro || DEFAULT_CONFIGURED_PLANS.pro;
+    const vital = configuredPlans.ipevar || DEFAULT_CONFIGURED_PLANS.ipevar;
+    const safeDisc = Math.min(Math.max(Number(customDiscount) || 0, 0), 20);
+    const extraComp = Math.max(parseInt(String(additionalCompanies)) || 0, 0);
+    const extraAuto = Math.max(parseInt(String(additionalAutomations)) || 0, 0);
+    const autoPacks = Math.floor(extraAuto / 5);
+    const singleAutos = extraAuto % 5;
+    const monthlyAutomationsCost = autoPacks * 40000 + singleAutos * 10000;
+
+    const specs = [
+      { key: 'anual', family: 'pro' as const, intervalKey: 'annual' as const, months: 12, label: 'Plan Wappy Pro — Anual', intervalText: '12 Meses (Facturación Anual)', badge: 'Recomendado', isRec: true },
+      { key: 'semestral', family: 'pro' as const, intervalKey: 'semiannual' as const, months: 6, label: 'Plan Wappy Pro — Semestral', intervalText: '6 Meses (Facturación Semestral)', badge: '6 Meses', isRec: false },
+      { key: 'trimestral', family: 'pro' as const, intervalKey: 'quarterly' as const, months: 3, label: 'Plan Wappy Pro — Trimestral', intervalText: '3 Meses (Facturación Trimestral)', badge: '3 Meses', isRec: false },
+      { key: 'mensual', family: 'pro' as const, intervalKey: 'monthly' as const, months: 1, label: 'Plan Wappy Pro — Mensual', intervalText: '1 Mes (Facturación Mensual)', badge: 'Mensual', isRec: false },
+      { key: 'vital_anual', family: 'ipevar' as const, intervalKey: 'annual' as const, months: 12, label: 'Plan Wappy Vital — Anual', intervalText: '12 Meses (Huella Biocéntrica + Matriz Bio-IPEVR)', badge: 'Vital Anual', isRec: false },
+      { key: 'vital_semestral', family: 'ipevar' as const, intervalKey: 'semiannual' as const, months: 6, label: 'Plan Wappy Vital — Semestral', intervalText: '6 Meses (Huella Biocéntrica + Matriz Bio-IPEVR)', badge: 'Vital 6M', isRec: false },
+      { key: 'vital_trimestral', family: 'ipevar' as const, intervalKey: 'quarterly' as const, months: 3, label: 'Plan Wappy Vital — Trimestral', intervalText: '3 Meses (Huella Biocéntrica + Matriz Bio-IPEVR)', badge: 'Vital 3M', isRec: false },
+      { key: 'vital_mensual', family: 'ipevar' as const, intervalKey: 'monthly' as const, months: 1, label: 'Plan Wappy Vital — Mensual', intervalText: '1 Mes (Huella Biocéntrica + Matriz Bio-IPEVR)', badge: 'Vital 1M', isRec: false },
+    ];
+
+    return specs.map((spec) => {
+      const source = spec.family === 'pro' ? pro : vital;
+      const basePrice = source.prices[spec.intervalKey];
+      const promo = source.promotions[spec.intervalKey];
+      const adminDiscountPercentage = promo?.active && promo?.discountPercentage > 0 ? Number(promo.discountPercentage) : 0;
+      const adminPromoText = promo?.active && promo?.text ? promo.text : (adminDiscountPercentage > 0 ? `Ahorra ${adminDiscountPercentage}%` : '');
+      const listBasePrice = adminDiscountPercentage > 0 && adminDiscountPercentage < 100
+        ? Math.round(basePrice / (1 - adminDiscountPercentage / 100))
+        : basePrice;
+      const discountedBasePrice = Math.round(basePrice * (1 - safeDisc / 100));
+
+      const additionalCompaniesCost = Math.round(extraComp * 350000 * (spec.months / 12));
+      const automationsCost = monthlyAutomationsCost * spec.months;
+
+      const regularPrice = listBasePrice + additionalCompaniesCost + automationsCost;
+      const planesPageTotal = basePrice + additionalCompaniesCost + automationsCost;
+      const finalPrice = discountedBasePrice + additionalCompaniesCost + automationsCost;
+      const totalSavingsCop = Math.max(0, regularPrice - finalPrice);
+      const effectiveDiscountPct = regularPrice > 0 ? Math.round((1 - finalPrice / regularPrice) * 100) : 0;
+      const pricePerMonth = Math.round(finalPrice / spec.months);
+
+      return {
+        ...spec,
+        listBasePrice,
+        basePrice,
+        discountedBasePrice,
+        adminDiscountPercentage,
+        adminPromoText,
+        ambassadorDiscountPercentage: safeDisc,
+        additionalCompaniesCost,
+        automationsCost,
+        regularPrice,
+        planesPageTotal,
+        discountPercentage: effectiveDiscountPct,
+        finalPrice,
+        totalSavingsCop,
+        pricePerMonth,
+      };
+    });
+  }, [configuredPlans, customDiscount, additionalCompanies, additionalAutomations]);
+
+  // Real-time update of proposal.investmentPlans when discount, add-ons, or selectedPlans change
+  useEffect(() => {
+    if (!proposal) return;
+    setProposal((prev) => {
+      if (!prev) return prev;
+      const mapByKey = new Map(quotablePlans.map((q) => [q.key, q]));
+      const updatedPlans: ProposalPlan[] = prev.investmentPlans.map((existing) => {
+        const normalizedKey = existing.key === 'vital' ? 'vital_anual' : existing.key;
+        const live = mapByKey.get(normalizedKey);
+        if (!live) return existing;
+        return {
+          ...existing,
+          planName: live.label,
+          interval: live.intervalText,
+          listBasePrice: live.listBasePrice,
+          basePrice: live.basePrice,
+          discountedBasePrice: live.discountedBasePrice,
+          adminDiscountPercentage: live.adminDiscountPercentage,
+          adminPromoText: live.adminPromoText,
+          ambassadorDiscountPercentage: live.ambassadorDiscountPercentage,
+          additionalCompaniesCost: live.additionalCompaniesCost,
+          automationsCost: live.automationsCost,
+          regularPrice: live.regularPrice,
+          planesPageTotal: live.planesPageTotal,
+          discountPercentage: live.discountPercentage,
+          finalPrice: live.finalPrice,
+          totalSavingsCop: live.totalSavingsCop,
+          pricePerMonth: live.pricePerMonth,
+        };
+      });
+      return {
+        ...prev,
+        additionalCompanies,
+        additionalAutomations,
+        totalCompanies: 1 + additionalCompanies,
+        totalAutomations: 1 + additionalAutomations,
+        investmentPlans: updatedPlans,
+      };
+    });
+  }, [quotablePlans, additionalCompanies, additionalAutomations]);
 
   // Logo file upload handler
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -607,14 +806,27 @@ export default function CommercialProposalGenerator({
                   ${p.isRecommended ? '<div class="plan-rec-badge">Plan Más Recomendado</div>' : ''}
                   <div style="font-weight: 800; font-size: 12px; color: #0f172a;">${p.planName}</div>
                   <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase;">${p.interval}</div>
-                  <div style="margin: 8px 0 4px 0;">
-                    ${p.discountPercentage > 0 ? `
+                  <div style="margin: 8px 0 6px 0;">
+                    ${p.regularPrice > p.finalPrice ? `
                       <div style="font-size: 10px; color: #94a3b8; text-decoration: line-through;">
-                        $${p.regularPrice.toLocaleString('es-CO')} COP <span class="discount-tag">${p.discountPercentage}% OFF</span>
+                        Tarifa Regular: $${p.regularPrice.toLocaleString('es-CO')} COP
                       </div>
                     ` : ''}
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 3px 0;">
+                      ${(p.adminDiscountPercentage && p.adminDiscountPercentage > 0) ? `
+                        <span class="discount-tag" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">Promo 1ra Compra -${p.adminDiscountPercentage}% ($${(p.planesPageTotal || p.basePrice || p.finalPrice).toLocaleString('es-CO')})</span>
+                      ` : ''}
+                      ${(p.ambassadorDiscountPercentage && p.ambassadorDiscountPercentage > 0) ? `
+                        <span class="discount-tag">Beneficio Embajador -${p.ambassadorDiscountPercentage}% Adicional</span>
+                      ` : (p.discountPercentage > 0 && !p.adminDiscountPercentage ? `<span class="discount-tag">${p.discountPercentage}% OFF</span>` : '')}
+                    </div>
                     <div class="plan-price">$${p.finalPrice.toLocaleString('es-CO')} <span style="font-size: 10px; font-weight: 700; color: #64748b;">COP</span></div>
                     <div class="plan-monthly">${p.pricePerMonth > 0 ? `Equivalente a ~$${p.pricePerMonth.toLocaleString('es-CO')} COP / mes` : 'Acceso Vitalicio'}</div>
+                    ${p.regularPrice > p.finalPrice ? `
+                      <div style="font-size: 9.5px; font-weight: 800; color: #059669; margin-top: 2px;">
+                        ✓ Ahorro Total: $${(p.regularPrice - p.finalPrice).toLocaleString('es-CO')} COP
+                      </div>
+                    ` : ''}
                   </div>
                   <ul style="text-align: left; font-size: 9.5px; color: #475569; padding-left: 14px; margin: 8px 0 0 0; line-height: 1.45; ${proposal.investmentPlans.length === 1 ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px;' : ''}">
                     ${p.features.map(f => `<li>${f}</li>`).join('')}
@@ -708,7 +920,13 @@ export default function CommercialProposalGenerator({
   const handleShareWhatsApp = () => {
     if (!proposal) return;
     const cleanPhone = (advisorPhone || '').replace(/[^0-9]/g, '');
-    const plansSummary = proposal.investmentPlans.map(p => `• *${p.planName}*: $${p.finalPrice.toLocaleString('es-CO')} COP (${p.discountPercentage > 0 ? `${p.discountPercentage}% OFF` : 'Precio Estándar'})`).join('\n');
+    const plansSummary = proposal.investmentPlans.map(p => {
+      const promoInfo: string[] = [];
+      if (p.adminDiscountPercentage && p.adminDiscountPercentage > 0) promoInfo.push(`Promo -${p.adminDiscountPercentage}%`);
+      if (p.ambassadorDiscountPercentage && p.ambassadorDiscountPercentage > 0) promoInfo.push(`Embajador -${p.ambassadorDiscountPercentage}%`);
+      const tag = promoInfo.length > 0 ? promoInfo.join(' + ') : (p.discountPercentage > 0 ? `${p.discountPercentage}% OFF` : 'Precio Oficial');
+      return `• *${p.planName}*: $${p.finalPrice.toLocaleString('es-CO')} COP (${tag})`;
+    }).join('\n');
     
     const waText = `Hola *${proposal.companyName}* 👋\n\nTe comparto la *Propuesta Comercial Oficial de WAPPY IA* para la automatización de su Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST, PESV y Matrices IPEVR).\n\n📄 *Código:* ${proposal.proposalCode}\n💼 *Sector:* ${proposal.sector}\n\n💰 *Opciones de Inversión:*\n${plansSummary}\n\nPuedes revisar todos los módulos incluidos y activar su cuenta corporativa directamente aquí 👇\n${referralLink}\n\nQuedo a su disposición para coordinar una breve demostración en vivo.\n*${advisorName}* - Consultor Líder WAPPY IA`;
 
@@ -721,19 +939,20 @@ export default function CommercialProposalGenerator({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="absolute top-0 right-0 w-80 h-full bg-gradient-to-l from-teal-500/10 via-emerald-500/5 to-transparent pointer-events-none" />
+      {/* Top Banner — Unified Admin Panel Style */}
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-5 sm:p-6 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-teal-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 mb-2 uppercase tracking-wide">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/20 mb-2 uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-teal-500 animate-pulse" />
             <span>Generador de Propuestas Comerciales con IA</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             Crea Propuestas Ejecutivas en PDF & Envíalas por Correo Oficial
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed max-w-2xl font-normal">
-            Ingresa los datos de tu cliente corporativo, carga su logo institucional y la IA redactará una propuesta personalizada con diagnóstico sectorial, tablas de inversión y análisis de ROI, lista para enviar por correo corporativo desde Wappy, descargar en PDF o compartir por WhatsApp.
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 mt-1.5 leading-relaxed max-w-2xl font-normal">
+            Precios sincronizados en tiempo real con el Panel de Administración y la página de planes (`/planes`), aplicando automáticamente las promociones vigentes y tu descuento comercial de embajador.
           </p>
         </div>
 
@@ -772,9 +991,9 @@ export default function CommercialProposalGenerator({
         
         {/* Left Column: Form & Options */}
         <div className="xl:col-span-4 lg:col-span-5 col-span-1 space-y-4 print:hidden w-full min-w-0">
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-            <h3 className="text-sm font-extrabold text-text-primary flex items-center gap-2 pb-2 border-b border-border-medium/30">
-              <Building2 className="w-4 h-4 text-teal-500" />
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-5 shadow-sm space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 pb-2.5 border-b border-slate-200/70 dark:border-zinc-800">
+              <Building2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
               <span>Datos del Cliente & Parámetros</span>
             </h3>
 
@@ -976,7 +1195,7 @@ export default function CommercialProposalGenerator({
               </div>
             </div>
 
-            {/* Plans to Quote */}
+            {/* Plans to Quote (Dynamic from Admin Panel /api/wompi/configured-plans) */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-bold text-text-secondary uppercase">
@@ -986,14 +1205,8 @@ export default function CommercialProposalGenerator({
                   {selectedPlans.length}/2 Seleccionados
                 </span>
               </div>
-              <div className="space-y-1.5">
-                {[
-                  { key: 'anual', label: 'Plan Pro Anual ($1.200.000 COP)', sub: 'Desde $100.000/mes', badge: 'Recomendado' },
-                  { key: 'semestral', label: 'Plan Pro Semestral ($641.960 COP)', sub: '$106.993/mes', badge: '6 Meses' },
-                  { key: 'trimestral', label: 'Plan Pro Trimestral ($331.270 COP)', sub: '$110.423/mes', badge: '3 Meses' },
-                  { key: 'mensual', label: 'Plan Pro Mensual ($114.330 COP)', sub: '$114.330/mes', badge: 'Mensual' },
-                  { key: 'vital', label: 'Plan Wappy Vital ($350.000 COP)', sub: 'Pago Único Vitalicio', badge: 'Vitalicio' },
-                ].map((p) => {
+              <div className="space-y-1.5 max-h-[340px] overflow-y-auto pr-0.5">
+                {quotablePlans.map((p) => {
                   const isChecked = selectedPlans.includes(p.key);
                   return (
                     <div
@@ -1001,20 +1214,46 @@ export default function CommercialProposalGenerator({
                       onClick={() => togglePlanSelection(p.key)}
                       className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
                         isChecked
-                          ? 'border-teal-500 bg-teal-500/10 text-text-primary font-bold'
+                          ? 'border-teal-500 bg-teal-500/10 text-text-primary font-bold shadow-xs'
                           : 'border-border-medium/40 bg-surface-primary text-text-secondary hover:bg-surface-hover'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-4 h-4 rounded flex items-center justify-center border ${isChecked ? 'bg-teal-600 border-teal-600 text-white' : 'border-border-medium/60'}`}>
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className={`w-4 h-4 mt-0.5 rounded flex items-center justify-center border shrink-0 ${isChecked ? 'bg-teal-600 border-teal-600 text-white' : 'border-border-medium/60'}`}>
                           {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
                         </div>
-                        <div>
-                          <div>{p.label}</div>
-                          <div className="text-[10px] font-normal text-text-tertiary">{p.sub}</div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-900 dark:text-white">{p.label}</span>
+                            {p.adminDiscountPercentage > 0 && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                                Promo -{p.adminDiscountPercentage}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] mt-0.5 flex-wrap">
+                            {p.regularPrice > p.planesPageTotal && (
+                              <span className="line-through text-slate-400 font-normal">
+                                ${p.regularPrice.toLocaleString('es-CO')}
+                              </span>
+                            )}
+                            <span className="font-semibold text-slate-600 dark:text-zinc-300">
+                              /planes: ${p.planesPageTotal.toLocaleString('es-CO')}
+                            </span>
+                            {p.ambassadorDiscountPercentage > 0 && (
+                              <span className="font-black text-teal-600 dark:text-teal-400">
+                                → ${p.finalPrice.toLocaleString('es-CO')} (-{p.ambassadorDiscountPercentage}%)
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] font-normal text-text-tertiary">
+                            Equiv. ~${p.pricePerMonth.toLocaleString('es-CO')}/mes
+                          </div>
                         </div>
                       </div>
-                      <span className="text-[10px] uppercase font-bold text-teal-600 dark:text-teal-400">{p.badge}</span>
+                      <span className="text-[9px] uppercase font-extrabold text-teal-600 dark:text-teal-400 shrink-0 ml-2">
+                        {p.badge}
+                      </span>
                     </div>
                   );
                 })}
@@ -1367,21 +1606,41 @@ export default function CommercialProposalGenerator({
                           <div className="font-extrabold text-sm sm:text-base text-gray-900">{plan.planName}</div>
                           <div className="text-[10px] text-gray-500 font-bold uppercase">{plan.interval}</div>
 
-                          <div className="my-3">
-                            {plan.discountPercentage > 0 && (
+                          <div className="my-3 space-y-1">
+                            {plan.regularPrice > plan.finalPrice && (
                               <div className="flex items-center gap-1.5 text-xs text-gray-400 line-through">
-                                <span>${plan.regularPrice.toLocaleString('es-CO')} COP</span>
-                                <span className="bg-rose-100 text-rose-700 text-[10px] font-black px-1.5 py-0.2 rounded-md no-underline">
-                                  {plan.discountPercentage}% OFF
-                                </span>
+                                <span>Tarifa Regular: ${plan.regularPrice.toLocaleString('es-CO')} COP</span>
                               </div>
                             )}
-                            <div className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {plan.adminDiscountPercentage && plan.adminDiscountPercentage > 0 ? (
+                                <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-md">
+                                  Promo 1ra Compra -{plan.adminDiscountPercentage}% (${(plan.planesPageTotal || plan.basePrice || plan.finalPrice).toLocaleString('es-CO')})
+                                </span>
+                              ) : null}
+                              {plan.ambassadorDiscountPercentage && plan.ambassadorDiscountPercentage > 0 ? (
+                                <span className="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-0.5 rounded-md">
+                                  Beneficio Embajador -{plan.ambassadorDiscountPercentage}% Adicional
+                                </span>
+                              ) : (
+                                plan.discountPercentage > 0 && !plan.adminDiscountPercentage ? (
+                                  <span className="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-0.5 rounded-md">
+                                    {plan.discountPercentage}% OFF
+                                  </span>
+                                ) : null
+                              )}
+                            </div>
+                            <div className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight pt-0.5">
                               ${plan.finalPrice.toLocaleString('es-CO')} <span className="text-xs font-bold text-gray-500">COP</span>
                             </div>
-                            <div className="text-[10px] text-teal-700 font-semibold mt-0.5">
+                            <div className="text-[10px] text-teal-700 font-semibold">
                               {plan.pricePerMonth > 0 ? `Equivalente a ~$${plan.pricePerMonth.toLocaleString('es-CO')} COP / mes` : 'Acceso Vitalicio'}
                             </div>
+                            {plan.regularPrice > plan.finalPrice && (
+                              <div className="text-[10px] font-extrabold text-emerald-700">
+                                ✓ Ahorro Total: ${(plan.regularPrice - plan.finalPrice).toLocaleString('es-CO')} COP
+                              </div>
+                            )}
                           </div>
 
                           <ul className={`text-[11px] text-gray-600 mb-4 border-t border-gray-100 pt-3 ${
@@ -1513,16 +1772,16 @@ export default function CommercialProposalGenerator({
             </div>
           ) : (
             /* Empty State */
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-2xl p-10 text-center shadow-sm flex flex-col items-center justify-center min-h-[520px] space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-10 text-center shadow-sm flex flex-col items-center justify-center min-h-[520px] space-y-4">
+              <div className="w-16 h-16 rounded-3xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400">
                 <FileText className="w-8 h-8" />
               </div>
               <div className="max-w-md">
-                <h3 className="text-base sm:text-lg font-black text-text-primary">
+                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
                   Configura los Datos de tu Cliente
                 </h3>
-                <p className="text-xs text-text-secondary mt-1">
-                  Ingresa el nombre de la empresa, NIT y sector en el panel izquierdo. Al hacer clic en <strong>Generar Propuesta con IA</strong>, el motor de IA seleccionado construirá un documento comercial completo con diagnóstico sectorial, catálogo de agentes, tablas de inversión y cálculo de ROI listo para descargar en PDF.
+                <p className="text-xs text-slate-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                  Ingresa el nombre de la empresa, NIT y sector en el panel izquierdo. Al hacer clic en <strong>Generar Propuesta con IA</strong>, el motor de IA seleccionado construirá un documento comercial completo con precios sincronizados del Panel Administrativo, descuentos aplicados y análisis de ROI listo para descargar en PDF.
                 </p>
               </div>
             </div>

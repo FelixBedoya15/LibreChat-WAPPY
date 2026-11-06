@@ -754,14 +754,17 @@ export default function PlansPage() {
         if (plan && fetchedConfig) {
           setBillingInterval(intervalParam);
           const rawPrice = fetchedConfig.prices?.[intervalParam] || 0;
-          const displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+          let displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
           let promotion: any = null;
           if (fetchedConfig.promotions?.[intervalParam]?.active) {
             promotion = fetchedConfig.promotions[intervalParam];
           }
-          let discountedPrice = 0;
-          if (promotion && rawPrice > 0) {
-            discountedPrice = rawPrice - rawPrice * (promotion.discountPercentage / 100);
+          let regularBasePrice = rawPrice;
+          let discountedPrice = rawPrice;
+          if (promotion && promotion.discountPercentage > 0 && rawPrice > 0) {
+            regularBasePrice = Math.round(rawPrice / (1 - promotion.discountPercentage / 100));
+            discountedPrice = rawPrice;
+            displayPrice = '$' + regularBasePrice.toLocaleString('es-CO');
           }
           handleSubscribe(planParam, plan, displayPrice, discountedPrice, rawPrice, promotion);
           
@@ -1143,21 +1146,31 @@ export default function PlansPage() {
       {/* Header Bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200/60 dark:border-zinc-800/60 bg-white/75 dark:bg-[#0B111E]/75 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-6 py-3.5">
-          <button
-            onClick={() => {
-              if (checkoutPlan) {
-                setCheckoutPlan(null);
-              } else if (showRegister) {
-                setShowRegister(false);
-              } else {
-                navigate(isAuthenticated ? '/c/new' : '/');
-              }
-            }}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-zinc-200 hover:text-black dark:hover:text-white px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-slate-200/80 dark:border-zinc-700/80 shadow-sm transition-all active:scale-95"
-          >
-            <span className="text-base leading-none">←</span>
-            <span>Volver a WAPPY</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {checkoutPlan && (
+              <button
+                onClick={() => setCheckoutPlan(null)}
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-600 dark:text-zinc-300 hover:text-black dark:hover:text-white px-3.5 py-1.5 rounded-full bg-slate-100/80 dark:bg-zinc-800/80 backdrop-blur-md border border-slate-200/80 dark:border-zinc-700/80 shadow-sm transition-all active:scale-95"
+              >
+                <span className="text-base leading-none">←</span>
+                <span>Ver planes</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (showRegister) {
+                  setShowRegister(false);
+                } else {
+                  const hasSession = Boolean(isAuthenticated || authUser || activePlan !== 'free');
+                  navigate(hasSession ? '/c/new' : '/');
+                }
+              }}
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-zinc-200 hover:text-black dark:hover:text-white px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md border border-slate-200/80 dark:border-zinc-700/80 shadow-sm transition-all active:scale-95"
+            >
+              <span className="text-base leading-none">←</span>
+              <span>Volver a WAPPY</span>
+            </button>
+          </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
               to="/privacy"
@@ -1619,14 +1632,17 @@ export default function PlansPage() {
                         </span>
                       </div>
                     )}
-                    {checkoutPlan.promotion && !isRenewal && (
+                    {checkoutPlan.promotion && checkoutPlan.promotion.discountPercentage > 0 && !isRenewal && (
                       <div className="flex justify-between text-indigo-500">
                         <span>Descuento 1ra compra ({checkoutPlan.promotion.discountPercentage}%)</span>
                         <span className="font-semibold">
                           -$
-                          {Math.round(
-                            checkoutPlan.rawPrice *
-                              (checkoutPlan.promotion.discountPercentage / 100),
+                          {Math.max(
+                            0,
+                            Math.round(
+                              checkoutPlan.rawPrice /
+                                (1 - checkoutPlan.promotion.discountPercentage / 100),
+                            ) - checkoutPlan.rawPrice,
                           ).toLocaleString('es-CO')}
                         </span>
                       </div>

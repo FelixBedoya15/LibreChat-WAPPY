@@ -152,9 +152,52 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   const [commissions, setCommissions] = useState<CommissionItem[]>([]);
   const [networkStats, setNetworkStats] = useState<NetworkPartner[]>([]);
   const [myReferralLink, setMyReferralLink] = useState<string>('');
+  const [myCommissionRate, setMyCommissionRate] = useState<number>(20);
   const [copied, setCopied] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLeader, setIsLeader] = useState<boolean>(false);
+
+  // Live Plan Prices parameterized from Admin Panel (/api/wompi/configured-plans)
+  const [planPrices, setPlanPrices] = useState<{
+    pro: { monthly: number; quarterly: number; semiannual: number; annual: number };
+    vital: { monthly: number; quarterly: number; semiannual: number; annual: number };
+  }>({
+    pro: { monthly: 179000, quarterly: 518600, semiannual: 1005000, annual: 1790000 },
+    vital: { monthly: 119000, quarterly: 345000, semiannual: 669000, annual: 1190000 },
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    axios.get('/api/wompi/configured-plans')
+      .then((res) => {
+        if (!mounted || !Array.isArray(res.data)) return;
+        setPlanPrices((prev) => {
+          const next = { pro: { ...prev.pro }, vital: { ...prev.vital } };
+          res.data.forEach((doc: any) => {
+            if (doc?.key === 'pro' && doc.prices) {
+              next.pro = {
+                monthly: Number(doc.prices.monthly) || prev.pro.monthly,
+                quarterly: Number(doc.prices.quarterly) || prev.pro.quarterly,
+                semiannual: Number(doc.prices.semiannual) || prev.pro.semiannual,
+                annual: Number(doc.prices.annual) || prev.pro.annual,
+              };
+            } else if ((doc?.key === 'ipevar' || doc?.key === 'vital') && doc.prices) {
+              next.vital = {
+                monthly: Number(doc.prices.monthly) || prev.vital.monthly,
+                quarterly: Number(doc.prices.quarterly) || prev.vital.quarterly,
+                semiannual: Number(doc.prices.semiannual) || prev.vital.semiannual,
+                annual: Number(doc.prices.annual) || prev.vital.annual,
+              };
+            }
+          });
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Filter & Search states for Users tab
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -192,10 +235,10 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   const [targetPartnerId, setTargetPartnerId] = useState<string>('');
   const [isAttributing, setIsAttributing] = useState<boolean>(false);
   const [createCommission, setCreateCommission] = useState<boolean>(true);
-  const [planPreset, setPlanPreset] = useState<'anual' | 'semestral' | 'trimestral' | 'mensual' | 'vital' | 'custom'>('mensual');
+  const [planPreset, setPlanPreset] = useState<'anual' | 'semestral' | 'trimestral' | 'mensual' | 'vital_anual' | 'vital_semestral' | 'vital_trimestral' | 'vital_mensual' | 'vital' | 'custom'>('mensual');
   const [extraCompanies, setExtraCompanies] = useState<number>(0);
   const [paymentDiscount, setPaymentDiscount] = useState<number>(0); // 0 = 0%, 5 = 5% Nequi, etc.
-  const [customNetPaidAmount, setCustomNetPaidAmount] = useState<number>(114330);
+  const [customNetPaidAmount, setCustomNetPaidAmount] = useState<number>(179000);
   const [isManualAmount, setIsManualAmount] = useState<boolean>(false);
   const [customCommRate, setCustomCommRate] = useState<number>(0.30);
   const [commissionStatus, setCommissionStatus] = useState<'pending' | 'paid'>('pending');
@@ -205,33 +248,46 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
     extras: number,
     discountPct: number
   ) => {
-    let basePlanPrice = 0;
+    let basePlanPrice = planPrices.pro.monthly;
     let extraCompanyUnit = 33350;
 
     switch (preset) {
       case 'anual':
-        basePlanPrice = 1200000;
-        extraCompanyUnit = 350000; // $350.000 COP anual
-        break;
-      case 'semestral':
-        basePlanPrice = 641960;
-        extraCompanyUnit = 187240; // $187.240 COP semestral
-        break;
-      case 'trimestral':
-        basePlanPrice = 331270;
-        extraCompanyUnit = 96620; // $96.620 COP trimestral
-        break;
-      case 'mensual':
-        basePlanPrice = 114330;
-        extraCompanyUnit = 33350; // $33.350 COP mensual
-        break;
-      case 'vital':
-        basePlanPrice = 350000;
+        basePlanPrice = planPrices.pro.annual;
         extraCompanyUnit = 350000;
         break;
+      case 'semestral':
+        basePlanPrice = planPrices.pro.semiannual;
+        extraCompanyUnit = 175000;
+        break;
+      case 'trimestral':
+        basePlanPrice = planPrices.pro.quarterly;
+        extraCompanyUnit = 87500;
+        break;
+      case 'mensual':
+        basePlanPrice = planPrices.pro.monthly;
+        extraCompanyUnit = 29167;
+        break;
+      case 'vital':
+      case 'vital_anual':
+        basePlanPrice = planPrices.vital.annual;
+        extraCompanyUnit = 350000;
+        break;
+      case 'vital_semestral':
+        basePlanPrice = planPrices.vital.semiannual;
+        extraCompanyUnit = 175000;
+        break;
+      case 'vital_trimestral':
+        basePlanPrice = planPrices.vital.quarterly;
+        extraCompanyUnit = 87500;
+        break;
+      case 'vital_mensual':
+        basePlanPrice = planPrices.vital.monthly;
+        extraCompanyUnit = 29167;
+        break;
       default:
-        basePlanPrice = 114330;
-        extraCompanyUnit = 33350;
+        basePlanPrice = planPrices.pro.monthly;
+        extraCompanyUnit = 29167;
     }
 
     const subtotalBruto = basePlanPrice + (extras * extraCompanyUnit);
@@ -261,18 +317,22 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   const openAttributionModal = (u: ReferredUser) => {
     setSelectedUserForAttr(u);
     setTargetPartnerId(u.ambassadorId || '');
-    const isProPaid = u.role === 'USER_PRO' || u.paymentStatus === 'paid';
+    const isProPaid = u.role === 'USER_PRO' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR' || u.paymentStatus === 'paid';
     setCreateCommission(isProPaid);
 
-    let initialPreset: 'anual' | 'semestral' | 'trimestral' | 'mensual' | 'vital' | 'custom' = 'mensual';
-    if (u.planInterval === 'anual') {
+    const isVitalUser = u.subscriptionType === 'vital' || u.subscriptionType === 'ipevar' || u.role === 'USER_IPEVAR' || u.role === 'IPEVAR';
+    let initialPreset: typeof planPreset = 'mensual';
+    if (isVitalUser) {
+      if (u.planInterval === 'semestral') initialPreset = 'vital_semestral';
+      else if (u.planInterval === 'trimestral') initialPreset = 'vital_trimestral';
+      else if (u.planInterval === 'mensual') initialPreset = 'vital_mensual';
+      else initialPreset = 'vital_anual';
+    } else if (u.planInterval === 'anual') {
       initialPreset = 'anual';
     } else if (u.planInterval === 'semestral') {
       initialPreset = 'semestral';
     } else if (u.planInterval === 'trimestral') {
       initialPreset = 'trimestral';
-    } else if (u.subscriptionType === 'vital') {
-      initialPreset = 'vital';
     } else {
       initialPreset = 'mensual';
     }
@@ -350,53 +410,60 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   } | null>(null);
 
   const [renewalPeriod, setRenewalPeriod] = useState<'monthly' | 'quarterly' | 'semiannual' | 'annual'>('monthly');
-  const [renewalAmount, setRenewalAmount] = useState<number>(140296);
+  const [renewalAmount, setRenewalAmount] = useState<number>(179000);
   const [renewalRate, setRenewalRate] = useState<number>(0.30);
   const [renewalCommissionStatus, setRenewalCommissionStatus] = useState<string>('approved');
   const [confirmedPayment, setConfirmedPayment] = useState<boolean>(false);
   const [isRenewing, setIsRenewing] = useState<boolean>(false);
 
+  const getSuggestedRenewalPrice = (subType?: string, period: 'monthly' | 'quarterly' | 'semiannual' | 'annual' = 'monthly') => {
+    const isVital = subType === 'vital' || subType === 'ipevar' || subType === 'USER_IPEVAR';
+    return isVital ? planPrices.vital[period] : planPrices.pro[period];
+  };
+
   const openRenewalFromCommission = (c: CommissionItem) => {
+    const initialPeriod: 'monthly' | 'quarterly' | 'semiannual' | 'annual' =
+      c.planInterval === 'anual' || c.planInterval === 'annual' ? 'annual' :
+      c.planInterval === 'semestral' || c.planInterval === 'semiannual' ? 'semiannual' :
+      c.planInterval === 'trimestral' || c.planInterval === 'quarterly' ? 'quarterly' : 'monthly';
+    const suggested = c.amount || getSuggestedRenewalPrice(c.subscriptionType, initialPeriod);
     setSelectedForRenewal({
       userId: c.userId || c.id,
       clientName: c.referredUserName,
       clientEmail: c.referredUserEmail,
-      amount: c.amount || 140296,
+      amount: suggested,
       commissionRate: c.commissionRate || 0.30,
       currentExpiry: c.planExpiresAt,
       subscriptionType: c.subscriptionType,
       planInterval: c.planInterval
     });
-    setRenewalAmount(c.amount || 140296);
+    setRenewalAmount(suggested);
     setRenewalRate(c.commissionRate || 0.30);
-    setRenewalPeriod(
-      c.planInterval === 'anual' || c.planInterval === 'annual' ? 'annual' :
-      c.planInterval === 'semestral' || c.planInterval === 'semiannual' ? 'semiannual' :
-      c.planInterval === 'trimestral' || c.planInterval === 'quarterly' ? 'quarterly' : 'monthly'
-    );
+    setRenewalPeriod(initialPeriod);
     setRenewalCommissionStatus('approved');
     setConfirmedPayment(false);
   };
 
   const openRenewalFromUser = (u: ReferredUser) => {
+    const initialPeriod: 'monthly' | 'quarterly' | 'semiannual' | 'annual' =
+      u.planInterval === 'anual' || u.planInterval === 'annual' ? 'annual' :
+      u.planInterval === 'semestral' || u.planInterval === 'semiannual' ? 'semiannual' :
+      u.planInterval === 'trimestral' || u.planInterval === 'quarterly' ? 'quarterly' : 'monthly';
+    const suggested = getSuggestedRenewalPrice(u.subscriptionType, initialPeriod);
     setSelectedForRenewal({
       userId: u.userId,
       clientName: u.name,
       clientEmail: u.email,
       partnerId: u.ambassadorId || undefined,
-      amount: u.subscriptionType === 'pro' ? 140296 : 214380,
+      amount: suggested,
       commissionRate: 0.30,
       currentExpiry: u.planExpiresAt,
       subscriptionType: u.subscriptionType,
       planInterval: u.planInterval
     });
-    setRenewalAmount(140296);
+    setRenewalAmount(suggested);
     setRenewalRate(0.30);
-    setRenewalPeriod(
-      u.planInterval === 'anual' || u.planInterval === 'annual' ? 'annual' :
-      u.planInterval === 'semestral' || u.planInterval === 'semiannual' ? 'semiannual' :
-      u.planInterval === 'trimestral' || u.planInterval === 'quarterly' ? 'quarterly' : 'monthly'
-    );
+    setRenewalPeriod(initialPeriod);
     setRenewalCommissionStatus('approved');
     setConfirmedPayment(false);
   };
@@ -428,10 +495,12 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
     }
     try {
       setIsRenewing(true);
+      const isVital = selectedForRenewal.subscriptionType === 'vital' || selectedForRenewal.subscriptionType === 'ipevar';
       const res = await axios.post('/api/referrals/commissions/renew-period', {
         userId: selectedForRenewal.userId,
         partnerId: selectedForRenewal.partnerId,
         period: renewalPeriod,
+        planType: isVital ? 'vital' : 'pro',
         amount: renewalAmount,
         commissionRate: renewalRate,
         commissionStatus: renewalCommissionStatus,
@@ -460,6 +529,11 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
       setCommissions(data.commissions || []);
       setNetworkStats(data.networkStats || []);
       setMyReferralLink(data.myReferralLink || '');
+      if (data.partner?.commissionRate) {
+        setMyCommissionRate(Math.round(Number(data.partner.commissionRate) * 100));
+      } else if (data.isLeader || data.isAdmin) {
+        setMyCommissionRate(30);
+      }
       setIsAdmin(!!data.isAdmin);
       setIsLeader(!!data.isLeader);
     } catch (err: any) {
@@ -610,8 +684,12 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
       const proposalCount = pUsers.filter(u => u.crmStage === 'propuesta' || (u.crmNotes && u.crmNotes.some((n: any) => n.type === 'proposal'))).length;
       const convRate = pUsers.length > 0 ? ((proCount / pUsers.length) * 100).toFixed(1) : '0.0';
 
-      const pComms = commissions.filter(c => pUsers.some(u => (u.email || '').toLowerCase() === (c.referredUserEmail || '').toLowerCase()));
-      const pendingComm = pComms.filter(c => c.status === 'pending').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
+      const pComms = commissions.filter(c =>
+        c.partnerId === p.partnerId ||
+        (p.slug && c.ambassadorSlug === p.slug) ||
+        pUsers.some(u => (u.email || '').toLowerCase() === (c.referredUserEmail || '').toLowerCase())
+      );
+      const pendingComm = pComms.filter(c => c.status === 'pending' || c.status === 'approved' || c.status === 'requested').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
       const paidComm = pComms.filter(c => c.status === 'paid').reduce((acc, c) => acc + (c.commissionAmount || 0), 0);
       const totalComm = pendingComm + paidComm;
 
@@ -769,99 +847,167 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   const contactRate = totalLeadsCount > 0 ? Math.round((contactedLeadsCount / totalLeadsCount) * 100) : 0;
   const conversionRate = totalLeadsCount > 0 ? Math.round((wonLeadsCount / totalLeadsCount) * 100) : 0;
 
+  const activeTabLabel =
+    activeTab === 'overview'
+      ? 'Resumen & Alertas'
+      : activeTab === 'users'
+      ? 'Usuarios Referidos & CRM'
+      : activeTab === 'activity'
+      ? 'Métricas de Uso & Hitos SST'
+      : activeTab === 'commissions'
+      ? 'Comisiones & Liquidación'
+      : activeTab === 'network'
+      ? 'Panel de Red'
+      : 'Propuesta Comercial IA';
+
   return (
     <div className={cn(
-      "flex-1 flex flex-col bg-surface-secondary/30 relative overflow-y-auto pb-12 w-full max-w-full overflow-x-hidden",
-      isEmbedded ? "min-h-0 h-auto rounded-2xl" : "min-h-screen h-auto"
+      "flex-1 flex flex-col bg-slate-50/40 dark:bg-zinc-950/30 relative overflow-y-auto pb-12 w-full max-w-full overflow-x-hidden",
+      isEmbedded ? "min-h-0 h-auto rounded-2xl p-1" : "min-h-screen h-auto p-3 sm:p-5 md:p-6"
     )}>
-      {/* Header section - exact same style as Centro de Control ACPM */}
-      <div className={cn(
-        "flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-3 sm:gap-4 w-full min-w-0",
-        isEmbedded ? "p-3 sm:p-4 rounded-t-2xl" : "p-3.5 sm:p-4 md:p-6"
-      )}>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-base sm:text-xl md:text-2xl font-extrabold flex items-center gap-2 sm:gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600 dark:from-teal-400 dark:to-emerald-400">
-            <Award className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-teal-500 shrink-0" />
-            <span className="truncate">
-              {isAdmin 
-                ? 'Dashboard de Embajadores & Métricas del Sistema' 
-                : isLeader 
-                  ? 'Dashboard de Líder de Embajadores WAPPY' 
-                  : 'Dashboard de Embajador WAPPY — Mis Métricas y Referidos'}
-            </span>
-          </h1>
-          <p className="text-[11px] sm:text-xs text-text-secondary mt-0.5 sm:mt-1 truncate">
-            {isAdmin 
-              ? 'Control general de usuarios referidos, atribución de registros, estado de pagos y comisiones en tiempo real.'
-              : 'Haz seguimiento a tus usuarios registrados, estado de sus planes PRO y comisiones devengadas.'}
-          </p>
+      <div className="space-y-5 w-full max-w-full">
+        {/* Header Corporativo WAPPY — Identical to Admin Panel (Admin.tsx) */}
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-5 sm:p-6 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90">
+          <div className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-teal-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
+
+          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/20">
+                <Award className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    {isAdmin 
+                      ? 'Métricas & Embajadores — Panel de Control' 
+                      : isLeader 
+                        ? 'Panel de Líder de Embajadores WAPPY' 
+                        : 'Panel de Embajador WAPPY — Métricas y Referidos'}
+                  </h2>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-[11px] font-bold text-teal-700 ring-1 ring-teal-500/20 dark:bg-teal-950/60 dark:text-teal-300">
+                    <Sparkles className="h-3 w-3" />
+                    Somos SST
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
+                  {isAdmin 
+                    ? 'Control general de usuarios referidos, atribución comercial, métricas de los 8 Hitos SG-SST, cotizaciones y comisiones.'
+                    : 'Seguimiento en tiempo real de tus usuarios referidos, avance en Hitos SG-SST, propuestas comerciales y comisiones.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2.5 shrink-0">
+              <div className="hidden xl:flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-3.5 py-2 text-xs text-slate-600 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-300">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-medium">Módulo actual:</span>
+                <span className="font-bold text-teal-600 dark:text-teal-400">
+                  {activeTabLabel}
+                </span>
+              </div>
+
+              {/* Expanding Action Toolbar */}
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+                <ExpandableButton
+                  onClick={toggleDashboard}
+                  variant="teal"
+                  isActive={showDashboard}
+                  icon={
+                    showDashboard ? (
+                      <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
+                    ) : (
+                      <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
+                    )
+                  }
+                  label={showDashboard ? 'Ocultar KPIs' : 'Ver KPIs'}
+                  title={showDashboard ? 'Ocultar Tarjetas KPI' : 'Mostrar Tarjetas KPI'}
+                />
+
+                <ExpandableButton
+                  onClick={exportToCSV}
+                  variant="emerald"
+                  icon={<Download className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+                  label="Exportar Excel"
+                  title="Exportar Reporte Comercial (Excel / CSV)"
+                />
+
+                <a
+                  href={`/portafolio?ref=${(networkStats.find(p => p.email === user?.email)?.slug) || user?.username || ''}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 ease-in-out shadow-sm shrink-0 cursor-pointer border border-slate-200/80 dark:border-zinc-700 outline-none rounded-xl bg-white dark:bg-zinc-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 active:scale-95"
+                  title="Abrir Mi Landing Page de Portafolio"
+                >
+                  <div className="relative flex-shrink-0 flex items-center justify-center">
+                    <ExternalLink className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                  </div>
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-xs sm:text-sm font-bold tracking-wide">Ver Mi Landing</span>
+                  </div>
+                </a>
+
+                <ExpandableButton
+                  onClick={copyReferralLink}
+                  variant="fuchsia"
+                  isActive={copied}
+                  icon={copied ? <Check className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" /> : <Copy className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+                  label={copied ? '¡Copiado!' : 'Copiar Mi Link'}
+                  title="Copiar mi Link de Referido"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Button bar matching Centro de Control ACPM expanding button effect */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 w-full sm:w-auto justify-start sm:justify-end flex-wrap sm:flex-nowrap">
-          <ExpandableButton
-            onClick={toggleDashboard}
-            variant="teal"
-            isActive={showDashboard}
-            icon={
-              showDashboard ? (
-                <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
-              ) : (
-                <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current shrink-0" />
-              )
-            }
-            label={showDashboard ? 'Ocultar Analíticas' : 'Ver Analíticas'}
-            title={showDashboard ? 'Ocultar Dashboard' : 'Mostrar Dashboard'}
-          />
-
-          <ExpandableButton
-            onClick={exportToCSV}
-            variant="emerald"
-            icon={<Download className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
-            label="Exportar Reporte"
-            title="Exportar Reporte Comercial (Excel / CSV)"
-          />
-
-          <a
-            href={`/portafolio?ref=${(networkStats.find(p => p.email === user?.email)?.slug) || user?.username || ''}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center justify-center h-9 px-3.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] transition-all duration-300 ease-in-out shadow-sm shrink-0 cursor-pointer border border-border-medium/40 outline-none rounded-xl bg-white dark:bg-gray-900 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-teal-600 dark:text-teal-400 active:scale-95"
-            title="Abrir Mi Landing Page de Portafolio"
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <ExternalLink className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-            </div>
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-xs sm:text-sm font-bold tracking-wide">Ver Mi Landing</span>
-            </div>
-          </a>
-
-          <ExpandableButton
-            onClick={copyReferralLink}
-            variant="fuchsia"
-            isActive={copied}
-            icon={copied ? <Check className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" /> : <Copy className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
-            label={copied ? '¡Copiado!' : 'Copiar Mi Link'}
-            title="Copiar mi Link de Referido"
-          />
+        {/* Navegación por Pestañas estilo Cápsula Flotante — Identical to Admin Panel (Admin.tsx) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/80 bg-slate-100/90 p-1.5 shadow-inner backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-800/90 no-scrollbar">
+          {[
+            { id: 'overview' as const, label: 'Resumen & Alertas', icon: Sparkles },
+            { id: 'users' as const, label: isAdmin ? `Usuarios Referidos (${ambassadorFilteredUsers.length})` : `Mis Referidos (${ambassadorFilteredUsers.length})`, icon: Users },
+            { id: 'activity' as const, label: 'Métricas de Uso & Hitos SST', icon: Activity },
+            { id: 'commissions' as const, label: `Comisiones (${ambassadorFilteredCommissions.length})`, icon: CreditCard },
+            ...(isAdmin || isLeader ? [{ id: 'network' as const, label: 'Panel de Red', icon: UserCheck }] : []),
+            { id: 'proposals' as const, label: 'Propuesta Comercial', icon: FileText },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'group relative flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer shrink-0',
+                  isActive
+                    ? 'bg-white text-teal-700 shadow-sm ring-1 ring-slate-200/80 dark:bg-zinc-900 dark:text-teal-300 dark:ring-zinc-700'
+                    : 'text-slate-600 hover:bg-white/60 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-900/50 dark:hover:text-zinc-200',
+                )}
+              >
+                <Icon
+                  className={cn(
+                    'h-4 w-4 transition-transform duration-200 group-hover:scale-110 shrink-0',
+                    isActive ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400 dark:text-zinc-500',
+                  )}
+                />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 w-full max-w-full">
         {/* Admin / Leader Ambassador Filter Selector */}
         {(isAdmin || isLeader) && (
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/60 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold">
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold shrink-0">
                 <Users className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[11px] font-black uppercase text-teal-600 tracking-wider block">
-                  Filtrar por Embajador / Asesor
+                <span className="text-[11px] font-black uppercase text-teal-600 dark:text-teal-400 tracking-wider block">
+                  Filtrar por Embajador / Asesor Comercial
                 </span>
-                <span className="text-xs font-bold text-text-primary">
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                   {selectedAmbassadorFilter === 'all' 
                     ? `Visualizando: Toda la Red (${referredUsers.length} registros totales)` 
                     : `Visualizando Asesor: ${networkStats.find(p => p.partnerId === selectedAmbassadorFilter || p.slug === selectedAmbassadorFilter)?.name || selectedAmbassadorFilter} (${ambassadorFilteredUsers.length} registros)`}
@@ -873,7 +1019,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
               <select
                 value={selectedAmbassadorFilter}
                 onChange={(e) => setSelectedAmbassadorFilter(e.target.value)}
-                className="bg-surface-primary border border-border-medium/80 rounded-xl px-3 py-2 text-xs font-bold text-text-primary outline-none focus:border-teal-500 shadow-sm cursor-pointer"
+                className="bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-teal-500 shadow-xs cursor-pointer"
               >
                 <option value="all">🌐 Toda la Red ({referredUsers.length} registros totales)</option>
                 {networkStats.map((p) => {
@@ -890,7 +1036,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 <button
                   type="button"
                   onClick={() => setSelectedAmbassadorFilter('all')}
-                  className="px-3 py-2 rounded-xl text-xs font-bold bg-surface-secondary hover:bg-surface-hover text-rose-500 border border-border-medium/60 transition-colors cursor-pointer"
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors cursor-pointer shrink-0"
                   title="Restablecer filtro a Toda la Red"
                 >
                   ✕ Ver Todos
@@ -902,88 +1048,88 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
 
         {/* Upper Dashboard KPI Cards (Collapsible) */}
         {showDashboard && activeKpis && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in zoom-in-95 duration-300">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 animate-in fade-in zoom-in-95 duration-300">
             {/* KPI Card 1 */}
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 bg-teal-500/5 rounded-bl-full pointer-events-none group-hover:bg-teal-500/10 transition-colors"></div>
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-text-tertiary">
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 rounded-bl-full pointer-events-none group-hover:bg-teal-500/10 transition-colors" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                   {isAdmin ? 'Registros Referidos' : 'Mis Usuarios Referidos'}
                 </span>
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">{activeKpis.totalReferred}</div>
-              <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span>+{activeKpis.totalGrowth7Days} en 7 días</span>
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{activeKpis.totalReferred}</div>
+              <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                <span>+{activeKpis.totalGrowth7Days} nuevos en 7 días</span>
               </div>
             </div>
 
             {/* KPI Card 2 */}
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:bg-emerald-500/10 transition-colors"></div>
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-text-tertiary">Planes PRO Activos</span>
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Planes PRO / Vital Activos</span>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">{activeKpis.activeProCount}</div>
-              <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[11px] sm:text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{activeKpis.activeProCount}</div>
+              <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                 <span>{activeKpis.expiringSoonCount} por vencer (≤ 30d)</span>
               </div>
             </div>
 
             {/* KPI Card 3 */}
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 bg-purple-500/5 rounded-bl-full pointer-events-none group-hover:bg-purple-500/10 transition-colors"></div>
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-text-tertiary">Comisiones Devengadas</span>
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full pointer-events-none group-hover:bg-purple-500/10 transition-colors" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Comisiones Devengadas</span>
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5" />
                 </div>
               </div>
-              <div className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight truncate">
-                ${(activeKpis.totalCommissionsEarned || 0).toLocaleString('es-CO')} <span className="text-xs font-bold text-text-tertiary">COP</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
+                ${(activeKpis.totalCommissionsEarned || 0).toLocaleString('es-CO')} <span className="text-xs font-bold text-slate-400">COP</span>
               </div>
-              <div className="flex items-center justify-between mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-medium text-text-secondary">
+              <div className="flex items-center justify-between mt-2 text-xs font-semibold text-slate-500 dark:text-zinc-400">
                 <span>Pend: ${(activeKpis.totalCommissionsPending || 0).toLocaleString('es-CO')}</span>
-                <span className="text-emerald-600 font-bold">Pag: ${(activeKpis.totalCommissionsPaid || 0).toLocaleString('es-CO')}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">Pag: ${(activeKpis.totalCommissionsPaid || 0).toLocaleString('es-CO')}</span>
               </div>
             </div>
 
             {/* KPI Card 4 */}
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-20 h-20 sm:w-24 sm:h-24 bg-blue-500/5 rounded-bl-full pointer-events-none group-hover:bg-blue-500/10 transition-colors"></div>
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-text-tertiary truncate">
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full pointer-events-none group-hover:bg-blue-500/10 transition-colors" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-zinc-400 truncate">
                   {isAdmin || isLeader ? 'Líder & Red' : 'Mi Nivel Embajador'}
                 </span>
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                  <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-5 h-5" />
                 </div>
               </div>
               {isAdmin || isLeader ? (
                 <>
-                  <div className="text-base sm:text-lg font-extrabold text-text-primary truncate">
+                  <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
                     TOP: {activeKpis.topAmbassadorName}
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-medium text-text-secondary">
-                    <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 shrink-0" />
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                    <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span>{activeKpis.inactiveAmbassadorsCount} sin registros &gt; 30d</span>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="text-base sm:text-lg font-extrabold text-text-primary truncate">
-                    20% Comisión Directa
+                  <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
+                    {myCommissionRate}% Comisión Directa
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>Embajador Activo</span>
+                    <span>Embajador Oficial Activo</span>
                   </div>
                 </>
               )}
@@ -991,125 +1137,54 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
           </div>
         )}
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 sm:gap-2 border-b border-border-medium/40 overflow-x-auto pb-1.5 no-scrollbar sm:scrollbar-thin">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
-              activeTab === 'overview'
-                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
-                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-            <span>Resumen & Alertas</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
-              activeTab === 'users'
-                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
-                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-            <span>{isAdmin ? `Usuarios Referidos (${ambassadorFilteredUsers.length})` : `Mis Referidos (${ambassadorFilteredUsers.length})`}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('activity')}
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
-              activeTab === 'activity'
-                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
-                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-            <span>Métricas de Uso & Hitos SST</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('commissions')}
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
-              activeTab === 'commissions'
-                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
-                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-          >
-            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-            <span>{`Comisiones (${ambassadorFilteredCommissions.length})`}</span>
-          </button>
-
-          {(isAdmin || isLeader) && (
-            <button
-              onClick={() => setActiveTab('network')}
-              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
-                activeTab === 'network'
-                  ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
-                  : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-              <span>Panel de Red</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setActiveTab('proposals')}
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
-              activeTab === 'proposals'
-                ? 'bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30'
-                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500 shrink-0" />
-            <span>Propuesta Comercial</span>
-          </button>
-        </div>
-
         {/* Tab 1: Overview & Alerts */}
         {activeTab === 'overview' && (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-5">
             {/* Alert Cards Banner */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-start gap-2.5 sm:gap-3">
-                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+              <div className="rounded-3xl bg-amber-500/10 border border-amber-500/25 p-4 sm:p-5 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
                 <div>
-                  <h4 className="text-xs font-extrabold text-amber-800 dark:text-amber-300">Vencimientos Próximos</h4>
-                  <p className="text-[11px] sm:text-xs text-amber-700 dark:text-amber-400 mt-1">
-                    Hay {kpis?.expiringSoonCount || 0} usuarios con suscripción por vencer en ≤ 30 días. Realiza gestión comercial para renovar.
+                  <h4 className="text-xs sm:text-sm font-extrabold text-amber-900 dark:text-amber-300">Vencimientos Próximos</h4>
+                  <p className="text-xs text-amber-800/90 dark:text-amber-400 mt-1 leading-relaxed">
+                    Hay <strong>{activeKpis?.expiringSoonCount ?? kpis?.expiringSoonCount ?? 0}</strong> usuarios con suscripción por vencer en ≤ 30 días. Realiza gestión comercial para renovar.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-start gap-2.5 sm:gap-3">
-                <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="rounded-3xl bg-rose-500/10 border border-rose-500/25 p-4 sm:p-5 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                  <Phone className="w-5 h-5" />
+                </div>
                 <div>
-                  <h4 className="text-xs font-extrabold text-rose-800 dark:text-rose-300">Datos Incompletos</h4>
-                  <p className="text-[11px] sm:text-xs text-rose-700 dark:text-rose-400 mt-1">
-                    {kpis?.missingPhoneCount || 0} usuarios registrados no poseen número de teléfono capturado en el perfil.
+                  <h4 className="text-xs sm:text-sm font-extrabold text-rose-900 dark:text-rose-300">Datos de Contacto Incompletos</h4>
+                  <p className="text-xs text-rose-800/90 dark:text-rose-400 mt-1 leading-relaxed">
+                    <strong>{activeKpis?.missingPhoneCount ?? kpis?.missingPhoneCount ?? 0}</strong> usuarios registrados no poseen número de WhatsApp capturado en su perfil.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-teal-500/10 border border-teal-500/30 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-start gap-2.5 sm:gap-3 sm:col-span-2 lg:col-span-1">
-                <Award className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+              <div className="rounded-3xl bg-teal-500/10 border border-teal-500/25 p-4 sm:p-5 flex items-start gap-3 sm:col-span-2 lg:col-span-1">
+                <div className="w-9 h-9 rounded-2xl bg-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+                  <Award className="w-5 h-5" />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-xs font-extrabold text-teal-800 dark:text-teal-300">Link de Referido Activo</h4>
-                  <p className="text-[11px] sm:text-xs text-teal-700 dark:text-teal-400 mt-1 truncate">
-                    Tu link: <span className="font-mono underline">{myReferralLink}</span>
+                  <h4 className="text-xs sm:text-sm font-extrabold text-teal-900 dark:text-teal-300">Link de Referido Activo</h4>
+                  <p className="text-xs text-teal-800/90 dark:text-teal-400 mt-1 truncate">
+                    Tu enlace oficial: <span className="font-mono font-bold underline">{myReferralLink}</span>
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Quick Referral link banner */}
-            <div className="bg-gradient-to-r from-teal-700 to-emerald-700 text-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 sm:gap-4">
+            <div className="relative overflow-hidden bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div>
-                <h3 className="text-base sm:text-lg font-bold">Tu Enlace Exclusivo de Embajador WAPPY</h3>
-                <p className="text-[11px] sm:text-xs text-teal-100 mt-1 max-w-xl">
-                  Comparte este enlace para asegurar la regla de primer toque. Cada usuario registrado a través de tu link te generará comisiones sobre sus suscripciones.
+                <h3 className="text-base sm:text-lg font-extrabold tracking-tight">Tu Enlace Exclusivo de Embajador WAPPY</h3>
+                <p className="text-xs sm:text-sm text-teal-50 mt-1 max-w-xl leading-relaxed">
+                  Comparte este enlace para asegurar la regla de primer toque. Cada usuario registrado a través de tu link queda vinculado a tu red y te genera comisiones recurrentes.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
@@ -1117,7 +1192,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                   type="text"
                   readOnly
                   value={myReferralLink}
-                  className="bg-white/10 text-white px-3 py-2 rounded-xl text-xs font-mono border border-white/20 outline-none w-full lg:w-72 xl:w-80 truncate"
+                  className="bg-white/15 text-white px-3.5 py-2.5 rounded-2xl text-xs font-mono border border-white/25 outline-none w-full lg:w-72 xl:w-80 truncate"
                 />
                 <ExpandableButton
                   onClick={copyReferralLink}
@@ -1136,46 +1211,46 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
         {activeTab === 'users' && (
           <div className="space-y-4">
               {/* CRM Metrics Summary Banner */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
-                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
-                  <div className="text-[10px] font-bold text-text-tertiary uppercase">Total Leads</div>
-                  <div className="text-lg font-black text-text-primary mt-0.5">{totalLeadsCount}</div>
-                  <div className="text-[10px] text-text-secondary mt-0.5">Contactos en tu red</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-3.5 shadow-xs">
+                  <div className="text-[10px] font-extrabold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Total Leads</div>
+                  <div className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{totalLeadsCount}</div>
+                  <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">Contactos en tu red</div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
-                  <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">Tasa Contacto</div>
-                  <div className="text-lg font-black text-blue-700 dark:text-blue-300 mt-0.5">{contactRate}%</div>
-                  <div className="text-[10px] text-text-secondary mt-0.5">{contactedLeadsCount} de {totalLeadsCount} contactados</div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-3.5 shadow-xs">
+                  <div className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Tasa Contacto</div>
+                  <div className="text-xl font-black text-blue-700 dark:text-blue-300 mt-0.5">{contactRate}%</div>
+                  <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">{contactedLeadsCount} de {totalLeadsCount} contactados</div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
-                  <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase flex items-center gap-1">
+                <div className="rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-3.5 shadow-xs">
+                  <div className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
                     <span>🔥 En Negociación</span>
                   </div>
-                  <div className="text-lg font-black text-amber-700 dark:text-amber-300 mt-0.5">{interestedLeadsCount}</div>
-                  <div className="text-[10px] text-text-secondary mt-0.5">Leads con alto interés</div>
+                  <div className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5">{interestedLeadsCount}</div>
+                  <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">Leads con alto interés</div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs">
-                  <div className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase flex items-center gap-1">
+                <div className="rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-3.5 shadow-xs">
+                  <div className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">
                     <span>📄 Propuestas</span>
                   </div>
-                  <div className="text-lg font-black text-purple-700 dark:text-purple-300 mt-0.5">{proposalsSentCount}</div>
-                  <div className="text-[10px] text-text-secondary mt-0.5">Cotizaciones activas</div>
+                  <div className="text-xl font-black text-purple-700 dark:text-purple-300 mt-0.5">{proposalsSentCount}</div>
+                  <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">Cotizaciones activas</div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl p-3 shadow-xs col-span-2 sm:col-span-1">
-                  <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase flex items-center gap-1">
+                <div className="rounded-2xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-3.5 shadow-xs col-span-2 sm:col-span-1">
+                  <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
                     <span>✅ Conversión PRO</span>
                   </div>
-                  <div className="text-lg font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{conversionRate}%</div>
-                  <div className="text-[10px] text-text-secondary mt-0.5">{wonLeadsCount} suscritos activos</div>
+                  <div className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{conversionRate}%</div>
+                  <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">{wonLeadsCount} suscritos activos</div>
                 </div>
               </div>
 
               {/* Search & View Switcher Bar (100% Responsive) */}
-              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
+              <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 shadow-sm space-y-3">
                 <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
                   {/* Search box */}
                   <div className="relative flex-1 min-w-[240px]">
@@ -1266,10 +1341,10 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 myReferralLink={myReferralLink}
               />
             ) : (
-              <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
+              <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs min-w-[950px]">
-                    <thead className="bg-surface-secondary/60 border-b border-border-medium/40 font-bold uppercase text-[11px] text-text-tertiary">
+                    <thead className="bg-slate-50/80 dark:bg-zinc-800/50 border-b border-slate-200/70 dark:border-zinc-800 font-bold uppercase text-[11px] text-slate-500 dark:text-zinc-400">
                       <tr>
                         <th className="px-4 py-3.5 min-w-[220px]">Usuario & Contacto</th>
                         <th className="px-4 py-3.5 min-w-[140px]">Etapa CRM</th>
@@ -1485,15 +1560,15 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
         {/* Tab 4: Commissions */}
         {activeTab === 'commissions' && (
           <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm">
-              <h3 className="text-sm sm:text-base font-extrabold text-text-primary flex items-center gap-2 mb-3 sm:mb-4">
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-6 shadow-sm">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-3 sm:mb-4">
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-teal-500 shrink-0" />
                 <span>{`Historial y Detalle de Comisiones (${displayedCommissions.length})`}</span>
               </h3>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs min-w-[950px]">
-                  <thead className="bg-surface-secondary/60 border-b border-border-medium/40 font-bold uppercase text-[11px] text-text-tertiary">
+                  <thead className="bg-slate-50/80 dark:bg-zinc-800/50 border-b border-slate-200/70 dark:border-zinc-800 font-bold uppercase text-[11px] text-slate-500 dark:text-zinc-400">
                     <tr>
                       <th className="px-4 py-3.5 min-w-[220px]">Usuario Referido</th>
                       <th className="px-4 py-3.5 min-w-[140px]">Plan & Modalidad</th>
@@ -1682,15 +1757,15 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
         {/* Tab 4: Network Panel (Leader & Admin) */}
         {activeTab === 'network' && (isAdmin || isLeader) && (
           <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/40 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm">
-              <h3 className="text-sm sm:text-base font-extrabold text-text-primary flex items-center gap-2 mb-3 sm:mb-4">
+            <div className="rounded-3xl border border-slate-200/80 bg-white/95 dark:border-zinc-800 dark:bg-zinc-900/95 p-4 sm:p-6 shadow-sm">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-3 sm:mb-4">
                 <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-teal-500 shrink-0" />
                 <span>Consolidado de Embajadores de la Red</span>
               </h3>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs min-w-[850px]">
-                  <thead className="bg-surface-secondary/60 border-b border-border-medium/40 font-bold uppercase text-[11px] text-text-tertiary">
+                  <thead className="bg-slate-50/80 dark:bg-zinc-800/50 border-b border-slate-200/70 dark:border-zinc-800 font-bold uppercase text-[11px] text-slate-500 dark:text-zinc-400">
                     <tr>
                       <th className="px-4 py-3.5 min-w-[260px]">Embajador</th>
                       <th className="px-4 py-3.5 min-w-[150px]">Código Link (Slug)</th>
@@ -1878,96 +1953,40 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 {createCommission && (
                   <div className="bg-surface-secondary/50 border border-border-medium/40 rounded-xl p-3.5 space-y-3.5 animate-in fade-in">
                     
-                    {/* 1. Plan Preset Selection */}
+                    {/* 1. Plan Preset Selection (Live Admin Panel Prices) */}
                     <div>
                       <label className="block text-[10px] font-bold text-text-tertiary mb-1.5 uppercase">
-                        1. Plan Base Adquirido por el Cliente
+                        1. Plan Base Adquirido por el Cliente (Precios Panel Admin)
                       </label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlanPreset('mensual');
-                            setIsManualAmount(false);
-                            updateCalculatedPrice('mensual', extraCompanies, paymentDiscount);
-                          }}
-                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            planPreset === 'mensual'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                          }`}
-                        >
-                          <div>Pro Mensual</div>
-                          <div className="text-[10px] opacity-85 font-mono">$114.330 COP</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlanPreset('trimestral');
-                            setIsManualAmount(false);
-                            updateCalculatedPrice('trimestral', extraCompanies, paymentDiscount);
-                          }}
-                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            planPreset === 'trimestral'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                          }`}
-                        >
-                          <div>Pro Trimestral</div>
-                          <div className="text-[10px] opacity-85 font-mono">$331.270 COP</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlanPreset('semestral');
-                            setIsManualAmount(false);
-                            updateCalculatedPrice('semestral', extraCompanies, paymentDiscount);
-                          }}
-                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            planPreset === 'semestral'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                          }`}
-                        >
-                          <div>Pro Semestral</div>
-                          <div className="text-[10px] opacity-85 font-mono">$641.960 COP</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlanPreset('anual');
-                            setIsManualAmount(false);
-                            updateCalculatedPrice('anual', extraCompanies, paymentDiscount);
-                          }}
-                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            planPreset === 'anual'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                          }`}
-                        >
-                          <div>Pro Anual</div>
-                          <div className="text-[10px] opacity-85 font-mono">$1.200.000 COP</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlanPreset('vital');
-                            setIsManualAmount(false);
-                            updateCalculatedPrice('vital', extraCompanies, paymentDiscount);
-                          }}
-                          className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
-                            planPreset === 'vital'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                              : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                          }`}
-                        >
-                          <div>Wappy Vital</div>
-                          <div className="text-[10px] opacity-85 font-mono">$350.000 COP</div>
-                        </button>
+                        {[
+                          { id: 'mensual', label: 'Pro Mensual', price: planPrices.pro.monthly },
+                          { id: 'trimestral', label: 'Pro Trimestral', price: planPrices.pro.quarterly },
+                          { id: 'semestral', label: 'Pro Semestral', price: planPrices.pro.semiannual },
+                          { id: 'anual', label: 'Pro Anual', price: planPrices.pro.annual },
+                          { id: 'vital_anual', label: 'Vital Anual', price: planPrices.vital.annual },
+                          { id: 'vital_semestral', label: 'Vital Semestral', price: planPrices.vital.semiannual },
+                          { id: 'vital_trimestral', label: 'Vital Trimestral', price: planPrices.vital.quarterly },
+                          { id: 'vital_mensual', label: 'Vital Mensual', price: planPrices.vital.monthly },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setPlanPreset(item.id as any);
+                              setIsManualAmount(false);
+                              updateCalculatedPrice(item.id as any, extraCompanies, paymentDiscount);
+                            }}
+                            className={`p-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                              planPreset === item.id || (item.id === 'vital_anual' && planPreset === 'vital')
+                                ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                                : 'bg-surface-primary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                            }`}
+                          >
+                            <div>{item.label}</div>
+                            <div className="text-[10px] opacity-85 font-mono">${item.price.toLocaleString('es-CO')} COP</div>
+                          </button>
+                        ))}
 
                         <button
                           type="button"
@@ -1998,7 +2017,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                         </div>
                         <span className="text-[10px] font-semibold text-text-tertiary">
                           {(() => {
-                            const unit = planPreset === 'anual' ? 350000 : planPreset === 'semestral' ? 187240 : planPreset === 'trimestral' ? 96620 : 33350;
+                            const unit = calculateDerivedAmounts(planPreset, 1, 0).extraCompanyUnit;
                             return `+$${unit.toLocaleString('es-CO')} COP c/u`;
                           })()}
                         </span>
@@ -2040,7 +2059,7 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
 
                         <div className="text-right text-xs font-extrabold text-teal-600 dark:text-teal-400">
                           {(() => {
-                            const unit = planPreset === 'anual' ? 350000 : planPreset === 'semestral' ? 187240 : planPreset === 'trimestral' ? 96620 : 33350;
+                            const unit = calculateDerivedAmounts(planPreset, 1, 0).extraCompanyUnit;
                             const totalExtras = extraCompanies * unit;
                             return totalExtras > 0 ? `+ $${totalExtras.toLocaleString('es-CO')} COP` : '$0 COP';
                           })()}
@@ -2374,25 +2393,31 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'monthly', label: 'Mensual', days: '+30d' },
-                    { id: 'quarterly', label: 'Trimestral', days: '+90d' },
-                    { id: 'semiannual', label: 'Semestral', days: '+180d' },
-                    { id: 'annual', label: 'Anual', days: '+365d' },
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setRenewalPeriod(p.id as any)}
-                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        renewalPeriod === p.id
-                          ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-xs'
-                          : 'bg-surface-secondary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{p.label}</div>
-                      <div className="text-[10px] text-text-tertiary mt-0.5">{p.days}</div>
-                    </button>
-                  ))}
+                    { id: 'monthly' as const, label: 'Mensual', days: '+30d' },
+                    { id: 'quarterly' as const, label: 'Trimestral', days: '+90d' },
+                    { id: 'semiannual' as const, label: 'Semestral', days: '+180d' },
+                    { id: 'annual' as const, label: 'Anual', days: '+365d' },
+                  ].map((p) => {
+                    const priceForPeriod = getSuggestedRenewalPrice(selectedForRenewal.subscriptionType, p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setRenewalPeriod(p.id);
+                          setRenewalAmount(priceForPeriod);
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          renewalPeriod === p.id
+                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-xs'
+                            : 'bg-surface-secondary border-border-medium/40 text-text-secondary hover:bg-surface-hover'
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{p.label} ({p.days})</div>
+                        <div className="text-[10px] font-mono text-text-tertiary mt-0.5">${priceForPeriod.toLocaleString('es-CO')}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

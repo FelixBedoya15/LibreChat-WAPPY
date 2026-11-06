@@ -140,6 +140,39 @@ const calculateProratedExpiry = async (planId, interval, userPlan) => {
 const getPublicPlansConfig = async (req, res) => {
     try {
         const plans = await Plan.find({ planId: { $ne: '__visibility__' } }).lean();
+        const proDoc = plans.find(p => p.planId === 'pro');
+        if (
+            proDoc &&
+            (!proDoc.prices?.monthly ||
+             proDoc.prices?.monthly === 66300 ||
+             !proDoc.prices?.quarterly ||
+             !proDoc.promotions?.quarterly?.active)
+        ) {
+            const updatedProPrices = {
+                monthly: proDoc.prices?.monthly && proDoc.prices?.monthly !== 66300 ? proDoc.prices.monthly : 179000,
+                quarterly: proDoc.prices?.quarterly && proDoc.prices?.quarterly !== 199000 ? proDoc.prices.quarterly : 518600,
+                semiannual: proDoc.prices?.semiannual && proDoc.prices?.semiannual !== 399000 ? proDoc.prices.semiannual : 1005000,
+                annual: proDoc.prices?.annual && proDoc.prices?.annual !== 796000 ? proDoc.prices.annual : 1790000,
+            };
+            const updatedProPromotions = {
+                monthly: proDoc.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
+                quarterly: proDoc.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+                semiannual: proDoc.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+                annual: proDoc.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+            };
+            await Plan.updateOne(
+                { planId: 'pro' },
+                {
+                    $set: {
+                        prices: updatedProPrices,
+                        promotions: updatedProPromotions,
+                    },
+                }
+            );
+            proDoc.prices = updatedProPrices;
+            proDoc.promotions = updatedProPromotions;
+        }
+
         const ipevarDoc = plans.find(p => p.planId === 'ipevar');
         if (
             ipevarDoc &&
@@ -442,7 +475,9 @@ const createTransaction = async (req, res) => {
         const currentUserPlan = await UserPlan.findOne({ userId }).select('plan').lean();
         const isRenewal = Boolean(hasApprovedTx || (currentUserPlan && !['free', 'admin'].includes(currentUserPlan.plan)));
 
-        // Apply promo Code if provided
+        // NOTE: planDoc.prices[interval] (rawPrice) ALREADY represents the final parameterized price for that period
+        // (with the interval promotion already factored into rawPrice, matching /planes UI).
+        // Therefore, we only subtract an additional percentage when an explicit promoCode coupon is applied.
         if (promoCode) {
             const cleanCode = promoCode.toUpperCase().trim();
             if (cleanCode === 'VITAL30' && planId === 'ipevar') {
@@ -457,10 +492,6 @@ const createTransaction = async (req, res) => {
                     appliedDiscount = codeDoc.discountPercentage;
                 }
             }
-        }
-        // Fallback to default promotions ONLY for first-time purchases (discounts do not apply on renewal)
-        else if (!isRenewal && planDoc.promotions?.[interval]?.active) {
-            appliedDiscount = planDoc.promotions[interval].discountPercentage;
         }
 
         if (appliedDiscount > 0) {
@@ -1098,7 +1129,8 @@ const createManualTransaction = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
-        // Apply promo Code if provided
+        // NOTE: planDoc.prices[interval] (rawPrice) ALREADY represents the final parameterized price for that period.
+        // Only apply an additional discount if an explicit promoCode coupon is provided.
         if (promoCode) {
             const cleanCode = promoCode.toUpperCase().trim();
             if (cleanCode === 'VITAL30' && planId === 'ipevar') {
@@ -1113,8 +1145,6 @@ const createManualTransaction = async (req, res) => {
                     appliedDiscount = codeDoc.discountPercentage;
                 }
             }
-        } else if (planDoc.promotions?.[interval]?.active) {
-            appliedDiscount = planDoc.promotions[interval].discountPercentage;
         }
 
         if (appliedDiscount > 0) {
@@ -1272,6 +1302,8 @@ const guestCheckout = async (req, res) => {
             isRenewal = Boolean(hasApprovedTx || (currentUserPlan && !['free', 'admin'].includes(currentUserPlan.plan)));
         }
 
+        // NOTE: planDoc.prices[interval] (rawPrice) ALREADY represents the final parameterized price for that period.
+        // Only apply an additional discount if an explicit promoCode coupon is provided.
         if (promoCode) {
             const cleanCode = promoCode.toUpperCase().trim();
             if (cleanCode === 'VITAL30' && planId === 'ipevar') {
@@ -1290,8 +1322,6 @@ const guestCheckout = async (req, res) => {
                     }
                 }
             }
-        } else if (!isRenewal && planDoc.promotions?.[interval]?.active) {
-            appliedDiscount = planDoc.promotions[interval].discountPercentage;
         }
 
         if (appliedDiscount > 0) {

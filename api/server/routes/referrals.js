@@ -5,6 +5,7 @@ const { requireJwtAuth } = require('../middleware');
 const { logger } = require('@librechat/data-schemas');
 
 const UserPlan = require('~/db/models/UserPlan');
+const Plan = require('~/models/Plan');
 const Partner = require('~/models/Partner');
 const PartnerCommission = require('~/models/PartnerCommission');
 const ReferralRecord = require('~/models/ReferralRecord');
@@ -128,7 +129,7 @@ const getPointsBalance = async (userId) => {
 router.get('/stats', async (req, res) => {
     try {
         const userId = req.user.id || req.user._id;
-        const origin = process.env.DOMAIN_CLIENT || `https://wappy.pe`;
+        const origin = process.env.DOMAIN_CLIENT || `https://wappy.club`;
 
         // Fetch fresh user from DB to get real username and name
         const User = mongoose.model('User');
@@ -389,7 +390,7 @@ router.get('/partner/stats', async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        const origin = process.env.DOMAIN_CLIENT || `https://wappy.pe`;
+        const origin = process.env.DOMAIN_CLIENT || `https://wappy.club`;
         const partnerLink = `${origin}/?ref=${partner.slug}`;
 
         return res.json({
@@ -713,6 +714,27 @@ router.get('/dashboard', async (req, res) => {
                 downgradeUserIfExpired(u._id).catch(() => {});
             }
 
+            const normalizePlanInterval = (rawIntVal, activeAtDate, inactiveAtDate, createdAtDate) => {
+                const rawInt = (rawIntVal || '').toLowerCase();
+                if (rawInt === 'referral' || rawInt === 'trial' || rawInt === 'prueba' || rawInt === '15d') return 'prueba';
+                if (rawInt === 'monthly' || rawInt === 'mensual') return 'mensual';
+                if (rawInt === 'quarterly' || rawInt === 'trimestral') return 'trimestral';
+                if (rawInt === 'semiannual' || rawInt === 'semestral') return 'semestral';
+                if (rawInt === 'annual' || rawInt === 'anual') return 'anual';
+                if (rawInt === 'lifetime' || rawInt === 'vitalicio') return null;
+                if (inactiveAtDate) {
+                    const start = activeAtDate ? new Date(activeAtDate) : (createdAtDate ? new Date(createdAtDate) : now);
+                    const end = new Date(inactiveAtDate);
+                    const durationDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                    if (durationDays >= 300) return 'anual';
+                    if (durationDays >= 140) return 'semestral';
+                    if (durationDays >= 70) return 'trimestral';
+                    if (durationDays >= 25) return 'mensual';
+                    return 'prueba';
+                }
+                return null;
+            };
+
             let isPro = false;
             let planType = 'free';
             let planInterval = null;
@@ -720,27 +742,7 @@ router.get('/dashboard', async (req, res) => {
             if (!isExpired && (userRole === 'USER_PRO' || userRole === 'PRO' || rawPlan === 'pro')) {
                 isPro = true;
                 planType = 'pro';
-                const rawInt = (plan?.planInterval || plan?.interval || '').toLowerCase();
-                if (rawInt === 'referral' || rawInt === 'trial' || rawInt === 'prueba' || rawInt === '15d') {
-                    planInterval = 'prueba';
-                } else if (plan?.interval && plan.interval !== 'referral') {
-                    planInterval = plan.interval;
-                } else if (u.inactiveAt) {
-                    const start = u.activeAt ? new Date(u.activeAt) : (u.createdAt ? new Date(u.createdAt) : now);
-                    const end = new Date(u.inactiveAt);
-                    const durationDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                    if (durationDays >= 300) {
-                        planInterval = 'anual';
-                    } else if (durationDays >= 140) {
-                        planInterval = 'semestral';
-                    } else if (durationDays >= 25) {
-                        planInterval = 'mensual';
-                    } else {
-                        planInterval = 'prueba';
-                    }
-                } else {
-                    planInterval = 'anual';
-                }
+                planInterval = normalizePlanInterval(plan?.planInterval || plan?.interval, u.activeAt, u.inactiveAt, u.createdAt) || 'anual';
             } else if (isExpired && (userRole === 'USER_PRO' || rawPlan === 'pro')) {
                 // Expired PRO or Trial → Now Free
                 planType = 'free';
@@ -750,9 +752,12 @@ router.get('/dashboard', async (req, res) => {
                 } else {
                     planInterval = 'vencido';
                 }
-            } else if (rawPlan === 'vital' || rawPlan === 'vitalicio' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
+            } else if (!isExpired && (rawPlan === 'vital' || rawPlan === 'vitalicio' || rawPlan === 'ipevar' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR')) {
                 planType = 'vital';
-                planInterval = null;
+                planInterval = normalizePlanInterval(plan?.planInterval || plan?.interval, u.activeAt, u.inactiveAt, u.createdAt);
+            } else if (isExpired && (rawPlan === 'vital' || rawPlan === 'ipevar' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR')) {
+                planType = 'free';
+                planInterval = 'vencido';
             }
 
             const isTrial = planInterval === 'prueba';
@@ -794,8 +799,11 @@ router.get('/dashboard', async (req, res) => {
                     trafficLight = 'yellow';
                 }
             } else if (planType === 'vital' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
-                // Wappy Vital es membresía vitalicia activa
-                if (daysInactive > 90 || u.accountStatus === 'inactive' || u.accountStatus === 'pending') {
+                if (daysToExpiry !== null && daysToExpiry <= 7) {
+                    trafficLight = 'red';
+                } else if (daysToExpiry !== null && daysToExpiry <= 30) {
+                    trafficLight = 'yellow';
+                } else if (daysInactive > 90 || u.accountStatus === 'inactive' || u.accountStatus === 'pending') {
                     trafficLight = 'red';
                 } else if (daysInactive > 30) {
                     trafficLight = 'yellow';
@@ -885,7 +893,7 @@ router.get('/dashboard', async (req, res) => {
                 daysToExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             }
 
-            let planType = rawPlan;
+            let planType = rawPlan === 'ipevar' ? 'vital' : rawPlan;
             if (!planType || planType === 'freemium' || planType === 'free') {
                 if (isPro || c.amount >= 50000000) {
                     planType = 'pro';
@@ -896,11 +904,14 @@ router.get('/dashboard', async (req, res) => {
                 }
             }
 
+            const rawCommInterval = (refPlan?.planInterval || refPlan?.interval || '').toLowerCase();
             let planInterval = null;
-            if (planType === 'pro') {
-                planInterval = refPlan?.interval || (c.amount >= 50000000 ? 'anual' : c.amount >= 25000000 ? 'semestral' : 'mensual');
-            } else if (planType === 'free' || planType === 'freemium' || planType === 'vital' || planType === 'vitalicio') {
-                planInterval = null; // Free & Vital plans are lifetime (vitalicio), no monthly/annual intervals
+            if (rawCommInterval === 'monthly' || rawCommInterval === 'mensual') planInterval = 'mensual';
+            else if (rawCommInterval === 'quarterly' || rawCommInterval === 'trimestral') planInterval = 'trimestral';
+            else if (rawCommInterval === 'semiannual' || rawCommInterval === 'semestral') planInterval = 'semestral';
+            else if (rawCommInterval === 'annual' || rawCommInterval === 'anual') planInterval = 'anual';
+            else if (planType === 'pro') {
+                planInterval = c.amount >= 50000000 ? 'anual' : c.amount >= 25000000 ? 'semestral' : 'mensual';
             }
 
             const lastActivity = refUser.updatedAt || refUser.createdAt || c.createdAt;
@@ -989,7 +1000,7 @@ router.get('/dashboard', async (req, res) => {
         const totalRegisteredUsers = isAdmin ? await User.countDocuments() : referredUsersList.length;
         const totalGrowth7Days = referredUsersList.filter(u => (now.getTime() - new Date(u.registrationDate).getTime()) <= 7 * 24 * 60 * 60 * 1000).length;
 
-        const origin = process.env.DOMAIN_CLIENT || `https://wappy.pe`;
+        const origin = process.env.DOMAIN_CLIENT || `https://wappy.club`;
         const myReferralLink = partner ? `${origin}/?ref=${partner.slug}` : `${origin}/?ref=${req.user.username || userId}`;
 
         return res.json({
@@ -1064,6 +1075,17 @@ router.get('/users-activity-metrics', async (req, res) => {
             myRefs.forEach(r => {
                 if (r.referredUserId) refMap.set(String(r.referredUserId), r);
             });
+            const partnerIds = [...new Set(myRefs.map(r => r.referredByPartner).filter(Boolean))];
+            if (partnerIds.length > 0) {
+                const refPartners = await Partner.find({ _id: { $in: partnerIds } }).populate('userId', 'name email username').lean();
+                refPartners.forEach(p => partnerMap.set(String(p._id), p));
+            }
+            if (partner && !partnerMap.has(String(partner._id))) {
+                partnerMap.set(String(partner._id), {
+                    ...partner,
+                    userId: { name: userDoc?.name || req.user.name, email: userDoc?.email || req.user.email, username: userDoc?.username || req.user.username },
+                });
+            }
         } else {
             const allRefs = await ReferralRecord.find({}).lean();
             allRefs.forEach(r => {
@@ -1288,13 +1310,24 @@ router.get('/users-activity-metrics', async (req, res) => {
             let daysToExpiry = expiresAt && !isNaN(expiresAt.getTime()) ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
             const isExpired = daysToExpiry !== null && daysToExpiry < 0;
 
+            const rawInt = (plan?.planInterval || plan?.interval || '').toLowerCase();
+            const mapInterval = (val) => {
+                if (val === 'referral' || val === 'trial' || val === 'prueba' || val === '15d') return 'prueba';
+                if (val === 'monthly' || val === 'mensual') return 'mensual';
+                if (val === 'quarterly' || val === 'trimestral') return 'trimestral';
+                if (val === 'semiannual' || val === 'semestral') return 'semestral';
+                if (val === 'annual' || val === 'anual') return 'anual';
+                return null;
+            };
+
             let planType = 'free';
             let planInterval = null;
             if (!isExpired && (userRole === 'USER_PRO' || userRole === 'PRO' || rawPlan === 'pro')) {
                 planType = 'pro';
-                planInterval = plan?.interval || 'mensual';
-            } else if (rawPlan === 'vital' || rawPlan === 'vitalicio' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR') {
+                planInterval = mapInterval(rawInt) || 'mensual';
+            } else if (!isExpired && (rawPlan === 'vital' || rawPlan === 'vitalicio' || rawPlan === 'ipevar' || userRole === 'USER_IPEVAR' || userRole === 'IPEVAR')) {
                 planType = 'vital';
+                planInterval = mapInterval(rawInt);
             }
 
             // Health traffic light
@@ -1440,7 +1473,7 @@ router.get('/users-activity-metrics', async (req, res) => {
  */
 router.post('/attribute', async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') {
+        if (!checkIsAdmin(req.user)) {
             return res.status(403).json({ error: 'Solo los administradores pueden cambiar la atribución de embajadores.' });
         }
 
@@ -1559,7 +1592,7 @@ router.post('/attribute', async (req, res) => {
  */
 router.put('/commissions/:id', async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') {
+        if (!checkIsAdmin(req.user)) {
             return res.status(403).json({ error: 'Solo los administradores pueden editar comisiones.' });
         }
 
@@ -1598,7 +1631,7 @@ router.put('/commissions/:id', async (req, res) => {
  */
 router.delete('/commissions/:id', async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') {
+        if (!checkIsAdmin(req.user)) {
             return res.status(403).json({ error: 'Solo los administradores pueden eliminar comisiones.' });
         }
 
@@ -1623,13 +1656,14 @@ router.delete('/commissions/:id', async (req, res) => {
  */
 router.post('/commissions/renew-period', async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') {
+        if (!checkIsAdmin(req.user)) {
             return res.status(403).json({ error: 'Solo los administradores pueden registrar renovaciones recurrentes.' });
         }
 
         const {
             userId,
             partnerId,
+            planType = 'pro', // 'pro' or 'vital' ('ipevar')
             period = 'monthly', // 'monthly', 'quarterly', 'semiannual', 'annual', 'custom'
             customDays,
             amount,
@@ -1672,8 +1706,10 @@ router.post('/commissions/renew-period', async (req, res) => {
 
         const newExpiry = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
 
+        const isVitalPlan = planType === 'vital' || planType === 'ipevar' || (targetUser.role === 'USER_IPEVAR' && !req.body.planType);
+
         // 1. Update User
-        targetUser.role = 'USER_PRO';
+        targetUser.role = isVitalPlan ? 'USER_IPEVAR' : 'USER_PRO';
         targetUser.accountStatus = 'active';
         targetUser.inactiveAt = newExpiry;
         if (!targetUser.activeAt) targetUser.activeAt = now;
@@ -1684,9 +1720,10 @@ router.post('/commissions/renew-period', async (req, res) => {
             { userId: targetUser._id },
             {
                 $set: {
-                    plan: 'pro',
+                    plan: isVitalPlan ? 'ipevar' : 'pro',
                     planExpiresAt: newExpiry,
                     planInterval: period === 'custom' ? 'monthly' : period,
+                    interval: period === 'custom' ? 'monthly' : period,
                     cancelAtPeriodEnd: false
                 }
             },
@@ -2297,142 +2334,257 @@ Genera en "includedModules" EXACTAMENTE 6 MÓDULOS, TODOS enfocados y desglosand
         }
         const parsedData = JSON.parse(responseText);
 
-        // Base Pricing Catalog
-        // Addons (Empresas Adicionales y Automatizaciones IA) aumentan proporcionalmente según la temporalidad del Plan Wappy PRO
+        // Fetch dynamic Plan configurations from MongoDB (synchronized with Admin Panel & /planes)
+        const dbPlans = await Plan.find({ planId: { $ne: '__visibility__' } }).lean();
+        const proDoc = dbPlans.find(p => p.planId === 'pro') || {};
+        const vitalDoc = dbPlans.find(p => p.planId === 'ipevar' || p.planId === 'vital') || {};
+
+        const proPrices = {
+            monthly: proDoc.prices?.monthly && proDoc.prices.monthly !== 66300 ? proDoc.prices.monthly : 179000,
+            quarterly: proDoc.prices?.quarterly && proDoc.prices.quarterly !== 199000 ? proDoc.prices.quarterly : 518600,
+            semiannual: proDoc.prices?.semiannual && proDoc.prices.semiannual !== 399000 ? proDoc.prices.semiannual : 1005000,
+            annual: proDoc.prices?.annual && proDoc.prices.annual !== 796000 ? proDoc.prices.annual : 1790000,
+        };
+        const proPromotions = {
+            monthly: proDoc.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
+            quarterly: proDoc.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+            semiannual: proDoc.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+            annual: proDoc.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+        };
+
+        const vitalPrices = {
+            monthly: vitalDoc.prices?.monthly && vitalDoc.prices.monthly !== 35000 ? vitalDoc.prices.monthly : 119000,
+            quarterly: vitalDoc.prices?.quarterly && vitalDoc.prices.quarterly !== 99000 ? vitalDoc.prices.quarterly : 345000,
+            semiannual: vitalDoc.prices?.semiannual && vitalDoc.prices.semiannual !== 185000 ? vitalDoc.prices.semiannual : 669000,
+            annual: vitalDoc.prices?.annual && vitalDoc.prices.annual !== 350000 ? vitalDoc.prices.annual : 1190000,
+        };
+        const vitalPromotions = {
+            monthly: vitalDoc.promotions?.monthly ?? { active: false, text: '', discountPercentage: 0 },
+            quarterly: vitalDoc.promotions?.quarterly ?? { active: true, text: 'Ahorra 10%', discountPercentage: 10 },
+            semiannual: vitalDoc.promotions?.semiannual ?? { active: true, text: 'Ahorra 20%', discountPercentage: 20 },
+            annual: vitalDoc.promotions?.annual ?? { active: true, text: 'Ahorra 30%', discountPercentage: 30 },
+        };
+
         const PRICING_CATALOG = {
             anual: {
                 name: 'Plan Wappy PRO Anual',
+                planTier: 'pro',
+                intervalKey: 'annual',
                 intervalLabel: '12 Meses (Anual)',
-                regularPrice: 1200000,
-                pricePerMonth: 100000,
-                companyAddonPrice: 350000, // $350.000 / año
+                configuredPrice: proPrices.annual,
+                promotion: proPromotions.annual,
+                companyAddonPrice: 350000,
                 months: 12,
                 features: [
-                    'Acceso total a todos los Agentes y Asistentes SST',
-                    'Matrices IPEVAR & PESV Ilimitadas con IA',
-                    'Gestión de Sustancias Químicas SGA y RIT',
-                    'Auditorías en Vivo con IA y Generación de Formatos',
-                    'Aula de Estudio LMS y Certificaciones Oficiales',
-                    'Soporte Prioritario VIP y Asesoría Continuada'
+                    'Acceso total a todos los Agentes y Asistentes SST (+50 aplicativos en los 8 Hitos SG-SST)',
+                    'Matrices IPEVAR & PESV Ilimitadas con IA y Módulos de Huella Biocéntrica',
+                    'Gestión de Sustancias Químicas SGA, Permisos de Alturas (Res. 4272) y RIT',
+                    'Auditorías en Vivo con Visión IA, MediaPipe y Generación Ilimitada de Formatos',
+                    'Academia WAPPY Completa (Plan Empresa, Rutas de Aprendizaje y Certificados)',
+                    'Soporte Prioritario VIP, Portal QR 360° y 1 Sub-Usuario incluido'
                 ],
                 isRecommended: true
             },
             semestral: {
                 name: 'Plan Wappy PRO Semestral',
+                planTier: 'pro',
+                intervalKey: 'semiannual',
                 intervalLabel: '6 Meses (Semestral)',
-                regularPrice: 641960,
-                pricePerMonth: 106993,
-                companyAddonPrice: 187238, // Proporcional al plan semestral ($350.000 * 641960/1200000)
+                configuredPrice: proPrices.semiannual,
+                promotion: proPromotions.semiannual,
+                companyAddonPrice: 187240,
                 months: 6,
                 features: [
-                    'Acceso a todos los Agentes SST',
-                    'Matrices IPEVAR & PESV con IA',
-                    'SGA Químico y RIT',
-                    'Auditorías en Vivo con IA',
-                    'Soporte Asignado'
+                    'Acceso integral a todos los Agentes y 50+ Aplicativos Somos SST',
+                    'Matrices IPEVAR, PESV y Módulo Huella Biocéntrica con IA',
+                    'Química SGA, Alturas, EPP y Auditorías en Vivo con IA',
+                    'Academia WAPPY Completa y Portal QR para Trabajadores',
+                    'Soporte Asignado y 1 Sub-Usuario incluido'
                 ],
                 isRecommended: false
             },
             trimestral: {
                 name: 'Plan Wappy PRO Trimestral',
+                planTier: 'pro',
+                intervalKey: 'quarterly',
                 intervalLabel: '3 Meses (Trimestral)',
-                regularPrice: 331270,
-                pricePerMonth: 110423,
-                companyAddonPrice: 96620, // Proporcional al plan trimestral ($350.000 * 331270/1200000)
+                configuredPrice: proPrices.quarterly,
+                promotion: proPromotions.quarterly,
+                companyAddonPrice: 96620,
                 months: 3,
                 features: [
-                    'Acceso a Agentes SST',
-                    'Matrices IPEVAR & Formatos',
-                    'Auditorías en Vivo con IA',
-                    'Soporte Estándar'
+                    'Acceso completo a Agentes SST y Aplicativos de los 8 Hitos',
+                    'Matrices IPEVAR, PESV y Generación Documental con IA',
+                    'Auditorías en Vivo con Visión IA y Portal QR',
+                    'Soporte Estándar y 1 Sub-Usuario incluido'
                 ],
                 isRecommended: false
             },
             mensual: {
                 name: 'Plan Wappy PRO Mensual',
+                planTier: 'pro',
+                intervalKey: 'monthly',
                 intervalLabel: '1 Mes (Mensual)',
-                regularPrice: 114330,
-                pricePerMonth: 114330,
-                companyAddonPrice: 33346, // Proporcional al plan mensual ($350.000 * 114330/1200000)
+                configuredPrice: proPrices.monthly,
+                promotion: proPromotions.monthly,
+                companyAddonPrice: 33350,
                 months: 1,
                 features: [
-                    'Acceso a Agentes SST',
-                    'Generación de Matrices y Formatos',
-                    'Soporte Estándar'
+                    'Acceso a Agentes SST y Ecosistema Completo Somos SST',
+                    'Generación de Matrices, Procedimientos y Formatos con IA',
+                    'Soporte Estándar y 1 Sub-Usuario incluido'
                 ],
                 isRecommended: false
             },
-            vital: {
-                name: 'Plan Wappy Vital (Acceso de Por Vida)',
-                intervalLabel: 'Pago Único Vitalicio',
-                regularPrice: 350000,
-                pricePerMonth: 0,
+            vital_anual: {
+                name: 'Plan Wappy Vital Anual',
+                planTier: 'vital',
+                intervalKey: 'annual',
+                intervalLabel: '12 Meses (Anual)',
+                configuredPrice: vitalPrices.annual,
+                promotion: vitalPromotions.annual,
                 companyAddonPrice: 350000,
-                months: 0,
+                months: 12,
                 features: [
-                    'Pago único de por vida (Sin mensualidades)',
-                    'Hasta 20 chats diarios con Agentes SST',
-                    'Acceso a Comunidad y Soporte Básico'
+                    'Acceso integral a la IA de WAPPY con gestión de Huella Biocéntrica',
+                    'Módulo exclusivo Huella Biocéntrica y Matriz Bio-IPEVR Bioindividual',
+                    'Portal QR de Perfil Sociodemográfico y Tablero ACPM',
+                    'Conversaciones ilimitadas con +20 Agentes Especialistas SST',
+                    'Academia WAPPY (Cursos Abiertos) y 1 Sub-Usuario incluido'
                 ],
                 isRecommended: false
-            }
+            },
+            vital_semestral: {
+                name: 'Plan Wappy Vital Semestral',
+                planTier: 'vital',
+                intervalKey: 'semiannual',
+                intervalLabel: '6 Meses (Semestral)',
+                configuredPrice: vitalPrices.semiannual,
+                promotion: vitalPromotions.semiannual,
+                companyAddonPrice: 187240,
+                months: 6,
+                features: [
+                    'Acceso a la IA de WAPPY y Módulo Huella Biocéntrica',
+                    'Matriz Bio-IPEVR Bioindividual y Condiciones de Salud',
+                    'Conversaciones ilimitadas con Agentes Especialistas SST',
+                    'Tablero ACPM y 1 Sub-Usuario incluido'
+                ],
+                isRecommended: false
+            },
+            vital_trimestral: {
+                name: 'Plan Wappy Vital Trimestral',
+                planTier: 'vital',
+                intervalKey: 'quarterly',
+                intervalLabel: '3 Meses (Trimestral)',
+                configuredPrice: vitalPrices.quarterly,
+                promotion: vitalPromotions.quarterly,
+                companyAddonPrice: 96620,
+                months: 3,
+                features: [
+                    'Acceso a la IA de WAPPY y Módulo Huella Biocéntrica',
+                    'Matriz Bio-IPEVR Bioindividual y Perfil Sociodemográfico QR',
+                    'Conversaciones ilimitadas con Agentes Especialistas SST'
+                ],
+                isRecommended: false
+            },
+            vital_mensual: {
+                name: 'Plan Wappy Vital Mensual',
+                planTier: 'vital',
+                intervalKey: 'monthly',
+                intervalLabel: '1 Mes (Mensual)',
+                configuredPrice: vitalPrices.monthly,
+                promotion: vitalPromotions.monthly,
+                companyAddonPrice: 33350,
+                months: 1,
+                features: [
+                    'Acceso mensual a la IA de WAPPY y Huella Biocéntrica',
+                    'Matriz Bio-IPEVR Bioindividual y Agentes Especialistas SST'
+                ],
+                isRecommended: false
+            },
         };
+        // Alias legacy 'vital' key to 'vital_anual'
+        PRICING_CATALOG.vital = PRICING_CATALOG.vital_anual;
 
         const discount = Math.min(20, Math.max(0, Number(customDiscount) || 0));
         const customFeaturesMap = parsedData.planCustomFeatures || {};
-        const annualBaseRegularPrice = PRICING_CATALOG.anual.regularPrice;
 
         const investmentPlans = (selectedPlans.length > 0 ? selectedPlans.slice(0, 2) : ['anual']).map(pKey => {
             const p = PRICING_CATALOG[pKey] || PRICING_CATALOG.anual;
-            
-            // Multiplicador de temporalidad proporcional al precio del plan Wappy PRO
-            const temporalityRatio = pKey === 'vital' ? 1.0 : (p.regularPrice / annualBaseRegularPrice);
+            const configuredPrice = p.configuredPrice;
+            const adminPromo = p.promotion;
+            const adminDiscountPercentage = (adminPromo && adminPromo.active && Number(adminPromo.discountPercentage) > 0)
+                ? Number(adminPromo.discountPercentage)
+                : 0;
+            const adminPromoText = (adminPromo && adminPromo.active && adminPromo.text)
+                ? adminPromo.text
+                : (adminDiscountPercentage > 0 ? `Ahorra ${adminDiscountPercentage}%` : '');
 
-            // Costo proporcional de empresas adicionales
-            const singleCompanyPeriodCost = pKey === 'vital' ? 350000 : Math.round(350000 * temporalityRatio);
-            const companiesCost = numAdditionalCompanies * singleCompanyPeriodCost;
+            // Regular base price before the Admin Panel promotion (matches crossed-out price on /planes)
+            const listBasePrice = adminDiscountPercentage > 0
+                ? Math.round(configuredPrice / (1 - adminDiscountPercentage / 100))
+                : configuredPrice;
 
-            // Costo proporcional de automatizaciones adicionales ($40k/5 o $10k/1 anualizadas x temporalityRatio)
-            const annualAutomationsBase = monthlyAdditionalAutomationsPrice * 12;
-            const automationsCost = pKey === 'vital' 
-                ? annualAutomationsBase 
-                : Math.round(annualAutomationsBase * temporalityRatio);
+            // Costo de empresas adicionales según la tabla oficial de /planes (WompiController)
+            const companiesCost = numAdditionalCompanies * p.companyAddonPrice;
+
+            // Costo de automatizaciones adicionales proporcional a los meses del plan
+            const automationsCost = monthlyAdditionalAutomationsPrice * (p.months || 12);
 
             const totalAddonsCost = companiesCost + automationsCost;
 
-            // Descuento comercial SOLO aplica al plan base (addons son precio neto fijo por temporalidad)
-            const discountedBasePrice = discount > 0 ? Math.round(p.regularPrice * (1 - (discount / 100))) : p.regularPrice;
-            
-            const regularTotal = p.regularPrice + totalAddonsCost;
+            // Descuento comercial del embajador aplica sobre el precio vigente de /planes (configuredPrice)
+            const discountedBasePrice = discount > 0
+                ? Math.round(configuredPrice * (1 - (discount / 100)))
+                : configuredPrice;
+
+            const regularTotal = listBasePrice + totalAddonsCost;
+            const planesPageTotal = configuredPrice + totalAddonsCost;
             const finalPrice = discountedBasePrice + totalAddonsCost;
             const finalPerMonth = p.months > 0 ? Math.round(finalPrice / p.months) : 0;
-            
+
+            // Porcentaje total de ahorro efectivo frente al valor regular de lista
+            const effectiveBaseDiscountPct = listBasePrice > 0
+                ? Math.round(((listBasePrice - discountedBasePrice) / listBasePrice) * 100)
+                : discount;
+
             // Base or AI-tailored features
-            const baseFeatures = Array.isArray(customFeaturesMap[pKey]) && customFeaturesMap[pKey].length > 0
-                ? [...customFeaturesMap[pKey]]
+            const featureLookupKey = pKey.startsWith('vital_') ? (customFeaturesMap[pKey] ? pKey : 'vital') : pKey;
+            const baseFeatures = Array.isArray(customFeaturesMap[featureLookupKey]) && customFeaturesMap[featureLookupKey].length > 0
+                ? [...customFeaturesMap[featureLookupKey]]
                 : [...p.features];
 
             // Append dynamic add-on features
             if (numAdditionalCompanies > 0) {
                 baseFeatures.push(`🏢 Gestión Multi-Empresa: ${totalCompanies} Empresas habilitadas (1 Principal + ${numAdditionalCompanies} adicional${numAdditionalCompanies > 1 ? 'es' : ''})`);
             }
-            if (numAdditionalAutomations > 0) {
-                baseFeatures.push(`⚡ Automatizaciones Autónomas IA: ${totalAutomations} tareas programadas (1 incluida en Plan Pro + ${numAdditionalAutomations} adicional${numAdditionalAutomations > 1 ? 'es' : ''})`);
-            } else {
-                baseFeatures.push(`⚡ Incluye 1 Automatización Autónoma programada por IA`);
+            if (p.planTier === 'pro') {
+                if (numAdditionalAutomations > 0) {
+                    baseFeatures.push(`⚡ Automatizaciones Autónomas IA: ${totalAutomations} tareas programadas (1 incluida en Plan Pro + ${numAdditionalAutomations} adicional${numAdditionalAutomations > 1 ? 'es' : ''})`);
+                } else {
+                    baseFeatures.push(`⚡ Incluye 1 Automatización Autónoma programada por IA`);
+                }
             }
 
             return {
                 key: pKey,
                 planName: p.name,
+                planTier: p.planTier,
+                intervalKey: p.intervalKey,
                 interval: p.intervalLabel,
+                listBasePrice,
+                basePrice: configuredPrice,
+                discountedBasePrice,
+                adminDiscountPercentage,
+                adminPromoText,
+                ambassadorDiscountPercentage: discount,
+                discountPercentage: effectiveBaseDiscountPct,
                 regularPrice: regularTotal,
-                basePrice: p.regularPrice,
-                discountedBasePrice: discountedBasePrice,
+                planesPageTotal,
                 additionalCompaniesCost: companiesCost,
                 automationsCost: automationsCost,
-                discountPercentage: discount,
                 finalPrice: finalPrice,
+                totalSavingsCop: Math.max(0, regularTotal - finalPrice),
                 pricePerMonth: finalPerMonth,
                 features: baseFeatures,
                 isRecommended: p.isRecommended,
@@ -2495,6 +2647,7 @@ router.post('/crm/update-stage', requireJwtAuth, async (req, res) => {
             { referredUserId: targetUserId },
             {
                 $set: { crmStage: newStage },
+                $setOnInsert: { status: 'registered' },
                 $push: {
                     crmNotes: {
                         author: req.user.name || 'Asesor Comercial',
@@ -2504,7 +2657,7 @@ router.post('/crm/update-stage', requireJwtAuth, async (req, res) => {
                     }
                 }
             },
-            { new: true }
+            { new: true, upsert: true, setDefaultsOnInsert: true }
         );
 
         if (!updatedRecord) {
@@ -2540,6 +2693,7 @@ router.post('/crm/add-note', requireJwtAuth, async (req, res) => {
             { referredUserId: targetUserId },
             {
                 $set: { lastContactedAt: new Date() },
+                $setOnInsert: { status: 'registered', crmStage: 'nuevo' },
                 $push: {
                     crmNotes: {
                         author: req.user.name || 'Asesor Comercial',
@@ -2549,7 +2703,7 @@ router.post('/crm/add-note', requireJwtAuth, async (req, res) => {
                     }
                 }
             },
-            { new: true }
+            { new: true, upsert: true, setDefaultsOnInsert: true }
         );
 
         if (!updatedRecord) {

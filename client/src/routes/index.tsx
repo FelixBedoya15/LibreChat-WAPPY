@@ -562,49 +562,13 @@ export const router = createBrowserRouter(
       ],
     },
     {
-      path: 'privacy',
-      element: withSuspense(
-        <AuthContextProvider>
-          <TenshiStandaloneHost>
-            <PrivacyPolicyPage />
-          </TenshiStandaloneHost>
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
       path: 'privacy-policy',
       element: <Navigate to="/privacy" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {
-      path: 'terms',
-      element: withSuspense(
-        <AuthContextProvider>
-          <TenshiStandaloneHost>
-            <TermsOfServicePage />
-          </TenshiStandaloneHost>
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
       path: 'terminos',
       element: <Navigate to="/terms" replace={true} />,
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
-      path: 'about',
-      element: withSuspense(
-        <AuthContextProvider>
-          <TenshiStandaloneHost>
-            <WappyAboutPage />
-          </TenshiStandaloneHost>
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -675,18 +639,6 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
-      path: 'planes',
-      element: withSuspense(
-        <AuthContextProvider>
-          <TenshiStandaloneHost>
-            <PlansPage />
-          </TenshiStandaloneHost>
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
       path: 'dashboard/billing',
       element: <BillingRedirect />,
       errorElement: <RouteErrorBoundary />,
@@ -694,32 +646,6 @@ export const router = createBrowserRouter(
     {
       path: 'billing',
       element: <BillingRedirect />,
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
-      path: 'hoja-de-ruta',
-      element: withSuspense(
-        <AuthContextProvider>
-          <TenshiStandaloneHost>
-            <RoadmapPage />
-          </TenshiStandaloneHost>
-          <ApiErrorWatcher />
-          <RoadmapNotifier />
-        </AuthContextProvider>
-      ),
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
-      path: 'contactanos',
-      element: withSuspense(
-        <AuthContextProvider>
-          <TenshiStandaloneHost>
-            <ContactPage />
-          </TenshiStandaloneHost>
-          <ApiErrorWatcher />
-          <RoadmapNotifier />
-        </AuthContextProvider>
-      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -778,18 +704,6 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
-      path: 'blog/:postId/:slug?',
-      element: withSuspense(
-        <AuthContextProvider>
-          <TenshiStandaloneHost>
-            <BlogPostViewer />
-          </TenshiStandaloneHost>
-          <ApiErrorWatcher />
-        </AuthContextProvider>
-      ),
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
       path: 'verify',
       element: <VerifyEmail />,
       errorElement: <RouteErrorBoundary />,
@@ -798,6 +712,69 @@ export const router = createBrowserRouter(
       element: <AuthLayout />,
       errorElement: <RouteErrorBoundary />,
       children: [
+        {
+          path: 'planes',
+          element: withSuspense(
+            <TenshiStandaloneHost>
+              <PlansPage />
+            </TenshiStandaloneHost>
+          ),
+          errorElement: <RouteErrorBoundary />,
+        },
+        {
+          path: 'hoja-de-ruta',
+          element: withSuspense(
+            <TenshiStandaloneHost>
+              <RoadmapPage />
+            </TenshiStandaloneHost>
+          ),
+          errorElement: <RouteErrorBoundary />,
+        },
+        {
+          path: 'contactanos',
+          element: withSuspense(
+            <TenshiStandaloneHost>
+              <ContactPage />
+            </TenshiStandaloneHost>
+          ),
+          errorElement: <RouteErrorBoundary />,
+        },
+        {
+          path: 'privacy',
+          element: withSuspense(
+            <TenshiStandaloneHost>
+              <PrivacyPolicyPage />
+            </TenshiStandaloneHost>
+          ),
+          errorElement: <RouteErrorBoundary />,
+        },
+        {
+          path: 'terms',
+          element: withSuspense(
+            <TenshiStandaloneHost>
+              <TermsOfServicePage />
+            </TenshiStandaloneHost>
+          ),
+          errorElement: <RouteErrorBoundary />,
+        },
+        {
+          path: 'about',
+          element: withSuspense(
+            <TenshiStandaloneHost>
+              <WappyAboutPage />
+            </TenshiStandaloneHost>
+          ),
+          errorElement: <RouteErrorBoundary />,
+        },
+        {
+          path: 'blog/:postId/:slug?',
+          element: withSuspense(
+            <TenshiStandaloneHost>
+              <BlogPostViewer />
+            </TenshiStandaloneHost>
+          ),
+          errorElement: <RouteErrorBoundary />,
+        },
         {
           path: '/',
           element: <LoginLayout />,

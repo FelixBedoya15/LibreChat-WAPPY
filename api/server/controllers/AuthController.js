@@ -123,14 +123,24 @@ const refreshController = async (req, res) => {
       return res.status(200).send({ token, user });
     }
 
-    /** Session with the hashed refresh token */
-    const session = await findSession(
+    /** Session with the hashed refresh token (or fallback to active sessionId when concurrent tabs/providers rotated the hash) */
+    let session = await findSession(
       {
         userId: userId,
         refreshToken: refreshToken,
       },
       { lean: false },
     );
+
+    if (!session && payload.sessionId) {
+      session = await findSession(
+        {
+          userId: userId,
+          sessionId: payload.sessionId,
+        },
+        { lean: false },
+      );
+    }
 
     if (session && session.expiration > new Date()) {
       const token = await setAuthTokens(userId, res, session);

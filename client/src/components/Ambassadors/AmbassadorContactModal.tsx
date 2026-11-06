@@ -101,11 +101,24 @@ export const formatPlanBadge = (subType?: string, interval?: string) => {
       isLifetime: true,
     };
   }
-  if (type === 'vital' || type === 'vitalicio' || type === 'lifetime') {
+  if (type === 'vital' || type === 'ipevar' || type === 'vitalicio' || type === 'lifetime') {
+    if (rawInt === 'mensual' || rawInt === 'monthly' || rawInt === 'trimestral' || rawInt === 'quarterly' || rawInt === 'semestral' || rawInt === 'semiannual' || rawInt === 'anual' || rawInt === 'annual') {
+      const normalizedInt =
+        rawInt === 'monthly' ? 'MENSUAL' :
+        rawInt === 'quarterly' ? 'TRIMESTRAL' :
+        rawInt === 'semiannual' ? 'SEMESTRAL' :
+        rawInt === 'annual' ? 'ANUAL' :
+        rawInt.toUpperCase();
+      return {
+        label: `VITAL (${normalizedInt})`,
+        className: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
+        isLifetime: false,
+      };
+    }
     return {
-      label: 'VITAL (VITALICIO)',
+      label: 'VITAL (ANUAL)',
       className: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
-      isLifetime: true,
+      isLifetime: false,
     };
   }
   if (type === 'pro') {
