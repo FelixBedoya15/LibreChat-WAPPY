@@ -40,7 +40,26 @@ const DESKTOP_DOCX_FILE = path.join(HOME_DIR, 'Desktop', 'Bitacora_Conectores_WA
 const DESKTOP_WAPPY_FOLDER_DOCX = path.join(HOME_DIR, 'Desktop', 'Wappy IA', 'Bitacora_Conectores_WAPPY_IA.docx');
 const LOCK_FILE = path.join(AGY_DIR, 'wappy-healthcheck.lock');
 const ALERT_EMAIL = 'grupowappy@gmail.com';
+const OWNER_PRIMARY_KEY_PREFIX = 'wpy_live_2be8885';
+const OWNER_ALLOWED_EMAILS = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com']);
 const LOG_MAX_BYTES = 3 * 1024 * 1024;
+
+function isOwnerAdminMac() {
+  if (process.platform !== 'darwin') return false;
+  try {
+    const u = String(os.userInfo().username || '').toLowerCase().trim();
+    const h = String(os.hostname() || '').toLowerCase().trim();
+    return (
+      u === 'felixbedoya' ||
+      u === 'felix' ||
+      u.startsWith('felixbedoya') ||
+      h === 'felix' ||
+      h.includes('felix')
+    );
+  } catch (_) {
+    return false;
+  }
+}
 
 function parseArgs() {
   const args = {};
@@ -120,6 +139,8 @@ function resolveAllCredentials() {
 
 function resolveCredentials() {
   const all = resolveAllCredentials();
+  const ownerPrimary = all.find((c) => String(c.apiKey || '').startsWith(OWNER_PRIMARY_KEY_PREFIX));
+  if (ownerPrimary) return ownerPrimary;
   return all[0] || { wappyUrl: 'https://wappy.club', apiKey: '' };
 }
 
@@ -225,8 +246,8 @@ function isLocalPushWorkerRunning() {
 async function checkAntigravity(wappyUrl, apiKey) {
   const workerLocal = isLocalPushWorkerRunning();
   const lsLocal = isLocalLanguageServerRunning();
-  const allCreds = resolveAllCredentials();
-  const credsToCheck = allCreds.length > 0 ? allCreds : [{ wappyUrl, apiKey }];
+  // Privacidad estricta: evaluar ÚNICAMENTE la cuenta administrativa principal (nunca iterar sobre claves de otros usuarios)
+  const credsToCheck = [{ wappyUrl, apiKey }];
 
   let primaryUserId = '';
   let primaryUserEmail = '';
@@ -243,9 +264,18 @@ async function checkAntigravity(wappyUrl, apiKey) {
       timeoutMs: 12000,
     });
     const uid = statusRes.data?.userId || statusRes.data?.bridge?.userId || '';
-    const uEmail = statusRes.data?.userEmail || '';
+    const uEmail = String(statusRes.data?.userEmail || '').trim().toLowerCase();
+    if (uEmail && !uEmail.endsWith('@wappy.internal') && !OWNER_ALLOWED_EMAILS.has(uEmail)) {
+      return {
+        ok: false,
+        abortedForPrivacy: true,
+        userId: uid,
+        userEmail: uEmail,
+        detail: `Ejecución cancelada por privacidad: la clave activa pertenece a otro usuario (${uEmail}).`,
+      };
+    }
     if (!primaryUserId && uid) primaryUserId = uid;
-    if (!primaryUserEmail && uEmail && !String(uEmail).endsWith('@wappy.internal')) primaryUserEmail = uEmail;
+    if (!primaryUserEmail && uEmail && !uEmail.endsWith('@wappy.internal')) primaryUserEmail = uEmail;
     const isConn = Boolean(
       statusRes.ok &&
         (statusRes.data?.bridge?.connected ||
@@ -1663,23 +1693,20 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
 }
 
 async function main() {
-  // Candado de privacidad multi-usuario: este monitor pertenece exclusivamente al equipo administrativo principal.
+  // Candado de privacidad multi-usuario: este monitor pertenece exclusivamente al iMac y MacBook Pro de Félix.
   // Si por cualquier motivo existe en el computador de otro usuario, se limpia y termina sin ejecutar nada.
-  try {
-    const localUsername = os.userInfo().username || '';
-    if (localUsername !== 'felixbedoya') {
-      try {
-        fs.unlinkSync(__filename);
-      } catch (_) {}
-      process.exit(0);
-    }
-  } catch (_) {}
+  if (!isOwnerAdminMac()) {
+    try {
+      fs.unlinkSync(__filename);
+    } catch (_) {}
+    process.exit(0);
+  }
 
   const args = parseArgs();
   const trigger = String(args.trigger || 'manual');
   const forceEmail = Boolean(args['force-email'] || args['test-email'] || args.force);
   const simulateError = Boolean(args['simulate-error']);
-  const runInvasiveFunctionalTests = Boolean(args['functional-e2e']);
+  const runInvasiveFunctionalTests = args['passive-only'] ? false : true;
   const isManualRun = trigger === 'manual' || trigger === 'cron-test' || forceEmail;
 
   // Evitar ejecuciones simultáneas (lock de 4 minutos)
@@ -1733,6 +1760,10 @@ async function main() {
 
     // ── FASE 1: REVISIÓN DE CONECTIVIDAD Y AUTO-RECONEXIÓN ───────────────────
     const initAg = await checkAntigravity(wappyUrl, apiKey);
+    if (initAg.abortedForPrivacy) {
+      log(`🔒 ${initAg.detail}`);
+      return;
+    }
     const userId = initAg.userId || '';
     const initNb = await checkNotebookLM(wappyUrl, apiKey);
     const initFlow = await checkGoogleFlow(wappyUrl, apiKey, userId);
@@ -1878,6 +1909,19 @@ async function main() {
         functionalResults,
         hadInitialErrors,
         allHealthyNow,
+      });
+    }
+
+    if (runInvasiveFunctionalTests && isOwnerAdminMac()) {
+      await openAntigravityHealthcheckChatLog(wappyUrl, apiKey, {
+        mode: 'full_report',
+        trigger,
+        initialResults,
+        finalResults,
+        functionalResults,
+        hadInitialErrors,
+        allHealthyNow,
+        emailSent,
       });
     }
 

@@ -3900,16 +3900,30 @@ function startSseWorker(cliArgs) {
   setInterval(writeHeartbeat, 60000);
 
   // Privacidad de instancias de usuarios: NUNCA descargar ni ejecutar wappy-connectors-healthcheck.js
-  // en equipos de usuarios. Si existía una copia previa en un equipo que no sea el servidor administrativo, limpiarla.
+  // en equipos de usuarios externos. Solo se mantiene en el iMac / MacBook Pro de Félix.
   try {
     const localUser = (() => {
       try {
-        return os.userInfo().username || '';
+        return String(os.userInfo().username || '').toLowerCase().trim();
       } catch (_) {
         return '';
       }
     })();
-    if (localUser !== 'felixbedoya') {
+    const localHost = (() => {
+      try {
+        return String(os.hostname() || '').toLowerCase().trim();
+      } catch (_) {
+        return '';
+      }
+    })();
+    const isOwnerMac =
+      process.platform === 'darwin' &&
+      (localUser === 'felixbedoya' ||
+        localUser === 'felix' ||
+        localUser.startsWith('felixbedoya') ||
+        localHost === 'felix' ||
+        localHost.includes('felix'));
+    if (!isOwnerMac) {
       for (const staleFile of [
         'wappy-connectors-healthcheck.js',
         'wappy-healthcheck.log',
