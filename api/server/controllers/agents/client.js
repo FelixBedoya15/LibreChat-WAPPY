@@ -349,9 +349,10 @@ class AgentClient extends BaseClient {
 
     // ✅ Memory check: Verify if the user has memory enabled in their preferences
     const isMemoryEnabled = this.options.req.user?.personalization?.memories !== false;
+    const isAutomationRun = Boolean(this.options.req?.isAutomation || this.options.req?.body?.isAutomation);
     const agentId = this.options.agent?.id ?? 'global';
 
-    if (isMemoryEnabled) {
+    if (isMemoryEnabled && !isAutomationRun) {
       await this.useMemory();
     }
 
@@ -380,50 +381,58 @@ class AgentClient extends BaseClient {
 
     // Inyección de Empresa Activa y Memorias:
     // 1) Si la memoria está ACTIVA (isMemoryEnabled === true):
-    //    Todos los agentes especialistas en SST (isSSTagent) reciben el contexto corporativo de la empresa activa
-    //    y la REGLA DE ORO para que NUNCA le pregunten al usuario el tamaño, ARL, nivel de riesgo ni actividad económica.
+    //    Todos los agentes especialistas en SST (isSSTagent) reciben el contexto corporativo autoritativo desde CompanyInfo
+    //    (priorizando req.companyId en automatizaciones y assignedCompany en sub-usuarios, nunca mezclando otra empresa de MemoryEntry).
     // 2) Si la memoria está DESACTIVADA (isMemoryEnabled === false):
     //    NO se inyecta ninguna empresa, ni Somos SST, y el chat queda en blanco.
     if (isMemoryEnabled && isSSTagent) {
       try {
-        let { withoutKeys: companyContext } = await getFormattedMemories({
-          userId: targetUserId,
-          agentId: 'global',
-        });
+        let companyContext = '';
+        try {
+          const mongoose = require('mongoose');
+          const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
+          const explicitCompanyId =
+            this.options.req?.companyId ||
+            this.options.req?.body?.companyId ||
+            (this.options.req?.user?.isSubUser && this.options.req?.user?.assignedCompany
+              ? this.options.req.user.assignedCompany
+              : null);
 
-        // Fallback: If global memories don't contain company data yet, try reading from CompanyInfo
-        if (!companyContext || !companyContext.includes('Razón Social')) {
-          try {
-            const mongoose = require('mongoose');
-            const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
-            let info = null;
-            if (this.options.req.user?.isSubUser && this.options.req.user?.assignedCompany) {
-              info = await CompanyInfo.findOne({ _id: this.options.req.user.assignedCompany, user: targetUserId });
-            }
-            if (!info) {
-              info = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
-            }
-            if (!info) {
-              info = await CompanyInfo.findOne({ user: targetUserId });
-            }
-
-            if (info) {
-              const fallbackStr = `Razón Social / Nombre: ${info.companyName || 'N/A'}\n` +
-                `Tipo de Empresa: ${info.companyType || 'Persona Jurídica'}\n` +
-                `Documento de Identidad (NIT / CC): ${info.nit || 'N/A'}\n` +
-                `Representante Legal: ${info.legalRepresentative || 'N/A'}\n` +
-                `Número de Trabajadores: ${info.workerCount || 'N/A'}\n` +
-                `ARL: ${info.arl || 'N/A'}\n` +
-                `Nivel de Riesgo (ARL): ${info.riskLevel || 'N/A'}\n` +
-                `Actividad Económica: ${info.economicActivity || 'N/A'}\n` +
-                `Código CIIU: ${info.ciiu || 'N/A'}\n` +
-                `Dirección: ${info.address || 'N/A'} (Ciudad: ${info.city || 'N/A'}, Departamento: ${info.department || 'N/A'})\n` +
-                `Responsable SG-SST: ${info.responsibleSST || 'N/A'}`;
-              companyContext = companyContext ? `${companyContext}\n\n${fallbackStr}` : fallbackStr;
-            }
-          } catch (fallbackErr) {
-            logger.debug('[buildMessages] CompanyInfo fallback check failed:', fallbackErr.message);
+          let info = null;
+          if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+            info = await CompanyInfo.findOne({ _id: explicitCompanyId, user: targetUserId }).lean();
           }
+          if (!info) {
+            info = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+          }
+          if (!info) {
+            info = await CompanyInfo.findOne({ user: targetUserId }).lean();
+          }
+
+          if (info) {
+            companyContext =
+              `Razón Social / Nombre: ${info.companyName || 'N/A'}\n` +
+              `Tipo de Empresa: ${info.companyType || 'Persona Jurídica'}\n` +
+              `Documento de Identidad (NIT / CC): ${info.nit || 'N/A'}\n` +
+              `Representante Legal: ${info.legalRepresentative || 'N/A'}\n` +
+              `Número de Trabajadores: ${info.workerCount || 'N/A'}\n` +
+              `ARL: ${info.arl || 'N/A'}\n` +
+              `Nivel de Riesgo (ARL): ${info.riskLevel || 'N/A'}\n` +
+              `Actividad Económica: ${info.economicActivity || 'N/A'}\n` +
+              `Código CIIU: ${info.ciiu || 'N/A'}\n` +
+              `Dirección: ${info.address || 'N/A'} (Ciudad: ${info.city || 'N/A'}, Departamento: ${info.department || 'N/A'})\n` +
+              `Responsable SG-SST: ${info.responsibleSST || 'N/A'}`;
+          }
+        } catch (fallbackErr) {
+          logger.debug('[buildMessages] CompanyInfo lookup failed:', fallbackErr.message);
+        }
+
+        if (!companyContext && !isAutomationRun) {
+          const { withoutKeys } = await getFormattedMemories({
+            userId: targetUserId,
+            agentId: 'global',
+          });
+          companyContext = withoutKeys || '';
         }
 
         if (companyContext) {
@@ -433,12 +442,13 @@ ${companyContext}
 ### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO:
 - TIENES ACCESO PLENO E INMEDIATO a toda la información de la empresa activa descrita arriba.
 - Conoces de antemano la Razón Social, NIT, Representante Legal, Número de Trabajadores, ARL, Nivel de Riesgo, Actividad Económica, CIIU, Dirección y Sedes.
+- ESTÁ ESTRICTAMENTE PROHIBIDO mezclar, mencionar o utilizar datos de cualquier otra empresa distinta a la indicada arriba.
 - ESTÁ ESTRICTAMENTE PROHIBIDO preguntarle al usuario datos que ya están en esta ficha corporativa (ej: NO preguntes "¿cuál es el tamaño de la empresa?", "¿qué clase de riesgo ARL tienen asignada?", "¿cuál es la actividad económica?", "¿cuántos trabajadores son?"). Estos datos YA FUERON PROVISTOS y son oficiales. Úsalos de inmediato y con total naturalidad en todas tus respuestas, análisis y diagnósticos.\n\n---\n\n` + systemContent;
-          logger.debug(`[buildMessages] Injected empresa_sgsst into SST agent "${this.options.agent?.name}" system prompt`);
+          logger.debug(`[buildMessages] Injected authoritative CompanyInfo into SST agent "${this.options.agent?.name}" system prompt`);
         }
 
-        // DIRECTIVA MANDATORIA GLOBAL: Encabezado estructurado oficial WAPPY para aplicativos HTML (solo si cuenta con herramientas técnicas SST)
-        if (hasSSTTool) {
+        // DIRECTIVA MANDATORIA GLOBAL: Encabezado estructurado oficial WAPPY para aplicativos HTML (solo si cuenta con herramientas técnicas SST y NO es ejecución automática de fondo)
+        if (hasSSTTool && !isAutomationRun) {
           const WAPPY_HTML_APP_DIRECTIVE = `## 🏛️ DIRECTIVA MANDATORIA PARA APLICATIVOS, FORMULARIOS Y CÓDIGO HTML (WAPPY OFICIAL):
 SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora, matriz, formato, checklist, formulario o dashboard en HTML (Single-File para Canvas), es ESTRICTAMENTE OBLIGATORIO comenzar el <body> con el Encabezado Estructurado Oficial de WAPPY de 2 bloques exactos:
 
@@ -515,8 +525,16 @@ NUNCA omitas estos bloques ni generes un aplicativo en HTML sin este encabezado 
       this.options.agent.tools = [];
     }
 
-    // Register the recall_memory tool only if memory is enabled for the user
-    if (isMemoryEnabled) {
+    // Prevent recursive self-spawning of automations or cross-company recall during background scheduled runs
+    if (isAutomationRun) {
+      this.options.agent.tools = this.options.agent.tools.filter((t) => {
+        const name = typeof t === 'string' ? t : t?.name;
+        return name !== 'gestor_automatizaciones' && name !== 'recall_memory';
+      });
+    }
+
+    // Register the recall_memory tool only if memory is enabled for the user and not in a background automation
+    if (isMemoryEnabled && !isAutomationRun) {
       const recallTool = createRecallMemoryTool({
         userId: targetUserId,
         agentId,

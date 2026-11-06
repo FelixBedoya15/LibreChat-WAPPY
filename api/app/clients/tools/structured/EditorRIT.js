@@ -7,11 +7,12 @@ const { syncLiveEditorToCanvas } = require('~/server/routes/sgsst/syncBridge');
 const ritTemplateTradicional = require('./rit_template_tradicional');
 const ritTemplateHumanista = require('./rit_template_humanista');
 
-async function formatOfficialRITWithCompany(rawHtml, title, userId) {
+async function formatOfficialRITWithCompany(rawHtml, title, userId, explicitCompanyId = null) {
   let out = typeof rawHtml === 'string' ? rawHtml.trim() : '';
   if (!out) return out;
 
   const companyInfo =
+    (explicitCompanyId ? await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId }) : null) ||
     (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
     (await CompanyInfo.findOne({ user: userId }));
   const ci = companyInfo || {};
@@ -181,11 +182,13 @@ class EditorRIT extends Tool {
       const userId = this.req?.user?.id;
       const { accion } = input;
 
+      const explicitCompanyId = this.req?.companyId || this.req?.body?.companyId || null;
+
       // ── CARGAR PLANTILLA ────────────────────────────────────────────────────
       if (accion === 'cargar_plantilla') {
         const fileName = input.fileName || 'Reglamento Interno de Trabajo';
         const rawTemplate = input.tono === 'humanista' ? ritTemplateHumanista : ritTemplateTradicional;
-        const templateToUse = await formatOfficialRITWithCompany(rawTemplate, fileName, userId);
+        const templateToUse = await formatOfficialRITWithCompany(rawTemplate, fileName, userId, explicitCompanyId);
 
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },
@@ -260,6 +263,7 @@ class EditorRIT extends Tool {
           input.content,
           input.fileName || 'Reglamento Interno de Trabajo',
           userId,
+          explicitCompanyId,
         );
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },

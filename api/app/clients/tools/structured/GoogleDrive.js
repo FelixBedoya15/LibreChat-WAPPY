@@ -60,7 +60,8 @@ class GoogleDriveTool extends Tool {
     if (!userId) {
       throw new Error('Petición no autenticada. No se pudo obtener el contexto del usuario.');
     }
-    const company = await getActiveCompany(userId);
+    const explicitCompanyId = this.req?.companyId || this.req?.body?.companyId || null;
+    const company = await getActiveCompany(userId, explicitCompanyId);
     const companyId = company ? String(company._id) : null;
 
     // Load credentials from database
@@ -140,7 +141,7 @@ class GoogleDriveTool extends Tool {
       }
     } catch (err) {
       logger.error('[GoogleDriveTool] Error in _call:', err);
-      return `Error al acceder a Google Drive: ${err.message}. Continúa con la tarea utilizando la información disponible.`;
+      return `Error al acceder a Google Drive: ${err.message}. IMPORTANTE: NO inventes, simules ni asumas archivos, trabajadores, accidentes ni registros inexistentes; informa con exactitud que Google Drive no está vinculado o no pudo consultarse para esta empresa.`;
     }
   }
 

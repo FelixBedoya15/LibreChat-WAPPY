@@ -120,7 +120,16 @@ class MemoriaProcedimentalSST extends Tool {
         });
       }
 
-      let activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
+      const explicitCompanyId = this.req?.companyId || this.req?.body?.companyId || null;
+      let activeCompany = null;
+      if (explicitCompanyId) {
+        try {
+          activeCompany = await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId }).lean();
+        } catch (_) {}
+      }
+      if (!activeCompany) {
+        activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
+      }
       if (!activeCompany) {
         activeCompany = await CompanyInfo.findOne({ user: userId }).sort({ updatedAt: -1 }).lean();
       }

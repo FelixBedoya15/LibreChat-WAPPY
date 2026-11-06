@@ -54,8 +54,15 @@ class MatrizPESV extends Tool {
       const userId = rawUserId || null;
       let companyId = null;
       let companyConf = null;
+      const explicitCompanyId =
+        this.req?.companyId ||
+        this.req?.body?.companyId ||
+        (this.req?.user?.isSubUser && this.req?.user?.assignedCompany ? this.req.user.assignedCompany : null);
       if (userId) {
-        companyConf = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
+        if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+          companyConf = await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId }).lean();
+        }
+        if (!companyConf) companyConf = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
         if (!companyConf) companyConf = await CompanyInfo.findOne({ user: userId }).lean();
         companyId = companyConf ? companyConf._id : null;
       }

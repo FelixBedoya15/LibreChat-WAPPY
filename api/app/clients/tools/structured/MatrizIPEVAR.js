@@ -86,10 +86,18 @@ class MatrizIPEVAR extends Tool {
       } catch (_) {}
 
       let companyId = null;
+      let companyConfDoc = null;
+      const explicitCompanyId =
+        this.req?.companyId ||
+        this.req?.body?.companyId ||
+        (this.req?.user?.isSubUser && this.req?.user?.assignedCompany ? this.req.user.assignedCompany : null);
       if (targetUserId) {
-        let active = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
-        if (!active) active = await CompanyInfo.findOne({ user: targetUserId });
-        companyId = active ? active._id : null;
+        if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+          companyConfDoc = await CompanyInfo.findOne({ _id: explicitCompanyId, user: targetUserId });
+        }
+        if (!companyConfDoc) companyConfDoc = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
+        if (!companyConfDoc) companyConfDoc = await CompanyInfo.findOne({ user: targetUserId });
+        companyId = companyConfDoc ? companyConfDoc._id : null;
       }
 
       // Obtener sesión
@@ -125,8 +133,9 @@ class MatrizIPEVAR extends Tool {
 
          // Extraer Macro Empresa
           if (CompanyInfo) {
-              let companyConf = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
-              if (!companyConf) companyConf = await CompanyInfo.findOne({ user: userId }).lean();
+              const companyConf = companyConfDoc
+                ? (typeof companyConfDoc.toObject === 'function' ? companyConfDoc.toObject() : companyConfDoc)
+                : ((await CompanyInfo.findOne({ user: userId, isActive: true }).lean()) || (await CompanyInfo.findOne({ user: userId }).lean()));
               if (companyConf) {
                  payload.informacion_empresa = {
                      nombre: companyConf.companyName || 'N/A',

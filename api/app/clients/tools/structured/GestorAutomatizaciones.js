@@ -187,6 +187,14 @@ class GestorAutomatizaciones extends Tool {
 
   async _getActiveCompanyId(userId) {
     if (!userId) return null;
+    const explicitCompanyId =
+      this.req?.companyId ||
+      this.req?.body?.companyId ||
+      (this.req?.user?.isSubUser && this.req?.user?.assignedCompany ? this.req.user.assignedCompany : null);
+    if (explicitCompanyId && this._isObjectId(explicitCompanyId)) {
+      const explicit = await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId });
+      if (explicit) return explicit._id.toString();
+    }
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
     if (!active) active = await CompanyInfo.findOne({ user: userId });
     return active ? active._id.toString() : null;
@@ -325,11 +333,31 @@ class GestorAutomatizaciones extends Tool {
 
       // ── ACCIÓN: CREAR ───────────────────────────────────────────────
       if (accion === 'crear') {
+        if (this.req?.isAutomation || this.req?.body?.isAutomation) {
+          return JSON.stringify({
+            error: 'Operación bloqueada: No se permite crear nuevas automatizaciones desde dentro de la ejecución en segundo plano de una automatización existente.'
+          });
+        }
         const finalName = (nombre || nuevo_nombre || '').trim();
         const finalPrompt = (prompt_a_ejecutar || finalName).trim();
         if (!finalName) {
           return JSON.stringify({
             error: 'Para crear una tarea/automatización debes proporcionar "nombre".'
+          });
+        }
+
+        // Idempotencia: evitar duplicar una tarea con el mismo nombre en la misma empresa
+        const existingAutos = await Automation.find({ user: userId, companyId });
+        const normFinalName = this._normStr(finalName);
+        const duplicateAuto = existingAutos.find((a) => this._normStr(a.name) === normFinalName);
+        if (duplicateAuto) {
+          return JSON.stringify({
+            success: true,
+            yaExistia: true,
+            mensaje: `La tarea automatizada "${duplicateAuto.name}" ya existe en esta empresa (ID: ${duplicateAuto._id.toString()}). No se creó un duplicado.`,
+            id: duplicateAuto._id.toString(),
+            nombre: duplicateAuto.name,
+            estado: duplicateAuto.status
           });
         }
 

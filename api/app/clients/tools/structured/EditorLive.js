@@ -5,11 +5,12 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('~/server/routes/sgsst/reportHeader');
 const { syncLiveEditorToCanvas } = require('~/server/routes/sgsst/syncBridge');
 
-async function ensureOfficialWappyDoc(html, title, userId) {
+async function ensureOfficialWappyDoc(html, title, userId, explicitCompanyId = null) {
   let out = typeof html === 'string' ? html.trim() : '';
   if (!out) return out;
 
   const companyInfo =
+    (explicitCompanyId ? await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId }) : null) ||
     (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
     (await CompanyInfo.findOne({ user: userId }));
 
@@ -180,10 +181,12 @@ class EditorLive extends Tool {
         if (!input.content) {
           return JSON.stringify({ error: 'El campo "content" es obligatorio para accion="escribir".' });
         }
+        const explicitCompanyId = this.req?.companyId || this.req?.body?.companyId || null;
         const finalDocHtml = await ensureOfficialWappyDoc(
           input.content,
           input.fileName || 'DOCUMENTO CORPORATIVO SG-SST',
           userId,
+          explicitCompanyId,
         );
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },

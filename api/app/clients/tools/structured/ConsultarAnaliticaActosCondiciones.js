@@ -54,8 +54,12 @@ class ConsultarAnaliticaActosCondiciones extends Tool {
         return '❌ Error: Los modelos de base de datos no están listos.';
       }
 
-      // 1. Encontrar la empresa del usuario actual
+      // 1. Encontrar la empresa del usuario actual (priorizando req.companyId si existe)
+      const explicitCompanyId = this.req?.companyId || this.req?.body?.companyId || null;
       const company =
+        (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))
+          ? await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId }).lean()
+          : null) ||
         (await CompanyInfo.findOne({ user: userId, isActive: true }).lean()) ||
         (await CompanyInfo.findOne({ user: userId }).lean());
 

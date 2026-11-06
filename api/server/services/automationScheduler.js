@@ -422,11 +422,35 @@ async function runAutomation(automation, isManual = false) {
       id: automation.user.toString()
     };
 
-    // 4. Build mock request & response
+    // 4. Resolve target company for strict multi-company isolation
+    const targetCompanyIdStr = automation.companyId ? String(automation.companyId) : null;
+    let automationCompany = null;
+    if (targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+      try {
+        automationCompany = await CompanyInfo.findById(targetCompanyIdStr).lean();
+      } catch (_) {}
+    }
+
+    const companyHeaderBlock = automationCompany
+      ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
+        `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
+        `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
+        `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
+        `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
+        `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
+        `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
+      : '';
+    const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
+
+    // Build mock request & response with explicit companyId and isAutomation flag
     const req = {
       user: reqUser,
+      companyId: targetCompanyIdStr,
+      isAutomation: true,
       body: {
-        text: automation.prompt,
+        text: effectivePrompt,
+        companyId: targetCompanyIdStr,
+        isAutomation: true,
         conversationId: null,
         files: []
       },
@@ -483,10 +507,10 @@ async function runAutomation(automation, isManual = false) {
     };
 
     // 8. Execute agent call with safety limit of 8 minutes
-    console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}"...`);
+    console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}" (companyId: ${targetCompanyIdStr || 'none'})...`);
     let raceTimeoutId = null;
     const response = await Promise.race([
-      client.sendMessage(automation.prompt, messageOptions),
+      client.sendMessage(effectivePrompt, messageOptions),
       new Promise((_, reject) => {
         raceTimeoutId = setTimeout(() => {
           prelimAbortController.abort();

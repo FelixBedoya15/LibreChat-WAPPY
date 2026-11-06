@@ -127,15 +127,15 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
       agentId: agent1Id,
       agentName: agent1Name,
       prompt:
-        'Conéctate a mi Google Drive usando la herramienta google_drive (list_files_and_folders y read_document_content) y revisa la carpeta o archivos recientes de "Perfil Sociodemográfico" y "Condiciones de Salud / Exámenes Médicos". Lee los documentos nuevos o actualizados (Excel, Google Sheets o PDF), identifica qué trabajadores tienen información nueva o modificada (datos sociodemográficos, condiciones de salud o conceptos de aptitud médica) y, con esa información extraída, ejecuta inmediatamente la herramienta somos_sst (acciones alimentar_sociodemografico_masivo, importar_sociodemografico_drive o actualizar_examen_medico) para actualizar directamente el aplicativo de Perfil Sociodemográfico y Condiciones de Salud en Somos SST. Al finalizar, entrégame un resumen detallado de los archivos leídos y los trabajadores actualizados.',
+        'Conéctate a mi Google Drive usando la herramienta google_drive (list_files_and_folders y read_document_content) y revisa la carpeta o archivos recientes de "Perfil Sociodemográfico" y "Condiciones de Salud / Exámenes Médicos". Si Google Drive no está vinculado a esta empresa o no existen archivos nuevos reales, infórmalo de inmediato y detén el proceso sin simular ni inventar datos. Si existen documentos reales nuevos o actualizados (Excel, Google Sheets o PDF), identifica qué trabajadores tienen información nueva o modificada y ejecuta la herramienta somos_sst (acciones alimentar_sociodemografico_masivo, importar_sociodemografico_drive o actualizar_examen_medico) exclusivamente para esta empresa. Al finalizar, entrégame un resumen en Markdown de los archivos reales leídos y los trabajadores actualizados.',
       scheduleType: 'daily',
       scheduleConfig: { hour: 18, minute: 0 },
       emails: adminEmail,
-      status: 'active',
+      status: 'inactive',
       lastRunAt: sample1RunAt,
       lastRunStatus: 'success',
       lastRunResult: sample1Result,
-      nextRunAt: calculateNextRun('daily', { hour: 18, minute: 0 }),
+      nextRunAt: null,
     });
 
     const auto2 = await Automation.create({
@@ -145,15 +145,15 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
       agentId: agent2Id,
       agentName: agent2Name,
       prompt:
-        'Vigila en Google Drive (usando google_drive: list_files_and_folders y read_document_content) los archivos o carpetas donde se suban reportes de Accidentes/Incidentes de Trabajo (FURAT/ATEL), Inspecciones de Seguridad o Reportes de Actos y Condiciones Inseguras. Cuando detectes un archivo nuevo o actualizado: 1) Si contiene un accidente o incidente laboral nuevo, extrae todos los datos del evento (trabajador, fecha, gravedad, parte del cuerpo, días de incapacidad y descripción) y regístralo en el aplicativo de Accidentes ATEL de Somos SST usando somos_sst (acción registrar_accidente_atel). 2) Si contiene actos/condiciones inseguras o hallazgos de inspecciones, aliméntalos en el aplicativo correspondiente de Somos SST usando somos_sst (acción editar_cualquier_aplicativo con nombre_aplicativo="actos" o "auditoria" y crear_actividad_acpm en el Centro de Control). Genera un informe con cada registro inyectado en los aplicativos.',
+        'Revisa en Google Drive (usando google_drive: list_files_and_folders y read_document_content) los archivos o carpetas donde se suban reportes de Accidentes/Incidentes de Trabajo (FURAT/ATEL), Inspecciones de Seguridad o Reportes de Actos y Condiciones Inseguras. Si Google Drive no está vinculado a esta empresa o no existen archivos nuevos reales, infórmalo con total transparencia y detén el proceso sin simular ni inventar datos ni crear nuevas tareas programadas. Solo cuando detectes un archivo real nuevo o actualizado en Drive: 1) Si contiene un accidente o incidente laboral nuevo, extrae los datos reales del evento y regístralo en el aplicativo de Accidentes ATEL de Somos SST usando somos_sst (acción registrar_accidente_atel). 2) Si contiene actos/condiciones inseguras o hallazgos reales de inspecciones, aliméntalos en el aplicativo correspondiente de Somos SST. Genera un informe en Markdown únicamente con los archivos reales procesados.',
       scheduleType: 'daily',
       scheduleConfig: { hour: 7, minute: 30 },
       emails: adminEmail,
-      status: 'active',
+      status: 'inactive',
       lastRunAt: sample2RunAt,
       lastRunStatus: 'success',
       lastRunResult: sample2Result,
-      nextRunAt: calculateNextRun('daily', { hour: 7, minute: 30 }),
+      nextRunAt: null,
     });
 
     await AutomationLog.insertMany([

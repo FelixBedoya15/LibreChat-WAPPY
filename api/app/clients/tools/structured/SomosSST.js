@@ -201,10 +201,23 @@ class SomosSST extends Tool {
       const ReporteActosModel = modelLoader('ReporteActosData', '~/server/routes/sgsst/reporteActos');
       const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
 
-      // Helper to obtain the active company id
-      const getActiveCompanyId = async (uid) => {
+      // Helper to obtain the target company document (prioritizing req.companyId / assignedCompany before isActive)
+      const getActiveCompanyDoc = async (uid) => {
+        const explicitCompanyId =
+          this.req?.companyId ||
+          this.req?.body?.companyId ||
+          (this.req?.user?.isSubUser && this.req?.user?.assignedCompany ? this.req.user.assignedCompany : null);
+        if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+          const explicit = await CompanyInfo.findOne({ _id: explicitCompanyId, user: uid });
+          if (explicit) return explicit;
+        }
         let active = await CompanyInfo.findOne({ user: uid, isActive: true });
         if (!active) active = await CompanyInfo.findOne({ user: uid });
+        return active;
+      };
+
+      const getActiveCompanyId = async (uid) => {
+        const active = await getActiveCompanyDoc(uid);
         return active ? active._id : null;
       };
 
@@ -1387,42 +1400,62 @@ class SomosSST extends Tool {
             monthsObj[monthKey].events = [];
           }
 
-          const newEvent = {
-            id: `event_${Date.now()}`,
-            fecha: eventDateStr,
-            tipo: eventType,
-            causaInmediata: input.descripcion_accidente || 'Accidente reportado vía asistente IA',
-            peligro: 'Riesgo Ocupacional',
-            consecuencia: input.gravedad || 'Leve',
-            diasIncapacidad: Number(input.dias_incapacidad) || 0,
-            diasCargados: 0,
-            parteCuerpo: input.parte_cuerpo || 'Cuerpo general',
-            documento: nombre_o_cargo || 'Sin documento',
-          };
+          const normWorker = String(nombre_o_cargo || 'Sin documento').trim().toLowerCase();
+          const normCause = String(input.descripcion_accidente || 'Accidente reportado vía asistente IA').trim().toLowerCase();
+          const existingEvt = monthsObj[monthKey].events.find(
+            (ev) =>
+              String(ev.fecha || '') === String(eventDateStr) &&
+              String(ev.tipo || '') === String(eventType) &&
+              (String(ev.documento || '').trim().toLowerCase() === normWorker ||
+                String(ev.causaInmediata || '').trim().toLowerCase() === normCause)
+          );
 
-          monthsObj[monthKey].events.push(newEvent);
-          atelDoc.months = monthsObj;
-          atelDoc.markModified('months');
-          atelDoc.updatedAt = new Date();
-          await atelDoc.save();
+          if (!existingEvt) {
+            const newEvent = {
+              id: `event_${Date.now()}`,
+              fecha: eventDateStr,
+              tipo: eventType,
+              causaInmediata: input.descripcion_accidente || 'Accidente reportado vía asistente IA',
+              peligro: 'Riesgo Ocupacional',
+              consecuencia: input.gravedad || 'Leve',
+              diasIncapacidad: Number(input.dias_incapacidad) || 0,
+              diasCargados: 0,
+              parteCuerpo: input.parte_cuerpo || 'Cuerpo general',
+              documento: nombre_o_cargo || 'Sin documento',
+            };
+
+            monthsObj[monthKey].events.push(newEvent);
+            atelDoc.months = monthsObj;
+            atelDoc.markModified('months');
+            atelDoc.updatedAt = new Date();
+            await atelDoc.save();
+          }
         }
 
-        // Also create InvestigacionAtelData record if model exists
+        // Also create InvestigacionAtelData record if model exists (idempotent check)
         if (InvestigacionAtelModel) {
           try {
-            await InvestigacionAtelModel.create({
+            const existingInv = await InvestigacionAtelModel.findOne({
               user: userId,
               companyId,
-              formData: {
-                fechaAccidente: eventDateStr,
-                tipoEvento: eventType === 'AT' ? 'Accidente de Trabajo' : (eventType === 'EL' ? 'Enfermedad Laboral' : 'Ausentismo'),
-                afectadoNombre: nombre_o_cargo || 'Trabajador',
-                descripcionAccidente: input.descripcion_accidente || 'Reportado conversacionalmente',
-                causasInmediatas: input.descripcion_accidente || '',
-                gravedad: input.gravedad || 'Leve'
-              },
-              updatedAt: new Date()
+              'formData.fechaAccidente': eventDateStr,
+              'formData.afectadoNombre': nombre_o_cargo || 'Trabajador',
             });
+            if (!existingInv) {
+              await InvestigacionAtelModel.create({
+                user: userId,
+                companyId,
+                formData: {
+                  fechaAccidente: eventDateStr,
+                  tipoEvento: eventType === 'AT' ? 'Accidente de Trabajo' : (eventType === 'EL' ? 'Enfermedad Laboral' : 'Ausentismo'),
+                  afectadoNombre: nombre_o_cargo || 'Trabajador',
+                  descripcionAccidente: input.descripcion_accidente || 'Reportado conversacionalmente',
+                  causasInmediatas: input.descripcion_accidente || '',
+                  gravedad: input.gravedad || 'Leve'
+                },
+                updatedAt: new Date()
+              });
+            }
           } catch (e) {
             console.warn('[SomosSST Tool] Error log InvestigacionAtel:', e.message);
           }
@@ -1489,16 +1522,7 @@ class SomosSST extends Tool {
           ? this.req.user.parentUser
           : userId;
 
-        let company = null;
-        if (this.req?.user?.isSubUser && this.req?.user?.assignedCompany) {
-          company = await CompanyInfo.findOne({ _id: this.req.user.assignedCompany, user: targetUserId });
-        }
-        if (!company) {
-          company = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
-        }
-        if (!company) {
-          company = await CompanyInfo.findOne({ user: targetUserId });
-        }
+        let company = await getActiveCompanyDoc(targetUserId);
 
         if (!company) {
           return JSON.stringify({
@@ -1559,10 +1583,7 @@ class SomosSST extends Tool {
       // ── ACTION: ACTUALIZAR INFORMACION DE LA EMPRESA (COMPANY INFO) ─────────
       if (accion === 'actualizar_informacion_empresa') {
         const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
-        let company = await CompanyInfo.findOne({ user: userId, isActive: true });
-        if (!company) {
-          company = await CompanyInfo.findOne({ user: userId });
-        }
+        let company = await getActiveCompanyDoc(userId);
         if (!company) {
           company = new CompanyInfo({ user: userId, isActive: true });
         }
@@ -1661,8 +1682,7 @@ Correo: ${company.email || 'N/A'}`;
         // ── CASO ESPECIAL: EMPRESA (CompanyInfo) ──────────────────────────────
         if (appName.includes('empresa') || appName.includes('company')) {
           const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
-          let comp = await CompanyInfo.findOne({ user: userId, isActive: true });
-          if (!comp) comp = await CompanyInfo.findOne({ user: userId });
+          let comp = await getActiveCompanyDoc(userId);
           if (!comp) comp = new CompanyInfo({ user: userId, isActive: true });
 
           const fieldMap = {
@@ -2173,8 +2193,7 @@ Correo: ${company.email || 'N/A'}`;
             const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
             const { syncCanvasToLiveEditor } = require('~/server/routes/sgsst/syncBridge');
 
-            let activeCompany = await CompanyInfo.findOne({ user: this.req.user.id, isActive: true });
-            if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: this.req.user.id });
+            const activeCompany = await getActiveCompanyDoc(this.req.user.id);
             const companyId = activeCompany ? activeCompany._id : null;
 
             let canvasSession = await CanvasSession.findOne({ conversationId });
@@ -2332,8 +2351,8 @@ Correo: ${company.email || 'N/A'}`;
 
         let activeCompany = null;
         if (CompanyInfo) {
-          activeCompany = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
-          if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: userId }).lean();
+          const doc = await getActiveCompanyDoc(userId);
+          activeCompany = doc ? (typeof doc.toObject === 'function' ? doc.toObject() : doc) : null;
         }
 
         return JSON.stringify({
@@ -2361,7 +2380,7 @@ Correo: ${company.email || 'N/A'}`;
         if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
         
         const query = { user: userId };
-        if (companyId) query.companyId = companyId;
+        if (companyId) query.companyId = String(companyId);
 
         const tasks = await KanbanTask.find(query).sort({ dueDate: 1 }).lean();
         return JSON.stringify({
@@ -2383,7 +2402,33 @@ Correo: ${company.email || 'N/A'}`;
         const KanbanTask = modelLoader('KanbanTask', '../../../../models/KanbanTask');
         if (!KanbanTask) return JSON.stringify({ error: 'Modelo KanbanTask no disponible.' });
 
-        const taskTitle = input.titulo_actividad || input.nombre_tarea_o_hito || 'Nueva Actividad ACPM';
+        const taskTitle = (input.titulo_actividad || input.nombre_tarea_o_hito || 'Nueva Actividad ACPM').trim();
+        const targetCompIdStr = companyId ? companyId.toString() : 'default';
+
+        // Idempotency check: prevent duplicate open ACPM tasks with the same title in the same company
+        const escapedTitle = taskTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const existingTask = await KanbanTask.findOne({
+          user: userId,
+          companyId: targetCompIdStr,
+          title: { $regex: new RegExp(`^${escapedTitle}$`, 'i') },
+          status: { $ne: 'done' }
+        }).lean();
+
+        if (existingTask) {
+          return JSON.stringify({
+            exito: true,
+            yaExistia: true,
+            mensaje: `La actividad "${existingTask.title}" ya se encuentra registrada en el Centro de Control ACPM de esta empresa. No se creó un duplicado.`,
+            actividad: {
+              id: existingTask._id,
+              titulo: existingTask.title,
+              descripcion: existingTask.description,
+              estado: existingTask.status,
+              fecha_vencimiento: existingTask.dueDate ? new Date(existingTask.dueDate).toISOString().split('T')[0] : null
+            }
+          });
+        }
+
         let due = new Date();
         if (input.fecha_vencimiento) {
           const fvLower = input.fecha_vencimiento.toLowerCase();
@@ -2401,7 +2446,7 @@ Correo: ${company.email || 'N/A'}`;
 
         const newTask = await KanbanTask.create({
           user: userId,
-          companyId: companyId ? companyId.toString() : 'default',
+          companyId: targetCompIdStr,
           title: taskTitle,
           description: input.descripcion_actividad || input.descripcion || 'Actividad registrada por Tenshi',
           dueDate: due,

@@ -33,12 +33,17 @@ const resolveOwnerUserId = async (userId) => {
 };
 
 /**
- * Obtiene la empresa activa o principal de un usuario.
+ * Obtiene la empresa activa o principal de un usuario (priorizando explicitCompanyId si se provee).
  */
-const getActiveCompany = async (userId) => {
+const getActiveCompany = async (userId, explicitCompanyId = null) => {
   try {
     const { ownerUserId, assignedCompanyId } = await resolveOwnerUserId(userId);
     if (!ownerUserId) return null;
+
+    if (explicitCompanyId && mongoose.isValidObjectId(String(explicitCompanyId))) {
+      const explicit = await CompanyInfo.findOne({ _id: explicitCompanyId, user: ownerUserId }).lean();
+      if (explicit) return explicit;
+    }
 
     if (assignedCompanyId && mongoose.isValidObjectId(assignedCompanyId)) {
       const assigned = await CompanyInfo.findOne({ _id: assignedCompanyId, user: ownerUserId }).lean();

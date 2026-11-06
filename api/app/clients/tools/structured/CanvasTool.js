@@ -195,12 +195,21 @@ async function processHtmlAppDocument(content, fileType, title, userId, req, exi
     return stringContent;
   }
 
-  // Cargar información corporativa de la empresa
+  // Cargar información corporativa de la empresa (priorizando req.companyId si existe)
   let companyInfo = null;
   try {
-    companyInfo =
-      (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
-      (await CompanyInfo.findOne({ user: userId }));
+    const explicitCompanyId =
+      req?.companyId ||
+      req?.body?.companyId ||
+      (req?.user?.isSubUser && req?.user?.assignedCompany ? req.user.assignedCompany : null);
+    if (explicitCompanyId) {
+      companyInfo = await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId });
+    }
+    if (!companyInfo) {
+      companyInfo =
+        (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+        (await CompanyInfo.findOne({ user: userId }));
+    }
   } catch (err) {
     logger.warn('[CanvasTool Camino B] Error cargando CompanyInfo:', err.message);
   }
@@ -1357,11 +1366,22 @@ class CanvasTool extends Tool {
       const userId = this.req?.user?.id;
       const userRole = this.req?.user?.role;
       const isPro = ['ADMIN', 'USER_PRO', 'PRO', 'USER_IPEVAR', 'IPEVAR'].includes(userRole);
+      const explicitCompanyId =
+        this.req?.companyId ||
+        this.req?.body?.companyId ||
+        (this.req?.user?.isSubUser && this.req?.user?.assignedCompany ? this.req.user.assignedCompany : null);
       let companyInfo = null;
       if (userId) {
-        companyInfo =
-          (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
-          (await CompanyInfo.findOne({ user: userId }));
+        if (explicitCompanyId) {
+          try {
+            companyInfo = await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId });
+          } catch (_) {}
+        }
+        if (!companyInfo) {
+          companyInfo =
+            (await CompanyInfo.findOne({ user: userId, isActive: true })) ||
+            (await CompanyInfo.findOne({ user: userId }));
+        }
       }
 
       const {

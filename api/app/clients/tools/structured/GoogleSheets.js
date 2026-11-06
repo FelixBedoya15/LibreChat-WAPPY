@@ -90,7 +90,8 @@ class GoogleSheetsTool extends Tool {
       throw new Error('Petición no autenticada. No se pudo obtener el contexto del usuario.');
     }
     const userId = this.req.user.id;
-    const company = await getActiveCompany(userId);
+    const explicitCompanyId = this.req?.companyId || this.req?.body?.companyId || null;
+    const company = await getActiveCompany(userId, explicitCompanyId);
     const companyId = company ? String(company._id) : null;
 
     const accessToken = await getScopedAuthValue(userId, companyId, 'GOOGLE_DRIVE_ACCESS_TOKEN', true);

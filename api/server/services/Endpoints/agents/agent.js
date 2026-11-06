@@ -356,9 +356,20 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
   // Inject Shared Procedural Memory & Generative UI Capabilities across all Specialist Agents (OpenBot Colmena)
   if (!isPublicChat && req?.user?.id) {
     try {
+      const mongoose = require('mongoose');
       const CompanyInfo = require('~/models/CompanyInfo');
       const { getProceduralMemoryPromptBlock } = require('~/server/routes/voice/tenshiOpenBotEngine');
-      let activeComp = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+      const explicitCompanyId =
+        req?.companyId ||
+        req?.body?.companyId ||
+        (req?.user?.isSubUser && req?.user?.assignedCompany ? req.user.assignedCompany : null);
+      let activeComp = null;
+      if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+        activeComp = await CompanyInfo.findOne({ _id: explicitCompanyId, user: req.user.id }).lean();
+      }
+      if (!activeComp) {
+        activeComp = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+      }
       if (!activeComp) {
         activeComp = await CompanyInfo.findOne({ user: req.user.id }).sort({ updatedAt: -1 }).lean();
       }
@@ -383,9 +394,17 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
     }
   }
 
+  const isAutomationRun = Boolean(req?.isAutomation || req?.body?.isAutomation);
+  const finalTools = isAutomationRun && Array.isArray(tools)
+    ? tools.filter((t) => {
+        const name = typeof t === 'string' ? t : t?.name;
+        return name !== 'gestor_automatizaciones' && name !== 'recall_memory';
+      })
+    : tools;
+
   return {
     ...agent,
-    tools,
+    tools: finalTools,
     attachments,
     resendFiles,
     userMCPAuthMap,
