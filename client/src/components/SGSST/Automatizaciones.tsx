@@ -47,6 +47,7 @@ import {
   HITO_APP_NODES,
   OUTPUT_ACTION_NODES,
   getNodeDefById,
+  normalizeTriggersList,
   buildPromptFromWorkflowNodes,
   type WorkflowNodesConfig,
 } from './workflowNodesCatalog';
@@ -431,6 +432,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormSaveAsSystemPreset(false);
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
@@ -467,6 +469,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormSaveAsSystemPreset(true);
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
@@ -512,8 +515,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory(automation.presetCategory || 'salud_vencimientos');
     setFormPresetDescription(automation.presetDescription || '');
     setFormSaveAsSystemPreset(false);
+    const normTrigs = normalizeTriggersList(automation.workflowNodes);
     setFormWorkflowNodes({
-      trigger: automation.workflowNodes?.trigger || 'schedule_cron',
+      trigger: normTrigs[0] || 'schedule_cron',
+      triggers: normTrigs,
       aiEngine: automation.workflowNodes?.aiEngine || 'wappy',
       aiModel: automation.workflowNodes?.aiModel || 'gemini-3.6-flash',
       memoryNode: automation.workflowNodes?.memoryNode || 'wappy_memory_company',
@@ -561,8 +566,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory(preset.presetCategory || 'salud_vencimientos');
     setFormPresetDescription(preset.presetDescription || '');
     setFormSaveAsSystemPreset(false);
+    const normPresetTrigs = normalizeTriggersList(preset.workflowNodes);
     setFormWorkflowNodes({
-      trigger: preset.workflowNodes?.trigger || 'schedule_cron',
+      trigger: normPresetTrigs[0] || 'schedule_cron',
+      triggers: normPresetTrigs,
       aiEngine: preset.workflowNodes?.aiEngine || 'wappy',
       aiModel: preset.workflowNodes?.aiModel || 'gemini-3.6-flash',
       memoryNode: preset.workflowNodes?.memoryNode || 'wappy_memory_company',
@@ -882,8 +889,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   const renderWorkflowPipeline = (nodes?: WorkflowNodesConfig, agentLabel?: string) => {
+    const normalizedTriggers = normalizeTriggersList(nodes);
     const safeNodes: WorkflowNodesConfig = {
-      trigger: nodes?.trigger || 'schedule_cron',
+      trigger: normalizedTriggers[0] || 'schedule_cron',
+      triggers: normalizedTriggers,
       aiEngine: nodes?.aiEngine || 'wappy',
       aiModel: nodes?.aiModel || 'gemini-3.6-flash',
       memoryNode: nodes?.memoryNode || 'wappy_memory_company',

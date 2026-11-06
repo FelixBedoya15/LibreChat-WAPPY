@@ -25,6 +25,7 @@ export interface CanvasWireEdge {
 
 export interface WorkflowNodesConfig {
   trigger: string;
+  triggers?: string[];
   aiEngine?: 'wappy' | 'antigravity';
   aiModel?: string;
   memoryNode?: string;
@@ -123,37 +124,98 @@ export const PRESET_CATEGORIES = [
 export const TRIGGER_NODES: WorkflowNodeDef[] = [
   {
     id: 'schedule_cron',
-    label: 'Reloj / Cron Programado',
+    label: 'Reloj / Cron Programado (Por Horario)',
     shortLabel: 'Cron Programado',
     category: 'trigger',
-    toolHint: 'Ejecución periódica programada según calendario',
-    badgeColor: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-300 dark:border-purple-800',
+    badge: 'Por Horario',
+    description: 'Dispara la tarea automáticamente según la frecuencia y hora programada.',
+    toolHint: 'Ejecución periódica programada según calendario (Cron)',
+    badgeColor: 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-300 dark:border-orange-800',
   },
   {
-    id: 'drive_folder_watch',
-    label: 'Vigilar Carpeta Google Drive',
-    shortLabel: 'Vigilar Drive',
+    id: 'trigger_tenshi',
+    label: 'Tenshi IA (Orden por Voz o Chat)',
+    shortLabel: 'Tenshi IA',
     category: 'trigger',
-    toolHint: 'Vigila archivos nuevos o modificados en carpetas de Google Drive (google_drive)',
-    badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-300 dark:border-blue-800',
+    badge: 'Voz / Chat',
+    description: 'Tenshi dispara esta tarea al instante cuando se lo ordenas por voz o en el chat.',
+    toolHint: 'Disparo bajo demanda ordenado a Tenshi IA por voz o chat',
+    badgeColor: 'bg-lime-100 text-lime-800 dark:bg-lime-950/50 dark:text-lime-300 border-lime-300 dark:border-lime-800',
   },
   {
-    id: 'gmail_inbox_watch',
-    label: 'Vigilar Buzón Gmail (Reportes/FURAT)',
-    shortLabel: 'Vigilar Gmail',
+    id: 'trigger_antigravity',
+    label: 'Google Antigravity (Puente MCP / PC)',
+    shortLabel: 'Antigravity',
     category: 'trigger',
-    toolHint: 'Revisa correos entrantes con reportes o alertas en Gmail (google_gmail)',
+    badge: 'Orden MCP / PC',
+    description: 'Google Antigravity dispara esta tarea desde tu PC o mediante herramientas MCP.',
+    toolHint: 'Disparo desde Google Antigravity IDE / Servidor MCP WAPPY',
+    badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+  },
+  {
+    id: 'trigger_email',
+    label: 'Correo Electrónico Entrante (Gmail)',
+    shortLabel: 'Correo Entrante',
+    category: 'trigger',
+    badge: 'Al recibir Email',
+    description: 'Se activa por recepción de correo electrónico (reporte ATEL, incapacidad, solicitud ARL).',
+    toolHint: 'Disparo por recepción de correo electrónico entrante en Gmail (google_gmail)',
     badgeColor: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-300 dark:border-rose-800',
   },
   {
-    id: 'sgsst_db_audit',
-    label: 'Auditoría Base de Datos Somos SST',
-    shortLabel: 'Auditoría BD SST',
+    id: 'trigger_agent',
+    label: 'Otro Agente Especialista IA (Delegación)',
+    shortLabel: 'Agente IA',
     category: 'trigger',
-    toolHint: 'Inspecciona directamente los registros, vencimientos e indicadores en Somos SST (somos_sst)',
+    badge: 'Por Delegación',
+    description: 'Un Agente Especialista de WAPPY invoca o encadena esta tarea al detectar un hallazgo.',
+    toolHint: 'Disparo por delegación o encadenamiento desde otro Agente Especialista IA de WAPPY',
+    badgeColor: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-300 dark:border-purple-800',
+  },
+  {
+    id: 'trigger_qr_worker',
+    label: 'Reporte QR de Trabajador en Campo',
+    shortLabel: 'Reporte QR',
+    category: 'trigger',
+    badge: 'Formulario Campo',
+    description: 'Se dispara cuando un trabajador reporta un acto/condición insegura, inspección o encuesta vía QR.',
+    toolHint: 'Disparo por envío de reporte QR / formulario de trabajador en campo',
     badgeColor: 'bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300 border-teal-300 dark:border-teal-800',
   },
+  {
+    id: 'trigger_webhook',
+    label: 'Webhook / Evento Externo API (Buk RRHH / ERP)',
+    shortLabel: 'Webhook API',
+    category: 'trigger',
+    badge: 'Evento Externo',
+    description: 'Se dispara cuando un sistema externo (Buk RRHH, nómina o formulario web) notifica un evento.',
+    toolHint: 'Disparo por evento externo vía Webhook / API REST',
+    badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+  },
 ];
+
+export function normalizeTriggerId(rawId?: string): string {
+  if (!rawId) return 'schedule_cron';
+  if (rawId === 'gmail_inbox_watch' || rawId === 'gmail_watch') return 'trigger_email';
+  if (rawId === 'webhook_event') return 'trigger_webhook';
+  if (rawId === 'drive_folder_watch' || rawId === 'drive_watch' || rawId === 'sgsst_db_audit' || rawId === 'sst_deadline_watch') {
+    return 'schedule_cron';
+  }
+  const exists = TRIGGER_NODES.some((t) => t.id === rawId);
+  return exists ? rawId : 'schedule_cron';
+}
+
+export function normalizeTriggersList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
+  const rawArr =
+    Array.isArray(nodes?.triggers) && nodes!.triggers!.length > 0
+      ? nodes!.triggers!
+      : nodes?.trigger
+        ? [nodes.trigger]
+        : ['schedule_cron'];
+  const mapped = rawArr.map((id) => normalizeTriggerId(id));
+  const unique = Array.from(new Set(mapped));
+  return unique.length > 0 ? unique : ['schedule_cron'];
+}
 
 export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
   // Google Workspace & Cloud
@@ -628,12 +690,20 @@ export const OUTPUT_ACTION_NODES: WorkflowNodeDef[] = [
 ];
 
 export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
+  const normId =
+    id === 'gmail_inbox_watch' || id === 'gmail_watch'
+      ? 'trigger_email'
+      : id === 'webhook_event'
+        ? 'trigger_webhook'
+        : id === 'drive_folder_watch' || id === 'drive_watch' || id === 'sgsst_db_audit' || id === 'sst_deadline_watch'
+          ? 'schedule_cron'
+          : id;
   return (
-    TRIGGER_NODES.find((n) => n.id === id) ||
-    MEMORY_NODES.find((n) => n.id === id) ||
-    INPUT_CONNECTOR_NODES.find((n) => n.id === id) ||
-    HITO_APP_NODES.find((n) => n.id === id) ||
-    OUTPUT_ACTION_NODES.find((n) => n.id === id)
+    TRIGGER_NODES.find((n) => n.id === normId) ||
+    MEMORY_NODES.find((n) => n.id === normId) ||
+    INPUT_CONNECTOR_NODES.find((n) => n.id === normId) ||
+    HITO_APP_NODES.find((n) => n.id === normId) ||
+    OUTPUT_ACTION_NODES.find((n) => n.id === normId)
   );
 }
 
@@ -645,7 +715,10 @@ export function buildPromptFromWorkflowNodes(
   agentName: string,
   nodes: WorkflowNodesConfig,
 ): string {
-  const triggerDef = TRIGGER_NODES.find((t) => t.id === nodes.trigger) || TRIGGER_NODES[0];
+  const triggerIds = normalizeTriggersList(nodes);
+  const triggerDefs = triggerIds
+    .map((tid) => TRIGGER_NODES.find((t) => t.id === tid))
+    .filter(Boolean) as WorkflowNodeDef[];
   const engineMode = nodes.aiEngine || 'wappy';
   const modelId = nodes.aiModel || 'gemini-3.6-flash';
   const inputDefs = (nodes.inputs || [])
@@ -673,8 +746,10 @@ export function buildPromptFromWorkflowNodes(
     );
   }
 
-  if (triggerDef) {
-    lines.push(`\n1. DISPARADOR DE ENTRADA (TRIGGER): ${triggerDef.toolHint}.`);
+  if (triggerDefs.length > 0) {
+    lines.push(
+      `\n1. DISPARADORES / MEDIOS DE ENTRADA ACTIVOS: ${triggerDefs.map((t) => `${t.shortLabel} (${t.toolHint})`).join(' + ')}.`,
+    );
   }
 
   if (inputDefs.length > 0) {

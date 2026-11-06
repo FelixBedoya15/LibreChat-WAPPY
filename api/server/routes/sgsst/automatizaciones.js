@@ -59,6 +59,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 7, minute: 0, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       inputs: ['somos_sst_trabajadores', 'google_sheets'],
       hitos: ['hito2_perfil_socio', 'hito3_epp', 'hito3_alturas'],
       outputs: ['acpm_task', 'google_calendar', 'email_report'],
@@ -76,7 +77,8 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleType: 'daily',
     scheduleConfig: { hour: 18, minute: 0, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
-      trigger: 'drive_folder_watch',
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi', 'trigger_email'],
       inputs: ['google_drive', 'google_sheets'],
       hitos: ['hito2_perfil_socio', 'hito2_perfiles_cargo'],
       outputs: ['somos_sst_update', 'email_report'],
@@ -94,7 +96,8 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleType: 'daily',
     scheduleConfig: { hour: 7, minute: 30, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
-      trigger: 'drive_folder_watch',
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_email', 'trigger_qr_worker'],
       inputs: ['google_drive', 'google_gmail', 'consultar_analitica_actos_condiciones'],
       hitos: ['hito7_investigacion_atel', 'hito4_actos_condiciones', 'hito7_acpm'],
       outputs: ['somos_sst_update', 'acpm_task', 'email_report'],
@@ -113,6 +116,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 8, minute: 0, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       inputs: ['web_search', 'somos_sst_empresa'],
       hitos: ['hito1_matriz_legal', 'hito1_rit'],
       outputs: ['somos_sst_update', 'google_docs', 'email_report'],
@@ -131,6 +135,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 7, minute: 0, dayOfWeek: [1, 5], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_qr_worker', 'trigger_tenshi'],
       inputs: ['matriz_pesv', 'google_drive'],
       hitos: ['hito3_matriz_pesv', 'hito3_vehiculos'],
       outputs: ['somos_sst_update', 'acpm_task', 'email_report'],
@@ -149,6 +154,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 8, minute: 30, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_agent'],
       inputs: ['matriz_compatibilidad', 'consultar_pubchem_quimico'],
       hitos: ['hito3_quimicos_sga', 'hito2_matriz_ipevar'],
       outputs: ['somos_sst_update', 'acpm_task', 'email_report'],
@@ -167,6 +173,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 6, minute: 30, dayOfWeek: [1, 2, 3, 4, 5, 6], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       inputs: ['pronostico_clima_sst', 'buscar_centros_emergencia'],
       hitos: ['hito3_alturas', 'hito3_ats', 'hito6_vulnerabilidad'],
       outputs: ['email_report', 'acpm_task'],
@@ -185,6 +192,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 9, minute: 0, dayOfWeek: [3], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_agent'],
       inputs: ['consultar_medlineplus_rehabilitacion', 'somos_sst_trabajadores'],
       hitos: ['hito3_owas', 'hito3_estudio_puesto', 'hito2_perfil_socio'],
       outputs: ['somos_sst_update', 'email_report'],
@@ -203,6 +211,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 16, minute: 0, dayOfWeek: [5], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       inputs: ['consultar_analitica_psicosocial', 'somos_sst_empresa'],
       hitos: ['hito4_psicosocial', 'hito4_comites'],
       outputs: ['acpm_task', 'email_report'],
@@ -221,6 +230,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 8, minute: 0, dayOfWeek: [2], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       inputs: ['notebooklm', 'cursos_lms', 'google_calendar'],
       hitos: ['hito5_capacitaciones', 'hito2_cronograma'],
       outputs: ['somos_sst_update', 'google_slides', 'email_report'],
@@ -239,6 +249,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 17, minute: 0, dayOfWeek: [1], dayOfMonth: 28, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi', 'trigger_agent'],
       inputs: ['somos_sst_empresa', 'matriz_ipevar', 'google_sheets'],
       hitos: ['hito1_diagnostico_0312', 'hito2_cronograma', 'hito7_auditoria', 'hito7_alta_direccion'],
       outputs: ['canvas_doc', 'google_docs', 'email_report'],
@@ -257,6 +268,7 @@ const DEFAULT_SYSTEM_PRESETS = [
     scheduleConfig: { hour: 9, minute: 0, dayOfWeek: [1], dayOfMonth: 1, intervalHours: 1 },
     workflowNodes: {
       trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_antigravity', 'trigger_webhook'],
       inputs: ['google_drive', 'one_drive', 'google_antigravity', 'webhook_api'],
       hitos: ['hito1_diagnostico_0312', 'hito2_perfil_socio', 'hito7_acpm'],
       outputs: ['somos_sst_update', 'google_sheets', 'email_report'],
@@ -307,6 +319,21 @@ async function ensureDefaultSystemPresets() {
           status: 'inactive',
           nextRunAt: null,
         });
+      } else if (
+        !Array.isArray(existing.workflowNodes?.triggers) ||
+        existing.workflowNodes.triggers.length === 0 ||
+        existing.workflowNodes?.trigger === 'drive_folder_watch' ||
+        existing.workflowNodes?.trigger === 'sgsst_db_audit'
+      ) {
+        await Automation.updateOne(
+          { _id: existing._id },
+          {
+            $set: {
+              'workflowNodes.trigger': preset.workflowNodes.trigger,
+              'workflowNodes.triggers': preset.workflowNodes.triggers,
+            },
+          }
+        );
       }
     }
   } catch (err) {
