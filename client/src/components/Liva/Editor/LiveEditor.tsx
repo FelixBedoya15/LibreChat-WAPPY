@@ -573,30 +573,36 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           editorRef.current.innerHTML = safeHtml;
           setContent(safeHtml);
           safeUpdate(safeHtml);
-          if (typeof window !== 'undefined' && safeHtml.trim().length > 0) {
-            window.dispatchEvent(
-              new CustomEvent('wappy-live-editor-content-set', { detail: { html: safeHtml } }),
-            );
-            try {
-              const activeTag = (window as any).__wappyActiveSgsstReportTag;
-              const companyId = localStorage.getItem('wappy_active_company_id') || 'default';
-              if (activeTag) {
-                const key = `wappy_sgsst_report_${companyId}_${activeTag}`;
-                const prevRaw = localStorage.getItem(key);
-                const prev = prevRaw ? JSON.parse(prevRaw) : {};
-                localStorage.setItem(
-                  key,
-                  JSON.stringify({
-                    ...prev,
-                    content: safeHtml,
-                    companyId,
-                    tag: activeTag,
-                    updatedAt: Date.now(),
-                  }),
-                );
+          if (typeof window !== 'undefined') {
+            if (safeHtml.trim().length > 0) {
+              window.dispatchEvent(
+                new CustomEvent('wappy-live-editor-content-set', { detail: { html: safeHtml } }),
+              );
+              try {
+                const activeTag = (window as any).__wappyActiveSgsstReportTag;
+                const companyId = localStorage.getItem('wappy_active_company_id') || 'default';
+                if (activeTag) {
+                  const key = `wappy_sgsst_report_${companyId}_${activeTag}`;
+                  const prevRaw = localStorage.getItem(key);
+                  const prev = prevRaw ? JSON.parse(prevRaw) : {};
+                  localStorage.setItem(
+                    key,
+                    JSON.stringify({
+                      ...prev,
+                      content: safeHtml,
+                      companyId,
+                      tag: activeTag,
+                      updatedAt: Date.now(),
+                    }),
+                  );
+                }
+              } catch {
+                /* ignore storage errors */
               }
-            } catch {
-              /* ignore storage errors */
+            } else {
+              window.dispatchEvent(
+                new CustomEvent('wappy-live-editor-content-set', { detail: { html: '', clear: true } }),
+              );
             }
           }
           setTimeout(() => {
@@ -729,7 +735,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
 
     // Dynamic sync when initialContent arrives/updates from parent
     useEffect(() => {
-      if (initialContent && editorRef.current) {
+      if (!editorRef.current) return;
+      if (initialContent) {
         const stripped = initialContent.replace(
           /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi,
           '',
@@ -762,6 +769,17 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
               new CustomEvent('wappy-live-editor-content-set', { detail: { html: safeHtml } }),
             );
           }
+          setTimeout(() => {
+            isSyncingRef.current = false;
+          }, 50);
+        }
+      } else if (initialContent === '' && initializedRef.current && !isSyncingRef.current) {
+        const currentInner = editorRef.current.innerHTML.trim();
+        if (currentInner) {
+          isSyncingRef.current = true;
+          editorRef.current.innerHTML = '';
+          setContent('');
+          safeUpdate('');
           setTimeout(() => {
             isSyncingRef.current = false;
           }, 50);

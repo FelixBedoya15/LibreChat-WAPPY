@@ -564,6 +564,7 @@ const PerfilesCargo = () => {
     const [formData, setFormData] = useState<PerfilCargoData>(createInitialPerfil());
     const [isFormExpanded, setIsFormExpanded] = useState(false);
     const inlineFormPanelRef = useRef<HTMLDivElement>(null);
+    const inlineReportBoxRef = useRef<HTMLDivElement>(null);
     const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
@@ -1042,6 +1043,41 @@ const PerfilesCargo = () => {
         }
     };
 
+    const hydrateProfileReportFromHistoryIfNeeded = useCallback(
+        async (perfilId: string, existingReport?: string) => {
+            if (existingReport && existingReport.trim()) return;
+            if (!token || !perfilId) return;
+            try {
+                const res = await fetch(
+                    `/api/sgsst/diagnostico/report-history?tag=${encodeURIComponent(`sgsst-perfil-cargo-${perfilId}`)}&limit=1`,
+                    { headers: { Authorization: `Bearer ${token}` } },
+                );
+                if (!res.ok) return;
+                const data = await res.json();
+                const latest = Array.isArray(data?.reports) && data.reports.length > 0 ? data.reports[0] : null;
+                if (!latest?.conversationId) return;
+
+                const msgRes = await fetch(`/api/messages/${latest.conversationId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!msgRes.ok) return;
+                const messages = await msgRes.json();
+                const lastMsg = Array.isArray(messages) && messages.length > 0 ? messages[messages.length - 1] : null;
+                const html = (lastMsg?.text || '').trim();
+                if (!html) return;
+
+                setGeneratedReport(html);
+                editorContentRef.current = html;
+                liveEditorRef.current?.setHTML(html);
+                setFormData(prev => (prev.id === perfilId ? { ...prev, report: html } : prev));
+                setPerfiles(prev => prev.map(p => (p.id === perfilId ? { ...p, report: html } : p)));
+            } catch {
+                /* ignore background hydration errors */
+            }
+        },
+        [token],
+    );
+
     const handleSelectPerfil = (id: string) => {
         if (activePerfilId === id) {
             setIsFormExpanded(prev => {
@@ -1057,17 +1093,27 @@ const PerfilesCargo = () => {
         }
         const perfil = perfiles.find(p => p.id === id);
         if (perfil) {
+            const currentEdited = editorContentRef.current;
+            if (activePerfilId && currentEdited) {
+                setPerfiles(prev =>
+                    prev.map(p => (p.id === activePerfilId ? { ...p, report: currentEdited } : p)),
+                );
+            }
+            const nextReport = perfil.report || '';
             setActivePerfilId(id);
             setFormData(perfil);
-            setGeneratedReport(perfil.report || null);
-            editorContentRef.current = perfil.report || '';
-            liveEditorRef.current?.setHTML(perfil.report || '');
+            setGeneratedReport(nextReport || null);
+            editorContentRef.current = nextReport;
+            liveEditorRef.current?.setHTML(nextReport);
             setIsFormExpanded(true);
             // Reset conversation tracking when switching profiles
             setConversationId(null);
             setReportMessageId(null);
             setSelectedWorkerId(null);
             setRefreshTrigger(p => p + 1);
+            if (!nextReport) {
+                hydrateProfileReportFromHistoryIfNeeded(id, nextReport);
+            }
             setTimeout(() => {
                 inlineFormPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 120);
@@ -1496,8 +1542,12 @@ const PerfilesCargo = () => {
             showToast({ message: 'Por favor ingresa el nombre del cargo', severity: NotificationSeverity.WARNING });
             return;
         }
+        setIsFormExpanded(true);
         setIsGenerating(true);
         handleSaveData(true);
+        setTimeout(() => {
+            inlineReportBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
         try {
             const res = await fetch('/api/sgsst/perfiles-cargo/generate', {
                 method: 'POST',
@@ -1509,18 +1559,27 @@ const PerfilesCargo = () => {
             setGeneratedReport(data.report);
             editorContentRef.current = data.report;
             liveEditorRef.current?.setHTML(data.report);
-            setConversationId(null);
-            setReportMessageId(null);
-            setIsFormExpanded(false);
-            // Persist report in list immediately
-            setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, report: data.report } : p));
-            showToast({ message: 'Perfil generado con éxito ✅', severity: NotificationSeverity.SUCCESS });
+            setFormData(prev => ({ ...prev, report: data.report }));
+            setConversationId(data.conversationId || null);
+            setReportMessageId(data.messageId || null);
+            setIsFormExpanded(true);
+            // Persist report in list and DB immediately for this specific profile
+            const updatedPerfiles = perfiles.map(p =>
+                p.id === activePerfilId ? { ...p, ...formData, report: data.report } : p,
+            );
+            setPerfiles(updatedPerfiles);
+            await persistPerfilesList(updatedPerfiles);
+            setRefreshTrigger(prev => prev + 1);
+            setTimeout(() => {
+                inlineReportBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 150);
+            showToast({ message: 'Perfil generado y guardado con éxito ✅', severity: NotificationSeverity.SUCCESS });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar', severity: NotificationSeverity.ERROR });
         } finally {
             setIsGenerating(false);
         }
-    }, [formData, selectedModel, token, showToast, activePerfilId]);
+    }, [formData, selectedModel, token, showToast, activePerfilId, perfiles, persistPerfilesList]);
 
     // ─── Report History (Independent) ──────────────────────────────────────────
     const handleSaveReport = useCallback(async () => {
@@ -1541,9 +1600,10 @@ const PerfilesCargo = () => {
             if (res.ok) {
                 // 1. Update in-memory state so the editor shows the saved content
                 setGeneratedReport(content);
+                setFormData(prev => ({ ...prev, report: content }));
                 // 2. Persist edited content to perfiles-cargo DB so it survives reload
                 const updatedPerfiles = perfiles.map(p =>
-                    p.id === activePerfilId ? { ...p, report: content } : p
+                    p.id === activePerfilId ? { ...p, ...formData, report: content } : p
                 );
                 setPerfiles(updatedPerfiles);
                 await persistPerfilesList(updatedPerfiles);
@@ -1555,7 +1615,7 @@ const PerfilesCargo = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [generatedReport, token, activePerfilId, formData.nombreCargo, showToast, perfiles, persistPerfilesList]);
+    }, [generatedReport, token, activePerfilId, formData, showToast, perfiles, persistPerfilesList]);
 
     const handleSelectReport = useCallback(
         async (selectedConvoId: string) => {
@@ -1570,7 +1630,16 @@ const PerfilesCargo = () => {
                     setGeneratedReport(lastMsg.text);
                     editorContentRef.current = lastMsg.text;
                     liveEditorRef.current?.setHTML(lastMsg.text);
-                    setIsFormExpanded(false);
+                    setFormData(prev => ({ ...prev, report: lastMsg.text }));
+                    const updatedPerfiles = perfiles.map(p =>
+                        p.id === activePerfilId ? { ...p, ...formData, report: lastMsg.text } : p,
+                    );
+                    setPerfiles(updatedPerfiles);
+                    await persistPerfilesList(updatedPerfiles);
+                    setIsFormExpanded(true);
+                    setTimeout(() => {
+                        inlineReportBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 120);
                     showToast({ message: 'Reporte cargado desde el historial', severity: NotificationSeverity.SUCCESS });
                 }
             } catch {
@@ -1578,7 +1647,7 @@ const PerfilesCargo = () => {
             }
             setIsHistoryOpen(false);
         },
-        [token, showToast],
+        [token, showToast, activePerfilId, formData, perfiles, persistPerfilesList],
     );
 
     const handleLoadDummyData = async () => {
@@ -1714,7 +1783,16 @@ const PerfilesCargo = () => {
 
             {/* ── Toolbar ── */}
             <SGSSTToolbar
-                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                onHistory={() => {
+                    const next = !isHistoryOpen;
+                    setIsHistoryOpen(next);
+                    if (next) {
+                        setIsFormExpanded(true);
+                        setTimeout(() => {
+                            inlineReportBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 100);
+                    }
+                }}
                 isHistoryOpen={isHistoryOpen}
                 onAnalyze={handleGenerate}
                 isAnalyzing={isGenerating}
@@ -1731,16 +1809,6 @@ const PerfilesCargo = () => {
                 onExportExcel={handleExportExcel}
                 onDownloadTemplate={handleDownloadTemplate}
                 hasData={perfiles.length > 0}
-            />
-
-            {/* ── History (Filtered by Profile ID) ── */}
-            {/* ── History (Filtered by Profile ID) ── */}
-            <ReportHistory
-                onSelectReport={handleSelectReport}
-                isOpen={isHistoryOpen}
-                toggleOpen={() => setIsHistoryOpen(false)}
-                refreshTrigger={refreshTrigger}
-                tags={['sgsst-perfil-cargo', `sgsst-perfil-cargo-${activePerfilId}`]}
             />
 
             {/* ── Profiles Quick Access (Con despliegue en línea bajo la fila del cargo seleccionado) ── */}
@@ -2116,6 +2184,51 @@ const PerfilesCargo = () => {
                                 onSelectWorker={(workerId) => setSelectedWorkerId(workerId)}
                             />
                         )}
+
+                        {/* ── Historial e Informe IA exclusivo de este Perfil de Cargo (En línea debajo de sus datos) ── */}
+                        <div ref={inlineReportBoxRef} className="pt-2 space-y-4">
+                            <ReportHistory
+                                onSelectReport={handleSelectReport}
+                                isOpen={isHistoryOpen}
+                                toggleOpen={() => setIsHistoryOpen(false)}
+                                refreshTrigger={refreshTrigger}
+                                tags={activePerfilId ? [`sgsst-perfil-cargo-${activePerfilId}`] : ['sgsst-perfil-cargo']}
+                            />
+
+                            <CollapsibleReportBox
+                                key={`report-box-${activePerfilId || 'default'}`}
+                                defaultCollapsed={false}
+                                onAnalyze={handleGenerate}
+                                isLoading={isGenerating}
+                                onSave={handleSaveReport}
+                                isSaving={isSaving}
+                                onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                                isHistoryOpen={isHistoryOpen}
+                                title={`Perfil de Cargo: ${toTitleCase(formData.nombreCargo) || 'Cargo Seleccionado'}`}
+                                icon={<FileText className="h-5 w-5" />}
+                                actions={
+                                    <ExportDropdown
+                                        content={editorContentRef.current || generatedReport || ''}
+                                        fileName={`Informe_Perfil_${(formData.nombreCargo || 'Cargo').replace(/\s+/g, '_')}`}
+                                        reportType="general"
+                                    />
+                                }
+                            >
+                                <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+                                    <div style={{ minWidth: '100%', padding: '24px' }}>
+                                        <LiveEditor
+                                            key={activePerfilId || 'default'}
+                                            ref={liveEditorRef}
+                                            initialContent={generatedReport || ''}
+                                            onUpdate={(html) => {
+                                                editorContentRef.current = html;
+                                            }}
+                                            reportSourceData={{ formData, perfiles }}
+                                        />
+                                    </div>
+                                </div>
+                            </CollapsibleReportBox>
+                        </div>
                     </div>
                 );
 
@@ -2310,35 +2423,6 @@ const PerfilesCargo = () => {
                     </div>
                 );
             })()}
-
-            {/* Generated Report View */}
-                <CollapsibleReportBox
-                    onAnalyze={handleGenerate}
-                    isLoading={isGenerating}
-                    onSave={handleSaveReport}
-                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                    isHistoryOpen={isHistoryOpen}
-                    title="Perfil de Cargos"
-                    icon={<FileText className="h-5 w-5" />}
-                    actions={
-                        <ExportDropdown
-                            content={editorContentRef.current || generatedReport || ''}
-                            fileName="Informe_PerfilesCargo"
-                            reportType="general"
-                        />
-                    }
-                >
-                    <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
-                         <div style={{ minWidth: '100%', padding: '24px' }}>
-                            <LiveEditor
-                                ref={liveEditorRef}
-                                initialContent={generatedReport || ''}
-                                onUpdate={(html) => { editorContentRef.current = html; }}
-                                reportSourceData={{ formData, perfiles }}
-                            />
-                        </div>
-                    </div>
-                </CollapsibleReportBox>
 
             {/* ── Summary Profile Popup Modal (Premium Glassmorphism) ── */}
             {/* ── Summary Profile Popup Modal (Estilo Auditoría Biocéntrica - Portalizado) ── */}
