@@ -9180,7 +9180,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
         {/* Avatar interactivo de Tenshi Flotando */}
         <TenshiAvatar
-          size={92}
+          size={104}
           mood={derivedAvatarMood}
           isSpeaking={isTenshiSpeaking}
           outputAmplitude={outputAmplitude}

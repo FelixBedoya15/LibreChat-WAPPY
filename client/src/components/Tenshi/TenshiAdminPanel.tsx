@@ -284,7 +284,7 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                                             )}
                                         >
                                             <TenshiAvatar
-                                                size={68}
+                                                size={84}
                                                 avatarId={preset.id}
                                                 interactive={false}
                                                 showHaloEffect={selected}
