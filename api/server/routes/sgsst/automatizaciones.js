@@ -5,7 +5,12 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
 const { Agent } = require('~/db/models');
-const { runAutomation, calculateNextRun, stopAutomation } = require('~/server/services/automationScheduler');
+const {
+  runAutomation,
+  runWorkflowSandboxSimulation,
+  calculateNextRun,
+  stopAutomation,
+} = require('~/server/services/automationScheduler');
 const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
 
 const UserPlan = require('~/db/models/UserPlan');
@@ -527,6 +532,70 @@ router.get('/node-live-inspector', async (req, res) => {
   } catch (error) {
     console.error('[API Automatizaciones] Error en node-live-inspector:', error);
     return res.status(500).json({ error: 'Error al consultar datos en vivo del nodo.' });
+  }
+});
+
+/**
+ * POST /api/sgsst/automatizaciones/test-sandbox
+ * Ejecuta el flujo actual del Lienzo WAPPY en Modo Desarrollo (Sandbox / Dry-Run):
+ * procesa los nodos, extrae datos quirúrgicos reales, ejecuta el/los Agentes IA y devuelve
+ * la respuesta final y la traza nodo por nodo SIN enviar correos ni disparar salidas externas.
+ */
+router.post('/test-sandbox', async (req, res) => {
+  try {
+    const {
+      automationId,
+      companyId: explicitCompanyId,
+      name,
+      agentId,
+      agentName,
+      prompt,
+      scheduleType,
+      scheduleConfig,
+      emails,
+      workflowNodes,
+      mockTriggerInput,
+    } = req.body || {};
+
+    const resolvedCompanyId =
+      explicitCompanyId && explicitCompanyId !== 'SYSTEM_PRESET'
+        ? String(explicitCompanyId).trim()
+        : await getActiveCompanyId(req.user.id);
+
+    // Si se pasa un automationId opcional, usarlo como base de respaldo para campos no enviados en el body
+    let existingDoc = null;
+    if (automationId) {
+      try {
+        existingDoc = await Automation.findById(automationId).lean();
+      } catch (_) {}
+    }
+
+    const simulationResult = await runWorkflowSandboxSimulation({
+      user: req.user,
+      companyId: resolvedCompanyId || existingDoc?.companyId || null,
+      name: name ?? existingDoc?.name ?? 'Prueba en Escenario de Desarrollo',
+      agentId: agentId ?? existingDoc?.agentId ?? 'tenshi_avatar_3d',
+      agentName: agentName ?? existingDoc?.agentName ?? 'Tenshi (Avatar 3D)',
+      prompt: prompt ?? existingDoc?.prompt ?? '',
+      scheduleType: scheduleType ?? existingDoc?.scheduleType ?? 'daily',
+      scheduleConfig: scheduleConfig ?? existingDoc?.scheduleConfig ?? { hour: 8, minute: 0 },
+      emails: Array.isArray(emails)
+        ? emails
+        : Array.isArray(existingDoc?.emails) && existingDoc.emails.length > 0
+          ? existingDoc.emails
+          : req.user?.email
+            ? [req.user.email]
+            : [],
+      workflowNodes: workflowNodes ?? existingDoc?.workflowNodes ?? {},
+      mockTriggerInput: typeof mockTriggerInput === 'string' ? mockTriggerInput : '',
+    });
+
+    return res.json(simulationResult);
+  } catch (error) {
+    console.error('[API Automatizaciones] Error en test-sandbox:', error);
+    return res.status(500).json({
+      error: error?.message || 'Error al ejecutar la simulación en el Escenario de Desarrollo.',
+    });
   }
 });
 

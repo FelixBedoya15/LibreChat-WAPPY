@@ -51,9 +51,14 @@ import {
   Terminal,
   Puzzle,
   Search,
+  Play,
+  Loader2,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import WappyNodeCustomEditor from './WappyNodeCustomEditors';
+import WappyWorkflowSandboxPanel, {
+  type SandboxSimulationResponse,
+} from './WappyWorkflowSandboxPanel';
 import {
   TRIGGER_NODES,
   EXTRACTOR_NODES,
@@ -2276,7 +2281,7 @@ export default function WappyWorkflowCanvas({
       }
       onChange({
         ...workflowNodes,
-        memory: nextMemories[0] || 'wappy_memory_company',
+        memoryNode: nextMemories[0] || 'wappy_memory_company',
         memories: nextMemories,
         canvasLayout: {
           ...(workflowNodes?.canvasLayout || {}),
@@ -2414,6 +2419,216 @@ export default function WappyWorkflowCanvas({
     });
   };
 
+  // ─── ESTADO DEL ESCENARIO DE DESARROLLO (SANDBOX DRY-RUN SIN ENVIAR SALIDAS) ───
+  const [sandboxOpen, setSandboxOpen] = useState<boolean>(false);
+  const [sandboxRunning, setSandboxRunning] = useState<boolean>(false);
+  const [sandboxActiveStepNodeId, setSandboxActiveStepNodeId] = useState<string | null>(null);
+  const [sandboxResult, setSandboxResult] = useState<SandboxSimulationResponse | null>(null);
+  const [sandboxError, setSandboxError] = useState<string | null>(null);
+  const [mockTriggerInput, setMockTriggerInput] = useState<string>('');
+
+  // Orden de recorrido visual nodo por nodo cuando se pulsa ▶ Dar Play
+  const orderedSandboxNodeKeys = useMemo(() => {
+    const triggers = visualNodes.filter((n) => n.shape === 'trigger').map((n) => n.key);
+    const extractors = visualNodes.filter((n) => n.shape === 'square_extractor').map((n) => n.key);
+    const contextNodes = visualNodes
+      .filter(
+        (n) =>
+          n.shape === 'circle_memory' ||
+          n.shape === 'circle_tool' ||
+          n.shape === 'custom_node' ||
+          n.shape === 'circle_model',
+      )
+      .map((n) => n.key);
+    const primaryAgent = visualNodes.filter((n) => n.key === 'agent_root').map((n) => n.key);
+    const extraAgents = visualNodes
+      .filter((n) => n.key.startsWith('agent_extra_'))
+      .map((n) => n.key);
+    const logicAndIf = visualNodes
+      .filter((n) => n.shape === 'if' || n.shape === 'logic')
+      .map((n) => n.key);
+    const hitos = visualNodes.filter((n) => n.shape === 'square_hito').map((n) => n.key);
+    const outputs = visualNodes.filter((n) => n.shape === 'square_output').map((n) => n.key);
+
+    return [
+      ...triggers,
+      ...extractors,
+      ...contextNodes,
+      ...primaryAgent,
+      ...extraAgents,
+      ...logicAndIf,
+      ...hitos,
+      ...outputs,
+    ];
+  }, [visualNodes]);
+
+  // Mientras sandboxRunning es true, iluminar progresivamente nodo por nodo en el lienzo
+  useEffect(() => {
+    if (!sandboxRunning || orderedSandboxNodeKeys.length === 0) return;
+    let idx = 0;
+    setSandboxActiveStepNodeId(orderedSandboxNodeKeys[0]);
+    const timer = setInterval(() => {
+      idx = (idx + 1) % orderedSandboxNodeKeys.length;
+      setSandboxActiveStepNodeId(orderedSandboxNodeKeys[idx]);
+    }, 620);
+    return () => clearInterval(timer);
+  }, [sandboxRunning, orderedSandboxNodeKeys]);
+
+  // Ejecutar simulación en Modo Desarrollo (POST /api/sgsst/automatizaciones/test-sandbox)
+  const handleRunSandboxSimulation = useCallback(async () => {
+    if (sandboxRunning) return;
+    setSandboxOpen(true);
+    setSandboxRunning(true);
+    setSandboxError(null);
+
+    if (typeof document !== 'undefined') {
+      setTimeout(() => {
+        const panelEl = document.getElementById('wappy-workflow-sandbox-panel');
+        if (panelEl) {
+          panelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 90);
+    }
+
+    const token =
+      (typeof window !== 'undefined' && (window as any).platformUserToken) ||
+      localStorage.getItem('token') ||
+      '';
+
+    try {
+      const res = await axios.post(
+        '/api/sgsst/automatizaciones/test-sandbox',
+        {
+          name: 'Simulación en Escenario de Desarrollo',
+          agentId,
+          agentName,
+          prompt,
+          scheduleType,
+          scheduleConfig: {
+            hour,
+            minute,
+            dayOfWeek: daysOfWeek,
+            dayOfMonth,
+            intervalHours,
+          },
+          emails: emailsStr
+            .split(',')
+            .map((e) => e.trim())
+            .filter(Boolean),
+          workflowNodes,
+          mockTriggerInput,
+        },
+        {
+          withCredentials: true,
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        },
+      );
+
+      setSandboxResult(res.data || null);
+      setSandboxActiveStepNodeId('agent_root');
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'No se pudo completar la simulación en el Escenario de Desarrollo.';
+      setSandboxError(String(msg));
+      setSandboxActiveStepNodeId(null);
+    } finally {
+      setSandboxRunning(false);
+    }
+  }, [
+    sandboxRunning,
+    agentId,
+    agentName,
+    prompt,
+    scheduleType,
+    hour,
+    minute,
+    daysOfWeek,
+    dayOfMonth,
+    intervalHours,
+    emailsStr,
+    workflowNodes,
+    mockTriggerInput,
+  ]);
+
+  // Verificar si un nodo del lienzo corresponde al paso activo o seleccionado en el Escenario de Desarrollo
+  const isNodeSandboxHighlighted = useCallback(
+    (node: VisualNodeInstance): boolean => {
+      if (!sandboxActiveStepNodeId) return false;
+      if (sandboxActiveStepNodeId === node.key || sandboxActiveStepNodeId === node.nodeId) {
+        return true;
+      }
+      if (
+        node.key === 'agent_root' &&
+        (sandboxActiveStepNodeId === 'ai_agent_root' || sandboxActiveStepNodeId === 'agent_primary')
+      ) {
+        return true;
+      }
+      if (
+        node.key === 'if_router' &&
+        (sandboxActiveStepNodeId === 'if_condition' || sandboxActiveStepNodeId === 'if_node_router')
+      ) {
+        return true;
+      }
+      return false;
+    },
+    [sandboxActiveStepNodeId],
+  );
+
+  // Renderizar insignia en tiempo real sobre cada nodo del lienzo durante/después de dar Play
+  const renderSandboxNodeOverlay = useCallback(
+    (node: VisualNodeInstance): React.ReactNode => {
+      const isHighlighted = isNodeSandboxHighlighted(node);
+
+      if (sandboxRunning && isHighlighted) {
+        return (
+          <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[8px] font-black uppercase tracking-wider shadow-md z-30 whitespace-nowrap flex items-center gap-1 animate-bounce">
+            <Loader2 className="w-2.5 h-2.5 animate-spin" />
+            Ejecutando...
+          </span>
+        );
+      }
+
+      if (!sandboxRunning && sandboxResult) {
+        const traceList = Array.isArray(sandboxResult.nodeTrace) ? sandboxResult.nodeTrace : [];
+        const matchedStep = traceList.find(
+          (st) =>
+            st.nodeKey === node.key ||
+            st.nodeId === node.nodeId ||
+            st.nodeId === node.key ||
+            (node.key === 'agent_root' &&
+              (st.nodeKey === 'agent_root' || st.nodeId === 'agent_root' || st.stage === 'agent_primary')),
+        );
+        const durationLabel = matchedStep?.durationMs ? ` (${matchedStep.durationMs} ms)` : '';
+
+        if (node.shape === 'square_output') {
+          return (
+            <span
+              title={`Salida interceptada en Modo Desarrollo${durationLabel} — Cero envíos externos`}
+              className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-lg bg-amber-500 text-white border border-white dark:border-slate-900 text-[7.5px] font-black uppercase tracking-tight shadow-sm z-30 whitespace-nowrap"
+            >
+              🛡️ Simulado (No enviado)
+            </span>
+          );
+        }
+
+        return (
+          <span
+            title={`Nodo ejecutado en Modo Desarrollo${durationLabel}`}
+            className="pointer-events-none absolute -top-2.5 -left-2 px-1.5 py-0.2 rounded-lg bg-emerald-600 text-white border border-white dark:border-slate-900 text-[7.5px] font-black shadow-sm z-30 whitespace-nowrap"
+          >
+            ✓ Listo
+          </span>
+        );
+      }
+
+      return null;
+    },
+    [sandboxRunning, sandboxResult, isNodeSandboxHighlighted],
+  );
+
   // Calcular ancho y alto dinámicos del área de trabajo con margen amplio para desplazarse y mover el flujo a un lado
   const canvasMinWidth = useMemo(() => {
     const maxRight = visualNodes.reduce((acc, n) => Math.max(acc, n.x + n.width + 260), 1180);
@@ -2505,16 +2720,47 @@ export default function WappyWorkflowCanvas({
               ))}
             </div>
 
-            {onAutoBuildPrompt && (
+            <div className="flex flex-wrap items-center gap-1.5">
               <ExpandableButton
                 size="sm"
-                variant="purple"
-                alwaysExpanded
-                icon={<Wand2 className="w-3.5 h-3.5" />}
-                label="Autogenerar Prompt desde el Lienzo"
-                onClick={onAutoBuildPrompt}
+                variant="emerald"
+                disabled={sandboxRunning}
+                icon={
+                  sandboxRunning ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                  )
+                }
+                label={
+                  sandboxRunning
+                    ? 'Ejecutando Prueba...'
+                    : '▶ Dar Play · Probar sin Enviar'
+                }
+                title="Dar Play al Flujo en Modo Desarrollo (Sin Enviar Salidas)"
+                onClick={handleRunSandboxSimulation}
               />
-            )}
+
+              <ExpandableButton
+                size="sm"
+                variant="teal"
+                isActive={sandboxOpen}
+                icon={<Terminal className="w-3.5 h-3.5" />}
+                label="🧪 Escenario Dev"
+                title="Abrir o cerrar el Escenario de Desarrollo (Sandbox)"
+                onClick={() => setSandboxOpen((v) => !v)}
+              />
+
+              {onAutoBuildPrompt && (
+                <ExpandableButton
+                  size="sm"
+                  variant="purple"
+                  icon={<Wand2 className="w-3.5 h-3.5" />}
+                  label="Autogenerar Prompt desde el Lienzo"
+                  onClick={onAutoBuildPrompt}
+                />
+              )}
+            </div>
           </div>
 
           {/* Instrucción rápida de uso según la etapa activa */}
@@ -3052,10 +3298,10 @@ export default function WappyWorkflowCanvas({
                         {mem.label}
                       </div>
                       <div className="text-[10px] font-bold text-pink-600 dark:text-pink-400 mt-0.5">
-                        {mem.subtitle}
+                        {(mem as any).subtitle || mem.badge}
                       </div>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                        {mem.promptHint}
+                        {(mem as any).promptHint || mem.toolHint}
                       </p>
                       {isSelected && (
                         <button
@@ -3332,906 +3578,440 @@ export default function WappyWorkflowCanvas({
       )}
 
       {/* ─── LIENZO VISUAL INTERACTIVO WAPPY (FONDO PUNTEADO + MANITA + SELECCIÓN + NODOS + CABLES SVG) ─── */}
-      <div
-        ref={scrollContainerRef}
-        onPointerDown={handleBackgroundPointerDown}
-        className={`relative w-full overflow-auto rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#f8fafc] dark:bg-[#0b1120] shadow-inner select-none ${
-          compact ? 'h-[265px]' : 'h-[430px]'
-        } ${
-          isPanning
-            ? 'cursor-grabbing'
-            : canvasTool === 'select'
-              ? 'cursor-crosshair'
-              : 'cursor-grab'
-        }`}
-        style={{
-          backgroundImage: 'radial-gradient(rgba(148, 163, 184, 0.42) 1.35px, transparent 1.35px)',
-          backgroundSize: '18px 18px',
-        }}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={handleCanvasDrop}
-        onPointerMove={handleCanvasPointerMove}
-        onPointerUp={() => handleCanvasPointerUp()}
-      >
-        {/* Controles flotantes del lienzo (Manita, Seleccionar Parte, Seleccionar Todo, Zoom, Otra IA, Nodo If, Conectar a mi Gusto) */}
-        {!compact && (
-          <div
-            data-canvas-toolbar="true"
-            onPointerDown={(e) => e.stopPropagation()}
-            className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm m-2.5 cursor-default"
-          >
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Lienzo WAPPY
-            </span>
-
-            {/* ─── 1. MANITA (DESPLAZARSE POR EL LIENZO) & SELECCIÓN DE FLUJO ─── */}
-            <button
-              type="button"
-              onClick={() => setCanvasTool('pan')}
-              className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
-                canvasTool === 'pan'
-                  ? 'bg-slate-900 text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-xs'
-                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-              }`}
-              title="Manita: Arrastra sobre el fondo punteado para desplazarte por toda el área de trabajo"
-            >
-              <Hand className="w-3 h-3" />
-              Manita
-            </button>
-
-            {!readOnly && onChange && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setCanvasTool(canvasTool === 'select' ? 'pan' : 'select')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
-                    canvasTool === 'select'
-                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                  }`}
-                  title="Seleccionar una Parte: Dibuja un recuadro sobre varios nodos (o haz Shift + Clic) para mover esa parte junta"
-                >
-                  <MousePointer2 className="w-3 h-3" />
-                  Seleccionar Parte
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSelectAllNodes}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
-                    selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800'
-                  }`}
-                  title="Seleccionar Todo el Flujo para arrastrarlo completo a un lado o a cualquier lugar del campo"
-                >
-                  <Move className="w-3 h-3" />
-                  {selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
-                    ? `Todo Seleccionado (${selectedNodeKeys.length})`
-                    : 'Seleccionar Todo'}
-                </button>
-
-                {selectedNodeKeys.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-[#C7F303] text-[9.5px] font-extrabold flex items-center gap-1 border border-purple-300 dark:border-purple-700">
-                    <span>
-                      ✥ {selectedNodeKeys.length} marcados (arrastra uno para moverlos juntos)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedNodeKeys([])}
-                      className="ml-0.5 hover:text-rose-600"
-                      title="Deseleccionar nodos"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-              </>
-            )}
-
-            <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
-            <button
-              type="button"
-              onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
-              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-              title="Alejar"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 min-w-[34px] text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={() => setZoom((z) => Math.min(1.15, Number((z + 0.1).toFixed(2))))}
-              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-              title="Acercar"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-
-            {!readOnly && onChange && (
-              <>
-                <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
-                <button
-                  type="button"
-                  onClick={handleAddExtraAgent}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 transition flex items-center gap-1"
-                  title="Agregar un segundo o tercer Agente IA (con su propio Segundo Prompt y Modelo IA) al lienzo"
-                >
-                  <Plus className="w-3 h-3" />
-                  Otra IA / Agente
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onChange({
-                      ...workflowNodes,
-                      includeIfNode: !includeIfNode,
-                    })
-                  }
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
-                    includeIfNode
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                      : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                  }`}
-                  title="Activar/Desactivar nodo de Condición Si/No (evalúa si hay hallazgos o alertas para dividir el flujo en rama SÍ o NO)"
-                >
-                  <GitFork className="w-3 h-3" />
-                  Condición Si/No
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddLogicNode('loop')}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 transition flex items-center gap-1"
-                  title="Agregar nodo Iterar (Loop) para recorrer trabajador por trabajador o archivo por archivo"
-                >
-                  <Repeat className="w-3 h-3" />
-                  + Iterar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddLogicNode('merge')}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800 transition flex items-center gap-1"
-                  title="Agregar nodo Unir Ramas (Merge) para juntar la salida de dos agentes o dos ramas"
-                >
-                  <GitMerge className="w-3 h-3" />
-                  + Unir
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddLogicNode('human_approval')}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition flex items-center gap-1"
-                  title="Agregar nodo de Aprobación Humana (Visto Bueno antes de enviar correo o modificar Hito)"
-                >
-                  <UserCheck className="w-3 h-3" />
-                  + Aprobación
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaletteTab('skills_rules');
-                    setShowCustomNodeBuilder(true);
-                  }}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-[#C7F303] border border-violet-300 dark:border-violet-700 transition flex items-center gap-1"
-                  title="Crear tu propio nodo de Skill (SKILL.md), Sub-Agente, Regla, Búsqueda Web o Script de Web Scraping con Antigravity"
-                >
-                  <Puzzle className="w-3 h-3" />
-                  + Crear Mi Nodo / Scraper
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDisconnectAllMainWires}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 transition flex items-center gap-1"
-                  title="Cortar los cables automáticos para interconectar los módulos 100% a tu gusto arrastrando desde los puertos (●)"
-                >
-                  <X className="w-3 h-3" />
-                  Conectar a mi Gusto
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetLayout}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1"
-                  title="Restablecer posiciones y conexiones por defecto"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Auto-Organizar
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Contenedor escalable del lienzo */}
+      <div className="relative w-full">
         <div
-          ref={canvasRef}
-          className="relative origin-top-left"
+          ref={scrollContainerRef}
+          onPointerDown={handleBackgroundPointerDown}
+          className={`relative w-full overflow-auto rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#f8fafc] dark:bg-[#0b1120] shadow-inner select-none ${
+            compact ? 'h-[265px]' : 'h-[430px]'
+          } ${
+            isPanning
+              ? 'cursor-grabbing'
+              : canvasTool === 'select'
+                ? 'cursor-crosshair'
+                : 'cursor-grab'
+          }`}
           style={{
-            width: `${canvasMinWidth}px`,
-            height: `${canvasMinHeight}px`,
-            transform: `scale(${zoom})`,
+            backgroundImage: 'radial-gradient(rgba(148, 163, 184, 0.42) 1.35px, transparent 1.35px)',
+            backgroundSize: '18px 18px',
           }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleCanvasDrop}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={() => handleCanvasPointerUp()}
         >
-          {/* Recuadro visual de selección parcial (Seleccionar Parte) */}
-          {marqueeBox && (
+          {/* Controles flotantes del lienzo (Manita, Seleccionar Parte, Seleccionar Todo, Zoom, Otra IA, Nodo If, Conectar a mi Gusto + Dar Play / Escenario Dev) */}
+          {!compact && (
             <div
-              style={{
-                left: Math.min(marqueeBox.startX, marqueeBox.currX),
-                top: Math.min(marqueeBox.startY, marqueeBox.currY),
-                width: Math.abs(marqueeBox.currX - marqueeBox.startX),
-                height: Math.abs(marqueeBox.currY - marqueeBox.startY),
-              }}
-              className="absolute z-40 rounded-xl border-2 border-dashed border-purple-500 bg-purple-500/10 pointer-events-none"
-            />
-          )}
-          {/* ─── CAPA SVG DE CABLES CURVOS Y FLECHAS (CON BOTÓN × PARA CORTAR CUALQUIER CABLE) ─── */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-10"
-            style={{ overflow: 'visible' }}
-          >
-            <defs>
-              <marker
-                id="wappy-arrow"
-                viewBox="0 0 10 10"
-                refX="7"
-                refY="5"
-                markerWidth="5.5"
-                markerHeight="5.5"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94a3b8" />
-              </marker>
-              <marker
-                id="wappy-arrow-true"
-                viewBox="0 0 10 10"
-                refX="7"
-                refY="5"
-                markerWidth="5.5"
-                markerHeight="5.5"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981" />
-              </marker>
-            </defs>
+              data-canvas-toolbar="true"
+              onPointerDown={(e) => e.stopPropagation()}
+              className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm m-2.5 cursor-default"
+            >
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Lienzo WAPPY
+              </span>
 
-            {wires.map((w) => (
-              <g key={w.id} className="group/wire">
-                <path
-                  d={w.d}
-                  fill="none"
-                  stroke={w.color}
-                  strokeWidth={w.dashed ? 2 : 2.2}
-                  strokeDasharray={w.dashed ? '5 4' : undefined}
-                  markerEnd={
-                    w.dashed
-                      ? undefined
-                      : w.color === '#10b981'
-                        ? 'url(#wappy-arrow-true)'
-                        : 'url(#wappy-arrow)'
-                  }
-                />
-                {!readOnly && (
-                  <>
-                    <path
-                      d={w.d}
-                      fill="none"
-                      stroke="transparent"
-                      strokeWidth="14"
-                      className="pointer-events-auto cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveWire(w.id);
-                      }}
-                    >
-                      <title>Haz clic para desconectar este cable y reconectar a tu gusto</title>
-                    </path>
-                    <g
-                      transform={`translate(${w.midX}, ${w.midY})`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveWire(w.id);
-                      }}
-                      className="pointer-events-auto cursor-pointer opacity-0 group-hover/wire:opacity-100 transition-opacity"
-                    >
-                      <circle r="7.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-                      <path
-                        d="M -2.5 -2.5 L 2.5 2.5 M 2.5 -2.5 L -2.5 2.5"
-                        stroke="#ffffff"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                      />
-                    </g>
-                  </>
+              {/* ─── BOTONES DE DAR PLAY Y ESCENARIO DE DESARROLLO EN BARRA SUPERIOR DEL LIENZO ─── */}
+              <button
+                type="button"
+                disabled={sandboxRunning}
+                onClick={handleRunSandboxSimulation}
+                className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 dark:text-[#C7F303] border border-emerald-500/40 dark:border-[#C7F303]/50 transition flex items-center gap-1 shadow-2xs disabled:opacity-50"
+                title="Ejecutar el flujo en Modo Desarrollo (Probar sin enviar correos ni disparar alertas)"
+              >
+                {sandboxRunning ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Play className="w-3 h-3 fill-current" />
                 )}
-                {w.label && w.labelX !== undefined && w.labelY !== undefined && (
-                  <text
-                    x={w.labelX}
-                    y={w.labelY}
-                    fill={w.label === 'sí' ? '#059669' : '#64748b'}
-                    fontSize="10"
-                    fontWeight="700"
+                {sandboxRunning ? 'Probando Flujo...' : '▶ Dar Play · Probar sin Enviar'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSandboxOpen((v) => !v)}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                  sandboxOpen
+                    ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
+                    : 'bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30'
+                }`}
+                title="Abrir o cerrar el Escenario de Desarrollo (Modo Sandbox)"
+              >
+                <Terminal className="w-3 h-3" />
+                🧪 Escenario Dev
+              </button>
+
+              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+              {/* ─── 1. MANITA (DESPLAZARSE POR EL LIENZO) & SELECCIÓN DE FLUJO ─── */}
+              <button
+                type="button"
+                onClick={() => setCanvasTool('pan')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                  canvasTool === 'pan'
+                    ? 'bg-slate-900 text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                }`}
+                title="Manita: Arrastra sobre el fondo punteado para desplazarte por toda el área de trabajo"
+              >
+                <Hand className="w-3 h-3" />
+                Manita
+              </button>
+
+              {!readOnly && onChange && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCanvasTool(canvasTool === 'select' ? 'pan' : 'select')}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                      canvasTool === 'select'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                    title="Seleccionar una Parte: Dibuja un recuadro sobre varios nodos (o haz Shift + Clic) para mover esa parte junta"
                   >
-                    {w.label}
-                  </text>
-                )}
-              </g>
-            ))}
+                    <MousePointer2 className="w-3 h-3" />
+                    Seleccionar Parte
+                  </button>
 
-            {/* Cable interactivo en vivo mientras el usuario arrastra desde un puerto */}
-            {wiringFrom && (
-              <path
-                d={`M ${wiringFrom.startX} ${wiringFrom.startY} C ${wiringFrom.startX + 45} ${wiringFrom.startY}, ${wiringFrom.currX - 45} ${wiringFrom.currY}, ${wiringFrom.currX} ${wiringFrom.currY}`}
-                fill="none"
-                stroke="#a855f7"
-                strokeWidth="2.5"
-                strokeDasharray="4 3"
+                  <button
+                    type="button"
+                    onClick={handleSelectAllNodes}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                      selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800'
+                    }`}
+                    title="Seleccionar Todo el Flujo para arrastrarlo completo a un lado o a cualquier lugar del campo"
+                  >
+                    <Move className="w-3 h-3" />
+                    {selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
+                      ? `Todo Seleccionado (${selectedNodeKeys.length})`
+                      : 'Seleccionar Todo'}
+                  </button>
+
+                  {selectedNodeKeys.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-[#C7F303] text-[9.5px] font-extrabold flex items-center gap-1 border border-purple-300 dark:border-purple-700">
+                      <span>
+                        ✥ {selectedNodeKeys.length} marcados (arrastra uno para moverlos juntos)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedNodeKeys([])}
+                        className="ml-0.5 hover:text-rose-600"
+                        title="Deseleccionar nodos"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </>
+              )}
+
+              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                title="Alejar"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 min-w-[34px] text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.min(1.15, Number((z + 0.1).toFixed(2))))}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                title="Acercar"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+
+              {!readOnly && onChange && (
+                <>
+                  <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
+                  <button
+                    type="button"
+                    onClick={handleAddExtraAgent}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 transition flex items-center gap-1"
+                    title="Agregar un segundo o tercer Agente IA (con su propio Segundo Prompt y Modelo IA) al lienzo"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Otra IA / Agente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChange({
+                        ...workflowNodes,
+                        includeIfNode: !includeIfNode,
+                      })
+                    }
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+                      includeIfNode
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                    }`}
+                    title="Activar/Desactivar nodo de Condición Si/No (evalúa si hay hallazgos o alertas para dividir el flujo en rama SÍ o NO)"
+                  >
+                    <GitFork className="w-3 h-3" />
+                    Condición Si/No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddLogicNode('loop')}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 transition flex items-center gap-1"
+                    title="Agregar nodo Iterar (Loop) para recorrer trabajador por trabajador o archivo por archivo"
+                  >
+                    <Repeat className="w-3 h-3" />
+                    + Iterar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddLogicNode('merge')}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800 transition flex items-center gap-1"
+                    title="Agregar nodo Unir Ramas (Merge) para juntar la salida de dos agentes o dos ramas"
+                  >
+                    <GitMerge className="w-3 h-3" />
+                    + Unir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddLogicNode('human_approval')}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition flex items-center gap-1"
+                    title="Agregar nodo de Aprobación Humana (Visto Bueno antes de enviar correo o modificar Hito)"
+                  >
+                    <UserCheck className="w-3 h-3" />
+                    + Aprobación
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaletteTab('skills_rules');
+                      setShowCustomNodeBuilder(true);
+                    }}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-[#C7F303] border border-violet-300 dark:border-violet-700 transition flex items-center gap-1"
+                    title="Crear tu propio nodo de Skill (SKILL.md), Sub-Agente, Regla, Búsqueda Web o Script de Web Scraping con Antigravity"
+                  >
+                    <Puzzle className="w-3 h-3" />
+                    + Crear Mi Nodo / Scraper
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDisconnectAllMainWires}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 transition flex items-center gap-1"
+                    title="Cortar los cables automáticos para interconectar los módulos 100% a tu gusto arrastrando desde los puertos (●)"
+                  >
+                    <X className="w-3 h-3" />
+                    Conectar a mi Gusto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetLayout}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1"
+                    title="Restablecer posiciones y conexiones por defecto"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Auto-Organizar
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Contenedor escalable del lienzo */}
+          <div
+            ref={canvasRef}
+            className="relative origin-top-left"
+            style={{
+              width: `${canvasMinWidth}px`,
+              height: `${canvasMinHeight}px`,
+              transform: `scale(${zoom})`,
+            }}
+          >
+            {/* Recuadro visual de selección parcial (Seleccionar Parte) */}
+            {marqueeBox && (
+              <div
+                style={{
+                  left: Math.min(marqueeBox.startX, marqueeBox.currX),
+                  top: Math.min(marqueeBox.startY, marqueeBox.currY),
+                  width: Math.abs(marqueeBox.currX - marqueeBox.startX),
+                  height: Math.abs(marqueeBox.currY - marqueeBox.startY),
+                }}
+                className="absolute z-40 rounded-xl border-2 border-dashed border-purple-500 bg-purple-500/10 pointer-events-none"
               />
             )}
-          </svg>
-
-          {/* ─── CAPA DE NODOS DE LAS 5 ETAPAS DEL FLUJO WAPPY ─── */}
-          {visualNodes.map((node) => {
-            const isNodeSelected =
-              selectedNodeKeys.includes(node.key) || activeConfigNodeKey === node.key;
-            const nodeCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[node.key];
-            const hasCustomConfig = Boolean(
-              (nodeCfg?.fields && nodeCfg.fields.length > 0) ||
-                nodeCfg?.inputContext?.trim() ||
-                nodeCfg?.outputContext?.trim() ||
-                nodeCfg?.customInstruction?.trim() ||
-                nodeCfg?.prompt?.trim(),
-            );
-            const selectedRingClass = isNodeSelected
-              ? 'ring-3 ring-purple-500 dark:ring-[#C7F303] ring-offset-2 dark:ring-offset-slate-900'
-              : hasCustomConfig
-                ? 'ring-2 ring-teal-500/60'
-                : '';
-
-            // 1. ETAPA 1: FIGURA TRIGGER NODE (Forma en "D" con rayo ⚡ a la izquierda y puerto circular derecho)
-            if (node.shape === 'trigger') {
-              return (
-                <div
-                  key={node.key}
-                  onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic sobre este nodo para editar su configuración"
-                  className={`absolute z-20 group/node select-none ${
-                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-                  }`}
+            {/* ─── CAPA SVG DE CABLES CURVOS Y FLECHAS (CON BOTÓN × PARA CORTAR CUALQUIER CABLE) ─── */}
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none z-10"
+              style={{ overflow: 'visible' }}
+            >
+              <defs>
+                <marker
+                  id="wappy-arrow"
+                  viewBox="0 0 10 10"
+                  refX="7"
+                  refY="5"
+                  markerWidth="5.5"
+                  markerHeight="5.5"
+                  orient="auto-start-reverse"
                 >
-                  {/* Rayo naranja de Trigger a la izquierda */}
-                  <div className="absolute -left-5 top-1/2 -translate-y-1/2 text-orange-500 drop-shadow-sm">
-                    <Zap className="w-4 h-4 fill-orange-500" />
-                  </div>
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94a3b8" />
+                </marker>
+                <marker
+                  id="wappy-arrow-true"
+                  viewBox="0 0 10 10"
+                  refX="7"
+                  refY="5"
+                  markerWidth="5.5"
+                  markerHeight="5.5"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981" />
+                </marker>
+              </defs>
 
-                  {/* Caja en forma de D (redondeada a la izquierda, recta a la derecha) */}
-                  <div className={`w-full h-full rounded-l-[28px] rounded-r-[12px] bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-orange-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
-                    {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
-
-                    {!readOnly && node.removable && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleOrAddCatalogNode('trigger', node.nodeId);
-                        }}
-                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                        title="Quitar disparador"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Puerto circular de salida derecho (●) */}
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'main_out',
-                        node.x + node.width,
-                        node.y + node.height / 2,
-                      )
+              {wires.map((w) => (
+                <g key={w.id} className="group/wire">
+                  <path
+                    d={w.d}
+                    fill="none"
+                    stroke={w.color}
+                    strokeWidth={w.dashed ? 2 : 2.2}
+                    strokeDasharray={w.dashed ? '5 4' : undefined}
+                    markerEnd={
+                      w.dashed
+                        ? undefined
+                        : w.color === '#10b981'
+                          ? 'url(#wappy-arrow-true)'
+                          : 'url(#wappy-arrow)'
                     }
-                    title="Arrastra desde este puerto para conectar"
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-400 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
                   />
-
-                  {/* Etiqueta inferior */}
-                  <div className="mt-1.5 w-[120px] -ml-[22px] text-center pointer-events-none">
-                    <div className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
-                      {node.title}
-                    </div>
-                    <div className="text-[9.5px] font-medium text-slate-400">{node.subtitle}</div>
-                  </div>
-                </div>
-              );
-            }
-
-            // 1B. ETAPA 2: FIGURA NODO DE EXTRACCIÓN / LECTURA PREVIA (Haz clic para elegir campos: ej. Nombre, Cédula y Edad)
-            if (node.shape === 'square_extractor') {
-              return (
-                <div
-                  key={node.key}
-                  onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic sobre este nodo para configurar qué campos extraer (ej. Nombre, Cédula y Edad) y su contexto"
-                  className={`absolute z-20 group/node select-none ${
-                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-                  }`}
-                >
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-sky-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                    Extraer
-                  </span>
-
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-500 border-2 border-white dark:border-slate-900" />
-
-                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
-                    {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
-
-                    {!readOnly && node.removable && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
+                  {!readOnly && (
+                    <>
+                      <path
+                        d={w.d}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth="14"
+                        className="pointer-events-auto cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleOrAddCatalogNode('extractors', node.nodeId);
+                          handleRemoveWire(w.id);
                         }}
-                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                        title="Quitar nodo de extracción"
                       >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'main_out',
-                        node.x + node.width,
-                        node.y + node.height / 2,
-                      )
-                    }
-                    title="Arrastra desde este puerto para conectar a cualquier módulo o Agente IA"
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-sky-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
-                  />
-
-                  <div className="mt-1.5 w-[116px] -ml-[23px] text-center pointer-events-none">
-                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                      {node.title}
-                    </div>
-                    <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
-                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-            // 2. ETAPA 3: FIGURA AGENTE IA (Principal con Tenshi 3D + Sub-Agentes #2/#3/#4 rotando Avatares Suri, Max, Paz, Capi)
-            if (node.shape === 'agent') {
-              const isExtraAgent = node.key.startsWith('agent_extra_');
-              const extraAgentsArr = workflowNodes?.canvasLayout?.extraAgents || [];
-              const extraIdx = isExtraAgent
-                ? Math.max(0, extraAgentsArr.findIndex((ea) => ea.key === node.key))
-                : -1;
-              const extraConfig = isExtraAgent ? extraAgentsArr[extraIdx] || null : null;
-              const currentSelectedAgentId = isExtraAgent
-                ? extraConfig?.agentId || ''
-                : agentId || '';
-              // Rotación automática de Avatares 3D: Principal = Tenshi (Gato), #2 = Suri (Suricato), #3 = Max (Perro), #4 = Paz (Paloma), #5 = Capi (Capibara)
-              const rotatedAvatar = getRotatedAgentAvatar(
-                isExtraAgent ? extraIdx + 1 : 0,
-                nodeCfg?.avatarSrc,
-              );
-
-              return (
-                <div
-                  key={node.key}
-                  onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic sobre este Agente IA para editar su Prompt, Modelo de IA, Avatar 3D y Contexto de Entrada/Salida"
-                  className={`absolute z-20 group/node select-none ${
-                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-                  }`}
-                >
-                  {/* Puerto izquierdo de entrada (●) */}
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-lg bg-slate-400 border-2 border-white dark:border-slate-900" />
-
-                  {/* Cuerpo rectangular del Agente IA */}
-                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md px-3 pb-2.5 pt-1.5 flex items-center gap-2.5 relative transition-colors ${selectedRingClass}`}>
-                    {!readOnly && isExtraAgent && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
+                        <title>Haz clic para desconectar este cable y reconectar a tu gusto</title>
+                      </path>
+                      <g
+                        transform={`translate(${w.midX}, ${w.midY})`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemoveExtraAgent(node.key);
+                          handleRemoveWire(w.id);
                         }}
-                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                        title="Quitar este Agente IA adicional"
+                        className="pointer-events-auto cursor-pointer opacity-0 group-hover/wire:opacity-100 transition-opacity"
                       >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-
-                    {/* Icono del Agente: Avatar 3D Oficial de Tenshi en el Principal y Rotación Automática en los Sub-Agentes */}
-                    <div
-                      title={`Avatar 3D: ${rotatedAvatar.name}`}
-                      className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-slate-900 dark:to-purple-950/90 border border-emerald-200/80 dark:border-purple-800/70 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"
+                        <circle r="7.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                        <path
+                          d="M -2.5 -2.5 L 2.5 2.5 M 2.5 -2.5 L -2.5 2.5"
+                          stroke="#ffffff"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </g>
+                    </>
+                  )}
+                  {w.label && w.labelX !== undefined && w.labelY !== undefined && (
+                    <text
+                      x={w.labelX}
+                      y={w.labelY}
+                      fill={w.label === 'sí' ? '#059669' : '#64748b'}
+                      fontSize="10"
+                      fontWeight="700"
                     >
-                      <img
-                        src={rotatedAvatar.src}
-                        alt={rotatedAvatar.name}
-                        className="w-10 h-10 object-contain drop-shadow-sm select-none pointer-events-none scale-115"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[11.5px] font-black text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
-                          {node.title}
-                        </span>
-                        <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 whitespace-nowrap">
-                          {isExtraAgent ? `${rotatedAvatar.animal} · #${extraIdx + 2}` : 'Principal'}
-                        </span>
-                      </div>
+                      {w.label}
+                    </text>
+                  )}
+                </g>
+              ))}
 
-                      {/* Selector directo de Agente Especialista (según permisos del usuario) + Tenshi Avatar */}
-                      {!readOnly && availableAgentsWithTenshiAvatar.length > 0 && (onSelectAgent || isExtraAgent) ? (
-                        <select
-                          value={currentSelectedAgentId}
+              {/* Cable interactivo en vivo mientras el usuario arrastra desde un puerto */}
+              {wiringFrom && (
+                <path
+                  d={`M ${wiringFrom.startX} ${wiringFrom.startY} C ${wiringFrom.startX + 45} ${wiringFrom.startY}, ${wiringFrom.currX - 45} ${wiringFrom.currY}, ${wiringFrom.currX} ${wiringFrom.currY}`}
+                  fill="none"
+                  stroke="#a855f7"
+                  strokeWidth="2.5"
+                  strokeDasharray="4 3"
+                />
+              )}
+            </svg>
+
+            {/* ─── CAPA DE NODOS DE LAS 5 ETAPAS DEL FLUJO WAPPY ─── */}
+            {visualNodes.map((node) => {
+              const isNodeSelected =
+                selectedNodeKeys.includes(node.key) || activeConfigNodeKey === node.key;
+              const isSandboxHighlighted = isNodeSandboxHighlighted(node);
+              const nodeCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[node.key];
+              const hasCustomConfig = Boolean(
+                (nodeCfg?.fields && nodeCfg.fields.length > 0) ||
+                  nodeCfg?.inputContext?.trim() ||
+                  nodeCfg?.outputContext?.trim() ||
+                  nodeCfg?.customInstruction?.trim() ||
+                  nodeCfg?.prompt?.trim(),
+              );
+              const selectedRingClass = isSandboxHighlighted
+                ? 'ring-4 ring-emerald-500 dark:ring-[#C7F303] ring-offset-2 dark:ring-offset-slate-900 shadow-lg shadow-emerald-500/25'
+                : isNodeSelected
+                  ? 'ring-3 ring-purple-500 dark:ring-[#C7F303] ring-offset-2 dark:ring-offset-slate-900'
+                  : hasCustomConfig
+                    ? 'ring-2 ring-teal-500/60'
+                    : '';
+
+              // 1. ETAPA 1: FIGURA TRIGGER NODE (Forma en "D" con rayo ⚡ a la izquierda y puerto circular derecho)
+              if (node.shape === 'trigger') {
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic sobre este nodo para editar su configuración"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    {/* Rayo naranja de Trigger a la izquierda */}
+                    <div className="absolute -left-5 top-1/2 -translate-y-1/2 text-orange-500 drop-shadow-sm">
+                      <Zap className="w-4 h-4 fill-orange-500" />
+                    </div>
+
+                    {/* Caja en forma de D (redondeada a la izquierda, recta a la derecha) */}
+                    <div className={`w-full h-full rounded-l-[28px] rounded-r-[12px] bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-orange-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
+                      {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
+
+                      {!readOnly && node.removable && (
+                        <button
+                          type="button"
                           onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            if (isExtraAgent) {
-                              handleUpdateExtraAgent(node.key, e.target.value);
-                            } else if (onSelectAgent) {
-                              onSelectAgent(e.target.value);
-                            }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleOrAddCatalogNode('trigger', node.nodeId);
                           }}
-                          className="mt-1 w-full text-[10.5px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50/70 dark:bg-slate-900 border border-purple-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 focus:outline-none cursor-pointer truncate"
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar disparador"
                         >
-                          {availableAgentsWithTenshiAvatar.map((ag) => (
-                            <option key={ag.id} value={ag.id}>
-                              {ag.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div className="text-[10.5px] font-bold text-purple-600 dark:text-purple-400 truncate mt-0.5">
-                          {node.subtitle}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Puerto circular de salida derecho (●) */}
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'main_out',
-                        node.x + node.width,
-                        node.y + node.height / 2,
-                      )
-                    }
-                    title="Arrastra para conectar la salida de este Agente IA hacia otro módulo, correo, acta u otro Agente IA"
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-400 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
-                  />
-
-                  {/* ─── LOS 3 PUERTOS EN ROMBO (◆) INFERIORES EN ESPAÑOL ─── */}
-                  {/* Rombo 1: Modelo IA * */}
-                  <div
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!readOnly) {
-                        setPaletteTab('ai_engine');
-                        setActiveConfigNodeKey(isExtraAgent ? node.key : 'sub_model');
-                      }
-                    }}
-                    style={{ left: 32 }}
-                    className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/modport"
-                    title="Configurar Modelo de IA de este Agente (WAPPY Cloud / Antigravity Local / Antigravity Cloud 24/7)"
-                  >
-                    <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/modport:scale-125 border-2 border-white dark:border-slate-900 shadow-sm transition-transform" />
-                    <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                      Modelo IA <span className="text-rose-500">*</span>
-                    </span>
-                  </div>
-
-                  {/* Rombo 2: Memoria [+] */}
-                  <div
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!readOnly) {
-                        setPaletteTab('memories');
-                        setActiveConfigNodeKey('sub_memory');
-                      }
-                    }}
-                    style={{ left: 102 }}
-                    className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/memport"
-                    title="Configurar las 4 Memorias del Agente (Empresa Activa, Bitácora Anti-Duplicados, RAG NotebookLM, Reglas Normativas SST)"
-                  >
-                    <div className="w-3 h-3 rotate-45 bg-pink-500 group-hover/memport:bg-pink-600 border-2 border-white dark:border-slate-900 shadow-sm" />
-                    <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
-                      Memoria
-                      {!readOnly && (
-                        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-[9px] font-black text-pink-600">
-                          +
-                        </span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Rombo 3: Herramienta [+] */}
-                  <div
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!readOnly) {
-                        setPaletteTab('connectors');
-                        setActiveConfigNodeKey(node.key);
-                      }
-                    }}
-                    style={{ left: 168 }}
-                    className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/toolport"
-                    title="Conectar Herramientas al Agente IA"
-                  >
-                    <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/toolport:bg-purple-600 border-2 border-white dark:border-slate-900 shadow-sm" />
-                    <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
-                      Herramienta
-                      {!readOnly && (
-                        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-[9px] font-black text-purple-600">
-                          +
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              );
-            }
-
-            // 3. FIGURA CONDICIÓN SI/NO (Cuadrado con icono de bifurcación verde y 2 salidas sí/no)
-            if (node.shape === 'if') {
-              return (
-                <div
-                  key={node.key}
-                  onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic para configurar qué evalúa la Condición Si/No"
-                  className={`absolute z-20 group/node select-none ${
-                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-                  }`}
-                >
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
-
-                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-emerald-500 shadow-md flex items-center justify-center transition-colors ${selectedRingClass}`}>
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                      <GitFork className="w-6 h-6" />
-                    </div>
-                  </div>
-
-                  {/* Puerto de salida superior: SÍ */}
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(e, node.key, 'if_true', node.x + node.width, node.y + 24)
-                    }
-                    style={{ top: 20 }}
-                    className="absolute -right-2 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 cursor-crosshair"
-                    title="Rama SÍ (Si se cumple la condición / hay hallazgos)"
-                  />
-
-                  {/* Puerto de salida inferior: NO */}
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(e, node.key, 'if_false', node.x + node.width, node.y + 52)
-                    }
-                    style={{ top: 48 }}
-                    className="absolute -right-2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900 cursor-crosshair"
-                    title="Rama NO (Si no hay hallazgos / caso contrario)"
-                  />
-
-                  <div className="mt-1.5 w-[112px] -ml-[20px] text-center pointer-events-none">
-                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
-                      {node.title}
-                    </div>
-                    <div className="text-[9px] text-slate-400">{node.subtitle}</div>
-                  </div>
-                </div>
-              );
-            }
-
-            // 3A-BIS. NODOS LÓGICOS ADICIONALES (Iterar Loop, Unir Ramas Merge, Aprobación Humana)
-            if (node.shape === 'logic') {
-              const isLoop = node.nodeId.includes('loop');
-              const isMerge = node.nodeId.includes('merge');
-              return (
-                <div
-                  key={node.key}
-                  onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic para configurar este nodo de control de flujo"
-                  className={`absolute z-20 group/node select-none ${
-                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-                  }`}
-                >
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                    Control
-                  </span>
-
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-amber-500 border-2 border-white dark:border-slate-900" />
-
-                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-amber-400 dark:border-amber-600 group-hover/node:border-amber-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                      {isLoop ? (
-                        <Repeat className="w-6 h-6" />
-                      ) : isMerge ? (
-                        <GitMerge className="w-6 h-6" />
-                      ) : (
-                        <UserCheck className="w-6 h-6" />
+                          <X className="w-2.5 h-2.5" />
+                        </button>
                       )}
                     </div>
 
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveLogicNode(node.key);
-                        }}
-                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                        title="Quitar nodo de control"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'main_out',
-                        node.x + node.width,
-                        node.y + node.height / 2,
-                      )
-                    }
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-amber-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
-                    title="Arrastra desde este puerto para conectar al siguiente paso"
-                  />
-
-                  <div className="mt-1.5 w-[112px] -ml-[20px] text-center pointer-events-none">
-                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                      {node.title}
-                    </div>
-                    <div className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold truncate">
-                      {node.subtitle}
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-            // 3B. ETAPA 4: FIGURA NODO DE ACCIÓN EN HITO / APLICATIVO SOMOS SST (Conectable en cualquier orden)
-            if (node.shape === 'square_hito') {
-              return (
-                <div
-                  key={node.key}
-                  onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic sobre este nodo para configurar qué campos o acciones realizar en el Hito/Aplicativo"
-                  className={`absolute z-20 group/node select-none ${
-                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-                  }`}
-                >
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-teal-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                    Hito / App
-                  </span>
-
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-teal-500 border-2 border-white dark:border-slate-900" />
-
-                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-teal-400 dark:border-teal-600 group-hover/node:border-teal-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
-                    {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
-
-                    {!readOnly && node.removable && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleOrAddCatalogNode('hitos', node.nodeId);
-                        }}
-                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                        title="Quitar acción en Hito / App"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'main_out',
-                        node.x + node.width,
-                        node.y + node.height / 2,
-                      )
-                    }
-                    title="Arrastra desde este puerto para conectar a un correo, otra IA revisora o cualquier módulo"
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-teal-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
-                  />
-
-                  <div className="mt-1.5 w-[116px] -ml-[23px] text-center pointer-events-none">
-                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                      {node.title}
-                    </div>
-                    <div className="text-[9px] text-teal-600 dark:text-teal-400 font-semibold truncate">
-                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-            // 4. ETAPA 5: FIGURA NODOS CUADRADOS DE BITÁCORA Y SALIDA (Con puerto de salida ● y botón [+])
-            if (node.shape === 'square_output') {
-              return (
-                <div
-                  key={node.key}
-                  onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic sobre este nodo para configurar el formato de salida de la bitácora"
-                  className={`absolute z-20 group/node select-none ${
-                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
-                  }`}
-                >
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-purple-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                    Bitácora
-                  </span>
-
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
-
-                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
-                    {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
-
-                    {!readOnly && node.removable && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleOrAddCatalogNode('outputs', node.nodeId);
-                        }}
-                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                        title="Quitar nodo de salida"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex items-center">
+                    {/* Puerto circular de salida derecho (●) */}
                     <div
                       onPointerDown={(e) =>
                         handlePortPointerDown(
@@ -4242,76 +4022,667 @@ export default function WappyWorkflowCanvas({
                           node.y + node.height / 2,
                         )
                       }
-                      title="Arrastra desde este puerto para continuar el flujo hacia otra IA o módulo"
-                      className="w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                      title="Arrastra desde este puerto para conectar"
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-400 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
                     />
-                    <div className="w-2.5 h-[1.5px] bg-slate-300 dark:bg-slate-600" />
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => setPaletteTab('outputs')}
-                        className="w-4 h-4 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-500 hover:text-purple-600 hover:border-purple-400 flex items-center justify-center text-[10px] font-bold shadow-xs"
-                        title="Añadir otro destino o acción en el flujo"
-                      >
-                        +
-                      </button>
-                    )}
-                  </div>
 
-                  <div className="mt-1.5 w-[116px] -ml-[21px] text-center pointer-events-none">
-                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                      {node.title}
+                    {/* Etiqueta inferior */}
+                    <div className="mt-1.5 w-[120px] -ml-[22px] text-center pointer-events-none">
+                      <div className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
+                        {node.title}
+                      </div>
+                      <div className="text-[9.5px] font-medium text-slate-400">{node.subtitle}</div>
                     </div>
-                    <div className="text-[9px] text-slate-400 truncate">{node.subtitle}</div>
                   </div>
-                </div>
-              );
-            }
+                );
+              }
 
-            // 4-BIS. FIGURA NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
-            if (node.shape === 'custom_node') {
-              const badgeText =
-                node.customNodeType === 'skill'
-                  ? '🧩 Skill'
-                  : node.customNodeType === 'subagent'
-                    ? '🤖 Sub-Agente'
-                    : node.customNodeType === 'rule'
-                      ? '📏 Regla'
-                      : node.customNodeType === 'web_scraper'
-                        ? '🕷️ Scraper AGY'
-                        : '🌐 Búsqueda Web';
-              const badgeColor =
-                node.customNodeType === 'skill'
-                  ? 'bg-violet-600'
-                  : node.customNodeType === 'subagent'
-                    ? 'bg-indigo-600'
-                    : node.customNodeType === 'rule'
-                      ? 'bg-emerald-600'
-                      : node.customNodeType === 'web_scraper'
-                        ? 'bg-orange-600'
-                        : 'bg-sky-600';
-              const borderColor =
-                node.customNodeType === 'skill'
-                  ? 'border-violet-400 dark:border-violet-600 group-hover/node:border-violet-500'
-                  : node.customNodeType === 'subagent'
-                    ? 'border-indigo-400 dark:border-indigo-600 group-hover/node:border-indigo-500'
-                    : node.customNodeType === 'rule'
-                      ? 'border-emerald-400 dark:border-emerald-600 group-hover/node:border-emerald-500'
-                      : node.customNodeType === 'web_scraper'
-                        ? 'border-orange-400 dark:border-orange-600 group-hover/node:border-orange-500'
-                        : 'border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500';
-              const iconId = node.nodeId.includes('scraper_agy_')
-                ? node.nodeId
-                : node.customNodeType === 'web_scraper'
-                  ? 'web_scraper'
-                  : node.customNodeType === 'skill'
-                    ? 'skill'
+              // 1B. ETAPA 2: FIGURA NODO DE EXTRACCIÓN / LECTURA PREVIA (Haz clic para elegir campos: ej. Nombre, Cédula y Edad)
+              if (node.shape === 'square_extractor') {
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic sobre este nodo para configurar qué campos extraer (ej. Nombre, Cédula y Edad) y su contexto"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-sky-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                      Extraer
+                    </span>
+
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-500 border-2 border-white dark:border-slate-900" />
+
+                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
+                      {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
+
+                      {!readOnly && node.removable && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleOrAddCatalogNode('extractors', node.nodeId);
+                          }}
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar nodo de extracción"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'main_out',
+                          node.x + node.width,
+                          node.y + node.height / 2,
+                        )
+                      }
+                      title="Arrastra desde este puerto para conectar a cualquier módulo o Agente IA"
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-sky-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                    />
+
+                    <div className="mt-1.5 w-[116px] -ml-[23px] text-center pointer-events-none">
+                      <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                        {node.title}
+                      </div>
+                      <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
+                        {buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 2. ETAPA 3: FIGURA AGENTE IA (Principal con Tenshi 3D + Sub-Agentes #2/#3/#4 rotando Avatares Suri, Max, Paz, Capi)
+              if (node.shape === 'agent') {
+                const isExtraAgent = node.key.startsWith('agent_extra_');
+                const extraAgentsArr = workflowNodes?.canvasLayout?.extraAgents || [];
+                const extraIdx = isExtraAgent
+                  ? Math.max(0, extraAgentsArr.findIndex((ea) => ea.key === node.key))
+                  : -1;
+                const extraConfig = isExtraAgent ? extraAgentsArr[extraIdx] || null : null;
+                const currentSelectedAgentId = isExtraAgent
+                  ? extraConfig?.agentId || ''
+                  : agentId || '';
+                // Rotación automática de Avatares 3D: Principal = Tenshi (Gato), #2 = Suri (Suricato), #3 = Max (Perro), #4 = Paz (Paloma), #5 = Capi (Capibara)
+                const rotatedAvatar = getRotatedAgentAvatar(
+                  isExtraAgent ? extraIdx + 1 : 0,
+                  nodeCfg?.avatarSrc,
+                );
+
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic sobre este Agente IA para editar su Prompt, Modelo de IA, Avatar 3D y Contexto de Entrada/Salida"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    {/* Puerto izquierdo de entrada (●) */}
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-lg bg-slate-400 border-2 border-white dark:border-slate-900" />
+
+                    {/* Cuerpo rectangular del Agente IA */}
+                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md px-3 pb-2.5 pt-1.5 flex items-center gap-2.5 relative transition-colors ${selectedRingClass}`}>
+                      {!readOnly && isExtraAgent && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExtraAgent(node.key);
+                          }}
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar este Agente IA adicional"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+
+                      {/* Icono del Agente: Avatar 3D Oficial de Tenshi en el Principal y Rotación Automática en los Sub-Agentes */}
+                      <div
+                        title={`Avatar 3D: ${rotatedAvatar.name}`}
+                        className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-slate-900 dark:to-purple-950/90 border border-emerald-200/80 dark:border-purple-800/70 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"
+                      >
+                        <img
+                          src={rotatedAvatar.src}
+                          alt={rotatedAvatar.name}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = '/assets/tenshi.png';
+                          }}
+                          className="w-10 h-10 object-contain drop-shadow-sm select-none pointer-events-none scale-115"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[11.5px] font-black text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
+                            {node.title}
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 whitespace-nowrap">
+                            {isExtraAgent ? `${rotatedAvatar.animal} · #${extraIdx + 2}` : 'Principal'}
+                          </span>
+                        </div>
+
+                        {/* Selector directo de Agente Especialista (según permisos del usuario) + Tenshi Avatar */}
+                        {!readOnly && availableAgentsWithTenshiAvatar.length > 0 && (onSelectAgent || isExtraAgent) ? (
+                          <select
+                            value={currentSelectedAgentId}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              if (isExtraAgent) {
+                                handleUpdateExtraAgent(node.key, e.target.value);
+                              } else if (onSelectAgent) {
+                                onSelectAgent(e.target.value);
+                              }
+                            }}
+                            className="mt-1 w-full text-[10.5px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50/70 dark:bg-slate-900 border border-purple-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 focus:outline-none cursor-pointer truncate"
+                          >
+                            {availableAgentsWithTenshiAvatar.map((ag) => (
+                              <option key={ag.id} value={ag.id}>
+                                {ag.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="text-[10.5px] font-bold text-purple-600 dark:text-purple-400 truncate mt-0.5">
+                            {node.subtitle}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Puerto circular de salida derecho (●) */}
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'main_out',
+                          node.x + node.width,
+                          node.y + node.height / 2,
+                        )
+                      }
+                      title="Arrastra para conectar la salida de este Agente IA hacia otro módulo, correo, acta u otro Agente IA"
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-400 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                    />
+
+                    {/* ─── LOS 3 PUERTOS EN ROMBO (◆) INFERIORES EN ESPAÑOL ─── */}
+                    {/* Rombo 1: Modelo IA * */}
+                    <div
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!readOnly) {
+                          setPaletteTab('ai_engine');
+                          setActiveConfigNodeKey(isExtraAgent ? node.key : 'sub_model');
+                        }
+                      }}
+                      style={{ left: 32 }}
+                      className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/modport"
+                      title="Configurar Modelo de IA de este Agente (WAPPY Cloud / Antigravity Local / Antigravity Cloud 24/7)"
+                    >
+                      <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/modport:scale-125 border-2 border-white dark:border-slate-900 shadow-sm transition-transform" />
+                      <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        Modelo IA <span className="text-rose-500">*</span>
+                      </span>
+                    </div>
+
+                    {/* Rombo 2: Memoria [+] */}
+                    <div
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!readOnly) {
+                          setPaletteTab('memories');
+                          setActiveConfigNodeKey('sub_memory');
+                        }
+                      }}
+                      style={{ left: 102 }}
+                      className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/memport"
+                      title="Configurar las 4 Memorias del Agente (Empresa Activa, Bitácora Anti-Duplicados, RAG NotebookLM, Reglas Normativas SST)"
+                    >
+                      <div className="w-3 h-3 rotate-45 bg-pink-500 group-hover/memport:bg-pink-600 border-2 border-white dark:border-slate-900 shadow-sm" />
+                      <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
+                        Memoria
+                        {!readOnly && (
+                          <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-[9px] font-black text-pink-600">
+                            +
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Rombo 3: Herramienta [+] */}
+                    <div
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!readOnly) {
+                          setPaletteTab('connectors');
+                          setActiveConfigNodeKey(node.key);
+                        }
+                      }}
+                      style={{ left: 168 }}
+                      className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/toolport"
+                      title="Conectar Herramientas al Agente IA"
+                    >
+                      <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/toolport:bg-purple-600 border-2 border-white dark:border-slate-900 shadow-sm" />
+                      <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
+                        Herramienta
+                        {!readOnly && (
+                          <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-[9px] font-black text-purple-600">
+                            +
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 3. FIGURA CONDICIÓN SI/NO (Cuadrado con icono de bifurcación verde y 2 salidas sí/no)
+              if (node.shape === 'if') {
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic para configurar qué evalúa la Condición Si/No"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
+
+                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-emerald-500 shadow-md flex items-center justify-center transition-colors ${selectedRingClass}`}>
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <GitFork className="w-6 h-6" />
+                      </div>
+                    </div>
+
+                    {/* Puerto de salida superior: SÍ */}
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(e, node.key, 'if_true', node.x + node.width, node.y + 24)
+                      }
+                      style={{ top: 20 }}
+                      className="absolute -right-2 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 cursor-crosshair"
+                      title="Rama SÍ (Si se cumple la condición / hay hallazgos)"
+                    />
+
+                    {/* Puerto de salida inferior: NO */}
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(e, node.key, 'if_false', node.x + node.width, node.y + 52)
+                      }
+                      style={{ top: 48 }}
+                      className="absolute -right-2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900 cursor-crosshair"
+                      title="Rama NO (Si no hay hallazgos / caso contrario)"
+                    />
+
+                    <div className="mt-1.5 w-[112px] -ml-[20px] text-center pointer-events-none">
+                      <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
+                        {node.title}
+                      </div>
+                      <div className="text-[9px] text-slate-400">{node.subtitle}</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 3A-BIS. NODOS LÓGICOS ADICIONALES (Iterar Loop, Unir Ramas Merge, Aprobación Humana)
+              if (node.shape === 'logic') {
+                const isLoop = node.nodeId.includes('loop');
+                const isMerge = node.nodeId.includes('merge');
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic para configurar este nodo de control de flujo"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                      Control
+                    </span>
+
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-amber-500 border-2 border-white dark:border-slate-900" />
+
+                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-amber-400 dark:border-amber-600 group-hover/node:border-amber-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        {isLoop ? (
+                          <Repeat className="w-6 h-6" />
+                        ) : isMerge ? (
+                          <GitMerge className="w-6 h-6" />
+                        ) : (
+                          <UserCheck className="w-6 h-6" />
+                        )}
+                      </div>
+
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveLogicNode(node.key);
+                          }}
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar nodo de control"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'main_out',
+                          node.x + node.width,
+                          node.y + node.height / 2,
+                        )
+                      }
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-amber-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                      title="Arrastra desde este puerto para conectar al siguiente paso"
+                    />
+
+                    <div className="mt-1.5 w-[112px] -ml-[20px] text-center pointer-events-none">
+                      <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                        {node.title}
+                      </div>
+                      <div className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold truncate">
+                        {node.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 3B. ETAPA 4: FIGURA NODO DE ACCIÓN EN HITO / APLICATIVO SOMOS SST (Conectable en cualquier orden)
+              if (node.shape === 'square_hito') {
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic sobre este nodo para configurar qué campos o acciones realizar en el Hito/Aplicativo"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-teal-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                      Hito / App
+                    </span>
+
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-teal-500 border-2 border-white dark:border-slate-900" />
+
+                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-teal-400 dark:border-teal-600 group-hover/node:border-teal-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
+                      {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
+
+                      {!readOnly && node.removable && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleOrAddCatalogNode('hitos', node.nodeId);
+                          }}
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar acción en Hito / App"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'main_out',
+                          node.x + node.width,
+                          node.y + node.height / 2,
+                        )
+                      }
+                      title="Arrastra desde este puerto para conectar a un correo, otra IA revisora o cualquier módulo"
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-teal-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                    />
+
+                    <div className="mt-1.5 w-[116px] -ml-[23px] text-center pointer-events-none">
+                      <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                        {node.title}
+                      </div>
+                      <div className="text-[9px] text-teal-600 dark:text-teal-400 font-semibold truncate">
+                        {buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 4. ETAPA 5: FIGURA NODOS CUADRADOS DE BITÁCORA Y SALIDA (Con puerto de salida ● y botón [+])
+              if (node.shape === 'square_output') {
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic sobre este nodo para configurar el formato de salida de la bitácora"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-purple-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                      Bitácora
+                    </span>
+
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
+
+                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
+                      {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
+
+                      {!readOnly && node.removable && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleOrAddCatalogNode('outputs', node.nodeId);
+                          }}
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar nodo de salida"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex items-center">
+                      <div
+                        onPointerDown={(e) =>
+                          handlePortPointerDown(
+                            e,
+                            node.key,
+                            'main_out',
+                            node.x + node.width,
+                            node.y + node.height / 2,
+                          )
+                        }
+                        title="Arrastra desde este puerto para continuar el flujo hacia otra IA o módulo"
+                        className="w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                      />
+                      <div className="w-2.5 h-[1.5px] bg-slate-300 dark:bg-slate-600" />
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => setPaletteTab('outputs')}
+                          className="w-4 h-4 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-500 hover:text-purple-600 hover:border-purple-400 flex items-center justify-center text-[10px] font-bold shadow-xs"
+                          title="Añadir otro destino o acción en el flujo"
+                        >
+                          +
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="mt-1.5 w-[116px] -ml-[21px] text-center pointer-events-none">
+                      <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                        {node.title}
+                      </div>
+                      <div className="text-[9px] text-slate-400 truncate">{node.subtitle}</div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 4-BIS. FIGURA NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
+              if (node.shape === 'custom_node') {
+                const badgeText =
+                  node.customNodeType === 'skill'
+                    ? '🧩 Skill'
                     : node.customNodeType === 'subagent'
-                      ? 'subagent'
+                      ? '🤖 Sub-Agente'
                       : node.customNodeType === 'rule'
-                        ? 'rule'
-                        : 'web_search';
+                        ? '📏 Regla'
+                        : node.customNodeType === 'web_scraper'
+                          ? '🕷️ Scraper AGY'
+                          : '🌐 Búsqueda Web';
+                const badgeColor =
+                  node.customNodeType === 'skill'
+                    ? 'bg-violet-600'
+                    : node.customNodeType === 'subagent'
+                      ? 'bg-indigo-600'
+                      : node.customNodeType === 'rule'
+                        ? 'bg-emerald-600'
+                        : node.customNodeType === 'web_scraper'
+                          ? 'bg-orange-600'
+                          : 'bg-sky-600';
+                const borderColor =
+                  node.customNodeType === 'skill'
+                    ? 'border-violet-400 dark:border-violet-600 group-hover/node:border-violet-500'
+                    : node.customNodeType === 'subagent'
+                      ? 'border-indigo-400 dark:border-indigo-600 group-hover/node:border-indigo-500'
+                      : node.customNodeType === 'rule'
+                        ? 'border-emerald-400 dark:border-emerald-600 group-hover/node:border-emerald-500'
+                        : node.customNodeType === 'web_scraper'
+                          ? 'border-orange-400 dark:border-orange-600 group-hover/node:border-orange-500'
+                          : 'border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500';
+                const iconId = node.nodeId.includes('scraper_agy_')
+                  ? node.nodeId
+                  : node.customNodeType === 'web_scraper'
+                    ? 'web_scraper'
+                    : node.customNodeType === 'skill'
+                      ? 'skill'
+                      : node.customNodeType === 'subagent'
+                        ? 'subagent'
+                        : node.customNodeType === 'rule'
+                          ? 'rule'
+                          : 'web_search';
+
+                return (
+                  <div
+                    key={node.key}
+                    onPointerDown={(e) => handleNodePointerDown(e, node)}
+                    onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                    title="Haz clic sobre este nodo para configurar su Skill, Prompt de Sub-Agente, Regla o Script de Web Scraping en Antigravity"
+                    className={`absolute z-20 group/node select-none ${
+                      readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    {renderSandboxNodeOverlay(node)}
+
+                    <span
+                      className={`absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full ${badgeColor} text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap`}
+                    >
+                      {badgeText}
+                    </span>
+
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-purple-500 border-2 border-white dark:border-slate-900" />
+
+                    <div
+                      className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 ${borderColor} shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}
+                    >
+                      {renderOfficialNodeSvg(iconId, 'w-8 h-8')}
+
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveCustomNode(node.key);
+                          }}
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar este nodo del lienzo"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'main_out',
+                          node.x + node.width,
+                          node.y + node.height / 2,
+                        )
+                      }
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                      title="Arrastra desde este puerto para conectarlo con el Agente IA o cualquier otro módulo del flujo"
+                    />
+
+                    <div className="mt-1.5 w-[118px] -ml-[22px] text-center pointer-events-none">
+                      <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                        {node.title}
+                      </div>
+                      <div className="text-[9px] text-purple-600 dark:text-purple-400 font-semibold truncate">
+                        {node.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 5. FIGURA SUB-NODOS CIRCULARES (Modelo IA *, Memoria y Herramienta con Rombo superior ◆)
+              const isModelCircle = node.shape === 'circle_model';
+              const isMemoryCircle = node.shape === 'circle_memory';
 
               return (
                 <div
@@ -4319,162 +4690,165 @@ export default function WappyWorkflowCanvas({
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
                   onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic sobre este nodo para configurar su Skill, Prompt de Sub-Agente, Regla o Script de Web Scraping en Antigravity"
+                  title="Haz clic sobre este sub-nodo para configurar sus parámetros, campos y contexto"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
                 >
-                  <span
-                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full ${badgeColor} text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap`}
-                  >
-                    {badgeText}
-                  </span>
+                  {renderSandboxNodeOverlay(node)}
 
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-purple-500 border-2 border-white dark:border-slate-900" />
-
+                  {/* Puerto superior en forma de Rombo (◆) que conecta exclusivamente al Agente IA */}
                   <div
-                    className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 ${borderColor} shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}
-                  >
-                    {renderOfficialNodeSvg(iconId, 'w-8 h-8')}
+                    className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border-2 border-white dark:border-slate-900 shadow-xs ${
+                      isMemoryCircle ? 'bg-pink-500' : 'bg-indigo-500'
+                    }`}
+                  />
 
-                    {!readOnly && (
+                  {/* Círculo perfecto de Sub-Nodo */}
+                  <div
+                    onClick={() => {
+                      if (readOnly) return;
+                      if (isModelCircle) {
+                        setPaletteTab('ai_engine');
+                      } else if (isMemoryCircle) {
+                        setPaletteTab('memories');
+                      }
+                    }}
+                    className={`w-full h-full rounded-full bg-white dark:bg-slate-800 border-2 shadow-md flex items-center justify-center relative transition-transform group-hover/node:scale-105 ${selectedRingClass} ${
+                      isModelCircle
+                        ? aiEngine === 'antigravity_cloud'
+                          ? 'border-sky-500 ring-2 ring-sky-500/20'
+                          : aiEngine === 'antigravity'
+                            ? 'border-orange-500 ring-2 ring-orange-500/20'
+                            : 'border-indigo-500 ring-2 ring-indigo-500/20'
+                        : isMemoryCircle
+                          ? 'border-pink-400 dark:border-pink-700 hover:border-pink-500'
+                          : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
+                    }`}
+                  >
+                    {renderOfficialNodeSvg(node.nodeId, 'w-7 h-7')}
+
+                    {!readOnly && node.removable && node.group && (
                       <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemoveCustomNode(node.key);
+                          toggleOrAddCatalogNode(
+                            node.group === 'triggers' ? 'trigger' : node.group!,
+                            node.nodeId,
+                          );
                         }}
-                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                        title="Quitar este nodo del lienzo"
+                        className="opacity-0 group-hover/node:opacity-100 absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                        title="Desconectar del Agente IA"
                       >
                         <X className="w-2.5 h-2.5" />
                       </button>
                     )}
                   </div>
 
-                  <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'main_out',
-                        node.x + node.width,
-                        node.y + node.height / 2,
-                      )
-                    }
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
-                    title="Arrastra desde este puerto para conectarlo con el Agente IA o cualquier otro módulo del flujo"
-                  />
-
-                  <div className="mt-1.5 w-[118px] -ml-[22px] text-center pointer-events-none">
-                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                  <div className="mt-1.5 w-[108px] -ml-[23px] text-center">
+                    <div className="text-[10px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
                       {node.title}
                     </div>
-                    <div className="text-[9px] text-purple-600 dark:text-purple-400 font-semibold truncate">
-                      {node.subtitle}
+                    <div className="text-[8.5px] font-semibold text-slate-400 truncate">
+                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
+
+                    {isModelCircle && !readOnly && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (aiEngine === 'wappy') {
+                            handleSelectAiEngineModel('antigravity', 'gemini-3.6-flash');
+                          } else if (aiEngine === 'antigravity') {
+                            handleSelectAiEngineModel('antigravity_cloud', 'gemini-3.6-flash');
+                          } else {
+                            handleSelectAiEngineModel('wappy', 'gemini-3.6-flash');
+                          }
+                        }}
+                        className="mt-1 px-2 py-0.5 rounded-full text-[8.5px] font-extrabold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition"
+                        title="Alternar entre WAPPY Cloud (Rotación de Claves), Antigravity Local (Mac/PC) y Antigravity Cloud 24/7"
+                      >
+                        Cambiar IA ⇄
+                      </button>
+                    )}
                   </div>
                 </div>
               );
-            }
+            })}
+          </div>
+        </div>
 
-            // 5. FIGURA SUB-NODOS CIRCULARES (Modelo IA *, Memoria y Herramienta con Rombo superior ◆)
-            const isModelCircle = node.shape === 'circle_model';
-            const isMemoryCircle = node.shape === 'circle_memory';
+        {/* ─── BARRA FLOTANTE INFERIOR CENTRAL ESTILO N8N (TEST WORKFLOW / DAR PLAY + ESCENARIO DE DESARROLLO) ─── */}
+        {!compact && (
+          <div
+            data-canvas-toolbar="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-emerald-500/40 dark:border-[#C7F303]/50 shadow-lg"
+          >
+            <ExpandableButton
+              size="sm"
+              variant="emerald"
+              disabled={sandboxRunning}
+              icon={
+                sandboxRunning ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                )
+              }
+              label="Dar Play (Probar sin Enviar Salidas)"
+              title="Dar Play al Flujo en Modo Desarrollo (Probar sin Enviar Salidas)"
+              onClick={handleRunSandboxSimulation}
+            />
 
-            return (
-              <div
-                key={node.key}
-                onPointerDown={(e) => handleNodePointerDown(e, node)}
-                onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
-                style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                title="Haz clic sobre este sub-nodo para configurar sus parámetros, campos y contexto"
-                className={`absolute z-20 group/node select-none ${
-                  readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+            <button
+              type="button"
+              onClick={() => setSandboxOpen((v) => !v)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-[11px] font-extrabold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
+              title="Abrir o cerrar el Escenario de Desarrollo para ver la respuesta final y la traza nodo por nodo"
+            >
+              <span>🧪 Ver Escenario de Desarrollo</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-lg text-[9.5px] font-black ${
+                  sandboxRunning
+                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                    : sandboxResult
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-[#C7F303]'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}
               >
-                {/* Puerto superior en forma de Rombo (◆) que conecta exclusivamente al Agente IA */}
-                <div
-                  className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border-2 border-white dark:border-slate-900 shadow-xs ${
-                    isMemoryCircle ? 'bg-pink-500' : 'bg-indigo-500'
-                  }`}
-                />
-
-                {/* Círculo perfecto de Sub-Nodo */}
-                <div
-                  onClick={() => {
-                    if (readOnly) return;
-                    if (isModelCircle) {
-                      setPaletteTab('ai_engine');
-                    } else if (isMemoryCircle) {
-                      setPaletteTab('memories');
-                    }
-                  }}
-                  className={`w-full h-full rounded-full bg-white dark:bg-slate-800 border-2 shadow-md flex items-center justify-center relative transition-transform group-hover/node:scale-105 ${selectedRingClass} ${
-                    isModelCircle
-                      ? aiEngine === 'antigravity_cloud'
-                        ? 'border-sky-500 ring-2 ring-sky-500/20'
-                        : aiEngine === 'antigravity'
-                          ? 'border-orange-500 ring-2 ring-orange-500/20'
-                          : 'border-indigo-500 ring-2 ring-indigo-500/20'
-                      : isMemoryCircle
-                        ? 'border-pink-400 dark:border-pink-700 hover:border-pink-500'
-                        : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
-                  }`}
-                >
-                  {renderOfficialNodeSvg(node.nodeId, 'w-7 h-7')}
-
-                  {!readOnly && node.removable && node.group && (
-                    <button
-                      type="button"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleOrAddCatalogNode(node.group!, node.nodeId);
-                      }}
-                      className="opacity-0 group-hover/node:opacity-100 absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
-                      title="Desconectar del Agente IA"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="mt-1.5 w-[108px] -ml-[23px] text-center">
-                  <div className="text-[10px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                    {node.title}
-                  </div>
-                  <div className="text-[8.5px] font-semibold text-slate-400 truncate">
-                    {buildNodeConfigSummary(nodeCfg) || node.subtitle}
-                  </div>
-
-                  {isModelCircle && !readOnly && (
-                    <button
-                      type="button"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (aiEngine === 'wappy') {
-                          handleSelectAiEngineModel('antigravity', 'gemini-3.6-flash');
-                        } else if (aiEngine === 'antigravity') {
-                          handleSelectAiEngineModel('antigravity_cloud', 'gemini-3.6-flash');
-                        } else {
-                          handleSelectAiEngineModel('wappy', 'gemini-3.6-flash');
-                        }
-                      }}
-                      className="mt-1 px-2 py-0.5 rounded-full text-[8.5px] font-extrabold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition"
-                      title="Alternar entre WAPPY Cloud (Rotación de Claves), Antigravity Local (Mac/PC) y Antigravity Cloud 24/7"
-                    >
-                      Cambiar IA ⇄
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                {sandboxRunning ? 'Ejecutando...' : sandboxResult ? 'Listo' : 'Sin probar'}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* ─── ESCENARIO DE DESARROLLO & SIMULACIÓN EN VIVO (MODO SANDBOX SIN ENVIAR A LAS SALIDAS) ─── */}
+      {!compact && (
+        <WappyWorkflowSandboxPanel
+          open={sandboxOpen}
+          running={sandboxRunning}
+          result={sandboxResult}
+          error={sandboxError}
+          mockTriggerInput={mockTriggerInput}
+          onChangeMockTriggerInput={setMockTriggerInput}
+          onRunSimulation={handleRunSandboxSimulation}
+          onClearSimulation={() => {
+            setSandboxResult(null);
+            setSandboxError(null);
+            setSandboxActiveStepNodeId(null);
+          }}
+          onClose={() => setSandboxOpen(false)}
+          activeStepNodeId={sandboxActiveStepNodeId}
+          onSelectStepNode={setSandboxActiveStepNodeId}
+          emailsStr={emailsStr}
+        />
+      )}
 
       {/* ─── PANEL INTERACTIVO DE EDICIÓN DE CADA NODO AL HACER CLIC SOBRE ÉL (ESTILO INSPECTOR DE PROPIEDADES) ─── */}
       {!readOnly && !compact && (() => {
@@ -4540,7 +4914,6 @@ export default function WappyWorkflowCanvas({
                   <ExpandableButton
                     size="sm"
                     variant="purple"
-                    alwaysExpanded
                     icon={<Wand2 className="w-3.5 h-3.5" />}
                     label="Reflejar en el Prompt"
                     title="Actualizar el prompt general con la configuración de este nodo"

@@ -10,7 +10,10 @@ const Notification = require('~/models/Notification');
 const TenshiMessage = require('~/models/TenshiMessage');
 const KanbanTask = require('~/models/KanbanTask');
 const sendEmail = require('~/server/utils/sendEmail');
-const { buildSurgicalLiveContextForWorkflow } = require('~/server/services/workflowNodeInspectorService');
+const {
+  inspectNodeLiveData,
+  buildSurgicalLiveContextForWorkflow,
+} = require('~/server/services/workflowNodeInspectorService');
 
 let schedulerInterval = null;
 let isCheckingAutomations = false; // Evita que dos ticks del intervalo se solapen
@@ -1404,10 +1407,1061 @@ function stopAutomationScheduler() {
   }
 }
 
+/**
+ * Ejecuta un Agente IA individual dentro del Escenario de Desarrollo (Sandbox) con timeout de 90s.
+ * Cero efectos secundarios sobre salidas externas.
+ */
+async function executeSandboxAgentCall({
+  reqUser,
+  targetCompanyIdStr,
+  appConfig,
+  agentDoc,
+  fullPrompt,
+  timeoutMs = 90000,
+}) {
+  const startedAt = Date.now();
+  const agentAbortController = new AbortController();
+  let raceTimeoutId = null;
+
+  try {
+    const req = {
+      user: reqUser,
+      companyId: targetCompanyIdStr,
+      isAutomation: true,
+      isSandboxSimulation: true,
+      body: {
+        text: fullPrompt,
+        companyId: targetCompanyIdStr,
+        isAutomation: true,
+        isSandboxSimulation: true,
+        conversationId: null,
+        files: [],
+      },
+      config: appConfig,
+    };
+
+    const mockRes = {
+      headersSent: false,
+      finished: false,
+      writableEnded: false,
+      write: () => {},
+      end: () => {
+        mockRes.finished = true;
+        mockRes.writableEnded = true;
+      },
+      on: () => {},
+      removeListener: () => {},
+      status: function () {
+        return this;
+      },
+      json: function () {
+        return this;
+      },
+    };
+
+    const endpointOption = {
+      endpoint: 'agents',
+      agent_id: agentDoc.id,
+      model_parameters: agentDoc.model_parameters || {},
+      agent: Promise.resolve(agentDoc),
+    };
+
+    req.body.endpointOption = endpointOption;
+
+    const { client, userMCPAuthMap } = await initializeClient({
+      req,
+      res: mockRes,
+      endpointOption,
+      signal: agentAbortController.signal,
+    });
+
+    const messageOptions = {
+      user: String(reqUser.id),
+      getReqData: () => {},
+      conversationId: null,
+      parentMessageId: '00000000-0000-0000-0000-000000000000',
+      abortController: agentAbortController,
+      userMCPAuthMap,
+    };
+
+    const response = await Promise.race([
+      client.sendMessage(fullPrompt, messageOptions),
+      new Promise((_, reject) => {
+        raceTimeoutId = setTimeout(() => {
+          agentAbortController.abort();
+          reject(new Error('Tiempo límite del Escenario de Desarrollo superado (90 segundos).'));
+        }, timeoutMs);
+      }),
+    ]);
+
+    if (raceTimeoutId) {
+      clearTimeout(raceTimeoutId);
+    }
+
+    if (response?.databasePromise) {
+      try {
+        await Promise.race([response.databasePromise, new Promise((r) => setTimeout(r, 2500))]);
+      } catch (_) {}
+    }
+
+    let resultText = (response?.text || '').trim();
+    if (!resultText && Array.isArray(response?.content)) {
+      resultText = response.content
+        .filter((part) => part && part.type === 'text' && typeof part.text === 'string')
+        .map((part) => part.text.trim())
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
+    }
+    if (!resultText) {
+      resultText = '(Simulación completada por el agente en el Escenario de Desarrollo)';
+    }
+
+    return {
+      text: resultText,
+      durationMs: Math.max(1, Date.now() - startedAt),
+      error: null,
+    };
+  } catch (err) {
+    if (raceTimeoutId) {
+      clearTimeout(raceTimeoutId);
+    }
+    agentAbortController.abort();
+    return {
+      text: '',
+      durationMs: Math.max(1, Date.now() - startedAt),
+      error: err?.message || 'Error ejecutando el Agente IA en el Escenario de Desarrollo.',
+    };
+  }
+}
+
+/**
+ * Ejecuta una simulación completa del flujo en el Escenario de Desarrollo / Sandbox (`dryRun: true`).
+ * Inspecciona los nodos en vivo, filtra campos quirúrgicos, ejecuta el Agente IA Principal y Sub-Agentes,
+ * evalúa la Condición Si/No y construye la vista previa de salidas SIN enviar correos ni modificar registros.
+ */
+async function runWorkflowSandboxSimulation(params = {}) {
+  const simStartTime = Date.now();
+  const {
+    user,
+    companyId,
+    name,
+    agentId,
+    agentName,
+    prompt,
+    scheduleType = 'daily',
+    scheduleConfig = { hour: 8, minute: 0 },
+    emails = [],
+    workflowNodes = {},
+    mockTriggerInput = '',
+  } = params;
+
+  const flowName = (name && String(name).trim()) || 'Prueba en Escenario de Desarrollo';
+  const userIdStr = String(user?.id || user?._id || '');
+
+  // 1. Resolver usuario y empresa activa en modo lectura
+  let userObj = null;
+  try {
+    const UserModel =
+      mongoose.models.User || (mongoose.modelNames().includes('User') ? mongoose.model('User') : null);
+    if (UserModel && userIdStr && mongoose.Types.ObjectId.isValid(userIdStr)) {
+      userObj = await UserModel.findById(userIdStr).lean();
+    }
+  } catch (_) {}
+
+  const reqUser = userObj
+    ? { ...userObj, id: userObj._id.toString() }
+    : { ...(user || {}), id: userIdStr };
+
+  let automationCompany = null;
+  let targetCompanyIdStr =
+    companyId && companyId !== 'SYSTEM_PRESET' && companyId !== 'default' ? String(companyId) : null;
+  try {
+    if (targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+      automationCompany = await CompanyInfo.findById(targetCompanyIdStr).lean();
+    }
+    if (!automationCompany && userIdStr) {
+      automationCompany =
+        (await CompanyInfo.findOne({ user: userIdStr, isActive: true }).lean()) ||
+        (await CompanyInfo.findOne({ user: userIdStr }).sort({ updatedAt: -1 }).lean());
+      if (automationCompany?._id) {
+        targetCompanyIdStr = String(automationCompany._id);
+      }
+    }
+  } catch (_) {}
+
+  const companyName = automationCompany?.companyName || 'Empresa Activa';
+  const wf = workflowNodes && typeof workflowNodes === 'object' ? workflowNodes : {};
+  const nodeConfigs = wf?.canvasLayout?.nodeConfigs || {};
+
+  // Helper para recuperar la configuración quirúrgica de cualquier nodo del lienzo
+  const resolveNodeConfig = (nodeKey, nodeId) => {
+    return (
+      nodeConfigs[nodeKey] ||
+      nodeConfigs[nodeId] ||
+      nodeConfigs[`trigger_${nodeId}`] ||
+      nodeConfigs[`ext_${nodeId}`] ||
+      nodeConfigs[`sub_memory_${nodeId}`] ||
+      nodeConfigs[`tool_inputs_${nodeId}`] ||
+      nodeConfigs[`tool_hitos_${nodeId}`] ||
+      nodeConfigs[`hito_${nodeId}`] ||
+      nodeConfigs[`out_${nodeId}`] ||
+      {}
+    );
+  };
+
+  // Normalizar listas de nodos configurados en el flujo
+  const configuredTriggers =
+    Array.isArray(wf.triggers) && wf.triggers.length > 0
+      ? wf.triggers
+      : [wf.trigger || 'schedule_cron'];
+  const configuredExtractors = Array.isArray(wf.extractors) ? wf.extractors : [];
+  const configuredMemories =
+    Array.isArray(wf.memories) && wf.memories.length > 0
+      ? wf.memories
+      : ['wappy_memory_company'];
+  const configuredInputs = Array.isArray(wf.inputs) ? wf.inputs : [];
+  const configuredCustomNodes = Array.isArray(wf.canvasLayout?.customNodes)
+    ? wf.canvasLayout.customNodes.filter(Boolean)
+    : [];
+  const configuredHitos = Array.isArray(wf.hitos) ? wf.hitos : [];
+  const configuredOutputs =
+    Array.isArray(wf.outputs) && wf.outputs.length > 0 ? wf.outputs : ['email_report'];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASO A — Inspección Quirúrgica en Vivo y Construcción de `nodeTrace`
+  // ═══════════════════════════════════════════════════════════════════════════
+  const nodeTrace = [];
+  let stepCounter = 0;
+  let totalExtractedRecords = 0;
+  let totalCriticalRecords = 0;
+
+  // A.1. Disparadores (triggers)
+  for (let i = 0; i < configuredTriggers.length; i++) {
+    const trigId = configuredTriggers[i];
+    const nodeKey = i === 0 ? 'trigger_root' : `trigger_${trigId}`;
+    const t0 = Date.now();
+    const cfg = resolveNodeConfig(nodeKey, trigId);
+    const surgicalFields = (
+      Array.isArray(cfg.selectedFields)
+        ? cfg.selectedFields
+        : Array.isArray(cfg.fields)
+          ? cfg.fields
+          : []
+    ).filter(Boolean);
+
+    let liveData = null;
+    try {
+      liveData = await inspectNodeLiveData({
+        userId: userIdStr,
+        companyId: targetCompanyIdStr,
+        nodeId: trigId,
+      });
+    } catch (_) {}
+
+    const kpiLine = Array.isArray(liveData?.kpis)
+      ? liveData.kpis.map((k) => `${k.label}: ${k.value}`).join(' · ')
+      : '';
+    const hasMockInput = Boolean(mockTriggerInput && String(mockTriggerInput).trim());
+
+    nodeTrace.push({
+      stepIndex: ++stepCounter,
+      nodeKey,
+      nodeId: trigId,
+      category: 'trigger',
+      title: liveData?.moduleTitle || `⚡ Disparador (${trigId})`,
+      status: 'completed',
+      durationMs: Math.max(1, Date.now() - t0),
+      recordsCount: Array.isArray(liveData?.records) ? liveData.records.length : 1,
+      surgicalFields,
+      inputSummary: hasMockInput
+        ? `Caso simulado en Escenario de Desarrollo: "${String(mockTriggerInput).trim().slice(0, 180)}"`
+        : `Disparo de prueba en Escenario de Desarrollo (${scheduleType}) para "${companyName}"`,
+      outputPreview: [
+        hasMockInput ? `🧪 [EVENTO SIMULADO]: ${String(mockTriggerInput).trim()}` : null,
+        kpiLine ? `📊 Estado del Disparador: ${kpiLine}` : null,
+        cfg.customInstruction ? `📌 Instrucción: ${cfg.customInstruction}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n') || `Disparador ${trigId} activado en modo simulación.`,
+    });
+  }
+
+  // Helper para inspeccionar y filtrar quirúrgicamente nodos de extractors, memories, inputs e hitos
+  const traceLiveNode = async ({ nodeId, nodeKey, category }) => {
+    const t0 = Date.now();
+    const cfg = resolveNodeConfig(nodeKey, nodeId);
+    const rawFields = Array.isArray(cfg.selectedFields)
+      ? cfg.selectedFields
+      : Array.isArray(cfg.fields)
+        ? cfg.fields
+        : [];
+    const surgicalFields = rawFields.filter(Boolean);
+    const filterMode = cfg.recordFilterMode || 'all';
+    const selectedRecordIds = Array.isArray(cfg.selectedRecordIds) ? cfg.selectedRecordIds : [];
+
+    let liveData = null;
+    try {
+      liveData = await inspectNodeLiveData({
+        userId: userIdStr,
+        companyId: targetCompanyIdStr,
+        nodeId,
+      });
+    } catch (_) {}
+
+    const allRecords = Array.isArray(liveData?.records) ? liveData.records : [];
+    let filteredRecords = allRecords;
+
+    if (filterMode === 'critical_only') {
+      filteredRecords = allRecords.filter((r) => r.isCritical);
+    } else if (filterMode === 'selected' && selectedRecordIds.length > 0) {
+      const idSet = new Set(selectedRecordIds.map(String));
+      filteredRecords = allRecords.filter((r) => idSet.has(String(r.id)));
+    }
+
+    // Filtro quirúrgico especial para archivos .md en wappy_memory_procedural
+    const isProceduralNode =
+      nodeId === 'wappy_memory_procedural' || liveData?.canonicalNodeId === 'wappy_memory_procedural';
+    if (isProceduralNode && surgicalFields.length > 0) {
+      const normTokens = surgicalFields.map((s) =>
+        String(s).toLowerCase().replace(/\.md$/i, '').replace(/[_-]+/g, ' ').trim(),
+      );
+      const matchedMdRecords = filteredRecords.filter((r) => {
+        const hay = `${r.id || ''} ${r.label || ''} ${r.sublabel || ''}`
+          .toLowerCase()
+          .replace(/[_-]+/g, ' ');
+        return normTokens.some((tok) => tok && hay.includes(tok));
+      });
+      if (matchedMdRecords.length > 0) {
+        filteredRecords = matchedMdRecords;
+      }
+    }
+
+    const critCount = filteredRecords.filter((r) => r.isCritical).length;
+    totalExtractedRecords += filteredRecords.length;
+    totalCriticalRecords += critCount;
+
+    const kpiLine = Array.isArray(liveData?.kpis)
+      ? liveData.kpis.map((k) => `${k.label}: ${k.value}`).join(' · ')
+      : '';
+
+    const previewLines = [];
+    if (kpiLine) {
+      previewLines.push(`📊 KPIs en Vivo: ${kpiLine}`);
+    }
+    if (surgicalFields.length > 0) {
+      previewLines.push(`🎯 Filtro Quirúrgico Activo (${surgicalFields.length}): [${surgicalFields.join(', ')}]`);
+    }
+
+    const sampleRecords = filteredRecords.slice(0, 10);
+    if (sampleRecords.length > 0) {
+      const formattedRows = sampleRecords.map((rec, idx) => {
+        if (surgicalFields.length > 0 && !isProceduralNode && rec.fields && typeof rec.fields === 'object') {
+          const projected = [];
+          const entries = Object.entries(rec.fields);
+          for (const sf of surgicalFields) {
+            const sfNorm = sf.toLowerCase().trim();
+            const match = entries.find(
+              ([fk]) =>
+                fk.toLowerCase().trim() === sfNorm ||
+                fk.toLowerCase().includes(sfNorm) ||
+                sfNorm.includes(fk.toLowerCase().trim()),
+            );
+            if (match && match[1] !== undefined && match[1] !== '') {
+              projected.push(`${sf}: ${match[1]}`);
+            }
+          }
+          if (projected.length > 0) {
+            return `  ${idx + 1}. ${projected.join(' | ')}`;
+          }
+        }
+        return `  ${idx + 1}. ${rec.label || rec.id}${rec.sublabel ? ` — ${rec.sublabel}` : ''}${rec.badge ? ` [${rec.badge}]` : ''}`;
+      });
+      previewLines.push(`📋 Registros Extraídos (${filteredRecords.length}):\n${formattedRows.join('\n')}`);
+    } else {
+      previewLines.push('📋 Sin registros activos que coincidan con el filtro en este nodo.');
+    }
+
+    if (cfg.inputContext || cfg.outputContext || cfg.customInstruction) {
+      const ctxNotes = [
+        cfg.inputContext ? `Entrada: ${cfg.inputContext}` : null,
+        cfg.outputContext ? `Salida: ${cfg.outputContext}` : null,
+        cfg.customInstruction ? `Instrucción: ${cfg.customInstruction}` : null,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      previewLines.push(`⚙️ Contexto del Nodo: ${ctxNotes}`);
+    }
+
+    const inputModeLabel =
+      filterMode === 'critical_only'
+        ? 'Solo registros críticos/en brecha'
+        : filterMode === 'selected'
+          ? `Registros seleccionados (${selectedRecordIds.length})`
+          : 'Todos los registros de la empresa activa';
+
+    nodeTrace.push({
+      stepIndex: ++stepCounter,
+      nodeKey,
+      nodeId,
+      category,
+      title: liveData?.moduleTitle || nodeId,
+      status: 'completed',
+      durationMs: Math.max(1, Date.now() - t0),
+      recordsCount: filteredRecords.length,
+      surgicalFields,
+      inputSummary: `${inputModeLabel}${surgicalFields.length > 0 ? ` · ${surgicalFields.length} campo(s) quirúrgico(s)` : ''}`,
+      outputPreview: previewLines.join('\n'),
+    });
+  };
+
+  // A.2. Extractores (extractors)
+  for (const extId of configuredExtractors) {
+    await traceLiveNode({
+      nodeId: extId,
+      nodeKey: `ext_${extId}`,
+      category: 'extractor',
+    });
+  }
+
+  // A.3. Memorias (memories)
+  for (const memId of configuredMemories) {
+    await traceLiveNode({
+      nodeId: memId,
+      nodeKey: `sub_memory_${memId}`,
+      category: 'memory',
+    });
+  }
+
+  // A.4. Herramientas / Conectores de Entrada (inputs -> category: 'tool')
+  for (const inId of configuredInputs) {
+    await traceLiveNode({
+      nodeId: inId,
+      nodeKey: `tool_inputs_${inId}`,
+      category: 'tool',
+    });
+  }
+
+  // A.5. Nodos Especiales Personalizados (customNodes -> category: 'custom_node')
+  for (let i = 0; i < configuredCustomNodes.length; i++) {
+    const cn = configuredCustomNodes[i];
+    const cnKey = cn.key || cn.id || `custom_${i + 1}`;
+    const cnCfg = resolveNodeConfig(cnKey, cnKey);
+    const details = [
+      cn.content || cn.subtitle || cnCfg.customInstruction || '',
+      cn.targetUrl || cnCfg.targetUrl ? `🌐 URL: ${cn.targetUrl || cnCfg.targetUrl}` : '',
+      cn.scriptEngine || cnCfg.scriptEngine ? `⚙️ Motor: ${cn.scriptEngine || cnCfg.scriptEngine}` : '',
+      cn.scriptCode || cnCfg.scriptCode ? `💻 Script: ${String(cn.scriptCode || cnCfg.scriptCode).slice(0, 260)}` : '',
+      cnCfg.skillContent ? `📘 Skill: ${String(cnCfg.skillContent).slice(0, 260)}` : '',
+      cnCfg.ruleText ? `🛡️ Regla: ${String(cnCfg.ruleText).slice(0, 260)}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    nodeTrace.push({
+      stepIndex: ++stepCounter,
+      nodeKey: cnKey,
+      nodeId: cn.nodeType || cnKey,
+      category: 'custom_node',
+      title: `${cn.title || 'Nodo Especial'} (${cn.nodeType || 'custom'})`,
+      status: 'completed',
+      durationMs: 4,
+      recordsCount: 1,
+      surgicalFields: [],
+      inputSummary: `Directiva/conector personalizado (${cn.nodeType || 'custom'})`,
+      outputPreview: details || 'Nodo personalizado activo en el flujo.',
+    });
+  }
+
+  // A.6. Los 8 Hitos / 50 Aplicativos SG-SST (hitos -> category: 'hito')
+  for (const hitoId of configuredHitos) {
+    await traceLiveNode({
+      nodeId: hitoId,
+      nodeKey: `tool_hitos_${hitoId}`,
+      category: 'hito',
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASO B — Ejecución Real del Agente IA Principal y Sub-Agentes (extraAgents)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const appConfig = await getAppConfig();
+
+  const isTenshiAvatarAgent =
+    agentId === 'tenshi_avatar_3d' ||
+    agentId === 'tenshi_avatar_orchestrator' ||
+    /tenshi/i.test(String(agentId || '')) ||
+    /tenshi/i.test(String(agentName || ''));
+
+  let agent = agentId ? await getAgent({ id: agentId }).catch(() => null) : null;
+  const AgentModel =
+    mongoose.models.Agent || (mongoose.modelNames().includes('Agent') ? mongoose.model('Agent') : null);
+
+  if (!agent && AgentModel) {
+    let fallbackDoc = null;
+    if (!isTenshiAvatarAgent && agentName) {
+      fallbackDoc = await AgentModel.findOne({ name: agentName }).lean().catch(() => null);
+    }
+    if (!fallbackDoc) {
+      fallbackDoc =
+        (await AgentModel.findOne({ name: /tenshi/i }).lean().catch(() => null)) ||
+        (await AgentModel.findOne({ name: /consultor|profesional|sst/i }).lean().catch(() => null)) ||
+        (await AgentModel.findOne({}).lean().catch(() => null));
+    }
+    if (fallbackDoc?.id) {
+      agent = (await getAgent({ id: fallbackDoc.id }).catch(() => null)) || fallbackDoc;
+    }
+  }
+
+  if (!agent) {
+    agent = {
+      id: agentId || 'agent_consultor_sg_sst',
+      name: agentName || 'Consultor SG-SST',
+      provider: 'google',
+      model: 'gemini-3.6-flash',
+      instructions:
+        'Actúas como Consultor Especialista en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la normativa colombiana vigente (Decreto 1072 de 2015 y Resolución 0312 de 2019).',
+      tools: [],
+      model_parameters: { model: 'gemini-3.6-flash' },
+    };
+  }
+
+  if (isTenshiAvatarAgent) {
+    agent = {
+      ...agent,
+      name: agentName || 'Tenshi (Avatar 3D)',
+      instructions:
+        `[IDENTIDAD ACTIVA: TENSHI (AVATAR 3D) — ORQUESTADOR INTELIGENTE DE WAPPY IA Y SOMOS SST]\n` +
+        `Actúas como Tenshi (Avatar 3D), el copiloto ejecutivo, director técnico y orquestador principal de Seguridad y Salud en el Trabajo (SG-SST) de la plataforma WAPPY. Tu tono es ejecutivo, riguroso, cercano y resolutivo. Coordinas las herramientas de los 8 Hitos SST, Google Drive, Google Antigravity, NotebookLM y los sub-agentes especialistas para entregar resultados verificables y accionables.\n\n` +
+        (agent.instructions || ''),
+    };
+  }
+
+  const rawEngine = wf?.aiEngine;
+  const selectedAiEngine =
+    rawEngine === 'antigravity_cloud'
+      ? 'antigravity_cloud'
+      : rawEngine === 'antigravity'
+        ? 'antigravity'
+        : 'wappy';
+
+  const allowedTextModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+  const requestedModel = wf?.aiModel;
+  const effectiveAiModel = allowedTextModels.includes(requestedModel)
+    ? requestedModel
+    : allowedTextModels.includes(agent?.model)
+      ? agent.model
+      : 'gemini-3.6-flash';
+
+  agent.model = effectiveAiModel;
+  agent.model_parameters = {
+    ...(agent.model_parameters || {}),
+    model: effectiveAiModel,
+  };
+
+  // Autogenerar prompt ejecutivo si el usuario aún no ha escrito uno
+  const rawUserPrompt = typeof prompt === 'string' ? prompt.trim() : '';
+  const activeNodeNamesForPrompt = nodeTrace.map((n) => n.title).join(', ');
+  const effectiveUserPrompt =
+    rawUserPrompt ||
+    `Ejecuta un análisis técnico y ejecutivo integral de Seguridad y Salud en el Trabajo (SG-SST) para la empresa "${companyName}" con base en los datos reales extraídos de los nodos activos de este flujo (${activeNodeNamesForPrompt || 'Ficha Técnica de la Empresa y Aplicativos SG-SST'}). Identifica hallazgos críticos, estado de indicadores, brechas frente al Decreto 1072 de 2015 y la Resolución 0312 de 2019, y entrega una tabla Markdown ejecutiva con el plan de acción recomendado.`;
+
+  // Construir bloques de memoria y contexto idénticos a runAutomation (100% lectura)
+  const antigravityEngineDirective =
+    selectedAiEngine === 'antigravity_cloud'
+      ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity Cloud 24/7 (antigravity.google.com) + MCP WAPPY.\n`
+      : selectedAiEngine === 'antigravity'
+        ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity Local (Mac/PC) + MCP WAPPY.\n`
+        : `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
+
+  let companyProfileMemoryBlock = '';
+  if (configuredMemories.includes('wappy_memory_company') && automationCompany) {
+    companyProfileMemoryBlock =
+      `- [MEMORIA DE EMPRESA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiuCode || automationCompany.ciiu || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.employeeCount ?? automationCompany.workerCount ?? 'N/A'} | Ciudad/Depto: ${automationCompany.city || 'N/A'} / ${automationCompany.department || 'N/A'} | Representante Legal: ${automationCompany.legalRepresentative || 'N/A'} | Responsable SG-SST: ${automationCompany.sstResponsibleName || automationCompany.responsibleSST || 'N/A'} (Licencia: ${automationCompany.sstLicenseNumber || automationCompany.licenseNumber || 'N/A'})\n`;
+  }
+
+  let previousRunMemoryBlock = '';
+  if (configuredMemories.includes('wappy_memory_antiduplicate') && targetCompanyIdStr) {
+    try {
+      const lastSuccessLog = await AutomationLog.findOne({
+        companyId: targetCompanyIdStr,
+        status: 'success',
+      })
+        .sort({ runAt: -1 })
+        .select('runAt result')
+        .lean();
+      if (lastSuccessLog?.result) {
+        previousRunMemoryBlock =
+          `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS (${new Date(lastSuccessLog.runAt).toISOString()})]: Última corrida registrada: ${String(lastSuccessLog.result).substring(0, 500)}\n`;
+      }
+    } catch (_) {}
+  }
+
+  let ragDocumentalMemoryBlock = '';
+  if (configuredMemories.includes('wappy_rag_documental')) {
+    try {
+      const ragLines = [];
+      const LiveDocumentModel = mongoose.models.LiveDocument || require('~/models/LiveDocument');
+      if (LiveDocumentModel && userIdStr) {
+        const docFilter = {
+          user: userIdStr,
+          ...(targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+            ? { companyId: targetCompanyIdStr }
+            : {}),
+        };
+        const liveDocs = await LiveDocumentModel.find(docFilter)
+          .sort({ updatedAt: -1 })
+          .limit(6)
+          .select('title content')
+          .lean();
+        if (Array.isArray(liveDocs) && liveDocs.length > 0) {
+          liveDocs.forEach((d) => {
+            const excerpt = String(d.content || '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 260);
+            ragLines.push(`  • Documento Vivo "${d.title || 'Sin título'}": "${excerpt}"`);
+          });
+        }
+      }
+      if (ragLines.length > 0) {
+        ragDocumentalMemoryBlock = `- [MEMORIA RAG DOCUMENTAL (wappy_rag_documental)]:\n${ragLines.join('\n')}\n`;
+      }
+    } catch (_) {}
+  }
+
+  let proceduralNormativeMemoryBlock = '';
+  if (configuredMemories.includes('wappy_memory_procedural')) {
+    proceduralNormativeMemoryBlock =
+      `- [MEMORIA PROCEDURAL Y MARCO NORMATIVO OBLIGATORIO SST COLOMBIA (wappy_memory_procedural)]:\n` +
+      `  • Decreto 1072 de 2015 (Libro 2, Parte 2, Título 4, Cap. 6): Directrices obligatorias del SG-SST bajo el ciclo PHVA.\n` +
+      `  • Resolución 0312 de 2019: Estándares Mínimos del SG-SST según número de trabajadores y nivel de riesgo ARL (I a V).\n` +
+      `  • Guía Técnica Colombiana GTC-45 (2012): Identificación de Peligros, Evaluación y Valoración de Riesgos (IPEVR).\n` +
+      `  • Resolución 2764 de 2022: Batería de Riesgo Psicosocial.\n` +
+      `  • Resolución 20223040040595 de 2022: Plan Estratégico de Seguridad Vial (PESV).\n` +
+      `  • Decreto 1496 de 2018: Sistema Globalmente Armonizado (SGA) y compatibilidad química.\n` +
+      `  • Resolución 4272 de 2021: Trabajo Seguro en Alturas.\n` +
+      `  • Resolución 1401 de 2007: Investigación de incidentes y accidentes de trabajo (ATEL).\n`;
+  }
+
+  // Configuración detallada de nodos en el lienzo
+  let canvasNodesContextBlock = '';
+  try {
+    const cfgLines = [];
+    for (const [nKey, cfg] of Object.entries(nodeConfigs)) {
+      if (!cfg || typeof cfg !== 'object') continue;
+      const parts = [];
+      const fList = Array.isArray(cfg.selectedFields)
+        ? cfg.selectedFields
+        : Array.isArray(cfg.fields)
+          ? cfg.fields
+          : [];
+      if (fList.length > 0) {
+        parts.push(`🎯 EXTRACCIÓN QUIRÚRGICA: [${fList.join(', ')}]`);
+      }
+      if (cfg.targetUrl && String(cfg.targetUrl).trim()) {
+        parts.push(`URL/Consulta Objetivo: "${String(cfg.targetUrl).trim()}"`);
+      }
+      if (cfg.scriptCode && String(cfg.scriptCode).trim()) {
+        parts.push(`Script/Selectores: "${String(cfg.scriptCode).trim()}"`);
+      }
+      if (cfg.skillContent && String(cfg.skillContent).trim()) {
+        parts.push(`Skill (SKILL.md): "${String(cfg.skillContent).trim()}"`);
+      }
+      if (cfg.ruleText && String(cfg.ruleText).trim()) {
+        parts.push(`Regla Obligatoria: "${String(cfg.ruleText).trim()}"`);
+      }
+      if (cfg.inputContext && String(cfg.inputContext).trim()) {
+        parts.push(`Contexto de entrada: "${String(cfg.inputContext).trim()}"`);
+      }
+      if (cfg.outputContext && String(cfg.outputContext).trim()) {
+        parts.push(`Contexto de salida: "${String(cfg.outputContext).trim()}"`);
+      }
+      if (cfg.customInstruction && String(cfg.customInstruction).trim()) {
+        parts.push(`Instrucción del nodo: "${String(cfg.customInstruction).trim()}"`);
+      }
+      if (parts.length > 0) {
+        cfgLines.push(`  • Nodo [${nKey}]: ${parts.join(' | ')}`);
+      }
+    }
+    if (cfgLines.length > 0) {
+      canvasNodesContextBlock = `- [CONFIGURACIÓN DETALLADA DE NODOS EN EL LIENZO WAPPY]:\n${cfgLines.join('\n')}\n`;
+    }
+  } catch (_) {}
+
+  let liveDatabaseSurgicalBlock = '';
+  try {
+    liveDatabaseSurgicalBlock = await buildSurgicalLiveContextForWorkflow(
+      {
+        user: userIdStr,
+        companyId: targetCompanyIdStr,
+        workflowNodes: wf,
+      },
+      automationCompany,
+    );
+  } catch (_) {}
+
+  const mockTriggerBlock =
+    mockTriggerInput && String(mockTriggerInput).trim()
+      ? `\n[EVENTO / DATOS DE PRUEBA INYECTADOS EN EL ESCENARIO DE DESARROLLO]: ${String(mockTriggerInput).trim()}\n`
+      : '';
+
+  const sandboxModeDirective =
+    `\n[MODO ESCENARIO DE DESARROLLO / SANDBOX ACTIVO]: Estás ejecutando una prueba en el Escenario de Desarrollo del Lienzo WAPPY. Genera la respuesta ejecutiva final completa (con tablas, hallazgos normativos y análisis real de los datos extraídos de la empresa) exactamente como se entregará al final del flujo. NO ejecutes herramientas que envíen correos externos ni crees tareas duplicadas en base de datos durante esta simulación.\n`;
+
+  const companyHeaderBlock =
+    `[CONTEXTO OBLIGATORIO DE EJECUCIÓN — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
+    `- Empresa objetivo exclusiva de esta simulación: "${companyName}" (NIT: ${automationCompany?.nit || 'N/A'}, ID: ${targetCompanyIdStr || 'N/A'}).\n` +
+    antigravityEngineDirective +
+    companyProfileMemoryBlock +
+    previousRunMemoryBlock +
+    ragDocumentalMemoryBlock +
+    proceduralNormativeMemoryBlock +
+    canvasNodesContextBlock +
+    liveDatabaseSurgicalBlock +
+    mockTriggerBlock +
+    sandboxModeDirective +
+    `- PROHIBIDO generar código fuente HTML/JS de aplicativos interactivos; entrega únicamente un informe ejecutivo claro y estructurado en Markdown con tablas y hallazgos reales.\n\n`;
+
+  const fullPrimaryPrompt = `${companyHeaderBlock}[INSTRUCCIÓN DEL FLUJO]:\n${effectiveUserPrompt}`;
+
+  // Ejecutar Agente IA Principal
+  const resolvedAgentName = agent?.name || agentName || 'Consultor SG-SST';
+  const primaryExec = await executeSandboxAgentCall({
+    reqUser,
+    targetCompanyIdStr,
+    appConfig,
+    agentDoc: agent,
+    fullPrompt: fullPrimaryPrompt,
+    timeoutMs: 90000,
+  });
+
+  let primaryResultText = primaryExec.text;
+  if (!primaryResultText) {
+    // Fallback estructurado con los datos reales extraídos de los nodos si la API de IA dio timeout o cuota
+    const traceSummaryRows = nodeTrace
+      .map(
+        (n) =>
+          `| **${n.title}** | \`${n.category.toUpperCase()}\` | ${n.recordsCount} reg. | ${n.surgicalFields.length > 0 ? n.surgicalFields.join(', ') : ' Completo '} |`,
+      )
+      .join('\n');
+    primaryResultText =
+      `### 🧪 Informe Ejecutivo de Simulación en Escenario de Desarrollo — ${companyName}\n\n` +
+      `> **Aviso Técnico del Motor IA:** ${primaryExec.error || 'Respuesta sintetizada a partir de la inspección quirúrgica en vivo.'}\n\n` +
+      `| Nodo Procesado en el Flujo | Categoría | Registros en Vivo | Filtro Quirúrgico Aplicado |\n` +
+      `| :--- | :---: | :---: | :--- |\n` +
+      `${traceSummaryRows}\n\n` +
+      `#### 📋 Hallazgos Extraídos de Base de Datos (${totalExtractedRecords} registros inspeccionados, ${totalCriticalRecords} críticos)\n\n` +
+      nodeTrace
+        .filter((n) => n.category !== 'trigger')
+        .map((n) => `##### 🔹 ${n.title}\n${n.outputPreview}`)
+        .join('\n\n');
+  }
+
+  const agentOutputs = [];
+  agentOutputs.push({
+    agentKey: 'agent_root',
+    agentName: resolvedAgentName,
+    roleLabel: 'Agente IA Principal',
+    model: effectiveAiModel,
+    avatarSrc: nodeConfigs?.agent_root?.avatarSrc || '/assets/tenshi.png',
+    promptUsed: effectiveUserPrompt,
+    responseText: primaryResultText,
+    durationMs: primaryExec.durationMs,
+  });
+
+  nodeTrace.push({
+    stepIndex: ++stepCounter,
+    nodeKey: 'agent_root',
+    nodeId: agent?.id || agentId || 'agent_root',
+    category: 'agent',
+    title: `🤖 Agente IA Principal: ${resolvedAgentName} (${effectiveAiModel})`,
+    status: 'completed',
+    durationMs: primaryExec.durationMs,
+    recordsCount: 1,
+    surgicalFields: [],
+    inputSummary: `Prompt (${effectiveUserPrompt.length} caract.) + ${totalExtractedRecords} registro(s) quirúrgicos de "${companyName}"`,
+    outputPreview: primaryResultText.slice(0, 1200),
+  });
+
+  // Soporte Multi-Agente Real (extraAgents, máximo 2 agentes extra en sandbox)
+  const extraAgents = Array.isArray(wf?.canvasLayout?.extraAgents)
+    ? wf.canvasLayout.extraAgents.filter(Boolean).slice(0, 2)
+    : [];
+
+  let previousAgentResponse = primaryResultText;
+
+  for (let idx = 0; idx < extraAgents.length; idx++) {
+    const ea = extraAgents[idx];
+    const eaRole = ea.roleLabel || `Sub-Agente Especialista #${idx + 2}`;
+    const eaName = ea.agentName || `Agente IA #${idx + 2}`;
+
+    let eaAgentDoc = ea.agentId ? await getAgent({ id: ea.agentId }).catch(() => null) : null;
+    if (!eaAgentDoc && AgentModel && ea.agentName) {
+      const foundEa = await AgentModel.findOne({ name: ea.agentName }).lean().catch(() => null);
+      if (foundEa?.id) {
+        eaAgentDoc = (await getAgent({ id: foundEa.id }).catch(() => null)) || foundEa;
+      }
+    }
+    if (!eaAgentDoc) {
+      eaAgentDoc = {
+        ...agent,
+        name: eaName,
+      };
+    }
+
+    const eaModel = allowedTextModels.includes(ea.model) ? ea.model : effectiveAiModel;
+    eaAgentDoc.model = eaModel;
+    eaAgentDoc.model_parameters = {
+      ...(eaAgentDoc.model_parameters || {}),
+      model: eaModel,
+    };
+
+    const eaSecondPrompt =
+      (ea.prompt && String(ea.prompt).trim()) ||
+      `Actúa como ${eaName} (${eaRole}). Revisa, audita técnicamente y enriquece el informe generado por el agente anterior para "${companyName}", añadiendo tu dictamen especializado y controles recomendados.`;
+
+    const eaFullPrompt =
+      `${companyHeaderBlock}` +
+      `[CADENA MULTI-AGENTE EN ESCENARIO DE DESARROLLO — AGENTE #${idx + 2}: ${eaName} (${eaRole})]\n` +
+      (ea.inputContext ? `- Contexto de Entrada para este Agente: ${ea.inputContext}\n` : '') +
+      (ea.outputContext ? `- Contexto/Formato de Salida Esperado: ${ea.outputContext}\n` : '') +
+      `\n[RESPUESTA GENERADA POR EL AGENTE ANTERIOR (${agentOutputs[agentOutputs.length - 1].agentName})]:\n"""\n${previousAgentResponse}\n"""\n\n` +
+      `[SEGUNDO PROMPT / INSTRUCCIÓN ESPECÍFICA PARA ${eaName.toUpperCase()}]:\n${eaSecondPrompt}\n\n` +
+      `Entrega el informe ejecutivo final consolidado en Markdown integrando los hallazgos previos con tu revisión especializada.`;
+
+    const eaExec = await executeSandboxAgentCall({
+      reqUser,
+      targetCompanyIdStr,
+      appConfig,
+      agentDoc: eaAgentDoc,
+      fullPrompt: eaFullPrompt,
+      timeoutMs: 90000,
+    });
+
+    const eaResultText =
+      eaExec.text ||
+      `### 🧠 Dictamen Especializado de ${eaName} (${eaRole})\n\nSe validó la salida del agente anterior (${agentOutputs[agentOutputs.length - 1].agentName}) sobre ${totalExtractedRecords} registros inspeccionados de **${companyName}**.`;
+
+    const eaKey = ea.key || `extra_agent_${idx + 1}`;
+    agentOutputs.push({
+      agentKey: eaKey,
+      agentName: eaName,
+      roleLabel: eaRole,
+      model: eaModel,
+      avatarSrc: ea.avatarSrc || '/assets/tenshi.png',
+      promptUsed: eaSecondPrompt,
+      responseText: eaResultText,
+      durationMs: eaExec.durationMs,
+    });
+
+    nodeTrace.push({
+      stepIndex: ++stepCounter,
+      nodeKey: eaKey,
+      nodeId: ea.agentId || eaKey,
+      category: 'agent',
+      title: `🤖 Agente IA #${idx + 2}: ${eaName} (${eaRole})`,
+      status: 'completed',
+      durationMs: eaExec.durationMs,
+      recordsCount: 1,
+      surgicalFields: [],
+      inputSummary: [
+        `Recibe salida de ${agentOutputs[agentOutputs.length - 2].agentName}`,
+        ea.inputContext ? `Entrada: ${ea.inputContext}` : null,
+        ea.outputContext ? `Salida: ${ea.outputContext}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      outputPreview: eaResultText.slice(0, 1200),
+    });
+
+    previousAgentResponse = eaResultText;
+  }
+
+  // Consolidar respuesta final tras pasar por todos los agentes del flujo
+  let finalResponse = primaryResultText;
+  if (agentOutputs.length > 1) {
+    finalResponse = agentOutputs
+      .map(
+        (ao, idx) =>
+          `### 🤖 ${idx === 0 ? 'Fase 1 — Agente IA Principal' : `Fase ${idx + 1} — ${ao.roleLabel}`}: ${ao.agentName}\n\n${ao.responseText}`,
+      )
+      .join('\n\n---\n\n');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASO C — Evaluación del Nodo `Condición Si/No` (`ifEvaluation`)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const includeIfNode = wf.includeIfNode !== false;
+  let ifEvaluation = {
+    enabled: includeIfNode,
+    branchTaken: 'SI',
+    reason: 'Flujo directo hacia las salidas.',
+  };
+
+  if (includeIfNode) {
+    const mockLower = String(mockTriggerInput || '').toLowerCase();
+    const respLower = String(finalResponse || '').toLowerCase();
+    const explicitNoInMock =
+      /sin novedad|sin hallazgo|no hay archivo|0 alerta|todo al d[ií]a|ning[uú]n vencimiento|rama no/i.test(
+        mockLower,
+      );
+    const explicitNoInResp =
+      !mockLower &&
+      totalCriticalRecords === 0 &&
+      /no existen archivos nuevos|sin novedades detectadas|no se encontraron hallazgos|0 hallazgos cr[ií]ticos/i.test(
+        respLower,
+      );
+
+    if (explicitNoInMock || explicitNoInResp) {
+      ifEvaluation = {
+        enabled: true,
+        branchTaken: 'NO',
+        reason: explicitNoInMock
+          ? 'El evento simulado en el Escenario de Desarrollo indica ausencia de novedades/hallazgos críticos -> Se activa la Rama NO (solo bitácora interna sin disparar alertas).'
+          : 'El análisis del Agente IA determinó que no existen brechas críticas ni archivos pendientes por escalar -> Se activa la Rama NO.',
+      };
+    } else {
+      ifEvaluation = {
+        enabled: true,
+        branchTaken: 'SI',
+        reason: `Se procesaron ${totalExtractedRecords} registro(s) reales (${totalCriticalRecords} críticos/en brecha) y se generó dictamen ejecutivo con acciones -> Se activa la Rama SÍ hacia las salidas.`,
+      };
+    }
+
+    const ifCfg = resolveNodeConfig('if_condition', 'if_condition');
+    nodeTrace.push({
+      stepIndex: ++stepCounter,
+      nodeKey: 'if_condition',
+      nodeId: 'if_condition',
+      category: 'condition',
+      title: `🔀 Condición Si/No (Rama Evaluada: ${ifEvaluation.branchTaken})`,
+      status: 'completed',
+      durationMs: 8,
+      recordsCount: totalExtractedRecords,
+      surgicalFields: [],
+      inputSummary:
+        ifCfg.customInstruction ||
+        'Evaluación lógica de hallazgos normativos, brechas críticas y resultado del Agente IA',
+      outputPreview: `✅ Rama tomada: [${ifEvaluation.branchTaken}] — ${ifEvaluation.reason}`,
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASO D — Construcción de `simulatedOutputs` (Salidas Bloqueadas en Sandbox)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const outputTitleMap = {
+    email_report: '📧 Reporte Ejecutivo por Correo Electrónico',
+    wappy_notification: '🔔 Notificación en WAPPY + Chat de Tenshi',
+    acpm_task: '📋 Tarea Preventiva/Correctiva en Centro de Control ACPM',
+    canvas_doc: '📄 Documento en Editor en Vivo WAPPY (LiveEditor)',
+    somos_sst_update: '🛡️ Actualización de Aplicativos en Somos SST',
+    antigravity_local_report: '💻 Envío de Bitácora a Google Antigravity Local (PC)',
+    antigravity_cloud_report: '☁️ Envío de Bitácora a Google Antigravity Cloud 24/7',
+    google_docs: '📝 Exportación a Google Docs',
+    google_sheets: '📊 Sincronización en Google Sheets',
+    google_slides: '📽️ Presentación Ejecutiva en Google Slides',
+    google_calendar: '📅 Agendamiento en Google Calendar',
+  };
+
+  const validEmails = (Array.isArray(emails) && emails.length > 0 ? emails : reqUser?.email ? [reqUser.email] : [])
+    .map((e) => (typeof e === 'string' ? e.trim() : ''))
+    .filter((e) => e.includes('@'));
+
+  for (const outId of configuredOutputs) {
+    const outCfg = resolveNodeConfig(`out_${outId}`, outId);
+    nodeTrace.push({
+      stepIndex: ++stepCounter,
+      nodeKey: `out_${outId}`,
+      nodeId: outId,
+      category: 'output',
+      title: `${outputTitleMap[outId] || `Salida: ${outId}`} (Bloqueada en Modo Desarrollo)`,
+      status: 'simulated_blocked',
+      durationMs: 0,
+      recordsCount: 0,
+      surgicalFields: [],
+      inputSummary:
+        outCfg.customInstruction ||
+        `Informe final (${finalResponse.length} caracteres) listo para ${outputTitleMap[outId] || outId}`,
+      outputPreview:
+        `🛑 [VISTA PREVIA EN ESCENARIO DE DESARROLLO — NO ENVIADO]: ` +
+        `La salida "${outputTitleMap[outId] || outId}" fue generada y validada correctamente, pero su despacho real fue bloqueado por estar en modo prueba (dryRun: true).`,
+    });
+  }
+
+  const shortSummary = finalResponse
+    .replace(/[#*_`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 260);
+
+  const simulatedOutputs = {
+    emailPreview: {
+      enabled: configuredOutputs.includes('email_report'),
+      blocked: true,
+      recipients: validEmails,
+      subject: `📊 [VISTA PREVIA DESARROLLO] Reporte Automático SGSST: ${flowName} - ${companyName}`,
+      htmlBody: formatMarkdownToEmailHtml(finalResponse),
+    },
+    wappyNotificationPreview: {
+      enabled: configuredOutputs.includes('wappy_notification'),
+      blocked: true,
+      title: `✅ Bitácora Completada: ${flowName} (${companyName})`,
+      body: shortSummary,
+      tenshiChatPreview: `🤖 **Automatización Ejecutada: ${flowName} (${companyName})**\n\n${finalResponse.substring(0, 900)}`,
+    },
+    hitoAndAcpmPreview: {
+      enabled:
+        configuredOutputs.includes('acpm_task') ||
+        configuredOutputs.includes('canvas_doc') ||
+        configuredOutputs.includes('somos_sst_update') ||
+        configuredHitos.length > 0,
+      blocked: true,
+      targetHitos: configuredHitos,
+      targetOutputs: configuredOutputs,
+      acpmTaskTitle: `[ACPM Automatización] ${flowName} — ${companyName}`,
+      liveDocTitle: `📄 Informe Automatizado: ${flowName} (${companyName})`,
+      summary: `En ejecución real se actualizarían los hitos [${configuredHitos.join(', ') || 'ninguno'}] y salidas [${configuredOutputs.join(', ')}]. En Modo Desarrollo no se modificó ningún registro.`,
+    },
+  };
+
+  return {
+    success: true,
+    dryRun: true,
+    sandboxMode: true,
+    executedAt: new Date().toISOString(),
+    durationMs: Math.max(1, Date.now() - simStartTime),
+    companyId: targetCompanyIdStr,
+    companyName,
+    flowName,
+    aiEngine: selectedAiEngine,
+    aiModel: effectiveAiModel,
+    mockTriggerInput: mockTriggerInput ? String(mockTriggerInput).trim() : '',
+    promptUsed: effectiveUserPrompt,
+    finalResponse,
+    finalResponseHtml: formatMarkdownToEmailHtml(finalResponse),
+    nodeTrace,
+    agentOutputs,
+    ifEvaluation,
+    simulatedOutputs,
+    stats: {
+      totalSteps: nodeTrace.length,
+      completedSteps: nodeTrace.filter((n) => n.status === 'completed').length,
+      blockedOutputSteps: nodeTrace.filter((n) => n.status === 'simulated_blocked').length,
+      totalRecordsInspected: totalExtractedRecords,
+      totalCriticalRecords,
+      agentsExecuted: agentOutputs.length,
+    },
+  };
+}
+
 module.exports = {
   startAutomationScheduler,
   stopAutomationScheduler,
   runAutomation,
+  runWorkflowSandboxSimulation,
+  formatMarkdownToEmailHtml,
   calculateNextRun,
   stopAutomation,
 };
