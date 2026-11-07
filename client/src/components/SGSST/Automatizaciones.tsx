@@ -108,7 +108,21 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const { user } = useAuthContext();
   const isAdmin = user?.role === 'ADMIN';
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
-  const agents = agentsData?.data || [];
+  const rawAgents = agentsData?.data || [];
+  const agents = useMemo(() => {
+    const tenshiAvatarOption = {
+      id: 'tenshi_avatar_orchestrator',
+      name: '🐱 Tenshi Avatar (Voz y Orquestador 3D)',
+    };
+    const mapped = rawAgents.map((a: any) => ({
+      ...a,
+      name:
+        a.name?.trim().toLowerCase() === 'tenshi'
+          ? 'Tenshi (Agente de Chat)'
+          : a.name,
+    }));
+    return [tenshiAvatarOption, ...mapped.filter((a: any) => a.id !== 'tenshi_avatar_orchestrator')];
+  }, [rawAgents]);
 
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [presets, setPresets] = useState<Automation[]>([]);
@@ -1873,6 +1887,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 agents={agents}
                 onSelectAgent={setFormAgentId}
                 onAutoBuildPrompt={handleAutoBuildPrompt}
+                prompt={formPrompt}
+                onChangePrompt={setFormPrompt}
               />
 
               {/* Fila Horario + Correos */}

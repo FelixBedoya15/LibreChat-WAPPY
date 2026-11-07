@@ -30,6 +30,28 @@ export interface CanvasExtraAgentNode {
   aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
   aiModel?: string;
   roleLabel?: string;
+  prompt?: string;
+  inputContext?: string;
+  outputContext?: string;
+}
+
+export interface CanvasLogicNode {
+  key: string;
+  logicType: 'switch' | 'loop' | 'merge' | 'human_approval' | 'filter';
+  title: string;
+  subtitle: string;
+}
+
+export interface CanvasNodeConfig {
+  fields?: string[];
+  inputContext?: string;
+  outputContext?: string;
+  customInstruction?: string;
+  aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
+  aiModel?: string;
+  prompt?: string;
+  conditionTrueLabel?: string;
+  conditionFalseLabel?: string;
 }
 
 export interface WorkflowNodesConfig {
@@ -49,6 +71,8 @@ export interface WorkflowNodesConfig {
     edges?: CanvasWireEdge[];
     removedWires?: string[];
     extraAgents?: CanvasExtraAgentNode[];
+    logicNodes?: CanvasLogicNode[];
+    nodeConfigs?: Record<string, CanvasNodeConfig>;
   } | null;
 }
 
@@ -908,7 +932,91 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
 }
 
 /**
- * Autogenera un prompt técnico estructurado de 5 etapas para WAPPY a partir de los nodos conectados en el lienzo.
+ * Campos rápidos seleccionables con 1 clic al pulsar sobre cualquier nodo del lienzo (estilo editor de propiedades de nodo).
+ */
+export function getPresetFieldsForNode(nodeId: string, shape?: string): string[] {
+  if (
+    nodeId.includes('trabajadores') ||
+    nodeId.includes('sociodemografico') ||
+    nodeId.includes('perfiles_cargo')
+  ) {
+    return [
+      'Nombre Completo',
+      'Cédula / Documento',
+      'Edad',
+      'Cargo / Puesto',
+      'ARL / EPS / AFP',
+      'Sede / Área',
+      'Vencimiento Examen Médico',
+      'Restricciones Médicas',
+      'Correo y Teléfono',
+    ];
+  }
+  if (nodeId.includes('gmail') || nodeId.includes('email')) {
+    return [
+      'Asunto del Correo',
+      'Remitente',
+      'Cuerpo del Mensaje',
+      'Archivos Adjuntos (PDF/Excel)',
+      'Solo Correos No Leídos',
+      'Fecha de Recepción',
+    ];
+  }
+  if (nodeId.includes('drive') || nodeId.includes('onedrive') || nodeId.includes('local_folder')) {
+    return [
+      'Nombre del Archivo',
+      'Hojas de Cálculo (.xlsx / CSV)',
+      'Documentos PDF / Word',
+      'Soportes y Cédulas',
+      'Fecha de Modificación',
+      'Contenido de Texto Extraído',
+    ];
+  }
+  if (nodeId.includes('empresa')) {
+    return [
+      'Razón Social y NIT',
+      'Código CIIU y Actividad Económica',
+      'Nivel de Riesgo ARL (I a V)',
+      'Total de Trabajadores',
+      'Sedes y Centros de Trabajo',
+      'Responsable del SG-SST',
+    ];
+  }
+  if (nodeId.includes('comites') || nodeId.includes('copasst')) {
+    return [
+      'Generar Acta de Reunión COPASST / CCL',
+      'Compromisos y Responsables',
+      'Verificación de Quórum',
+      'Seguimiento de Actas Anteriores',
+    ];
+  }
+  if (shape === 'square_hito' || nodeId.startsWith('hito') || nodeId.includes('matriz')) {
+    return [
+      'Consultar Brechas y Pendientes',
+      'Crear Nuevos Registros',
+      'Actualizar Estado de Cumplimiento',
+      'Generar Plan de Acción',
+      'Calcular % de Avance',
+    ];
+  }
+  if (shape === 'circle_memory' || nodeId.startsWith('wappy_memory') || nodeId.startsWith('wappy_rag')) {
+    return [
+      'Datos de Empresa Activa (NIT, CIIU, Riesgo)',
+      'Evitar Duplicar Registros Previos',
+      'Cruzar con Decreto 1072 y Res. 0312',
+      'Consultar Protocolos en NotebookLM',
+    ];
+  }
+  return [
+    'Resumen Ejecutivo',
+    'Tabla Detallada de Hallazgos',
+    'Alertas Críticas / Vencimientos',
+    'Recomendaciones Normativas SST',
+  ];
+}
+
+/**
+ * Autogenera un prompt técnico estructurado de 5 etapas para WAPPY a partir de los nodos conectados y sus configuraciones individuales.
  */
 export function buildPromptFromWorkflowNodes(
   taskName: string,
@@ -938,21 +1046,45 @@ export function buildPromptFromWorkflowNodes(
   const outputDefs = (nodes.outputs || [])
     .map((id) => OUTPUT_ACTION_NODES.find((n) => n.id === id))
     .filter(Boolean) as WorkflowNodeDef[];
+  const nodeConfigs = nodes.canvasLayout?.nodeConfigs || {};
+
+  const formatNodeConfigDetail = (key: string): string => {
+    const cfg = nodeConfigs[key];
+    if (!cfg) return '';
+    const parts: string[] = [];
+    if (cfg.fields && cfg.fields.length > 0) {
+      parts.push(`Campos requeridos: [${cfg.fields.join(', ')}]`);
+    }
+    if (cfg.inputContext?.trim()) {
+      parts.push(`Contexto de entrada: "${cfg.inputContext.trim()}"`);
+    }
+    if (cfg.outputContext?.trim()) {
+      parts.push(`Formato/Contexto de salida: "${cfg.outputContext.trim()}"`);
+    }
+    if (cfg.customInstruction?.trim()) {
+      parts.push(`Instrucción específica: "${cfg.customInstruction.trim()}"`);
+    }
+    return parts.length > 0 ? ` ➔ { ${parts.join(' | ')} }` : '';
+  };
 
   const lines: string[] = [];
   lines.push(
-    `Actúa como ${agentName || 'Consultor SG-SST'} ejecutando el flujo automatizado de 5 etapas "${taskName || 'Flujo Autónomo SG-SST'}" exclusivamente para la empresa activa.`,
+    `Actúa como ${agentName || 'Consultor SG-SST'} ejecutando el flujo automatizado "${taskName || 'Flujo Autónomo SG-SST'}" exclusivamente para la empresa activa.`,
   );
 
   if (triggerDefs.length > 0) {
     lines.push(
-      `\n1. DISPARADORES / ENTRADAS ACTIVAS: ${triggerDefs.map((t) => `${t.shortLabel} (${t.toolHint})`).join(' + ')}.`,
+      `\n1. DISPARADORES / ENTRADAS ACTIVAS: ${triggerDefs
+        .map((t, i) => `${t.shortLabel} (${t.toolHint})${formatNodeConfigDetail(i === 0 ? 'trigger_root' : `trigger_${t.id}`)}`)
+        .join(' + ')}.`,
     );
   }
 
   if (extractorDefs.length > 0) {
     lines.push(
-      `\n2. EXTRACCIÓN E INGESTA DE DATOS (LECTURA PREVIA): Extrae primero la información desde: ${extractorDefs.map((e) => `${e.shortLabel} (${e.toolHint})`).join('; ')}. Si alguna fuente externa (como Google Drive o Gmail) no está vinculada o no tiene registros nuevos reales, infórmalo con total transparencia sin simular ni inventar datos.`,
+      `\n2. EXTRACCIÓN E INGESTA DE DATOS (LECTURA PREVIA): Extrae primero la información desde: ${extractorDefs
+        .map((e) => `${e.shortLabel} (${e.toolHint})${formatNodeConfigDetail(`ext_${e.id}`)}`)
+        .join('; ')}. Si alguna fuente externa (como Google Drive o Gmail) no está vinculada o no tiene registros nuevos reales, infórmalo con total transparencia sin simular ni inventar datos.`,
     );
   }
 
@@ -964,18 +1096,28 @@ export function buildPromptFromWorkflowNodes(
         : `WAPPY Cloud IA (Rotación Automática de Claves) con el modelo ${modelId}`;
 
   lines.push(
-    `\n3. CEREBRO IA, MEMORIAS Y TOOLS DEL AGENTE:\n   - Motor IA: ${engineLabel}.\n   - Memorias Conectadas: ${memoryDefs.map((m) => `${m.shortLabel} (${m.toolHint})`).join('; ')}.\n   - Tools y Motores de Análisis: ${inputDefs.length > 0 ? inputDefs.map((d) => d.toolHint).join(', ') : 'Herramientas nativas del especialista'}.`,
+    `\n3. AGENTE IA PRINCIPAL, MEMORIAS Y HERRAMIENTAS:\n   - Motor IA: ${engineLabel}${formatNodeConfigDetail('agent_root')}.\n   - Memorias Conectadas: ${memoryDefs
+      .map((m) => `${m.shortLabel} (${m.toolHint})${formatNodeConfigDetail(`sub_memory_${m.id}`)}`)
+      .join('; ')}.\n   - Herramientas del Agente: ${
+      inputDefs.length > 0
+        ? inputDefs.map((d) => `${d.toolHint}${formatNodeConfigDetail(`tool_inputs_${d.id}`)}`).join('; ')
+        : 'Herramientas nativas del especialista'
+    }.`,
   );
 
   if (hitoDefs.length > 0) {
     lines.push(
-      `\n4. ACCIÓN Y MODIFICACIÓN EN HITOS / APLICATIVOS SOMOS SST: Con la información extraída y analizada, actualiza o alimenta: ${hitoDefs.map((h) => h.toolHint).join('; ')}.`,
+      `\n4. ACCIÓN Y MODIFICACIÓN EN HITOS / APLICATIVOS SOMOS SST: Con la información extraída y analizada, actualiza o alimenta: ${hitoDefs
+        .map((h) => `${h.toolHint}${formatNodeConfigDetail(`hito_${h.id}`)}`)
+        .join('; ')}.`,
     );
   }
 
   if (outputDefs.length > 0) {
     lines.push(
-      `\n5. BITÁCORA FINAL Y NOTIFICACIÓN DE SALIDA: Entrega una bitácora completa en Markdown con tablas de todo lo leído y modificado, y ejecuta los canales de salida: ${outputDefs.map((o) => `${o.shortLabel} (${o.toolHint})`).join('; ')}. No crees nuevas tareas programadas durante esta ejecución.`,
+      `\n5. BITÁCORA FINAL Y NOTIFICACIÓN DE SALIDA: Entrega una bitácora completa en Markdown con tablas de todo lo leído y modificado, y ejecuta los canales de salida: ${outputDefs
+        .map((o) => `${o.shortLabel} (${o.toolHint})${formatNodeConfigDetail(`out_${o.id}`)}`)
+        .join('; ')}. No crees nuevas tareas programadas durante esta ejecución.`,
     );
   } else {
     lines.push(
@@ -986,27 +1128,37 @@ export function buildPromptFromWorkflowNodes(
   const extraAgents = nodes.canvasLayout?.extraAgents || [];
   if (extraAgents.length > 0) {
     const extraDescriptions = extraAgents.map((ea, idx) => {
+      const cfg = nodeConfigs[ea.key] || {};
+      const engMode = cfg.aiEngine || ea.aiEngine || 'wappy';
+      const modName = cfg.aiModel || ea.aiModel || 'gemini-3.6-flash';
       const eng =
-        ea.aiEngine === 'antigravity_cloud'
-          ? 'Antigravity Cloud 24/7'
-          : ea.aiEngine === 'antigravity'
-            ? 'Antigravity Local (Mi PC)'
-            : `WAPPY Cloud (${ea.aiModel || 'gemini-3.6-flash'})`;
-      return `Agente IA Adicional #${idx + 2} (${ea.agentName || 'Auditor / Revisor SST'} — Motor: ${eng}${ea.roleLabel ? `, Rol: ${ea.roleLabel}` : ''})`;
+        engMode === 'antigravity_cloud'
+          ? `Antigravity Cloud 24/7 (${modName})`
+          : engMode === 'antigravity'
+            ? `Antigravity Local PC (${modName})`
+            : `WAPPY Cloud (${modName})`;
+      const secondPrompt = (cfg.prompt || ea.prompt || '').trim();
+      const inCtx = (cfg.inputContext || ea.inputContext || '').trim();
+      const outCtx = (cfg.outputContext || ea.outputContext || '').trim();
+      return `\n   • AGENTE IA #${idx + 2} (${ea.agentName || 'Auditor / Revisor SST'} — Motor: ${eng}): ${
+        secondPrompt
+          ? `PROMPT DEL AGENTE #${idx + 2}: "${secondPrompt}"`
+          : 'Revisa, audita y complementa el resultado del Agente Principal antes de la salida final.'
+      }${inCtx ? ` | Contexto de Entrada: "${inCtx}"` : ''}${outCtx ? ` | Contexto de Salida: "${outCtx}"` : ''}`;
     });
     lines.push(
-      `\n6. REVISIÓN / ORQUESTACIÓN MULTI-AGENTE EN EL LIENZO: Coordina también la intervención de: ${extraDescriptions.join(' + ')} para validar, auditar o complementar los resultados antes del cierre del flujo.`,
+      `\n6. ORQUESTACIÓN MULTI-AGENTE (SEGUNDO PROMPT / REVISIÓN):${extraDescriptions.join('')}`,
     );
   }
 
   const customEdges = nodes.canvasLayout?.edges || [];
   if (customEdges.length > 0) {
     const resolveKeyLabel = (key: string): string => {
-      if (key === 'agent_root') return `AI Agent Principal (${agentName || 'Consultor SG-SST'})`;
-      if (key === 'if_router') return 'Condicional If (Hallazgos/Alerta)';
+      if (key === 'agent_root') return `Agente IA Principal (${agentName || 'Consultor SG-SST'})`;
+      if (key === 'if_router') return 'Condición Si/No (Hallazgos/Alerta)';
       if (key === 'trigger_root') return triggerDefs[0]?.shortLabel || 'Disparador Principal';
       const extraAg = extraAgents.find((a) => a.key === key);
-      if (extraAg) return `AI Agent Revisor (${extraAg.agentName || 'Segunda IA'})`;
+      if (extraAg) return `Agente IA (${extraAg.agentName || 'Segunda IA'})`;
       const cleanedId = key
         .replace(/^(trigger_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
       const def = getNodeDefById(cleanedId);

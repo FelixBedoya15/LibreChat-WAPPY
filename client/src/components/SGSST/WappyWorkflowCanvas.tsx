@@ -39,6 +39,12 @@ import {
   QrCode,
   FileText,
   Clock,
+  Hand,
+  MousePointer2,
+  Move,
+  Sliders,
+  Repeat,
+  GitMerge,
 } from 'lucide-react';
 import {
   TRIGGER_NODES,
@@ -49,12 +55,14 @@ import {
   AI_ENGINE_MODELS,
   MEMORY_NODES,
   getNodeDefById,
+  getPresetFieldsForNode,
   normalizeTriggersList,
   normalizeExtractorsList,
   normalizeMemoriesList,
   type WorkflowNodesConfig,
   type CanvasNodePosition,
   type CanvasWireEdge,
+  type CanvasNodeConfig,
 } from './workflowNodesCatalog';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -334,6 +342,8 @@ interface WappyWorkflowCanvasProps {
   agentName: string;
   agents?: Array<{ id: string; name: string }>;
   onSelectAgent?: (agentId: string) => void;
+  prompt?: string;
+  onChangePrompt?: (nextPrompt: string) => void;
   onAutoBuildPrompt?: () => void;
   readOnly?: boolean;
   compact?: boolean;
@@ -347,6 +357,7 @@ interface VisualNodeInstance {
     | 'square_extractor'
     | 'agent'
     | 'if'
+    | 'logic'
     | 'square_hito'
     | 'square_output'
     | 'circle_model'
@@ -369,15 +380,67 @@ export default function WappyWorkflowCanvas({
   agentName,
   agents = [],
   onSelectAgent,
+  prompt = '',
+  onChangePrompt,
   onAutoBuildPrompt,
   readOnly = false,
   compact = false,
 }: WappyWorkflowCanvasProps) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [paletteTab, setPaletteTab] = useState<
     'triggers' | 'extractors' | 'ai_engine' | 'memories' | 'connectors' | 'hitos' | 'outputs'
   >('triggers');
   const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
+
+  // Nodo actualmente abierto en el Inspector de Configuración por Nodo (al hacer clic sobre cualquier nodo)
+  const [activeConfigNodeKey, setActiveConfigNodeKey] = useState<string | null>(null);
+  const [customFieldInput, setCustomFieldInput] = useState<string>('');
+  const pointerDownClientRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Lista de agentes accesibles por el usuario + Tenshi Avatar (Orquestador 3D de Voz y Gestión) diferenciado de Tenshi Agente de texto
+  const availableAgentsWithTenshiAvatar = useMemo(() => {
+    const list: Array<{ id: string; name: string; isTenshiAvatar?: boolean }> = [
+      {
+        id: 'tenshi_avatar_orchestrator',
+        name: '🐱 Tenshi Avatar (Voz y Orquestador 3D)',
+        isTenshiAvatar: true,
+      },
+    ];
+    agents.forEach((ag) => {
+      if (!ag?.id) return;
+      const cleanName =
+        ag.name?.trim().toLowerCase() === 'tenshi'
+          ? 'Tenshi (Agente de Chat)'
+          : ag.name;
+      list.push({ id: ag.id, name: cleanName });
+    });
+    return list;
+  }, [agents]);
+
+  // Herramienta activa en el área de trabajo: 'pan' (Manita para desplazarse) | 'select' (Caja para seleccionar varios/parte)
+  const [canvasTool, setCanvasTool] = useState<'pan' | 'select'>('pan');
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const [panStart, setPanStart] = useState<{
+    clientX: number;
+    clientY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
+
+  // Selección múltiple de nodos (para mover todo el flujo o solo una parte a la vez)
+  const [selectedNodeKeys, setSelectedNodeKeys] = useState<string[]>([]);
+  const [marqueeBox, setMarqueeBox] = useState<{
+    startX: number;
+    startY: number;
+    currX: number;
+    currY: number;
+  } | null>(null);
+  const [groupDragStart, setGroupDragStart] = useState<{
+    pointerX: number;
+    pointerY: number;
+    initialPositions: Record<string, { x: number; y: number }>;
+  } | null>(null);
 
   // Estado de arrastre de nodos en el lienzo
   const [draggingNodeKey, setDraggingNodeKey] = useState<string | null>(null);
@@ -470,22 +533,25 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // ETAPA 3. ROOT AI AGENT NODE (Rectángulo ancho central con 3 rombos abajo: Chat Model *, Memory ◆, Tool +)
-    const agentPos = customPositions['agent_root'] || { x: 274, y: 70 };
+    // ETAPA 3. AGENTE IA PRINCIPAL (Rectángulo ancho central con 3 rombos abajo: Modelo IA *, Memoria ◆, Herramienta +)
+    const agentPos = customPositions['agent_root'] || { x: 274, y: 68 };
     list.push({
       key: 'agent_root',
-      nodeId: 'ai_agent_root',
+      nodeId: agentId || 'ai_agent_root',
       shape: 'agent',
-      title: 'AI Agent',
-      subtitle: agentName || 'Consultor SG-SST',
+      title: 'Agente IA',
+      subtitle:
+        agentId === 'tenshi_avatar_orchestrator'
+          ? '🐱 Tenshi Avatar (Voz 3D)'
+          : agentName || 'Consultor SG-SST',
       x: agentPos.x,
       y: agentPos.y,
-      width: 228,
-      height: 86,
+      width: 232,
+      height: 88,
     });
 
-    // 3A. SUB-NODO CIRCULAR: CHAT MODEL * (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7)
-    const modelPos = customPositions['sub_model'] || { x: 180, y: 245 };
+    // 3A. SUB-NODO CIRCULAR: MODELO IA * (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7)
+    const modelPos = customPositions['sub_model'] || { x: 165, y: 228 };
     list.push({
       key: 'sub_model',
       nodeId: currentModelDef.id,
@@ -496,19 +562,19 @@ export default function WappyWorkflowCanvas({
           ? 'Cloud 24/7 + MCP'
           : aiEngine === 'antigravity'
             ? 'Local Mac/PC + MCP'
-            : 'WAPPY Key Rotation',
+            : 'Rotación Claves WAPPY',
       x: modelPos.x,
       y: modelPos.y,
       width: 62,
       height: 62,
     });
 
-    // 3B. SUB-NODOS CIRCULARES: MEMORIAS DEL AGENTE (Empresa SST, Bitácora Anti-Duplicados, RAG NotebookLM, Normativa)
+    // 3B. SUB-NODOS CIRCULARES: MEMORIAS DEL AGENTE (Separación de 106px para que los textos inferiores jamás se pisen)
     activeMemories.forEach((memId, idx) => {
       const memDef = MEMORY_NODES.find((m) => m.id === memId) || MEMORY_NODES[0];
       const key = idx === 0 ? 'sub_memory' : `sub_memory_${memDef.id}`;
-      const defaultX = 285 + idx * 88;
-      const defaultY = idx % 2 === 0 ? 245 : 262;
+      const defaultX = 274 + idx * 106;
+      const defaultY = 228;
       const memPos = customPositions[key] || { x: defaultX, y: defaultY };
       list.push({
         key,
@@ -525,22 +591,22 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // 3C. SUB-NODOS CIRCULARES: TOOLS DEL AGENTE (Conectores y Motores de Consulta/Análisis)
+    // 3C. SUB-NODOS CIRCULARES: HERRAMIENTAS DEL AGENTE (Separación limpia de 106px)
     const toolInputs = workflowNodes?.inputs || [];
-    const memoryRightEdge = 285 + Math.max(1, activeMemories.length) * 88;
+    const memoryRightEdge = 274 + Math.max(1, activeMemories.length) * 106;
     toolInputs.forEach((toolId, idx) => {
       const def = getNodeDefById(toolId);
       if (!def) return;
       const key = `tool_inputs_${toolId}`;
-      const defaultX = Math.max(395, memoryRightEdge) + idx * 92;
-      const defaultY = idx % 2 === 0 ? 245 : 262;
+      const defaultX = Math.max(380, memoryRightEdge) + idx * 106;
+      const defaultY = 228;
       const pos = customPositions[key] || { x: defaultX, y: defaultY };
       list.push({
         key,
         nodeId: toolId,
         shape: 'circle_tool',
         title: def.shortLabel,
-        subtitle: 'Tool del Agente',
+        subtitle: 'Herramienta IA',
         x: pos.x,
         y: pos.y,
         width: 62,
@@ -550,14 +616,14 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // ETAPA 4A. NODO CONDICIONAL IF (Cuadrado con icono de bifurcación y salidas true / false)
+    // ETAPA 4A. NODO CONDICIONAL SI / NO (Cuadrado con icono de bifurcación y salidas sí / no)
     if (includeIfNode) {
       const ifPos = customPositions['if_router'] || { x: 548, y: 76 };
       list.push({
         key: 'if_router',
         nodeId: 'if_node_router',
         shape: 'if',
-        title: 'If',
+        title: 'Condición Si/No',
         subtitle: 'Hallazgos / Alerta',
         x: ifPos.x,
         y: ifPos.y,
@@ -565,6 +631,24 @@ export default function WappyWorkflowCanvas({
         height: 72,
       });
     }
+
+    // NODOS LÓGICOS ADICIONALES (Loop, Merge, Aprobación Humana)
+    const logicNodes = workflowNodes?.canvasLayout?.logicNodes || [];
+    logicNodes.forEach((ln, idx) => {
+      const pos = customPositions[ln.key] || { x: 548 + idx * 115, y: 185 };
+      list.push({
+        key: ln.key,
+        nodeId: `logic_${ln.logicType}`,
+        shape: 'logic',
+        title: ln.title,
+        subtitle: ln.subtitle,
+        x: pos.x,
+        y: pos.y,
+        width: 72,
+        height: 72,
+        removable: true,
+      });
+    });
 
     // ETAPA 4B. NODOS DE ACCIÓN EN HITOS / APLICATIVOS SOMOS SST (Cambiar / Alimentar Hitos 1–7)
     const hitosList = workflowNodes?.hitos || [];
@@ -624,20 +708,23 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // AGENTES IA ADICIONALES / REVISORES EN EL MISMO LIENZO (Orquestación Multi-IA libre)
+    // AGENTES IA ADICIONALES / REVISORES EN EL MISMO LIENZO (Orquestación Multi-IA con Segundo Prompt propio)
     const extraAgents = workflowNodes?.canvasLayout?.extraAgents || [];
     extraAgents.forEach((ea, idx) => {
-      const pos = customPositions[ea.key] || { x: 540 + idx * 250, y: 188 };
+      const pos = customPositions[ea.key] || { x: 540 + idx * 255, y: 188 };
       list.push({
         key: ea.key,
         nodeId: ea.agentId || 'ai_agent_extra',
         shape: 'agent',
-        title: `AI Agent #${idx + 2}`,
-        subtitle: ea.agentName || 'IA Revisora / Auditora',
+        title: `Agente IA #${idx + 2}`,
+        subtitle:
+          ea.agentId === 'tenshi_avatar_orchestrator'
+            ? '🐱 Tenshi Avatar (Voz 3D)'
+            : ea.agentName || 'IA Revisora / Auditora',
         x: pos.x,
         y: pos.y,
-        width: 224,
-        height: 82,
+        width: 232,
+        height: 88,
         removable: true,
       });
     });
@@ -648,6 +735,7 @@ export default function WappyWorkflowCanvas({
     activeTriggers,
     activeExtractors,
     activeMemories,
+    agentId,
     agentName,
     currentModelDef,
     aiEngine,
@@ -719,7 +807,7 @@ export default function WappyWorkflowCanvas({
       });
     };
 
-    // 1. Etapa 1 (Disparadores) ● ──> ● Etapa 2 (Extraer Datos) ● ──> ● Etapa 3 (AI Agent)
+    // 1. Etapa 1 (Disparadores) ● ──> ● Etapa 2 (Extraer Datos) ● ──> ● Etapa 3 (Agente IA)
     if (extractorNodes.length > 0 && agentNode) {
       triggerNodes.forEach((trigNode) => {
         extractorNodes.forEach((extNode) => {
@@ -760,7 +848,7 @@ export default function WappyWorkflowCanvas({
       });
     }
 
-    // 2. Etapa 3 (AI Agent) ● ──> ● If Node ──> ● Etapa 4 (Hitos/Apps) ──> ● Etapa 5 (Bitácora Final)
+    // 2. Etapa 3 (Agente IA) ● ──> ● Condición Si/No ──> ● Etapa 4 (Hitos/Apps) ──> ● Etapa 5 (Bitácora Final)
     const stageAfterAgent = ifNode ? [ifNode] : hitoNodes.length > 0 ? hitoNodes : outputNodes;
     if (agentNode) {
       stageAfterAgent.forEach((target) => {
@@ -790,7 +878,7 @@ export default function WappyWorkflowCanvas({
           y2: target.y + target.height / 2,
           dashed: false,
           color: isTrueBranch ? '#10b981' : '#94a3b8',
-          label: isTrueBranch ? 'true' : 'false',
+          label: isTrueBranch ? 'sí' : 'no',
           labelX: x1Port + 16,
           labelY: y1Port - 5,
         });
@@ -813,7 +901,7 @@ export default function WappyWorkflowCanvas({
       });
     }
 
-    // 3A. AI Agent ◆ (Chat Model *) ── - - ──> ◆ Sub-Nodo Circular Modelo
+    // 3A. Agente IA ◆ (Modelo IA *) ── - - ──> ◆ Sub-Nodo Circular Modelo
     if (agentNode && modelNode) {
       pushWire({
         id: 'wire_sub_model',
@@ -827,7 +915,7 @@ export default function WappyWorkflowCanvas({
       });
     }
 
-    // 3B. AI Agent ◆ (Memory) ── - - ──> ◆ Sub-Nodos Circulares de Memoria
+    // 3B. Agente IA ◆ (Memoria) ── - - ──> ◆ Sub-Nodos Circulares de Memoria
     if (agentNode) {
       memNodes.forEach((mNode) => {
         pushWire({
@@ -843,7 +931,7 @@ export default function WappyWorkflowCanvas({
       });
     }
 
-    // 3C. AI Agent ◆ (Tool +) ── - - ──> ◆ Sub-Nodos Circulares de Tools del Agente
+    // 3C. Agente IA ◆ (Herramienta +) ── - - ──> ◆ Sub-Nodos Circulares de Herramientas del Agente
     if (agentNode) {
       toolNodes.forEach((tNode) => {
         pushWire({
@@ -859,19 +947,48 @@ export default function WappyWorkflowCanvas({
       });
     }
 
-    // 6. Cables personalizados adicionales creados con el mouse por el usuario (conectando cualquier módulo a cualquier otro)
+    // 6. Cables personalizados creados por el usuario (validando que los sub-nodos circulares JAMÁS queden como salida principal)
     const customEdges = workflowNodes?.canvasLayout?.edges || [];
     customEdges.forEach((edge) => {
       const fromNode = map.get(edge.from);
       const toNode = map.get(edge.to);
       if (!fromNode || !toNode) return;
+
+      const isFromSubCircle = fromNode.shape.startsWith('circle_');
+      const isToSubCircle = toNode.shape.startsWith('circle_');
+
+      // Si cualquiera de los extremos es un sub-nodo circular (Modelo IA, Memoria o Herramienta),
+      // SOLO puede conectarse verticalmente (rombo a rombo) con un Agente IA, jamás con If o Salidas.
+      if (isFromSubCircle || isToSubCircle) {
+        const agNode = fromNode.shape === 'agent' ? fromNode : toNode.shape === 'agent' ? toNode : null;
+        const subCircle = isFromSubCircle ? fromNode : isToSubCircle ? toNode : null;
+        if (!agNode || !subCircle) return;
+        const portOffsetX =
+          subCircle.shape === 'circle_model'
+            ? 44
+            : subCircle.shape === 'circle_memory'
+              ? 114
+              : 184;
+        pushWire({
+          id: edge.id,
+          x1: agNode.x + portOffsetX,
+          y1: agNode.y + agNode.height,
+          x2: subCircle.x + subCircle.width / 2,
+          y2: subCircle.y,
+          dashed: true,
+          isSub: true,
+          color: subCircle.shape === 'circle_memory' ? '#ec4899' : '#818cf8',
+        });
+        return;
+      }
+
       pushWire({
         id: edge.id,
         x1: fromNode.x + fromNode.width,
         y1: fromNode.y + fromNode.height / 2,
         x2: toNode.x,
         y2: toNode.y + toNode.height / 2,
-        dashed: edge.kind === 'sub',
+        dashed: false,
         color: '#14b8a6',
       });
     });
@@ -921,12 +1038,89 @@ export default function WappyWorkflowCanvas({
     });
   };
 
-  // Agregar un Agente IA adicional (ej. Segunda IA Revisora / Auditora en el mismo flujo)
+  // Actualizar la configuración individual de cualquier nodo del lienzo (campos, contexto entrada/salida, segundo prompt, modelo IA)
+  const handleUpdateNodeConfig = (nodeKey: string, partial: Partial<CanvasNodeConfig>) => {
+    if (!onChange || readOnly) return;
+    const prevConfigs = workflowNodes?.canvasLayout?.nodeConfigs || {};
+    const nextConfig: CanvasNodeConfig = {
+      ...(prevConfigs[nodeKey] || {}),
+      ...partial,
+    };
+
+    // Si es un Agente IA Adicional (#2, #3), sincronizar también en extraAgents
+    let nextExtra = workflowNodes?.canvasLayout?.extraAgents;
+    if (nodeKey.startsWith('agent_extra_') && Array.isArray(nextExtra)) {
+      nextExtra = nextExtra.map((ea) =>
+        ea.key === nodeKey
+          ? {
+              ...ea,
+              ...(partial.aiEngine ? { aiEngine: partial.aiEngine } : {}),
+              ...(partial.aiModel ? { aiModel: partial.aiModel } : {}),
+              ...(partial.prompt !== undefined ? { prompt: partial.prompt } : {}),
+              ...(partial.inputContext !== undefined ? { inputContext: partial.inputContext } : {}),
+              ...(partial.outputContext !== undefined ? { outputContext: partial.outputContext } : {}),
+            }
+          : ea,
+      );
+    }
+
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        ...(nextExtra ? { extraAgents: nextExtra } : {}),
+        nodeConfigs: {
+          ...prevConfigs,
+          [nodeKey]: nextConfig,
+        },
+      },
+    });
+  };
+
+  // Agregar un Nodo Lógico (Loop, Merge, Aprobación Humana)
+  const handleAddLogicNode = (logicType: 'loop' | 'merge' | 'human_approval') => {
+    if (!onChange || readOnly) return;
+    const prevLogic = workflowNodes?.canvasLayout?.logicNodes || [];
+    const newKey = `logic_${logicType}_${Date.now()}`;
+    const meta =
+      logicType === 'loop'
+        ? { title: 'Iterar (Loop)', subtitle: 'Por cada Registro' }
+        : logicType === 'merge'
+          ? { title: 'Unir Ramas', subtitle: 'Combinar Flujos' }
+          : { title: 'Aprobación', subtitle: 'Visto Bueno Humano' };
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        logicNodes: [...prevLogic, { key: newKey, logicType, ...meta }],
+      },
+    });
+    setActiveConfigNodeKey(newKey);
+  };
+
+  const handleRemoveLogicNode = (key: string) => {
+    if (!onChange || readOnly) return;
+    const nextLogic = (workflowNodes?.canvasLayout?.logicNodes || []).filter((ln) => ln.key !== key);
+    const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
+      (ed) => ed.from !== key && ed.to !== key,
+    );
+    if (activeConfigNodeKey === key) setActiveConfigNodeKey(null);
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        logicNodes: nextLogic,
+        edges: nextEdges,
+      },
+    });
+  };
+
+  // Agregar un Agente IA adicional (ej. Segunda IA Revisora / Auditora en el mismo flujo con su propio Segundo Prompt)
   const handleAddExtraAgent = () => {
     if (!onChange || readOnly) return;
     const prevExtra = workflowNodes?.canvasLayout?.extraAgents || [];
     const newKey = `agent_extra_${Date.now()}`;
-    const defaultAgent = agents[1] || agents[0];
+    const defaultAgent = availableAgentsWithTenshiAvatar[1] || availableAgentsWithTenshiAvatar[0];
     onChange({
       ...workflowNodes,
       canvasLayout: {
@@ -935,20 +1129,22 @@ export default function WappyWorkflowCanvas({
           ...prevExtra,
           {
             key: newKey,
-            agentId: defaultAgent?.id || '',
+            agentId: defaultAgent?.id || 'tenshi_avatar_orchestrator',
             agentName: defaultAgent?.name || 'IA Revisora / Auditora SST',
             aiEngine: 'wappy',
             aiModel: 'gemini-3.6-flash',
+            prompt: '',
           },
         ],
       },
     });
+    setActiveConfigNodeKey(newKey);
   };
 
   // Actualizar o quitar un Agente IA adicional
   const handleUpdateExtraAgent = (key: string, newAgentId: string) => {
     if (!onChange || readOnly) return;
-    const found = agents.find((a) => a.id === newAgentId);
+    const found = availableAgentsWithTenshiAvatar.find((a) => a.id === newAgentId);
     const nextExtra = (workflowNodes?.canvasLayout?.extraAgents || []).map((ea) =>
       ea.key === key
         ? { ...ea, agentId: newAgentId, agentName: found?.name || ea.agentName }
@@ -969,6 +1165,7 @@ export default function WappyWorkflowCanvas({
     const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
       (ed) => ed.from !== key && ed.to !== key,
     );
+    if (activeConfigNodeKey === key) setActiveConfigNodeKey(null);
     onChange({
       ...workflowNodes,
       canvasLayout: {
@@ -998,14 +1195,91 @@ export default function WappyWorkflowCanvas({
     [onChange, readOnly, workflowNodes],
   );
 
-  // Iniciar arrastre de un nodo dentro del lienzo
+  // Actualizar posiciones de múltiples nodos a la vez (mover una parte seleccionada o todo el flujo)
+  const updateMultipleNodePositions = useCallback(
+    (updates: Record<string, CanvasNodePosition>) => {
+      if (!onChange || readOnly) return;
+      const nextPositions: Record<string, CanvasNodePosition> = {
+        ...(workflowNodes?.canvasLayout?.positions || {}),
+        ...updates,
+      };
+      onChange({
+        ...workflowNodes,
+        canvasLayout: {
+          ...(workflowNodes?.canvasLayout || {}),
+          positions: nextPositions,
+        },
+      });
+    },
+    [onChange, readOnly, workflowNodes],
+  );
+
+  // Seleccionar todo el flujo (o deseleccionar si ya están todos marcados)
+  const handleSelectAllNodes = () => {
+    const allKeys = visualNodes.map((n) => n.key);
+    if (selectedNodeKeys.length === allKeys.length && allKeys.length > 0) {
+      setSelectedNodeKeys([]);
+    } else {
+      setSelectedNodeKeys(allKeys);
+    }
+  };
+
+  // Iniciar arrastre en el fondo del lienzo: Manita (desplazar vista) o Recuadro de Selección (Seleccionar Parte)
+  const handleBackgroundPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('[data-canvas-toolbar="true"]')) return;
+
+    if (!readOnly && (canvasTool === 'select' || e.shiftKey)) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const pointerX = (e.clientX - rect.left) / zoom;
+      const pointerY = (e.clientY - rect.top) / zoom;
+      setMarqueeBox({ startX: pointerX, startY: pointerY, currX: pointerX, currY: pointerY });
+      if (!e.shiftKey) {
+        setSelectedNodeKeys([]);
+      }
+      return;
+    }
+
+    if (scrollContainerRef.current) {
+      setIsPanning(true);
+      setPanStart({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        scrollLeft: scrollContainerRef.current.scrollLeft,
+        scrollTop: scrollContainerRef.current.scrollTop,
+      });
+    }
+  };
+
+  // Iniciar arrastre de un nodo (individual o de todo el grupo seleccionado) y registrar posición para detectar clic de edición
   const handleNodePointerDown = (e: React.PointerEvent, node: VisualNodeInstance) => {
     if (readOnly) return;
     e.stopPropagation();
+    pointerDownClientRef.current = { x: e.clientX, y: e.clientY };
+
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const pointerX = (e.clientX - rect.left) / zoom;
     const pointerY = (e.clientY - rect.top) / zoom;
+
+    if (e.shiftKey) {
+      setSelectedNodeKeys((prev) =>
+        prev.includes(node.key) ? prev.filter((k) => k !== node.key) : [...prev, node.key],
+      );
+      return;
+    }
+
+    if (selectedNodeKeys.includes(node.key) && selectedNodeKeys.length > 1) {
+      const initialPositions: Record<string, CanvasNodePosition> = {};
+      visualNodes.forEach((vn) => {
+        if (selectedNodeKeys.includes(vn.key)) {
+          initialPositions[vn.key] = { x: vn.x, y: vn.y };
+        }
+      });
+      setGroupDragStart({ pointerX, pointerY, initialPositions });
+      return;
+    }
+
     setDraggingNodeKey(node.key);
     setDragOffset({ dx: pointerX - node.x, dy: pointerY - node.y });
   };
@@ -1030,46 +1304,111 @@ export default function WappyWorkflowCanvas({
     });
   };
 
-  // Movimiento del puntero sobre el lienzo (arrastrar nodo o estirar cable)
+  // Movimiento del puntero sobre el lienzo
   const handleCanvasPointerMove = (e: React.PointerEvent) => {
+    if (isPanning && panStart && scrollContainerRef.current) {
+      const dx = e.clientX - panStart.clientX;
+      const dy = e.clientY - panStart.clientY;
+      scrollContainerRef.current.scrollLeft = panStart.scrollLeft - dx;
+      scrollContainerRef.current.scrollTop = panStart.scrollTop - dy;
+      return;
+    }
+
     if (readOnly) return;
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const pointerX = (e.clientX - rect.left) / zoom;
     const pointerY = (e.clientY - rect.top) / zoom;
 
-    if (draggingNodeKey) {
+    if (groupDragStart) {
+      const dx = pointerX - groupDragStart.pointerX;
+      const dy = pointerY - groupDragStart.pointerY;
+      const batchUpdates: Record<string, CanvasNodePosition> = {};
+      Object.entries(groupDragStart.initialPositions).forEach(([key, initPos]) => {
+        batchUpdates[key] = {
+          x: Math.max(12, Math.round(initPos.x + dx)),
+          y: Math.max(12, Math.round(initPos.y + dy)),
+        };
+      });
+      updateMultipleNodePositions(batchUpdates);
+    } else if (draggingNodeKey) {
       updateNodePosition(draggingNodeKey, pointerX - dragOffset.dx, pointerY - dragOffset.dy);
+    } else if (marqueeBox) {
+      const nextBox = { ...marqueeBox, currX: pointerX, currY: pointerY };
+      setMarqueeBox(nextBox);
+      const minX = Math.min(nextBox.startX, nextBox.currX);
+      const maxX = Math.max(nextBox.startX, nextBox.currX);
+      const minY = Math.min(nextBox.startY, nextBox.currY);
+      const maxY = Math.max(nextBox.startY, nextBox.currY);
+      const hits = visualNodes
+        .filter((vn) => vn.x + vn.width >= minX && vn.x <= maxX && vn.y + vn.height >= minY && vn.y <= maxY)
+        .map((vn) => vn.key);
+      setSelectedNodeKeys(hits);
     } else if (wiringFrom) {
       setWiringFrom((prev) => (prev ? { ...prev, currX: pointerX, currY: pointerY } : null));
     }
   };
 
-  // Soltar nodo o finalizar conexión de cable sobre otro nodo
-  const handleCanvasPointerUp = (targetNodeKey?: string) => {
+  // Soltar manita, selección, grupo, nodo o finalizar conexión de cable (y abrir el editor del nodo si fue un clic directo)
+  const handleCanvasPointerUp = (targetNodeKey?: string, e?: React.PointerEvent) => {
+    if (
+      targetNodeKey &&
+      !wiringFrom &&
+      pointerDownClientRef.current &&
+      e &&
+      Math.hypot(e.clientX - pointerDownClientRef.current.x, e.clientY - pointerDownClientRef.current.y) < 6
+    ) {
+      setActiveConfigNodeKey(targetNodeKey);
+    }
+    pointerDownClientRef.current = null;
+
+    if (isPanning) {
+      setIsPanning(false);
+      setPanStart(null);
+    }
+    if (groupDragStart) {
+      setGroupDragStart(null);
+    }
+    if (marqueeBox) {
+      setMarqueeBox(null);
+    }
     if (draggingNodeKey) {
       setDraggingNodeKey(null);
     }
     if (wiringFrom) {
       if (targetNodeKey && targetNodeKey !== wiringFrom.sourceKey && onChange) {
-        const existingEdges = workflowNodes?.canvasLayout?.edges || [];
-        const edgeId = `custom_${wiringFrom.sourceKey}_${targetNodeKey}`;
-        if (!existingEdges.some((ed) => ed.id === edgeId)) {
-          onChange({
-            ...workflowNodes,
-            canvasLayout: {
-              ...(workflowNodes?.canvasLayout || {}),
-              edges: [
-                ...existingEdges,
-                {
-                  id: edgeId,
-                  from: wiringFrom.sourceKey,
-                  to: targetNodeKey,
-                  kind: wiringFrom.portType.startsWith('diamond') ? 'sub' : 'main',
-                },
-              ],
-            },
-          });
+        const sourceNode = visualNodes.find((n) => n.key === wiringFrom.sourceKey);
+        const targetNode = visualNodes.find((n) => n.key === targetNodeKey);
+        const isDiamondWire = wiringFrom.portType.startsWith('diamond');
+        const isTargetSubCircle = Boolean(targetNode?.shape.startsWith('circle_'));
+        const isSourceSubCircle = Boolean(sourceNode?.shape.startsWith('circle_'));
+
+        // Validar que los puertos rombo (Modelo IA, Memoria, Herramienta) SOLO conecten con sub-nodos circulares,
+        // y que los sub-nodos circulares NUNCA se conecten como salida horizontal hacia If o Salidas.
+        const isValidConnection = isDiamondWire
+          ? isTargetSubCircle
+          : !isSourceSubCircle && !isTargetSubCircle;
+
+        if (isValidConnection) {
+          const existingEdges = workflowNodes?.canvasLayout?.edges || [];
+          const edgeId = `custom_${wiringFrom.sourceKey}_${targetNodeKey}`;
+          if (!existingEdges.some((ed) => ed.id === edgeId)) {
+            onChange({
+              ...workflowNodes,
+              canvasLayout: {
+                ...(workflowNodes?.canvasLayout || {}),
+                edges: [
+                  ...existingEdges,
+                  {
+                    id: edgeId,
+                    from: wiringFrom.sourceKey,
+                    to: targetNodeKey,
+                    kind: isDiamondWire ? 'sub' : 'main',
+                  },
+                ],
+              },
+            });
+          }
         }
       }
       setWiringFrom(null);
@@ -1253,16 +1592,22 @@ export default function WappyWorkflowCanvas({
   // Restablecer posiciones automáticas limpias en el lienzo
   const handleResetLayout = () => {
     if (!onChange || readOnly) return;
+    setSelectedNodeKeys([]);
     onChange({
       ...workflowNodes,
       canvasLayout: null,
     });
   };
 
-  // Calcular ancho dinámico del lienzo según la cantidad de herramientas conectadas
+  // Calcular ancho y alto dinámicos del área de trabajo con margen amplio para desplazarse y mover el flujo a un lado
   const canvasMinWidth = useMemo(() => {
-    const maxRight = visualNodes.reduce((acc, n) => Math.max(acc, n.x + n.width + 90), 890);
-    return Math.max(890, maxRight);
+    const maxRight = visualNodes.reduce((acc, n) => Math.max(acc, n.x + n.width + 260), 1180);
+    return Math.max(1180, maxRight);
+  }, [visualNodes]);
+
+  const canvasMinHeight = useMemo(() => {
+    const maxBottom = visualNodes.reduce((acc, n) => Math.max(acc, n.y + n.height + 135), 470);
+    return Math.max(470, maxBottom);
   }, [visualNodes]);
 
   return (
@@ -1524,10 +1869,18 @@ export default function WappyWorkflowCanvas({
         </div>
       )}
 
-      {/* ─── LIENZO VISUAL INTERACTIVO WAPPY (FONDO PUNTEADO + NODOS + CABLES SVG) ─── */}
+      {/* ─── LIENZO VISUAL INTERACTIVO WAPPY (FONDO PUNTEADO + MANITA + SELECCIÓN + NODOS + CABLES SVG) ─── */}
       <div
-        className={`relative w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#f8fafc] dark:bg-[#0b1120] shadow-inner select-none ${
-          compact ? 'h-[255px]' : 'h-[375px]'
+        ref={scrollContainerRef}
+        onPointerDown={handleBackgroundPointerDown}
+        className={`relative w-full overflow-auto rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#f8fafc] dark:bg-[#0b1120] shadow-inner select-none ${
+          compact ? 'h-[265px]' : 'h-[430px]'
+        } ${
+          isPanning
+            ? 'cursor-grabbing'
+            : canvasTool === 'select'
+              ? 'cursor-crosshair'
+              : 'cursor-grab'
         }`}
         style={{
           backgroundImage: 'radial-gradient(rgba(148, 163, 184, 0.42) 1.35px, transparent 1.35px)',
@@ -1538,13 +1891,85 @@ export default function WappyWorkflowCanvas({
         onPointerMove={handleCanvasPointerMove}
         onPointerUp={() => handleCanvasPointerUp()}
       >
-        {/* Controles flotantes del lienzo (Zoom, Condicional If, Auto-Organizar) */}
+        {/* Controles flotantes del lienzo (Manita, Seleccionar Parte, Seleccionar Todo, Zoom, Otra IA, Nodo If, Conectar a mi Gusto) */}
         {!compact && (
-          <div className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-1.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm m-2.5">
+          <div
+            data-canvas-toolbar="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm m-2.5 cursor-default"
+          >
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Lienzo WAPPY
             </span>
+
+            {/* ─── 1. MANITA (DESPLAZARSE POR EL LIENZO) & SELECCIÓN DE FLUJO ─── */}
+            <button
+              type="button"
+              onClick={() => setCanvasTool('pan')}
+              className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                canvasTool === 'pan'
+                  ? 'bg-slate-900 text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-xs'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+              }`}
+              title="Manita: Arrastra sobre el fondo punteado para desplazarte por toda el área de trabajo"
+            >
+              <Hand className="w-3 h-3" />
+              Manita
+            </button>
+
+            {!readOnly && onChange && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setCanvasTool(canvasTool === 'select' ? 'pan' : 'select')}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                    canvasTool === 'select'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                  title="Seleccionar una Parte: Dibuja un recuadro sobre varios nodos (o haz Shift + Clic) para mover esa parte junta"
+                >
+                  <MousePointer2 className="w-3 h-3" />
+                  Seleccionar Parte
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSelectAllNodes}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                    selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800'
+                  }`}
+                  title="Seleccionar Todo el Flujo para arrastrarlo completo a un lado o a cualquier lugar del campo"
+                >
+                  <Move className="w-3 h-3" />
+                  {selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
+                    ? `Todo Seleccionado (${selectedNodeKeys.length})`
+                    : 'Seleccionar Todo'}
+                </button>
+
+                {selectedNodeKeys.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-[#C7F303] text-[9.5px] font-extrabold flex items-center gap-1 border border-purple-300 dark:border-purple-700">
+                    <span>
+                      ✥ {selectedNodeKeys.length} marcados (arrastra uno para moverlos juntos)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNodeKeys([])}
+                      className="ml-0.5 hover:text-rose-600"
+                      title="Deseleccionar nodos"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </>
+            )}
+
+            <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
             <button
               type="button"
               onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
@@ -1572,7 +1997,7 @@ export default function WappyWorkflowCanvas({
                   type="button"
                   onClick={handleAddExtraAgent}
                   className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 transition flex items-center gap-1"
-                  title="Agregar otra Inteligencia Artificial / Agente Revisor al campo para conectarlo donde quieras"
+                  title="Agregar un segundo o tercer Agente IA (con su propio Segundo Prompt y Modelo IA) al lienzo"
                 >
                   <Plus className="w-3 h-3" />
                   Otra IA / Agente
@@ -1590,10 +2015,37 @@ export default function WappyWorkflowCanvas({
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
                       : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                   }`}
-                  title="Activar/Desactivar nodo condicional If (true / false)"
+                  title="Activar/Desactivar nodo de Condición Si/No (evalúa si hay hallazgos o alertas para dividir el flujo en rama SÍ o NO)"
                 >
                   <GitFork className="w-3 h-3" />
-                  Nodo If
+                  Condición Si/No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddLogicNode('loop')}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 transition flex items-center gap-1"
+                  title="Agregar nodo Iterar (Loop) para recorrer trabajador por trabajador o archivo por archivo"
+                >
+                  <Repeat className="w-3 h-3" />
+                  + Iterar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddLogicNode('merge')}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800 transition flex items-center gap-1"
+                  title="Agregar nodo Unir Ramas (Merge) para juntar la salida de dos agentes o dos ramas"
+                >
+                  <GitMerge className="w-3 h-3" />
+                  + Unir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddLogicNode('human_approval')}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition flex items-center gap-1"
+                  title="Agregar nodo de Aprobación Humana (Visto Bueno antes de enviar correo o modificar Hito)"
+                >
+                  <UserCheck className="w-3 h-3" />
+                  + Aprobación
                 </button>
                 <button
                   type="button"
@@ -1624,10 +2076,22 @@ export default function WappyWorkflowCanvas({
           className="relative origin-top-left"
           style={{
             width: `${canvasMinWidth}px`,
-            height: '355px',
+            height: `${canvasMinHeight}px`,
             transform: `scale(${zoom})`,
           }}
         >
+          {/* Recuadro visual de selección parcial (Seleccionar Parte) */}
+          {marqueeBox && (
+            <div
+              style={{
+                left: Math.min(marqueeBox.startX, marqueeBox.currX),
+                top: Math.min(marqueeBox.startY, marqueeBox.currY),
+                width: Math.abs(marqueeBox.currX - marqueeBox.startX),
+                height: Math.abs(marqueeBox.currY - marqueeBox.startY),
+              }}
+              className="absolute z-40 rounded-xl border-2 border-dashed border-purple-500 bg-purple-500/10 pointer-events-none"
+            />
+          )}
           {/* ─── CAPA SVG DE CABLES CURVOS Y FLECHAS (CON BOTÓN × PARA CORTAR CUALQUIER CABLE) ─── */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none z-10"
@@ -1711,7 +2175,7 @@ export default function WappyWorkflowCanvas({
                   <text
                     x={w.labelX}
                     y={w.labelY}
-                    fill={w.label === 'true' ? '#059669' : '#64748b'}
+                    fill={w.label === 'sí' ? '#059669' : '#64748b'}
                     fontSize="10"
                     fontWeight="700"
                   >
@@ -1735,14 +2199,31 @@ export default function WappyWorkflowCanvas({
 
           {/* ─── CAPA DE NODOS DE LAS 5 ETAPAS DEL FLUJO WAPPY ─── */}
           {visualNodes.map((node) => {
+            const isNodeSelected =
+              selectedNodeKeys.includes(node.key) || activeConfigNodeKey === node.key;
+            const nodeCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[node.key];
+            const hasCustomConfig = Boolean(
+              (nodeCfg?.fields && nodeCfg.fields.length > 0) ||
+                nodeCfg?.inputContext?.trim() ||
+                nodeCfg?.outputContext?.trim() ||
+                nodeCfg?.customInstruction?.trim() ||
+                nodeCfg?.prompt?.trim(),
+            );
+            const selectedRingClass = isNodeSelected
+              ? 'ring-3 ring-purple-500 dark:ring-[#C7F303] ring-offset-2 dark:ring-offset-slate-900'
+              : hasCustomConfig
+                ? 'ring-2 ring-teal-500/60'
+                : '';
+
             // 1. ETAPA 1: FIGURA TRIGGER NODE (Forma en "D" con rayo ⚡ a la izquierda y puerto circular derecho)
             if (node.shape === 'trigger') {
               return (
                 <div
                   key={node.key}
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic sobre este nodo para editar su configuración"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
@@ -1753,14 +2234,17 @@ export default function WappyWorkflowCanvas({
                   </div>
 
                   {/* Caja en forma de D (redondeada a la izquierda, recta a la derecha) */}
-                  <div className="w-full h-full rounded-l-[28px] rounded-r-[12px] bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-orange-500 shadow-md flex items-center justify-center relative transition-colors">
+                  <div className={`w-full h-full rounded-l-[28px] rounded-r-[12px] bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-orange-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
                     {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
 
                     {!readOnly && node.removable && (
                       <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => toggleOrAddCatalogNode('trigger', node.nodeId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleOrAddCatalogNode('trigger', node.nodeId);
+                        }}
                         className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
                         title="Quitar disparador"
                       >
@@ -1795,34 +2279,36 @@ export default function WappyWorkflowCanvas({
               );
             }
 
-            // 1B. ETAPA 2: FIGURA NODO DE EXTRACCIÓN / LECTURA PREVIA (O en cualquier punto del flujo libre)
+            // 1B. ETAPA 2: FIGURA NODO DE EXTRACCIÓN / LECTURA PREVIA (Haz clic para elegir campos: ej. Nombre, Cédula y Edad)
             if (node.shape === 'square_extractor') {
               return (
                 <div
                   key={node.key}
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic sobre este nodo para configurar qué campos extraer (ej. Nombre, Cédula y Edad) y su contexto"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
                 >
-                  {/* Insignia superior de etapa */}
                   <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-sky-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
                     Extraer
                   </span>
 
-                  {/* Puerto de entrada izquierdo (●) */}
                   <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-500 border-2 border-white dark:border-slate-900" />
 
-                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500 shadow-md flex items-center justify-center relative transition-colors">
+                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
                     {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
 
                     {!readOnly && node.removable && (
                       <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => toggleOrAddCatalogNode('extractors', node.nodeId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleOrAddCatalogNode('extractors', node.nodeId);
+                        }}
                         className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
                         title="Quitar nodo de extracción"
                       >
@@ -1831,7 +2317,6 @@ export default function WappyWorkflowCanvas({
                     )}
                   </div>
 
-                  {/* Puerto circular de salida derecho (●) hacia cualquier otro módulo */}
                   <div
                     onPointerDown={(e) =>
                       handlePortPointerDown(
@@ -1842,7 +2327,7 @@ export default function WappyWorkflowCanvas({
                         node.y + node.height / 2,
                       )
                     }
-                    title="Arrastra desde este puerto para conectar a cualquier módulo o IA"
+                    title="Arrastra desde este puerto para conectar a cualquier módulo o Agente IA"
                     className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-sky-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
                   />
 
@@ -1851,26 +2336,34 @@ export default function WappyWorkflowCanvas({
                       {node.title}
                     </div>
                     <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
-                      {node.subtitle}
+                      {nodeCfg?.fields && nodeCfg.fields.length > 0
+                        ? `${nodeCfg.fields.length} campos elegidos`
+                        : node.subtitle}
                     </div>
                   </div>
                 </div>
               );
             }
 
-            // 2. ETAPA 3: FIGURA AI AGENT NODE (Principal o IA Adicional / Revisora en cualquier punto del campo)
+            // 2. ETAPA 3: FIGURA AGENTE IA (Principal o Agente IA #2/#3 con Segundo Prompt y opción de Tenshi Avatar 3D)
             if (node.shape === 'agent') {
               const isExtraAgent = node.key.startsWith('agent_extra_');
               const extraConfig = isExtraAgent
                 ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === node.key)
                 : null;
+              const currentSelectedAgentId = isExtraAgent
+                ? extraConfig?.agentId || ''
+                : agentId || '';
+              const isTenshiAvatarSelected =
+                currentSelectedAgentId === 'tenshi_avatar_orchestrator';
 
               return (
                 <div
                   key={node.key}
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic sobre este Agente IA para editar su Prompt, Modelo de IA y Contexto de Entrada/Salida"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
@@ -1878,13 +2371,16 @@ export default function WappyWorkflowCanvas({
                   {/* Puerto izquierdo de entrada (●) */}
                   <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-lg bg-slate-400 border-2 border-white dark:border-slate-900" />
 
-                  {/* Cuerpo rectangular del AI Agent */}
-                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md px-3.5 flex items-center gap-3 relative transition-colors">
+                  {/* Cuerpo rectangular del Agente IA */}
+                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md px-3 pb-2.5 pt-1.5 flex items-center gap-2.5 relative transition-colors ${selectedRingClass}`}>
                     {!readOnly && isExtraAgent && (
                       <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => handleRemoveExtraAgent(node.key)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveExtraAgent(node.key);
+                        }}
                         className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
                         title="Quitar este Agente IA adicional"
                       >
@@ -1892,24 +2388,34 @@ export default function WappyWorkflowCanvas({
                       </button>
                     )}
 
-                    <div className="w-11 h-11 rounded-xl bg-slate-900 dark:bg-purple-950/80 text-white dark:text-[#C7F303] flex items-center justify-center shrink-0 shadow-sm">
-                      <Bot className="w-6 h-6" />
+                    {/* Icono del Agente: Avatar 3D de Tenshi si se elige Tenshi Avatar, o icono de Agente Especialista */}
+                    <div className="w-11 h-11 rounded-xl bg-slate-900 dark:bg-purple-950/80 text-white dark:text-[#C7F303] flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                      {isTenshiAvatarSelected ? (
+                        <img
+                          src="/assets/tenshi-avatar.png"
+                          alt="Tenshi Avatar"
+                          className="w-10 h-10 object-contain drop-shadow-sm"
+                        />
+                      ) : (
+                        <Bot className="w-6 h-6" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-black text-slate-900 dark:text-white tracking-tight">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[11.5px] font-black text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
                           {node.title}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded text-[8.5px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
-                          {isExtraAgent ? 'IA Revisora' : 'Tools Agent'}
+                        <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 whitespace-nowrap">
+                          {isExtraAgent ? '2do Prompt' : 'Principal'}
                         </span>
                       </div>
 
-                      {/* Selector directo de Agente Especialista dentro del nodo */}
-                      {!readOnly && agents.length > 0 && (onSelectAgent || isExtraAgent) ? (
+                      {/* Selector directo de Agente Especialista (según permisos del usuario) + Tenshi Avatar */}
+                      {!readOnly && availableAgentsWithTenshiAvatar.length > 0 && (onSelectAgent || isExtraAgent) ? (
                         <select
-                          value={isExtraAgent ? extraConfig?.agentId || '' : agentId || ''}
+                          value={currentSelectedAgentId}
                           onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => {
                             if (isExtraAgent) {
                               handleUpdateExtraAgent(node.key, e.target.value);
@@ -1917,16 +2423,16 @@ export default function WappyWorkflowCanvas({
                               onSelectAgent(e.target.value);
                             }
                           }}
-                          className="mt-1 w-full text-[11px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50/70 dark:bg-slate-900 border border-purple-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 focus:outline-none cursor-pointer truncate"
+                          className="mt-1 w-full text-[10.5px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50/70 dark:bg-slate-900 border border-purple-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 focus:outline-none cursor-pointer truncate"
                         >
-                          {agents.map((ag) => (
+                          {availableAgentsWithTenshiAvatar.map((ag) => (
                             <option key={ag.id} value={ag.id}>
                               {ag.name}
                             </option>
                           ))}
                         </select>
                       ) : (
-                        <div className="text-[11px] font-bold text-purple-600 dark:text-purple-400 truncate mt-0.5">
+                        <div className="text-[10.5px] font-bold text-purple-600 dark:text-purple-400 truncate mt-0.5">
                           {node.subtitle}
                         </div>
                       )}
@@ -1944,58 +2450,48 @@ export default function WappyWorkflowCanvas({
                         node.y + node.height / 2,
                       )
                     }
-                    title="Arrastra para conectar la salida de esta IA hacia otro módulo, correo, acta u otra IA"
+                    title="Arrastra para conectar la salida de este Agente IA hacia otro módulo, correo, acta u otro Agente IA"
                     className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-400 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
                   />
 
-                  {/* ─── LOS 3 PUERTOS EN ROMBO (◆ DIAMOND PORTS) INFERIORES ─── */}
-                  {/* Rombo 1: Chat Model * */}
+                  {/* ─── LOS 3 PUERTOS EN ROMBO (◆) INFERIORES EN ESPAÑOL ─── */}
+                  {/* Rombo 1: Modelo IA * */}
                   <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'diamond_model',
-                        node.x + 44,
-                        node.y + node.height,
-                      )
-                    }
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!readOnly) setPaletteTab('ai_engine');
+                      if (!readOnly) {
+                        setPaletteTab('ai_engine');
+                        setActiveConfigNodeKey(isExtraAgent ? node.key : 'sub_model');
+                      }
                     }}
-                    style={{ left: 38 }}
-                    className="absolute -bottom-2 flex flex-col items-center cursor-pointer"
-                    title="Cambiar Motor IA (WAPPY Cloud / Antigravity Local / Antigravity Cloud 24/7)"
+                    style={{ left: 32 }}
+                    className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/modport"
+                    title="Configurar Modelo de IA de este Agente (WAPPY Cloud / Antigravity Local / Antigravity Cloud 24/7)"
                   >
-                    <div className="w-3 h-3 rotate-45 bg-indigo-500 border-2 border-white dark:border-slate-900 shadow-sm" />
-                    <span className="mt-1 text-[8.5px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      Chat Model <span className="text-rose-500">*</span>
+                    <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/modport:scale-125 border-2 border-white dark:border-slate-900 shadow-sm transition-transform" />
+                    <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                      Modelo IA <span className="text-rose-500">*</span>
                     </span>
                   </div>
 
-                  {/* Rombo 2: Memory [+] */}
+                  {/* Rombo 2: Memoria [+] */}
                   <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'diamond_memory',
-                        node.x + 114,
-                        node.y + node.height,
-                      )
-                    }
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!readOnly) setPaletteTab('memories');
+                      if (!readOnly) {
+                        setPaletteTab('memories');
+                        setActiveConfigNodeKey('sub_memory');
+                      }
                     }}
-                    style={{ left: 104 }}
-                    className="absolute -bottom-2 flex flex-col items-center cursor-pointer group/memport"
+                    style={{ left: 102 }}
+                    className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/memport"
                     title="Configurar las 4 Memorias del Agente (Empresa Activa, Bitácora Anti-Duplicados, RAG NotebookLM, Reglas Normativas SST)"
                   >
                     <div className="w-3 h-3 rotate-45 bg-pink-500 group-hover/memport:bg-pink-600 border-2 border-white dark:border-slate-900 shadow-sm" />
-                    <span className="mt-1 text-[8.5px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-0.5">
-                      Memory
+                    <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
+                      Memoria
                       {!readOnly && (
                         <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-[9px] font-black text-pink-600">
                           +
@@ -2004,28 +2500,23 @@ export default function WappyWorkflowCanvas({
                     </span>
                   </div>
 
-                  {/* Rombo 3: Tool [+] */}
+                  {/* Rombo 3: Herramienta [+] */}
                   <div
-                    onPointerDown={(e) =>
-                      handlePortPointerDown(
-                        e,
-                        node.key,
-                        'diamond_tool',
-                        node.x + 184,
-                        node.y + node.height,
-                      )
-                    }
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!readOnly) setPaletteTab('connectors');
+                      if (!readOnly) {
+                        setPaletteTab('connectors');
+                        setActiveConfigNodeKey(node.key);
+                      }
                     }}
-                    style={{ left: 178 }}
-                    className="absolute -bottom-2 flex flex-col items-center cursor-pointer group/toolport"
-                    title="Conectar Tools y Motores de Análisis al Agente IA"
+                    style={{ left: 168 }}
+                    className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/toolport"
+                    title="Conectar Herramientas al Agente IA"
                   >
                     <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/toolport:bg-purple-600 border-2 border-white dark:border-slate-900 shadow-sm" />
-                    <span className="mt-1 text-[8.5px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-0.5">
-                      Tool
+                    <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
+                      Herramienta
                       {!readOnly && (
                         <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-[9px] font-black text-purple-600">
                           +
@@ -2037,52 +2528,126 @@ export default function WappyWorkflowCanvas({
               );
             }
 
-            // 3. FIGURA IF / ROUTER NODE (Cuadrado con icono de bifurcación verde y 2 salidas true/false)
+            // 3. FIGURA CONDICIÓN SI/NO (Cuadrado con icono de bifurcación verde y 2 salidas sí/no)
             if (node.shape === 'if') {
               return (
                 <div
                   key={node.key}
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic para configurar qué evalúa la Condición Si/No"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
                 >
-                  {/* Puerto de entrada izquierdo (●) */}
                   <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
 
-                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-emerald-500 shadow-md flex items-center justify-center transition-colors">
+                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-emerald-500 shadow-md flex items-center justify-center transition-colors ${selectedRingClass}`}>
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                       <GitFork className="w-6 h-6" />
                     </div>
                   </div>
 
-                  {/* Puerto de salida superior: TRUE */}
+                  {/* Puerto de salida superior: SÍ */}
                   <div
                     onPointerDown={(e) =>
                       handlePortPointerDown(e, node.key, 'if_true', node.x + node.width, node.y + 24)
                     }
                     style={{ top: 20 }}
                     className="absolute -right-2 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 cursor-crosshair"
-                    title="Rama TRUE (Si hay hallazgos / alertas)"
+                    title="Rama SÍ (Si se cumple la condición / hay hallazgos)"
                   />
 
-                  {/* Puerto de salida inferior: FALSE */}
+                  {/* Puerto de salida inferior: NO */}
                   <div
                     onPointerDown={(e) =>
                       handlePortPointerDown(e, node.key, 'if_false', node.x + node.width, node.y + 52)
                     }
                     style={{ top: 48 }}
                     className="absolute -right-2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900 cursor-crosshair"
-                    title="Rama FALSE (Sin novedades)"
+                    title="Rama NO (Si no hay hallazgos / caso contrario)"
                   />
 
-                  <div className="mt-1.5 text-center pointer-events-none">
-                    <div className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
+                  <div className="mt-1.5 w-[112px] -ml-[20px] text-center pointer-events-none">
+                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
                       {node.title}
                     </div>
                     <div className="text-[9px] text-slate-400">{node.subtitle}</div>
+                  </div>
+                </div>
+              );
+            }
+
+            // 3A-BIS. NODOS LÓGICOS ADICIONALES (Iterar Loop, Unir Ramas Merge, Aprobación Humana)
+            if (node.shape === 'logic') {
+              const isLoop = node.nodeId.includes('loop');
+              const isMerge = node.nodeId.includes('merge');
+              return (
+                <div
+                  key={node.key}
+                  onPointerDown={(e) => handleNodePointerDown(e, node)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic para configurar este nodo de control de flujo"
+                  className={`absolute z-20 group/node select-none ${
+                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                  }`}
+                >
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
+                    Control
+                  </span>
+
+                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-amber-500 border-2 border-white dark:border-slate-900" />
+
+                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-amber-400 dark:border-amber-600 group-hover/node:border-amber-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                      {isLoop ? (
+                        <Repeat className="w-6 h-6" />
+                      ) : isMerge ? (
+                        <GitMerge className="w-6 h-6" />
+                      ) : (
+                        <UserCheck className="w-6 h-6" />
+                      )}
+                    </div>
+
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveLogicNode(node.key);
+                        }}
+                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                        title="Quitar nodo de control"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div
+                    onPointerDown={(e) =>
+                      handlePortPointerDown(
+                        e,
+                        node.key,
+                        'main_out',
+                        node.x + node.width,
+                        node.y + node.height / 2,
+                      )
+                    }
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-amber-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                    title="Arrastra desde este puerto para conectar al siguiente paso"
+                  />
+
+                  <div className="mt-1.5 w-[112px] -ml-[20px] text-center pointer-events-none">
+                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                      {node.title}
+                    </div>
+                    <div className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold truncate">
+                      {node.subtitle}
+                    </div>
                   </div>
                 </div>
               );
@@ -2094,28 +2659,30 @@ export default function WappyWorkflowCanvas({
                 <div
                   key={node.key}
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic sobre este nodo para configurar qué campos o acciones realizar en el Hito/Aplicativo"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
                 >
-                  {/* Insignia superior de etapa */}
                   <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-teal-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
                     Hito / App
                   </span>
 
-                  {/* Puerto de entrada izquierdo (●) */}
                   <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-teal-500 border-2 border-white dark:border-slate-900" />
 
-                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-teal-400 dark:border-teal-600 group-hover/node:border-teal-500 shadow-md flex items-center justify-center relative transition-colors">
+                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-teal-400 dark:border-teal-600 group-hover/node:border-teal-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
                     {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
 
                     {!readOnly && node.removable && (
                       <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => toggleOrAddCatalogNode('hitos', node.nodeId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleOrAddCatalogNode('hitos', node.nodeId);
+                        }}
                         className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
                         title="Quitar acción en Hito / App"
                       >
@@ -2124,7 +2691,6 @@ export default function WappyWorkflowCanvas({
                     )}
                   </div>
 
-                  {/* Puerto circular de salida derecho (●) hacia cualquier otro módulo o IA */}
                   <div
                     onPointerDown={(e) =>
                       handlePortPointerDown(
@@ -2144,7 +2710,9 @@ export default function WappyWorkflowCanvas({
                       {node.title}
                     </div>
                     <div className="text-[9px] text-teal-600 dark:text-teal-400 font-semibold truncate">
-                      {node.subtitle}
+                      {nodeCfg?.fields && nodeCfg.fields.length > 0
+                        ? `${nodeCfg.fields.length} acciones`
+                        : node.subtitle}
                     </div>
                   </div>
                 </div>
@@ -2157,28 +2725,30 @@ export default function WappyWorkflowCanvas({
                 <div
                   key={node.key}
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
-                  onPointerUp={() => handleCanvasPointerUp(node.key)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic sobre este nodo para configurar el formato de salida de la bitácora"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
                 >
-                  {/* Insignia superior de etapa */}
                   <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-purple-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
                     Bitácora
                   </span>
 
-                  {/* Puerto de entrada izquierdo */}
                   <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
 
-                  <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md flex items-center justify-center relative transition-colors">
+                  <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
                     {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
 
                     {!readOnly && node.removable && (
                       <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => toggleOrAddCatalogNode('outputs', node.nodeId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleOrAddCatalogNode('outputs', node.nodeId);
+                        }}
                         className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
                         title="Quitar nodo de salida"
                       >
@@ -2187,7 +2757,6 @@ export default function WappyWorkflowCanvas({
                     )}
                   </div>
 
-                  {/* Puerto de salida arrastrable (●) + botón [+] para encadenar con otra IA o módulo */}
                   <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex items-center">
                     <div
                       onPointerDown={(e) =>
@@ -2226,7 +2795,7 @@ export default function WappyWorkflowCanvas({
               );
             }
 
-            // 5. FIGURA SUB-NODOS CIRCULARES (Chat Model *, Memory y Tools con Rombo superior ◆)
+            // 5. FIGURA SUB-NODOS CIRCULARES (Modelo IA *, Memoria y Herramienta con Rombo superior ◆)
             const isModelCircle = node.shape === 'circle_model';
             const isMemoryCircle = node.shape === 'circle_memory';
 
@@ -2234,13 +2803,14 @@ export default function WappyWorkflowCanvas({
               <div
                 key={node.key}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
-                onPointerUp={() => handleCanvasPointerUp(node.key)}
+                onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                 style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                title="Haz clic sobre este sub-nodo para configurar sus parámetros, campos y contexto"
                 className={`absolute z-20 group/node select-none ${
                   readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                 }`}
               >
-                {/* Puerto superior en forma de Rombo (◆) que conecta al AI Agent */}
+                {/* Puerto superior en forma de Rombo (◆) que conecta exclusivamente al Agente IA */}
                 <div
                   className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border-2 border-white dark:border-slate-900 shadow-xs ${
                     isMemoryCircle ? 'bg-pink-500' : 'bg-indigo-500'
@@ -2257,7 +2827,7 @@ export default function WappyWorkflowCanvas({
                       setPaletteTab('memories');
                     }
                   }}
-                  className={`w-full h-full rounded-full bg-white dark:bg-slate-800 border-2 shadow-md flex items-center justify-center relative transition-transform group-hover/node:scale-105 ${
+                  className={`w-full h-full rounded-full bg-white dark:bg-slate-800 border-2 shadow-md flex items-center justify-center relative transition-transform group-hover/node:scale-105 ${selectedRingClass} ${
                     isModelCircle
                       ? aiEngine === 'antigravity_cloud'
                         ? 'border-sky-500 ring-2 ring-sky-500/20'
@@ -2271,7 +2841,6 @@ export default function WappyWorkflowCanvas({
                 >
                   {renderOfficialNodeSvg(node.nodeId, 'w-7 h-7')}
 
-                  {/* Botón para quitar memoria o tool */}
                   {!readOnly && node.removable && node.group && (
                     <button
                       type="button"
@@ -2288,20 +2857,22 @@ export default function WappyWorkflowCanvas({
                   )}
                 </div>
 
-                {/* Etiqueta debajo del círculo + Selector rápido de motor IA si es el nodo Chat Model */}
                 <div className="mt-1.5 w-[108px] -ml-[23px] text-center">
                   <div className="text-[10px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
                     {node.title}
                   </div>
                   <div className="text-[8.5px] font-semibold text-slate-400 truncate">
-                    {node.subtitle}
+                    {nodeCfg?.fields && nodeCfg.fields.length > 0
+                      ? `${nodeCfg.fields.length} campos`
+                      : node.subtitle}
                   </div>
 
                   {isModelCircle && !readOnly && (
                     <button
                       type="button"
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (aiEngine === 'wappy') {
                           handleSelectAiEngineModel('antigravity', 'gemini-3.6-flash');
                         } else if (aiEngine === 'antigravity') {
@@ -2322,6 +2893,370 @@ export default function WappyWorkflowCanvas({
           })}
         </div>
       </div>
+
+      {/* ─── PANEL INTERACTIVO DE EDICIÓN DE CADA NODO AL HACER CLIC SOBRE ÉL (ESTILO INSPECTOR DE PROPIEDADES) ─── */}
+      {!readOnly && !compact && (() => {
+        const activeNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
+        if (!activeNode) {
+          return (
+            <div className="rounded-xl border border-dashed border-purple-300 dark:border-purple-800/70 bg-purple-50/40 dark:bg-purple-950/20 px-3.5 py-2 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+              <span className="flex items-center gap-2">
+                <Sliders className="w-3.5 h-3.5 text-purple-600 dark:text-[#C7F303] shrink-0" />
+                <span>
+                  💡 <strong>Edición por Nodo:</strong> Haz clic sobre <strong>cualquier nodo del lienzo</strong> (ej. <em>Extraer Trabajadores</em>, <em>Agente IA #1</em>, <em>Agente IA #2</em>, <em>Memoria</em> o <em>Condición Si/No</em>) para elegir sus campos exactos (ej. solo <strong>Nombre, Cédula y Edad</strong>), su <strong>Modelo de IA</strong>, su <strong>Segundo Prompt</strong> y su <strong>Contexto de Entrada y Salida</strong>.
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveConfigNodeKey(visualNodes.find((n) => n.shape === 'square_extractor')?.key || 'agent_root')}
+                className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-extrabold shrink-0 transition"
+              >
+                Configurar Nodo
+              </button>
+            </div>
+          );
+        }
+
+        const currentCfg: CanvasNodeConfig =
+          workflowNodes?.canvasLayout?.nodeConfigs?.[activeNode.key] || {};
+        const presetFields = getPresetFieldsForNode(activeNode.nodeId, activeNode.shape);
+        const selectedFields = currentCfg.fields || [];
+        const isExtraAgent = activeNode.key.startsWith('agent_extra_');
+        const extraAgentObj = isExtraAgent
+          ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === activeNode.key)
+          : null;
+
+        const toggleFieldChip = (fieldLabel: string) => {
+          const exists = selectedFields.includes(fieldLabel);
+          const nextFields = exists
+            ? selectedFields.filter((f) => f !== fieldLabel)
+            : [...selectedFields, fieldLabel];
+          handleUpdateNodeConfig(activeNode.key, { fields: nextFields });
+        };
+
+        const handleAddCustomField = () => {
+          const val = customFieldInput.trim();
+          if (!val) return;
+          if (!selectedFields.includes(val)) {
+            handleUpdateNodeConfig(activeNode.key, { fields: [...selectedFields, val] });
+          }
+          setCustomFieldInput('');
+        };
+
+        return (
+          <div className="rounded-2xl border-2 border-purple-500/80 dark:border-[#C7F303]/80 bg-white dark:bg-slate-900 p-4 shadow-lg transition-all">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-slate-800 border border-purple-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                  {renderOfficialNodeSvg(activeNode.nodeId, 'w-5 h-5')}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-[#C7F303]">
+                      ⚙️ Configuración del Nodo: {activeNode.title}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {activeNode.subtitle}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Personaliza exactamente qué datos procesa este nodo, su contexto de entrada/salida y sus instrucciones específicas.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {onAutoBuildPrompt && (
+                  <button
+                    type="button"
+                    onClick={onAutoBuildPrompt}
+                    className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-purple-600 to-teal-600 text-white text-[10.5px] font-extrabold flex items-center gap-1 shadow-xs"
+                    title="Actualizar las instrucciones generales con la configuración de este nodo"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    Reflejar en el Prompt
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveConfigNodeKey(null)}
+                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  title="Cerrar configuración del nodo"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* A) SI EL NODO SELECCIONADO ES UN AGENTE IA (Principal o Agente IA #2 / #3 con Segundo Prompt) */}
+            {activeNode.shape === 'agent' ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      1. Agente Especialista o Avatar Asignado
+                    </label>
+                    <select
+                      value={isExtraAgent ? extraAgentObj?.agentId || '' : agentId || ''}
+                      onChange={(e) => {
+                        if (isExtraAgent) {
+                          handleUpdateExtraAgent(activeNode.key, e.target.value);
+                        } else if (onSelectAgent) {
+                          onSelectAgent(e.target.value);
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-white"
+                    >
+                      {availableAgentsWithTenshiAvatar.map((ag) => (
+                        <option key={ag.id} value={ag.id}>
+                          {ag.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      2. Motor y Modelo de IA para este Agente
+                    </label>
+                    <select
+                      value={
+                        isExtraAgent
+                          ? `${currentCfg.aiEngine || extraAgentObj?.aiEngine || 'wappy'}:::${currentCfg.aiModel || extraAgentObj?.aiModel || 'gemini-3.6-flash'}`
+                          : `${aiEngine}:::${aiModel}`
+                      }
+                      onChange={(e) => {
+                        const [eng, mod] = e.target.value.split(':::') as [
+                          'wappy' | 'antigravity' | 'antigravity_cloud',
+                          string,
+                        ];
+                        if (isExtraAgent) {
+                          handleUpdateNodeConfig(activeNode.key, { aiEngine: eng, aiModel: mod });
+                        } else {
+                          handleSelectAiEngineModel(eng, mod);
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-white"
+                    >
+                      {AI_ENGINE_MODELS.map((m) => (
+                        <option key={m.id} value={`${m.engine}:::${m.model}`}>
+                          {m.shortLabel} — {m.subtitle}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10.5px] font-extrabold uppercase text-purple-700 dark:text-[#C7F303] mb-1">
+                    {isExtraAgent
+                      ? `3. Segundo Prompt Exclusivo para ${activeNode.title} (${extraAgentObj?.agentName || 'IA Revisora'})`
+                      : `3. Prompt / Instrucción del ${activeNode.title} Principal`}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={
+                      isExtraAgent
+                        ? currentCfg.prompt ?? extraAgentObj?.prompt ?? ''
+                        : prompt || currentCfg.prompt || ''
+                    }
+                    onChange={(e) => {
+                      if (isExtraAgent) {
+                        handleUpdateNodeConfig(activeNode.key, { prompt: e.target.value });
+                      } else {
+                        if (onChangePrompt) onChangePrompt(e.target.value);
+                        handleUpdateNodeConfig(activeNode.key, { prompt: e.target.value });
+                      }
+                    }}
+                    placeholder={
+                      isExtraAgent
+                        ? 'Escribe aquí el segundo prompt para este segundo Agente IA (ej: "Revisa el acta del COPASST generada por el Agente #1, verifica que cumpla el Decreto 1072 y autoriza el envío del correo")...'
+                        : 'Escribe qué debe analizar y ejecutar el Agente IA Principal...'
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-purple-50/30 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      4. Contexto de Entrada (Qué recibe este Agente)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentCfg.inputContext || ''}
+                      onChange={(e) =>
+                        handleUpdateNodeConfig(activeNode.key, { inputContext: e.target.value })
+                      }
+                      placeholder="Ej: Recibe listado con Nombre, Cédula y Edad desde Extraer Trabajadores..."
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      5. Contexto de Salida (Qué entrega al siguiente nodo)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentCfg.outputContext || ''}
+                      onChange={(e) =>
+                        handleUpdateNodeConfig(activeNode.key, { outputContext: e.target.value })
+                      }
+                      placeholder="Ej: Entrega tabla validada y acta lista para enviar por correo..."
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : activeNode.shape === 'circle_model' ? (
+              /* B) SI EL NODO SELECCIONADO ES EL CÍRCULO DE MODELO IA */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                {AI_ENGINE_MODELS.map((m) => {
+                  const isSel =
+                    (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
+                    (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
+                    (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => handleSelectAiEngineModel(m.engine, m.model)}
+                      className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 ${
+                        isSel
+                          ? 'bg-purple-50 dark:bg-purple-950/50 border-purple-500 ring-2 ring-purple-500/30'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                      }`}
+                    >
+                      <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        {m.shortLabel}
+                      </span>
+                      <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                        {m.subtitle}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                        {m.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              /* C) SI EL NODO SELECCIONADO ES UN EXTRACTOR, PERFIL SOCIODEMOGRÁFICO, MEMORIA, TOOL, CONDICIÓN SI/NO, HITO O SALIDA */
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
+                    1. Selecciona qué Campos o Datos específicos deseas de «{activeNode.title}» (Haz clic para marcar/desmarcar):
+                  </label>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {presetFields.map((fieldLabel) => {
+                      const active = selectedFields.includes(fieldLabel);
+                      return (
+                        <button
+                          key={fieldLabel}
+                          type="button"
+                          onClick={() => toggleFieldChip(fieldLabel)}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 border ${
+                            active
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                              : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {active && <Check className="w-3 h-3 stroke-[3]" />}
+                          {fieldLabel}
+                        </button>
+                      );
+                    })}
+                    {selectedFields
+                      .filter((f) => !presetFields.includes(f))
+                      .map((customF) => (
+                        <button
+                          key={customF}
+                          type="button"
+                          onClick={() => toggleFieldChip(customF)}
+                          className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-teal-600 text-white border border-teal-600 flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          {customF}
+                        </button>
+                      ))}
+                  </div>
+
+                  {/* Agregar campo personalizado */}
+                  <div className="mt-2 flex items-center gap-2 max-w-md">
+                    <input
+                      type="text"
+                      value={customFieldInput}
+                      onChange={(e) => setCustomFieldInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomField();
+                        }
+                      }}
+                      placeholder="Escribe otro campo específico (ej: Rh, Teléfono Emergencia) y pulsa +..."
+                      className="flex-1 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] text-slate-800 dark:text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomField}
+                      className="px-2.5 py-1 rounded-xl bg-slate-900 dark:bg-[#C7F303] text-white dark:text-[#0E1300] text-[10.5px] font-extrabold"
+                    >
+                      + Añadir Campo
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      2. Contexto de Entrada
+                    </label>
+                    <input
+                      type="text"
+                      value={currentCfg.inputContext || ''}
+                      onChange={(e) =>
+                        handleUpdateNodeConfig(activeNode.key, { inputContext: e.target.value })
+                      }
+                      placeholder="Ej: Recibe señal del disparador o filtro de sede..."
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      3. Contexto de Salida
+                    </label>
+                    <input
+                      type="text"
+                      value={currentCfg.outputContext || ''}
+                      onChange={(e) =>
+                        handleUpdateNodeConfig(activeNode.key, { outputContext: e.target.value })
+                      }
+                      placeholder="Ej: Entregar solo Nombre, Cédula y Edad al Agente IA..."
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      4. Filtro / Regla Específica del Nodo
+                    </label>
+                    <input
+                      type="text"
+                      value={currentCfg.customInstruction || ''}
+                      onChange={(e) =>
+                        handleUpdateNodeConfig(activeNode.key, {
+                          customInstruction: e.target.value,
+                        })
+                      }
+                      placeholder="Ej: Solo trabajadores activos o mayores de 50 años..."
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

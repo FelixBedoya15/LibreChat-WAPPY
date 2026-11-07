@@ -93,7 +93,7 @@ function scheduleImmediateDrain(delayMs = 400) {
 
 /** Campos mínimos necesarios para ejecutar una tarea (evita cargar documentos completos en memoria). */
 const AUTOMATION_RUN_FIELDS =
-  '_id name user companyId agentId agentName prompt scheduleType scheduleConfig status emails lastRunAt nextRunAt';
+  '_id name user companyId agentId agentName prompt scheduleType scheduleConfig status emails workflowNodes lastRunAt nextRunAt';
 
 const BOGOTA_OFFSET_HOURS = -5; // America/Bogota is UTC-5 (no DST)
 
@@ -401,8 +401,21 @@ async function runAutomation(automation, isManual = false) {
     // 1. Fetch app config
     const appConfig = await getAppConfig();
 
-    // 2. Fetch agent
-    const agent = await getAgent({ id: automation.agentId });
+    // 2. Fetch agent (soporta 'tenshi_avatar_orchestrator' como Orquestador Tenshi 3D)
+    let agent = await getAgent({ id: automation.agentId });
+    if (!agent && automation.agentId === 'tenshi_avatar_orchestrator') {
+      const AgentModel =
+        mongoose.models.Agent || (mongoose.modelNames().includes('Agent') ? mongoose.model('Agent') : null);
+      if (AgentModel) {
+        const fallbackDoc =
+          (await AgentModel.findOne({ name: /tenshi/i }).lean()) ||
+          (await AgentModel.findOne({ name: /consultor|profesional|sst/i }).lean()) ||
+          (await AgentModel.findOne({}).lean());
+        if (fallbackDoc?.id) {
+          agent = await getAgent({ id: fallbackDoc.id });
+        }
+      }
+    }
     if (!agent) {
       throw new Error(`Agent ${automation.agentId} not found`);
     }
@@ -476,17 +489,65 @@ async function runAutomation(automation, isManual = false) {
       } catch (_) {}
     }
 
+    // Configuración granular por nodo (campos solicitados, contexto de entrada/salida y 2do Prompt de Agentes extra)
+    let canvasNodesContextBlock = '';
+    try {
+      const nodeConfigs = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
+      const extraAgents = Array.isArray(automation.workflowNodes?.canvasLayout?.extraAgents)
+        ? automation.workflowNodes.canvasLayout.extraAgents
+        : [];
+      const cfgLines = [];
+      for (const [nKey, cfg] of Object.entries(nodeConfigs)) {
+        if (!cfg || typeof cfg !== 'object') continue;
+        const parts = [];
+        if (Array.isArray(cfg.fields) && cfg.fields.length > 0) {
+          parts.push(`Campos específicos solicitados: [${cfg.fields.join(', ')}]`);
+        }
+        if (cfg.inputContext && String(cfg.inputContext).trim()) {
+          parts.push(`Contexto de entrada: "${String(cfg.inputContext).trim()}"`);
+        }
+        if (cfg.outputContext && String(cfg.outputContext).trim()) {
+          parts.push(`Contexto de salida: "${String(cfg.outputContext).trim()}"`);
+        }
+        if (cfg.customInstruction && String(cfg.customInstruction).trim()) {
+          parts.push(`Instrucción del nodo: "${String(cfg.customInstruction).trim()}"`);
+        }
+        if (parts.length > 0) {
+          cfgLines.push(`  • Nodo [${nKey}]: ${parts.join(' | ')}`);
+        }
+      }
+      extraAgents.forEach((ea, idx) => {
+        if (!ea) return;
+        const eaParts = [`Agente IA #${idx + 2}: "${ea.agentName || 'Especialista'}" (${ea.roleLabel || 'IA Revisora'})`];
+        if (ea.prompt && String(ea.prompt).trim()) {
+          eaParts.push(`Segundo Prompt: "${String(ea.prompt).trim()}"`);
+        }
+        if (ea.inputContext && String(ea.inputContext).trim()) {
+          eaParts.push(`Entrada: "${String(ea.inputContext).trim()}"`);
+        }
+        if (ea.outputContext && String(ea.outputContext).trim()) {
+          eaParts.push(`Salida: "${String(ea.outputContext).trim()}"`);
+        }
+        cfgLines.push(`  • ${eaParts.join(' | ')}`);
+      });
+      if (cfgLines.length > 0) {
+        canvasNodesContextBlock =
+          `- [CONFIGURACIÓN DETALLADA DE NODOS Y MULTI-AGENTE EN EL LIENZO WAPPY]:\n${cfgLines.join('\n')}\n`;
+      }
+    } catch (_) {}
+
     const companyHeaderBlock = automationCompany
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
         `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
         antigravityEngineDirective +
         previousRunMemoryBlock +
+        canvasNodesContextBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : `${antigravityEngineDirective}${previousRunMemoryBlock}`;
+      : `${antigravityEngineDirective}${previousRunMemoryBlock}${canvasNodesContextBlock}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
