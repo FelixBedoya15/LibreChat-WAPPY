@@ -500,11 +500,82 @@ async function runAutomation(automation, isManual = false) {
         ? automation.workflowNodes.canvasLayout.customNodes
         : [];
       const cfgLines = [];
+      const ConversationModel =
+        mongoose.models.Conversation ||
+        (mongoose.modelNames().includes('Conversation') ? mongoose.model('Conversation') : null);
+      const MessageModel =
+        mongoose.models.Message ||
+        (mongoose.modelNames().includes('Message') ? mongoose.model('Message') : null);
+
       for (const [nKey, cfg] of Object.entries(nodeConfigs)) {
         if (!cfg || typeof cfg !== 'object') continue;
         const parts = [];
         if (Array.isArray(cfg.fields) && cfg.fields.length > 0) {
-          parts.push(`Campos específicos solicitados: [${cfg.fields.join(', ')}]`);
+          const isStrict = cfg.strictFieldFilter !== false;
+          parts.push(
+            isStrict
+              ? `🎯 EXTRACCIÓN QUIRÚRGICA SIN SATURACIÓN (extraer, leer y pasar ÚNICAMENTE estos campos específicos): [${cfg.fields.join(', ')}]`
+              : `Campos específicos solicitados: [${cfg.fields.join(', ')}]`,
+          );
+        }
+        if (cfg.includeLatestReport && Array.isArray(cfg.reportTags) && cfg.reportTags.length > 0 && ConversationModel) {
+          try {
+            const companyFilter = targetCompanyIdStr
+              ? { tags: { $in: [`company-${targetCompanyIdStr}`, `company_${targetCompanyIdStr}`] } }
+              : {};
+            const latestConv = await ConversationModel.findOne({
+              user: String(automation.user),
+              $and: [{ tags: { $in: cfg.reportTags } }, companyFilter],
+            })
+              .sort({ updatedAt: -1 })
+              .select('conversationId title updatedAt')
+              .lean();
+            if (latestConv?.conversationId && MessageModel) {
+              const latestMsg = await MessageModel.findOne({
+                conversationId: latestConv.conversationId,
+                isCreatedByUser: false,
+              })
+                .sort({ createdAt: -1 })
+                .select('text')
+                .lean();
+              const cleanSnippet = String(latestMsg?.text || '')
+                .replace(/<style[\s\S]*?<\/style>/gi, '')
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 700);
+              parts.push(
+                `📜 Último Informe del Historial ("${latestConv.title}"): "${cleanSnippet}"`,
+              );
+            }
+          } catch (_) {}
+        }
+        if (Array.isArray(cfg.selectedReportIds) && cfg.selectedReportIds.length > 0 && MessageModel) {
+          try {
+            const selMsgs = await MessageModel.find({
+              conversationId: { $in: cfg.selectedReportIds.slice(0, 5) },
+              isCreatedByUser: false,
+            })
+              .sort({ createdAt: -1 })
+              .limit(5)
+              .select('conversationId text')
+              .lean();
+            if (selMsgs && selMsgs.length > 0) {
+              const snippets = selMsgs.map((m) =>
+                String(m.text || '')
+                  .replace(/<style[\s\S]*?<\/style>/gi, '')
+                  .replace(/<script[\s\S]*?<\/script>/gi, '')
+                  .replace(/<[^>]+>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                  .slice(0, 500),
+              );
+              parts.push(
+                `📜 Informes Seleccionados del Historial (${(cfg.selectedReportTitles || []).join(', ')}): "${snippets.join(' || ')}"`,
+              );
+            }
+          } catch (_) {}
         }
         if (cfg.targetUrl && String(cfg.targetUrl).trim()) {
           parts.push(`URL(s) / Consulta Objetivo: "${String(cfg.targetUrl).trim()}"`);

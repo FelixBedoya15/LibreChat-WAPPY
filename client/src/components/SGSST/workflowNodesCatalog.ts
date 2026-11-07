@@ -111,6 +111,16 @@ export interface CanvasCustomUserNode {
 
 export interface CanvasNodeConfig {
   fields?: string[];
+  /** Si es true (por defecto cuando hay campos elegidos), el nodo extrae ÚNICAMENTE los campos seleccionados para no saturar el flujo */
+  strictFieldFilter?: boolean;
+  /** Si es true, incluye automáticamente el último informe guardado del Historial de Informes del aplicativo */
+  includeLatestReport?: boolean;
+  /** IDs (conversationId) de informes específicos seleccionados del Historial de Informes del aplicativo */
+  selectedReportIds?: string[];
+  /** Títulos legibles de los informes seleccionados del Historial de Informes */
+  selectedReportTitles?: string[];
+  /** Tags del historial de informes del aplicativo (ej. ['sgsst-diagnostico']) */
+  reportTags?: string[];
   inputContext?: string;
   outputContext?: string;
   customInstruction?: string;
@@ -124,6 +134,21 @@ export interface CanvasNodeConfig {
   scriptCode?: string;
   skillContent?: string;
   ruleText?: string;
+}
+
+export interface NodeQuickCombo {
+  label: string;
+  description: string;
+  fields: string[];
+}
+
+export interface NodeModuleMetadata {
+  moduleTitle: string;
+  moduleBadge: string;
+  fieldsLabel: string;
+  fields: string[];
+  quickCombos: NodeQuickCombo[];
+  reportTags: string[];
 }
 
 export interface WorkflowNodesConfig {
@@ -1534,123 +1559,1903 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
 }
 
 /**
- * Campos rápidos seleccionables con 1 clic al pulsar sobre cualquier nodo del lienzo (estilo editor de propiedades de nodo).
+ * Diccionario maestro de Metadatos, Campos Reales Propios, Combos Quirúrgicos (1 clic) y Etiquetas de Historial de Informes
+ * para TODOS los 50 Aplicativos de los 8 Hitos de Somos SST + Extractores + Conectores + Memorias + Salidas.
+ */
+const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
+  // ═══ HITO 1: GOBERNANZA Y CIMIENTO LEGAL (15 APLICATIVOS) ═══
+  hito1_dofa: {
+    moduleTitle: 'Hito 1 · Contexto y Partes Interesadas (DOFA / Stakeholders)',
+    moduleBadge: 'Hito 1 · Gobernanza',
+    fieldsLabel: 'Campos y Resultados Propios del Contexto DOFA y Partes Interesadas',
+    fields: [
+      'Fortalezas Internas SST (F)',
+      'Debilidades Internas SST (D)',
+      'Oportunidades Externas SST (O)',
+      'Amenazas Externas SST (A)',
+      'Estrategias Cruzadas CAME (FO / DO / FA / DA)',
+      'Partes Interesadas Internas y Externas (Stakeholders)',
+      'Necesidades y Expectativas en SST por Parte Interesada',
+      'Requisitos Legales y Contractuales Asociados',
+      'Mecanismos de Comunicación y Seguimiento',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Solo Matriz DOFA (F, D, O, A)',
+        description: 'Extrae únicamente las 4 variables DOFA sin el resto del documento',
+        fields: [
+          'Fortalezas Internas SST (F)',
+          'Debilidades Internas SST (D)',
+          'Oportunidades Externas SST (O)',
+          'Amenazas Externas SST (A)',
+        ],
+      },
+      {
+        label: '⚡ Partes Interesadas + Necesidades y Expectativas',
+        description: 'Extrae solo la tabla de Stakeholders y sus requisitos SST',
+        fields: [
+          'Partes Interesadas Internas y Externas (Stakeholders)',
+          'Necesidades y Expectativas en SST por Parte Interesada',
+          'Requisitos Legales y Contractuales Asociados',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-contexto-organizacion', 'sgsst-contexto-partes-interesadas'],
+  },
+
+  hito1_diagnostico_0312: {
+    moduleTitle: 'Hito 1 · Diagnóstico Inicial Estándares Mínimos (Res. 0312)',
+    moduleBadge: 'Hito 1 · Res. 0312 de 2019',
+    fieldsLabel: 'Campos, Calificaciones y Resultados Propios de «Diagnóstico Res. 0312»',
+    fields: [
+      'Puntaje Total Res. 0312 (%)',
+      'Valoración Global (Crítico <60% / Moderado 60-85% / Aceptable >85%)',
+      'Estándares que NO CUMPLEN (Brechas Críticas y Numeral)',
+      'Estándares que CUMPLEN Totalmente (Ítem y Peso)',
+      'Estándares que NO APLICAN (Justificación Normativa)',
+      'Avance por Ciclo PHVA (Planear, Hacer, Verificar, Actuar)',
+      'Modo de Evaluación Aplicado (7, 21 o 60 Estándares según Riesgo y Tamaño)',
+      'Evidencias y Soportes Documentales por Estándar',
+      'Plan de Mejoramiento Res. 0312 (Acciones, Responsables y Fechas)',
+      'Observaciones Técnicas del Evaluador SST',
+      'Comparativo con Autoevaluaciones Anteriores',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Puntaje Total (%) + Valoración + Estándares No Cumple',
+        description: 'Solo calificación global y brechas críticas pendientes',
+        fields: [
+          'Puntaje Total Res. 0312 (%)',
+          'Valoración Global (Crítico <60% / Moderado 60-85% / Aceptable >85%)',
+          'Estándares que NO CUMPLEN (Brechas Críticas y Numeral)',
+        ],
+      },
+      {
+        label: '⚡ Brechas No Cumple + Plan de Mejoramiento 0312',
+        description: 'Directo para hacer seguimiento a compromisos y cierres',
+        fields: [
+          'Estándares que NO CUMPLEN (Brechas Críticas y Numeral)',
+          'Plan de Mejoramiento Res. 0312 (Acciones, Responsables y Fechas)',
+        ],
+      },
+      {
+        label: '⚡ Resumen Ejecutivo por Ciclo PHVA',
+        description: 'Avance porcentual en Planear, Hacer, Verificar y Actuar',
+        fields: [
+          'Puntaje Total Res. 0312 (%)',
+          'Avance por Ciclo PHVA (Planear, Hacer, Verificar, Actuar)',
+          'Modo de Evaluación Aplicado (7, 21 o 60 Estándares según Riesgo y Tamaño)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-diagnostico'],
+  },
+
+  hito1_responsable: {
+    moduleTitle: 'Hito 1 · Responsable SG-SST (Licencia e Idoneidad)',
+    moduleBadge: 'Hito 1 · Gobernanza',
+    fieldsLabel: 'Campos Propios de Asignación y Licencia del Responsable SG-SST',
+    fields: [
+      'Nombre Completo del Responsable SG-SST',
+      'Cédula / Identificación del Responsable',
+      'Número y Resolución de Licencia SST',
+      'Fecha de Vencimiento de la Licencia SST',
+      'Certificado Curso Virtual 50 Horas / Actualización 20 Horas',
+      'Perfil Académico (Profesional / Especialista / Tecnólogo SST)',
+      'Carta de Asignación Firmada por Representante Legal',
+      'Funciones y Responsabilidades SST Asignadas',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Nombre + Cédula + Vigencia Licencia SST y Curso 50h',
+        description: 'Verifica idoneidad legal del responsable del SG-SST',
+        fields: [
+          'Nombre Completo del Responsable SG-SST',
+          'Cédula / Identificación del Responsable',
+          'Número y Resolución de Licencia SST',
+          'Fecha de Vencimiento de la Licencia SST',
+          'Certificado Curso Virtual 50 Horas / Actualización 20 Horas',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-responsable'],
+  },
+
+  hito1_politica_objetivos: {
+    moduleTitle: 'Hito 1 · Política de SST (Dec. 1072 Art. 2.2.4.6.5)',
+    moduleBadge: 'Hito 1 · Gobernanza',
+    fieldsLabel: 'Campos y Componentes Propios de la Política del SG-SST',
+    fields: [
+      'Declaración Oficial y Alcance de la Política SST',
+      'Compromisos de la Alta Dirección (Identificación de Peligros, Mejora Continua y Cumplimiento Legal)',
+      'Peligros Prioritarios de la Empresa Incluidos',
+      'Fecha de Emisión, Versión y Revisión Anual',
+      'Firma del Representante Legal',
+      'Evidencia de Publicación y Socialización a Trabajadores y COPASST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Compromisos + Vigencia + Firma Representante Legal',
+        description: 'Valida requisitos obligatorios de los Art. 2.2.4.6.5 y 2.2.4.6.6',
+        fields: [
+          'Compromisos de la Alta Dirección (Identificación de Peligros, Mejora Continua y Cumplimiento Legal)',
+          'Fecha de Emisión, Versión y Revisión Anual',
+          'Firma del Representante Legal',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-politica'],
+  },
+
+  hito1_objetivos: {
+    moduleTitle: 'Hito 1 · Objetivos e Indicadores de SST',
+    moduleBadge: 'Hito 1 · Gobernanza',
+    fieldsLabel: 'Campos y Resultados Propios de Objetivos e Indicadores SST',
+    fields: [
+      'Objetivo Estratégico del SG-SST',
+      'Nombre del Indicador Asociado',
+      'Tipo de Indicador (Estructura, Proceso o Resultado)',
+      'Fórmula de Cálculo y Unidad de Medida',
+      'Meta Anual Establecida (%)',
+      'Resultado Actual Medido (%) y Semáforo',
+      'Frecuencia de Medición y Responsable',
+      'Plan de Acción por Desviación de Meta',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Objetivos + Meta (%) + Resultado Actual',
+        description: 'Extrae solo el cuadro de mando de cumplimiento de objetivos',
+        fields: [
+          'Objetivo Estratégico del SG-SST',
+          'Nombre del Indicador Asociado',
+          'Meta Anual Establecida (%)',
+          'Resultado Actual Medido (%) y Semáforo',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-objetivos'],
+  },
+
+  hito1_matriz_legal: {
+    moduleTitle: 'Hito 1 · Matriz Legal SG-SST',
+    moduleBadge: 'Hito 1 · Normograma',
+    fieldsLabel: 'Campos Propios de la Matriz Legal SG-SST',
+    fields: [
+      'Tipo de Norma (Ley, Decreto, Resolución, Circular)',
+      'Número, Año y Entidad Emisora',
+      'Artículos Aplicables a la Empresa',
+      'Tema / Peligro o Proceso Regulado',
+      'Descripción de la Obligación Legal Específica',
+      'Evidencia de Cumplimiento Requerida / Existente',
+      'Responsable del Cumplimiento',
+      'Estado de Cumplimiento (Cumple / En Proceso / Pendiente)',
+      'Fecha de Última Actualización Normativa',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Normas Pendientes / En Proceso + Evidencia Requerida',
+        description: 'Filtra solo las obligaciones legales que aún no cumplen al 100%',
+        fields: [
+          'Tipo de Norma (Ley, Decreto, Resolución, Circular)',
+          'Número, Año y Entidad Emisora',
+          'Descripción de la Obligación Legal Específica',
+          'Evidencia de Cumplimiento Requerida / Existente',
+          'Estado de Cumplimiento (Cumple / En Proceso / Pendiente)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-legal'],
+  },
+
+  hito1_rhs: {
+    moduleTitle: 'Hito 1 · Reglamento de Higiene y Seguridad Industrial (RHS)',
+    moduleBadge: 'Hito 1 · Gobernanza',
+    fieldsLabel: 'Campos Propios del Reglamento de Higiene y Seguridad Industrial (RHS)',
+    fields: [
+      'Datos de la Empresa, NIT, Ciudad y Sedes',
+      'Código CIIU, Actividad Económica y Clase de Riesgo ARL',
+      'Peligros Físicos, Químicos y Biológicos Declarados',
+      'Peligros Biomecánicos, Psicosociales y de Condiciones de Seguridad',
+      'Fenómenos Naturales Aplicables',
+      'Compromisos Legales de Prevención (Código Sustantivo Art. 349)',
+      'Fecha de Emisión, Firma del Representante Legal y Publicación en Dos Lugares Visibles',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ CIIU + Riesgo ARL + Peligros Declarados en RHS',
+        description: 'Verifica coherencia entre el RHS y la Matriz GTC-45',
+        fields: [
+          'Código CIIU, Actividad Económica y Clase de Riesgo ARL',
+          'Peligros Físicos, Químicos y Biológicos Declarados',
+          'Peligros Biomecánicos, Psicosociales y de Condiciones de Seguridad',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-rhs'],
+  },
+
+  hito1_rit: {
+    moduleTitle: 'Hito 1 · Reglamento Interno de Trabajo (RIT)',
+    moduleBadge: 'Hito 1 · Gobernanza',
+    fieldsLabel: 'Campos Propios del Reglamento Interno de Trabajo (RIT)',
+    fields: [
+      'Capítulos y Articulado del RIT',
+      'Condiciones de Admisión y Período de Prueba',
+      'Jornada de Trabajo, Horarios, Horas Extras y Descansos',
+      'Obligaciones Especiales del Empleador y de los Trabajadores en SST',
+      'Escala de Faltas y Procedimiento Disciplinario (Debida Defensa)',
+      'Mecanismos de Prevención de Acoso Laboral (Ley 1010 de 2006)',
+      'Orden Jerárquico, Vigencia y Publicación',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Obligaciones SST + Faltas y Sanciones + Ley 1010',
+        description: 'Extrae capítulos disciplinarios y de seguridad laboral del RIT',
+        fields: [
+          'Obligaciones Especiales del Empleador y de los Trabajadores en SST',
+          'Escala de Faltas y Procedimiento Disciplinario (Debida Defensa)',
+          'Mecanismos de Prevención de Acoso Laboral (Ley 1010 de 2006)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-rit'],
+  },
+
+  hito1_participacion_ipevar: {
+    moduleTitle: 'Hito 1 · Participación IPEVR Comunitaria de Trabajadores',
+    moduleBadge: 'Hito 1 · Participación',
+    fieldsLabel: 'Campos y Reportes del Portal de Participación IPEVR Comunitaria',
+    fields: [
+      'Cédula / Identificación del Trabajador',
+      'Nombre Completo del Trabajador',
+      'Cargo, Área y Sede',
+      'Peligros Percibidos en su Puesto de Trabajo',
+      'Mapa Corporal de Dolor o Molestia Anatómica',
+      'Nivel de Percepción del Riesgo (Bajo / Medio / Alto / Crítico)',
+      'Controles o Mejoras Propuestas por el Trabajador',
+      'Estado de Incorporación a la Matriz IPEVR Oficial',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cédula + Nombre + Peligros Percibidos + Molestia Corporal',
+        description: 'Extrae solo el reporte participativo de cada colaborador',
+        fields: [
+          'Cédula / Identificación del Trabajador',
+          'Nombre Completo del Trabajador',
+          'Peligros Percibidos en su Puesto de Trabajo',
+          'Mapa Corporal de Dolor o Molestia Anatómica',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-participacion-ipevar'],
+  },
+
+  hito2_matriz_ipevar: {
+    moduleTitle: 'Hito 1 · Matriz Oficial de Peligros IPEVR (GTC-45)',
+    moduleBadge: 'Hito 1 · GTC-45',
+    fieldsLabel: 'Columnas y Resultados Propios de la Matriz de Peligros IPEVR GTC-45',
+    fields: [
+      'Proceso / Área / Zona o Lugar',
+      'Actividad y Tarea (Rutinaria / No Rutinaria)',
+      'Clasificación del Peligro (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad, Fenómenos Naturales)',
+      'Descripción del Peligro y Fuente Generadora',
+      'Efectos Posibles en la Salud',
+      'Controles Existentes (Fuente, Medio, Individuo)',
+      'Nivel de Deficiencia (ND) y Nivel de Exposición (NE)',
+      'Nivel de Probabilidad (NP = ND x NE) e Interpretación',
+      'Nivel de Consecuencia (NC)',
+      'Nivel de Riesgo (NR = NP x NC) e Interpretación (I, II, III, IV)',
+      'Aceptabilidad del Riesgo (No Aceptable / Aceptable con Control / Aceptable)',
+      'N° de Expuestos y Peor Consecuencia',
+      'Requisito Legal Específico Asociado',
+      'Medidas de Intervención (Eliminación, Sustitución, Control de Ingeniería, Control Administrativo, EPP)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Solo Peligros Críticos (Nivel I y II) + Medidas de Intervención',
+        description: 'Ideal para priorizar controles sobre riesgos No Aceptables',
+        fields: [
+          'Proceso / Área / Zona o Lugar',
+          'Clasificación del Peligro (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad, Fenómenos Naturales)',
+          'Descripción del Peligro y Fuente Generadora',
+          'Nivel de Riesgo (NR = NP x NC) e Interpretación (I, II, III, IV)',
+          'Aceptabilidad del Riesgo (No Aceptable / Aceptable con Control / Aceptable)',
+          'Medidas de Intervención (Eliminación, Sustitución, Control de Ingeniería, Control Administrativo, EPP)',
+        ],
+      },
+      {
+        label: '⚡ Proceso + Peligro + Controles Existentes + EPP',
+        description: 'Resumen operativo por puesto sin las fórmulas intermedias',
+        fields: [
+          'Proceso / Área / Zona o Lugar',
+          'Actividad y Tarea (Rutinaria / No Rutinaria)',
+          'Descripción del Peligro y Fuente Generadora',
+          'Controles Existentes (Fuente, Medio, Individuo)',
+          'Medidas de Intervención (Eliminación, Sustitución, Control de Ingeniería, Control Administrativo, EPP)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-ipevar', 'sgsst-matriz-peligros'],
+  },
+
+  hito3_matriz_pesv: {
+    moduleTitle: 'Hito 1 · Matriz de Riesgos Viales (PESV Res. 40595)',
+    moduleBadge: 'Hito 1 · PESV',
+    fieldsLabel: 'Columnas y Resultados Propios de la Matriz de Riesgos Viales PESV',
+    fields: [
+      'Actor Vial Evaluado (Conductor, Motociclista, Ciclista, Peatón, Pasajero)',
+      'Factor de Riesgo Vial (Comportamiento Humano, Vehículo Seguro, Infraestructura Segura, Atención a Víctimas)',
+      'Proceso / Ruta / Desplazamiento Misional o In Itinere',
+      'Peligro Vial Identificado y Causa Raíz',
+      'Nivel de Probabilidad Vial (Frecuencia y Exposición)',
+      'Nivel de Severidad / Consecuencia Vial',
+      'Valoración y Nivel de Riesgo Vial (Crítico, Alto, Medio, Bajo)',
+      'Controles Preventivos y Mitigación PESV',
+      'Responsable y Seguimiento en Comité PESV',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Actor Vial + Peligro Vial + Nivel de Riesgo + Controles PESV',
+        description: 'Extrae la síntesis de riesgos viales críticos',
+        fields: [
+          'Actor Vial Evaluado (Conductor, Motociclista, Ciclista, Peatón, Pasajero)',
+          'Peligro Vial Identificado y Causa Raíz',
+          'Valoración y Nivel de Riesgo Vial (Crítico, Alto, Medio, Bajo)',
+          'Controles Preventivos y Mitigación PESV',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-pesv'],
+  },
+
+  hito3_quimicos_sga: {
+    moduleTitle: 'Hito 1 · Matriz de Compatibilidad Química (SGA Dec. 1496)',
+    moduleBadge: 'Hito 1 · Químicos SGA',
+    fieldsLabel: 'Campos y Resultados Propios de la Matriz de Compatibilidad Química SGA',
+    fields: [
+      'Nombre del Producto Químico y Sustancia Activa',
+      'Número CAS y Número ONU',
+      'Clase de Peligro SGA y Pictogramas GHS (GHS01 a GHS09)',
+      'Palabra de Advertencia (Peligro / Atención)',
+      'Indicaciones de Peligro (Frases H) y Consejos de Prudencia (Frases P)',
+      'Resultado de Compatibilidad Cruzada (Verde Compatible / Amarillo Precaución / Rojo Incompatible)',
+      'Restricciones de Almacenamiento yDistancia de Separación',
+      'EPP Específico y Kit de Atención de Derrames',
+      'Vigencia de Ficha de Datos de Seguridad (FDS 16 Secciones)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Sustancia + CAS/ONU + Pictogramas + Incompatibilidades Rojas',
+        description: 'Detecta choques químicos peligrosos en bodega/almacenamiento',
+        fields: [
+          'Nombre del Producto Químico y Sustancia Activa',
+          'Número CAS y Número ONU',
+          'Clase de Peligro SGA y Pictogramas GHS (GHS01 a GHS09)',
+          'Resultado de Compatibilidad Cruzada (Verde Compatible / Amarillo Precaución / Rojo Incompatible)',
+          'Restricciones de Almacenamiento yDistancia de Separación',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-compatibilidad'],
+  },
+
+  hito1_oportunidades_sst: {
+    moduleTitle: 'Hito 1 · Riesgos del Sistema y Oportunidades SST (ISO 45001)',
+    moduleBadge: 'Hito 1 · Gobernanza',
+    fieldsLabel: 'Campos Propios de Riesgos Estratégicos y Oportunidades del SG-SST',
+    fields: [
+      'Proceso o Elemento del SG-SST Evaluado',
+      'Riesgo Estratégico del Sistema (Potencial Fallo de Gestión)',
+      'Oportunidad de Mejora Estratégica SST',
+      'Valoración de Impacto y Factibilidad',
+      'Plan de Acción para Abordar Riesgos y Oportunidades',
+      'Responsable, Recursos y Fecha de Seguimiento',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Riesgos Estratégicos + Oportunidades + Plan de Acción',
+        description: 'Extrae la matriz estratégica ISO 45001 Cap. 6.1',
+        fields: [
+          'Riesgo Estratégico del Sistema (Potencial Fallo de Gestión)',
+          'Oportunidad de Mejora Estratégica SST',
+          'Plan de Acción para Abordar Riesgos y Oportunidades',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-oportunidades', 'sgsst-oportunidades-sst'],
+  },
+
+  hito6_vulnerabilidad: {
+    moduleTitle: 'Hito 1 · Análisis de Amenazas y Vulnerabilidad (Diamante de Riesgo)',
+    moduleBadge: 'Hito 1 · Emergencias',
+    fieldsLabel: 'Campos y Resultados Propios del Análisis de Vulnerabilidad',
+    fields: [
+      'Amenaza Identificada (Natural, Tecnológica o Social)',
+      'Origen de la Amenaza (Interno / Externo) y Fuente',
+      'Calificación de la Amenaza (Posible / Probable / Inminente)',
+      'Vulnerabilidad en Personas (Gestión Organizacional, Capacitación, Características de Seguridad)',
+      'Vulnerabilidad en Recursos (Suministros, Edificación, Equipos)',
+      'Vulnerabilidad en Sistemas y Procesos (Servicios, Sistemas Alternos, Recuperación)',
+      'Nivel de Riesgo en Diamante de Colores (Alto, Medio, Bajo)',
+      'Medidas de Intervención y Mitigación Prioritarias',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Amenaza + Calificación + Nivel de Riesgo Diamante + Mitigación',
+        description: 'Extrae solo el resultado del Diamante de Riesgo por amenaza',
+        fields: [
+          'Amenaza Identificada (Natural, Tecnológica o Social)',
+          'Calificación de la Amenaza (Posible / Probable / Inminente)',
+          'Nivel de Riesgo en Diamante de Colores (Alto, Medio, Bajo)',
+          'Medidas de Intervención y Mitigación Prioritarias',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-vulnerabilidad'],
+  },
+
+  hito1_plan_emergencias: {
+    moduleTitle: 'Hito 1 · Plan de Emergencias y Contingencias (PPRE)',
+    moduleBadge: 'Hito 1 · Emergencias',
+    fieldsLabel: 'Componentes Propios del Plan de Emergencias y Contingencias (PPRE)',
+    fields: [
+      'Georreferenciación, Carga Ocupacional e Instalaciones de la Sede',
+      'Procedimientos Operativos Normalizados (PONs por Sismo, Incendio, Evacuación, Derrame)',
+      'Rutas de Evacuación, Salidas de Emergencia y Puntos de Encuentro',
+      'Sistema de Alerta y Alarma (Códigos de Evacuación)',
+      'Plan de Evacuación Médica (MEDEVAC) y Centros Asistenciales Cercanos',
+      'Plan de Ayuda Mutua y Directorio de Emergencias Externo',
+      'Estructura del Comité de Emergencias y Brigada',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ PONs + Rutas de Evacuación + MEDEVAC',
+        description: 'Extrae los protocolos operativos de respuesta inmediata',
+        fields: [
+          'Procedimientos Operativos Normalizados (PONs por Sismo, Incendio, Evacuación, Derrame)',
+          'Rutas de Evacuación, Salidas de Emergencia y Puntos de Encuentro',
+          'Plan de Evacuación Médica (MEDEVAC) y Centros Asistenciales Cercanos',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-plan-emergencias'],
+  },
+
+  // ═══ HITO 2: HUELLA BIOCÉNTRICA (4 APLICATIVOS) ═══
+  hito2_perfiles_cargo: {
+    moduleTitle: 'Hito 2 · Perfiles de Cargo y Profesiograma',
+    moduleBadge: 'Hito 2 · Biocéntrica',
+    fieldsLabel: 'Campos Propios de Perfiles de Cargo y Profesiograma',
+    fields: [
+      'Nombre del Cargo / Rol',
+      'Área / Proceso y Jefe Inmediato',
+      'Objetivo General y Funciones Esenciales del Cargo',
+      'Educación, Formación, Habilidades y Experiencia Requerida',
+      'Responsabilidades Específicas en el SG-SST (Dec. 1072)',
+      'Profesiograma: Exámenes Médicos de Ingreso, Periódicos, Egreso y Especiales',
+      'Restricciones o Contraindicaciones Médicas del Cargo',
+      'Matriz de EPP Requeridos por el Cargo',
+      'Peligros y Riesgos Críticos Expuestos en el Cargo',
+      'Capacitaciones y Certificaciones SST Obligatorias (ej. Alturas, Vial, Manipulación)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Nombre del Cargo + Profesiograma (Exámenes Médicos) + EPP',
+        description: 'Ideal para cruzar con Condiciones de Salud y Entrega de EPP',
+        fields: [
+          'Nombre del Cargo / Rol',
+          'Profesiograma: Exámenes Médicos de Ingreso, Periódicos, Egreso y Especiales',
+          'Matriz de EPP Requeridos por el Cargo',
+        ],
+      },
+      {
+        label: '⚡ Cargo + Funciones + Responsabilidades SST + Peligros del Cargo',
+        description: 'Para cartas de inducción y asignación de responsabilidades SST',
+        fields: [
+          'Nombre del Cargo / Rol',
+          'Objetivo General y Funciones Esenciales del Cargo',
+          'Responsabilidades Específicas en el SG-SST (Dec. 1072)',
+          'Peligros y Riesgos Críticos Expuestos en el Cargo',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-perfil-cargo'],
+  },
+
+  hito2_perfil_socio: {
+    moduleTitle: 'Hito 2 · Perfil Sociodemográfico y Expedientes de Trabajadores',
+    moduleBadge: 'Hito 2 · Biocéntrica',
+    fieldsLabel: 'Lista Completa de Campos del Perfil Sociodemográfico (Elige solo los que necesites para no saturar)',
+    fields: [
+      'Cédula / Identificación',
+      'Nombre Completo',
+      'Cargo / Rol',
+      'Área / Proceso',
+      'Sede / Centro de Trabajo',
+      'Edad',
+      'Fecha de Nacimiento',
+      'Género',
+      'Estado Civil',
+      'Nivel de Escolaridad',
+      'Profesión / Oficio',
+      'Tipo de Contrato',
+      'Fecha de Ingreso a la Empresa',
+      'Antigüedad en la Empresa',
+      'Antigüedad en el Cargo Actual',
+      'EPS (Entidad Promotora de Salud)',
+      'ARL (Administradora de Riesgos Laborales)',
+      'AFP (Fondo de Pensiones)',
+      'Caja de Compensación Familiar (CCF)',
+      'Certificados de Afiliación (EPS / ARL / AFP / Planilla PILA)',
+      'Rango Salarial / Ingresos',
+      'Turno / Jornada de Trabajo',
+      'Tipo de Vivienda (Propia / Arrendada / Familiar)',
+      'Estrato Socioeconómico',
+      'Personas a Cargo',
+      'Cabeza de Familia (Sí / No)',
+      'Medio de Transporte al Trabajo',
+      'Tiempo de Desplazamiento Casa-Trabajo',
+      'Correo Electrónico',
+      'Teléfono / Celular',
+      'Contacto de Emergencia (Nombre, Parentesco y Teléfono)',
+      'Grupo Sanguíneo y Factor RH',
+      'Hábito de Tabaquismo y Consumo de Alcohol',
+      'Práctica de Actividad Física / Deporte',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Solo Cédula y Nombre Completo (Sin Saturar)',
+        description: 'Extrae únicamente Cédula y Nombre Completo para cruces rápidos sin saturar el flujo',
+        fields: ['Cédula / Identificación', 'Nombre Completo'],
+      },
+      {
+        label: '⚡ Cédula + Nombre + Certificados de Afiliación (EPS / ARL / AFP / PILA)',
+        description: 'Directo para auditar certificados de afiliación a seguridad social por número de cédula',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'EPS (Entidad Promotora de Salud)',
+          'ARL (Administradora de Riesgos Laborales)',
+          'AFP (Fondo de Pensiones)',
+          'Caja de Compensación Familiar (CCF)',
+          'Certificados de Afiliación (EPS / ARL / AFP / Planilla PILA)',
+        ],
+      },
+      {
+        label: '⚡ Cédula + Nombre + Edad + Cargo + Área',
+        description: 'Identificación básica operativa del trabajador',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Edad',
+          'Cargo / Rol',
+          'Área / Proceso',
+        ],
+      },
+      {
+        label: '⚡ Cédula + Nombre + RH + Teléfono + Contacto de Emergencia',
+        description: 'Ficha rápida de emergencias y brigada',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Grupo Sanguíneo y Factor RH',
+          'Teléfono / Celular',
+          'Contacto de Emergencia (Nombre, Parentesco y Teléfono)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-perfil-sociodemografico'],
+  },
+
+  hito2_condiciones_salud: {
+    moduleTitle: 'Hito 2 · Informe de Condiciones de Salud y Exámenes Médicos (EMO)',
+    moduleBadge: 'Hito 2 · Biocéntrica',
+    fieldsLabel: 'Lista Completa de Campos de Condiciones de Salud y EMO',
+    fields: [
+      'Cédula / Identificación',
+      'Nombre Completo',
+      'Cargo Evaluado y Área',
+      'Tipo de Examen Médico (Ingreso / Periódico / Egreso / Post-Incapacidad / Cambio de Ocupación)',
+      'Fecha de Último Examen Médico Ocupacional (EMO)',
+      'Fecha de Vencimiento / Próximo EMO',
+      'Concepto de Aptitud Médica (Apto / Apto con Restricciones / Aplazado)',
+      'Restricciones Médicas Laborales Activas',
+      'Recomendaciones Médicas Ocupacionales y Temporales',
+      'Diagnósticos Clínicos (CIE-10) y Hallazgos Osteomusculares / Visuales / Auditivos',
+      'Sistemas de Vigilancia Epidemiológica (SVE: Biomecánico, Conservación Auditiva, Visual, Cardiovascular, Psicosocial)',
+      'Exámenes Paraclínicos / Complementarios (Audiometría, Visiometría, Espirometría, Alturas, Manipulación de Alimentos)',
+      'Antecedentes Patológicos, Quirúrgicos y Traumáticos',
+      'Alergias y Tratamientos Farmacológicos Activos',
+      'Índice de Masa Corporal (IMC) y Clasificación Nutricional',
+      'Remisión a EPS o ARL y Seguimiento al Cierre',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Solo Cédula + Nombre + Concepto de Aptitud + Restricciones',
+        description: 'Extrae solo el estado de aptitud médica y restricciones sin saturar',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Cargo Evaluado y Área',
+          'Concepto de Aptitud Médica (Apto / Apto con Restricciones / Aplazado)',
+          'Restricciones Médicas Laborales Activas',
+        ],
+      },
+      {
+        label: '⚡ Cédula + Nombre + Fecha y Vencimiento EMO',
+        description: 'Ideal para alertas de exámenes médicos periódicos vencidos o próximos a vencer',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Cargo Evaluado y Área',
+          'Fecha de Último Examen Médico Ocupacional (EMO)',
+          'Fecha de Vencimiento / Próximo EMO',
+        ],
+      },
+      {
+        label: '⚡ Cédula + Nombre + Recomendaciones Médicas + SVE',
+        description: 'Para seguimiento de vigilancia epidemiológica y cartas de recomendaciones',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Recomendaciones Médicas Ocupacionales y Temporales',
+          'Sistemas de Vigilancia Epidemiológica (SVE: Biomecánico, Conservación Auditiva, Visual, Cardiovascular, Psicosocial)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-condiciones-salud'],
+  },
+
+  hito2_oraculo_predictivo: {
+    moduleTitle: 'Hito 2 · Dictamen de Compatibilidad Trabajador-Cargo (Bio-Individuo)',
+    moduleBadge: 'Hito 2 · Compatibilidad Cargo-Persona',
+    fieldsLabel: 'Campos, Tarjetas Preventivas y Resultados Propios de «Compatibilidad Trabajador-Cargo»',
+    fields: [
+      'Cédula / Identificación',
+      'Nombre Completo',
+      'Cargo y Área Asignada',
+      'FIT Score (% Índice Biocéntrico Integral Persona-Cargo)',
+      'Tarjetas Preventivas (Todas: Recomendaciones, Limitaciones, Patologías, Tratamientos y Alergias)',
+      'Tarjeta Preventiva: Recomendación Preventiva',
+      'Tarjeta Preventiva: Limitación Biomecánica / Restricción',
+      'Tarjeta Preventiva: Patología / Antecedente Clínico',
+      'Tarjeta Preventiva: Tratamiento Médico Activo',
+      'Tarjeta Preventiva: Alergias Identificadas',
+      'Concepto de Compatibilidad Trabajador-Cargo (Compatible / Condicionado / Crítico)',
+      'Alertas de Choque Biocéntrico (Salud del Trabajador vs. Exigencias del Cargo)',
+      'Puntaje e Historial de Percepción del Riesgo del Trabajador',
+      'Matriz Biocéntrica IPEVR Individual (Peligros Expuestos en el Puesto)',
+      'Estado de Seguridad Social (PILA / EPS / ARL / AFP)',
+      'Cursos, Alturas y Entrega de EPP del Trabajador',
+      'Dictamen Técnico de Reubicación, Readaptación o Ajuste de Puesto',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cédula + Nombre + Tarjetas Preventivas',
+        description: 'Extrae únicamente Cédula, Nombre y las Tarjetas Preventivas del trabajador',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Cargo y Área Asignada',
+          'Tarjetas Preventivas (Todas: Recomendaciones, Limitaciones, Patologías, Tratamientos y Alergias)',
+        ],
+      },
+      {
+        label: '⚡ Cédula + Nombre + FIT Score (%) + Tarjetas Preventivas + Alertas',
+        description: 'Cruza el índice FIT % con las tarjetas preventivas y choques cargo-salud',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Cargo y Área Asignada',
+          'FIT Score (% Índice Biocéntrico Integral Persona-Cargo)',
+          'Tarjetas Preventivas (Todas: Recomendaciones, Limitaciones, Patologías, Tratamientos y Alergias)',
+          'Alertas de Choque Biocéntrico (Salud del Trabajador vs. Exigencias del Cargo)',
+        ],
+      },
+      {
+        label: '⚡ Cédula + Nombre + Compatibilidad Cargo + Dictamen Reubicación',
+        description: 'Solo dictamen ejecutivo de aptitud y ajustes requeridos en el cargo',
+        fields: [
+          'Cédula / Identificación',
+          'Nombre Completo',
+          'Concepto de Compatibilidad Trabajador-Cargo (Compatible / Condicionado / Crítico)',
+          'Dictamen Técnico de Reubicación, Readaptación o Ajuste de Puesto',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-bio-ipevar', 'sgsst-oraculo-h1', 'sgsst-predictivo-ia'],
+  },
+
+  // ═══ HITO 3: COMITÉS, BRIGADAS Y ÓRGANOS DE GOBERNANZA (4 APLICATIVOS) ═══
+  hito4_comites: {
+    moduleTitle: 'Hito 3 · COPASST / Vigía de SST (Dec. 614 y Res. 2013 de 1986)',
+    moduleBadge: 'Hito 3 · Comités',
+    fieldsLabel: 'Campos, Actas y Resultados Propios del COPASST / Vigía SST',
+    fields: [
+      'Integrantes del COPASST / Vigía (Representantes del Empleador y de los Trabajadores — Principales y Suplentes)',
+      'Actas de Convocatoria, Votación y Conformación del COPASST',
+      'Actas de Reunión Mensual Ordinaria / Extraordinaria',
+      'Verificación de Quórum y Asistencia de Miembros',
+      'Temas Tratados (Inspecciones, Investigación ATEL, Seguimiento Plan Anual)',
+      'Compromisos del Acta, Responsables y Fechas de Cumplimiento',
+      'Seguimiento al Estado de Compromisos de Actas Anteriores',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Última Acta Mensual + Compromisos Pendientes + Responsables',
+        description: 'Extrae compromisos abiertos del COPASST para seguimiento o correo',
+        fields: [
+          'Actas de Reunión Mensual Ordinaria / Extraordinaria',
+          'Compromisos del Acta, Responsables y Fechas de Cumplimiento',
+          'Seguimiento al Estado de Compromisos de Actas Anteriores',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-copasst'],
+  },
+
+  hito3_cocolab: {
+    moduleTitle: 'Hito 3 · Comité de Convivencia Laboral (CCL — Res. 652 y 1356 de 2012)',
+    moduleBadge: 'Hito 3 · Convivencia',
+    fieldsLabel: 'Campos y Actas Propios del Comité de Convivencia Laboral (CCL)',
+    fields: [
+      'Integrantes del Comité de Convivencia Laboral (Principales y Suplentes)',
+      'Actas de Conformación y Posesión del CCL',
+      'Actas de Reunión Trimestral Ordinaria / Extraordinaria',
+      'Seguimiento Estadístico de Quejas de Presunto Acoso Laboral (Reserva Ley 1010)',
+      'Planes de Mejora de Clima y Convivencia Laboral',
+      'Compromisos, Campañas de Prevención y Seguimiento Trimestral',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Actas Trimestrales CCL + Compromisos de Convivencia',
+        description: 'Extrae los acuerdos y planes preventivos del Comité de Convivencia',
+        fields: [
+          'Actas de Reunión Trimestral Ordinaria / Extraordinaria',
+          'Planes de Mejora de Clima y Convivencia Laboral',
+          'Compromisos, Campañas de Prevención y Seguimiento Trimestral',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-convivencia'],
+  },
+
+  hito3_comite_pesv: {
+    moduleTitle: 'Hito 3 · Comité de Seguridad Vial (CSV - PESV Res. 40595)',
+    moduleBadge: 'Hito 3 · Comité Vial',
+    fieldsLabel: 'Campos y Actas Propios del Comité de Seguridad Vial (CSV)',
+    fields: [
+      'Integrantes del Comité de Seguridad Vial (CSV)',
+      'Actas de Reunión Trimestral del CSV',
+      'Indicadores de Siniestralidad Vial, Infracciones y Capacitación Vial',
+      'Resultados de Inspecciones Preoperacionales y Mantenimiento de Flota',
+      'Compromisos Viales, Responsables y Fechas Límite',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Indicadores PESV + Compromisos del Comité Vial',
+        description: 'Síntesis ejecutiva de seguridad vial',
+        fields: [
+          'Indicadores de Siniestralidad Vial, Infracciones y Capacitación Vial',
+          'Compromisos Viales, Responsables y Fechas Límite',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-comite-pesv'],
+  },
+
+  hito3_brigada_emergencias: {
+    moduleTitle: 'Hito 3 · Brigada de Emergencias & Comité de Crisis (SCI)',
+    moduleBadge: 'Hito 3 · Brigada SCI',
+    fieldsLabel: 'Campos Propios de la Brigada de Emergencias y Sistema Comando de Incidentes',
+    fields: [
+      'Listado de Brigadistas Activos (Cédula, Nombre, Cargo, Sede y Teléfono)',
+      'Unidad Asignada (Primeros Auxilios, Prevención y Control de Incendios, Evacuación y Rescate)',
+      'Organigrama del Sistema Comando de Incidentes (Comandante, Oficial de Seguridad, Enlace, Operaciones)',
+      'Certificaciones y Entrenamientos de Brigadistas',
+      'Dotación e Inventario Asignado a la Brigada',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cédula + Nombre de Brigadistas + Unidad Asignada',
+        description: 'Extrae el directorio operativo de brigadistas por sede',
+        fields: [
+          'Listado de Brigadistas Activos (Cédula, Nombre, Cargo, Sede y Teléfono)',
+          'Unidad Asignada (Primeros Auxilios, Prevención y Control de Incendios, Evacuación y Rescate)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-brigada-emergencias'],
+  },
+
+  // ═══ HITO 4: EVALUACIÓN DINÁMICA DE RIESGOS (4 APLICATIVOS) ═══
+  hito4_bio_ipevar: {
+    moduleTitle: 'Hito 4 · Matriz Bio-IPEVR (Evaluación Individual por Trabajador)',
+    moduleBadge: 'Hito 4 · Evaluación',
+    fieldsLabel: 'Campos Propios de la Matriz Bio-IPEVR Individual',
+    fields: [
+      'Cédula y Nombre Completo del Trabajador',
+      'Cargo, Proceso y Sede',
+      'Peligros Expuestos en el Puesto Individual',
+      'Cruces con Condiciones de Salud y Sintomatología Corporal',
+      'Valoración de Riesgo Bio-Individual (NR y Aceptabilidad)',
+      'Controles Personalizados (Fuente, Medio e Individuo)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cédula + Nombre + Peligros Bio-Individuales + Controles',
+        description: 'Extrae la matriz de peligros personalizada por colaborador',
+        fields: [
+          'Cédula y Nombre Completo del Trabajador',
+          'Peligros Expuestos en el Puesto Individual',
+          'Valoración de Riesgo Bio-Individual (NR y Aceptabilidad)',
+          'Controles Personalizados (Fuente, Medio e Individuo)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-bio-ipevar', 'sgsst-matriz-peligros'],
+  },
+
+  hito3_owas: {
+    moduleTitle: 'Hito 4 · Método OWAS (Evaluación Ergonómica Postural)',
+    moduleBadge: 'Hito 4 · Ergonomía OWAS',
+    fieldsLabel: 'Campos, Códigos Posturales y Resultados Propios del Método OWAS',
+    fields: [
+      'Trabajador Evaluado (Cédula, Nombre y Cargo)',
+      'Tarea / Actividad y Fase de Trabajo Analizada',
+      'Posición de Espalda (1 a 4), Brazos (1 a 3), Piernas (1 a 7) y Carga/Fuerza (1 a 3)',
+      'Código Postural OWAS de 4 Dígitos',
+      'Categoría de Riesgo OWAS (Nivel 1 Normal / Nivel 2 Leve / Nivel 3 Dañino / Nivel 4 Urgente)',
+      'Frecuencia Relativa de Posturas por Segmento Corporal',
+      'Recomendaciones Ergonómicas y Rediseño de Puesto',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Trabajador + Código OWAS + Categoría de Riesgo (1-4) + Recomendaciones',
+        description: 'Extrae solo los resultados posturales críticos y acciones correctivas',
+        fields: [
+          'Trabajador Evaluado (Cédula, Nombre y Cargo)',
+          'Código Postural OWAS de 4 Dígitos',
+          'Categoría de Riesgo OWAS (Nivel 1 Normal / Nivel 2 Leve / Nivel 3 Dañino / Nivel 4 Urgente)',
+          'Recomendaciones Ergonómicas y Rediseño de Puesto',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-owas'],
+  },
+
+  hito3_estudio_puesto: {
+    moduleTitle: 'Hito 4 · Estudio de Puesto de Trabajo (EPT Biomecánico)',
+    moduleBadge: 'Hito 4 · Estudio Puesto',
+    fieldsLabel: 'Campos y Resultados Propios del Estudio de Puesto de Trabajo (EPT)',
+    fields: [
+      'Trabajador Evaluado (Cédula, Nombre, Edad, Antigüedad)',
+      'Cargo, Área y Jornada Laboral',
+      'Motivo del Estudio (Calificación de Origen, Reintegro, Recomendaciones Médicas, Preventivo)',
+      'Diagnóstico Médico Asociado (CIE-10)',
+      'Descripción del Puesto, Mobiliario, Herramientas y Equipos',
+      'Análisis de Demandas Biomecánicas (Posturas, Movimientos Repetitivos, Manipulación de Cargas)',
+      'Condiciones Ambientales (Iluminación, Ruido, Temperatura, Vibración)',
+      'Concepto Ergonómico y Plan de Intervención / Ajustes Razonables',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cédula + Nombre + Diagnóstico CIE-10 + Demandas Biomecánicas + Ajustes',
+        description: 'Síntesis del EPT para ARL, EPS o reubicación laboral',
+        fields: [
+          'Trabajador Evaluado (Cédula, Nombre, Edad, Antigüedad)',
+          'Diagnóstico Médico Asociado (CIE-10)',
+          'Análisis de Demandas Biomecánicas (Posturas, Movimientos Repetitivos, Manipulación de Cargas)',
+          'Concepto Ergonómico y Plan de Intervención / Ajustes Razonables',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-owas'],
+  },
+
+  hito4_psicosocial: {
+    moduleTitle: 'Hito 4 · Termómetro Psicosocial y Clima Emocional (Res. 2764)',
+    moduleBadge: 'Hito 4 · Psicosocial',
+    fieldsLabel: 'Indicadores y Resultados Propios del Termómetro Psicosocial',
+    fields: [
+      'Índice Global de Bienestar y Clima Emocional',
+      'Distribución de Estados de Ánimo Reportados (Motivado, Tranquilo, Cansado, Estresado, Agotado)',
+      'Áreas / Procesos con Mayor Nivel de Estrés o Fatiga',
+      'Factores Intralaborales, Extralaborales e Individuales Detectados (Res. 2764)',
+      'Alertas Tempranas de Riesgo Psicosocial / Burnout',
+      'Plan de Intervención Psicosocial y Vigilancia Epidemiológica',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Índice de Bienestar + Alertas por Área + Plan de Intervención',
+        description: 'Resumen psicosocial respetando la reserva legal',
+        fields: [
+          'Índice Global de Bienestar y Clima Emocional',
+          'Áreas / Procesos con Mayor Nivel de Estrés o Fatiga',
+          'Alertas Tempranas de Riesgo Psicosocial / Burnout',
+          'Plan de Intervención Psicosocial y Vigilancia Epidemiológica',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-animo', 'sgsst-termometro-psicosocial'],
+  },
+
+  // ═══ HITO 5: DINÁMICA OPERATIVA Y TERRENO (10 APLICATIVOS) ═══
+  hito5_compras_sst: {
+    moduleTitle: 'Hito 5 · Compras y Adquisiciones con Criterio SST (Art. 2.2.4.6.27)',
+    moduleBadge: 'Hito 5 · Terreno',
+    fieldsLabel: 'Campos Propios de Compras y Adquisiciones en SST',
+    fields: [
+      'Bien, Producto, Maquinaria o Servicio a Adquirir',
+      'Especificaciones y Requisitos Técnicos de SST Exigidos',
+      'Normas y Certificaciones Requeridas (ANSI, NIOSH, EN, RETIE, FDS)',
+      'Proveedor Seleccionado y Evaluación SST',
+      'Verificación de Cumplimiento SST al Recibo e Ingreso a Inventario',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Producto + Requisitos Técnicos SST + Certificación Exigida',
+        description: 'Matriz de especificaciones SST de compra',
+        fields: [
+          'Bien, Producto, Maquinaria o Servicio a Adquirir',
+          'Especificaciones y Requisitos Técnicos de SST Exigidos',
+          'Normas y Certificaciones Requeridas (ANSI, NIOSH, EN, RETIE, FDS)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-compras', 'sgsst-compras-sst'],
+  },
+
+  hito5_contratistas: {
+    moduleTitle: 'Hito 5 · Control y Gestión de Contratistas y Proveedores',
+    moduleBadge: 'Hito 5 · Contratistas',
+    fieldsLabel: 'Campos Propios de Control de Contratistas y Seguridad Social PILA',
+    fields: [
+      'Razón Social y NIT de la Empresa Contratista',
+      'Representante Legal, Contacto y Objeto del Contrato',
+      'Certificado de Autoevaluación Res. 0312 Emitido por ARL del Contratista',
+      'Verificación de Planilla PILA Vigente (EPS, ARL y AFP de Trabajadores Destacados)',
+      'Listado de Trabajadores del Contratista (Cédula, Nombre, Cargo y Curso Alturas)',
+      'Constancia de Inducción SST y Entrega de EPP',
+      'Evaluación de Desempeño y Cumplimiento SST del Contratista',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Contratista + NIT + Planilla PILA + Certificado 0312 ARL',
+        description: 'Auditoría rápida de requisitos legales antes de autorizar ingreso',
+        fields: [
+          'Razón Social y NIT de la Empresa Contratista',
+          'Certificado de Autoevaluación Res. 0312 Emitido por ARL del Contratista',
+          'Verificación de Planilla PILA Vigente (EPS, ARL y AFP de Trabajadores Destacados)',
+          'Listado de Trabajadores del Contratista (Cédula, Nombre, Cargo y Curso Alturas)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-contratistas', 'sgsst-contratistas-proveedores'],
+  },
+
+  hito5_gestion_cambio: {
+    moduleTitle: 'Hito 5 · Gestión del Cambio en SST (MOC — Art. 2.2.4.6.26)',
+    moduleBadge: 'Hito 5 · Gestión del Cambio',
+    fieldsLabel: 'Campos Propios de Gestión del Cambio (MOC)',
+    fields: [
+      'Título y Tipo de Cambio (Infraestructura, Maquinaria, Proceso, Personal o Normativo)',
+      'Descripción Detallada del Cambio Propuesto',
+      'Identificación de Nuevos Peligros y Evaluación de Riesgos del Cambio',
+      'Impacto en Documentos, Matriz IPEVR, Procedimientos y Capacitación',
+      'Medidas de Control Previas a la Puesta en Marcha',
+      'Responsable, Fecha de Implementación y Aprobación SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cambio Propuesto + Nuevos Peligros + Controles Previos',
+        description: 'Extrae el análisis de impacto SST antes de autorizar el cambio',
+        fields: [
+          'Título y Tipo de Cambio (Infraestructura, Maquinaria, Proceso, Personal o Normativo)',
+          'Identificación de Nuevos Peligros y Evaluación de Riesgos del Cambio',
+          'Medidas de Control Previas a la Puesta en Marcha',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-gestion-cambio', 'sgsst-moc'],
+  },
+
+  hito3_ats: {
+    moduleTitle: 'Hito 5 · Análisis de Trabajo Seguro (ATS Paso a Paso)',
+    moduleBadge: 'Hito 5 · Terreno',
+    fieldsLabel: 'Campos Propios del Análisis de Trabajo Seguro (ATS)',
+    fields: [
+      'Nombre de la Tarea Crítica / Trabajo a Realizar',
+      'Fecha, Área, Sede y Equipos / Herramientas a Utilizar',
+      'Trabajadores Ejecutores (Cédula, Nombre Completo y Cargo)',
+      'Secuencia de Pasos de la Tarea (Paso a Paso)',
+      'Peligros y Riesgos Potenciales por Cada Paso',
+      'Controles Preventivos y Operativos en Sitio por Paso',
+      'Elementos de Protección Personal (EPP) Específicos Requeridos',
+      'Firmas de Trabajadores y Aprobación del Supervisor / Coordinador SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Tarea + Trabajadores (Cédula/Nombre) + Pasos + Peligros + Controles',
+        description: 'Extrae el ATS operativo completo listo para validación en campo',
+        fields: [
+          'Nombre de la Tarea Crítica / Trabajo a Realizar',
+          'Trabajadores Ejecutores (Cédula, Nombre Completo y Cargo)',
+          'Secuencia de Pasos de la Tarea (Paso a Paso)',
+          'Peligros y Riesgos Potenciales por Cada Paso',
+          'Controles Preventivos y Operativos en Sitio por Paso',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-ats'],
+  },
+
+  hito3_alturas: {
+    moduleTitle: 'Hito 5 · Permiso de Trabajo en Alturas (Res. 4272 de 2021)',
+    moduleBadge: 'Hito 5 · Alturas Res. 4272',
+    fieldsLabel: 'Campos Propios del Permiso de Trabajo en Alturas',
+    fields: [
+      'Ubicación Exacta, Descripción del Trabajo y Altura Aproximada (metros)',
+      'Trabajadores Autorizados (Cédula, Nombre, Vigencia Curso Alturas, Aptitud Médica y ARL)',
+      'Coordinador de Trabajo en Alturas y Ayudante de Seguridad Asignado',
+      'Verificación de Sistemas de Acceso (Andamio, Escalera, Plataforma, Cuerda)',
+      'Inspección Preuso de Equipos (Arnés Multipropósito, Eslinga con Absorbedor, Casco con Barbuquejo, Mosquetones, Punto de Anclaje ≥5000 lb)',
+      'Cálculo de Requerimiento de Claridad / Distancia Total de Caída',
+      'Plan de Rescate en Alturas y Kit de Rescate Disponible en Sitio',
+      'Condiciones Climáticas y Vigencia Horaria del Permiso',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Trabajadores (Cédula/Nombre) + Curso Alturas + Aptitud Médica + Equipos',
+        description: 'Verifica habilitación legal de cada trabajador antes de subir a alturas',
+        fields: [
+          'Trabajadores Autorizados (Cédula, Nombre, Vigencia Curso Alturas, Aptitud Médica y ARL)',
+          'Coordinador de Trabajo en Alturas y Ayudante de Seguridad Asignado',
+          'Inspección Preuso de Equipos (Arnés Multipropósito, Eslinga con Absorbedor, Casco con Barbuquejo, Mosquetones, Punto de Anclaje ≥5000 lb)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-permiso-alturas'],
+  },
+
+  hito5_equipos_alturas: {
+    moduleTitle: 'Hito 5 · Hoja de Vida e Inspección de Equipos de Alturas',
+    moduleBadge: 'Hito 5 · Equipos Alturas',
+    fieldsLabel: 'Campos Propios de Hoja de Vida de Equipos contra Caídas',
+    fields: [
+      'Código Interno y Número de Serie / Lote del Equipo',
+      'Tipo de Equipo (Arnés, Eslinga de Posicionamiento/Detención, Línea de Vida, Mosquetón, Freno)',
+      'Marca, Modelo y Norma Técnica de Certificación (ANSI Z359 / EN / CSA)',
+      'Fecha de Fabricación y Fecha de Puesta en Servicio',
+      'Fecha de Última Inspección Anual Avalada y Próxima Inspección',
+      'Estado de Costuras, Reatas, Herrajes, Argollas y Etiqueta Legible',
+      'Concepto del Equipo (Apto en Uso / En Cuarentena / Dado de Baja por Impacto o Deterioro)',
+      'Trabajador o Cuadrilla Asignada (Cédula y Nombre)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Serial + Tipo de Equipo + Próxima Inspección + Estado (Apto/Baja)',
+        description: 'Control de vencimientos de inspección anual de equipos de alturas',
+        fields: [
+          'Código Interno y Número de Serie / Lote del Equipo',
+          'Tipo de Equipo (Arnés, Eslinga de Posicionamiento/Detención, Línea de Vida, Mosquetón, Freno)',
+          'Fecha de Última Inspección Anual Avalada y Próxima Inspección',
+          'Concepto del Equipo (Apto en Uso / En Cuarentena / Dado de Baja por Impacto o Deterioro)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-heights'],
+  },
+
+  hito3_epp: {
+    moduleTitle: 'Hito 5 · Entrega, Reposición y Seguimiento de EPP',
+    moduleBadge: 'Hito 5 · Entrega EPP',
+    fieldsLabel: 'Campos Propios del Kardex y Entrega de EPP por Trabajador',
+    fields: [
+      'Cédula / Identificación del Trabajador',
+      'Nombre Completo y Cargo del Trabajador',
+      'Elemento de Protección Personal (EPP) Entregado',
+      'Parte del Cuerpo Protegida (Cabeza, Visual, Auditiva, Respiratoria, Manos, Pies, Caídas)',
+      'Referencia, Marca y Norma Técnica de Certificación (ANSI / NIOSH / NTC)',
+      'Cantidad Entregada y Talla',
+      'Fecha de Entrega y Motivo (Primera Vez, Reposición por Deterioro, Cambio de Cargo)',
+      'Fecha Estimada de Reposición / Vencimiento del EPP',
+      'Constancia y Firma de Recibido del Trabajador',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cédula + Nombre + EPP Entregado + Fecha de Reposición',
+        description: 'Audita qué trabajadores tienen EPP próximos a reposición o pendientes',
+        fields: [
+          'Cédula / Identificación del Trabajador',
+          'Nombre Completo y Cargo del Trabajador',
+          'Elemento de Protección Personal (EPP) Entregado',
+          'Fecha de Entrega y Motivo (Primera Vez, Reposición por Deterioro, Cambio de Cargo)',
+          'Fecha Estimada de Reposición / Vencimiento del EPP',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-epp'],
+  },
+
+  hito5_registro_quimico: {
+    moduleTitle: 'Hito 5 · Inventario, FDS y Rótulo SGA de Productos Químicos',
+    moduleBadge: 'Hito 5 · Inventario Químico',
+    fieldsLabel: 'Campos Propios del Inventario y Etiquetado SGA de Químicos',
+    fields: [
+      'Nombre Comercial del Producto Químico y Fabricante',
+      'Componentes Peligrosos, N° CAS y N° ONU',
+      'Estado Físico (Líquido, Sólido, Gas, Aerosol) y Cantidad Almacenada',
+      'Área / Proceso de Uso y Lugar de Almacenamiento',
+      'Pictogramas de Peligro SGA / GHS y Palabra de Advertencia',
+      'Frases H (Peligro) y Frases P (Prudencia)',
+      'Disponibilidad y Vigencia de Ficha de Datos de Seguridad (FDS < 5 años)',
+      'Etiquetado SGA en Envase Original y Trasvasado',
+      'EPP Químico Requerido y Medidas de Primeros Auxilios / Derrames',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Producto Químico + CAS + Pictogramas SGA + Vigencia FDS + EPP',
+        description: 'Revisa qué productos químicos tienen FDS vencida o faltante',
+        fields: [
+          'Nombre Comercial del Producto Químico y Fabricante',
+          'Componentes Peligrosos, N° CAS y N° ONU',
+          'Pictogramas de Peligro SGA / GHS y Palabra de Advertencia',
+          'Disponibilidad y Vigencia de Ficha de Datos de Seguridad (FDS < 5 años)',
+          'EPP Químico Requerido y Medidas de Primeros Auxilios / Derrames',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-chemicals'],
+  },
+
+  hito3_vehiculos: {
+    moduleTitle: 'Hito 5 · Hoja de Vida de Automotores e Inspección PESV',
+    moduleBadge: 'Hito 5 · Parque Automotor',
+    fieldsLabel: 'Campos Propios del Parque Automotor e Inspección Preoperacional PESV',
+    fields: [
+      'Placa del Vehículo',
+      'Tipo de Vehículo (Camioneta, Automóvil, Motocicleta, Camión, Maquinaria)',
+      'Marca, Línea, Modelo y Cilindraje',
+      'Conductor Asignado (Cédula, Nombre Completo, Categoría y Vigencia de Licencia de Conducción)',
+      'Fecha de Vencimiento del SOAT',
+      'Fecha de Vencimiento de Revisión Técnico-Mecánica (RTM)',
+      'Póliza de Responsabilidad Civil / Todo Riesgo',
+      'Kilometraje Actual y Próximo Mantenimiento Preventivo (Frenos, Llantas, Luces, Fluidos)',
+      'Resultado de Última Inspección Preoperacional Diaria (Apto / Con Hallazgos / Inmovilizado)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Placa + Conductor (Cédula/Licencia) + Vencimiento SOAT y RTM',
+        description: 'Alerta inmediata de documentos vehiculares o licencias vencidas',
+        fields: [
+          'Placa del Vehículo',
+          'Conductor Asignado (Cédula, Nombre Completo, Categoría y Vigencia de Licencia de Conducción)',
+          'Fecha de Vencimiento del SOAT',
+          'Fecha de Vencimiento de Revisión Técnico-Mecánica (RTM)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-vehicles'],
+  },
+
+  hito5_equipos_emergencia: {
+    moduleTitle: 'Hito 5 · Inventario e Inspección de Equipos de Emergencia',
+    moduleBadge: 'Hito 5 · Equipos Emergencia',
+    fieldsLabel: 'Campos Propios de Extintores, Botiquines, Camillas y Gabinetes',
+    fields: [
+      'Código / ID del Equipo de Emergencia',
+      'Categoría (Extintor, Botiquín, Camilla Rígida, DEA, Alarma, Lavaojos, Kit Derrames)',
+      'Agente / Capacidad (Multipropósito ABC, Solkaflam, CO2, Agua a Presión — Libras)',
+      'Sede, Piso y Ubicación Exacta',
+      'Fecha de Última Recarga / Mantenimiento',
+      'Fecha de Vencimiento / Próxima Recarga',
+      'Estado de Inspección Física (Manómetro, Pin de Seguridad, Manguera, Señalización, Acceso Libre)',
+      'Insumos del Botiquín (Vencimiento de Gasas, Suero, Inmovilizadores)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Código + Tipo (Extintor/Botiquín) + Ubicación + Fecha Vencimiento Recarga',
+        description: 'Detecta extintores o insumos de botiquín vencidos por sede',
+        fields: [
+          'Código / ID del Equipo de Emergencia',
+          'Categoría (Extintor, Botiquín, Camilla Rígida, DEA, Alarma, Lavaojos, Kit Derrames)',
+          'Sede, Piso y Ubicación Exacta',
+          'Fecha de Vencimiento / Próxima Recarga',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-equipos-emergencia'],
+  },
+
+  // ═══ HITO 6: CULTURA, ESCUELA E INNOVACIÓN (6 APLICATIVOS) ═══
+  hito6_comunicaciones_sst: {
+    moduleTitle: 'Hito 6 · Plan y Matriz de Comunicaciones SST (Art. 2.2.4.6.14)',
+    moduleBadge: 'Hito 6 · Comunicaciones',
+    fieldsLabel: 'Campos Propios de la Matriz de Comunicaciones Internas y Externas SST',
+    fields: [
+      'Tema o Información SST a Comunicar',
+      'Tipo de Comunicación (Interna / Externa / Autorreporte de Condiciones)',
+      'Emisor y Público Objetivo (Trabajadores, Contratistas, COPASST, Visitantes, ARL)',
+      'Canal y Medio Utilizado (Correo, Cartelera, Charla 5 Min, QR, WAPPY)',
+      'Frecuencia y Fecha de Divulgación',
+      'Evidencia y Registro de Recepción de Inquietudes / Aportes de Trabajadores',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Tema SST + Público Objetivo + Canal + Evidencia',
+        description: 'Resumen del plan de comunicaciones ejecutado',
+        fields: [
+          'Tema o Información SST a Comunicar',
+          'Emisor y Público Objetivo (Trabajadores, Contratistas, COPASST, Visitantes, ARL)',
+          'Canal y Medio Utilizado (Correo, Cartelera, Charla 5 Min, QR, WAPPY)',
+          'Evidencia y Registro de Recepción de Inquietudes / Aportes de Trabajadores',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-comunicaciones'],
+  },
+
+  hito5_capacitaciones: {
+    moduleTitle: 'Hito 6 · Programa Anual de Capacitación, Inducción y Reinducción SG-SST',
+    moduleBadge: 'Hito 6 · Capacitaciones',
+    fieldsLabel: 'Campos y Resultados Propios del Programa de Capacitación SG-SST',
+    fields: [
+      'Tema de la Capacitación / Inducción / Reinducción',
+      'Eje Temático Asociado a Peligros Prioritarios (Alturas, Vial, Ergonomía, Químicos, Emergencias)',
+      'Objetivo de Aprendizaje y Duración (Horas)',
+      'Fecha Programada vs. Fecha Ejecutada',
+      'Capacitador / Entidad (ARL, Profesional SST, Externo)',
+      'Población Objetivo y Listado de Asistentes (Cédula, Nombre y Cargo)',
+      'Indicador de Cobertura (%) y Cumplimiento del Cronograma (%)',
+      'Evaluación de Eficacia y Calificación Promedio',
+      'Estado de la Actividad (Ejecutada / Programada / Pendiente)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Capacitaciones Pendientes + Cobertura (%) + Trabajadores Faltantes',
+        description: 'Identifica qué capacitaciones o inducciones faltan por ejecutar',
+        fields: [
+          'Tema de la Capacitación / Inducción / Reinducción',
+          'Fecha Programada vs. Fecha Ejecutada',
+          'Población Objetivo y Listado de Asistentes (Cédula, Nombre y Cargo)',
+          'Indicador de Cobertura (%) y Cumplimiento del Cronograma (%)',
+          'Estado de la Actividad (Ejecutada / Programada / Pendiente)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-programa-capacitaciones'],
+  },
+
+  hito6_ruta_aprendizaje: {
+    moduleTitle: 'Hito 6 · Rutas de Aprendizaje y Certificación (Academia WAPPY LMS)',
+    moduleBadge: 'Hito 6 · Academia LMS',
+    fieldsLabel: 'Campos Propios de Avance y Certificados en Academia WAPPY LMS',
+    fields: [
+      'Curso / Ruta de Aprendizaje LMS',
+      'Trabajador Inscrito (Cédula, Nombre Completo y Cargo)',
+      'Porcentaje de Avance del Curso (%)',
+      'Lecciones Completadas y Pendientes',
+      'Calificación Obtenida en Evaluaciones / Quizzes',
+      'Estado de Certificación (Certificado Emitido / En Curso / Sin Iniciar)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cédula + Nombre + Curso LMS + % Avance + Certificado',
+        description: 'Verifica quiénes ya aprobaron sus cursos obligatorios en el LMS',
+        fields: [
+          'Trabajador Inscrito (Cédula, Nombre Completo y Cargo)',
+          'Curso / Ruta de Aprendizaje LMS',
+          'Porcentaje de Avance del Curso (%)',
+          'Estado de Certificación (Certificado Emitido / En Curso / Sin Iniciar)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-programa-capacitaciones'],
+  },
+
+  hito4_actos_condiciones: {
+    moduleTitle: 'Hito 6 · Reporte de Actos y Condiciones Inseguras en Campo',
+    moduleBadge: 'Hito 6 · Reportes Campo',
+    fieldsLabel: 'Campos Propios de Reportes de Actos y Condiciones Inseguras',
+    fields: [
+      'ID y Fecha del Reporte',
+      'Clasificación (Acto Inseguro / Condición Insegura / Casi-Accidente)',
+      'Trabajador que Reporta (Cédula, Nombre y Cargo)',
+      'Sede, Área o Lugar Exacto del Hallazgo',
+      'Descripción Detallada del Hallazgo y Evidencia Fotográfica',
+      'Nivel de Riesgo / Prioridad (Alta / Media / Baja)',
+      'Acción Correctiva Inmediata Propuesta y Responsable',
+      'Estado del Reporte (Abierto / En Gestión / Cerrado)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Solo Reportes Abiertos (Prioridad Alta/Media) + Ubicación + Acción',
+        description: 'Filtra hallazgos de campo sin cerrar para gestión inmediata',
+        fields: [
+          'Clasificación (Acto Inseguro / Condición Insegura / Casi-Accidente)',
+          'Sede, Área o Lugar Exacto del Hallazgo',
+          'Descripción Detallada del Hallazgo y Evidencia Fotográfica',
+          'Nivel de Riesgo / Prioridad (Alta / Media / Baja)',
+          'Estado del Reporte (Abierto / En Gestión / Cerrado)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-reporte-actos'],
+  },
+
+  hito6_simulacros_emergencia: {
+    moduleTitle: 'Hito 6 · Gestión y Evaluación de Simulacros de Emergencia',
+    moduleBadge: 'Hito 6 · Simulacros',
+    fieldsLabel: 'Campos Propios de Planeación y Evaluación de Simulacros',
+    fields: [
+      'Fecha, Hora y Escenario del Simulacro (Sismo, Incendio, Fuga, Evacuación Total)',
+      'Sede Evaluada y Número Total de Personas Evacuadas',
+      'Tiempo Total de Salida y Llegada al Punto de Encuentro (Minutos y Segundos)',
+      'Desempeño de la Brigada, Sistema de Alarma y Rutas de Evacuación',
+      'Fallos u Oportunidades de Mejora Detectadas durante el Simulacro',
+      'Plan de Acción Post-Simulacro y Acta Oficial',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Escenario + Evacuados + Tiempo de Respuesta + Oportunidades de Mejora',
+        description: 'Síntesis del informe anual de simulacro (Art. 2.2.4.6.25)',
+        fields: [
+          'Fecha, Hora y Escenario del Simulacro (Sismo, Incendio, Fuga, Evacuación Total)',
+          'Sede Evaluada y Número Total de Personas Evacuadas',
+          'Tiempo Total de Salida y Llegada al Punto de Encuentro (Minutos y Segundos)',
+          'Fallos u Oportunidades de Mejora Detectadas durante el Simulacro',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-simulacros-emergencia'],
+  },
+
+  hito6_app_builder: {
+    moduleTitle: 'Hito 6 · Creador de Aplicativos y Formularios SST (App Builder)',
+    moduleBadge: 'Hito 6 · App Builder',
+    fieldsLabel: 'Campos del Micro-Aplicativo Personalizado SST',
+    fields: [
+      'Nombre del Micro-Aplicativo / Inspección Personalizada',
+      'Campos Capturados en Formulario',
+      'Registros Recibidos y Tabulación de Respuestas',
+      'Hallazgos y Alertas Generadas',
+    ],
+    quickCombos: [],
+    reportTags: ['sgsst-live-editor'],
+  },
+
+  // ═══ HITO 7: AUDITORÍA, CAUSALIDAD Y MEJORA CONTINUA (6 APLICATIVOS) ═══
+  hito7_estadisticas_atel: {
+    moduleTitle: 'Hito 7 · Gestión Integral de Ausentismo e Indicadores ATEL (Res. 0312 Art. 30)',
+    moduleBadge: 'Hito 7 · Ausentismo & ATEL',
+    fieldsLabel: 'Indicadores Oficiales Res. 0312 Art. 30 y Registros de Ausentismo',
+    fields: [
+      'Período / Mes y Año Analizado',
+      'Frecuencia de Accidentalidad (N° AT en el mes / N° Trabajadores x 100)',
+      'Severidad de Accidentalidad (Días de incapacidad por AT + días cargados / N° Trabajadores x 100)',
+      'Proporción de Accidentes de Trabajo Mortales (%)',
+      'Prevalencia de la Enfermedad Laboral (Casos nuevos y antiguos EL / Trabajadores x 100.000)',
+      'Incidencia de la Enfermedad Laboral (Casos nuevos EL / Trabajadores x 100.000)',
+      'Ausentismo por Causa Médica (Días de ausencia por incapacidad laboral o común / Días programados x 100)',
+      'Registro Individual de Incapacidades (Cédula, Nombre, Cargo, Tipo AT/EL/EG, Diagnóstico CIE-10, Días Perdidos, Prórrogas)',
+      'Análisis de Tendencia y Costos de Ausentismo',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Los 6 Indicadores Mínimos Res. 0312 Art. 30',
+        description: 'Frecuencia, Severidad, Mortalidad, Prevalencia, Incidencia y Ausentismo',
+        fields: [
+          'Frecuencia de Accidentalidad (N° AT en el mes / N° Trabajadores x 100)',
+          'Severidad de Accidentalidad (Días de incapacidad por AT + días cargados / N° Trabajadores x 100)',
+          'Proporción de Accidentes de Trabajo Mortales (%)',
+          'Prevalencia de la Enfermedad Laboral (Casos nuevos y antiguos EL / Trabajadores x 100.000)',
+          'Incidencia de la Enfermedad Laboral (Casos nuevos EL / Trabajadores x 100.000)',
+          'Ausentismo por Causa Médica (Días de ausencia por incapacidad laboral o común / Días programados x 100)',
+        ],
+      },
+      {
+        label: '⚡ Cédula + Nombre + Diagnóstico CIE-10 + Días de Incapacidad',
+        description: 'Listado nominal de trabajadores con incapacidades o ausentismo recurrente',
+        fields: [
+          'Registro Individual de Incapacidades (Cédula, Nombre, Cargo, Tipo AT/EL/EG, Diagnóstico CIE-10, Días Perdidos, Prórrogas)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-estadisticas-atel'],
+  },
+
+  hito7_investigacion_atel: {
+    moduleTitle: 'Hito 7 · Investigación de Accidentes e Incidentes de Trabajo (Res. 1401 de 2007)',
+    moduleBadge: 'Hito 7 · Investigación ATEL',
+    fieldsLabel: 'Campos, Causalidad y Plan de Acción Propios de Investigación ATEL',
+    fields: [
+      'Datos del Trabajador Accidentado (Cédula, Nombre Completo, Edad, Cargo, Antigüedad, EPS y ARL)',
+      'Clasificación del Evento (Incidente / Accidente Leve / Accidente Grave / Mortal) y N° Radicado FURAT',
+      'Fecha, Hora, Jornada, Lugar Exacto y Descripción Detallada del Evento',
+      'Naturaleza de la Lesión, Parte del Cuerpo Afectada, Agente y Mecanismo del Accidente',
+      'Días de Incapacidad Iniciales y Testigos Entrevistados',
+      'Causas Inmediatas: Actos Subestándar (Inseguros) y Condiciones Subestándar (Ambientales)',
+      'Causas Básicas: Factores Personales y Factores del Trabajo (Metodología Árbol de Causas / 5 Porqués / Ishikawa)',
+      'Medidas de Intervención (En la Fuente, en el Medio y en el Trabajador) con Responsables y Fechas',
+      'Equipo Investigador (Jefe Inmediato, Representante COPASST, Responsable SST y Profesional con Licencia en AT Grave)',
+      'Lección Aprendida para Socialización',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Trabajador (Cédula/Nombre) + Evento + Causas Básicas/Inmediatas + Plan de Acción',
+        description: 'Síntesis completa de la investigación conforme a la Resolución 1401 de 2007',
+        fields: [
+          'Datos del Trabajador Accidentado (Cédula, Nombre Completo, Edad, Cargo, Antigüedad, EPS y ARL)',
+          'Clasificación del Evento (Incidente / Accidente Leve / Accidente Grave / Mortal) y N° Radicado FURAT',
+          'Causas Inmediatas: Actos Subestándar (Inseguros) y Condiciones Subestándar (Ambientales)',
+          'Causas Básicas: Factores Personales y Factores del Trabajo (Metodología Árbol de Causas / 5 Porqués / Ishikawa)',
+          'Medidas de Intervención (En la Fuente, en el Medio y en el Trabajador) con Responsables y Fechas',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-investigacion-atel'],
+  },
+
+  hito7_acpm: {
+    moduleTitle: 'Hito 7 · Tablero Kanban de Acciones Correctivas, Preventivas y de Mejora (ACPM)',
+    moduleBadge: 'Hito 7 · Kanban ACPM',
+    fieldsLabel: 'Campos Propios del Centro de Control Kanban ACPM',
+    fields: [
+      'Código / ID de la Acción y Fecha de Apertura',
+      'Fuente del Hallazgo (Auditoría Interna, Diagnóstico 0312, Investigación ATEL, COPASST, Inspección, Alta Dirección)',
+      'Tipo de Acción (Correctiva / Preventiva / de Mejora)',
+      'Descripción del Hallazgo o No Conformidad y Análisis de Causa Raíz',
+      'Descripción del Plan de Acción Propuesto',
+      'Responsable de Ejecución y Recursos Asignados',
+      'Fecha Límite de Compromiso / Vencimiento',
+      'Estado en Kanban (Pendiente, En Proceso, En Verificación, Cerrada, Vencida)',
+      'Evidencia Documental de Cierre y Verificación de Eficacia',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Solo Acciones ACPM Abiertas o Vencidas + Responsable + Fecha Límite',
+        description: 'Ideal para recordatorios automáticos de tareas pendientes por correo',
+        fields: [
+          'Fuente del Hallazgo (Auditoría Interna, Diagnóstico 0312, Investigación ATEL, COPASST, Inspección, Alta Dirección)',
+          'Descripción del Plan de Acción Propuesto',
+          'Responsable de Ejecución y Recursos Asignados',
+          'Fecha Límite de Compromiso / Vencimiento',
+          'Estado en Kanban (Pendiente, En Proceso, En Verificación, Cerrada, Vencida)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-diagnostico', 'sgsst-auditoria'],
+  },
+
+  hito7_auditoria: {
+    moduleTitle: 'Hito 7 · Informe de Auditoría Anual del SG-SST (Art. 2.2.4.6.29 y 2.2.4.6.30)',
+    moduleBadge: 'Hito 7 · Auditoría Anual',
+    fieldsLabel: 'Campos, Hallazgos y No Conformidades del Informe de Auditoría SG-SST',
+    fields: [
+      'Alcance de la Auditoría, Fecha y Equipo Auditor (Con Participación del COPASST)',
+      'Evaluación de los 22 Puntos de Alcance Obligatorio (Dec. 1072 Art. 2.2.4.6.30)',
+      'Conformidades y Fortalezas Evidenciadas en el Sistema',
+      'No Conformidades Mayores y Menores Detectadas (Numeral y Evidencia Objetiva)',
+      'Observaciones y Oportunidades de Mejora de Auditoría',
+      'Conclusiones de Eficacia del SG-SST y Plan de Cierre hacia ACPM',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ No Conformidades + Observaciones + Plan de Cierre ACPM',
+        description: 'Extrae únicamente los hallazgos abiertos de la auditoría anual',
+        fields: [
+          'No Conformidades Mayores y Menores Detectadas (Numeral y Evidencia Objetiva)',
+          'Observaciones y Oportunidades de Mejora de Auditoría',
+          'Conclusiones de Eficacia del SG-SST y Plan de Cierre hacia ACPM',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-auditoria'],
+  },
+
+  hito7_alta_direccion: {
+    moduleTitle: 'Hito 7 · Revisión por la Alta Dirección (24 Ítems Dec. 1072 Art. 2.2.4.6.31)',
+    moduleBadge: 'Hito 7 · Alta Dirección',
+    fieldsLabel: 'Campos y Decisiones Gerenciales de la Revisión por la Alta Dirección',
+    fields: [
+      'Fecha de Revisión, Período Evaluado y Participantes de la Alta Dirección',
+      'Verificación de los 24 Aspectos Obligatorios del Art. 2.2.4.6.31 (Dec. 1072)',
+      'Cumplimiento de la Política, Objetivos, Plan de Trabajo Anual y Presupuesto SST',
+      'Resultado de Indicadores de Accidentalidad, Enfermedad Laboral y Ausentismo',
+      'Estado de Investigación ATEL, COPASST, Inspecciones y Auditorías Previas',
+      'Decisiones Estratégicas de la Gerencia, Nuevos Recursos y Metas Aprobadas',
+      'Acta Firmada por el Representante Legal y Comunicación al COPASST y Responsable SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Evaluación de los 24 Ítems + Decisiones Gerenciales + Presupuesto Aprobado',
+        description: 'Resumen gerencial para el Representante Legal y COPASST',
+        fields: [
+          'Verificación de los 24 Aspectos Obligatorios del Art. 2.2.4.6.31 (Dec. 1072)',
+          'Cumplimiento de la Política, Objetivos, Plan de Trabajo Anual y Presupuesto SST',
+          'Decisiones Estratégicas de la Gerencia, Nuevos Recursos y Metas Aprobadas',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-alta-direccion'],
+  },
+
+  hito7_investigacion_profunda: {
+    moduleTitle: 'Hito 7 · Investigación Profunda de Doctrina y Jurisprudencia SST',
+    moduleBadge: 'Hito 7 · Doctrina SST',
+    fieldsLabel: 'Campos Propios de Investigación Jurídica y Técnica Profunda SST',
+    fields: [
+      'Pregunta / Caso Jurídico o Técnico Investigado',
+      'Normativa Vigente, Sentencias (Corte Constitucional / CSJ) y Conceptos MinTrabajo',
+      'Análisis de Responsabilidad Civil, Laboral, Administrativa y Penal en SST',
+      'Conclusiones y Dictamen Jurídico-Técnico Aplicable a la Empresa',
+    ],
+    quickCombos: [],
+    reportTags: ['sgsst-investigacion-profunda'],
+  },
+
+  // ═══ HITO 8: INTELIGENCIA ARTIFICIAL & ORÁCULO PREDICTIVO (1 APLICATIVO) ═══
+  hito8_predictivo: {
+    moduleTitle: 'Hito 8 · Centro de Inteligencia Predictiva y Gemelo Digital SST',
+    moduleBadge: 'Hito 8 · IA Predictiva',
+    fieldsLabel: 'Indicadores, Radares y Alertas del Centro de Inteligencia Predictiva',
+    fields: [
+      'Score Global de Salud y Blindaje del SG-SST (%)',
+      'Radar de los 9 Dominios del SG-SST (Gobernanza, Salud, Ergonómico, Psicosocial, Vial, Químico, Alturas, Emergencias, Auditoría)',
+      'Alertas de Riesgo Letal / Crítico por Trabajador (Cédula, Nombre, Cargo y Cruce Clínico-Operativo)',
+      'Alertas de Choque Osteomuscular y Cardiovascular por Exigencia del Cargo',
+      'Predicción de Vencimientos Críticos (Exámenes EMO, Cursos Alturas, SOAT/RTM, Extintores)',
+      'Recomendaciones Preventivas Priorizadas por el Oráculo IA',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Alertas Letales y Clínicas por Trabajador (Cédula + Nombre + Cargo)',
+        description: 'Extrae los cruces predictivos de alto riesgo individual',
+        fields: [
+          'Alertas de Riesgo Letal / Crítico por Trabajador (Cédula, Nombre, Cargo y Cruce Clínico-Operativo)',
+          'Alertas de Choque Osteomuscular y Cardiovascular por Exigencia del Cargo',
+          'Recomendaciones Preventivas Priorizadas por el Oráculo IA',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-predictivo-ia'],
+  },
+};
+
+/**
+ * Resuelve los metadatos completos (campos reales, combos quirúrgicos 1 clic e historial de informes)
+ * para cualquier nodo del lienzo (aplicativos de los 8 Hitos, extractores, conectores, memorias o salidas).
+ */
+export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModuleMetadata {
+  const raw = (nodeId || '').trim();
+  const cleanId = raw.replace(
+    /^(trigger_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/,
+    '',
+  );
+
+  // 1. Coincidencia directa o por sgsstAppId en los 50 aplicativos de los 8 Hitos
+  if (MODULE_METADATA_MAP[cleanId]) {
+    return MODULE_METADATA_MAP[cleanId];
+  }
+  const matchedHitoDef = HITO_APP_NODES.find(
+    (h) => h.id === cleanId || h.sgsstAppId === cleanId || h.id === raw || h.sgsstAppId === raw,
+  );
+  if (matchedHitoDef && MODULE_METADATA_MAP[matchedHitoDef.id]) {
+    return MODULE_METADATA_MAP[matchedHitoDef.id];
+  }
+
+  // 2. Alias de Extractores y Conectores de Motores Somos SST hacia sus aplicativos reales
+  if (cleanId === 'extract_sst_workers' || cleanId === 'somos_sst_trabajadores') {
+    return {
+      ...MODULE_METADATA_MAP.hito2_perfil_socio,
+      moduleTitle: 'Extraer Trabajadores, Perfil Sociodemográfico y Expedientes (Somos SST)',
+      moduleBadge: 'Extractor · Expedientes SST',
+      reportTags: ['sgsst-perfil-sociodemografico', 'sgsst-condiciones-salud', 'sgsst-bio-ipevar'],
+    };
+  }
+  if (cleanId === 'matriz_ipevar') {
+    return MODULE_METADATA_MAP.hito2_matriz_ipevar;
+  }
+  if (cleanId === 'matriz_pesv') {
+    return MODULE_METADATA_MAP.hito3_matriz_pesv;
+  }
+  if (cleanId === 'matriz_compatibilidad') {
+    return MODULE_METADATA_MAP.hito3_quimicos_sga;
+  }
+  if (cleanId === 'consultar_analitica_psicosocial') {
+    return MODULE_METADATA_MAP.hito4_psicosocial;
+  }
+  if (cleanId === 'consultar_analitica_actos_condiciones') {
+    return MODULE_METADATA_MAP.hito4_actos_condiciones;
+  }
+  if (cleanId === 'cursos_lms') {
+    return MODULE_METADATA_MAP.hito6_ruta_aprendizaje;
+  }
+  if (cleanId === 'acpm_task') {
+    return MODULE_METADATA_MAP.hito7_acpm;
+  }
+  if (cleanId === 'extract_sst_app') {
+    return {
+      moduleTitle: 'Extraer Datos de Aplicativo / Resumen 360° (Somos SST)',
+      moduleBadge: 'Extractor · 8 Hitos SST',
+      fieldsLabel: 'Datos y Resultados a Extraer de los Aplicativos de Somos SST',
+      fields: [
+        'Puntaje Diagnóstico Res. 0312 (%) y Brechas No Cumple',
+        'Listado de Trabajadores (Cédula, Nombre Completo y Cargo)',
+        'Certificados de Afiliación (EPS, ARL, AFP y Planilla PILA)',
+        'Vencimiento de Exámenes Médicos (EMO) y Restricciones Activas',
+        'Tarjetas Preventivas y FIT Score de Compatibilidad Cargo-Persona',
+        'Peligros Críticos (Nivel I y II) de Matriz IPEVR GTC-45',
+        'Hallazgos Viales PESV y Documentos Vehiculares (SOAT/RTM)',
+        'Inventario Químico e Incompatibilidades SGA',
+        'Actas y Compromisos Pendientes del COPASST / Convivencia',
+        'Acciones Abiertas o Vencidas en Tablero Kanban ACPM',
+      ],
+      quickCombos: [
+        {
+          label: '⚡ Solo Cédula + Nombre + Certificados Afiliación (EPS/ARL/AFP)',
+          description: 'Extracción ligera de trabajadores y seguridad social',
+          fields: [
+            'Listado de Trabajadores (Cédula, Nombre Completo y Cargo)',
+            'Certificados de Afiliación (EPS, ARL, AFP y Planilla PILA)',
+          ],
+        },
+        {
+          label: '⚡ Resumen de Vencimientos Críticos (EMO + SOAT/RTM + ACPM)',
+          description: 'Solo alertas próximas a vencer en la empresa',
+          fields: [
+            'Vencimiento de Exámenes Médicos (EMO) y Restricciones Activas',
+            'Hallazgos Viales PESV y Documentos Vehiculares (SOAT/RTM)',
+            'Acciones Abiertas o Vencidas en Tablero Kanban ACPM',
+          ],
+        },
+      ],
+      reportTags: ['sgsst-diagnostico', 'sgsst-perfil-sociodemografico', 'sgsst-matriz-ipevar'],
+    };
+  }
+
+  // 3. Empresa Activa / Memoria de Empresa
+  if (cleanId.includes('empresa') || cleanId === 'wappy_memory_company') {
+    return {
+      moduleTitle: 'Datos y Contexto de la Empresa Activa (Somos SST)',
+      moduleBadge: 'Empresa Activa SST',
+      fieldsLabel: 'Campos Propios del Perfil de la Empresa Activa',
+      fields: [
+        'Razón Social y NIT',
+        'Código CIIU y Actividad Económica',
+        'Clase de Riesgo ARL (Nivel I a V) y Nombre de la ARL',
+        'Número Total de Trabajadores y Distribución por Sede',
+        'Sedes / Centros de Trabajo y Ciudad',
+        'Nombre y Cédula del Representante Legal',
+        'Nombre y Licencia del Responsable del SG-SST',
+      ],
+      quickCombos: [
+        {
+          label: '⚡ Razón Social + NIT + Riesgo ARL + Total Trabajadores',
+          description: 'Datos esenciales de encabezado normativo',
+          fields: [
+            'Razón Social y NIT',
+            'Clase de Riesgo ARL (Nivel I a V) y Nombre de la ARL',
+            'Número Total de Trabajadores y Distribución por Sede',
+          ],
+        },
+      ],
+      reportTags: ['sgsst-diagnostico'],
+    };
+  }
+
+  // 4. Google Drive / OneDrive / Carpeta Local en PC / Google Sheets / Google Docs
+  if (
+    cleanId.includes('drive') ||
+    cleanId.includes('onedrive') ||
+    cleanId.includes('pc_folder') ||
+    cleanId.includes('sheets') ||
+    cleanId.includes('docs')
+  ) {
+    return {
+      moduleTitle: 'Extracción de Archivos y Documentos (Drive / OneDrive / Carpeta PC)',
+      moduleBadge: 'Conector Documental',
+      fieldsLabel: 'Qué Datos o Soportes Extraer de los Archivos sin Saturar el Flujo',
+      fields: [
+        'Cédula / Identificación y Nombre del Trabajador en el Documento',
+        'Certificados de Afiliación (EPS, ARL, AFP, CCF y Planilla PILA)',
+        'Concepto de Aptitud Médica (EMO) y Fecha de Examen',
+        'Certificados de Trabajo en Alturas y Capacitaciones',
+        'Tablas y Filas de Hojas de Cálculo (.xlsx / Google Sheets / CSV)',
+        'Nombre del Archivo, Carpeta y Fecha de Modificación',
+        'Firmas y Validez del Soporte Documental',
+      ],
+      quickCombos: [
+        {
+          label: '⚡ Solo Cédula + Nombre + Certificados de Afiliación (EPS/ARL/AFP)',
+          description: 'Verifica certificados de afiliación por cédula sin leer texto innecesario',
+          fields: [
+            'Cédula / Identificación y Nombre del Trabajador en el Documento',
+            'Certificados de Afiliación (EPS, ARL, AFP, CCF y Planilla PILA)',
+          ],
+        },
+        {
+          label: '⚡ Cédula + Nombre + Concepto EMO + Curso Alturas',
+          description: 'Valida soportes médicos y de alturas en carpetas de trabajadores',
+          fields: [
+            'Cédula / Identificación y Nombre del Trabajador en el Documento',
+            'Concepto de Aptitud Médica (EMO) y Fecha de Examen',
+            'Certificados de Trabajo en Alturas y Capacitaciones',
+          ],
+        },
+      ],
+      reportTags: [],
+    };
+  }
+
+  // 5. Gmail / Correo Electrónico
+  if (cleanId.includes('gmail') || cleanId.includes('email')) {
+    return {
+      moduleTitle: 'Conector de Correo Electrónico (Gmail)',
+      moduleBadge: 'Conector Email',
+      fieldsLabel: 'Campos del Correo Electrónico a Procesar o Incluir',
+      fields: [
+        'Asunto del Correo',
+        'Remitente y Correo de Origen',
+        'Fecha y Hora de Recepción',
+        'Cédula y Nombre del Trabajador Mencionado',
+        'Archivos Adjuntos (Incapacidades, Certificados EPS/ARL, FURAT, Actas PDF)',
+        'Resumen Ejecutivo en Tablas HTML',
+        'Solo Correos No Leídos de las Últimas 24 Horas',
+      ],
+      quickCombos: [
+        {
+          label: '⚡ Solo Correos No Leídos + Cédula/Nombre + Adjuntos PDF',
+          description: 'Ideal para procesar incapacidades o certificados recibidos por correo',
+          fields: [
+            'Asunto del Correo',
+            'Cédula y Nombre del Trabajador Mencionado',
+            'Archivos Adjuntos (Incapacidades, Certificados EPS/ARL, FURAT, Actas PDF)',
+            'Solo Correos No Leídos de las Últimas 24 Horas',
+          ],
+        },
+      ],
+      reportTags: [],
+    };
+  }
+
+  // 6. Web Scraping con Antigravity (Script)
+  if (cleanId.includes('scraping') || cleanId.includes('web_scraper')) {
+    return {
+      moduleTitle: 'Web Scraping con Antigravity (Script Python / Node / Playwright)',
+      moduleBadge: 'Script Antigravity',
+      fieldsLabel: 'Qué Elementos Extraer de la Página Web',
+      fields: [
+        'Títulos y Encabezados (H1/H2)',
+        'Tablas de Datos Extraídas',
+        'Enlaces y Documentos PDF',
+        'Resoluciones / Normas Nuevas',
+        'Estado de Afiliación / Consulta por Cédula',
+        'Precios / Tarifas / Indicadores',
+        'Texto Completo Limpio (Markdown)',
+        'Capturas de Pantalla (Chrome MCP)',
+      ],
+      quickCombos: [
+        {
+          label: '⚡ Solo Tablas de Datos + Enlaces PDF',
+          description: 'Extrae únicamente datos tabulares y documentos descargables',
+          fields: ['Tablas de Datos Extraídas', 'Enlaces y Documentos PDF'],
+        },
+      ],
+      reportTags: [],
+    };
+  }
+
+  // 7. Búsqueda en la Web en Vivo
+  if (cleanId.includes('web_search') || cleanId.includes('busqueda') || cleanId.includes('search_node')) {
+    return {
+      moduleTitle: 'Búsqueda en la Web en Tiempo Real',
+      moduleBadge: 'Motor Web en Vivo',
+      fieldsLabel: 'Criterios y Campos a Extraer de la Búsqueda Web',
+      fields: [
+        'Fuentes Oficiales (.gov.co / MinTrabajo / INS / ARL)',
+        'Últimas Resoluciones, Decretos y Circulares Vigentes',
+        'Citas con URL Verificada y Fecha de Publicación',
+        'Resumen Comparativo en Tabla Markdown',
+        'Jurisprudencia y Conceptos Técnicos Aplicables',
+      ],
+      quickCombos: [],
+      reportTags: [],
+    };
+  }
+
+  // 8. Skills, Reglas, Sub-Agentes y Memorias
+  if (cleanId.includes('skill') || shape === 'custom_skill') {
+    return {
+      moduleTitle: 'Nodo de Skill (SKILL.md)',
+      moduleBadge: 'Habilidad Procedural',
+      fieldsLabel: 'Directivas de la Skill a Aplicar',
+      fields: [
+        'Aplicar Procedimiento Paso a Paso',
+        'Validar Formato de Salida',
+        'Ejecutar Checklist Técnico Normativo',
+        'Incluir Plantilla Oficial WAPPY',
+      ],
+      quickCombos: [],
+      reportTags: [],
+    };
+  }
+
+  if (cleanId.includes('rule') || cleanId.includes('regla') || shape === 'custom_rule') {
+    return {
+      moduleTitle: 'Nodo de Regla Obligatoria (Guardrail)',
+      moduleBadge: 'Regla de Control',
+      fieldsLabel: 'Restricciones Activas de la Regla',
+      fields: [
+        'Cero Invención de Datos (Estricto)',
+        'Extraer Solo los Campos Seleccionados (No Saturar)',
+        'Anonimizar Datos Clínicos Sensibles (Ley 1581 / Res. 2346)',
+        'Citar Numeral Exacto de la Norma Colombiana',
+        'Bloquear Envío si Faltan Soportes Reales',
+      ],
+      quickCombos: [],
+      reportTags: [],
+    };
+  }
+
+  if (shape === 'circle_memory' || cleanId.startsWith('wappy_memory') || cleanId.startsWith('wappy_rag')) {
+    return {
+      moduleTitle: 'Memoria Conectada al Agente IA',
+      moduleBadge: 'Memoria del Agente',
+      fieldsLabel: 'Elementos de Memoria a Inyectar',
+      fields: [
+        'Datos de Empresa Activa (NIT, CIIU, Nivel de Riesgo ARL y Sedes)',
+        'Bitácora de Ejecución Previa (Evitar Duplicar Registros Procesados)',
+        'Marco Normativo (Decreto 1072, Res. 0312, GTC-45, Res. 2764 y PESV)',
+        'Protocolos y Cuadernos Documentales en Google NotebookLM',
+      ],
+      quickCombos: [],
+      reportTags: ['sgsst-live-editor'],
+    };
+  }
+
+  return {
+    moduleTitle: getNodeDefById(cleanId)?.label || 'Configuración de Datos del Nodo',
+    moduleBadge: getNodeDefById(cleanId)?.badge || 'Nodo del Flujo',
+    fieldsLabel: 'Campos y Resultados a Procesar en este Nodo',
+    fields: [
+      'Resumen Ejecutivo',
+      'Tabla Detallada de Hallazgos',
+      'Cédula y Nombre Completo de Trabajadores Relacionados',
+      'Alertas Críticas y Vencimientos',
+      'Recomendaciones y Plan de Acción SST',
+    ],
+    quickCombos: [],
+    reportTags: [],
+  };
+}
+
+/**
+ * Campos rápidos seleccionables con 1 clic al pulsar sobre cualquier nodo del lienzo.
  */
 export function getPresetFieldsForNode(nodeId: string, shape?: string): string[] {
-  if (nodeId.includes('scraping') || nodeId.includes('web_scraper')) {
-    return [
-      'Títulos y Encabezados (H1/H2)',
-      'Tablas de Datos Extraídas',
-      'Enlaces y Documentos PDF',
-      'Resoluciones / Normas Nuevas',
-      'Precios / Tarifas / Indicadores',
-      'Texto Completo Limpio (Markdown)',
-      'Capturas de Pantalla (Chrome MCP)',
-    ];
-  }
-  if (nodeId.includes('web_search') || nodeId.includes('busqueda')) {
-    return [
-      'Fuentes Oficiales (.gov.co / MinTrabajo)',
-      'Últimas Noticias y Circulares',
-      'Citas con URL Verificada',
-      'Resumen Comparativo en Tabla',
-      'Jurisprudencia y Conceptos Técnicos',
-    ];
-  }
-  if (nodeId.includes('skill') || shape === 'custom_skill') {
-    return [
-      'Aplicar Procedimiento Paso a Paso',
-      'Validar Formato de Salida',
-      'Ejecutar Checklist Técnico',
-      'Incluir Plantilla Oficial',
-    ];
-  }
-  if (nodeId.includes('rule') || nodeId.includes('regla') || shape === 'custom_rule') {
-    return [
-      'Cero Invención de Datos (Estricto)',
-      'Anonimizar Datos Sensibles (Ley 1581)',
-      'Citar Artículo Exacto de la Norma',
-      'Bloquear Envío si Faltan Soportes',
-    ];
-  }
-  if (
-    nodeId.includes('trabajadores') ||
-    nodeId.includes('sociodemografico') ||
-    nodeId.includes('perfiles_cargo')
-  ) {
-    return [
-      'Nombre Completo',
-      'Cédula / Documento',
-      'Edad',
-      'Cargo / Puesto',
-      'ARL / EPS / AFP',
-      'Sede / Área',
-      'Vencimiento Examen Médico',
-      'Restricciones Médicas',
-      'Correo y Teléfono',
-    ];
-  }
-  if (nodeId.includes('gmail') || nodeId.includes('email')) {
-    return [
-      'Asunto del Correo',
-      'Remitente',
-      'Cuerpo del Mensaje',
-      'Archivos Adjuntos (PDF/Excel)',
-      'Solo Correos No Leídos',
-      'Fecha de Recepción',
-    ];
-  }
-  if (nodeId.includes('drive') || nodeId.includes('onedrive') || nodeId.includes('local_folder')) {
-    return [
-      'Nombre del Archivo',
-      'Hojas de Cálculo (.xlsx / CSV)',
-      'Documentos PDF / Word',
-      'Soportes y Cédulas',
-      'Fecha de Modificación',
-      'Contenido de Texto Extraído',
-    ];
-  }
-  if (nodeId.includes('empresa')) {
-    return [
-      'Razón Social y NIT',
-      'Código CIIU y Actividad Económica',
-      'Nivel de Riesgo ARL (I a V)',
-      'Total de Trabajadores',
-      'Sedes y Centros de Trabajo',
-      'Responsable del SG-SST',
-    ];
-  }
-  if (nodeId.includes('comites') || nodeId.includes('copasst')) {
-    return [
-      'Generar Acta de Reunión COPASST / CCL',
-      'Compromisos y Responsables',
-      'Verificación de Quórum',
-      'Seguimiento de Actas Anteriores',
-    ];
-  }
-  if (shape === 'square_hito' || nodeId.startsWith('hito') || nodeId.includes('matriz')) {
-    return [
-      'Consultar Brechas y Pendientes',
-      'Crear Nuevos Registros',
-      'Actualizar Estado de Cumplimiento',
-      'Generar Plan de Acción',
-      'Calcular % de Avance',
-    ];
-  }
-  if (shape === 'circle_memory' || nodeId.startsWith('wappy_memory') || nodeId.startsWith('wappy_rag')) {
-    return [
-      'Datos de Empresa Activa (NIT, CIIU, Riesgo)',
-      'Evitar Duplicar Registros Previos',
-      'Cruzar con Decreto 1072 y Res. 0312',
-      'Consultar Protocolos en NotebookLM',
-    ];
-  }
-  return [
-    'Resumen Ejecutivo',
-    'Tabla Detallada de Hallazgos',
-    'Alertas Críticas / Vencimientos',
-    'Recomendaciones Normativas SST',
-  ];
+  return getNodeModuleMetadata(nodeId, shape).fields;
 }
 
 /**
@@ -1696,7 +3501,18 @@ export function buildPromptFromWorkflowNodes(
     if (!cfg) return '';
     const parts: string[] = [];
     if (cfg.fields && cfg.fields.length > 0) {
-      parts.push(`Campos requeridos: [${cfg.fields.join(', ')}]`);
+      const isStrict = cfg.strictFieldFilter !== false;
+      parts.push(
+        isStrict
+          ? `🎯 EXTRACCIÓN QUIRÚRGICA (leer y pasar ÚNICAMENTE estos campos sin saturar el flujo): [${cfg.fields.join(', ')}]`
+          : `Campos requeridos: [${cfg.fields.join(', ')}]`,
+      );
+    }
+    if (cfg.includeLatestReport) {
+      parts.push(`📜 Incluir Último Informe del Historial del Aplicativo`);
+    }
+    if (cfg.selectedReportTitles && cfg.selectedReportTitles.length > 0) {
+      parts.push(`📜 Informes del Historial Seleccionados: [${cfg.selectedReportTitles.join(' ; ')}]`);
     }
     if (cfg.targetUrl?.trim()) {
       parts.push(`URL(s) Objetivo: "${cfg.targetUrl.trim()}"`);

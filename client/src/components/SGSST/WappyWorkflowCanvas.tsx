@@ -65,6 +65,7 @@ import {
   DEFAULT_CONSTRUCTION_APP_IDS,
   isWorkflowNodeUnderConstruction,
   getNodeDefById,
+  getNodeModuleMetadata,
   getPresetFieldsForNode,
   normalizeTriggersList,
   normalizeExtractorsList,
@@ -431,6 +432,27 @@ export default function WappyWorkflowCanvas({
   // Nodo actualmente abierto en el Inspector de Configuración por Nodo (al hacer clic sobre cualquier nodo)
   const [activeConfigNodeKey, setActiveConfigNodeKey] = useState<string | null>(null);
   const [customFieldInput, setCustomFieldInput] = useState<string>('');
+  const [fieldSearchQuery, setFieldSearchQuery] = useState<string>('');
+  const [nodeReportHistory, setNodeReportHistory] = useState<{
+    loading: boolean;
+    conversations: Array<{
+      conversationId: string;
+      title: string;
+      updatedAt: string;
+      tags?: string[];
+    }>;
+    previewConvId: string | null;
+    previewTitle: string | null;
+    previewText: string | null;
+    previewLoading: boolean;
+  }>({
+    loading: false,
+    conversations: [],
+    previewConvId: null,
+    previewTitle: null,
+    previewText: null,
+    previewLoading: false,
+  });
   const pointerDownClientRef = useRef<{ x: number; y: number } | null>(null);
 
   // Estado sincronizado con Somos SST (/api/sgsst/config) de qué aplicativos están "En Construcción"
@@ -1495,6 +1517,120 @@ export default function WappyWorkflowCanvas({
       setSelectedNodeKeys([]);
     } else {
       setSelectedNodeKeys(allKeys);
+    }
+  };
+
+  // Cargar automáticamente el Historial de Informes en vivo (/api/sgsst/diagnostico/report-history) cuando se selecciona un nodo de Aplicativo SST
+  useEffect(() => {
+    setFieldSearchQuery('');
+    if (!activeConfigNodeKey || readOnly) {
+      setNodeReportHistory({
+        loading: false,
+        conversations: [],
+        previewConvId: null,
+        previewTitle: null,
+        previewText: null,
+        previewLoading: false,
+      });
+      return;
+    }
+
+    const activeNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
+    if (!activeNode) return;
+
+    const meta = getNodeModuleMetadata(activeNode.nodeId, activeNode.shape);
+    if (!meta.reportTags || meta.reportTags.length === 0) {
+      setNodeReportHistory({
+        loading: false,
+        conversations: [],
+        previewConvId: null,
+        previewTitle: null,
+        previewText: null,
+        previewLoading: false,
+      });
+      return;
+    }
+
+    let cancelled = false;
+    setNodeReportHistory((prev) => ({
+      ...prev,
+      loading: true,
+      previewConvId: null,
+      previewTitle: null,
+      previewText: null,
+    }));
+
+    const queryString = meta.reportTags.map((t) => `tags=${encodeURIComponent(t)}`).join('&');
+    axios
+      .get(`/api/sgsst/diagnostico/report-history?${queryString}`)
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res.data?.conversations) ? res.data.conversations : [];
+        setNodeReportHistory((prev) => ({
+          ...prev,
+          loading: false,
+          conversations: list,
+        }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setNodeReportHistory((prev) => ({
+          ...prev,
+          loading: false,
+          conversations: [],
+        }));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConfigNodeKey, readOnly, visualNodes]);
+
+  // Previsualizar el contenido de un informe guardado directamente desde la configuración del nodo
+  const handlePreviewNodeReport = async (convId: string, title: string) => {
+    if (nodeReportHistory.previewConvId === convId) {
+      setNodeReportHistory((prev) => ({
+        ...prev,
+        previewConvId: null,
+        previewTitle: null,
+        previewText: null,
+      }));
+      return;
+    }
+    setNodeReportHistory((prev) => ({
+      ...prev,
+      previewConvId: convId,
+      previewTitle: title,
+      previewText: null,
+      previewLoading: true,
+    }));
+    try {
+      const res = await axios.get(`/api/messages/${encodeURIComponent(convId)}`);
+      const msgs = Array.isArray(res.data) ? res.data : res.data?.messages || [];
+      const assistantMsg =
+        [...msgs].reverse().find((m: any) => !m.isCreatedByUser && (m.text || m.content)) ||
+        msgs[msgs.length - 1];
+      let rawText = assistantMsg?.text || '';
+      if (!rawText && Array.isArray(assistantMsg?.content)) {
+        rawText = assistantMsg.content.map((p: any) => p?.text || '').join('\n');
+      }
+      const cleanText = String(rawText || 'Informe sin texto visible.')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      setNodeReportHistory((prev) => ({
+        ...prev,
+        previewLoading: false,
+        previewText: cleanText.slice(0, 900) + (cleanText.length > 900 ? '…' : ''),
+      }));
+    } catch (_) {
+      setNodeReportHistory((prev) => ({
+        ...prev,
+        previewLoading: false,
+        previewText: 'No se pudo cargar la vista previa de este informe.',
+      }));
     }
   };
 
@@ -3807,8 +3943,17 @@ export default function WappyWorkflowCanvas({
 
         const currentCfg: CanvasNodeConfig =
           workflowNodes?.canvasLayout?.nodeConfigs?.[activeNode.key] || {};
-        const presetFields = getPresetFieldsForNode(activeNode.nodeId, activeNode.shape);
+        const moduleMeta = getNodeModuleMetadata(activeNode.nodeId, activeNode.shape);
+        const presetFields = moduleMeta.fields;
         const selectedFields = currentCfg.fields || [];
+        const selectedReportIds = currentCfg.selectedReportIds || [];
+        const selectedReportTitles = currentCfg.selectedReportTitles || [];
+        const isStrictFilter = currentCfg.strictFieldFilter !== false;
+        const filteredPresetFields = fieldSearchQuery.trim()
+          ? presetFields.filter((f) =>
+              f.toLowerCase().includes(fieldSearchQuery.trim().toLowerCase()),
+            )
+          : presetFields;
         const isExtraAgent = activeNode.key.startsWith('agent_extra_');
         const extraAgentObj = isExtraAgent
           ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === activeNode.key)
@@ -3835,14 +3980,46 @@ export default function WappyWorkflowCanvas({
           const nextFields = exists
             ? selectedFields.filter((f) => f !== fieldLabel)
             : [...selectedFields, fieldLabel];
-          handleUpdateNodeConfig(activeNode.key, { fields: nextFields });
+          handleUpdateNodeConfig(activeNode.key, {
+            fields: nextFields,
+            reportTags: moduleMeta.reportTags,
+          });
+        };
+
+        const applyQuickCombo = (comboFields: string[]) => {
+          const allAlreadySelected =
+            comboFields.length === selectedFields.length &&
+            comboFields.every((cf) => selectedFields.includes(cf));
+          handleUpdateNodeConfig(activeNode.key, {
+            fields: allAlreadySelected ? [] : comboFields,
+            strictFieldFilter: true,
+            reportTags: moduleMeta.reportTags,
+          });
+        };
+
+        const toggleSelectReport = (convId: string, convTitle: string) => {
+          const exists = selectedReportIds.includes(convId);
+          const nextIds = exists
+            ? selectedReportIds.filter((id) => id !== convId)
+            : [...selectedReportIds, convId];
+          const nextTitles = exists
+            ? selectedReportTitles.filter((t) => t !== convTitle)
+            : Array.from(new Set([...selectedReportTitles, convTitle]));
+          handleUpdateNodeConfig(activeNode.key, {
+            selectedReportIds: nextIds,
+            selectedReportTitles: nextTitles,
+            reportTags: moduleMeta.reportTags,
+          });
         };
 
         const handleAddCustomField = () => {
           const val = customFieldInput.trim();
           if (!val) return;
           if (!selectedFields.includes(val)) {
-            handleUpdateNodeConfig(activeNode.key, { fields: [...selectedFields, val] });
+            handleUpdateNodeConfig(activeNode.key, {
+              fields: [...selectedFields, val],
+              reportTags: moduleMeta.reportTags,
+            });
           }
           setCustomFieldInput('');
         };
@@ -4208,26 +4385,120 @@ export default function WappyWorkflowCanvas({
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
-                    1. Selecciona qué Campos o Datos específicos deseas de «{activeNode.title}» (Haz clic para marcar/desmarcar):
-                  </label>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {presetFields.map((fieldLabel) => {
+                {/* 1. SELECCIÓN QUIRÚRGICA DE CAMPOS Y RESULTADOS PROPIOS DEL APLICATIVO */}
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/40 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-extrabold uppercase text-slate-800 dark:text-slate-100">
+                          1. {moduleMeta.fieldsLabel}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-teal-100 dark:bg-teal-950/70 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700">
+                          {selectedFields.length > 0
+                            ? `🎯 ${selectedFields.length} de ${presetFields.length} campos elegidos (Sin Saturar)`
+                            : `${presetFields.length} campos disponibles`}
+                        </span>
+                      </div>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Elige <strong>únicamente</strong> los campos o resultados que necesitas de{' '}
+                        <strong>{moduleMeta.moduleTitle}</strong> (ej. solo <em>Cédula y Nombre Completo</em> o{' '}
+                        <em>Tarjetas Preventivas</em>) para que el nodo no lea ni arrastre información innecesaria en cada paso.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {presetFields.length > 6 && (
+                        <div className="relative">
+                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={fieldSearchQuery}
+                            onChange={(e) => setFieldSearchQuery(e.target.value)}
+                            placeholder="Filtrar campo..."
+                            className="pl-6 pr-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] text-slate-800 dark:text-slate-100 w-32"
+                          />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleUpdateNodeConfig(activeNode.key, {
+                            fields: presetFields,
+                            strictFieldFilter: true,
+                            reportTags: moduleMeta.reportTags,
+                          })
+                        }
+                        className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:border-purple-400"
+                      >
+                        Marcar Todos
+                      </button>
+                      {selectedFields.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleUpdateNodeConfig(activeNode.key, {
+                              fields: [],
+                              reportTags: moduleMeta.reportTags,
+                            })
+                          }
+                          className="px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-[10px] font-bold text-rose-700 dark:text-rose-300"
+                        >
+                          Limpiar ({selectedFields.length})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ⚡ COMBOS RÁPIDOS DE EXTRACCIÓN QUIRÚRGICA (1 CLIC) */}
+                  {moduleMeta.quickCombos && moduleMeta.quickCombos.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-800 dark:text-[#C7F303] mb-1.5 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Combos Rápidos de Extracción Quirúrgica (1 Clic — Evita Saturar el Proceso):
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {moduleMeta.quickCombos.map((combo) => {
+                          const isComboActive =
+                            combo.fields.length === selectedFields.length &&
+                            combo.fields.every((cf) => selectedFields.includes(cf));
+                          return (
+                            <button
+                              key={combo.label}
+                              type="button"
+                              onClick={() => applyQuickCombo(combo.fields)}
+                              title={combo.description}
+                              className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold transition flex items-center gap-1 border ${
+                                isComboActive
+                                  ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                                  : 'bg-white hover:bg-purple-100/70 dark:bg-slate-900 dark:hover:bg-slate-800 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700'
+                              }`}
+                            >
+                              {isComboActive && <Check className="w-3 h-3 stroke-[3]" />}
+                              {combo.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* LISTA DE CHIPS DE CAMPOS Y RESULTADOS PROPIOS DEL APLICATIVO */}
+                  <div className="flex flex-wrap items-center gap-1.5 max-h-48 overflow-y-auto pr-1">
+                    {filteredPresetFields.map((fieldLabel) => {
                       const active = selectedFields.includes(fieldLabel);
                       return (
                         <button
                           key={fieldLabel}
                           type="button"
                           onClick={() => toggleFieldChip(fieldLabel)}
-                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 border ${
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 border text-left ${
                             active
                               ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                              : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                              : 'bg-white hover:bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                           }`}
                         >
-                          {active && <Check className="w-3 h-3 stroke-[3]" />}
-                          {fieldLabel}
+                          {active && <Check className="w-3 h-3 stroke-[3] shrink-0" />}
+                          <span>{fieldLabel}</span>
                         </button>
                       );
                     })}
@@ -4240,36 +4511,194 @@ export default function WappyWorkflowCanvas({
                           onClick={() => toggleFieldChip(customF)}
                           className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-teal-600 text-white border border-teal-600 flex items-center gap-1"
                         >
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          {customF}
+                          <Check className="w-3 h-3 stroke-[3] shrink-0" />
+                          <span>{customF}</span>
                         </button>
                       ))}
                   </div>
 
-                  {/* Agregar campo personalizado */}
-                  <div className="mt-2 flex items-center gap-2 max-w-md">
-                    <input
-                      type="text"
-                      value={customFieldInput}
-                      onChange={(e) => setCustomFieldInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCustomField();
-                        }
-                      }}
-                      placeholder="Escribe otro campo específico (ej: Rh, Teléfono Emergencia) y pulsa +..."
-                      className="flex-1 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] text-slate-800 dark:text-slate-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCustomField}
-                      className="px-2.5 py-1 rounded-xl bg-slate-900 dark:bg-[#C7F303] text-white dark:text-[#0E1300] text-[10.5px] font-extrabold"
-                    >
-                      + Añadir Campo
-                    </button>
+                  {/* Agregar campo personalizado + Switch de Extracción Quirúrgica Estricta */}
+                  <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md">
+                      <input
+                        type="text"
+                        value={customFieldInput}
+                        onChange={(e) => setCustomFieldInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomField();
+                          }
+                        }}
+                        placeholder="Añadir otro campo o columna personalizada y pulsar +..."
+                        className="flex-1 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] text-slate-800 dark:text-slate-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomField}
+                        className="px-2.5 py-1 rounded-xl bg-slate-900 dark:bg-[#C7F303] text-white dark:text-[#0E1300] text-[10.5px] font-extrabold shrink-0"
+                      >
+                        + Añadir Campo
+                      </button>
+                    </div>
+
+                    {selectedFields.length > 0 && (
+                      <label className="flex items-center gap-1.5 text-[10.5px] font-bold text-teal-800 dark:text-teal-300 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={isStrictFilter}
+                          onChange={(e) =>
+                            handleUpdateNodeConfig(activeNode.key, {
+                              strictFieldFilter: e.target.checked,
+                              reportTags: moduleMeta.reportTags,
+                            })
+                          }
+                          className="rounded border-teal-400 text-teal-600 focus:ring-teal-500"
+                        />
+                        <span>
+                          🔒 Modo Quirúrgico Estricto (Extraer <strong>SOLO</strong> estos{' '}
+                          {selectedFields.length} campos para no saturar el flujo)
+                        </span>
+                      </label>
+                    )}
                   </div>
                 </div>
+
+                {/* 1-BIS. 📜 HISTORIAL DE INFORMES GUARDADOS DEL APLICATIVO (SI EL NODO CORRESPONDE A UN APLICATIVO DE SOMOS SST) */}
+                {moduleMeta.reportTags && moduleMeta.reportTags.length > 0 && (
+                  <div className="p-3 rounded-xl border border-teal-300/80 dark:border-teal-800/80 bg-teal-50/40 dark:bg-teal-950/20 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-extrabold uppercase text-teal-900 dark:text-teal-200">
+                              📜 Historial de Informes de «{activeNode.title}»
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-700">
+                              {nodeReportHistory.loading
+                                ? 'Consultando historial...'
+                                : `${nodeReportHistory.conversations.length} informe(s) en la empresa activa`}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400">
+                            Selecciona si deseas que este nodo tome como base el último informe generado en el aplicativo o informes específicos de su historial.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleUpdateNodeConfig(activeNode.key, {
+                            includeLatestReport: !currentCfg.includeLatestReport,
+                            reportTags: moduleMeta.reportTags,
+                          })
+                        }
+                        className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
+                          currentCfg.includeLatestReport
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                            : 'bg-white hover:bg-teal-100/60 dark:bg-slate-900 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-700'
+                        }`}
+                      >
+                        {currentCfg.includeLatestReport && <Check className="w-3 h-3 stroke-[3]" />}
+                        📜 Incluir Siempre el Último Informe del Historial
+                      </button>
+                    </div>
+
+                    {nodeReportHistory.conversations.length > 0 ? (
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                        {nodeReportHistory.conversations.slice(0, 12).map((rep) => {
+                          const isRepSelected = selectedReportIds.includes(rep.conversationId);
+                          const isPreviewing = nodeReportHistory.previewConvId === rep.conversationId;
+                          const dateFormatted = rep.updatedAt
+                            ? new Date(rep.updatedAt).toLocaleDateString('es-CO', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            : '';
+                          return (
+                            <div
+                              key={rep.conversationId}
+                              className={`px-2.5 py-1.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-[11px] transition ${
+                                isRepSelected
+                                  ? 'bg-teal-600/10 dark:bg-teal-900/40 border-teal-500 text-teal-950 dark:text-teal-100'
+                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => toggleSelectReport(rep.conversationId, rep.title)}
+                                className="flex items-center gap-2 text-left flex-1 min-w-0"
+                              >
+                                <span
+                                  className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                                    isRepSelected
+                                      ? 'bg-teal-600 border-teal-600 text-white'
+                                      : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                                  }`}
+                                >
+                                  {isRepSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                </span>
+                                <span className="font-bold truncate">{rep.title}</span>
+                                {dateFormatted && (
+                                  <span className="text-[9.5px] text-slate-400 shrink-0">
+                                    ({dateFormatted})
+                                  </span>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handlePreviewNodeReport(rep.conversationId, rep.title)
+                                }
+                                className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 shrink-0"
+                              >
+                                {isPreviewing ? 'Ocultar Vista Previa' : '👁️ Ver Resumen'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      !nodeReportHistory.loading && (
+                        <div className="text-[10.5px] text-slate-500 dark:text-slate-400 italic">
+                          Aún no hay informes guardados en el historial de «{activeNode.title}» para la empresa activa (puedes activar «Incluir Siempre el Último Informe» para que lo tome apenas se genere).
+                        </div>
+                      )
+                    )}
+
+                    {/* Vista previa en línea del informe seleccionado */}
+                    {nodeReportHistory.previewConvId && (
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-800 text-[11px] text-slate-700 dark:text-slate-200">
+                        <div className="font-extrabold text-teal-700 dark:text-teal-300 mb-1 flex items-center justify-between">
+                          <span>📄 Vista Previa: {nodeReportHistory.previewTitle}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNodeReportHistory((prev) => ({
+                                ...prev,
+                                previewConvId: null,
+                                previewTitle: null,
+                                previewText: null,
+                              }))
+                            }
+                            className="text-[10px] text-slate-400 hover:text-slate-600"
+                          >
+                            Cerrar ✕
+                          </button>
+                        </div>
+                        <p className="text-[10.5px] leading-relaxed text-slate-600 dark:text-slate-300">
+                          {nodeReportHistory.previewLoading
+                            ? 'Cargando contenido del informe...'
+                            : nodeReportHistory.previewText}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
