@@ -382,7 +382,7 @@ export default function WappyAvatarTab() {
             </div>
 
             {/* Botonera de prueba de emociones + Restaurar */}
-            <div className="pt-1 flex flex-wrap items-center justify-center md:justify-start gap-2">
+            <div className="pt-1 flex items-center justify-center md:justify-start gap-2 overflow-x-auto no-scrollbar">
               <ExpandableButton
                 type="button"
                 size="sm"
@@ -396,7 +396,7 @@ export default function WappyAvatarTab() {
                 size="sm"
                 variant="amber"
                 icon={<Brain className="h-3.5 w-3.5" />}
-                label="Pensando"
+                label="Pensar"
                 onClick={() => handleTestEmotion('thinking')}
               />
               <ExpandableButton
@@ -420,7 +420,7 @@ export default function WappyAvatarTab() {
                 size="sm"
                 variant="purple"
                 icon={<Wand2 className="h-3.5 w-3.5" />}
-                label="Usar identidad sugerida del personaje"
+                label="Sugerido"
                 onClick={handleApplyCharacterDefaults}
               />
               {hasCustomOverride && (
@@ -429,7 +429,7 @@ export default function WappyAvatarTab() {
                   size="sm"
                   variant="neutral"
                   icon={<RotateCcw className="h-3.5 w-3.5" />}
-                  label="Restaurar por defecto"
+                  label="Restaurar"
                   onClick={() => saveMutation.mutate({ resetToDefault: true })}
                 />
               )}
@@ -526,24 +526,26 @@ export default function WappyAvatarTab() {
 
       {/* SECTION 2: IDENTIDAD: NOMBRE, SEXO Y VOZ */}
       <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 p-5 shadow-xs space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-              <Volume2 className="h-4 w-4 text-cyan-500" />
+              <Volume2 className="h-4 w-4 text-cyan-500 shrink-0" />
               2. Identidad: Nombre, Sexo y Voz en Vivo
             </h4>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Configura cómo se llama tu asistente, su concordancia gramatical y su timbre de voz en Gemini Live.
+              Configura cómo se llama tu asistente, su género y su voz en vivo.
             </p>
           </div>
-          <ExpandableButton
-            type="button"
-            size="sm"
-            variant="cyan"
-            icon={<Volume2 className="h-3.5 w-3.5" />}
-            label="Probar saludo"
-            onClick={handleTestVoiceGreeting}
-          />
+          <div className="shrink-0">
+            <ExpandableButton
+              type="button"
+              size="sm"
+              variant="cyan"
+              icon={<Volume2 className="h-3.5 w-3.5" />}
+              label="Escuchar"
+              onClick={handleTestVoiceGreeting}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -745,19 +747,19 @@ export default function WappyAvatarTab() {
       </div>
 
       {/* FOOTER: SAVE BUTTON */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-500/30 bg-teal-500/5 dark:bg-teal-950/20 p-4">
-        <div className="text-xs text-slate-600 dark:text-zinc-300">
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-teal-500/30 bg-teal-500/5 dark:bg-teal-950/20 px-4 py-3.5">
+        <div className="min-w-0 flex-1 text-xs text-slate-600 dark:text-zinc-300">
           <span className="font-bold text-teal-700 dark:text-teal-300">Sincronización Instantánea:</span>{' '}
-          Al guardar, tu nuevo avatar se actualizará inmediatamente en toda la plataforma.
+          Se aplica al instante en toda la plataforma.
         </div>
-        <div className="flex items-center gap-2">
+        <div className="shrink-0 flex items-center justify-end">
           <ExpandableButton
             type="button"
             size="md"
             variant="teal"
             disabled={saveMutation.isLoading}
             icon={<Save className="h-4 w-4" />}
-            label={saveMutation.isLoading ? 'Guardando...' : 'Guardar Mi Avatar Wappy'}
+            label={saveMutation.isLoading ? 'Guardando...' : 'Guardar'}
             onClick={() =>
               saveMutation.mutate({
                 avatarId: form.avatarId,
