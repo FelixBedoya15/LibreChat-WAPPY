@@ -382,6 +382,78 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
     badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
+    id: 'scraper_agy_alto_riesgo',
+    label: '🪖 Certificados Alto Riesgo y SENA por Cédula (vía Antigravity)',
+    shortLabel: 'Alto Riesgo & SENA',
+    badge: 'MinTrabajo + SENA AGY',
+    description:
+      'Consulta por Cédula vía Google Antigravity los certificados vigentes de Trabajo en Alturas (Res. 4272/2021) y Espacios Confinados (Res. 0491/2020) en MinTrabajo y Certificados SENA (Sofia Plus), descargando el PDF oficial.',
+    category: 'extractor',
+    toolHint:
+      'Consultar por Cédula vía Google Antigravity en MinTrabajo Centros de Entrenamiento (https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx) y SENA Sofia Plus (https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer)',
+    badgeColor: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+  },
+  {
+    id: 'scraper_agy_arl_directo',
+    label: '🛡️ Certificados de ARL Directos por Cédula (vía Antigravity)',
+    shortLabel: 'Certificados ARL',
+    badge: '5 ARL Directas AGY',
+    description:
+      'Verifica por Cédula directamente en los portales oficiales de ARL SURA, ARL Positiva, ARL Colmena, ARL AXA Colpatria y ARL Seguros Bolívar (sin RUAF) vía Google Antigravity.',
+    category: 'extractor',
+    toolHint:
+      'Verificar afiliación y descargar certificado de ARL por Cédula vía Google Antigravity en ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar',
+    badgeColor: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+  },
+  {
+    id: 'scraper_agy_pensiones_directo',
+    label: '🏦 Fondos de Pensiones Directos — Sin RUAF (vía Antigravity)',
+    shortLabel: 'Pensiones Directo',
+    badge: '5 Fondos Directos AGY',
+    description:
+      'Consulta por Cédula directamente en los 5 fondos de pensiones de Colombia (Porvenir, Protección Certifácil, Colfondos, Skandia y Colpensiones, sin pasar por RUAF) vía Google Antigravity.',
+    category: 'extractor',
+    toolHint:
+      'Consultar afiliación pensional por Cédula directamente en Porvenir, Protección, Colfondos, Skandia y Colpensiones vía Google Antigravity (sin RUAF)',
+    badgeColor: 'bg-teal-50 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 border-teal-300 dark:border-teal-800',
+  },
+  {
+    id: 'scraper_agy_salud_rethus',
+    label: '🏥 Salud EPS (ADRES) y ReTHUS por Cédula (vía Antigravity)',
+    shortLabel: 'ADRES EPS & ReTHUS',
+    badge: 'ADRES + SISPRO AGY',
+    description:
+      'Verifica por Cédula la EPS activa en ADRES (BDUA) y el registro profesional en Salud / SST en ReTHUS (SISPRO) vía Google Antigravity.',
+    category: 'extractor',
+    toolHint:
+      'Consultar por Cédula vía Google Antigravity la afiliación EPS en ADRES (https://www.adres.gov.co/consulte-su-eps) y el registro en ReTHUS SISPRO (https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx)',
+    badgeColor: 'bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-300 dark:border-cyan-800',
+  },
+  {
+    id: 'scraper_agy_vial_pesv',
+    label: '🚗 Seguridad Vial PESV: SIMIT y RUNT por Cédula o Placa (vía Antigravity)',
+    shortLabel: 'SIMIT & RUNT Vial',
+    badge: 'Cédula o Placa AGY',
+    description:
+      'Audita por Cédula (Conductor) o por Placa (Vehículo) comparendos en SIMIT, licencia de conducción en RUNT Persona y SOAT/Tecnomecánica en RUNT Vehículo vía Google Antigravity.',
+    category: 'extractor',
+    toolHint:
+      'Consultar por Cédula o Placa vía Google Antigravity en SIMIT (https://www.fcm.org.co/simit/#/home-public), RUNT Persona (https://www.runt.gov.co/consultaCiudadana/#/consultaPersona) y RUNT Vehículo (https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo)',
+    badgeColor: 'bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800',
+  },
+  {
+    id: 'scraper_agy_antecedentes',
+    label: '⚖️ Antecedentes y Procesos Judiciales por Cédula (vía Antigravity)',
+    shortLabel: 'Antecedentes & Rama',
+    badge: '6 Entes Oficiales AGY',
+    description:
+      'Consulta por Cédula vía Google Antigravity en Rama Judicial, Contraloría (SIBOR), Procuraduría (SIRI), Policía Antecedentes Judiciales, Policía RNMC y Delitos Sexuales (Ley 1918).',
+    category: 'extractor',
+    toolHint:
+      'Consultar por Cédula vía Google Antigravity en Rama Judicial, Contraloría SIBOR, Procuraduría SIRI, Policía Antecedentes, RNMC y Ley 1918 Inhabilidades',
+    badgeColor: 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-300 dark:border-rose-800',
+  },
+  {
     id: 'extract_web_search',
     label: 'Búsqueda en la Web en Tiempo Real (MinTrabajo / SUIN / ARL)',
     shortLabel: 'Búsqueda Web',
@@ -407,6 +479,7 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   content: string;
   targetUrl?: string;
   scriptEngine?: 'python_bs4_playwright' | 'node_cheerio_puppeteer' | 'chrome_devtools_mcp' | 'custom_script';
+  scriptCode?: string;
 }> = [
   // 🧩 SKILLS
   {
@@ -514,6 +587,116 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
       'Ejecuta un script de Web Scraping en tu instancia conectada de Google Antigravity para extraer información estructurada de la URL configurada.',
     targetUrl: 'https://www.mintrabajo.gov.co',
     scriptEngine: 'python_bs4_playwright',
+  },
+  {
+    id: 'scraper_agy_alto_riesgo',
+    nodeType: 'web_scraper',
+    label: '🪖 Nodo AGY: Certificados Alto Riesgo (MinTrabajo Alturas/Confinados) y SENA',
+    shortLabel: 'Alto Riesgo & SENA',
+    subtitle: 'MinTrabajo + SENA (AGY)',
+    content:
+      'Consulta por Cédula vía Google Antigravity en MinTrabajo Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020) y en SENA Sofia Plus, extrayendo tabla histórica y descargando PDFs vigentes.',
+    targetUrl:
+      'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx, https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer',
+    scriptEngine: 'chrome_devtools_mcp',
+    scriptCode: `// 🪖 SCRIPT ANTIGRAVITY: MinTrabajo (Alturas Res. 4272 / Confinados Res. 0491) + SENA (Sofia Plus)
+// 1. MinTrabajo Centros de Entrenamiento:
+//    POST/Navegar a https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx
+//    Seleccionar RadioButtonList1="1" (Persona), TipoDoc="CC", txtNumero=CEDULA, btnConsultar
+//    Extraer grilla #GridView1 (Tipo Curso, Nivel, Centro Entrenamiento, Entrenador, Fecha Fin) y descargar PDF (ImageButton1).
+// 2. SENA Certificados Digitales:
+//    Abrir https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer, ingresar CC y extraer certificados vigentes.`,
+  },
+  {
+    id: 'scraper_agy_arl_directo',
+    nodeType: 'web_scraper',
+    label: '🛡️ Nodo AGY: Certificados de ARL Directos (SURA, Positiva, Colmena, AXA, Bolívar)',
+    shortLabel: 'Certificados ARL',
+    subtitle: '5 ARL Directas (AGY)',
+    content:
+      'Verifica afiliación activa y descarga certificados de ARL por Cédula directamente en los 5 portales oficiales (ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar, sin pasar por RUAF) vía Google Antigravity.',
+    targetUrl:
+      'https://www.arlsura.com/afiliacion/verificar.php, https://www.positivaenlinea.gov.co/nuevo/, https://afiliacionarl.colmenaseguros.com/, https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/, https://www.segurosbolivar.com/arl',
+    scriptEngine: 'chrome_devtools_mcp',
+    scriptCode: `// 🛡️ SCRIPT ANTIGRAVITY: Consulta Directa en las 5 ARL de Colombia (Sin RUAF)
+// Recorre por Cédula (CC) las páginas oficiales directas:
+// 1. ARL SURA: https://www.arlsura.com/afiliacion/verificar.php
+// 2. ARL Positiva: https://www.positivaenlinea.gov.co/nuevo/
+// 3. ARL Colmena: https://afiliacionarl.colmenaseguros.com/
+// 4. ARL AXA Colpatria: https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/
+// 5. ARL Seguros Bolívar: https://www.segurosbolivar.com/arl
+// Devuelve en cuál ARL figura ACTIVO, clase de riesgo (I-V), empleador y certificado PDF.`,
+  },
+  {
+    id: 'scraper_agy_pensiones_directo',
+    nodeType: 'web_scraper',
+    label: '🏦 Nodo AGY: Fondos de Pensiones Directos — Sin RUAF (Porvenir, Protección, Colfondos, Skandia, Colpensiones)',
+    shortLabel: 'Pensiones Directo',
+    subtitle: '5 Fondos Sin RUAF (AGY)',
+    content:
+      'Consulta afiliación pensional por Cédula directamente en los 5 fondos de pensiones de Colombia (Porvenir, Protección Certifácil, Colfondos, Skandia y Colpensiones, sin usar RUAF) vía Google Antigravity.',
+    targetUrl:
+      'https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion, https://www.proteccion.com/portalafiliados/certifacil, https://www.colfondos.com.co/dxp/personas/pensiones-obligatorias/certificado-afiliacion, https://www.skandia.co/consulta-extractos-y-certificados, https://sede.colpensiones.gov.co/tramite/updInfo/72/',
+    scriptEngine: 'chrome_devtools_mcp',
+    scriptCode: `// 🏦 SCRIPT ANTIGRAVITY: Barrido en los 5 Fondos de Pensiones Directos (Sin RUAF)
+// Consulta con TipoDoc="CC" y Número de Cédula en:
+// 1. Porvenir (RAIS): https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion
+// 2. Protección Certifácil (RAIS): https://www.proteccion.com/portalafiliados/certifacil
+// 3. Colfondos (RAIS): https://www.colfondos.com.co/dxp/personas/pensiones-obligatorias/certificado-afiliacion
+// 4. Skandia (RAIS): https://www.skandia.co/consulta-extractos-y-certificados
+// 5. Colpensiones (RPM): https://sede.colpensiones.gov.co/tramite/updInfo/72/
+// Identifica en cuál fondo está afiliado activo y descarga el certificado oficial en PDF.`,
+  },
+  {
+    id: 'scraper_agy_salud_rethus',
+    nodeType: 'web_scraper',
+    label: '🏥 Nodo AGY: Salud EPS (ADRES) y Talento Humano en Salud (ReTHUS SISPRO)',
+    shortLabel: 'ADRES EPS & ReTHUS',
+    subtitle: 'EPS + ReTHUS (AGY)',
+    content:
+      'Consulta por Cédula vía Google Antigravity la afiliación EPS activa en ADRES (BDUA) y la inscripción/vigencia profesional en ReTHUS (SISPRO MinSalud).',
+    targetUrl:
+      'https://www.adres.gov.co/consulte-su-eps, https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
+    scriptEngine: 'chrome_devtools_mcp',
+    scriptCode: `// 🏥 SCRIPT ANTIGRAVITY: Consulta ADRES (EPS BDUA) + ReTHUS (SISPRO Talento Humano en Salud)
+// 1. ADRES: Abrir https://www.adres.gov.co/consulte-su-eps -> Ingresar CC + Cédula -> Extraer EPS, Régimen, Estado y Tipo Afiliado.
+// 2. ReTHUS SISPRO: Abrir https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx
+//    -> Ingresar CC + Cédula -> Extraer profesión/ocupación autorizada, acto administrativo y estado de vigencia.`,
+  },
+  {
+    id: 'scraper_agy_vial_pesv',
+    nodeType: 'web_scraper',
+    label: '🚗 Nodo AGY: Seguridad Vial PESV (SIMIT y RUNT por Cédula o Placa)',
+    shortLabel: 'SIMIT & RUNT Vial',
+    subtitle: 'Cédula o Placa (AGY)',
+    content:
+      'Audita por Cédula (Conductor) y/o por Placa (Vehículo) comparendos y multas en SIMIT, licencias de conducción en RUNT Persona y vigencia de SOAT y Revisión Técnico-Mecánica en RUNT Vehículo vía Google Antigravity.',
+    targetUrl:
+      'https://www.fcm.org.co/simit/#/home-public, https://www.runt.gov.co/consultaCiudadana/#/consultaPersona, https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo',
+    scriptEngine: 'chrome_devtools_mcp',
+    scriptCode: `// 🚗 SCRIPT ANTIGRAVITY: Auditoría Vial PESV (SIMIT + RUNT Conductor por Cédula + RUNT Vehículo por Placa)
+// 1. SIMIT (Cédula o Placa): https://www.fcm.org.co/simit/#/home-public (#txtBusqueda) -> Extraer comparendos, multas, acuerdos de pago y paz y salvo.
+// 2. RUNT por Cédula (Conductor): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona -> Extraer categorías de licencia (A2, B1, C1, C2, C3), vencimiento y restricciones.
+// 3. RUNT por Placa (Vehículo): https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo -> Extraer estado del SOAT, Revisión Técnico-Mecánica y propiedad.`,
+  },
+  {
+    id: 'scraper_agy_antecedentes',
+    nodeType: 'web_scraper',
+    label: '⚖️ Nodo AGY: Antecedentes y Procesos Judiciales (Rama, Contraloría, Procuraduría, Policía)',
+    shortLabel: 'Antecedentes & Rama',
+    subtitle: '6 Entes Judiciales (AGY)',
+    content:
+      'Ejecuta debida diligencia por Cédula vía Google Antigravity en Rama Judicial (Procesos), Contraloría (SIBOR), Procuraduría (SIRI), Policía Antecedentes Judiciales, Policía RNMC (Medidas Correctivas) y Delitos Sexuales (Ley 1918).',
+    targetUrl:
+      'https://consultaprocesos.ramajudicial.gov.co/Procesos/Index, https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx, https://apps.procuraduria.gov.co/webcert/Certificado.aspx, https://antecedentes.policia.gov.co:7005/WebJudicial/, https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx, https://inhabilidades.policia.gov.co:8080/',
+    scriptEngine: 'chrome_devtools_mcp',
+    scriptCode: `// ⚖️ SCRIPT ANTIGRAVITY: Antecedentes Fiscales, Disciplinarios, Judiciales y Procesos por Cédula
+// 1. Rama Judicial (Procesos): https://consultaprocesos.ramajudicial.gov.co/Procesos/Index
+// 2. Contraloría General (SIBOR): https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx
+// 3. Procuraduría General (SIRI): https://apps.procuraduria.gov.co/webcert/Certificado.aspx
+// 4. Policía Nacional (Antecedentes Judiciales): https://antecedentes.policia.gov.co:7005/WebJudicial/
+// 5. Policía Nacional (RNMC Medidas Correctivas): https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx
+// 6. Policía Nacional (Inhabilidades Ley 1918): https://inhabilidades.policia.gov.co:8080/`,
   },
   {
     id: 'search_node_live_web',
@@ -6962,6 +7145,224 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     ],
     reportTags: [],
   },
+  // ═══ 6 NODOS ESPECIALIZADOS DE CONSULTA OFICIAL POR CÉDULA Y PLACA VÍA GOOGLE ANTIGRAVITY (SIN RUAF) ═══
+  scraper_agy_alto_riesgo: {
+    moduleTitle: '🪖 Scraper Antigravity · Certificados de Alto Riesgo (MinTrabajo Alturas/Confinados) y SENA por Cédula',
+    moduleBadge: 'AGY · Alto Riesgo & SENA',
+    fieldsLabel: 'Portales y Certificados Oficiales a Extraer por Cédula vía Google Antigravity',
+    fields: [
+      'MinTrabajo — Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+      'MinTrabajo — Descarga de Constancia Oficial en PDF (Último Reentrenamiento Vigente y Coordinador)',
+      'MinTrabajo — Nivel del Curso (Trabajador Autorizado, Reentrenamiento Sectorial, Coordinador, Administrativo)',
+      'MinTrabajo — Nombre del Centro de Entrenamiento, NIT, Entrenador y Fechas de Inicio/Finalización',
+      'SENA — Sofia Plus / Certificados Digitales por Cédula: https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer',
+      'SENA — Títulos Técnicos/Tecnólogos, Curso de 50 Horas / 20 Horas SG-SST y Competencias Laborales',
+      'Alerta Automática si el Reentrenamiento de Alturas supera los 12 meses o no registra curso',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ MinTrabajo Alturas/Confinados (Tabla Completa + Descarga PDF Vigente) + SENA',
+        description: 'Consulta ambos portales oficiales por Cédula y descarga las constancias en PDF',
+        fields: [
+          'MinTrabajo — Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+          'MinTrabajo — Descarga de Constancia Oficial en PDF (Último Reentrenamiento Vigente y Coordinador)',
+          'MinTrabajo — Nivel del Curso (Trabajador Autorizado, Reentrenamiento Sectorial, Coordinador, Administrativo)',
+          'SENA — Sofia Plus / Certificados Digitales por Cédula: https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer',
+          'Alerta Automática si el Reentrenamiento de Alturas supera los 12 meses o no registra curso',
+        ],
+      },
+      {
+        label: '⚡ Solo MinTrabajo Centros de Entrenamiento (Alturas Res. 4272 y Confinados Res. 0491)',
+        description: 'Consulta directa sin CAPTCHA en app2.mintrabajo.gov.co',
+        fields: [
+          'MinTrabajo — Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+          'MinTrabajo — Descarga de Constancia Oficial en PDF (Último Reentrenamiento Vigente y Coordinador)',
+          'MinTrabajo — Nombre del Centro de Entrenamiento, NIT, Entrenador y Fechas de Inicio/Finalización',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-tareas-alto-riesgo', 'sgsst-equipo-alturas'],
+  },
+  scraper_agy_arl_directo: {
+    moduleTitle: '🛡️ Scraper Antigravity · Certificados de ARL Directos por Cédula (Sin RUAF)',
+    moduleBadge: 'AGY · 5 ARL Directas',
+    fieldsLabel: 'Portales Directos de ARL a Consultar por Cédula vía Google Antigravity',
+    fields: [
+      'ARL SURA (Verificación de Afiliación y Certificado): https://www.arlsura.com/afiliacion/verificar.php',
+      'ARL Positiva (Certificado de Afiliación en Línea): https://www.positivaenlinea.gov.co/nuevo/',
+      'ARL Colmena Seguros (Consulta de Afiliación ARL): https://afiliacionarl.colmenaseguros.com/',
+      'ARL AXA Colpatria (Certificados ESST): https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/',
+      'ARL Seguros Bolívar (Certificado de Afiliación ARL): https://www.segurosbolivar.com/arl',
+      'Identificación de Estado Activo/Inactivo, Clase de Riesgo (I a V) y Razón Social del Empleador',
+      'Descarga del Certificado Oficial de Afiliación ARL en PDF',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Barrido Completo en las 5 ARL Directas (SURA, Positiva, Colmena, AXA y Bolívar)',
+        description: 'Verifica en cuál ARL está activo el trabajador o contratista y descarga el PDF',
+        fields: [
+          'ARL SURA (Verificación de Afiliación y Certificado): https://www.arlsura.com/afiliacion/verificar.php',
+          'ARL Positiva (Certificado de Afiliación en Línea): https://www.positivaenlinea.gov.co/nuevo/',
+          'ARL Colmena Seguros (Consulta de Afiliación ARL): https://afiliacionarl.colmenaseguros.com/',
+          'ARL AXA Colpatria (Certificados ESST): https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/',
+          'ARL Seguros Bolívar (Certificado de Afiliación ARL): https://www.segurosbolivar.com/arl',
+          'Identificación de Estado Activo/Inactivo, Clase de Riesgo (I a V) y Razón Social del Empleador',
+          'Descarga del Certificado Oficial de Afiliación ARL en PDF',
+        ],
+      },
+      {
+        label: '⚡ Solo ARL SURA + ARL Positiva + ARL Colmena',
+        description: 'Consulta rápida en las 3 ARL de mayor volumen de afiliados',
+        fields: [
+          'ARL SURA (Verificación de Afiliación y Certificado): https://www.arlsura.com/afiliacion/verificar.php',
+          'ARL Positiva (Certificado de Afiliación en Línea): https://www.positivaenlinea.gov.co/nuevo/',
+          'ARL Colmena Seguros (Consulta de Afiliación ARL): https://afiliacionarl.colmenaseguros.com/',
+          'Descarga del Certificado Oficial de Afiliación ARL en PDF',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-seguridad-social'],
+  },
+  scraper_agy_pensiones_directo: {
+    moduleTitle: '🏦 Scraper Antigravity · Fondos de Pensiones Directos por Cédula — Sin RUAF',
+    moduleBadge: 'AGY · 5 Fondos Pensión',
+    fieldsLabel: 'Páginas Oficiales Directas de Fondos de Pensiones (Sin RUAF) a Consultar por Cédula',
+    fields: [
+      'Porvenir (Certificado de Afiliación Directo): https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion',
+      'Protección — Certifácil (Pensión y Cesantías por Cédula): https://www.proteccion.com/portalafiliados/certifacil',
+      'Colfondos (Certificado de Afiliación Pensión Obligatoria): https://www.colfondos.com.co/dxp/personas/pensiones-obligatorias/certificado-afiliacion',
+      'Skandia (Consulta de Certificados de Afiliación): https://www.skandia.co/consulta-extractos-y-certificados',
+      'Colpensiones (Certificado de Afiliación / No Pensión RPM): https://sede.colpensiones.gov.co/tramite/updInfo/72/',
+      'Detección Exacta del Fondo Activo (RAIS vs. Colpensiones RPM) y Fecha de Afiliación',
+      'Descarga del Certificado Oficial de Pensión en PDF',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Barrido en los 5 Fondos Directos Sin RUAF (Porvenir, Protección, Colfondos, Skandia y Colpensiones)',
+        description: 'Recorre los 5 portales oficiales hasta hallar el fondo activo y descargar su PDF',
+        fields: [
+          'Porvenir (Certificado de Afiliación Directo): https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion',
+          'Protección — Certifácil (Pensión y Cesantías por Cédula): https://www.proteccion.com/portalafiliados/certifacil',
+          'Colfondos (Certificado de Afiliación Pensión Obligatoria): https://www.colfondos.com.co/dxp/personas/pensiones-obligatorias/certificado-afiliacion',
+          'Skandia (Consulta de Certificados de Afiliación): https://www.skandia.co/consulta-extractos-y-certificados',
+          'Colpensiones (Certificado de Afiliación / No Pensión RPM): https://sede.colpensiones.gov.co/tramite/updInfo/72/',
+          'Detección Exacta del Fondo Activo (RAIS vs. Colpensiones RPM) y Fecha de Afiliación',
+          'Descarga del Certificado Oficial de Pensión en PDF',
+        ],
+      },
+      {
+        label: '⚡ Solo Fondos Privados RAIS (Porvenir + Protección + Colfondos + Skandia)',
+        description: 'Verifica afiliación en los 4 fondos privados de pensiones y cesantías',
+        fields: [
+          'Porvenir (Certificado de Afiliación Directo): https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion',
+          'Protección — Certifácil (Pensión y Cesantías por Cédula): https://www.proteccion.com/portalafiliados/certifacil',
+          'Colfondos (Certificado de Afiliación Pensión Obligatoria): https://www.colfondos.com.co/dxp/personas/pensiones-obligatorias/certificado-afiliacion',
+          'Skandia (Consulta de Certificados de Afiliación): https://www.skandia.co/consulta-extractos-y-certificados',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-seguridad-social'],
+  },
+  scraper_agy_salud_rethus: {
+    moduleTitle: '🏥 Scraper Antigravity · Salud EPS (ADRES) y Talento Humano en Salud (ReTHUS SISPRO)',
+    moduleBadge: 'AGY · ADRES & ReTHUS',
+    fieldsLabel: 'Portales de Salud y Registro Profesional a Consultar por Cédula vía Google Antigravity',
+    fields: [
+      'ADRES — BDUA (Consulta de EPS Activa por Cédula): https://www.adres.gov.co/consulte-su-eps',
+      'ADRES — Entidad EPS, Régimen (Contributivo / Subsidiado), Estado de Afiliación y Tipo de Afiliado',
+      'ReTHUS — SISPRO MinSalud (Talento Humano en Salud): https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
+      'ReTHUS — Profesión/Ocupación Autorizada (Médico, Enfermero, Psicólogo, Fisioterapeuta, Profesional SST en Salud)',
+      'ReTHUS — Acto Administrativo / Autorización de Ejercicio, Entidad Reportadora y Estado Vigente',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Consulta Completa: EPS en ADRES (BDUA) + Registro Profesional en ReTHUS (SISPRO)',
+        description: 'Verifica afiliación a salud e idoneidad profesional en salud/SST',
+        fields: [
+          'ADRES — BDUA (Consulta de EPS Activa por Cédula): https://www.adres.gov.co/consulte-su-eps',
+          'ADRES — Entidad EPS, Régimen (Contributivo / Subsidiado), Estado de Afiliación y Tipo de Afiliado',
+          'ReTHUS — SISPRO MinSalud (Talento Humano en Salud): https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
+          'ReTHUS — Profesión/Ocupación Autorizada (Médico, Enfermero, Psicólogo, Fisioterapeuta, Profesional SST en Salud)',
+          'ReTHUS — Acto Administrativo / Autorización de Ejercicio, Entidad Reportadora y Estado Vigente',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-seguridad-social', 'sgsst-condiciones-salud'],
+  },
+  scraper_agy_vial_pesv: {
+    moduleTitle: '🚗 Scraper Antigravity · Seguridad Vial PESV: SIMIT y RUNT por Cédula o Placa',
+    moduleBadge: 'AGY · SIMIT & RUNT',
+    fieldsLabel: 'Consultas Viales PESV por Cédula (Conductor) y por Placa (Vehículo) vía Google Antigravity',
+    fields: [
+      'SIMIT por Cédula o Placa (Comparendos, Multas y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
+      'RUNT por Cédula (Conductor — Vigencia y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
+      'RUNT por Placa (Vehículo — Vigencia de SOAT y Revisión Técnico-Mecánica RTM): https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo',
+      'Alerta de Licencia de Conducción Vencida o Suspendida y Comparendos Pendientes de Pago',
+      'Alerta de Vehículo con SOAT o Revisión Técnico-Mecánica Vencida o Próxima a Vencer (≤ 30 días)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Auditoría PESV Completa: SIMIT (Cédula/Placa) + RUNT Conductor (Cédula) + RUNT Vehículo (Placa)',
+        description: 'Cruza conductor y vehículo para el Plan Estratégico de Seguridad Vial Res. 20223040040595',
+        fields: [
+          'SIMIT por Cédula o Placa (Comparendos, Multas y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
+          'RUNT por Cédula (Conductor — Vigencia y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
+          'RUNT por Placa (Vehículo — Vigencia de SOAT y Revisión Técnico-Mecánica RTM): https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo',
+          'Alerta de Licencia de Conducción Vencida o Suspendida y Comparendos Pendientes de Pago',
+          'Alerta de Vehículo con SOAT o Revisión Técnico-Mecánica Vencida o Próxima a Vencer (≤ 30 días)',
+        ],
+      },
+      {
+        label: '⚡ Solo Conductor por Cédula (RUNT Licencia de Conducción + SIMIT Comparendos)',
+        description: 'Verificación de conductores antes de ingreso o asignación de vehículo',
+        fields: [
+          'SIMIT por Cédula o Placa (Comparendos, Multas y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
+          'RUNT por Cédula (Conductor — Vigencia y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
+          'Alerta de Licencia de Conducción Vencida o Suspendida y Comparendos Pendientes de Pago',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-pesv'],
+  },
+  scraper_agy_antecedentes: {
+    moduleTitle: '⚖️ Scraper Antigravity · Antecedentes y Procesos Judiciales por Cédula (6 Entes Oficiales)',
+    moduleBadge: 'AGY · 6 Antecedentes',
+    fieldsLabel: 'Portales Judiciales, Disciplinarios, Fiscales y Policiales a Consultar por Cédula',
+    fields: [
+      'Rama Judicial — Consulta Nacional Unificada de Procesos Judiciales: https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
+      'Contraloría General de la República — Certificado de Antecedentes Fiscales (SIBOR): https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx',
+      'Procuraduría General de la Nación — Certificado de Antecedentes Disciplinarios (SIRI): https://apps.procuraduria.gov.co/webcert/Certificado.aspx',
+      'Policía Nacional — Antecedentes Judiciales: https://antecedentes.policia.gov.co:7005/WebJudicial/',
+      'Policía Nacional — RNMC (Registro Nacional de Medidas Correctivas Código de Policía): https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx',
+      'Policía Nacional — Consulta de Inhabilidades por Delitos Sexuales (Ley 1918 de 2018): https://inhabilidades.policia.gov.co:8080/',
+      'Consolidado de Hallazgos (Sin Antecedentes vs. Alertas Activas) y Descarga de Certificados PDF',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Barrido Completo en los 6 Entes Oficiales (Rama Judicial, Contraloría, Procuraduría y 3 Policía)',
+        description: 'Debida diligencia integral de ingreso y contratación por Cédula vía Antigravity',
+        fields: [
+          'Rama Judicial — Consulta Nacional Unificada de Procesos Judiciales: https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
+          'Contraloría General de la República — Certificado de Antecedentes Fiscales (SIBOR): https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx',
+          'Procuraduría General de la Nación — Certificado de Antecedentes Disciplinarios (SIRI): https://apps.procuraduria.gov.co/webcert/Certificado.aspx',
+          'Policía Nacional — Antecedentes Judiciales: https://antecedentes.policia.gov.co:7005/WebJudicial/',
+          'Policía Nacional — RNMC (Registro Nacional de Medidas Correctivas Código de Policía): https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx',
+          'Policía Nacional — Consulta de Inhabilidades por Delitos Sexuales (Ley 1918 de 2018): https://inhabilidades.policia.gov.co:8080/',
+          'Consolidado de Hallazgos (Sin Antecedentes vs. Alertas Activas) y Descarga de Certificados PDF',
+        ],
+      },
+      {
+        label: '⚡ Certificados Básicos de Contratación (Policía Antecedentes + Procuraduría SIRI + Contraloría SIBOR)',
+        description: 'Los 3 certificados de antecedentes estándar exigidos en contratación',
+        fields: [
+          'Contraloría General de la República — Certificado de Antecedentes Fiscales (SIBOR): https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx',
+          'Procuraduría General de la Nación — Certificado de Antecedentes Disciplinarios (SIRI): https://apps.procuraduria.gov.co/webcert/Certificado.aspx',
+          'Policía Nacional — Antecedentes Judiciales: https://antecedentes.policia.gov.co:7005/WebJudicial/',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
 };
 
 /**
@@ -6977,7 +7378,7 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
   }
 
   const cleanId = raw.replace(
-    /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/,
+    /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
     '',
   );
 

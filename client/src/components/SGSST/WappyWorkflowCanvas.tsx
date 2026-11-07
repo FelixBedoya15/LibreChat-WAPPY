@@ -378,7 +378,25 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('alta_direccion') || id.includes('dofa') || id.includes('plan_trabajo') || id.includes('presupuesto') || id.includes('indicadores')) {
     return <BarChart3 className={`${sizeClass} text-purple-600`} />;
   }
-  if (id.includes('scraping') || id.includes('web_scraper')) {
+  if (id.includes('scraper_agy_alto_riesgo')) {
+    return <HardHat className={`${sizeClass} text-amber-500`} />;
+  }
+  if (id.includes('scraper_agy_arl_directo')) {
+    return <ShieldCheck className={`${sizeClass} text-emerald-500`} />;
+  }
+  if (id.includes('scraper_agy_pensiones_directo')) {
+    return <BarChart3 className={`${sizeClass} text-teal-500`} />;
+  }
+  if (id.includes('scraper_agy_salud_rethus')) {
+    return <Heart className={`${sizeClass} text-cyan-500`} />;
+  }
+  if (id.includes('scraper_agy_vial_pesv')) {
+    return <Activity className={`${sizeClass} text-indigo-500`} />;
+  }
+  if (id.includes('scraper_agy_antecedentes')) {
+    return <Scale className={`${sizeClass} text-rose-500`} />;
+  }
+  if (id.includes('scraping') || id.includes('web_scraper') || id.includes('scraper_agy_')) {
     return <Terminal className={`${sizeClass} text-orange-500`} />;
   }
   if (id.includes('skill')) {
@@ -469,7 +487,9 @@ export default function WappyWorkflowCanvas({
   const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
 
   // Nodo actualmente abierto en el Inspector de Configuración por Nodo (al hacer clic sobre cualquier nodo)
-  const [activeConfigNodeKey, setActiveConfigNodeKey] = useState<string | null>(null);
+  const [activeConfigNodeKey, setActiveConfigNodeKey] = useState<string | null>(
+    readOnly || compact ? null : 'trigger_root',
+  );
   const [customFieldInput, setCustomFieldInput] = useState<string>('');
   const [fieldSearchQuery, setFieldSearchQuery] = useState<string>('');
   const [nodeReportHistory, setNodeReportHistory] = useState<{
@@ -2160,9 +2180,10 @@ export default function WappyWorkflowCanvas({
         nextTriggers = [...activeTriggers, nodeId];
       }
       const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+      const targetTriggerKey =
+        nextTriggers.indexOf(nodeId) === 0 ? 'trigger_root' : `trigger_${nodeId}`;
       if (!exists && dropPos) {
-        const key = nextTriggers.indexOf(nodeId) === 0 ? 'trigger_root' : `trigger_${nodeId}`;
-        nextPositions[key] = {
+        nextPositions[targetTriggerKey] = {
           x: Math.max(20, Math.round(dropPos.x - 36)),
           y: Math.max(16, Math.round(dropPos.y - 36)),
         };
@@ -2176,6 +2197,9 @@ export default function WappyWorkflowCanvas({
           positions: nextPositions,
         },
       });
+      if (!exists) {
+        setActiveConfigNodeKey(targetTriggerKey);
+      }
       return;
     }
 
@@ -2186,9 +2210,11 @@ export default function WappyWorkflowCanvas({
           ? activeMemories.filter((id) => id !== nodeId)
           : activeMemories
         : [...activeMemories, nodeId];
+      const targetMemKey =
+        nextMemories.indexOf(nodeId) === 0 ? 'sub_memory' : `sub_memory_${nodeId}`;
       const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
       if (!exists && dropPos) {
-        nextPositions[`sub_memory_${nodeId}`] = {
+        nextPositions[targetMemKey] = {
           x: Math.max(20, Math.round(dropPos.x - 31)),
           y: Math.max(20, Math.round(dropPos.y - 31)),
         };
@@ -2202,6 +2228,9 @@ export default function WappyWorkflowCanvas({
           positions: nextPositions,
         },
       });
+      if (!exists) {
+        setActiveConfigNodeKey(targetMemKey);
+      }
       return;
     }
 
@@ -2214,9 +2243,9 @@ export default function WappyWorkflowCanvas({
 
     const key =
       group === 'extractors'
-        ? `ext_${nodeId}`
+        ? `extractor_${nodeId}`
         : group === 'hitos'
-          ? `hito_${nodeId}`
+          ? `tool_hitos_${nodeId}`
           : group === 'outputs'
             ? `out_${nodeId}`
             : `tool_${group}_${nodeId}`;
@@ -2236,6 +2265,9 @@ export default function WappyWorkflowCanvas({
         positions: nextPositions,
       },
     });
+    if (!exists) {
+      setActiveConfigNodeKey(key);
+    }
   };
 
   // Cambiar Motor IA (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7) y Modelo
@@ -2256,6 +2288,7 @@ export default function WappyWorkflowCanvas({
       aiModel: model,
       inputs: nextInputs,
     });
+    setActiveConfigNodeKey('sub_model');
   };
 
   // Soltar un cuadrito arrastrado desde la paleta sobre el lienzo de flujo
@@ -2374,6 +2407,28 @@ export default function WappyWorkflowCanvas({
                   onClick={() => {
                     setPaletteTab(tab.id as any);
                     setConstructionNotice(null);
+                    // Al cambiar de equipo en la barra superior, auto-seleccionar el primer nodo activo de ese equipo en el Inspector
+                    if (tab.id === 'triggers') {
+                      setActiveConfigNodeKey('trigger_root');
+                    } else if (tab.id === 'extractors' && activeExtractors.length > 0) {
+                      setActiveConfigNodeKey(`extractor_${activeExtractors[0]}`);
+                    } else if (tab.id === 'ai_engine') {
+                      setActiveConfigNodeKey('sub_model');
+                    } else if (tab.id === 'memories' && activeMemories.length > 0) {
+                      setActiveConfigNodeKey('sub_memory');
+                    } else if (tab.id === 'connectors' && (workflowNodes.inputs || []).length > 0) {
+                      setActiveConfigNodeKey(`tool_inputs_${workflowNodes.inputs![0]}`);
+                    } else if (tab.id === 'hitos' && (workflowNodes.hitos || []).length > 0) {
+                      setActiveConfigNodeKey(`tool_hitos_${workflowNodes.hitos![0]}`);
+                    } else if (tab.id === 'outputs') {
+                      const firstOut = (workflowNodes.outputs || [])[0] || 'email_report';
+                      setActiveConfigNodeKey(`out_${firstOut}`);
+                    } else if (
+                      tab.id === 'skills_rules' &&
+                      (workflowNodes?.canvasLayout?.customNodes || []).length > 0
+                    ) {
+                      setActiveConfigNodeKey(workflowNodes.canvasLayout!.customNodes![0].key);
+                    }
                   }}
                   className={`px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold transition flex items-center gap-1.5 border ${
                     paletteTab === tab.id
@@ -2724,16 +2779,26 @@ export default function WappyWorkflowCanvas({
                           : catNode.id.includes('scraper') || catNode.id.includes('scraping')
                             ? 'web_scraper'
                             : 'web_search';
+                    const mappedEngine =
+                      catNode.scriptEngine === 'chrome_devtools_mcp'
+                        ? ('chrome_mcp' as const)
+                        : catNode.scriptEngine === 'node_cheerio_puppeteer'
+                          ? ('node_cheerio' as const)
+                          : ('python_bs4' as const);
                     return {
                       ...catNode,
+                      badge: catNode.subtitle || (catNode as any).badge || 'Nodo Especial',
+                      promptHint: catNode.content || (catNode as any).promptHint || '',
                       customNodePayload: {
                         key: `custom_${catNode.id}`,
                         nodeType: inferredType,
                         title: catNode.shortLabel,
-                        subtitle: catNode.badge || 'Nodo Especial',
-                        content: catNode.promptHint,
+                        subtitle: catNode.subtitle || (catNode as any).badge || 'Nodo Especial',
+                        content: catNode.content || (catNode as any).promptHint || '',
+                        ...(catNode.targetUrl ? { targetUrl: catNode.targetUrl } : {}),
+                        ...(catNode.scriptCode ? { scriptCode: catNode.scriptCode } : {}),
                         ...(inferredType === 'web_scraper'
-                          ? { scriptEngine: 'python_bs4' as const }
+                          ? { scriptEngine: mappedEngine }
                           : {}),
                       },
                       isUserCreated: false,
@@ -2782,15 +2847,17 @@ export default function WappyWorkflowCanvas({
                           }`}
                         >
                           {renderOfficialNodeSvg(
-                            item.customNodePayload.nodeType === 'web_scraper'
-                              ? 'web_scraper'
-                              : item.customNodePayload.nodeType === 'skill'
-                                ? 'skill'
-                                : item.customNodePayload.nodeType === 'subagent'
-                                  ? 'subagent'
-                                  : item.customNodePayload.nodeType === 'rule'
-                                    ? 'rule'
-                                    : 'web_search',
+                            item.id.includes('scraper_agy_')
+                              ? item.id
+                              : item.customNodePayload.nodeType === 'web_scraper'
+                                ? 'web_scraper'
+                                : item.customNodePayload.nodeType === 'skill'
+                                  ? 'skill'
+                                  : item.customNodePayload.nodeType === 'subagent'
+                                    ? 'subagent'
+                                    : item.customNodePayload.nodeType === 'rule'
+                                      ? 'rule'
+                                      : 'web_search',
                             'w-7 h-7',
                           )}
                           {isAlreadyOnCanvas && (
@@ -4175,8 +4242,9 @@ export default function WappyWorkflowCanvas({
                       : node.customNodeType === 'web_scraper'
                         ? 'border-orange-400 dark:border-orange-600 group-hover/node:border-orange-500'
                         : 'border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500';
-              const iconId =
-                node.customNodeType === 'web_scraper'
+              const iconId = node.nodeId.includes('scraper_agy_')
+                ? node.nodeId
+                : node.customNodeType === 'web_scraper'
                   ? 'web_scraper'
                   : node.customNodeType === 'skill'
                     ? 'skill'
@@ -4419,10 +4487,24 @@ export default function WappyWorkflowCanvas({
           activeNode.shape === 'custom_node'
             ? (workflowNodes?.canvasLayout?.customNodes || []).find((cn) => cn.key === activeNode.key)
             : null;
+        const cleanActiveNodeId = (activeNode.nodeId || '').replace(
+          /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
+          '',
+        );
+        const catalogScraperDef = SKILL_RULE_SUBAGENT_NODES.find(
+          (sn) => sn.id === cleanActiveNodeId || sn.id === activeNode.nodeId,
+        );
+        const defaultCatalogEngine =
+          catalogScraperDef?.scriptEngine === 'chrome_devtools_mcp'
+            ? 'chrome_mcp'
+            : catalogScraperDef?.scriptEngine === 'node_cheerio_puppeteer'
+              ? 'node_cheerio'
+              : 'python_bs4';
         const isWebScraperNode =
           activeNode.customNodeType === 'web_scraper' ||
           activeNode.nodeId.includes('scraping') ||
-          activeNode.nodeId.includes('web_scraper');
+          activeNode.nodeId.includes('web_scraper') ||
+          activeNode.nodeId.includes('scraper_agy_');
         const isWebSearchNode =
           activeNode.customNodeType === 'web_search' || activeNode.nodeId.includes('web_search');
         const isSkillNode =
@@ -4743,7 +4825,12 @@ export default function WappyWorkflowCanvas({
                         </label>
                         <input
                           type="text"
-                          value={currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? ''}
+                          value={
+                            currentCfg.targetUrl ??
+                            customNodeObj?.targetUrl ??
+                            catalogScraperDef?.targetUrl ??
+                            ''
+                          }
                           onChange={(e) =>
                             handleUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })
                           }
@@ -4758,7 +4845,9 @@ export default function WappyWorkflowCanvas({
                         </label>
                         <select
                           value={
-                            currentCfg.scriptEngine || customNodeObj?.scriptEngine || 'python_bs4'
+                            currentCfg.scriptEngine ||
+                            customNodeObj?.scriptEngine ||
+                            defaultCatalogEngine
                           }
                           onChange={(e) =>
                             handleUpdateNodeConfig(activeNode.key, {
@@ -4791,13 +4880,29 @@ export default function WappyWorkflowCanvas({
                         <button
                           type="button"
                           onClick={() => {
+                            if (catalogScraperDef?.scriptCode) {
+                              handleUpdateNodeConfig(activeNode.key, {
+                                targetUrl:
+                                  currentCfg.targetUrl ||
+                                  customNodeObj?.targetUrl ||
+                                  catalogScraperDef.targetUrl ||
+                                  '',
+                                scriptEngine: defaultCatalogEngine as any,
+                                scriptCode: catalogScraperDef.scriptCode,
+                              });
+                              return;
+                            }
                             const target =
-                              (currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? '').trim() ||
-                              'https://ejemplo.gov.co';
+                              (
+                                currentCfg.targetUrl ??
+                                customNodeObj?.targetUrl ??
+                                catalogScraperDef?.targetUrl ??
+                                ''
+                              ).trim() || 'https://ejemplo.gov.co';
                             const engine =
                               currentCfg.scriptEngine ||
                               customNodeObj?.scriptEngine ||
-                              'python_bs4';
+                              defaultCatalogEngine;
                             const autoScript =
                               engine === 'python_bs4'
                                 ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${target}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor el in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(el.get_text(strip=True))`
@@ -4813,7 +4918,12 @@ export default function WappyWorkflowCanvas({
                       </div>
                       <textarea
                         rows={3}
-                        value={currentCfg.scriptCode ?? customNodeObj?.scriptCode ?? ''}
+                        value={
+                          currentCfg.scriptCode ??
+                          customNodeObj?.scriptCode ??
+                          catalogScraperDef?.scriptCode ??
+                          ''
+                        }
                         onChange={(e) =>
                           handleUpdateNodeConfig(activeNode.key, { scriptCode: e.target.value })
                         }
