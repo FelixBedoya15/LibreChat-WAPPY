@@ -214,8 +214,30 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Google Antigravity Local (Mac/PC) + MCP / Carpeta en mi PC
-  if (id.includes('antigravity') || id.includes('extract_pc_folder')) {
+  // Carpeta en mi PC / Extractor de Archivos Locales vía Antigravity (Icono Carpeta + Terminal >_)
+  if (id.includes('extract_pc_folder') || id.includes('pc_folder')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className={sizeClass}>
+        <path
+          d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.9a2 2 0 0 1 1.6.8l1.2 1.6a1 1 0 0 0 .8.4h5.5A2.5 2.5 0 0 1 21 9.3v8.2a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11Z"
+          fill="#F59E0B"
+          fillOpacity="0.18"
+          stroke="#D97706"
+          strokeWidth="1.9"
+        />
+        <path
+          d="m8 11 2.5 2L8 15M12.5 15H16"
+          stroke="#B45309"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  // Google Antigravity Local (Mac/PC) + MCP
+  if (id.includes('antigravity')) {
     return (
       <svg
         viewBox="0 0 24 24"
@@ -256,11 +278,29 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     return <Clapperboard className={`${sizeClass} text-purple-500`} />;
   }
 
-  // ── Iconos Exactos del Menú de Herramientas de Chat WAPPY (Imagen 3) ──
+  // ── Iconos Exactos de los 8 Equipos de Nodos y Herramientas WAPPY ──
+  if (id.includes('trigger_qr_worker') || id.includes('qr')) {
+    return <QrCode className={`${sizeClass} text-fuchsia-600 dark:text-fuchsia-400`} />;
+  }
+  if (id.includes('trigger_webhook') || id.includes('webhook_api') || id.includes('webhook')) {
+    return <Zap className={`${sizeClass} text-amber-500 fill-amber-500/20`} />;
+  }
+  if (id.includes('hito8_predictivo') || id.includes('predictivo') || id.includes('oraculo')) {
+    return <Brain className={`${sizeClass} text-indigo-600 dark:text-indigo-400`} />;
+  }
+  if (id.includes('acpm_task') || id.includes('acpm') || id.includes('mejora_continua')) {
+    return <ClipboardCheck className={`${sizeClass} text-emerald-600 dark:text-emerald-400`} />;
+  }
+  if (id.includes('somos_sst_update')) {
+    return <ShieldCheck className={`${sizeClass} text-teal-600 dark:text-teal-400`} />;
+  }
   if (id.includes('web_search') || id === 'google') {
     return <Globe className={`${sizeClass} text-blue-500`} />;
   }
-  if (id.includes('somos_sst') || id.includes('sgsst_db_audit') || id.includes('medlineplus') || id.includes('examenes_medicos') || id.includes('extract_sst_app') || id.includes('memory_company')) {
+  if (id.includes('examenes_medicos') || id.includes('profesiograma') || id.includes('sve_') || id.includes('reintegro') || id.includes('rehabilitacion')) {
+    return <Stethoscope className={`${sizeClass} text-rose-500`} />;
+  }
+  if (id.includes('somos_sst') || id.includes('sgsst_db_audit') || id.includes('medlineplus') || id.includes('extract_sst_app') || id.includes('memory_company')) {
     return <HeartPulse className={`${sizeClass} text-rose-500`} />;
   }
   if (id.includes('extract_sst_workers')) {
@@ -272,7 +312,7 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('memory_procedural')) {
     return <Scale className={`${sizeClass} text-teal-600`} />;
   }
-  if (id.includes('canvas') || id.includes('dictamen')) {
+  if (id.includes('canvas_doc') || id.includes('canvas') || id.includes('dictamen')) {
     return <Palette className={`${sizeClass} text-fuchsia-500`} />;
   }
   if (id.includes('consultar_agente') || id.includes('especialista') || id.includes('trigger_agent')) {
@@ -302,16 +342,16 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('psicosocial')) {
     return <Heart className={`${sizeClass} text-pink-500`} />;
   }
-  if (id.includes('actos') || id.includes('estadisticas_atel')) {
+  if (id.includes('actos') || id.includes('estadisticas_atel') || id.includes('owas') || id.includes('ergonomia') || id.includes('puesto_trabajo')) {
     return <Activity className={`${sizeClass} text-cyan-500`} />;
   }
   if (id.includes('openweather') || id.includes('clima')) {
     return <CloudSun className={`${sizeClass} text-amber-500`} />;
   }
-  if (id.includes('emergencia') || id.includes('vulnerabilidad') || id.includes('osm')) {
+  if (id.includes('emergencia') || id.includes('vulnerabilidad') || id.includes('osm') || id.includes('brigada') || id.includes('simulacro')) {
     return <MapPin className={`${sizeClass} text-red-500`} />;
   }
-  if (id.includes('webhook') || id.includes('if_node')) {
+  if (id.includes('if_node')) {
     return <GitFork className={`${sizeClass} text-emerald-600`} />;
   }
   if (id.includes('memory') || id.includes('rag')) {
@@ -320,25 +360,22 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('bell') || id.includes('notificacion')) {
     return <Bell className={`${sizeClass} text-amber-500`} />;
   }
-  if (id.includes('alturas') || id.includes('epp') || id.includes('ats')) {
+  if (id.includes('alturas') || id.includes('epp') || id.includes('ats') || id.includes('confinados') || id.includes('loto') || id.includes('caliente') || id.includes('izaje')) {
     return <HardHat className={`${sizeClass} text-amber-600`} />;
   }
-  if (id.includes('socio') || id.includes('comites') || id.includes('trabajadores')) {
+  if (id.includes('socio') || id.includes('comites') || id.includes('trabajadores') || id.includes('contratistas')) {
     return <Users className={`${sizeClass} text-teal-600`} />;
   }
-  if (id.includes('diagnostico_0312') || id.includes('auditoria')) {
+  if (id.includes('diagnostico_0312') || id.includes('auditoria') || id.includes('inspeccion')) {
     return <ClipboardCheck className={`${sizeClass} text-emerald-600`} />;
   }
-  if (id.includes('academia') || id.includes('capacitacion')) {
+  if (id.includes('academia') || id.includes('capacitacion') || id.includes('cursos_lms') || id.includes('inducci')) {
     return <BookOpen className={`${sizeClass} text-indigo-500`} />;
   }
-  if (id.includes('atel') || id.includes('accidente')) {
+  if (id.includes('atel') || id.includes('accidente') || id.includes('incidente')) {
     return <AlertTriangle className={`${sizeClass} text-rose-600`} />;
   }
-  if (id.includes('qr')) {
-    return <QrCode className={`${sizeClass} text-slate-700 dark:text-slate-200`} />;
-  }
-  if (id.includes('alta_direccion') || id.includes('dofa') || id.includes('plan_trabajo')) {
+  if (id.includes('alta_direccion') || id.includes('dofa') || id.includes('plan_trabajo') || id.includes('presupuesto') || id.includes('indicadores')) {
     return <BarChart3 className={`${sizeClass} text-purple-600`} />;
   }
   if (id.includes('scraping') || id.includes('web_scraper')) {
@@ -1624,6 +1661,19 @@ export default function WappyWorkflowCanvas({
     };
   }, [activeConfigNodeKey, readOnly, visualNodes]);
 
+  // Seleccionar un nodo en el inspector inferior y desplazar suavemente al panel de configuración
+  const openNodeConfigInspector = useCallback((targetKey: string) => {
+    setActiveConfigNodeKey(targetKey);
+    if (typeof document !== 'undefined') {
+      setTimeout(() => {
+        const el = document.getElementById('wappy-node-config-inspector');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 60);
+    }
+  }, []);
+
   // Cargar automáticamente el Inspector de Datos y Resultados Reales en Vivo (/api/sgsst/automatizaciones/node-live-inspector)
   useEffect(() => {
     setLiveRecordSearch('');
@@ -1645,22 +1695,24 @@ export default function WappyWorkflowCanvas({
     const activeNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
     if (!activeNode) return;
 
-    const cleanId = (activeNode.nodeId || '')
-      .trim()
-      .replace(/^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
+    const rawId = (activeNode.nodeId || '').trim();
+    const cleanId = rawId.replace(
+      /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
+      '',
+    );
 
-    const isLiveInspectable =
-      Boolean(MODULE_METADATA_MAP[cleanId]) ||
-      cleanId.startsWith('hito') ||
-      cleanId === 'extract_sst_workers' ||
-      cleanId === 'extract_sst_app' ||
-      cleanId.startsWith('somos_sst_') ||
-      cleanId.startsWith('matriz_') ||
-      cleanId.startsWith('consultar_analitica_') ||
-      cleanId === 'cursos_lms' ||
-      cleanId === 'acpm_task' ||
-      cleanId === 'wappy_memory_company' ||
-      cleanId === 'tool_sst_company';
+    const isPureLogicNode =
+      activeNode.key === 'if_router' ||
+      activeNode.shape === 'if' ||
+      activeNode.shape === 'logic' ||
+      rawId === 'if_node_router' ||
+      rawId.startsWith('logic_');
+
+    // Todos los nodos de los 8 Equipos (Disparadores, Extractores, Motores IA, las 4 Memorias,
+    // las 25 Herramientas del Agente, los 50 Aplicativos de los 8 Hitos, las 11 Salidas de Bitácora
+    // y los nodos de Skills/Sub-Agentes/Reglas/Scraping) son inspeccionables en vivo,
+    // excepto únicamente los nodos lógicos puros (if_router, logic_*).
+    const isLiveInspectable = Boolean(rawId) && !isPureLogicNode;
 
     if (!isLiveInspectable) {
       setNodeLiveInspectorData({
@@ -1690,9 +1742,16 @@ export default function WappyWorkflowCanvas({
       localStorage.getItem('token') ||
       '';
 
+    const inspectQueryNodeId =
+      activeNode.shape === 'custom_node'
+        ? rawId.startsWith('custom_')
+          ? rawId.replace(/^custom_/, '')
+          : activeNode.customNodeType || rawId
+        : rawId;
+
     axios
       .get(
-        `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(activeNode.nodeId)}`,
+        `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(inspectQueryNodeId)}`,
         token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
       )
       .then((res) => {
@@ -2690,6 +2749,8 @@ export default function WappyWorkflowCanvas({
                     const isAlreadyOnCanvas = (workflowNodes?.canvasLayout?.customNodes || []).some(
                       (c) => c.key === item.customNodePayload.key,
                     );
+                    const isInspectingThisCustom =
+                      activeConfigNodeKey === item.customNodePayload.key;
                     return (
                       <div
                         key={item.id}
@@ -2711,7 +2772,7 @@ export default function WappyWorkflowCanvas({
                           }
                         }}
                         title={`${item.label} — Haz clic o arrastra al lienzo (${item.promptHint})`}
-                        className="group/tile cursor-grab active:cursor-grabbing flex flex-col items-center w-[92px] shrink-0 select-none"
+                        className="group/tile cursor-grab active:cursor-grabbing flex flex-col items-center w-[96px] shrink-0 select-none"
                       >
                         <div
                           className={`relative w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all duration-150 shadow-sm ${
@@ -2744,6 +2805,23 @@ export default function WappyWorkflowCanvas({
                         <span className="mt-0.5 text-[8.5px] font-extrabold text-purple-600 dark:text-purple-400 truncate max-w-full">
                           {item.badge}
                         </span>
+                        {isAlreadyOnCanvas && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNodeConfigInspector(item.customNodePayload.key);
+                            }}
+                            className={`mt-1 px-2 py-0.5 rounded-lg text-[8.5px] font-extrabold transition flex items-center gap-0.5 border ${
+                              isInspectingThisCustom
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                                : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-[#C7F303] border-purple-300 dark:border-purple-700'
+                            }`}
+                            title="Configurar este nodo y ver su Estado en Vivo"
+                          >
+                            ⚙️ Configurar
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -2756,6 +2834,7 @@ export default function WappyWorkflowCanvas({
                   (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
                   (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
                   (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
+                const isInspectingModel = isSelected && activeConfigNodeKey === 'sub_model';
                 return (
                   <div
                     key={m.id}
@@ -2792,6 +2871,23 @@ export default function WappyWorkflowCanvas({
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug line-clamp-2">
                         {m.description}
                       </p>
+                      {isSelected && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openNodeConfigInspector('sub_model');
+                          }}
+                          className={`mt-1.5 px-2 py-0.5 rounded-lg text-[9px] font-extrabold transition inline-flex items-center gap-1 border ${
+                            isInspectingModel
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                              : 'bg-white hover:bg-purple-100 dark:bg-slate-900 text-purple-700 dark:text-[#C7F303] border-purple-300 dark:border-purple-700'
+                          }`}
+                          title="Configurar Motor IA y ver su Estado en Vivo"
+                        >
+                          ⚙️ Configurar
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -2801,6 +2897,9 @@ export default function WappyWorkflowCanvas({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {MEMORY_NODES.map((mem) => {
                 const isSelected = activeMemories.includes(mem.id);
+                const memIdx = activeMemories.indexOf(mem.id);
+                const memCanvasKey = memIdx === 0 ? 'sub_memory' : `sub_memory_${mem.id}`;
+                const isInspectingMem = isSelected && activeConfigNodeKey === memCanvasKey;
                 return (
                   <div
                     key={mem.id}
@@ -2836,6 +2935,23 @@ export default function WappyWorkflowCanvas({
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
                         {mem.promptHint}
                       </p>
+                      {isSelected && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openNodeConfigInspector(memCanvasKey);
+                          }}
+                          className={`mt-1.5 px-2 py-0.5 rounded-lg text-[9px] font-extrabold transition inline-flex items-center gap-1 border ${
+                            isInspectingMem
+                              ? 'bg-pink-600 text-white border-pink-600 shadow-2xs'
+                              : 'bg-white hover:bg-pink-100 dark:bg-slate-900 text-pink-700 dark:text-[#C7F303] border-pink-300 dark:border-pink-700'
+                          }`}
+                          title="Configurar esta Memoria y ver sus Registros Reales en Vivo"
+                        >
+                          ⚙️ Configurar
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -2845,45 +2961,88 @@ export default function WappyWorkflowCanvas({
             <div className="flex flex-col gap-2">
               {/* Barra de filtro por los 8 Hitos de Somos SST (disponible en Extraer Datos, Herramientas y Los 8 Hitos) */}
               {(paletteTab === 'hitos' || paletteTab === 'extractors' || paletteTab === 'connectors') && (
-                <div className="flex flex-wrap items-center gap-1 pb-1 border-b border-slate-100 dark:border-slate-800/80">
-                  {paletteTab !== 'hitos' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedHitoFilter('external');
-                        setConstructionNotice(null);
-                      }}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border ${
-                        selectedHitoFilter === 'external'
-                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                      }`}
-                    >
-                      🌐 Conectores / Fuentes ({paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})
-                    </button>
-                  )}
-                  {HITOS_8_FILTER_TABS.map((hTab) => {
-                    const isActive =
-                      selectedHitoFilter === hTab.id ||
-                      (paletteTab === 'hitos' && selectedHitoFilter === 'external' && hTab.id === 'all');
-                    return (
+                <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-slate-100 dark:border-slate-800/80">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {paletteTab !== 'hitos' && (
                       <button
-                        key={hTab.id}
                         type="button"
                         onClick={() => {
-                          setSelectedHitoFilter(hTab.id);
+                          setSelectedHitoFilter('external');
                           setConstructionNotice(null);
                         }}
                         className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border ${
-                          isActive
-                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                          selectedHitoFilter === 'external'
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
                         }`}
                       >
-                        {hTab.shortLabel}
+                        🌐 Conectores / Fuentes ({paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})
                       </button>
-                    );
-                  })}
+                    )}
+                    {HITOS_8_FILTER_TABS.map((hTab) => {
+                      const isActive =
+                        selectedHitoFilter === hTab.id ||
+                        (paletteTab === 'hitos' && selectedHitoFilter === 'external' && hTab.id === 'all');
+                      const hitoNodesForTab =
+                        hTab.id === 'all'
+                          ? HITO_APP_NODES
+                          : HITO_APP_NODES.filter((n) => n.hitoId === hTab.id);
+                      const activeListForCurrentPalette =
+                        paletteTab === 'extractors'
+                          ? activeExtractors
+                          : paletteTab === 'connectors'
+                            ? workflowNodes.inputs || []
+                            : workflowNodes.hitos || [];
+                      const activeInTabCount = hitoNodesForTab.filter(
+                        (n) =>
+                          !isWorkflowNodeUnderConstruction(n, disabledSgsstApps) &&
+                          activeListForCurrentPalette.includes(n.id),
+                      ).length;
+                      const constructionInTabCount = hitoNodesForTab.filter((n) =>
+                        isWorkflowNodeUnderConstruction(n, disabledSgsstApps),
+                      ).length;
+                      return (
+                        <button
+                          key={hTab.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedHitoFilter(hTab.id);
+                            setConstructionNotice(null);
+                          }}
+                          title={`${hTab.label} — ${activeInTabCount} activo(s) en el flujo · ${constructionInTabCount} en Construcción`}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border inline-flex items-center gap-1 ${
+                            isActive
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                          }`}
+                        >
+                          <span>{hTab.shortLabel}</span>
+                          {activeInTabCount > 0 && (
+                            <span
+                              className={`px-1 py-0.2 rounded-full text-[8.5px] font-black ${
+                                isActive
+                                  ? 'bg-white/25 text-white'
+                                  : 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-[#C7F303]'
+                              }`}
+                            >
+                              ✓{activeInTabCount}
+                            </span>
+                          )}
+                          {constructionInTabCount > 0 && (
+                            <span
+                              className={`px-1 py-0.2 rounded-full text-[8.5px] font-black ${
+                                isActive
+                                  ? 'bg-amber-300/30 text-amber-100'
+                                  : 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300'
+                              }`}
+                            >
+                              🚧{constructionInTabCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -2943,6 +3102,19 @@ export default function WappyWorkflowCanvas({
                       : groupKey === 'extractors'
                         ? activeExtractors.includes(node.id)
                         : (workflowNodes[groupKey] || []).includes(node.id));
+                  const canvasKeyForTile =
+                    groupKey === 'trigger'
+                      ? activeTriggers.indexOf(node.id) === 0
+                        ? 'trigger_root'
+                        : `trigger_${node.id}`
+                      : groupKey === 'extractors'
+                        ? `extractor_${node.id}`
+                        : groupKey === 'hitos'
+                          ? `tool_hitos_${node.id}`
+                          : groupKey === 'outputs'
+                            ? `out_${node.id}`
+                            : `tool_inputs_${node.id}`;
+                  const isInspectingTile = isSelected && activeConfigNodeKey === canvasKeyForTile;
 
                   return (
                     <div
@@ -2964,7 +3136,7 @@ export default function WappyWorkflowCanvas({
                           ? `🚧 ${node.label} — Aplicativo en Construcción en Somos SST (No seleccionable)`
                           : `${node.label} — Arrastra al lienzo o haz clic para ${isSelected ? 'quitar' : 'conectar'}`
                       }
-                      className={`group/tile flex flex-col items-center w-[84px] shrink-0 select-none ${
+                      className={`group/tile flex flex-col items-center w-[92px] shrink-0 select-none ${
                         isUnderConstruction
                           ? 'cursor-not-allowed opacity-65'
                           : 'cursor-grab active:cursor-grabbing'
@@ -3005,10 +3177,28 @@ export default function WappyWorkflowCanvas({
                       <span className="mt-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 text-center leading-tight line-clamp-2">
                         {node.shortLabel}
                       </span>
-                      {isUnderConstruction && (
+                      {isUnderConstruction ? (
                         <span className="mt-0.5 px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[8px] font-extrabold uppercase tracking-tight">
                           🚧 En Constr.
                         </span>
+                      ) : (
+                        isSelected && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNodeConfigInspector(canvasKeyForTile);
+                            }}
+                            className={`mt-1 px-2 py-0.5 rounded-lg text-[8.5px] font-extrabold transition flex items-center gap-0.5 border ${
+                              isInspectingTile
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                                : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-[#C7F303] border-purple-300 dark:border-purple-700'
+                            }`}
+                            title={`Configurar «${node.shortLabel}» y ver su Estado en Vivo`}
+                          >
+                            ⚙️ Configurar
+                          </button>
+                        )
                       )}
                     </div>
                   );

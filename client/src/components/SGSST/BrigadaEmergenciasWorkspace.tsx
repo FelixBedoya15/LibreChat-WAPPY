@@ -47,9 +47,29 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Cargar nómina de brigadistas desde la base de datos o borrador local
-  useEffect(() => {
-    if (!token) return;
+  const loadBrigadaData = useCallback(() => {
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const draftKey = `wappy_brigada_emergencias_draft_${companySuffix}`;
+    const loadFromDraftOrReset = () => {
+      const draft = localStorage.getItem(draftKey);
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setBrigadistas(parsed);
+            return;
+          }
+        } catch (_) {}
+      }
+      setBrigadistas([
+        { nombre: '', cedula: '', cargo: '', especialidad: 'Primeros Auxilios', rolSCI: 'Brigadista Operativo' },
+      ]);
+    };
+
+    if (!token) {
+      loadFromDraftOrReset();
+      return;
+    }
     fetch('/api/sgsst/brigada/brigadistas', {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -66,29 +86,32 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
             }))
           );
         } else {
-          const draft = localStorage.getItem('wappy_brigada_emergencias_draft');
-          if (draft) {
-            try {
-              const parsed = JSON.parse(draft);
-              if (Array.isArray(parsed) && parsed.length > 0) setBrigadistas(parsed);
-            } catch (_) {}
-          }
+          loadFromDraftOrReset();
         }
       })
       .catch(() => {
-        const draft = localStorage.getItem('wappy_brigada_emergencias_draft');
-        if (draft) {
-          try {
-            const parsed = JSON.parse(draft);
-            if (Array.isArray(parsed) && parsed.length > 0) setBrigadistas(parsed);
-          } catch (_) {}
-        }
+        loadFromDraftOrReset();
       });
   }, [token]);
 
+  // Cargar nómina de brigadistas desde la base de datos o borrador local
+  useEffect(() => {
+    loadBrigadaData();
+  }, [loadBrigadaData]);
+
+  useEffect(() => {
+    window.addEventListener('wappy-company-changed', loadBrigadaData);
+    window.addEventListener('wappy-empresa-cambiada', loadBrigadaData);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadBrigadaData);
+      window.removeEventListener('wappy-empresa-cambiada', loadBrigadaData);
+    };
+  }, [loadBrigadaData]);
+
   const handleSaveLocal = async () => {
     setIsSavingLocal(true);
-    localStorage.setItem('wappy_brigada_emergencias_draft', JSON.stringify(brigadistas));
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    localStorage.setItem(`wappy_brigada_emergencias_draft_${companySuffix}`, JSON.stringify(brigadistas));
     try {
       if (token) {
         await fetch('/api/sgsst/brigada/sync', {

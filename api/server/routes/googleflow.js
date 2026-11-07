@@ -2,15 +2,59 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const { execFile, spawn } = require('child_process');
 const WebSocket = require('ws');
 const router = express.Router();
 const GoogleFlowSession = require('~/models/GoogleFlowSession');
 const NotebookSession = require('~/models/NotebookSession');
+const CompanyInfo = require('~/models/CompanyInfo');
 const { requireApiKeyOrJwt: requireJwtAuth } = require('~/server/middleware/requireApiKeyAuth');
 const { logger } = require('~/config');
 const paths = require('~/config/paths');
+
+/**
+ * Resuelve el _id de la empresa solicitada (si pertenece al usuario) o de la empresa activa
+ */
+async function resolveActiveCompanyId(userId, explicitCompanyId = null) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return null;
+  }
+  if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+    const requested = await CompanyInfo.findOne({ user: userId, _id: explicitCompanyId })
+      .select('_id')
+      .lean()
+      .catch(() => null);
+    if (requested?._id) {
+      return requested._id;
+    }
+  }
+  const active = await CompanyInfo.findOne({ user: userId, isActive: true })
+    .select('_id')
+    .lean()
+    .catch(() => null);
+  return active?._id || null;
+}
+
+/**
+ * Busca la sesión para la empresa activa con fallback de lectura a sesiones sin companyId
+ */
+async function findSessionForCompany(Model, userId, companyId) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return null;
+  }
+  if (companyId) {
+    const doc = await Model.findOne({ user: userId, companyId }).lean().catch(() => null);
+    if (doc) return doc;
+  }
+  return Model.findOne({
+    user: userId,
+    $or: [{ companyId: null }, { companyId: { $exists: false } }],
+  })
+    .lean()
+    .catch(() => null);
+}
 
 const OUTPUT_MEDIA_DIR =
   paths.imageOutput || path.resolve(__dirname, '../../../client/public/images');
@@ -376,13 +420,15 @@ async function fetchLabsFxSession(cookies) {
 /**
  * Resuelve las credenciales de Google del usuario (Sesión de Flow, Sesión de NotebookLM o API Key)
  */
-async function resolveGoogleFlowCredentials(userId) {
+async function resolveGoogleFlowCredentials(userId, explicitCompanyId = null) {
   let flowSession = null;
   let notebookSession = null;
+  let activeCompId = null;
 
   if (userId) {
-    flowSession = await GoogleFlowSession.findOne({ user: userId }).lean().catch(() => null);
-    notebookSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
+    flowSession = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+    notebookSession = await findSessionForCompany(NotebookSession, userId, activeCompId);
   }
 
   let cookies = mergeGoogleCookiesByDomain(
@@ -459,6 +505,7 @@ async function resolveGoogleFlowCredentials(userId) {
   const apiKey = apiKeys[0] || null;
 
   return {
+    activeCompId,
     cookies,
     fallbackCookies,
     allCandidateCookieSets,
@@ -1161,8 +1208,9 @@ async function executeFlowImageGeneration({
           modelUsed = nativeRes.modelLabel;
           if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
-              { user: userId },
+              { user: userId, companyId: creds.activeCompId || null },
               {
+                companyId: creds.activeCompId || null,
                 isValid: true,
                 lastTestedAt: new Date(),
               }
@@ -1175,8 +1223,8 @@ async function executeFlowImageGeneration({
         sessionWasAuthenticated = true;
         if (userId) {
           await GoogleFlowSession.findOneAndUpdate(
-            { user: userId },
-            { isValid: true, lastTestedAt: new Date() }
+            { user: userId, companyId: creds.activeCompId || null },
+            { companyId: creds.activeCompId || null, isValid: true, lastTestedAt: new Date() }
           ).catch(() => {});
         }
       }
@@ -1395,8 +1443,9 @@ async function executeFlowVideoGeneration({
           modelUsed = nativeVid.modelLabel;
           if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
-              { user: userId },
+              { user: userId, companyId: creds.activeCompId || null },
               {
+                companyId: creds.activeCompId || null,
                 isValid: true,
                 lastTestedAt: new Date(),
               }
@@ -1426,8 +1475,8 @@ async function executeFlowVideoGeneration({
         vidSessionWasAuthenticated = true;
         if (userId) {
           await GoogleFlowSession.findOneAndUpdate(
-            { user: userId },
-            { isValid: true, lastTestedAt: new Date() }
+            { user: userId, companyId: creds.activeCompId || null },
+            { companyId: creds.activeCompId || null, isValid: true, lastTestedAt: new Date() }
           ).catch(() => {});
         }
       }
@@ -1620,8 +1669,9 @@ function buildFlowStudioCanvasHtml(mediaResult) {
 router.get('/status', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const session = await GoogleFlowSession.findOne({ user: userId }).lean();
-    const nbSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    const activeCompId = await resolveActiveCompanyId(userId, req.query?.companyId);
+    const session = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+    const nbSession = await findSessionForCompany(NotebookSession, userId, activeCompId);
     const canSyncFromNotebookLM = Boolean(nbSession?.cookies?.length > 0);
 
     if (!session) {
@@ -1663,7 +1713,11 @@ router.get('/status', requireJwtAuth, async (req, res) => {
 router.post('/sync-from-notebooklm', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const nbSession = await NotebookSession.findOne({ user: userId }).lean();
+    const activeCompId = await resolveActiveCompanyId(
+      userId,
+      req.body?.companyId || req.query?.companyId
+    );
+    const nbSession = await findSessionForCompany(NotebookSession, userId, activeCompId);
 
     if (!nbSession || !Array.isArray(nbSession.cookies) || nbSession.cookies.length === 0) {
       return res.status(404).json({
@@ -1691,8 +1745,9 @@ router.post('/sync-from-notebooklm', requireJwtAuth, async (req, res) => {
     }
 
     await GoogleFlowSession.findOneAndUpdate(
-      { user: userId },
+      { user: userId, companyId: activeCompId || null },
       {
+        companyId: activeCompId || null,
         email: effectiveEmail,
         cookies: finalCookies,
         cookieCount: finalCookies.length,
@@ -1723,6 +1778,10 @@ router.post('/session', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const userEmail = req.user.email;
+    const activeCompId = await resolveActiveCompanyId(
+      userId,
+      req.body?.companyId || req.query?.companyId
+    );
     const rawInput = req.body?.cookies || req.body?.raw || req.body?.jsonString;
     const apiKey = (req.body?.apiKey || '').trim();
     const source = req.body?.source || (apiKey ? 'api_key' : 'manual');
@@ -1743,8 +1802,8 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     let detectedEmail = '';
 
     if (cookies.length > 0) {
-      const existingFlow = await GoogleFlowSession.findOne({ user: userId }).lean().catch(() => null);
-      const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+      const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+      const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
       cookies = mergeGoogleCookiesByDomain(
         cookies,
         mergeGoogleCookiesByDomain(existingFlow?.cookies || [], existingNb?.cookies || [])
@@ -1775,6 +1834,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     const effectiveEmail = detectedEmail || clientEmail || userEmail || `${userId}@wappy.internal`;
 
     const updateData = {
+      companyId: activeCompId || null,
       email: effectiveEmail,
       isValid: testResult.success,
       lastTestedAt: new Date(),
@@ -1791,18 +1851,19 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     }
 
     await GoogleFlowSession.findOneAndUpdate(
-      { user: userId },
+      { user: userId, companyId: activeCompId || null },
       updateData,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     if (cookies.length > 0) {
       try {
-        const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+        const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
         const mergedNbCookies = mergeGoogleCookiesByDomain(cookies, existingNb?.cookies || []);
         await NotebookSession.findOneAndUpdate(
-          { user: userId },
+          { user: userId, companyId: activeCompId || null },
           {
+            companyId: activeCompId || null,
             email: effectiveEmail,
             cookies: mergedNbCookies,
             cookieCount: mergedNbCookies.length,
@@ -1838,8 +1899,12 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 router.post('/test', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    let session = await GoogleFlowSession.findOne({ user: userId });
-    const nbSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    const activeCompId = await resolveActiveCompanyId(
+      userId,
+      req.body?.companyId || req.query?.companyId
+    );
+    let session = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+    const nbSession = await findSessionForCompany(NotebookSession, userId, activeCompId);
 
     // Si GoogleFlowSession no existe o no tiene cookies, pero NotebookLM sí tiene cookies, auto-sincronizar
     if ((!session || !session.cookies || session.cookies.length === 0) && nbSession?.cookies?.length > 0) {
@@ -1853,8 +1918,9 @@ router.post('/test', requireJwtAuth, async (req, res) => {
         merged.push({ ...anySecOsid, domain: 'flow.google.com' });
       }
       session = await GoogleFlowSession.findOneAndUpdate(
-        { user: userId },
+        { user: userId, companyId: activeCompId || null },
         {
+          companyId: activeCompId || null,
           email: nbSession.email || req.user.email || 'Cuenta vinculada',
           cookies: merged,
           cookieCount: merged.length,
@@ -1863,7 +1929,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
           source: 'notebooklm-sync',
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+      ).lean();
     }
 
     if (!session || ((!session.cookies || session.cookies.length === 0) && !session.apiKey)) {
@@ -1908,15 +1974,27 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       }
     }
 
-    session.isValid = isValid;
-    session.lastTestedAt = new Date();
-    await session.save();
+    const lastTestedAt = new Date();
+    await GoogleFlowSession.findOneAndUpdate(
+      { user: userId, companyId: activeCompId || null },
+      {
+        $set: {
+          companyId: activeCompId || null,
+          email: session.email,
+          cookies: session.cookies || [],
+          cookieCount: session.cookieCount || (session.cookies ? session.cookies.length : 0),
+          isValid,
+          lastTestedAt,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     return res.json({
       success: isValid,
       reason: isValid ? null : message,
       message,
-      lastTestedAt: session.lastTestedAt,
+      lastTestedAt,
     });
   } catch (error) {
     logger.error('[GoogleFlow] Error probando sesión:', error);
@@ -1989,7 +2067,16 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 router.delete('/session', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    await GoogleFlowSession.deleteOne({ user: userId });
+    const activeCompId = await resolveActiveCompanyId(
+      userId,
+      req.query?.companyId || req.body?.companyId
+    );
+    await GoogleFlowSession.deleteMany({
+      user: userId,
+      ...(activeCompId
+        ? { $or: [{ companyId: activeCompId }, { companyId: null }, { companyId: { $exists: false } }] }
+        : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
+    });
 
     return res.json({
       success: true,

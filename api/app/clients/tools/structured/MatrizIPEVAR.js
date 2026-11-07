@@ -109,7 +109,7 @@ class MatrizIPEVAR extends Tool {
       }
       
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-        const tempId = `temp-${userId}`;
+        const tempId = `temp-${userId}-${companyId || 'default'}`;
         const tempSession = await GTC45Matrix.findOne({ conversationId: tempId, user: userId });
         if (tempSession && tempSession.matrixRows && tempSession.matrixRows.length > 0) {
           tempSession.conversationId = conversationId;
@@ -208,11 +208,12 @@ class MatrizIPEVAR extends Tool {
         // Fallback a matriz oficial o corporativa de la empresa si la sesión actual no tiene filas
         if (rows.length === 0 && (userId || targetUserId || companyId)) {
           const userFilter = [userId, targetUserId].filter(Boolean);
-          const officialConvoIds = [
-            companyId ? `official-${companyId}` : null,
-            targetUserId ? `official-${targetUserId}` : null,
-            userId ? `official-${userId}` : null,
-          ].filter(Boolean);
+          const officialConvoIds = companyId
+            ? [`official-${companyId}`]
+            : [
+                targetUserId ? `official-${targetUserId}` : null,
+                userId ? `official-${userId}` : null,
+              ].filter(Boolean);
 
           let fallbackDoc = await GTC45Matrix.findOne({
             user: { $in: userFilter },

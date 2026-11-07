@@ -37,7 +37,7 @@ const liveDocumentSchema = new mongoose.Schema(
 );
 
 // Indexes for faster queries
-liveDocumentSchema.index({ user: 1, updatedAt: -1 });
+liveDocumentSchema.index({ user: 1, companyId: 1, updatedAt: -1 });
 
 const LiveDocument = mongoose.model('LiveDocument', liveDocumentSchema);
 

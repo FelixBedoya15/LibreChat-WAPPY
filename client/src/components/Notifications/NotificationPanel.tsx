@@ -36,10 +36,13 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         if (!token) return;
         setLoading(true);
         try {
-            const res = await axios.get('/api/notifications', {
+            const companyId = encodeURIComponent(localStorage.getItem('wappy_active_company_id') || '');
+            const res = await axios.get(`/api/notifications?companyId=${companyId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            const notifs: Notification[] = res.data?.notifications || [];
+            const notifs: Notification[] = Array.isArray(res.data)
+                ? res.data
+                : (res.data?.notifications || []);
             setNotifications(notifs);
             const unreadCount = notifs.filter(n => !n.read).length;
             onCountChange?.(unreadCount);
@@ -56,6 +59,20 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         }
     }, [isOpen, fetchNotifications]);
 
+    useEffect(() => {
+        const handleCompanyChange = () => {
+            fetchNotifications();
+        };
+        window.addEventListener('wappy-company-changed', handleCompanyChange);
+        window.addEventListener('wappy-company-updated', handleCompanyChange);
+        window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        return () => {
+            window.removeEventListener('wappy-company-changed', handleCompanyChange);
+            window.removeEventListener('wappy-company-updated', handleCompanyChange);
+            window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        };
+    }, [fetchNotifications]);
+
     // Close on click outside
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -71,7 +88,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
 
     const markAllRead = async () => {
         try {
-            await axios.post('/api/notifications/read-all', {}, {
+            const companyId = encodeURIComponent(localStorage.getItem('wappy_active_company_id') || '');
+            await axios.post(`/api/notifications/read-all?companyId=${companyId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -83,7 +101,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
 
     const deleteAll = async () => {
         try {
-            await axios.delete('/api/notifications/all', {
+            const companyId = encodeURIComponent(localStorage.getItem('wappy_active_company_id') || '');
+            await axios.delete(`/api/notifications/all?companyId=${companyId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications([]);

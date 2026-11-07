@@ -3593,7 +3593,7 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                                     ? {
                                         $and: [
                                             { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
-                                            { tags: `company:${activeCompId}` },
+                                            { tags: { $in: [`company-${activeCompId}`, `company:${activeCompId}`] } },
                                         ],
                                     }
                                     : { tags: { $elemMatch: { $regex: /^sgsst-/i } } }),
@@ -10243,7 +10243,7 @@ ${workerSubHeaderHtml}
                             let tenshiConvo = await Conversation.findOne({
                                 user: String(this.userId),
                                 agent_id: TENSHI_AGENT_ID,
-                                ...(activeCompId ? { tags: `company:${activeCompId}` } : {}),
+                                ...(activeCompId ? { tags: { $in: [`company-${activeCompId}`, `company:${activeCompId}`] } } : {}),
                             }).sort({ updatedAt: -1 });
 
                             const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
@@ -10255,7 +10255,7 @@ ${workerSubHeaderHtml}
                                     title: canvasFileToAttach.title || 'Documento SG-SST',
                                     endpoint: 'agents',
                                     agent_id: TENSHI_AGENT_ID,
-                                    tags: ['tenshi-canvas', 'sgsst', ...(activeCompId ? [`company:${activeCompId}`] : [])],
+                                    tags: ['tenshi-canvas', 'sgsst', ...(activeCompId ? [`company-${activeCompId}`, `company:${activeCompId}`] : [])],
                                     createdAt: new Date(),
                                     updatedAt: new Date(),
                                 });

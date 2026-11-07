@@ -140,9 +140,20 @@ router.delete('/', async (req, res) => {
 
 router.delete('/all', async (req, res) => {
   try {
-    const dbResponse = await deleteConvos(req.user.id, {});
-    await deleteToolCalls(req.user.id);
-    await deleteAllSharedLinks(req.user.id);
+    const CompanyInfo = require('~/models/CompanyInfo');
+    const targetUserId =
+      req.user?.isSubUser && req.user?.parentUser ? req.user.parentUser : req.user.id;
+    const activeComp =
+      (await CompanyInfo.findOne({ user: targetUserId, isActive: true }).select('_id').lean()) ||
+      (await CompanyInfo.findOne({ user: targetUserId }).select('_id').lean());
+    const companyFilter = activeComp?._id
+      ? { tags: { $in: [`company-${activeComp._id}`, `company:${activeComp._id}`] } }
+      : {};
+    const dbResponse = await deleteConvos(req.user.id, companyFilter);
+    if (!activeComp?._id) {
+      await deleteToolCalls(req.user.id);
+      await deleteAllSharedLinks(req.user.id);
+    }
     res.status(201).json(dbResponse);
   } catch (error) {
     logger.error('Error clearing conversations', error);
@@ -403,6 +414,13 @@ router.post('/consolidate-inactive', async (req, res) => {
     'sgsst-termometro',
   ];
 
+  const CompanyInfo = require('~/models/CompanyInfo');
+  const targetUserId =
+    req.user?.isSubUser && req.user?.parentUser ? req.user.parentUser : req.user.id;
+  const activeComp =
+    (await CompanyInfo.findOne({ user: targetUserId, isActive: true }).select('_id').lean()) ||
+    (await CompanyInfo.findOne({ user: targetUserId }).select('_id').lean());
+
   const filter = {
     user: req.user.id,
     $and: [
@@ -420,6 +438,9 @@ router.post('/consolidate-inactive', async (req, res) => {
         ],
       },
       { endpoint: { $not: /^sgsst-/ } },
+      ...(activeComp?._id
+        ? [{ tags: { $in: [`company-${activeComp._id}`, `company:${activeComp._id}`] } }]
+        : []),
     ],
   };
 

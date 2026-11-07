@@ -38,11 +38,15 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
         if (!token) return;
         setLoading(true);
         try {
-            const res = await axios.get('/api/notifications', {
+            const companyId = encodeURIComponent(localStorage.getItem('wappy_active_company_id') || '');
+            const res = await axios.get(`/api/notifications?companyId=${companyId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setNotifications(res.data);
-            const unread = res.data.filter((n: Notification) => !n.read).length;
+            const list: Notification[] = Array.isArray(res.data)
+                ? res.data
+                : (res.data?.notifications || []);
+            setNotifications(list);
+            const unread = list.filter((n: Notification) => !n.read).length;
             onUnreadCountChange?.(unread);
         } catch (e) {
             showToast({ message: 'Error al cargar notificaciones', status: 'error' });
@@ -53,6 +57,20 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
 
     useEffect(() => {
         fetchNotifications();
+    }, [fetchNotifications]);
+
+    useEffect(() => {
+        const handleCompanyChange = () => {
+            fetchNotifications();
+        };
+        window.addEventListener('wappy-company-changed', handleCompanyChange);
+        window.addEventListener('wappy-company-updated', handleCompanyChange);
+        window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        return () => {
+            window.removeEventListener('wappy-company-changed', handleCompanyChange);
+            window.removeEventListener('wappy-company-updated', handleCompanyChange);
+            window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        };
     }, [fetchNotifications]);
 
     const markRead = async (id: string) => {
@@ -92,7 +110,8 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
 
     const deleteAll = async () => {
         try {
-            await axios.delete('/api/notifications/all', {
+            const companyId = encodeURIComponent(localStorage.getItem('wappy_active_company_id') || '');
+            await axios.delete(`/api/notifications/all?companyId=${companyId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setNotifications([]);
@@ -105,7 +124,8 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
 
     const markAllRead = async () => {
         try {
-            await axios.put('/api/notifications/read-all', {}, {
+            const companyId = encodeURIComponent(localStorage.getItem('wappy_active_company_id') || '');
+            await axios.put(`/api/notifications/read-all?companyId=${companyId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));

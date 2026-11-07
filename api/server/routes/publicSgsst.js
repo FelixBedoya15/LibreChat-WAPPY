@@ -1137,6 +1137,7 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
       try {
         await Notification.create({
           user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
           type: 'sgsst_perfil_update',
           title: 'Actualización de Perfil y Salud Recibida',
           body: `${worker.nombre || 'Un trabajador'} ha solicitado actualizar sus datos de perfil sociodemográfico y condiciones de salud.`,
@@ -2758,6 +2759,7 @@ router.post('/comites/:companyId', async (req, res) => {
       try {
         await Notification.create({
           user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
           type: 'sgsst_comite_asistencia',
           title: `Registro de Asistencia a Comité (${tipoComite.toUpperCase()})`,
           body: `${trabajadorNombre} (CC: ${cleanCedula}) ha registrado asistencia al ${tipoComite.toUpperCase()}.`,
@@ -2962,6 +2964,7 @@ router.post('/copasst-inspeccion/:companyId', async (req, res) => {
       try {
         await Notification.create({
           user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
           type: 'sgsst_copasst_inspeccion',
           title: `Nueva Inspección de Seguridad COPASST (${consecutivo})`,
           body: `${inspector.nombre} ha radicado la inspección "${tipoLabel || 'Inspección de Seguridad'}" en el área ${area} con ${(hallazgos || []).length} hallazgos registrados.`,
@@ -3063,6 +3066,7 @@ router.post('/convivencia/:companyId', async (req, res) => {
       try {
         await Notification.create({
           user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
           type: 'sgsst_queja_convivencia',
           title: `⚠️ RADICADO CONFIDENCIAL: ${radicadoNum} (${tipoAcoso === 'sexual_ley_2365' ? 'Ley 2365 Acoso Sexual' : 'Ley 1010 Acoso Laboral'})`,
           body: `Se ha radicado una queja confidencial bajo radicado ${radicadoNum}. Requiere activación inmediata de protocolo de protección.`,
@@ -3462,6 +3466,7 @@ const handleFirmarActa = async (req, res) => {
       try {
         await Notification.create({
           user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
           type: 'sgsst_firma_acta',
           title: `Firma Digital de Acta Recibida (${normalizedTipo.toUpperCase()})`,
           body: `${asistenteNombre} (C.C. ${cleanCedula}) firmó digitalmente el acta ${acta.consecutivo} desde el portal del trabajador.`,
@@ -3757,6 +3762,7 @@ router.post('/brigadista/:companyId', async (req, res) => {
       try {
         await Notification.create({
           user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
           type: 'sgsst_brigadista_actualizado',
           title: `Hoja de Vida de Brigadista Registrada: ${nombre}`,
           body: `${nombre} (CC: ${cleanCedula}) ha confirmado su pertenencia a la Brigada de Emergencias (${grupoEspecialidad} - ${rolSCI}).`,
@@ -3967,6 +3973,7 @@ router.post('/epp/solicitar/:companyId', async (req, res) => {
       try {
         await Notification.create({
           user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
           type: 'sgsst_solicitud_epp',
           title: `Nueva Solicitud de EPP: ${nombreTrabajador}`,
           body: `${nombreTrabajador} (${cargo || 'Colaborador'}) ha solicitado ${items.length} EPP desde el portal del colaborador.`,

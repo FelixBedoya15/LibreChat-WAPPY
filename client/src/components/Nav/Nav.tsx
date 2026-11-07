@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, useMemo, memo, lazy, Suspense, useRef } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useMediaQuery, TooltipAnchor } from '@librechat/client';
-import { PermissionTypes, Permissions } from 'librechat-data-provider';
+import { PermissionTypes, Permissions, QueryKeys } from 'librechat-data-provider';
 import type { ConversationListResponse } from 'librechat-data-provider';
-import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
+import { useQueryClient, type InfiniteQueryObserverResult } from '@tanstack/react-query';
 import {
   useLocalize,
   useHasAccess,
@@ -128,6 +128,7 @@ const Nav = memo(
     const hasAccessToPlans = !isSubUser;
 
     const search = useRecoilValue(store.search);
+    const queryClient = useQueryClient();
 
     const { data, fetchNextPage, isFetchingNextPage, isLoading, isFetching, refetch } =
       useConversationsInfiniteQuery(
@@ -202,6 +203,21 @@ const Nav = memo(
     useEffect(() => {
       refetch();
     }, [tags, refetch]);
+
+    useEffect(() => {
+      const handleCompanyChange = () => {
+        queryClient.invalidateQueries([QueryKeys.allConversations]);
+        refetch();
+      };
+      window.addEventListener('wappy-company-changed', handleCompanyChange);
+      window.addEventListener('wappy-company-updated', handleCompanyChange);
+      window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
+      return () => {
+        window.removeEventListener('wappy-company-changed', handleCompanyChange);
+        window.removeEventListener('wappy-company-updated', handleCompanyChange);
+        window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
+      };
+    }, [queryClient, refetch]);
 
     const loadMoreConversations = useCallback(() => {
       if (isFetchingNextPage || !computedHasNextPage) {

@@ -32,7 +32,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             try {
                 // Try to fallback to Matriz de Peligros data of active company
                 const activeComp = (await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()) || (await CompanyInfo.findOne({ user: req.user.id }).lean());
-                const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', new mongoose.Schema({ user: mongoose.Schema.Types.ObjectId, procesos: Array }, { strict: false }));
+                const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', new mongoose.Schema({ user: mongoose.Schema.Types.ObjectId, companyId: mongoose.Schema.Types.ObjectId, procesos: Array }, { strict: false }));
                 const matrizData = await MatrizPeligrosData.findOne({ user: req.user.id, ...(activeComp?._id ? { companyId: activeComp._id } : {}) }).lean();
 
                 if (matrizData && matrizData.procesos && matrizData.procesos.length > 0) {

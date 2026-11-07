@@ -328,10 +328,14 @@ router.get('/workers/:companyId', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // 3. Fallback: buscar por user (el usuario principal de la empresa)
-    if (!perfilDoc) {
+    // 3. Fallback: buscar por user solo cuando NO se proporcionó companyId
+    const hasValidCompanyId = Boolean(companyId && companyId !== 'null' && companyId !== 'undefined');
+    if (!perfilDoc && !hasValidCompanyId) {
       try {
-        perfilDoc = await PerfilSociodemograficoData.findOne({ user: targetUserId }).lean();
+        perfilDoc = await PerfilSociodemograficoData.findOne({
+          user: targetUserId,
+          $or: [{ companyId: null }, { companyId: { $exists: false } }],
+        }).lean();
       } catch (_) {}
     }
 
@@ -342,7 +346,10 @@ router.get('/workers/:companyId', requireJwtAuth, async (req, res) => {
       try {
         const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
         if (SgsstWorker) {
-          const sWorkers = await SgsstWorker.find({ user: targetUserId }).lean();
+          const sWorkers = await SgsstWorker.find({
+            user: targetUserId,
+            ...(hasValidCompanyId ? { companyId } : {}),
+          }).lean();
           if (sWorkers && sWorkers.length > 0) {
             workersList = sWorkers.map((w) => ({
               id: w._id,
@@ -377,7 +384,15 @@ router.get('/workers/:companyId', requireJwtAuth, async (req, res) => {
 // ─── GET /api/sgsst/estudio-puesto/:id ─────────────────────────────────────────
 router.get('/:id', requireJwtAuth, async (req, res) => {
   try {
-    const study = await EstudioPuestoTrabajo.findById(req.params.id).lean();
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    const reqCompId = req.query.companyId;
+    const filter = {
+      _id: req.params.id,
+      user: targetUserId,
+      ...(reqCompId && mongoose.Types.ObjectId.isValid(reqCompId) ? { companyId: reqCompId } : {}),
+    };
+    const study = await EstudioPuestoTrabajo.findOne(filter).lean();
     if (!study) return res.status(404).json({ error: 'Estudio no encontrado' });
     return res.json({ success: true, study });
   } catch (err) {
@@ -754,7 +769,14 @@ REGLAS DE FORMATO Y SALIDA:
 router.delete('/:id', requireJwtAuth, async (req, res) => {
   try {
     if (!checkEptPermission(req, res)) return;
-    const deleted = await EstudioPuestoTrabajo.findByIdAndDelete(req.params.id);
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    const reqCompId = req.query.companyId || req.body?.companyId;
+    const deleted = await EstudioPuestoTrabajo.findOneAndDelete({
+      _id: req.params.id,
+      user: targetUserId,
+      ...(reqCompId && mongoose.Types.ObjectId.isValid(reqCompId) ? { companyId: reqCompId } : {}),
+    });
     if (!deleted) return res.status(404).json({ error: 'Estudio no encontrado' });
     return res.json({ success: true, message: 'Estudio eliminado correctamente' });
   } catch (err) {
@@ -770,8 +792,15 @@ router.patch('/:id', requireJwtAuth, async (req, res) => {
     if (!checkEptPermission(req, res)) return;
     const { id } = req.params;
     const updateData = req.body;
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    const reqCompId = updateData?.companyId || req.query.companyId;
 
-    const study = await EstudioPuestoTrabajo.findById(id);
+    const study = await EstudioPuestoTrabajo.findOne({
+      _id: id,
+      user: targetUserId,
+      ...(reqCompId && mongoose.Types.ObjectId.isValid(reqCompId) ? { companyId: reqCompId } : {}),
+    });
     if (!study) return res.status(404).json({ error: 'Estudio o turno no encontrado' });
 
     if (updateData.workerName !== undefined) study.workerName = String(updateData.workerName).trim();
@@ -957,9 +986,16 @@ router.patch('/appointment/:id', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'ID de cita no válido.' });
     }
 
-    const { scheduledAt, slotDurationMinutes, appointmentNotes, status, workerName, workerId, cargo, actividad, scheduledByName } = req.body;
+    const { scheduledAt, slotDurationMinutes, appointmentNotes, status, workerName, workerId, cargo, actividad, scheduledByName, companyId } = req.body;
+    const isSub = !!req.user.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    const reqCompId = companyId || req.query.companyId;
 
-    const apt = await EstudioPuestoTrabajo.findById(id);
+    const apt = await EstudioPuestoTrabajo.findOne({
+      _id: id,
+      user: targetUserId,
+      ...(reqCompId && mongoose.Types.ObjectId.isValid(reqCompId) ? { companyId: reqCompId } : {}),
+    });
     if (!apt) return res.status(404).json({ error: 'Cita no encontrada.' });
 
     if (workerName !== undefined) apt.workerName = String(workerName).trim();

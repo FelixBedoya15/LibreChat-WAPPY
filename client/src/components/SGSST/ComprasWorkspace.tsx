@@ -535,7 +535,34 @@ export const ComprasWorkspace: React.FC = () => {
 
   // ─── CARGAR DATOS DESDE EL BACKEND ─────────────────────────────────────────
   const loadData = useCallback(async () => {
-    if (!token) return;
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const loadLocalFallbacks = (hasServerCompras: boolean, hasServerCriterios: boolean) => {
+      if (!hasServerCompras) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_compras_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setCompras(Array.isArray(parsed) && parsed.length > 0 ? parsed.map(normalizeCompraItem) : INITIAL_COMPRAS);
+        } catch {
+          setCompras(INITIAL_COMPRAS);
+        }
+      }
+      if (!hasServerCriterios) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_compras_criterios_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setCriteriosMatriz(
+            Array.isArray(parsed) && parsed.length > 0 ? parsed.map(normalizeCriterioItem) : INITIAL_CRITERIOS_MATRIZ
+          );
+        } catch {
+          setCriteriosMatriz(INITIAL_CRITERIOS_MATRIZ);
+        }
+      }
+    };
+
+    if (!token) {
+      loadLocalFallbacks(false, false);
+      return;
+    }
     try {
       const res = await fetch('/api/sgsst/compras/data', {
         headers: { Authorization: `Bearer ${token}` },
@@ -543,12 +570,15 @@ export const ComprasWorkspace: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.company) setCompany(data.company);
-        if (Array.isArray(data.compras) && data.compras.length > 0) {
+        const hasServerCompras = Array.isArray(data.compras) && data.compras.length > 0;
+        const hasServerCriterios = Array.isArray(data.criteriosMatriz) && data.criteriosMatriz.length > 0;
+        if (hasServerCompras) {
           setCompras(data.compras.map(normalizeCompraItem));
         }
-        if (Array.isArray(data.criteriosMatriz) && data.criteriosMatriz.length > 0) {
+        if (hasServerCriterios) {
           setCriteriosMatriz(data.criteriosMatriz.map(normalizeCriterioItem));
         }
+        loadLocalFallbacks(hasServerCompras, hasServerCriterios);
         if (data.ecosystemMetrics) {
           applyEcosystemMetrics(data.ecosystemMetrics);
         }
@@ -557,14 +587,26 @@ export const ComprasWorkspace: React.FC = () => {
           editorContentRef.current = data.lastGeneratedReport;
           liveEditorRef.current?.setHTML(data.lastGeneratedReport);
         }
+      } else {
+        loadLocalFallbacks(false, false);
       }
     } catch (err) {
       console.warn('[Compras SST] Could not load saved data from backend:', err);
+      loadLocalFallbacks(false, false);
     }
   }, [token, applyEcosystemMetrics]);
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    window.addEventListener('wappy-company-changed', loadData);
+    window.addEventListener('wappy-empresa-cambiada', loadData);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadData);
+      window.removeEventListener('wappy-empresa-cambiada', loadData);
+    };
   }, [loadData]);
 
   useAutoLoadReport({
@@ -581,8 +623,9 @@ export const ComprasWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSaving(true);
     try {
-      localStorage.setItem('wappy_iso45001_compras', JSON.stringify(compras));
-      localStorage.setItem('wappy_iso45001_compras_criterios', JSON.stringify(criteriosMatriz));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_iso45001_compras_${companySuffix}`, JSON.stringify(compras));
+      localStorage.setItem(`wappy_iso45001_compras_criterios_${companySuffix}`, JSON.stringify(criteriosMatriz));
 
       if (token) {
         const payloadCompras = compras.map((c) => ({

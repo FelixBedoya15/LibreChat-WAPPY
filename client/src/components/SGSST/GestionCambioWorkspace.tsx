@@ -462,7 +462,23 @@ export const GestionCambioWorkspace: React.FC = () => {
 
   // ─── CARGAR DATOS DESDE EL BACKEND ─────────────────────────────────────────
   const loadData = useCallback(async () => {
-    if (!token) return;
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const loadLocalFallback = (hasMoc: boolean) => {
+      if (!hasMoc) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_gestion_cambio_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setMocList(Array.isArray(parsed) && parsed.length > 0 ? parsed.map(normalizeMocItem) : INITIAL_MOC_ITEMS);
+        } catch {
+          setMocList(INITIAL_MOC_ITEMS);
+        }
+      }
+    };
+
+    if (!token) {
+      loadLocalFallback(false);
+      return;
+    }
     try {
       const res = await fetch('/api/sgsst/gestion-cambio/data', {
         headers: { Authorization: `Bearer ${token}` },
@@ -470,9 +486,11 @@ export const GestionCambioWorkspace: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.company) setCompany(data.company);
-        if (Array.isArray(data.mocList) && data.mocList.length > 0) {
+        const hasMoc = Array.isArray(data.mocList) && data.mocList.length > 0;
+        if (hasMoc) {
           setMocList(data.mocList.map(normalizeMocItem));
         }
+        loadLocalFallback(hasMoc);
         if (data.ecosystemMetrics) {
           applyEcosystemMetrics(data.ecosystemMetrics);
         }
@@ -481,14 +499,26 @@ export const GestionCambioWorkspace: React.FC = () => {
           editorContentRef.current = data.lastGeneratedReport;
           liveEditorRef.current?.setHTML(data.lastGeneratedReport);
         }
+      } else {
+        loadLocalFallback(false);
       }
     } catch (err) {
       console.warn('[Gestion Cambio MOC] Could not load saved data from backend:', err);
+      loadLocalFallback(false);
     }
   }, [token, applyEcosystemMetrics]);
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    window.addEventListener('wappy-company-changed', loadData);
+    window.addEventListener('wappy-empresa-cambiada', loadData);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadData);
+      window.removeEventListener('wappy-empresa-cambiada', loadData);
+    };
   }, [loadData]);
 
   useAutoLoadReport({
@@ -505,7 +535,8 @@ export const GestionCambioWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSaving(true);
     try {
-      localStorage.setItem('wappy_iso45001_gestion_cambio', JSON.stringify(mocList));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_iso45001_gestion_cambio_${companySuffix}`, JSON.stringify(mocList));
 
       if (token) {
         const res = await fetch('/api/sgsst/gestion-cambio/data', {

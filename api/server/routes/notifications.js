@@ -1,13 +1,35 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Notification = require('../../models/Notification');
+const CompanyInfo = require('../../models/CompanyInfo');
 const { requireJwtAuth } = require('../middleware');
 const { logger } = require('~/config');
+
+async function resolveActiveCompanyId(req) {
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user?.id;
+    if (isSub && req.user?.assignedCompany) {
+        return req.user.assignedCompany;
+    }
+    const explicitCompId = req.query?.companyId || req.body?.companyId;
+    if (explicitCompId && mongoose.Types.ObjectId.isValid(explicitCompId)) {
+        return explicitCompId;
+    }
+    const activeComp =
+        (await CompanyInfo.findOne({ user: targetUserId, isActive: true }).select('_id').lean()) ||
+        (await CompanyInfo.findOne({ user: targetUserId }).select('_id').lean());
+    return activeComp?._id || null;
+}
 
 // GET /api/notifications - Get all notifications for the logged-in user
 router.get('/', requireJwtAuth, async (req, res) => {
     try {
-        const notifications = await Notification.find({ user: req.user.id })
+        const activeCompId = await resolveActiveCompanyId(req);
+        const filter = activeCompId
+            ? { user: req.user.id, $or: [{ companyId: activeCompId }, { companyId: null }] }
+            : { user: req.user.id };
+        const notifications = await Notification.find(filter)
             .sort({ createdAt: -1 })
             .limit(100);
         res.json(notifications);
@@ -20,7 +42,11 @@ router.get('/', requireJwtAuth, async (req, res) => {
 // GET /api/notifications/unread-count - Get unread count
 router.get('/unread-count', requireJwtAuth, async (req, res) => {
     try {
-        const count = await Notification.countDocuments({ user: req.user.id, read: false });
+        const activeCompId = await resolveActiveCompanyId(req);
+        const filter = activeCompId
+            ? { user: req.user.id, read: false, $or: [{ companyId: activeCompId }, { companyId: null }] }
+            : { user: req.user.id, read: false };
+        const count = await Notification.countDocuments(filter);
         res.json({ count });
     } catch (error) {
         logger.error('[Notifications] Error fetching unread count:', error);
@@ -31,7 +57,11 @@ router.get('/unread-count', requireJwtAuth, async (req, res) => {
 // PUT /api/notifications/read-all - Mark all as read
 router.put('/read-all', requireJwtAuth, async (req, res) => {
     try {
-        await Notification.updateMany({ user: req.user.id, read: false }, { read: true });
+        const activeCompId = await resolveActiveCompanyId(req);
+        const filter = activeCompId
+            ? { user: req.user.id, read: false, $or: [{ companyId: activeCompId }, { companyId: null }] }
+            : { user: req.user.id, read: false };
+        await Notification.updateMany(filter, { read: true });
         res.json({ message: 'All notifications marked as read' });
     } catch (error) {
         logger.error('[Notifications] Error marking all as read:', error);
@@ -42,7 +72,11 @@ router.put('/read-all', requireJwtAuth, async (req, res) => {
 // DELETE /api/notifications/all - Delete all notifications for the user
 router.delete('/all', requireJwtAuth, async (req, res) => {
     try {
-        await Notification.deleteMany({ user: req.user.id });
+        const activeCompId = await resolveActiveCompanyId(req);
+        const filter = activeCompId
+            ? { user: req.user.id, $or: [{ companyId: activeCompId }, { companyId: null }] }
+            : { user: req.user.id };
+        await Notification.deleteMany(filter);
         res.json({ message: 'All notifications deleted' });
     } catch (error) {
         logger.error('[Notifications] Error deleting all notifications:', error);

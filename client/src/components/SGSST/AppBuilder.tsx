@@ -94,16 +94,31 @@ export default function AppBuilder() {
     const [simulatedIncomingMsg, setSimulatedIncomingMsg] = useState('');
     const [isWhatsAppSimulating, setIsWhatsAppSimulating] = useState(false);
 
-    // Load custom apps on mount
+    // Load custom apps on mount and when active company changes
     useEffect(() => {
-        const saved = localStorage.getItem('wappy_custom_apps');
-        if (saved) {
-            try {
-                setApps(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to parse wappy_custom_apps', e);
+        const loadAppsForCompany = () => {
+            const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+            const saved = localStorage.getItem(`wappy_custom_apps_${companySuffix}`);
+            if (saved) {
+                try {
+                    setApps(JSON.parse(saved));
+                } catch (e) {
+                    console.error('Failed to parse wappy_custom_apps', e);
+                    setApps([]);
+                }
+            } else {
+                setApps([]);
             }
-        }
+            setActiveApp(null);
+            setIsBuilding(false);
+        };
+        loadAppsForCompany();
+        window.addEventListener('wappy-company-changed', loadAppsForCompany);
+        window.addEventListener('wappy-empresa-cambiada', loadAppsForCompany);
+        return () => {
+            window.removeEventListener('wappy-company-changed', loadAppsForCompany);
+            window.removeEventListener('wappy-empresa-cambiada', loadAppsForCompany);
+        };
     }, []);
 
     // Close export dropdown when clicking outside
@@ -121,7 +136,8 @@ export default function AppBuilder() {
     // Save apps utility
     const saveToLocalStorage = (updatedApps: WappyApp[]) => {
         setApps(updatedApps);
-        localStorage.setItem('wappy_custom_apps', JSON.stringify(updatedApps));
+        const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+        localStorage.setItem(`wappy_custom_apps_${companySuffix}`, JSON.stringify(updatedApps));
     };
 
     // ─── ACTIONS ───

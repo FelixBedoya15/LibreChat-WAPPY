@@ -1408,7 +1408,7 @@ router.delete('/delete/:id', requireJwtAuth, async (req, res) => {
     if (task.referenceId && task.referenceId.startsWith('acto-') && ReporteActosData) {
       const repId = task.referenceId.replace('acto-', '');
       await ReporteActosData.updateOne(
-        { user: userId },
+        { user: userId, ...(task.companyId ? { companyId: task.companyId } : {}) },
         { $pull: { inboxPublico: { id: repId } } }
       );
     }

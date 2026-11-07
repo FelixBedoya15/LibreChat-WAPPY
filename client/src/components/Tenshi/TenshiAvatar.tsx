@@ -1161,13 +1161,18 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           )}
 
           <img
+            key={preset.src}
             src={preset.src}
             alt={preset.name}
             draggable={false}
             style={{ imageRendering: 'auto' }}
             className="h-full w-full object-contain object-center pointer-events-none select-none"
             onError={(e) => {
-              e.currentTarget.src = '/assets/logo.svg';
+              const imgEl = e.currentTarget;
+              if (!imgEl.dataset.retried) {
+                imgEl.dataset.retried = '1';
+                imgEl.src = `${preset.src.split('?')[0]}?t=${Date.now()}`;
+              }
             }}
           />
 

@@ -1,11 +1,55 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const router = express.Router();
 const NotebookSession = require('~/models/NotebookSession');
+const CompanyInfo = require('~/models/CompanyInfo');
 const { requireApiKeyOrJwt: requireJwtAuth } = require('~/server/middleware/requireApiKeyAuth');
 const { logger } = require('~/config');
 const paths = require('~/config/paths');
+
+/**
+ * Resuelve el _id de la empresa solicitada (si pertenece al usuario) o de la empresa activa
+ */
+async function resolveActiveCompanyId(userId, explicitCompanyId = null) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return null;
+  }
+  if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+    const requested = await CompanyInfo.findOne({ user: userId, _id: explicitCompanyId })
+      .select('_id')
+      .lean()
+      .catch(() => null);
+    if (requested?._id) {
+      return requested._id;
+    }
+  }
+  const active = await CompanyInfo.findOne({ user: userId, isActive: true })
+    .select('_id')
+    .lean()
+    .catch(() => null);
+  return active?._id || null;
+}
+
+/**
+ * Busca la sesión para la empresa activa con fallback de lectura a sesiones sin companyId
+ */
+async function findSessionForCompany(Model, userId, companyId) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return null;
+  }
+  if (companyId) {
+    const doc = await Model.findOne({ user: userId, companyId }).lean().catch(() => null);
+    if (doc) return doc;
+  }
+  return Model.findOne({
+    user: userId,
+    $or: [{ companyId: null }, { companyId: { $exists: false } }],
+  })
+    .lean()
+    .catch(() => null);
+}
 
 // Directorio base de perfiles de NotebookLM
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -207,7 +251,9 @@ router.get('/internal/session/:userId', async (req, res) => {
       return res.status(400).json({ error: 'ID de usuario inválido' });
     }
 
-    const session = await NotebookSession.findOne({ user: userId }).lean();
+    const explicitCompanyId = req.query?.companyId || req.headers['x-company-id'] || null;
+    const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
+    const session = await findSessionForCompany(NotebookSession, userId, activeCompId);
     if (!session || !session.cookies || session.cookies.length === 0) {
       return res.status(404).json({
         error: 'El usuario no tiene una sesión privada de Google NotebookLM vinculada.',
@@ -217,6 +263,7 @@ router.get('/internal/session/:userId', async (req, res) => {
     return res.json({
       success: true,
       userId,
+      companyId: activeCompId || null,
       email: session.email || '',
       cookies: session.cookies,
       cookieCount: session.cookieCount || session.cookies.length,
@@ -244,29 +291,34 @@ router.post('/internal/session/:userId', async (req, res) => {
       return res.status(400).json({ error: 'Sin cookies para actualizar' });
     }
 
-    const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    const explicitCompanyId =
+      req.body?.companyId || req.query?.companyId || req.headers['x-company-id'] || null;
+    const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
+    const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
     const mergedNb = mergeGoogleCookiesByDomain(incomingCookies, existingNb?.cookies || []);
     const effectiveEmail = req.body?.email || existingNb?.email || `${userId}@wappy.internal`;
 
     await NotebookSession.findOneAndUpdate(
-      { user: userId },
+      { user: userId, companyId: activeCompId || null },
       {
+        companyId: activeCompId || null,
         email: effectiveEmail,
         cookies: mergedNb,
         cookieCount: mergedNb.length,
         isValid: true,
         lastTestedAt: new Date(),
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     try {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
-      const existingFlow = await GoogleFlowSession.findOne({ user: userId }).lean().catch(() => null);
+      const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
       const mergedFlow = mergeGoogleCookiesByDomain(mergedNb, existingFlow?.cookies || []);
       await GoogleFlowSession.findOneAndUpdate(
-        { user: userId },
+        { user: userId, companyId: activeCompId || null },
         {
+          companyId: activeCompId || null,
           email: existingFlow?.email || effectiveEmail,
           cookies: mergedFlow,
           cookieCount: mergedFlow.length,
@@ -444,7 +496,8 @@ function validateCookiesLocally(cookies) {
 router.get('/status', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const session = await NotebookSession.findOne({ user: userId }).lean();
+    const activeCompId = await resolveActiveCompanyId(userId, req.query?.companyId);
+    const session = await findSessionForCompany(NotebookSession, userId, activeCompId);
     const primaryStoragePath = getStoragePaths(userId)[0];
 
     const fileExists = fs.existsSync(primaryStoragePath);
@@ -523,15 +576,20 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     }
 
     const effectiveEmail = clientEmail || userEmail || `${userId}@wappy.internal`;
+    const activeCompId = await resolveActiveCompanyId(
+      userId,
+      req.body?.companyId || req.query?.companyId
+    );
 
     // Fusionar con cookies existentes de la misma cuenta (para no perder OSID de flow.google.com ni __Secure-1PSIDTS rotados)
-    const existingNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
     let mergedCookies = mergeGoogleCookiesByDomain(cookies, existingNb?.cookies || []);
 
     // 1. Guardar inicialmente en MongoDB antes de llamar a notebooklm-mcp (así si notebooklm-mcp rota y hace POST /internal/session/:userId, no lo pisamos)
     await NotebookSession.findOneAndUpdate(
-      { user: userId },
+      { user: userId, companyId: activeCompId || null },
       {
+        companyId: activeCompId || null,
         email: effectiveEmail,
         cookies: mergedCookies,
         cookieCount: mergedCookies.length,
@@ -539,16 +597,17 @@ router.post('/session', requireJwtAuth, async (req, res) => {
         lastTestedAt: new Date(),
         source,
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     try {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
-      const existingFlow = await GoogleFlowSession.findOne({ user: userId }).lean().catch(() => null);
+      const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
       const mergedFlow = mergeGoogleCookiesByDomain(mergedCookies, existingFlow?.cookies || []);
       await GoogleFlowSession.findOneAndUpdate(
-        { user: userId },
+        { user: userId, companyId: activeCompId || null },
         {
+          companyId: activeCompId || null,
           email: effectiveEmail,
           cookies: mergedFlow,
           cookieCount: mergedFlow.length,
@@ -614,6 +673,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     }
 
     const sessionUpdate = {
+      companyId: activeCompId || null,
       isValid: testResult.success,
       lastTestedAt: new Date(),
     };
@@ -623,11 +683,11 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     }
 
     await NotebookSession.findOneAndUpdate(
-      { user: userId },
+      { user: userId, companyId: activeCompId || null },
       sessionUpdate
     );
 
-    const latestNb = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+    const latestNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
     const finalCount = latestNb?.cookieCount || mergedCookies.length;
 
     return res.json({
@@ -724,10 +784,11 @@ async function callNotebookLmDirectTool({ userId, email, cookies = [], toolName,
 /**
  * Resuelve las cookies y email activos de NotebookLM para un usuario (MongoDB -> Disco -> GoogleFlowSession)
  */
-async function resolveUserNotebookCredentials(userId, fallbackEmail = '') {
+async function resolveUserNotebookCredentials(userId, fallbackEmail = '', explicitCompanyId = null) {
   let cookies = [];
   let effectiveEmail = fallbackEmail || '';
-  let session = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+  const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
+  let session = await findSessionForCompany(NotebookSession, userId, activeCompId);
 
   if (session && Array.isArray(session.cookies) && session.cookies.length > 0) {
     cookies = session.cookies;
@@ -746,15 +807,16 @@ async function resolveUserNotebookCredentials(userId, fallbackEmail = '') {
   if (cookies.length === 0) {
     try {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
-      const flowSess = await GoogleFlowSession.findOne({ user: userId }).lean();
+      const flowSess = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
       if (flowSess && Array.isArray(flowSess.cookies) && flowSess.cookies.length > 0) {
         cookies = flowSess.cookies;
         effectiveEmail = flowSess.email || effectiveEmail;
         session = await NotebookSession.findOneAndUpdate(
-          { user: userId },
+          { user: userId, companyId: activeCompId || null },
           {
             $set: {
               user: userId,
+              companyId: activeCompId || null,
               email: effectiveEmail,
               cookies,
               cookieCount: cookies.length,
@@ -762,13 +824,13 @@ async function resolveUserNotebookCredentials(userId, fallbackEmail = '') {
               lastTestedAt: new Date(),
             },
           },
-          { upsert: true, new: true }
+          { upsert: true, new: true, setDefaultsOnInsert: true }
         ).lean();
       }
     } catch (_) {}
   }
 
-  return { session, cookies, effectiveEmail };
+  return { session, cookies, effectiveEmail, activeCompId };
 }
 
 /**
@@ -780,7 +842,11 @@ async function resolveUserNotebookCredentials(userId, fallbackEmail = '') {
 router.post('/test', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    let { cookies, effectiveEmail } = await resolveUserNotebookCredentials(userId, req.user.email || '');
+    let { cookies, effectiveEmail, activeCompId } = await resolveUserNotebookCredentials(
+      userId,
+      req.user.email || '',
+      req.body?.companyId || req.query?.companyId
+    );
 
     if (cookies.length === 0) {
       return res.status(200).json({
@@ -825,7 +891,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
     if (!liveRes.success) {
       try {
         const GoogleFlowSession = require('~/models/GoogleFlowSession');
-        const flowSess = await GoogleFlowSession.findOne({ user: userId }).lean();
+        const flowSess = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
         if (flowSess && Array.isArray(flowSess.cookies) && flowSess.cookies.length > 0) {
           const retryRes = await runLiveMcpCheck(flowSess.cookies, flowSess.email || effectiveEmail);
           if (retryRes.success) {
@@ -833,24 +899,37 @@ router.post('/test', requireJwtAuth, async (req, res) => {
             effectiveEmail = flowSess.email || effectiveEmail;
             liveRes = retryRes;
             await NotebookSession.findOneAndUpdate(
-              { user: userId },
-              { $set: { cookies, email: effectiveEmail, isValid: true, lastTestedAt: new Date() } },
-              { upsert: true }
+              { user: userId, companyId: activeCompId || null },
+              {
+                $set: {
+                  companyId: activeCompId || null,
+                  cookies,
+                  email: effectiveEmail,
+                  isValid: true,
+                  lastTestedAt: new Date(),
+                },
+              },
+              { upsert: true, setDefaultsOnInsert: true }
             );
           }
         }
       } catch (_) {}
     }
 
-    const updateFields = { isValid: liveRes.success, lastTestedAt: new Date() };
+    const updateFields = {
+      companyId: activeCompId || null,
+      isValid: liveRes.success,
+      lastTestedAt: new Date(),
+    };
     if (Array.isArray(liveRes.notebooks)) {
       updateFields.cachedNotebooks = liveRes.notebooks;
       updateFields.notebooksUpdatedAt = new Date();
     }
 
     await NotebookSession.findOneAndUpdate(
-      { user: userId },
-      updateFields
+      { user: userId, companyId: activeCompId || null },
+      updateFields,
+      { upsert: true, setDefaultsOnInsert: true }
     );
 
     return res.json({
@@ -879,9 +958,10 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
     const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
     const agentId = String(req.query.agentId || '').trim();
 
-    const { session, cookies, effectiveEmail } = await resolveUserNotebookCredentials(
+    const { session, cookies, effectiveEmail, activeCompId } = await resolveUserNotebookCredentials(
       userId,
-      req.user.email || ''
+      req.user.email || '',
+      req.query.companyId
     );
 
     if (!cookies || cookies.length === 0) {
@@ -922,16 +1002,17 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
         notebooksUpdatedAt = new Date();
         isValid = true;
         await NotebookSession.findOneAndUpdate(
-          { user: userId },
+          { user: userId, companyId: activeCompId || null },
           {
             $set: {
+              companyId: activeCompId || null,
               cachedNotebooks: notebooks,
               notebooksUpdatedAt,
               isValid: true,
               lastTestedAt: new Date(),
             },
           },
-          { upsert: true }
+          { upsert: true, setDefaultsOnInsert: true }
         );
       } else if (mcpRes.error) {
         syncWarning = mcpRes.error;
@@ -999,7 +1080,11 @@ async function handleSaveAgentNotebooks(req, res) {
     }
 
     const rawNotebooks = Array.isArray(req.body?.notebooks) ? req.body.notebooks : [];
-    const session = await NotebookSession.findOne({ user: userId }).lean();
+    const activeCompId = await resolveActiveCompanyId(
+      userId,
+      req.body?.companyId || req.query?.companyId
+    );
+    const session = await findSessionForCompany(NotebookSession, userId, activeCompId);
     const cachedList = Array.isArray(session?.cachedNotebooks)
       ? normalizeNotebookList(session.cachedNotebooks)
       : [];
@@ -1031,9 +1116,9 @@ async function handleSaveAgentNotebooks(req, res) {
     currentMap[agentId] = normalizedAssigned;
 
     await NotebookSession.findOneAndUpdate(
-      { user: userId },
-      { $set: { agentNotebooks: currentMap } },
-      { upsert: true, new: true }
+      { user: userId, companyId: activeCompId || null },
+      { $set: { companyId: activeCompId || null, agentNotebooks: currentMap } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     return res.json({
@@ -1069,7 +1154,8 @@ router.get('/notebooks/:notebookId/sources', requireJwtAuth, async (req, res) =>
 
     const { cookies, effectiveEmail } = await resolveUserNotebookCredentials(
       userId,
-      req.user.email || ''
+      req.user.email || '',
+      req.query.companyId
     );
     if (!cookies || cookies.length === 0) {
       return res.status(400).json({ error: 'Cuenta de Google NotebookLM no vinculada.' });
@@ -1107,6 +1193,10 @@ router.get('/notebooks/:notebookId/sources', requireJwtAuth, async (req, res) =>
 router.delete('/session', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const activeCompId = await resolveActiveCompanyId(
+      userId,
+      req.query?.companyId || req.body?.companyId
+    );
 
     // Eliminar de disco
     const targetPaths = getStoragePaths(userId);
@@ -1121,8 +1211,13 @@ router.delete('/session', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // Eliminar de MongoDB
-    await NotebookSession.deleteOne({ user: userId });
+    // Eliminar de MongoDB para la empresa activa (y fallback sin empresa)
+    await NotebookSession.deleteMany({
+      user: userId,
+      ...(activeCompId
+        ? { $or: [{ companyId: activeCompId }, { companyId: null }, { companyId: { $exists: false } }] }
+        : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
+    });
 
     return res.json({
       success: true,

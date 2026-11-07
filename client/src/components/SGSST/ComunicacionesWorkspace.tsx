@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   MessageSquare,
   Plus,
@@ -163,10 +163,36 @@ export const ComunicacionesWorkspace: React.FC = () => {
     setComunicaciones(prev => prev.filter(c => c.id !== id));
   };
 
+  const loadComunicacionesLocal = useCallback(() => {
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    try {
+      const raw = localStorage.getItem(`wappy_iso45001_comunicaciones_${companySuffix}`);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setComunicaciones(parsed);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    setComunicaciones(INITIAL_COMUNICACIONES);
+  }, []);
+
+  useEffect(() => {
+    loadComunicacionesLocal();
+    window.addEventListener('wappy-company-changed', loadComunicacionesLocal);
+    window.addEventListener('wappy-empresa-cambiada', loadComunicacionesLocal);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadComunicacionesLocal);
+      window.removeEventListener('wappy-empresa-cambiada', loadComunicacionesLocal);
+    };
+  }, [loadComunicacionesLocal]);
+
   const handleSaveLocal = () => {
     setIsSavingLocal(true);
     try {
-      localStorage.setItem('wappy_iso45001_comunicaciones', JSON.stringify(comunicaciones));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_iso45001_comunicaciones_${companySuffix}`, JSON.stringify(comunicaciones));
       showToast({ message: 'Matriz de Comunicaciones guardada localmente.', status: 'success' });
     } catch {
       showToast({ message: 'Error al guardar los datos en almacenamiento local.', status: 'error' });

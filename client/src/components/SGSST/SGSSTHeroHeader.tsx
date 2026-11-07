@@ -66,9 +66,11 @@ export function useActiveCompanyName(overrideName?: string | null): string {
       }
     };
     window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
+    window.addEventListener('wappy-company-changed', handleCompanyChange);
     window.addEventListener('storage', handleCompanyChange);
     return () => {
       window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
+      window.removeEventListener('wappy-company-changed', handleCompanyChange);
       window.removeEventListener('storage', handleCompanyChange);
     };
   }, []);

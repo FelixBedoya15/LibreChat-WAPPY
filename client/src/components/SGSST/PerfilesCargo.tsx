@@ -781,9 +781,11 @@ const PerfilesCargo = () => {
             loadPerfilesAndMatrix();
         };
         window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        window.addEventListener('wappy-company-changed', handleCompanyChange);
         window.addEventListener('wappy-reload-sgsst-data', handleCompanyChange);
         return () => {
             window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
+            window.removeEventListener('wappy-company-changed', handleCompanyChange);
             window.removeEventListener('wappy-reload-sgsst-data', handleCompanyChange);
         };
     }, [loadPerfilesAndMatrix]);

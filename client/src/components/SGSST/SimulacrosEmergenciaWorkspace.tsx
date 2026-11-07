@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Activity,
   Shield,
@@ -52,10 +52,47 @@ const SimulacrosEmergenciaWorkspace: React.FC = () => {
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const loadSimulacrosDraft = useCallback(() => {
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const raw = localStorage.getItem(`wappy_simulacros_emergencia_draft_${companySuffix}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSimulacros(parsed);
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setSimulacros([
+      {
+        fecha: new Date().toISOString().split('T')[0],
+        hipotesis: 'Sismo de magnitud 6.4 con evacuación total',
+        tipo: 'Avisado',
+        tiempoTotal: '3 min 20 seg',
+        evacuados: '28',
+        hallazgos: 'Evacuación ordenada hacia Punto de Encuentro Principal.',
+      },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    loadSimulacrosDraft();
+    window.addEventListener('wappy-company-changed', loadSimulacrosDraft);
+    window.addEventListener('wappy-empresa-cambiada', loadSimulacrosDraft);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadSimulacrosDraft);
+      window.removeEventListener('wappy-empresa-cambiada', loadSimulacrosDraft);
+    };
+  }, [loadSimulacrosDraft]);
+
   const handleSaveLocal = () => {
     setIsSavingLocal(true);
     setTimeout(() => {
-      localStorage.setItem('wappy_simulacros_emergencia_draft', JSON.stringify(simulacros));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_simulacros_emergencia_draft_${companySuffix}`, JSON.stringify(simulacros));
       setIsSavingLocal(false);
       showToast({
         message: 'Registro de Simulacros guardado localmente',

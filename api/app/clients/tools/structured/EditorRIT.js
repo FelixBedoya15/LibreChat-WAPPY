@@ -215,7 +215,13 @@ class EditorRIT extends Tool {
       if (accion === 'leer') {
         let session = await LiveEditorSession.findOne({ conversationId });
         if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-          const tempId = `temp-${userId}`;
+          let companyId = explicitCompanyId;
+          if (!companyId) {
+            const activeComp = (await CompanyInfo.findOne({ user: userId, isActive: true }).select('_id').lean()) ||
+              (await CompanyInfo.findOne({ user: userId }).select('_id').lean());
+            companyId = activeComp?._id ? String(activeComp._id) : null;
+          }
+          const tempId = `temp-${userId}-${companyId || 'default'}`;
           const tempSession = await LiveEditorSession.findOne({ conversationId: tempId, user: userId });
           if (tempSession) {
             tempSession.conversationId = conversationId;

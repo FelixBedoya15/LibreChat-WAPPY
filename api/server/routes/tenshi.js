@@ -483,8 +483,10 @@ router.get('/governance/pending', requireJwtAuth, async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
         const userIds = [req.user.id, targetUserId].filter(Boolean);
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
         const pending = await TenshiPendingAction.find({
             user: { $in: userIds },
+            ...(activeComp?._id ? { companyId: String(activeComp._id) } : {}),
             status: 'pendiente_aprobacion',
         }).sort({ createdAt: -1 }).limit(20).lean();
         res.json(pending);
@@ -519,6 +521,10 @@ router.post('/governance/:id/approve', requireJwtAuth, async (req, res) => {
         }
 
         const customArgs = req.body?.args ? { ...pendingAction.args, ...req.body.args } : { ...pendingAction.args };
+        if (pendingAction.companyId && !customArgs.companyId && !customArgs._companyId) {
+            customArgs.companyId = pendingAction.companyId;
+            customArgs._companyId = pendingAction.companyId;
+        }
         if (
             (pendingAction.toolName === 'wappy_delegar_orden_antigravity' ||
                 pendingAction.toolName === 'delegar_orden_antigravity') &&
@@ -529,7 +535,11 @@ router.post('/governance/:id/approve', requireJwtAuth, async (req, res) => {
         }
         const execResult = await executeTenshiMcpTool(
             pendingAction.toolName,
-            { ...customArgs, _hitlApproved: true },
+            {
+                ...customArgs,
+                _hitlApproved: true,
+                ...(pendingAction.companyId ? { _companyId: pendingAction.companyId } : {}),
+            },
             targetUserId
         );
 
@@ -1155,10 +1165,6 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
-        if (!req.body.conversationId) {
-            req.body.conversationId = `tenshi-${targetUserId}`;
-        }
-
         let companyInfo = null;
         if (req.user?.isSubUser && req.user?.assignedCompany) {
             companyInfo = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean().catch(() => null);
@@ -1168,6 +1174,10 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
         if (!companyInfo) {
             companyInfo = await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null);
+        }
+
+        if (!req.body.conversationId) {
+            req.body.conversationId = 'tenshi-' + targetUserId + (companyInfo?._id ? '-' + String(companyInfo._id) : '');
         }
 
         if (userQuery && !userQuery.startsWith('[RESULTADO_GUI]')) {

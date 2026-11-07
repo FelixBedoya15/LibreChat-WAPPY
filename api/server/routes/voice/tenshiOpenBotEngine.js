@@ -740,7 +740,7 @@ async function searchInstantHistory(args = {}, userId, companyId = null) {
     if (effectiveCompanyId) {
       const companyConvos = await Conversation.find({
         user: String(userId),
-        tags: `company:${effectiveCompanyId}`,
+        tags: { $in: [`company-${effectiveCompanyId}`, `company:${effectiveCompanyId}`] },
       })
         .select('conversationId')
         .lean()
@@ -786,7 +786,9 @@ async function searchInstantHistory(args = {}, userId, companyId = null) {
             .catch(() => []),
       Conversation.find({
         user: String(userId),
-        ...(effectiveCompanyId ? { tags: `company:${effectiveCompanyId}` } : {}),
+        ...(effectiveCompanyId
+          ? { tags: { $in: [`company-${effectiveCompanyId}`, `company:${effectiveCompanyId}`] } }
+          : {}),
         title: regexOr,
       })
         .sort({ updatedAt: -1 })

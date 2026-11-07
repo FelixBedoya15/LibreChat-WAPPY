@@ -298,7 +298,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
 
     function syncSignaturesToLocal(info: CompanyInfoData) {
         try {
-            const namedSigsStr = localStorage.getItem('wappy_signatures');
+            const activeCompanyId = info._id || localStorage.getItem('wappy_active_company_id') || 'default';
+            const sigKey = `wappy_signatures_${activeCompanyId}`;
+            const namedSigsStr = localStorage.getItem(sigKey) || localStorage.getItem('wappy_signatures');
             const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
             let updated = false;
 
@@ -312,7 +314,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             }
 
             if (updated) {
-                localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+                localStorage.setItem(sigKey, JSON.stringify(namedSignatures));
                 window.dispatchEvent(new Event('storage'));
             }
         } catch (err) { }
@@ -508,7 +510,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 localStorage.removeItem(draftKey);
 
                 if (isNew || savedCompany?.isActive || data.isActive || companies.length === 0 || companies.find(c => c._id === data._id)?.isActive) {
-                    if (resolvedId) localStorage.setItem('wappy_active_company_id', resolvedId);
+                    if (resolvedId) {
+                        localStorage.setItem('wappy_active_company_id', resolvedId);
+                        syncSignaturesToLocal({ ...data, _id: resolvedId });
+                    }
                     if (data.companyName) localStorage.setItem('wappy_active_company_name', data.companyName);
                     if (data.nit) localStorage.setItem('wappy_active_company_nit', data.nit);
                     if (data.arl) localStorage.setItem('wappy_active_company_arl', data.arl);
@@ -540,7 +545,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     }
 
                     window.dispatchEvent(new Event('storage'));
-                    window.dispatchEvent(new CustomEvent('wappy-empresa-cambiada', { detail: { companyId: resolvedId, companyName: data.companyName } }));
+                    window.dispatchEvent(new CustomEvent('wappy-empresa-cambiada', { detail: { companyId: resolvedId, companyName: data.companyName, companyData: savedCompany || data } }));
+                    window.dispatchEvent(new CustomEvent('wappy-company-changed', { detail: { companyId: resolvedId, company: savedCompany || data, companyName: data.companyName } }));
                     window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
                 }
 

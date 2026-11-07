@@ -7,12 +7,20 @@ const notificationSchema = new mongoose.Schema({
         required: true,
         index: true,
     },
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CompanyInfo',
+        default: null,
+        index: true,
+    },
     type: {
         type: String,
         enum: [
             'ticket_created', 'ticket_responded', 'contact_request', 'payment_received',
             'sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion', 'sgsst_perfil_update',
-            'sgsst_testimonio_atel', 'system_update', 'welcome_promo', 'trial_welcome', 'group_invitation'
+            'sgsst_testimonio_atel', 'sgsst_comite_asistencia', 'sgsst_copasst_inspeccion', 'sgsst_queja_convivencia',
+            'sgsst_firma_acta', 'sgsst_brigadista_actualizado', 'sgsst_solicitud_epp',
+            'system_update', 'welcome_promo', 'trial_welcome', 'group_invitation'
         ],
         required: true,
     },
@@ -37,6 +45,8 @@ const notificationSchema = new mongoose.Schema({
         ref: 'Ticket',
     },
 }, { timestamps: true });
+
+notificationSchema.index({ user: 1, companyId: 1, createdAt: -1 });
 
 // Hook para enviar copia por correo electrónico de la notificación (asíncrono en segundo plano para no bloquear transacciones)
 notificationSchema.post('save', function (doc) {

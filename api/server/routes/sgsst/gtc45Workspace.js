@@ -328,18 +328,19 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     logger.debug(`[GTC45Workspace GET] conversationId=${conversationId} | userId=${userId}`);
 
     const companyId = await getActiveCompanyId(userId);
+    const effectiveConvoId = conversationId === 'new' ? `temp-${userId}-${companyId || 'default'}` : conversationId;
 
-    let session = await GTC45WorkspaceSession.findOne({ conversationId, user: userId, companyId: companyId });
+    let session = await GTC45WorkspaceSession.findOne({ conversationId: effectiveConvoId, user: userId, companyId: companyId });
     logger.debug(`[GTC45Workspace GET] primary lookup result: ${session ? `found (rows=${session.matrixRows?.length})` : 'NOT FOUND'}`);
 
     if (!session) {
-      const anySession = await GTC45WorkspaceSession.findOne({ conversationId });
+      const anySession = await GTC45WorkspaceSession.findOne({ conversationId: effectiveConvoId });
       logger.debug(`[GTC45Workspace GET] fallback lookup result: ${anySession ? `found (user=${anySession.user}, companyId=${anySession.companyId}, rows=${anySession.matrixRows?.length})` : 'NOT FOUND'}`);
       if (anySession) {
         // Si la sesión ya tiene un companyId distinto a la empresa activa actual, pertenece a OTRA empresa.
         // No adoptarla ni devolver sus filas para evitar mezclar datos entre empresas.
         if (anySession.companyId && companyId && String(anySession.companyId) !== String(companyId)) {
-          logger.info(`[GTC45Workspace GET] Session ${conversationId} belongs to company ${anySession.companyId}, not active company ${companyId}. Returning empty to prevent cross-company mix.`);
+          logger.info(`[GTC45Workspace GET] Session ${effectiveConvoId} belongs to company ${anySession.companyId}, not active company ${companyId}. Returning empty to prevent cross-company mix.`);
           return res.json({ matrixRows: [], chartConclusions: {}, companyMismatch: true });
         }
         let modified = false;
@@ -353,7 +354,7 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
         }
         if (modified) {
           await anySession.save();
-          logger.info(`[GTC45Workspace GET] Adopted and populated user/companyId for legacy session ${conversationId}`);
+          logger.info(`[GTC45Workspace GET] Adopted and populated user/companyId for legacy session ${effectiveConvoId}`);
         }
         session = anySession;
       }
@@ -361,9 +362,10 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 
     // Fallback: si es una conversación real y no encontramos sesión, buscamos la temporal de la misma empresa
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const tempId = `temp-${userId}`;
+      const tempId = `temp-${userId}-${companyId || 'default'}`;
+      const legacyTempId = `temp-${userId}`;
       const tempSession = await GTC45WorkspaceSession.findOne({
-        conversationId: tempId,
+        conversationId: { $in: [tempId, legacyTempId] },
         user: userId,
         ...(companyId ? { companyId } : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
       });
@@ -423,9 +425,10 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 
     const existingSession = await GTC45WorkspaceSession.findOne({ conversationId }).select('companyId').lean();
     const effectiveCompanyId = existingSession?.companyId || companyId;
+    const effectiveConvoId = conversationId === 'new' ? `temp-${userId}-${effectiveCompanyId || 'default'}` : conversationId;
 
     let session = await GTC45WorkspaceSession.findOneAndUpdate(
-      { conversationId },
+      { conversationId: effectiveConvoId },
       {
         $set: { matrixRows: normalizedRows, companyId: effectiveCompanyId },
         $setOnInsert: { user: userId },
@@ -434,8 +437,8 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     );
 
     if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const tempId = `temp-${userId}`;
-      await GTC45WorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+      const tempId = `temp-${userId}-${effectiveCompanyId || 'default'}`;
+      await GTC45WorkspaceSession.deleteMany({ conversationId: { $in: [tempId, `temp-${userId}`] }, user: userId });
       logger.info(`[GTC45Workspace PUT] Deleted temporary session for user ${userId} since real session was created.`);
     }
 
@@ -467,17 +470,19 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 router.delete('/clear-temp-sessions', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const tempId = `temp-${userId}`;
+    const companyId = await getActiveCompanyId(userId);
+    const tempId = `temp-${userId}-${companyId || 'default'}`;
+    const tempIds = [tempId, `temp-${userId}`];
 
     logger.info(`[GTC45Workspace DELETE] Clearing temporary sessions for user ${userId}`);
 
     // Delete GTC45 Workspace Session
-    await GTC45WorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+    await GTC45WorkspaceSession.deleteMany({ conversationId: { $in: tempIds }, user: userId });
 
     // Delete PESV Workspace Session
     try {
       const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
-      await PESVWorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+      await PESVWorkspaceSession.deleteMany({ conversationId: { $in: tempIds }, user: userId });
     } catch (e) {
       logger.error('[GTC45Workspace DELETE clear-temp-sessions] PESV error:', e);
     }
@@ -485,7 +490,7 @@ router.delete('/clear-temp-sessions', requireJwtAuth, async (req, res) => {
     // Delete Chemical Compatibility Session
     try {
       const ChemicalCompatibilitySession = require('~/models/ChemicalCompatibilitySession');
-      await ChemicalCompatibilitySession.deleteOne({ conversationId: tempId, user: userId });
+      await ChemicalCompatibilitySession.deleteMany({ conversationId: { $in: tempIds }, user: userId });
     } catch (e) {
       logger.error('[GTC45Workspace DELETE clear-temp-sessions] Chemical error:', e);
     }
@@ -493,7 +498,7 @@ router.delete('/clear-temp-sessions', requireJwtAuth, async (req, res) => {
     // Delete Live Editor Session
     try {
       const LiveEditorSession = require('~/models/LiveEditorSession');
-      await LiveEditorSession.deleteOne({ conversationId: tempId, user: userId });
+      await LiveEditorSession.deleteMany({ conversationId: { $in: tempIds }, user: userId });
     } catch (e) {
       logger.error('[GTC45Workspace DELETE clear-temp-sessions] LiveEditor error:', e);
     }

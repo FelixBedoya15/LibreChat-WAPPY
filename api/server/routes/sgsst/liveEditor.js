@@ -191,13 +191,16 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
     const { conversationId } = req.params;
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
+    const effectiveConvoId = conversationId === 'new' ? `temp-${userId}-${companyId || 'default'}` : conversationId;
 
-    let session = await LiveEditorSession.findOne({ conversationId, user: userId, companyId: companyId });
+    let session = await LiveEditorSession.findOne({ conversationId: effectiveConvoId, user: userId, companyId: companyId });
 
     // Fallback: buscar sin userId (sesiones heredadas)
     if (!session) {
-      session = await LiveEditorSession.findOne({ conversationId });
-      if (session && !session.user) {
+      session = await LiveEditorSession.findOne({ conversationId: effectiveConvoId });
+      if (session && session.companyId && companyId && String(session.companyId) !== String(companyId)) {
+        session = null;
+      } else if (session && !session.user) {
         session.user = userId;
         await session.save();
       }
@@ -205,8 +208,13 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
 
     // Fallback: si es una conversación real y no encontramos sesión, buscamos la temporal
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const tempId = `temp-${userId}`;
-      const tempSession = await LiveEditorSession.findOne({ conversationId: tempId, user: userId });
+      const tempId = `temp-${userId}-${companyId || 'default'}`;
+      const legacyTempId = `temp-${userId}`;
+      const tempSession = await LiveEditorSession.findOne({
+        conversationId: { $in: [tempId, legacyTempId] },
+        user: userId,
+        ...(companyId ? { $or: [{ companyId }, { companyId: null }, { companyId: { $exists: false } }] } : {}),
+      });
       if (tempSession && tempSession.document && tempSession.document.length > 0) {
         tempSession.conversationId = conversationId;
         tempSession.companyId = companyId;
@@ -216,7 +224,7 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
         // También migrar Canvas
         try {
           const CanvasSession = require('~/models/CanvasSession');
-          const canvasTemp = await CanvasSession.findOne({ conversationId: tempId });
+          const canvasTemp = await CanvasSession.findOne({ conversationId: { $in: [tempId, legacyTempId] }, user: userId });
           if (canvasTemp) {
             canvasTemp.conversationId = conversationId;
             await canvasTemp.save();
@@ -289,21 +297,23 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
       $setOnInsert: { user: userId },
     };
 
+    const effectiveConvoId = conversationId === 'new' ? `temp-${userId}-${companyId || 'default'}` : conversationId;
     const session = await LiveEditorSession.findOneAndUpdate(
-      { conversationId, companyId: companyId },
+      { conversationId: effectiveConvoId, companyId: companyId },
       update,
       { upsert: true, new: true },
     );
 
     // Sincronizar hacia el Canvas
-    await syncLiveEditorToCanvas(conversationId, session.content, session.fileName, userId);
+    await syncLiveEditorToCanvas(effectiveConvoId, session.content, session.fileName, userId);
 
     if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const tempId = `temp-${userId}`;
-      await LiveEditorSession.deleteOne({ conversationId: tempId, user: userId });
+      const tempId = `temp-${userId}-${companyId || 'default'}`;
+      const tempIds = [tempId, `temp-${userId}`];
+      await LiveEditorSession.deleteMany({ conversationId: { $in: tempIds }, user: userId });
       try {
         const CanvasSession = require('~/models/CanvasSession');
-        await CanvasSession.deleteOne({ conversationId: tempId });
+        await CanvasSession.deleteMany({ conversationId: { $in: tempIds }, user: userId });
       } catch (canvasErr) {
         logger.error('[LiveEditor Clean Temp Canvas] Error:', canvasErr);
       }

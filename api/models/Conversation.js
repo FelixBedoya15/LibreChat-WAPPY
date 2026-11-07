@@ -99,6 +99,47 @@ module.exports = {
         update.tags = Array.from(new Set([...(update.tags || []), 'sgsst-mood', 'sgsst-psicosocial', 'sgsst-termometro']));
       }
 
+      let autoCompanyTag = null;
+      if (req?.user?.id) {
+        try {
+          const hasCompanyTagInUpdate =
+            Array.isArray(update.tags) && update.tags.some((t) => typeof t === 'string' && /^company[-:]/.test(t));
+          if (!hasCompanyTagInUpdate) {
+            const existingConvo = await Conversation.findOne({ conversationId, user: req.user.id })
+              .select('tags')
+              .lean();
+            const existingCompanyTag = Array.isArray(existingConvo?.tags)
+              ? existingConvo.tags.find((t) => typeof t === 'string' && /^company[-:]/.test(t))
+              : null;
+            if (existingCompanyTag) {
+              if (Array.isArray(update.tags)) {
+                update.tags = Array.from(new Set([...update.tags, existingCompanyTag]));
+              }
+            } else {
+              const CompanyInfo = require('./CompanyInfo');
+              const targetUserId =
+                req.user.isSubUser && req.user.parentUser ? req.user.parentUser : req.user.id;
+              const explicitCompId =
+                req.user.isSubUser && req.user.assignedCompany
+                  ? req.user.assignedCompany
+                  : req.body?.companyId || req.query?.companyId;
+              const activeComp = explicitCompId
+                ? await CompanyInfo.findOne({ _id: explicitCompId, user: targetUserId }).select('_id').lean()
+                : (await CompanyInfo.findOne({ user: targetUserId, isActive: true }).select('_id').lean()) ||
+                  (await CompanyInfo.findOne({ user: targetUserId }).select('_id').lean());
+              if (activeComp?._id) {
+                autoCompanyTag = `company-${activeComp._id}`;
+                if (Array.isArray(update.tags)) {
+                  update.tags = Array.from(new Set([...update.tags, autoCompanyTag]));
+                }
+              }
+            }
+          }
+        } catch (compTagErr) {
+          logger.warn('[saveConvo] Non-blocking company tag resolution warning:', compTagErr.message);
+        }
+      }
+
       if (newConversationId) {
         update.conversationId = newConversationId;
       }
@@ -116,8 +157,11 @@ module.exports = {
         update.expiredAt = null;
       }
 
-      /** @type {{ $set: Partial<TConversation>; $unset?: Record<keyof TConversation, number> }} */
+      /** @type {{ $set: Partial<TConversation>; $unset?: Record<keyof TConversation, number>; $addToSet?: Record<string, any> }} */
       const updateOperation = { $set: update };
+      if (autoCompanyTag && !Array.isArray(update.tags)) {
+        updateOperation.$addToSet = { tags: autoCompanyTag };
+      }
       if (metadata && metadata.unsetFields && Object.keys(metadata.unsetFields).length > 0) {
         updateOperation.$unset = metadata.unsetFields;
       }
@@ -171,7 +215,7 @@ module.exports = {
     }
 
     if (Array.isArray(tags) && tags.length > 0) {
-      if (tags.some(t => t.startsWith('company-'))) {
+      if (tags.some((t) => /^company[-:]/.test(t))) {
         filters.push({ tags: { $all: tags } });
       } else {
         filters.push({ tags: { $in: tags } });
@@ -207,6 +251,35 @@ module.exports = {
         'sgsst-termometro'
       ];
       filters.push({ $or: [{ tags: { $exists: false } }, { tags: { $nin: internalTags } }] });
+    }
+
+    if (!Array.isArray(tags) || !tags.some((t) => /^company[-:]/.test(t))) {
+      try {
+        const CompanyInfo = require('./CompanyInfo');
+        const userCompanies = await CompanyInfo.find({ user })
+          .select('_id isActive createdAt')
+          .sort({ createdAt: 1 })
+          .lean();
+        const activeComp = userCompanies.find((c) => c.isActive) || userCompanies[0] || null;
+        if (activeComp?._id) {
+          const isFirstCompany =
+            userCompanies.length > 0 && String(userCompanies[0]._id) === String(activeComp._id);
+          const companyTags = [`company-${activeComp._id}`, `company:${activeComp._id}`];
+          if (isFirstCompany) {
+            filters.push({
+              $or: [
+                { tags: { $in: companyTags } },
+                { tags: { $exists: false } },
+                { tags: { $not: /^company[-:]/ } },
+              ],
+            });
+          } else {
+            filters.push({ tags: { $in: companyTags } });
+          }
+        }
+      } catch (compFilterErr) {
+        logger.warn('[getConvosByCursor] Non-blocking company filter warning:', compFilterErr.message);
+      }
     }
 
     filters.push({ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] });

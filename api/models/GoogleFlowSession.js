@@ -6,7 +6,12 @@ const googleFlowSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
+      index: true,
+    },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CompanyInfo',
+      default: null,
       index: true,
     },
     email: {
@@ -43,7 +48,11 @@ const googleFlowSessionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+googleFlowSessionSchema.index({ user: 1, companyId: 1 }, { unique: true });
+
 const GoogleFlowSession =
   mongoose.models.GoogleFlowSession || mongoose.model('GoogleFlowSession', googleFlowSessionSchema);
+
+GoogleFlowSession.collection.dropIndex('user_1').catch(() => {});
 
 module.exports = GoogleFlowSession;

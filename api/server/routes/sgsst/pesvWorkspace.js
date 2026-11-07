@@ -1430,11 +1430,12 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { userId, companyId } = await resolveUserAndCompany(req);
+    const effectiveConvoId = conversationId === 'new' ? `temp-${userId}-${companyId || 'default'}` : conversationId;
 
-    let session = await PESVWorkspaceSession.findOne({ conversationId, user: userId, companyId: companyId });
+    let session = await PESVWorkspaceSession.findOne({ conversationId: effectiveConvoId, user: userId, companyId: companyId });
 
     if (!session) {
-      const anySession = await PESVWorkspaceSession.findOne({ conversationId });
+      const anySession = await PESVWorkspaceSession.findOne({ conversationId: effectiveConvoId });
       if (anySession) {
         if (anySession.companyId && companyId && String(anySession.companyId) !== String(companyId)) {
           return res.json({ matrixRows: [], chartConclusions: {}, reportHtml: '', companyMismatch: true });
@@ -1454,9 +1455,10 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     }
 
     if (!session && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const tempId = `temp-${userId}`;
+      const tempId = `temp-${userId}-${companyId || 'default'}`;
+      const legacyTempId = `temp-${userId}`;
       const tempSession = await PESVWorkspaceSession.findOne({
-        conversationId: tempId,
+        conversationId: { $in: [tempId, legacyTempId] },
         user: userId,
         ...(companyId ? { companyId } : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
       });
@@ -1501,8 +1503,9 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     if (chartConclusions !== undefined) setUpdate.chartConclusions = chartConclusions;
     if (reportHtml !== undefined) setUpdate.reportHtml = reportHtml;
 
+    const effectiveConvoId = conversationId === 'new' ? `temp-${userId}-${companyId || 'default'}` : conversationId;
     let session = await PESVWorkspaceSession.findOneAndUpdate(
-      { conversationId, companyId: companyId },
+      { conversationId: effectiveConvoId, companyId: companyId },
       {
         $set: setUpdate,
         $setOnInsert: { user: userId },
@@ -1511,8 +1514,8 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     );
 
     if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-      const tempId = `temp-${userId}`;
-      await PESVWorkspaceSession.deleteOne({ conversationId: tempId, user: userId });
+      const tempId = `temp-${userId}-${companyId || 'default'}`;
+      await PESVWorkspaceSession.deleteMany({ conversationId: { $in: [tempId, `temp-${userId}`] }, user: userId });
       logger.info(`[PESVWorkspace PUT] Deleted temporary session for user ${userId} since real session was created.`);
     }
 

@@ -116,23 +116,47 @@ async function findManyCompanyDocs(Model, userId, company, sortObj = { updatedAt
 }
 
 /**
- * Normaliza cualquier identificador de nodo del lienzo hacia su ID canónico de aplicativo.
+ * Normaliza cualquier identificador de nodo del lienzo hacia su ID canónico de aplicativo o equipo.
  */
 function normalizeInspectorNodeId(rawId) {
-  const clean = String(rawId || '')
-    .trim()
-    .replace(/^(trigger_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
+  let clean = String(rawId || '').trim();
+  if (/^trigger_trigger_/.test(clean)) {
+    clean = clean.replace(/^trigger_/, '');
+  } else if (!/^trigger_(tenshi|antigravity|antigravity_cloud|email|agent|qr_worker|webhook)$/.test(clean)) {
+    clean = clean.replace(/^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
+  }
 
   const aliasMap = {
+    // Disparadores (Equipo 1)
+    trigger_root: 'schedule_cron',
+    root: 'schedule_cron',
+    drive_folder_watch: 'schedule_cron',
+    drive_watch: 'schedule_cron',
+    sgsst_db_audit: 'schedule_cron',
+    sst_deadline_watch: 'schedule_cron',
+    gmail_inbox_watch: 'trigger_email',
+    gmail_watch: 'trigger_email',
+    webhook_event: 'trigger_webhook',
+    tenshi: 'trigger_tenshi',
+    antigravity: 'trigger_antigravity',
+    antigravity_cloud: 'trigger_antigravity_cloud',
+    email: 'trigger_email',
+    qr_worker: 'trigger_qr_worker',
+    webhook: 'trigger_webhook',
+
+    // Los 8 Hitos — 50 Apps SST (Equipo 6 + Aliases Canónicos)
     contexto_organizacion: 'hito1_dofa',
     diagnostico: 'hito1_diagnostico_0312',
     responsable: 'hito1_responsable',
     politica: 'hito1_politica_objetivos',
+    hito1_politica: 'hito1_politica_objetivos',
     objetivos: 'hito1_objetivos',
     legal: 'hito1_matriz_legal',
     rhs: 'hito1_rhs',
+    hito1_reglamento_higiene: 'hito1_rhs',
     rit: 'hito1_rit',
     participacion_ipevar: 'hito1_participacion_ipevar',
+    hito4_participacion_ipevar: 'hito1_participacion_ipevar',
     matriz_ipevar_oficial: 'hito2_matriz_ipevar',
     matriz_ipevar: 'hito2_matriz_ipevar',
     matriz_pesv_oficial: 'hito3_matriz_pesv',
@@ -140,8 +164,11 @@ function normalizeInspectorNodeId(rawId) {
     matriz_compatibilidad_oficial: 'hito3_quimicos_sga',
     matriz_compatibilidad: 'hito3_quimicos_sga',
     oportunidades_sst: 'hito1_oportunidades_sst',
+    hito1_oportunidades: 'hito1_oportunidades_sst',
     vulnerabilidad: 'hito6_vulnerabilidad',
+    hito4_vulnerabilidad_amenazas: 'hito6_vulnerabilidad',
     plan_emergencias: 'hito1_plan_emergencias',
+    hito4_plan_emergencias: 'hito1_plan_emergencias',
     perfil_cargo: 'hito2_perfiles_cargo',
     perfil_socio: 'hito2_perfil_socio',
     perfil_sociodemografico: 'hito2_perfil_socio',
@@ -149,27 +176,34 @@ function normalizeInspectorNodeId(rawId) {
     somos_sst_trabajadores: 'hito2_perfil_socio',
     condiciones_salud: 'hito2_condiciones_salud',
     oraculo_predictivo: 'hito2_oraculo_predictivo',
+    hito2_compatibilidad_cargo: 'hito2_oraculo_predictivo',
     copasst: 'hito4_comites',
     comites: 'hito4_comites',
     cocolab: 'hito3_cocolab',
     convivencia: 'hito3_cocolab',
     comite_pesv: 'hito3_comite_pesv',
     brigada_emergencias: 'hito3_brigada_emergencias',
+    hito4_brigada_emergencias: 'hito3_brigada_emergencias',
     peligros: 'hito4_bio_ipevar',
     metodo_owas: 'hito3_owas',
+    hito4_ergonomia_owas: 'hito3_owas',
     estudio_puesto: 'hito3_estudio_puesto',
+    hito4_estudio_puesto: 'hito3_estudio_puesto',
     animo: 'hito4_psicosocial',
     consultar_analitica_psicosocial: 'hito4_psicosocial',
     compras_sst: 'hito5_compras_sst',
     contratistas_proveedores: 'hito5_contratistas',
     gestion_cambio: 'hito5_gestion_cambio',
     analisis_trabajo_seguro: 'hito3_ats',
+    hito5_ats_permisos: 'hito3_ats',
     permiso_alturas: 'hito3_alturas',
     heights_lifecycle: 'hito5_equipos_alturas',
     epp_delivery: 'hito3_epp',
     chemical_registry: 'hito5_registro_quimico',
+    hito3_quimicos: 'hito5_registro_quimico',
     vehicles_pesv: 'hito3_vehiculos',
     equipos_emergencia: 'hito5_equipos_emergencia',
+    hito5_inspecciones: 'hito5_equipos_emergencia',
     comunicaciones_sst: 'hito6_comunicaciones_sst',
     capacitaciones: 'hito5_capacitaciones',
     ruta_aprendizaje: 'hito6_ruta_aprendizaje',
@@ -178,17 +212,25 @@ function normalizeInspectorNodeId(rawId) {
     consultar_analitica_actos_condiciones: 'hito4_actos_condiciones',
     simulacros_emergencia: 'hito6_simulacros_emergencia',
     app_builder: 'hito6_app_builder',
+    hito6_cultura_preventiva: 'hito6_app_builder',
     estadisticas: 'hito7_estadisticas_atel',
+    hito6_indicadores_atel: 'hito7_estadisticas_atel',
     investigacion_atel: 'hito7_investigacion_atel',
+    hito5_investigacion_atel: 'hito7_investigacion_atel',
     control_acpm: 'hito7_acpm',
     acpm: 'hito7_acpm',
     acpm_task: 'hito7_acpm',
+    hito2_cronograma: 'hito7_acpm',
     auditoria: 'hito7_auditoria',
+    hito6_auditoria_anual: 'hito7_auditoria',
     alta_direccion: 'hito7_alta_direccion',
+    hito6_revision_direccion: 'hito7_alta_direccion',
     investigacion_profunda: 'hito7_investigacion_profunda',
     predictivo: 'hito8_predictivo',
     somos_sst_empresa: 'tool_sst_company',
     memory_company_profile: 'tool_sst_company',
+    wappy_memory_company: 'tool_sst_company',
+    sub_memory: 'tool_sst_company',
   };
 
   return aliasMap[clean] || clean;
@@ -2401,11 +2443,10 @@ async function inspectHito6To8(canonicalId, userId, company) {
   // 49. Hito 7 · Investigación Profunda Científica y Normativa SST
   if (canonicalId === 'hito7_investigacion_profunda') {
     const reports = await fetchLatestReportsForTags(userId, company, ['sgsst-investigacion-profunda'], 10);
-    return {
-      moduleTitle: 'Hito 7 · Investigación Profunda Científica y Normativa SST',
-      sourceCollection: 'ConversationHistory (sgsst-investigacion-profunda)',
-      kpis: [{ label: 'Investigaciones Emitidas', value: reports.length, tone: 'purple' }],
-      records: reports.map((r) => ({
+    const legalRes = await inspectHito1And2('hito1_matriz_legal', userId, company);
+    const legalRecords = Array.isArray(legalRes?.records) ? legalRes.records : [];
+    const combinedRecords = [
+      ...reports.map((r) => ({
         id: r.conversationId,
         label: `🔬 ${r.title}`,
         sublabel: r.preview,
@@ -2417,34 +2458,95 @@ async function inspectHito6To8(canonicalId, userId, company) {
           'Conclusiones Periciales y Recomendaciones Aplicadas a la Empresa': r.preview,
         },
       })),
+      ...legalRecords,
+    ];
+    return {
+      moduleTitle: 'Hito 7 · Investigación Profunda Científica y Normativa SST',
+      sourceCollection: 'ConversationHistory + MatrizLegalData',
+      kpis: [
+        { label: 'Investigaciones Emitidas', value: reports.length, tone: 'purple' },
+        ...(legalRes?.kpis?.slice(0, 3) || []),
+      ],
+      records: combinedRecords,
     };
   }
 
-  // 50. Hito 8 · Oráculo Predictivo de Siniestralidad y Riesgo IA
+  // 50. Hito 8 · Oráculo Predictivo de Siniestralidad y Riesgo IA (Radar Predictivo en Vivo)
   if (canonicalId === 'hito8_predictivo') {
-    const hito2Result = await inspectHito1And2('hito2_oraculo_predictivo', userId, company);
+    const [hito2Result, gtc45Result, moodResult, diagResult] = await Promise.all([
+      inspectHito1And2('hito2_oraculo_predictivo', userId, company),
+      inspectHito1And2('hito2_matriz_ipevar', userId, company),
+      inspectHito3To5('hito4_psicosocial', userId, company),
+      inspectHito1And2('hito1_diagnostico_0312', userId, company),
+    ]);
     const KanbanTask = getSafeModel('KanbanTask', '~/server/routes/sgsst/kanban', '~/models/KanbanTask');
     const overdueCount = KanbanTask
       ? await KanbanTask.countDocuments({ ...buildCompanyScopeFilter(userId, company), status: 'overdue' }).catch(() => 0)
       : 0;
 
-    return {
-      moduleTitle: 'Hito 8 · Oráculo Predictivo de Siniestralidad y Riesgo IA (28 Fuentes)',
-      sourceCollection: 'Oráculo Predictivo 360° (SgsstWorker + DiagnosticoData + GTC45 + ATEL + Kanban)',
-      kpis: [
-        ...(hito2Result?.kpis || []),
-        { label: 'Tareas ACPM Vencidas', value: overdueCount, tone: overdueCount > 0 ? 'rose' : 'emerald' },
-      ],
-      records: (hito2Result?.records || []).map((r) => ({
-        ...r,
+    const workerRecords = Array.isArray(hito2Result?.records) ? hito2Result.records : [];
+    const gtcRecords = Array.isArray(gtc45Result?.records) ? gtc45Result.records : [];
+    const critGtc = gtcRecords.filter((r) => r.isCritical);
+    const moodRecords = Array.isArray(moodResult?.records) ? moodResult.records : [];
+    const sadMoods = moodRecords.filter((r) => r.isCritical);
+    const medAlerts = workerRecords.filter((r) => r.isCritical).length;
+    const score0312 = diagResult?.kpis?.[0]?.value || '0%';
+
+    const radarRecords = [
+      ...workerRecords.map((r) => {
+        const cargoStr = String(r.fields?.['Cargo'] || '').toLowerCase();
+        const matchingHazards = critGtc
+          .filter((g) => cargoStr && String(g.fields?.['Cargo'] || g.label || '').toLowerCase().includes(cargoStr))
+          .slice(0, 3)
+          .map((g) => g.label)
+          .join(' ; ');
+        const corrText = [
+          `Alertas Clínicas/FIT: ${r.fields?.['Tarjetas Preventivas / Alertas FIT'] || 'Ninguna'}`,
+          matchingHazards ? `Peligros Críticos GTC-45 del Cargo: ${matchingHazards}` : `Total Peligros Críticos Empresa: ${critGtc.length}`,
+          `Alertas Clima Psicosocial: ${sadMoods.length} reporte(s) de estrés`,
+        ].join(' | ');
+        return {
+          ...r,
+          fields: {
+            ...r.fields,
+            'Índice Global de Riesgo Predictivo de la Empresa (%)': r.fields?.['Puntaje FIT Biocéntrico (%)'] || '85%',
+            'Trabajadores y Cargos con Mayor Propensión o Vulnerabilidad Preventiva': `${r.label} — ${r.badge}`,
+            'Correlación entre Condiciones de Salud, Ausentismo, Peligros Críticos y Clima Psicosocial': corrText,
+            'Recomendaciones Prescriptivas Priorizadas por Impacto':
+              r.fields?.['Recomendaciones de Reubicación, Readaptación o Ajuste Razonable'] ||
+              'Intervenir controles en la fuente/medio y seguimiento médico ocupacional',
+          },
+        };
+      }),
+      ...critGtc.slice(0, 20).map((g) => ({
+        ...g,
+        id: `pred_gtc_${g.id}`,
+        label: `⚠️ [Radar GTC-45 Crítico] ${g.label}`,
         fields: {
-          ...r.fields,
-          'Índice Global de Riesgo Predictivo de la Empresa (%)': r.fields['Puntaje FIT Biocéntrico (%)'] || '85%',
-          'Trabajadores y Cargos con Mayor Propensión o Vulnerabilidad Preventiva': `${r.label} - ${r.badge}`,
-          'Correlación entre Condiciones de Salud, Ausentismo, Peligros Críticos y Clima Psicosocial': r.fields['Tarjetas Preventivas / Alertas FIT'] || '',
-          'Recomendaciones Prescriptivas Priorizadas por Impacto': r.fields['Recomendaciones de Reubicación, Readaptación o Ajuste Razonable'] || '',
+          ...g.fields,
+          'Índice Global de Riesgo Predictivo de la Empresa (%)': `Cumplimiento 0312: ${score0312}`,
+          'Correlación entre Condiciones de Salud, Ausentismo, Peligros Críticos y Clima Psicosocial': `${g.label} (${g.badge})`,
+          'Recomendaciones Prescriptivas Priorizadas por Impacto':
+            g.fields?.['Medidas de Intervención (Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos / Señalización y EPP)'] || '',
         },
       })),
+      ...sadMoods.slice(0, 10).map((m) => ({
+        ...m,
+        id: `pred_mood_${m.id}`,
+        label: `🧠 [Radar Psicosocial] ${m.label}`,
+      })),
+    ];
+
+    return {
+      moduleTitle: 'Hito 8 · Radar Predictivo de Siniestralidad y Riesgo IA (Trabajadores + GTC-45 + Salud + Ánimo)',
+      sourceCollection: 'Radar Predictivo 360° (SgsstWorker + GTC45WorkspaceSession + MoodTelemetry + DiagnosticoData + KanbanTask)',
+      kpis: [
+        { label: 'Trabajadores / Alertas Médicas', value: `${workerRecords.length} (${medAlerts} alerta)`, tone: medAlerts > 0 ? 'rose' : 'teal' },
+        { label: 'Peligros Críticos GTC-45', value: `${critGtc.length} / ${gtcRecords.length}`, tone: critGtc.length > 0 ? 'rose' : 'emerald' },
+        { label: 'Alertas Estrés / Ánimo', value: `${sadMoods.length} / ${moodRecords.length}`, tone: sadMoods.length > 0 ? 'amber' : 'emerald' },
+        { label: 'Estándares 0312 / ACPM Venc.', value: `${score0312} · ${overdueCount} venc.`, tone: overdueCount > 0 ? 'rose' : 'indigo' },
+      ],
+      records: radarRecords,
     };
   }
 

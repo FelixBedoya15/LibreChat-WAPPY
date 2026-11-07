@@ -136,9 +136,11 @@ const PhaseDetail = ({
             setActiveCompanyId(String(nextId));
         };
         window.addEventListener('wappy-empresa-cambiada', syncActiveCompany);
+        window.addEventListener('wappy-company-changed', syncActiveCompany);
         window.addEventListener('storage', syncActiveCompany);
         return () => {
             window.removeEventListener('wappy-empresa-cambiada', syncActiveCompany);
+            window.removeEventListener('wappy-company-changed', syncActiveCompany);
             window.removeEventListener('storage', syncActiveCompany);
         };
     }, []);
@@ -233,7 +235,7 @@ const PhaseDetail = ({
         }
     };
 
-    const storageKey = `sgsst_files_${phase.id}`;
+    const storageKey = `sgsst_files_${phase.id}_${activeCompanyId || 'default'}`;
 
     // Get categories for this phase
     const categories = PHASE_CATEGORIES[phase.id as keyof typeof PHASE_CATEGORIES] || [];
@@ -1073,7 +1075,7 @@ const PhaseDetail = ({
                                         description="El acceso a la creación y gestión de aplicativos interactivos HTML es exclusivo del Plan Wappy Pro. Actualiza tu plan para comenzar a implementarlo."
                                     />
                                 ) : (
-                                    <HtmlSandboxApp phaseId={phase.id} phaseTitle={phase.title} />
+                                    <HtmlSandboxApp key={`sandbox-${phase.id}-${activeCompanyId}`} phaseId={phase.id} phaseTitle={phase.title} />
                                 )}
                             </div>
                         )}

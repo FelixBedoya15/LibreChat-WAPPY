@@ -35,7 +35,8 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
   const fetchUnreadCount = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get('/api/notifications/unread-count', {
+      const companyId = encodeURIComponent(localStorage.getItem('wappy_active_company_id') || '');
+      const res = await axios.get(`/api/notifications/unread-count?companyId=${companyId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUnreadCount(res.data.count || 0);
@@ -55,11 +56,17 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
 
     window.addEventListener('open-settings', handleOpenSettings);
     window.addEventListener('switch-settings-tab', handleSwitchTab);
+    window.addEventListener('wappy-company-changed', fetchUnreadCount);
+    window.addEventListener('wappy-company-updated', fetchUnreadCount);
+    window.addEventListener('wappy-empresa-cambiada', fetchUnreadCount);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('open-settings', handleOpenSettings);
       window.removeEventListener('switch-settings-tab', handleSwitchTab);
+      window.removeEventListener('wappy-company-changed', fetchUnreadCount);
+      window.removeEventListener('wappy-company-updated', fetchUnreadCount);
+      window.removeEventListener('wappy-empresa-cambiada', fetchUnreadCount);
     };
   }, [fetchUnreadCount]);
 

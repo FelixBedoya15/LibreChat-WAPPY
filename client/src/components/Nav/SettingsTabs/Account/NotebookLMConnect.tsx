@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BookOpen, Lock, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import NotebookLMModal from './NotebookLMModal';
@@ -9,9 +9,11 @@ export default function NotebookLMConnect() {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<any>(null);
 
-  const fetchStatus = () => {
+  const fetchStatus = useCallback(() => {
     if (!token) return;
-    fetch('/api/notebooklm/status', {
+    const companyId = localStorage.getItem('wappy_active_company_id') || '';
+    const qs = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+    fetch(`/api/notebooklm/status${qs}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -19,11 +21,20 @@ export default function NotebookLMConnect() {
         if (data) setStatus(data);
       })
       .catch(() => {});
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchStatus();
-  }, [token, isOpen]);
+  }, [fetchStatus, isOpen]);
+
+  useEffect(() => {
+    window.addEventListener('wappy-company-changed', fetchStatus);
+    window.addEventListener('wappy-empresa-cambiada', fetchStatus);
+    return () => {
+      window.removeEventListener('wappy-company-changed', fetchStatus);
+      window.removeEventListener('wappy-empresa-cambiada', fetchStatus);
+    };
+  }, [fetchStatus]);
 
   const isConnected = Boolean(status?.connected);
   const isValid = status?.isValid !== false;

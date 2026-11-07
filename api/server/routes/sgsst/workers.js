@@ -611,11 +611,10 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
                     workers = workers.concat(inserted.map(d => (d.toObject ? d.toObject() : d)));
                 } catch (insErr) {
                     logger.warn('[SGSST Workers Hub] Batch insert notice:', insErr.message);
-                    workers = await SgsstWorker.find(
-                        companyId
-                            ? { user: req.user.id, $or: [{ companyId }, { companyId: null }] }
-                            : { user: req.user.id }
-                    ).lean();
+                    workers = await SgsstWorker.find({
+                        user: req.user.id,
+                        ...(companyId ? { companyId } : {})
+                    }).lean();
                 }
             }
         }
@@ -1038,10 +1037,9 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
         try {
             const SgsstEppData = require('../../../models/SgsstEppData');
             const eppDoc = await SgsstEppData.findOne({
-                $or: [
-                    { companyId: worker.companyId, documento: String(worker.documento || '').trim() },
-                    { user: req.user.id, documento: String(worker.documento || '').trim() }
-                ]
+                user: req.user.id,
+                ...(worker.companyId ? { companyId: worker.companyId } : {}),
+                documento: String(worker.documento || '').trim(),
             }).lean();
             if (eppDoc && Array.isArray(eppDoc.entregas)) {
                 eppDoc.entregas.forEach(e => {
@@ -1059,10 +1057,9 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
         try {
             const InvestigacionAtelData = require('../../../models/InvestigacionAtelData');
             const atelDocs = await InvestigacionAtelData.find({
-                $or: [
-                    { companyId: worker.companyId, 'formData.cedula': String(worker.documento || '').trim() },
-                    { user: req.user.id, 'formData.cedula': String(worker.documento || '').trim() }
-                ]
+                user: req.user.id,
+                ...(worker.companyId ? { companyId: worker.companyId } : {}),
+                'formData.cedula': String(worker.documento || '').trim(),
             }).lean();
             if (atelDocs && atelDocs.length > 0) {
                 atelDocs.forEach(a => {
@@ -1083,7 +1080,8 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
             const ReporteActosData = mongoose.models.ReporteActosData;
             if (ReporteActosData) {
                 const actosDoc = await ReporteActosData.findOne({
-                    $or: [{ companyId: worker.companyId }, { user: req.user.id }]
+                    user: req.user.id,
+                    ...(worker.companyId ? { companyId: worker.companyId } : {}),
                 }).lean();
                 if (actosDoc && Array.isArray(actosDoc.inboxPublico)) {
                     const cleanDoc = String(worker.documento || '').trim();

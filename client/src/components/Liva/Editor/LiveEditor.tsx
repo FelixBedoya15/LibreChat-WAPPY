@@ -275,44 +275,60 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       return () => document.removeEventListener('fullscreenchange', updatePortal);
     }, []);
 
+    const getCompanySignaturesKey = () => {
+      const companyId = localStorage.getItem('wappy_active_company_id') || 'default';
+      return `wappy_signatures_${companyId}`;
+    };
+
     useEffect(() => {
-      const namedSigsStr = localStorage.getItem('wappy_signatures');
-      let initialNamed: Record<string, string> = {};
-      if (namedSigsStr) {
-        try {
-          initialNamed = JSON.parse(namedSigsStr);
-        } catch (e) {}
-      } else {
-        const oldSigsStr = localStorage.getItem('sgsst_signatures');
-        if (oldSigsStr) {
+      const loadCompanySignatures = () => {
+        const sigKey = getCompanySignaturesKey();
+        const namedSigsStr = localStorage.getItem(sigKey) || localStorage.getItem('wappy_signatures');
+        let initialNamed: Record<string, string> = {};
+        if (namedSigsStr) {
           try {
-            const parsed = JSON.parse(oldSigsStr);
-            if (parsed && typeof parsed === 'object') {
-              Object.keys(parsed).forEach((k) => {
-                if (parsed[k]?.url) initialNamed[k] = parsed[k].url;
-              });
-            }
+            initialNamed = JSON.parse(namedSigsStr);
           } catch (e) {}
+        } else {
+          const oldSigsStr = localStorage.getItem('sgsst_signatures');
+          if (oldSigsStr) {
+            try {
+              const parsed = JSON.parse(oldSigsStr);
+              if (parsed && typeof parsed === 'object') {
+                Object.keys(parsed).forEach((k) => {
+                  if (parsed[k]?.url) initialNamed[k] = parsed[k].url;
+                });
+              }
+            } catch (e) {}
+          }
         }
-      }
-      setNamedSignatures(initialNamed);
-      // Also fetch from backend for mobile/cross-device syncing
-      if (token) {
-        fetch('/api/sgsst/signatures', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.signatures && Object.keys(data.signatures).length > 0) {
-              setNamedSignatures((prev) => {
-                const merged = { ...prev, ...data.signatures };
-                localStorage.setItem('wappy_signatures', JSON.stringify(merged));
-                return merged;
-              });
-            }
+        setNamedSignatures(initialNamed);
+        // Also fetch from backend for mobile/cross-device syncing
+        if (token) {
+          fetch('/api/sgsst/signatures', {
+            headers: { Authorization: `Bearer ${token}` },
           })
-          .catch((err) => console.error('Error fetching signatures for sync:', err));
-      }
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.signatures && Object.keys(data.signatures).length > 0) {
+                setNamedSignatures((prev) => {
+                  const merged = { ...prev, ...data.signatures };
+                  localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(merged));
+                  return merged;
+                });
+              }
+            })
+            .catch((err) => console.error('Error fetching signatures for sync:', err));
+        }
+      };
+
+      loadCompanySignatures();
+      window.addEventListener('wappy-company-changed', loadCompanySignatures);
+      window.addEventListener('wappy-empresa-cambiada', loadCompanySignatures);
+      return () => {
+        window.removeEventListener('wappy-company-changed', loadCompanySignatures);
+        window.removeEventListener('wappy-empresa-cambiada', loadCompanySignatures);
+      };
     }, [token]);
 
     // ────────────────────────────────────────────────────────────────────────
@@ -508,7 +524,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     useEffect(() => {
       try {
         if (Object.keys(namedSignatures).length > 0) {
-          localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+          localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(namedSignatures));
         }
       } catch (e) {
         console.warn('Storage quota exceeded for signatures.');
@@ -929,7 +945,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
 
           const updated = { ...namedSignatures, [nameToUse]: signatureUrl };
           setNamedSignatures(updated);
-          localStorage.setItem('wappy_signatures', JSON.stringify(updated));
+          localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(updated));
           persistSignaturesToBackend(updated);
 
           // Insert into placeholder or at cursor
@@ -988,7 +1004,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
 
       const updated = { ...namedSignatures, [nameToUse]: base64 };
       setNamedSignatures(updated);
-      localStorage.setItem('wappy_signatures', JSON.stringify(updated));
+      localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(updated));
       persistSignaturesToBackend(updated);
 
       // Immediately insert into the placeholder or at cursor
@@ -1015,7 +1031,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       setNamedSignatures((prev) => {
         const next = { ...prev };
         delete next[name];
-        localStorage.setItem('wappy_signatures', JSON.stringify(next));
+        localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(next));
         persistSignaturesToBackend(next);
         return next;
       });

@@ -504,8 +504,13 @@ class WhatsAppManager {
       if (['1', 'aprobar', 'autorizar', 'confirmar', '2', 'rechazar', 'cancelar'].includes(trimmedLower)) {
         const TenshiPendingAction = mongoose.models.TenshiPendingAction;
         if (TenshiPendingAction) {
+          const CompanyInfo = mongoose.models.CompanyInfo || require('../../models/CompanyInfo');
+          const activeComp =
+            (await CompanyInfo.findOne({ user: userId, isActive: true }).select('_id').lean()) ||
+            (await CompanyInfo.findOne({ user: userId }).select('_id').lean());
           const pending = await TenshiPendingAction.findOne({
-            userId: String(userId),
+            user: userId,
+            ...(activeComp?._id ? { companyId: String(activeComp._id) } : {}),
             status: 'pendiente_aprobacion',
           }).sort({ createdAt: -1 });
           if (pending) {

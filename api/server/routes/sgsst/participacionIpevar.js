@@ -28,6 +28,8 @@ const ParticipacionIpevarDataSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 }, { strict: false });
 
+ParticipacionIpevarDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
+
 const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData || mongoose.model('ParticipacionIpevarData', ParticipacionIpevarDataSchema);
 
 // ─── GET /data — Load saved data and inbox ─────────────────────────────

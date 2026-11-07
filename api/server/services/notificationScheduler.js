@@ -616,6 +616,7 @@ const runNotificationChecks = async () => {
 
               await Notification.create({
                 user: userId,
+                companyId: companyId || null,
                 type: 'system_update',
                 title: `Vencimientos críticos de SST detectados`,
                 body: `Se han detectado vencimientos pendientes en tu empresa ${companyName}: ${alertSummary.join(', ')}. Revisa tu correo o el módulo Somos SST para gestionarlos.`,

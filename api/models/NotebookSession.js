@@ -6,7 +6,12 @@ const notebookSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
+      index: true,
+    },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CompanyInfo',
+      default: null,
       index: true,
     },
     email: {
@@ -50,7 +55,11 @@ const notebookSessionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+notebookSessionSchema.index({ user: 1, companyId: 1 }, { unique: true });
+
 const NotebookSession =
   mongoose.models.NotebookSession || mongoose.model('NotebookSession', notebookSessionSchema);
+
+NotebookSession.collection.dropIndex('user_1').catch(() => {});
 
 module.exports = NotebookSession;

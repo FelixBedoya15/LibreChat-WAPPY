@@ -495,7 +495,40 @@ export const ContratistasWorkspace: React.FC = () => {
 
   // ─── CARGAR DATOS DESDE EL BACKEND ─────────────────────────────────────────
   const loadData = useCallback(async () => {
-    if (!token) return;
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const loadLocalFallbacks = (hasContratistas: boolean, hasChecklist: boolean) => {
+      if (!hasContratistas) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_contratistas_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setContratistas(
+            Array.isArray(parsed) && parsed.length > 0
+              ? parsed.map(normalizeContratistaItem)
+              : INITIAL_CONTRATISTAS
+          );
+        } catch {
+          setContratistas(INITIAL_CONTRATISTAS);
+        }
+      }
+      if (!hasChecklist) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_contratistas_checklist_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setChecklistRequisitos(
+            Array.isArray(parsed) && parsed.length > 0
+              ? parsed.map(normalizeChecklistItem)
+              : INITIAL_CHECKLIST_REQUISITOS
+          );
+        } catch {
+          setChecklistRequisitos(INITIAL_CHECKLIST_REQUISITOS);
+        }
+      }
+    };
+
+    if (!token) {
+      loadLocalFallbacks(false, false);
+      return;
+    }
     try {
       const res = await fetch('/api/sgsst/contratistas/data', {
         headers: { Authorization: `Bearer ${token}` },
@@ -503,12 +536,15 @@ export const ContratistasWorkspace: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.company) setCompany(data.company);
-        if (Array.isArray(data.contratistas) && data.contratistas.length > 0) {
+        const hasContratistas = Array.isArray(data.contratistas) && data.contratistas.length > 0;
+        const hasChecklist = Array.isArray(data.checklistRequisitos) && data.checklistRequisitos.length > 0;
+        if (hasContratistas) {
           setContratistas(data.contratistas.map(normalizeContratistaItem));
         }
-        if (Array.isArray(data.checklistRequisitos) && data.checklistRequisitos.length > 0) {
+        if (hasChecklist) {
           setChecklistRequisitos(data.checklistRequisitos.map(normalizeChecklistItem));
         }
+        loadLocalFallbacks(hasContratistas, hasChecklist);
         if (data.ecosystemMetrics) {
           applyEcosystemMetrics(data.ecosystemMetrics);
         }
@@ -517,14 +553,26 @@ export const ContratistasWorkspace: React.FC = () => {
           editorContentRef.current = data.lastGeneratedReport;
           liveEditorRef.current?.setHTML(data.lastGeneratedReport);
         }
+      } else {
+        loadLocalFallbacks(false, false);
       }
     } catch (err) {
       console.warn('[Contratistas SST] Could not load saved data from backend:', err);
+      loadLocalFallbacks(false, false);
     }
   }, [token, applyEcosystemMetrics]);
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    window.addEventListener('wappy-company-changed', loadData);
+    window.addEventListener('wappy-empresa-cambiada', loadData);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadData);
+      window.removeEventListener('wappy-empresa-cambiada', loadData);
+    };
   }, [loadData]);
 
   useAutoLoadReport({
@@ -541,9 +589,10 @@ export const ContratistasWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSaving(true);
     try {
-      localStorage.setItem('wappy_iso45001_contratistas', JSON.stringify(contratistas));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_iso45001_contratistas_${companySuffix}`, JSON.stringify(contratistas));
       localStorage.setItem(
-        'wappy_iso45001_contratistas_checklist',
+        `wappy_iso45001_contratistas_checklist_${companySuffix}`,
         JSON.stringify(checklistRequisitos)
       );
 

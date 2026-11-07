@@ -192,6 +192,18 @@ async function getActiveCompany(userId) {
   return company;
 }
 
+async function resolveTargetCompanyId(userId, explicitCompanyId = null) {
+  if (!userId) return null;
+  if (explicitCompanyId) {
+    const matched = await findUserCompanyByTerm(userId, explicitCompanyId, { lean: true }).catch(() => null);
+    if (matched?._id) {
+      return matched._id;
+    }
+  }
+  const company = await getActiveCompany(userId);
+  return company?._id || null;
+}
+
 // Helper para aislamiento multitenant estricto por empresa (sin $or de nivel superior para evitar colisiones)
 function companyScope(userId, companyId) {
   if (!companyId) {
@@ -4656,7 +4668,10 @@ router.post('/accion-universal', requireApiKeyOrJwt, async (req, res) => {
       const Conversation = mongoose.models.Conversation;
       const Message = mongoose.models.Message;
       if (rawOperation === 'listar' || rawOperation === 'consultar') {
-        const items = await Conversation.find({ user: String(userId) })
+        const items = await Conversation.find({
+          user: String(userId),
+          ...(companyId ? { tags: { $in: [`company-${companyId}`, `company:${companyId}`] } } : {}),
+        })
           .sort({ updatedAt: -1 })
           .limit(Number(rawPayload.limit) || 30)
           .select('conversationId title endpoint agent_id model createdAt updatedAt')
@@ -5509,11 +5524,17 @@ router.get('/conversaciones', requireApiKeyOrJwt, async (req, res) => {
       .select('conversationId title tags createdAt updatedAt')
       .lean();
 
-    // Filtrar conversaciones que tengan tag de otra empresa distinta a la activa
+    // Filtrar conversaciones que tengan tag de otra empresa distinta a la activa (company- y company:)
     const filteredConvos = companyId
       ? convos.filter((c) => {
-          const companyTags = (c.tags || []).filter((t) => typeof t === 'string' && t.startsWith('company-'));
-          return companyTags.length === 0 || companyTags.includes(`company-${companyId}`);
+          const companyTags = (c.tags || []).filter(
+            (t) => typeof t === 'string' && (t.startsWith('company-') || t.startsWith('company:'))
+          );
+          return (
+            companyTags.length === 0 ||
+            companyTags.includes(`company-${companyId}`) ||
+            companyTags.includes(`company:${companyId}`)
+          );
         })
       : convos;
 
@@ -6938,11 +6959,20 @@ router.put('/tenshi/config', requireApiKeyOrJwt, async (req, res) => {
 
 // ─── 31. NOTIFICACIONES Y ALERTAS DEL USUARIO ──────────────────────────────
 
-router.get('/notifications', requireApiKeyOrJwt, async (req, res) => {
+router.get(['/notifications', '/notificaciones'], requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const companyId = await resolveTargetCompanyId(
+      req.user.id,
+      req.query.companyId || req.query.empresa
+    );
     const Notification = mongoose.models.Notification || require('~/models/Notification');
-    const notifs = await Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(50).lean();
+    const notifs = await Notification.find({
+      user: req.user.id,
+      ...(companyId ? { $or: [{ companyId }, { companyId: null }] } : {}),
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
     return res.json({
       total: notifs.length,
@@ -6961,7 +6991,7 @@ router.get('/notifications', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
-router.post('/notifications', requireApiKeyOrJwt, async (req, res) => {
+router.post(['/notifications', '/notificaciones'], requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
     const { title, body, type } = req.body;
@@ -6970,9 +7000,14 @@ router.post('/notifications', requireApiKeyOrJwt, async (req, res) => {
       return res.status(400).json({ error: 'title y body son requeridos.' });
     }
 
+    const companyId = await resolveTargetCompanyId(
+      userId,
+      req.body?.companyId || req.body?.empresa
+    );
     const Notification = mongoose.models.Notification || require('~/models/Notification');
     const notif = new Notification({
       user: userId,
+      companyId: companyId || null,
       title: title.trim(),
       body: body.trim(),
       type: type || 'system_update',
@@ -8630,13 +8665,13 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
           ? {
               $and: [
                 { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
-                { tags: `company:${companyId}` },
+                { tags: { $in: [`company-${companyId}`, `company:${companyId}`] } },
               ],
             }
           : {
               $and: [
                 { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
-                { tags: { $not: /^company:/ } },
+                { tags: { $not: /^company[-:]/ } },
               ],
             }),
       }).sort({ updatedAt: -1 }).select('title tags updatedAt').lean().catch(() => null),
@@ -11204,9 +11239,10 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       return res.status(400).json({ error: 'Debes proporcionar el ordenId a completar.' });
     }
 
-    let task = await KanbanTask.findOne({ _id: targetId, user: targetUserId });
+    const userId = targetUserId;
+    let task = await KanbanTask.findOne({ _id: targetId, user: userId });
     if (!task && mongoose.Types.ObjectId.isValid(targetId)) {
-      task = await KanbanTask.findOne({ _id: targetId, type: 'antigravity_delegation' });
+      task = await KanbanTask.findOne({ _id: targetId, user: userId, type: 'antigravity_delegation' });
     }
     if (!task) {
       return res.status(404).json({ error: 'Orden no encontrada.' });
@@ -12169,8 +12205,18 @@ router.post('/estadisticas-atel', requireApiKeyOrJwt, async (req, res) => {
 router.get('/subusuarios', requireApiKeyOrJwt, async (req, res) => {
   try {
     const User = mongoose.models.User || mongoose.model('User');
-    const subs = await User.find({ parentUserId: req.user.id })
-      .select('_id name username email role isSubUser subUserPermissions assignedCompanyId createdAt')
+    const companyId = await resolveTargetCompanyId(
+      req.user.id,
+      req.query.companyId || req.query.empresa
+    );
+    const parentFilter = { $or: [{ parentUser: req.user.id }, { parentUserId: req.user.id }] };
+    const companyFilter = companyId
+      ? { $or: [{ assignedCompany: companyId }, { assignedCompanyId: companyId }, { assignedCompany: null }] }
+      : null;
+    const subs = await User.find(
+      companyFilter ? { $and: [parentFilter, companyFilter] } : parentFilter
+    )
+      .select('_id name username email role isSubUser subUserPermissions assignedCompany assignedCompanyId createdAt')
       .lean();
     return res.json({ total: subs.length, subusuarios: subs });
   } catch (error) {
@@ -12183,7 +12229,14 @@ router.get('/subusuarios', requireApiKeyOrJwt, async (req, res) => {
 router.get('/documentos-vivo', requireApiKeyOrJwt, async (req, res) => {
   try {
     const LiveDocument = mongoose.models.LiveDocument || require('~/models/LiveDocument');
-    const docs = await LiveDocument.find({ user: req.user.id })
+    const companyId = await resolveTargetCompanyId(
+      req.user.id,
+      req.query.companyId || req.query.empresa
+    );
+    const docs = await LiveDocument.find({
+      user: req.user.id,
+      ...(companyId ? { companyId } : {}),
+    })
       .sort({ updatedAt: -1 })
       .limit(Number(req.query.limit || 30))
       .lean();
@@ -12197,11 +12250,14 @@ router.get('/documentos-vivo', requireApiKeyOrJwt, async (req, res) => {
 router.post('/documentos-vivo', requireApiKeyOrJwt, async (req, res) => {
   try {
     const LiveDocument = mongoose.models.LiveDocument || require('~/models/LiveDocument');
-    const company = await getActiveCompany(req.user.id);
+    const companyId = await resolveTargetCompanyId(
+      req.user.id,
+      req.body?.companyId || req.body?.empresa
+    );
     const { id, title, content } = req.body;
     if (id && mongoose.isValidObjectId(id)) {
       const updated = await LiveDocument.findOneAndUpdate(
-        { _id: id, user: req.user.id },
+        { _id: id, user: req.user.id, ...(companyId ? { companyId } : {}) },
         { $set: { title: title || 'Documento SST', content: content || '' } },
         { new: true }
       ).lean();
@@ -12209,7 +12265,7 @@ router.post('/documentos-vivo', requireApiKeyOrJwt, async (req, res) => {
     }
     const created = await LiveDocument.create({
       user: req.user.id,
-      companyId: company ? company._id : null,
+      companyId: companyId || null,
       title: title || 'Documento SST',
       content: content || '',
     });
@@ -12223,7 +12279,15 @@ router.post('/documentos-vivo', requireApiKeyOrJwt, async (req, res) => {
 router.delete('/documentos-vivo/:id', requireApiKeyOrJwt, async (req, res) => {
   try {
     const LiveDocument = mongoose.models.LiveDocument || require('~/models/LiveDocument');
-    await LiveDocument.deleteOne({ _id: req.params.id, user: req.user.id });
+    const companyId = await resolveTargetCompanyId(
+      req.user.id,
+      req.query.companyId || req.query.empresa
+    );
+    await LiveDocument.deleteOne({
+      _id: req.params.id,
+      user: req.user.id,
+      ...(companyId ? { companyId } : {}),
+    });
     return res.json({ success: true, deletedId: req.params.id });
   } catch (error) {
     logger.error('[MCP Bridge] Error DELETE /documentos-vivo:', error);
@@ -12239,7 +12303,21 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
       return res.status(400).json({ error: 'El parámetro "tool" es obligatorio.' });
     }
     const NotebookSession = require('~/models/NotebookSession');
-    const session = await NotebookSession.findOne({ user: req.user.id }).lean();
+    const companyId = await resolveTargetCompanyId(
+      req.user.id,
+      req.body?.companyId || req.query?.companyId
+    );
+    let session = companyId
+      ? await NotebookSession.findOne({ user: req.user.id, companyId }).lean().catch(() => null)
+      : null;
+    if (!session) {
+      session = await NotebookSession.findOne({
+        user: req.user.id,
+        $or: [{ companyId: null }, { companyId: { $exists: false } }],
+      })
+        .lean()
+        .catch(() => null);
+    }
     const cookies = session?.cookies || [];
     const effectiveEmail = session?.email || req.user.email || '';
 

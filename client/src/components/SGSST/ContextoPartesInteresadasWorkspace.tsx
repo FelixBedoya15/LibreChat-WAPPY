@@ -617,7 +617,51 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
 
   // ─── CARGAR DATOS AL MONTAR EL COMPONENTE ──────────────────────────────────
   const loadData = useCallback(async () => {
-    if (!token) return;
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const loadLocalFallbacks = (hasDofa: boolean, hasStakeholders: boolean, hasStrategies: boolean) => {
+      if (!hasDofa) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_dofa_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setDofaList(Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_DOFA);
+        } catch {
+          setDofaList(INITIAL_DOFA);
+        }
+      }
+      if (!hasStakeholders) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_stakeholders_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setStakeholders(Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_STAKEHOLDERS);
+        } catch {
+          setStakeholders(INITIAL_STAKEHOLDERS);
+        }
+      }
+      if (!hasStrategies) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_strategies_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          if (parsed && typeof parsed === 'object') {
+            const fo = Array.isArray(parsed.fo) ? parsed.fo : [];
+            const doArr = Array.isArray(parsed.do) ? parsed.do : [];
+            const fa = Array.isArray(parsed.fa) ? parsed.fa : [];
+            const da = Array.isArray(parsed.da) ? parsed.da : [];
+            if (fo.length + doArr.length + fa.length + da.length > 0) {
+              setCrossStrategies({ fo, do: doArr, fa, da });
+              return;
+            }
+          }
+          setCrossStrategies(INITIAL_STRATEGIES);
+        } catch {
+          setCrossStrategies(INITIAL_STRATEGIES);
+        }
+      }
+    };
+
+    if (!token) {
+      loadLocalFallbacks(false, false, false);
+      return;
+    }
     try {
       const res = await fetch('/api/sgsst/contexto/data', {
         headers: { Authorization: `Bearer ${token}` },
@@ -625,10 +669,13 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.company) setCompany(data.company);
-        if (Array.isArray(data.dofaList) && data.dofaList.length > 0) {
+        const hasDofa = Array.isArray(data.dofaList) && data.dofaList.length > 0;
+        const hasStakeholders = Array.isArray(data.stakeholders) && data.stakeholders.length > 0;
+        let hasStrategies = false;
+        if (hasDofa) {
           setDofaList(data.dofaList);
         }
-        if (Array.isArray(data.stakeholders) && data.stakeholders.length > 0) {
+        if (hasStakeholders) {
           setStakeholders(data.stakeholders);
         }
         // CORRECCIÓN BUG CRUCES ESTRATÉGICOS EN 0:
@@ -640,23 +687,37 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
           const da = Array.isArray(data.crossStrategies.da) ? data.crossStrategies.da : [];
           const totalLoaded = fo.length + doArr.length + fa.length + da.length;
           if (totalLoaded > 0) {
+            hasStrategies = true;
             setCrossStrategies({ fo, do: doArr, fa, da });
           }
         }
+        loadLocalFallbacks(hasDofa, hasStakeholders, hasStrategies);
         applyEcosystemMetrics(data.ecosystemMetrics, data.company);
         if (data.lastGeneratedReport) {
           setGeneratedReport(data.lastGeneratedReport);
           editorContentRef.current = data.lastGeneratedReport;
           liveEditorRef.current?.setHTML(data.lastGeneratedReport);
         }
+      } else {
+        loadLocalFallbacks(false, false, false);
       }
     } catch (err) {
       console.warn('[Contexto] Could not load saved data from server:', err);
+      loadLocalFallbacks(false, false, false);
     }
   }, [token, applyEcosystemMetrics]);
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    window.addEventListener('wappy-company-changed', loadData);
+    window.addEventListener('wappy-empresa-cambiada', loadData);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadData);
+      window.removeEventListener('wappy-empresa-cambiada', loadData);
+    };
   }, [loadData]);
 
   // ─── DATOS DE PRUEBA (DUMMY) ───────────────────────────────────────────────
@@ -1136,9 +1197,10 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSavingData(true);
     try {
-      localStorage.setItem('wappy_iso45001_dofa', JSON.stringify(dofaList));
-      localStorage.setItem('wappy_iso45001_stakeholders', JSON.stringify(stakeholders));
-      localStorage.setItem('wappy_iso45001_strategies', JSON.stringify(crossStrategies));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_iso45001_dofa_${companySuffix}`, JSON.stringify(dofaList));
+      localStorage.setItem(`wappy_iso45001_stakeholders_${companySuffix}`, JSON.stringify(stakeholders));
+      localStorage.setItem(`wappy_iso45001_strategies_${companySuffix}`, JSON.stringify(crossStrategies));
 
       if (token) {
         await fetch('/api/sgsst/contexto/data', {

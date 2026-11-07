@@ -546,7 +546,40 @@ export const OportunidadesWorkspace: React.FC = () => {
 
   // ─── CARGAR DATOS DESDE MONGODB AL MONTAR ──────────────────────────────────
   const loadData = useCallback(async () => {
-    if (!token) return;
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const loadLocalFallbacks = (hasOport: boolean, hasRiesgos: boolean) => {
+      if (!hasOport) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_oportunidades_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setOportunidades(
+            Array.isArray(parsed) && parsed.length > 0
+              ? parsed.map(normalizeOportunidadItem)
+              : INITIAL_OPORTUNIDADES
+          );
+        } catch {
+          setOportunidades(INITIAL_OPORTUNIDADES);
+        }
+      }
+      if (!hasRiesgos) {
+        try {
+          const raw = localStorage.getItem(`wappy_iso45001_riesgos_sistema_${companySuffix}`);
+          const parsed = raw ? JSON.parse(raw) : null;
+          setRiesgosSistema(
+            Array.isArray(parsed) && parsed.length > 0
+              ? parsed.map(normalizeRiesgoItem)
+              : INITIAL_RIESGOS_SISTEMA
+          );
+        } catch {
+          setRiesgosSistema(INITIAL_RIESGOS_SISTEMA);
+        }
+      }
+    };
+
+    if (!token) {
+      loadLocalFallbacks(false, false);
+      return;
+    }
     try {
       const res = await fetch('/api/sgsst/oportunidades/data', {
         headers: { Authorization: `Bearer ${token}` },
@@ -554,12 +587,15 @@ export const OportunidadesWorkspace: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.company) setCompany(data.company);
-        if (Array.isArray(data.oportunidades) && data.oportunidades.length > 0) {
+        const hasOport = Array.isArray(data.oportunidades) && data.oportunidades.length > 0;
+        const hasRiesgos = Array.isArray(data.riesgosSistema) && data.riesgosSistema.length > 0;
+        if (hasOport) {
           setOportunidades(data.oportunidades.map(normalizeOportunidadItem));
         }
-        if (Array.isArray(data.riesgosSistema) && data.riesgosSistema.length > 0) {
+        if (hasRiesgos) {
           setRiesgosSistema(data.riesgosSistema.map(normalizeRiesgoItem));
         }
+        loadLocalFallbacks(hasOport, hasRiesgos);
         if (data.ecosystemMetrics) {
           applyMetrics(data.ecosystemMetrics);
         }
@@ -568,14 +604,26 @@ export const OportunidadesWorkspace: React.FC = () => {
           editorContentRef.current = data.lastGeneratedReport;
           liveEditorRef.current?.setHTML(data.lastGeneratedReport);
         }
+      } else {
+        loadLocalFallbacks(false, false);
       }
     } catch (err) {
       console.warn('[Oportunidades] Could not load saved data from server:', err);
+      loadLocalFallbacks(false, false);
     }
   }, [token, applyMetrics]);
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    window.addEventListener('wappy-company-changed', loadData);
+    window.addEventListener('wappy-empresa-cambiada', loadData);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadData);
+      window.removeEventListener('wappy-empresa-cambiada', loadData);
+    };
   }, [loadData]);
 
   useAutoLoadReport({
@@ -848,8 +896,9 @@ export const OportunidadesWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSavingData(true);
     try {
-      localStorage.setItem('wappy_iso45001_oportunidades', JSON.stringify(oportunidades));
-      localStorage.setItem('wappy_iso45001_riesgos_sistema', JSON.stringify(riesgosSistema));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_iso45001_oportunidades_${companySuffix}`, JSON.stringify(oportunidades));
+      localStorage.setItem(`wappy_iso45001_riesgos_sistema_${companySuffix}`, JSON.stringify(riesgosSistema));
 
       if (token) {
         await fetch('/api/sgsst/oportunidades/data', {

@@ -94,7 +94,7 @@ class MatrizPESV extends Tool {
       }
 
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-        const tempId = `temp-${userId}`;
+        const tempId = `temp-${userId}-${companyId || 'default'}`;
         const tempSession = await PESVMatrix.findOne({ conversationId: tempId, user: userId });
         if (tempSession && tempSession.matrixRows && tempSession.matrixRows.length > 0) {
           tempSession.conversationId = conversationId;
@@ -177,9 +177,6 @@ class MatrizPESV extends Tool {
         if (SgsstVehicleData) {
           try {
             let vehList = await SgsstVehicleData.find(baseQuery).lean();
-            if ((!vehList || vehList.length === 0) && companyId) {
-              vehList = await SgsstVehicleData.find({ user: userId }).lean();
-            }
             if (Array.isArray(vehList) && vehList.length > 0) {
               payload.flota_vehicular_registrada = vehList.map(v => ({
                 placa: v.placa,

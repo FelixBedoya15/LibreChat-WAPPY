@@ -104,6 +104,18 @@ export default function HtmlSandboxApp({ phaseId, phaseTitle }: HtmlSandboxAppPr
         loadApps();
     }, [loadApps]);
 
+    useEffect(() => {
+        const handleCompanyChange = () => {
+            loadApps();
+        };
+        window.addEventListener('wappy-company-changed', handleCompanyChange);
+        window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        return () => {
+            window.removeEventListener('wappy-company-changed', handleCompanyChange);
+            window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
+        };
+    }, [loadApps]);
+
     // 2. Save apps to backend
     const saveAppsToDB = async (updatedApps: HtmlApp[]) => {
         if (!token) return;

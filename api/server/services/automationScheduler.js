@@ -402,23 +402,45 @@ async function runAutomation(automation, isManual = false) {
     // 1. Fetch app config
     const appConfig = await getAppConfig();
 
-    // 2. Fetch agent (soporta 'tenshi_avatar_orchestrator' como Orquestador Tenshi 3D)
-    let agent = await getAgent({ id: automation.agentId });
-    if (!agent && automation.agentId === 'tenshi_avatar_orchestrator') {
+    // 2. Fetch agent (soporta 'tenshi_avatar_3d' y 'tenshi_avatar_orchestrator' como Orquestador Tenshi 3D)
+    const isTenshiAvatarAgent =
+      automation.agentId === 'tenshi_avatar_3d' ||
+      automation.agentId === 'tenshi_avatar_orchestrator' ||
+      /tenshi/i.test(String(automation.agentId || '')) ||
+      /tenshi/i.test(String(automation.agentName || ''));
+
+    let agent = automation.agentId ? await getAgent({ id: automation.agentId }) : null;
+    if (!agent) {
       const AgentModel =
         mongoose.models.Agent || (mongoose.modelNames().includes('Agent') ? mongoose.model('Agent') : null);
       if (AgentModel) {
-        const fallbackDoc =
-          (await AgentModel.findOne({ name: /tenshi/i }).lean()) ||
-          (await AgentModel.findOne({ name: /consultor|profesional|sst/i }).lean()) ||
-          (await AgentModel.findOne({}).lean());
+        let fallbackDoc = null;
+        if (!isTenshiAvatarAgent && automation.agentName) {
+          fallbackDoc = await AgentModel.findOne({ name: automation.agentName }).lean();
+        }
+        if (!fallbackDoc) {
+          fallbackDoc =
+            (await AgentModel.findOne({ name: /tenshi/i }).lean()) ||
+            (await AgentModel.findOne({ name: /consultor|profesional|sst/i }).lean()) ||
+            (await AgentModel.findOne({}).lean());
+        }
         if (fallbackDoc?.id) {
-          agent = await getAgent({ id: fallbackDoc.id });
+          agent = (await getAgent({ id: fallbackDoc.id })) || fallbackDoc;
         }
       }
     }
     if (!agent) {
       throw new Error(`Agent ${automation.agentId} not found`);
+    }
+    if (isTenshiAvatarAgent) {
+      agent = {
+        ...agent,
+        name: automation.agentName || 'Tenshi (Avatar 3D)',
+        instructions:
+          `[IDENTIDAD ACTIVA: TENSHI (AVATAR 3D) — ORQUESTADOR INTELIGENTE DE WAPPY IA Y SOMOS SST]\n` +
+          `Actúas como Tenshi (Avatar 3D), el copiloto ejecutivo, director técnico y orquestador principal de Seguridad y Salud en el Trabajo (SG-SST) de la plataforma WAPPY. Tu tono es ejecutivo, riguroso, cercano y resolutivo. Coordinas las herramientas de los 8 Hitos SST, Google Drive, Google Antigravity, NotebookLM y los sub-agentes especialistas para entregar resultados verificables y accionables.\n\n` +
+          (agent.instructions || ''),
+      };
     }
 
     // 3. Fetch user details for complete context
@@ -468,10 +490,17 @@ async function runAutomation(automation, isManual = false) {
           ? `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: Google Antigravity Local (Mac/PC) + MCP WAPPY. Utiliza prioritariamente la herramienta "google_antigravity" (action: "delegate_task" o consulta por puente Push SSE con respaldo Cloud Failover automático) y las herramientas MCP para ejecutar el procesamiento profundo de este flujo.\n`
           : `- MOTOR IA SELECCIONADO EN EL FLUJO WAPPY: WAPPY Cloud IA (Rotación de Claves) con el modelo "${effectiveAiModel}".\n`;
 
-    // Memoria Anti-Duplicados (wappy_memory_antiduplicate): inyecta el resumen de la última corrida exitosa
+    // Equipo 4: Memorias del Agente (wappy_memory_company, wappy_memory_antiduplicate, wappy_rag_documental, wappy_memory_procedural)
     const activeMemories = Array.isArray(automation.workflowNodes?.memories)
       ? automation.workflowNodes.memories
       : ['wappy_memory_company'];
+
+    let companyProfileMemoryBlock = '';
+    if (activeMemories.includes('wappy_memory_company') && automationCompany) {
+      companyProfileMemoryBlock =
+        `- [MEMORIA DE EMPRESA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiuCode || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.employeeCount ?? 'N/A'} | Ciudad/Depto: ${automationCompany.city || 'N/A'} / ${automationCompany.department || 'N/A'} | Representante Legal: ${automationCompany.legalRepresentative || 'N/A'} | Responsable SG-SST: ${automationCompany.sstResponsibleName || 'N/A'} (Licencia: ${automationCompany.sstLicenseNumber || 'N/A'})\n`;
+    }
+
     let previousRunMemoryBlock = '';
     if (activeMemories.includes('wappy_memory_antiduplicate')) {
       try {
@@ -486,8 +515,90 @@ async function runAutomation(automation, isManual = false) {
         if (lastSuccessLog?.result) {
           previousRunMemoryBlock =
             `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS (${new Date(lastSuccessLog.runAt).toISOString()})]: En la ejecución anterior ya se procesó lo siguiente (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(lastSuccessLog.result).substring(0, 600)}\n`;
+        } else if (automation.lastRunResult) {
+          previousRunMemoryBlock =
+            `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS]: Último resultado procesado (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(automation.lastRunResult).substring(0, 500)}\n`;
         }
       } catch (_) {}
+    }
+
+    let ragDocumentalMemoryBlock = '';
+    if (activeMemories.includes('wappy_rag_documental')) {
+      try {
+        const ragLines = [];
+        const LiveDocumentModel =
+          mongoose.models.LiveDocument || require('~/models/LiveDocument');
+        if (LiveDocumentModel) {
+          const docFilter = {
+            user: automation.user,
+            ...(targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+              ? { companyId: targetCompanyIdStr }
+              : {}),
+          };
+          const liveDocs = await LiveDocumentModel.find(docFilter)
+            .sort({ updatedAt: -1 })
+            .limit(8)
+            .select('title content updatedAt')
+            .lean();
+          if (Array.isArray(liveDocs) && liveDocs.length > 0) {
+            const docSnippets = liveDocs.map((d) => {
+              const excerpt = String(d.content || '')
+                .replace(/<style[\s\S]*?<\/style>/gi, '')
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 320);
+              return `  • Documento Vivo "${d.title || 'Sin título'}": "${excerpt}"`;
+            });
+            ragLines.push(...docSnippets);
+          }
+        }
+        const NotebookSessionModel =
+          mongoose.models.NotebookSession || require('~/models/NotebookSession');
+        if (NotebookSessionModel) {
+          const nbSession =
+            (targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+              ? await NotebookSessionModel.findOne({
+                  user: automation.user,
+                  companyId: targetCompanyIdStr,
+                })
+                  .select('cachedNotebooks email')
+                  .lean()
+              : null) ||
+            (await NotebookSessionModel.findOne({ user: automation.user })
+              .select('cachedNotebooks email')
+              .lean());
+          if (Array.isArray(nbSession?.cachedNotebooks) && nbSession.cachedNotebooks.length > 0) {
+            const nbTitles = nbSession.cachedNotebooks
+              .slice(0, 8)
+              .map((nb) => `"${nb.title || nb.name || 'Cuaderno'}" (ID: ${nb.id || 'N/A'})`)
+              .join(', ');
+            ragLines.push(`  • Cuadernos NotebookLM vinculados: ${nbTitles}`);
+          }
+        }
+        if (ragLines.length > 0) {
+          ragDocumentalMemoryBlock =
+            `- [MEMORIA RAG DOCUMENTAL Y BASE DE CONOCIMIENTO DE LA EMPRESA (wappy_rag_documental)]:\n${ragLines.join('\n')}\n`;
+        } else {
+          ragDocumentalMemoryBlock =
+            `- [MEMORIA RAG DOCUMENTAL (wappy_rag_documental)]: Sin documentos vivos ni cuadernos NotebookLM indexados aún para esta empresa; puedes consultar la biblioteca documental con wappy_consultar_documentos_vivo o wappy_ejecutar_notebooklm.\n`;
+        }
+      } catch (_) {}
+    }
+
+    let proceduralNormativeMemoryBlock = '';
+    if (activeMemories.includes('wappy_memory_procedural')) {
+      proceduralNormativeMemoryBlock =
+        `- [MEMORIA PROCEDURAL Y MARCO NORMATIVO OBLIGATORIO SST COLOMBIA (wappy_memory_procedural)]:\n` +
+        `  • Decreto 1072 de 2015 (Libro 2, Parte 2, Título 4, Cap. 6): Directrices obligatorias del SG-SST bajo el ciclo PHVA (Planear, Hacer, Verificar, Actuar).\n` +
+        `  • Resolución 0312 de 2019: Estándares Mínimos del SG-SST según número de trabajadores y nivel de riesgo ARL (I a V — 7, 21 o 60 estándares).\n` +
+        `  • Guía Técnica Colombiana GTC-45 (2012): Metodología oficial de Identificación de Peligros, Evaluación y Valoración de Riesgos (IPEVR: ND, NE, NP, NR, aceptabilidad y jerarquía de controles: Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos y EPP).\n` +
+        `  • Resolución 2764 de 2022: Batería de Instrumentos de Evaluación de Factores de Riesgo Psicosocial y protocolos de intervención.\n` +
+        `  • Resolución 20223040040595 de 2022: Metodología de diseño, implementación y verificación del Plan Estratégico de Seguridad Vial (PESV — 24 pasos).\n` +
+        `  • Decreto 1496 de 2018: Sistema Globalmente Armonizado (SGA) de clasificación y etiquetado químico, FDS de 16 secciones y compatibilidad química.\n` +
+        `  • Resolución 4272 de 2021: Requisitos mínimos de seguridad para el Programa de Prevención y Protección contra Caídas en Trabajo Seguro en Alturas.\n` +
+        `  • Resolución 1401 de 2007: Investigación obligatoria de incidentes y accidentes de trabajo (ATEL) dentro de los 15 días calendario siguientes al evento, análisis causal y planes ACPM.\n`;
     }
 
     // Configuración granular por nodo (campos solicitados, contexto de entrada/salida y 2do Prompt de Agentes extra)
@@ -653,7 +764,10 @@ async function runAutomation(automation, isManual = false) {
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
         `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
         antigravityEngineDirective +
+        companyProfileMemoryBlock +
         previousRunMemoryBlock +
+        ragDocumentalMemoryBlock +
+        proceduralNormativeMemoryBlock +
         canvasNodesContextBlock +
         liveDatabaseSurgicalBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
@@ -661,7 +775,7 @@ async function runAutomation(automation, isManual = false) {
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : `${antigravityEngineDirective}${previousRunMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}`;
+      : `${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
@@ -843,6 +957,7 @@ async function runAutomation(automation, isManual = false) {
           const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 260);
           await Notification.create({
             user: automation.user,
+            companyId: automation.companyId || null,
             title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
             body: `${shortSummary}${resultText.length > 260 ? '...' : ''}`,
             type: 'system_update',
@@ -850,9 +965,10 @@ async function runAutomation(automation, isManual = false) {
           });
           await TenshiMessage.create({
             user: automation.user,
-            sender: 'tenshi',
-            text:
-              `📋 **Bitácora de Flujo Completada — ${automation.name} (${compLabel})**\n\n` +
+            companyId: automation.companyId ? String(automation.companyId) : null,
+            role: 'assistant',
+            content:
+              `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
               `${resultText.substring(0, 900)}${resultText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
           });
         } catch (notifErr) {
@@ -876,12 +992,85 @@ async function runAutomation(automation, isManual = false) {
             description: resultText.substring(0, 4000),
             status: 'done',
             priority: 'medium',
+            type: 'antigravity_delegation',
+            sourceModule: 'Automatización WAPPY',
+            assignedTo: targetEnv,
             category: 'Automatización WAPPY',
             assignedAgent: targetEnv,
-            dueDate: new Date().toISOString().split('T')[0],
+            dueDate: new Date(),
+            completedAt: new Date(),
+          });
+          const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 240);
+          await Notification.create({
+            user: automation.user,
+            companyId: automation.companyId || null,
+            title: `📡 Bitácora ${targetEnv}: ${automation.name} (${compLabel})`,
+            body: `Informe registrado en ${targetEnv}: ${shortSummary}${resultText.length > 240 ? '...' : ''}`,
+            type: 'system_update',
+            read: false,
           });
         } catch (agyErr) {
           console.warn('[AutomationScheduler] Non-blocking Antigravity bitácora error:', agyErr.message);
+        }
+      }
+
+      // 11C. Creación/Actualización de Documento en el Editor en Vivo WAPPY (canvas_doc)
+      if (configuredOutputs.includes('canvas_doc')) {
+        try {
+          const LiveDocumentModel =
+            mongoose.models.LiveDocument || require('~/models/LiveDocument');
+          if (LiveDocumentModel) {
+            const docTitle = `📄 Informe Automatizado: ${automation.name} (${compLabel})`;
+            const htmlContent = formatMarkdownToEmailHtml(resultText) || `<p>${resultText}</p>`;
+            const validCompanyObjId =
+              targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+                ? targetCompanyIdStr
+                : undefined;
+            await LiveDocumentModel.findOneAndUpdate(
+              {
+                user: automation.user,
+                title: docTitle,
+                ...(validCompanyObjId ? { companyId: validCompanyObjId } : {}),
+              },
+              {
+                $set: {
+                  title: docTitle,
+                  content: htmlContent,
+                  originalFileName: `${automation.name}.docx`,
+                  originalFileType: 'html',
+                  user: automation.user,
+                  ...(validCompanyObjId ? { companyId: validCompanyObjId } : {}),
+                },
+              },
+              { upsert: true, new: true },
+            );
+          }
+        } catch (docErr) {
+          console.warn('[AutomationScheduler] Non-blocking LiveDocument (canvas_doc) error:', docErr.message);
+        }
+      }
+
+      // 11D. Creación de Tarea / Plan de Acción ACPM en el Cronograma SG-SST (acpm_task)
+      if (configuredOutputs.includes('acpm_task')) {
+        try {
+          const dueIn7Days = new Date(Date.now() + 7 * 24 * 3600000);
+          await KanbanTask.create({
+            user: automation.user,
+            companyId: targetCompanyIdStr || 'DEFAULT',
+            title: `[ACPM Automatización] ${automation.name} — ${compLabel}`,
+            description: resultText.substring(0, 3500),
+            status: 'todo',
+            priority: 'alta',
+            actionType: 'correctiva',
+            type: 'audit_finding',
+            sourceModule: 'Automatización WAPPY (ACPM)',
+            assignedTo: automation.agentName || agent?.name || 'Responsable SG-SST',
+            referenceId: String(automation._id),
+            referenceName: automation.name,
+            dueDate: dueIn7Days,
+          });
+        } catch (acpmErr) {
+          console.warn('[AutomationScheduler] Non-blocking ACPM task error:', acpmErr.message);
         }
       }
     });

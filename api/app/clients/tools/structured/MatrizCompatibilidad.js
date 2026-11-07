@@ -79,7 +79,7 @@ class MatrizCompatibilidad extends Tool {
       }
 
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-        const tempId = `temp-${userId}`;
+        const tempId = `temp-${userId}-${companyId || 'default'}`;
         const tempSession = await ChemicalCompatibilitySession.findOne({ conversationId: tempId, user: userId });
         if (tempSession && tempSession.matrixRows && tempSession.matrixRows.length > 0) {
           tempSession.conversationId = conversationId;
@@ -120,7 +120,6 @@ class MatrizCompatibilidad extends Tool {
         // Inventario de productos químicos registrado en Hito 5 (Registro y Rótulo de Productos Químicos)
         if (SgsstChemicalData) {
           let chemDoc = await SgsstChemicalData.findOne(baseQuery).lean();
-          if (!chemDoc && companyId) chemDoc = await SgsstChemicalData.findOne({ user: userId }).lean();
           if (chemDoc && Array.isArray(chemDoc.productos) && chemDoc.productos.length > 0) {
             payload.inventario_quimico_hito5 = chemDoc.productos.map(p => ({
               nombre: p.nombre,

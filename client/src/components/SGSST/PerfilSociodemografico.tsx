@@ -328,9 +328,11 @@ const PerfilSociodemografico = () => {
     }, [trabajadores, statusFilter, searchQuery]);
 
     // ─── Sync Signatures ────────────────────────────────────────
-    const syncWorkersSignaturesToStorage = (workers: WorkerEntry[]) => {
+    const syncWorkersSignaturesToStorage = (workers: WorkerEntry[], companyIdOverride?: string) => {
         try {
-            const namedSigsStr = localStorage.getItem('wappy_signatures');
+            const companyId = companyIdOverride || localStorage.getItem('wappy_active_company_id') || 'default';
+            const sigKey = `wappy_signatures_${companyId}`;
+            const namedSigsStr = localStorage.getItem(sigKey) || localStorage.getItem('wappy_signatures');
             const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
             let updated = false;
 
@@ -342,7 +344,7 @@ const PerfilSociodemografico = () => {
             }
 
             if (updated) {
-                localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+                localStorage.setItem(sigKey, JSON.stringify(namedSignatures));
                 window.dispatchEvent(new Event('storage'));
             }
         } catch (e) {
@@ -372,7 +374,7 @@ const PerfilSociodemografico = () => {
                             (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
                         );
                         setTrabajadores(sortedCombined);
-                        syncWorkersSignaturesToStorage(sortedCombined);
+                        syncWorkersSignaturesToStorage(sortedCombined, data.companyId ? String(data.companyId) : undefined);
                     }
                     if (data.companyId) {
                         setLoadedCompanyId(String(data.companyId));
@@ -390,7 +392,13 @@ const PerfilSociodemografico = () => {
         loadData();
 
         window.addEventListener('wappy-reload-sgsst-data', loadData);
-        return () => window.removeEventListener('wappy-reload-sgsst-data', loadData);
+        window.addEventListener('wappy-company-changed', loadData);
+        window.addEventListener('wappy-empresa-cambiada', loadData);
+        return () => {
+            window.removeEventListener('wappy-reload-sgsst-data', loadData);
+            window.removeEventListener('wappy-company-changed', loadData);
+            window.removeEventListener('wappy-empresa-cambiada', loadData);
+        };
     }, [token]);
 
     useEffect(() => {

@@ -2306,7 +2306,11 @@ Correo: ${company.email || 'N/A'}`;
         const ConversationModel = mongoose.models.Conversation;
         const MessageModel = mongoose.models.Message;
         if (ConversationModel) {
-          const convos = await ConversationModel.find({ user: userId }).sort({ updatedAt: -1 }).limit(50).lean();
+          const convoQuery = {
+            user: userId,
+            ...(companyId ? { tags: { $in: [`company-${companyId}`, `company:${companyId}`] } } : {}),
+          };
+          const convos = await ConversationModel.find(convoQuery).sort({ updatedAt: -1 }).limit(50).lean();
           for (const c of convos) {
             let lastText = '';
             if (MessageModel) {

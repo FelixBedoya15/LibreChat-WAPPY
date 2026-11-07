@@ -2468,6 +2468,22 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 const LOCAL_LIBRARY_STORAGE = 'wappy_studio_audio_library';
 const GEMINI_KEYS_STORAGE = 'wappy_gemini_api_keys';
 
+function getActiveStudioCompanyId(): string {
+  try {
+    return localStorage.getItem('wappy_active_company_id') || 'default';
+  } catch {
+    return 'default';
+  }
+}
+
+function getLocalLibraryKey(companyId?: string): string {
+  return `${LOCAL_LIBRARY_STORAGE}_${companyId || getActiveStudioCompanyId()}`;
+}
+
+function getClonedVoicesKey(companyId?: string): string {
+  return `wappy_studio_cloned_voices_v1_${companyId || getActiveStudioCompanyId()}`;
+}
+
 interface StoredGeminiKeyItem {
   key: string;
   label?: string;
@@ -2641,7 +2657,7 @@ export default function WappyStudioDashboard({
     try {
       const savedVoice = localStorage.getItem('wappy_studio_selected_voice');
       if (savedVoice) return savedVoice;
-      const rawClones = localStorage.getItem('wappy_studio_cloned_voices_v1');
+      const rawClones = localStorage.getItem(getClonedVoicesKey());
       const parsedClones = rawClones ? JSON.parse(rawClones) : [];
       if (Array.isArray(parsedClones) && parsedClones[0]?.id) {
         return String(parsedClones[0].id);
@@ -2661,7 +2677,7 @@ export default function WappyStudioDashboard({
     try {
       const savedSpk1 = localStorage.getItem('wappy_studio_speaker1_voice');
       if (savedSpk1) return savedSpk1;
-      const rawClones = localStorage.getItem('wappy_studio_cloned_voices_v1');
+      const rawClones = localStorage.getItem(getClonedVoicesKey());
       const parsedClones = rawClones ? JSON.parse(rawClones) : [];
       if (Array.isArray(parsedClones) && parsedClones[0]?.id) {
         return String(parsedClones[0].id);
@@ -2876,7 +2892,7 @@ export default function WappyStudioDashboard({
   // Biblioteca Local
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>(() => {
     try {
-      const raw = localStorage.getItem(LOCAL_LIBRARY_STORAGE);
+      const raw = localStorage.getItem(getLocalLibraryKey());
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -3050,6 +3066,29 @@ export default function WappyStudioDashboard({
       const next = readActiveWappyCompanyState();
       setActiveCompanyInfo(next.company);
       setIsCompanyReady(next.isReady);
+      const activeCompanyId = next.company?._id || localStorage.getItem('wappy_active_company_id') || 'default';
+      try {
+        const rawLib = localStorage.getItem(`${LOCAL_LIBRARY_STORAGE}_${activeCompanyId}`);
+        setLibraryItems(rawLib ? JSON.parse(rawLib) : []);
+      } catch {
+        setLibraryItems([]);
+      }
+      try {
+        const rawClones = localStorage.getItem(`wappy_studio_cloned_voices_v1_${activeCompanyId}`);
+        const parsed = rawClones ? JSON.parse(rawClones) : [];
+        setClonedVoices(
+          Array.isArray(parsed)
+            ? parsed.filter(
+                (v: any) =>
+                  v &&
+                  v.id !== 'voice_d1mpq6dowjz7' &&
+                  !/f[eé]lix/i.test(String(v.name || v.displayName || '')),
+              )
+            : [],
+        );
+      } catch {
+        setClonedVoices([]);
+      }
     };
 
     syncLocalCompany();
@@ -3099,10 +3138,14 @@ export default function WappyStudioDashboard({
       }
     };
 
+    window.addEventListener('wappy-company-changed', onCustomCompanyUpdate);
+    window.addEventListener('wappy-empresa-cambiada', onCustomCompanyUpdate);
     window.addEventListener('wappy-company-updated', onCustomCompanyUpdate);
     window.addEventListener('storage', onStorageChange);
     window.addEventListener('focus', syncLocalCompany);
     return () => {
+      window.removeEventListener('wappy-company-changed', onCustomCompanyUpdate);
+      window.removeEventListener('wappy-empresa-cambiada', onCustomCompanyUpdate);
       window.removeEventListener('wappy-company-updated', onCustomCompanyUpdate);
       window.removeEventListener('storage', onStorageChange);
       window.removeEventListener('focus', syncLocalCompany);
@@ -3258,20 +3301,21 @@ export default function WappyStudioDashboard({
   // Guardar biblioteca cuando cambie (solo metadata ligera; los binarios viven en IndexedDB)
   useEffect(() => {
     const items = libraryItems.slice(0, 60);
+    const libKey = getLocalLibraryKey(activeCompanyInfo?._id);
     try {
-      localStorage.setItem(LOCAL_LIBRARY_STORAGE, JSON.stringify(items));
+      localStorage.setItem(libKey, JSON.stringify(items));
     } catch {
       // Cuota excedida: guardar sin Base64 embebido para no perder el historial
       try {
         localStorage.setItem(
-          LOCAL_LIBRARY_STORAGE,
+          libKey,
           JSON.stringify(items.map(({ audioBase64: _omit, ...rest }) => rest)),
         );
       } catch {
         /* ignore */
       }
     }
-  }, [libraryItems]);
+  }, [libraryItems, activeCompanyInfo?._id]);
 
   // Migración: mover audios Base64 antiguos de localStorage a IndexedDB
   useEffect(() => {
@@ -3809,7 +3853,7 @@ export default function WappyStudioDashboard({
   // ============================================================================
   const [clonedVoices, setClonedVoices] = useState<StudioVoice[]>(() => {
     try {
-      const raw = localStorage.getItem('wappy_studio_cloned_voices_v1');
+      const raw = localStorage.getItem(getClonedVoicesKey());
       const parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed)
         ? parsed.filter(
@@ -3862,15 +3906,16 @@ export default function WappyStudioDashboard({
   const consentFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const persistClonedVoicesToLocalStorage = (list: StudioVoice[]) => {
+    const clonesKey = getClonedVoicesKey(activeCompanyInfo?._id);
     try {
-      localStorage.setItem('wappy_studio_cloned_voices_v1', JSON.stringify(list));
+      localStorage.setItem(clonesKey, JSON.stringify(list));
     } catch {
       try {
         const lightweight = list.map(
           ({ sampleAudioBase64: _omitSample, sourceAudioBase64: _omitSource, ...rest }: any) =>
             rest,
         );
-        localStorage.setItem('wappy_studio_cloned_voices_v1', JSON.stringify(lightweight));
+        localStorage.setItem(clonesKey, JSON.stringify(lightweight));
       } catch {
         /* ignore quota */
       }

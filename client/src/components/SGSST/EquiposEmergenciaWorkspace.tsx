@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Wrench,
   Shield,
@@ -168,10 +168,46 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
     });
   };
 
+  const loadEquiposDraft = useCallback(() => {
+    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const raw = localStorage.getItem(`wappy_equipos_emergencia_draft_${companySuffix}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEquipos(parsed);
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setEquipos([
+      {
+        categoria: 'Extintor Multipropósito ABC',
+        capacidad: '10 lbs',
+        ubicacion: 'Pasillo Principal Piso 1',
+        vencimiento: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        estado: 'Operativo',
+      },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    loadEquiposDraft();
+    window.addEventListener('wappy-company-changed', loadEquiposDraft);
+    window.addEventListener('wappy-empresa-cambiada', loadEquiposDraft);
+    return () => {
+      window.removeEventListener('wappy-company-changed', loadEquiposDraft);
+      window.removeEventListener('wappy-empresa-cambiada', loadEquiposDraft);
+    };
+  }, [loadEquiposDraft]);
+
   const handleSaveLocal = () => {
     setIsSavingLocal(true);
     setTimeout(() => {
-      localStorage.setItem('wappy_equipos_emergencia_draft', JSON.stringify(equipos));
+      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+      localStorage.setItem(`wappy_equipos_emergencia_draft_${companySuffix}`, JSON.stringify(equipos));
       setIsSavingLocal(false);
       showToast({
         message: 'Inventario de equipos de emergencia guardado localmente',

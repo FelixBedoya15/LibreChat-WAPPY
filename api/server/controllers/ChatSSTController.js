@@ -4,7 +4,30 @@ const ChatSSTGroup = require('../../models/ChatSSTGroup');
 const ChatSSTGroupInvitation = require('../../models/ChatSSTGroupInvitation');
 const Notification = require('../../models/Notification');
 const KanbanTask = require('../../models/KanbanTask');
+const CompanyInfo = require('../../models/CompanyInfo');
 const wappyQueueService = require('../../services/wappyQueueService');
+
+async function resolveActiveCompanyId(req, fallbackUserId = null) {
+  const userObj = req?.user;
+  const isSub = !!userObj?.isSubUser;
+  const targetUserId = isSub && userObj?.parentUser ? userObj.parentUser : (userObj?.id || userObj?._id || fallbackUserId);
+  if (isSub && userObj?.assignedCompany) {
+    return String(userObj.assignedCompany);
+  }
+  const explicit = req?.query?.companyId || req?.body?.companyId;
+  if (explicit && mongoose.Types.ObjectId.isValid(String(explicit))) {
+    return String(explicit);
+  }
+  if (targetUserId) {
+    const activeComp =
+      (await CompanyInfo.findOne({ user: targetUserId, isActive: true }).select('_id').lean()) ||
+      (await CompanyInfo.findOne({ user: targetUserId }).select('_id').lean());
+    if (activeComp?._id) {
+      return String(activeComp._id);
+    }
+  }
+  return 'default';
+}
 
 const getMessages = async (req, res) => {
   try {
@@ -179,7 +202,14 @@ const regenerateMessage = async (req, res) => {
 const getGroups = async (req, res) => {
   try {
     const userId = req.user.id;
-    const groups = await ChatSSTGroup.find({ members: userId })
+    const activeCompanyId = await resolveActiveCompanyId(req, userId);
+    const groupFilter = {
+      members: userId,
+      ...(activeCompanyId && activeCompanyId !== 'default'
+        ? { $or: [{ companyId: activeCompanyId }, { companyId: 'default' }, { companyId: { $exists: false } }, { companyId: null }] }
+        : {}),
+    };
+    const groups = await ChatSSTGroup.find(groupFilter)
       .populate('createdBy', 'name email avatar')
       .populate('members', 'name email avatar role');
     res.status(200).json({ success: true, data: groups });
@@ -203,11 +233,13 @@ const createGroup = async (req, res) => {
       return res.status(400).json({ success: false, message: 'El nombre del grupo es requerido.' });
     }
 
+    const activeCompanyId = await resolveActiveCompanyId(req, creatorId);
+
     const group = await ChatSSTGroup.create({
       name: name.trim(),
       createdBy: creatorId,
       members: [creatorId],
-      companyId: 'default',
+      companyId: activeCompanyId,
     });
 
     const io = req.app.get('socketio');
@@ -425,6 +457,11 @@ const createInvitationAndNotification = async (group, invitedUserId, invitedById
   dueDate.setDate(dueDate.getDate() + 7);
   dueDate.setHours(23, 59, 59, 999);
 
+  const resolvedCompId =
+    group?.companyId && mongoose.Types.ObjectId.isValid(String(group.companyId))
+      ? group.companyId
+      : (await CompanyInfo.findOne({ user: invitedById, isActive: true }).select('_id').lean())?._id || undefined;
+
   const task = await KanbanTask.create({
     user: invitedUserId,
     title: `Invitación al grupo "${group.name}"`,
@@ -434,7 +471,7 @@ const createInvitationAndNotification = async (group, invitedUserId, invitedById
     type: 'other',
     referenceId: invitation._id.toString(),
     referenceName: 'group_invitation',
-    companyId: 'default',
+    ...(resolvedCompId ? { companyId: resolvedCompId } : {}),
   });
 
   invitation.kanbanTaskId = task._id;
@@ -442,6 +479,7 @@ const createInvitationAndNotification = async (group, invitedUserId, invitedById
 
   const notification = await Notification.create({
     user: invitedUserId,
+    ...(resolvedCompId ? { companyId: resolvedCompId } : {}),
     type: 'group_invitation',
     title: 'Invitación a Grupo de Chat SST',
     body: `${creatorName} te ha invitado a unirte al grupo de chat "${group.name}".`,

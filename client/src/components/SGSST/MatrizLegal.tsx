@@ -109,37 +109,11 @@ const MatrizLegal = () => {
 
     const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 
-    useEffect(() => {
-        const loadInitialData = async () => {
-            if (!token) {
-                setIsLoadingInitial(false);
-                return;
-            }
-            try {
-                const res = await fetch('/api/sgsst/matriz/data', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.statuses && data.statuses.length > 0) setStatuses(data.statuses);
-                    if (data.seguimientos) setSeguimientos(data.seguimientos);
-                    if (data.activity) setActivity(data.activity);
-                    if (data.location) setLocation(data.location);
-                    if (data.entityType) setEntityType(data.entityType);
-                }
-            } catch (err) {
-                console.error('Error loading initial Matriz Legal data:', err);
-            } finally {
-                setIsLoadingInitial(false);
-            }
-        };
-        loadInitialData();
-    }, [token]);
-
     // Custom items from Excel imports
     const [customItems, setCustomItems] = useState<MatrizLegalItem[]>(() => {
         try {
-            const saved = localStorage.getItem('wappy_matriz_legal_custom_items');
+            const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+            const saved = localStorage.getItem(`wappy_matriz_legal_custom_items_${companySuffix}`);
             if (!saved) return [];
             const parsed = JSON.parse(saved);
             return Array.isArray(parsed) ? parsed : [];
@@ -147,6 +121,58 @@ const MatrizLegal = () => {
             return [];
         }
     });
+
+    const loadInitialData = useCallback(async () => {
+        const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+        try {
+            const saved = localStorage.getItem(`wappy_matriz_legal_custom_items_${companySuffix}`);
+            const parsed = saved ? JSON.parse(saved) : [];
+            setCustomItems(Array.isArray(parsed) ? parsed : []);
+        } catch {
+            setCustomItems([]);
+        }
+
+        if (!token) {
+            setIsLoadingInitial(false);
+            return;
+        }
+        try {
+            const [resData, resCompany] = await Promise.all([
+                fetch('/api/sgsst/matriz/data', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch('/api/sgsst/company-info', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).catch(() => null),
+            ]);
+            const companyData = resCompany && resCompany.ok ? await resCompany.json() : null;
+            if (resData.ok) {
+                const data = await resData.json();
+                setStatuses(Array.isArray(data.statuses) ? data.statuses : []);
+                setSeguimientos(data.seguimientos && typeof data.seguimientos === 'object' ? data.seguimientos : {});
+                setActivity(data.activity || companyData?.economicActivity || '');
+                setLocation(data.location || companyData?.city || '');
+                setEntityType(data.entityType || 'private');
+            }
+        } catch (err) {
+            console.error('Error loading initial Matriz Legal data:', err);
+        } finally {
+            setIsLoadingInitial(false);
+        }
+    }, [token]);
+
+    useEffect(() => {
+        loadInitialData();
+    }, [loadInitialData]);
+
+    useEffect(() => {
+        window.addEventListener('wappy-company-changed', loadInitialData);
+        window.addEventListener('wappy-empresa-cambiada', loadInitialData);
+        return () => {
+            window.removeEventListener('wappy-company-changed', loadInitialData);
+            window.removeEventListener('wappy-empresa-cambiada', loadInitialData);
+        };
+    }, [loadInitialData]);
 
     const allLegalItems = useMemo(() => [...MATRIZ_LEGAL_ITEMS, ...(Array.isArray(customItems) ? customItems : [])], [customItems]);
 
@@ -289,7 +315,8 @@ const MatrizLegal = () => {
         if (newCustom.length > 0) {
             setCustomItems(prev => {
                 const updated = [...prev, ...newCustom];
-                localStorage.setItem('wappy_matriz_legal_custom_items', JSON.stringify(updated));
+                const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+                localStorage.setItem(`wappy_matriz_legal_custom_items_${companySuffix}`, JSON.stringify(updated));
                 return updated;
             });
         }

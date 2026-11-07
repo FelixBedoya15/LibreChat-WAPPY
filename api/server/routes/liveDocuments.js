@@ -4,8 +4,26 @@ const multer = require('multer');
 const mammoth = require('mammoth');
 const { PDFParse } = require('pdf-parse');
 const { requireJwtAuth } = require('../middleware');
+const mongoose = require('mongoose');
 const LiveDocument = require('../../models/LiveDocument');
+const CompanyInfo = require('../../models/CompanyInfo');
 const { logger } = require('@librechat/data-schemas');
+
+async function resolveActiveCompanyId(req) {
+  const isSub = !!req.user?.isSubUser;
+  const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user?.id;
+  if (isSub && req.user?.assignedCompany) {
+    return req.user.assignedCompany;
+  }
+  const explicitCompId = req.query?.companyId || req.body?.companyId;
+  if (explicitCompId && mongoose.Types.ObjectId.isValid(explicitCompId)) {
+    return explicitCompId;
+  }
+  const activeComp =
+    (await CompanyInfo.findOne({ user: targetUserId, isActive: true }).select('_id').lean()) ||
+    (await CompanyInfo.findOne({ user: targetUserId }).select('_id').lean());
+  return activeComp?._id || null;
+}
 
 // Validación de Tamaño (Máximo 15MB para prevenir DDoS y problemas de Memoria)
 const storage = multer.memoryStorage();
@@ -29,7 +47,12 @@ const requireProAuth = (req, res, next) => {
 // GET: Obtener historial de documentos del usuario
 router.get('/', async (req, res) => {
   try {
-    const docs = await LiveDocument.find({ user: req.user.id })
+    const activeCompId = await resolveActiveCompanyId(req);
+    const filter = {
+      user: req.user.id,
+      ...(activeCompId ? { companyId: activeCompId } : {}),
+    };
+    const docs = await LiveDocument.find(filter)
       .select('-content') // No traer el contenido completo en la vista de lista
       .sort({ updatedAt: -1 });
     res.json(docs);
@@ -42,7 +65,12 @@ router.get('/', async (req, res) => {
 // GET: Obtener un documento específico
 router.get('/:id', async (req, res) => {
   try {
-    const doc = await LiveDocument.findOne({ _id: req.params.id, user: req.user.id });
+    const activeCompId = await resolveActiveCompanyId(req);
+    const doc = await LiveDocument.findOne({
+      _id: req.params.id,
+      user: req.user.id,
+      ...(activeCompId ? { $or: [{ companyId: activeCompId }, { companyId: null }, { companyId: { $exists: false } }] } : {}),
+    });
     if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
     res.json(doc);
   } catch (error) {
@@ -54,11 +82,17 @@ router.get('/:id', async (req, res) => {
 // POST: Crear un nuevo documento guardado
 router.post('/', async (req, res) => {
   try {
-    if (!isPaidOrAdmin(req.user?.role)) {
-      const count = await LiveDocument.countDocuments({ user: req.user.id });
-      if (count >= 1) {
-        return res.status(403).json({ error: 'Has alcanzado el límite gratuito de documentos.' });
-      }
+    const activeCompId = await resolveActiveCompanyId(req);
+    const countFilter = {
+      user: req.user.id,
+      ...(activeCompId ? { companyId: activeCompId } : {}),
+    };
+    const count = await LiveDocument.countDocuments(countFilter);
+    if (!isPaidOrAdmin(req.user?.role) && count >= 1) {
+      return res.status(403).json({ error: 'Has alcanzado el límite gratuito de documentos.' });
+    }
+    if (count >= 25) {
+      return res.status(403).json({ error: 'Has alcanzado el límite de 25 documentos por empresa.' });
     }
     const { title, content, originalFileName, originalFileType } = req.body;
     const newDoc = new LiveDocument({
@@ -66,7 +100,8 @@ router.post('/', async (req, res) => {
       content,
       originalFileName,
       originalFileType,
-      user: req.user.id
+      user: req.user.id,
+      companyId: activeCompId || undefined,
     });
     const savedDoc = await newDoc.save();
     res.status(201).json(savedDoc);
@@ -79,10 +114,15 @@ router.post('/', async (req, res) => {
 // PUT: Actualizar un documento (Permitido para el primer documento gratuito)
 router.put('/:id', async (req, res) => {
   try {
+    const activeCompId = await resolveActiveCompanyId(req);
     const { title, content } = req.body;
     const doc = await LiveDocument.findOneAndUpdate(
-      { _id: req.params.id, user: req.user.id },
-      { $set: { title, content, updatedAt: Date.now() } },
+      {
+        _id: req.params.id,
+        user: req.user.id,
+        ...(activeCompId ? { $or: [{ companyId: activeCompId }, { companyId: null }, { companyId: { $exists: false } }] } : {}),
+      },
+      { $set: { title, content, ...(activeCompId ? { companyId: activeCompId } : {}), updatedAt: Date.now() } },
       { new: true }
     );
     if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
@@ -96,7 +136,12 @@ router.put('/:id', async (req, res) => {
 // DELETE: Eliminar un documento
 router.delete('/:id', async (req, res) => {
   try {
-    const doc = await LiveDocument.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+    const activeCompId = await resolveActiveCompanyId(req);
+    const doc = await LiveDocument.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.id,
+      ...(activeCompId ? { $or: [{ companyId: activeCompId }, { companyId: null }, { companyId: { $exists: false } }] } : {}),
+    });
     if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
     res.json({ message: 'Documento eliminado correctamente' });
   } catch (error) {

@@ -327,8 +327,13 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 router.get('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
 
-    let session = await CanvasSession.findOne({ conversationId });
+    let session = await CanvasSession.findOne({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: req.user.id }, { user: { $exists: false } }, { user: null }],
+    });
 
     if (!session) {
       return res.json({
@@ -423,7 +428,12 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
     }
     // ---------------------------------
 
-    let session = await CanvasSession.findOne({ conversationId });
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : userId;
+    let session = await CanvasSession.findOne({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: userId }, { user: { $exists: false } }, { user: null }],
+    });
     const existingContent = session ? session.content : null;
 
     let processedContent = await processTextDocument(
@@ -545,11 +555,19 @@ router.post('/:conversationId', requireJwtAuth, async (req, res) => {
 router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    await CanvasSession.findOneAndDelete({ conversationId });
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    await CanvasSession.findOneAndDelete({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: req.user.id }, { user: { $exists: false } }, { user: null }],
+    });
 
     // También eliminamos la sesión de LiveEditor relacionada
     const LiveEditorSession = require('~/models/LiveEditorSession');
-    await LiveEditorSession.findOneAndDelete({ conversationId });
+    await LiveEditorSession.findOneAndDelete({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: req.user.id }, { user: { $exists: false } }, { user: null }],
+    });
 
     res.json({ success: true });
   } catch (error) {
@@ -571,7 +589,12 @@ router.post('/:conversationId/rename', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'El título es requerido' });
     }
 
-    let session = await CanvasSession.findOne({ conversationId });
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    let session = await CanvasSession.findOne({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: req.user.id }, { user: { $exists: false } }, { user: null }],
+    });
     if (!session) {
       return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
     }
@@ -610,7 +633,12 @@ router.post('/:conversationId/versions/:version/rename', requireJwtAuth, async (
     const { title } = req.body;
     const versionNum = parseInt(version, 10);
 
-    let session = await CanvasSession.findOne({ conversationId });
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    let session = await CanvasSession.findOne({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: req.user.id }, { user: { $exists: false } }, { user: null }],
+    });
     if (!session) {
       return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
     }
@@ -648,7 +676,12 @@ router.delete('/:conversationId/versions/:version', requireJwtAuth, async (req, 
     const { conversationId, version } = req.params;
     const versionNum = parseInt(version, 10);
 
-    let session = await CanvasSession.findOne({ conversationId });
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    let session = await CanvasSession.findOne({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: req.user.id }, { user: { $exists: false } }, { user: null }],
+    });
     if (!session) {
       return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
     }
@@ -673,7 +706,12 @@ router.post('/:conversationId/versions/:version/restore', requireJwtAuth, async 
     const { conversationId, version } = req.params;
     const versionNum = parseInt(version, 10);
 
-    let session = await CanvasSession.findOne({ conversationId });
+    const isSub = !!req.user?.isSubUser;
+    const targetUserId = isSub && req.user.parentUser ? req.user.parentUser : req.user.id;
+    let session = await CanvasSession.findOne({
+      conversationId,
+      $or: [{ user: targetUserId }, { user: req.user.id }, { user: { $exists: false } }, { user: null }],
+    });
     if (!session) {
       return res.status(404).json({ error: 'Sesión de Canvas no encontrada' });
     }
