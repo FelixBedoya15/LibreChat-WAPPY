@@ -496,12 +496,30 @@ async function runAutomation(automation, isManual = false) {
       const extraAgents = Array.isArray(automation.workflowNodes?.canvasLayout?.extraAgents)
         ? automation.workflowNodes.canvasLayout.extraAgents
         : [];
+      const customNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
+        ? automation.workflowNodes.canvasLayout.customNodes
+        : [];
       const cfgLines = [];
       for (const [nKey, cfg] of Object.entries(nodeConfigs)) {
         if (!cfg || typeof cfg !== 'object') continue;
         const parts = [];
         if (Array.isArray(cfg.fields) && cfg.fields.length > 0) {
           parts.push(`Campos específicos solicitados: [${cfg.fields.join(', ')}]`);
+        }
+        if (cfg.targetUrl && String(cfg.targetUrl).trim()) {
+          parts.push(`URL(s) / Consulta Objetivo: "${String(cfg.targetUrl).trim()}"`);
+        }
+        if (cfg.scriptEngine) {
+          parts.push(`Motor Script Antigravity: ${cfg.scriptEngine}`);
+        }
+        if (cfg.scriptCode && String(cfg.scriptCode).trim()) {
+          parts.push(`Script de Extracción / Selectores: "${String(cfg.scriptCode).trim()}"`);
+        }
+        if (cfg.skillContent && String(cfg.skillContent).trim()) {
+          parts.push(`Skill (SKILL.md): "${String(cfg.skillContent).trim()}"`);
+        }
+        if (cfg.ruleText && String(cfg.ruleText).trim()) {
+          parts.push(`Regla Obligatoria: "${String(cfg.ruleText).trim()}"`);
         }
         if (cfg.inputContext && String(cfg.inputContext).trim()) {
           parts.push(`Contexto de entrada: "${String(cfg.inputContext).trim()}"`);
@@ -529,6 +547,22 @@ async function runAutomation(automation, isManual = false) {
           eaParts.push(`Salida: "${String(ea.outputContext).trim()}"`);
         }
         cfgLines.push(`  • ${eaParts.join(' | ')}`);
+      });
+      customNodes.forEach((cn) => {
+        if (!cn) return;
+        const cnParts = [
+          `Nodo Especial [${cn.nodeType || 'custom'} — "${cn.title || cn.key}"]: ${cn.content || cn.subtitle || ''}`,
+        ];
+        if (cn.targetUrl && String(cn.targetUrl).trim()) {
+          cnParts.push(`URL Objetivo: "${String(cn.targetUrl).trim()}"`);
+        }
+        if (cn.scriptEngine) {
+          cnParts.push(`Motor Script Antigravity: ${cn.scriptEngine}`);
+        }
+        if (cn.scriptCode && String(cn.scriptCode).trim()) {
+          cnParts.push(`Script: "${String(cn.scriptCode).trim()}"`);
+        }
+        cfgLines.push(`  • ${cnParts.join(' | ')}`);
       });
       if (cfgLines.length > 0) {
         canvasNodesContextBlock =

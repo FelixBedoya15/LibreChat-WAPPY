@@ -48,6 +48,9 @@ import {
   GitMerge,
   Lock,
   Hammer,
+  Terminal,
+  Puzzle,
+  Search,
 } from 'lucide-react';
 import {
   TRIGGER_NODES,
@@ -55,6 +58,7 @@ import {
   INPUT_CONNECTOR_NODES,
   HITO_APP_NODES,
   OUTPUT_ACTION_NODES,
+  SKILL_RULE_SUBAGENT_NODES,
   AI_ENGINE_MODELS,
   MEMORY_NODES,
   HITOS_8_FILTER_TABS,
@@ -69,6 +73,7 @@ import {
   type CanvasNodePosition,
   type CanvasWireEdge,
   type CanvasNodeConfig,
+  type CanvasCustomUserNode,
 } from './workflowNodesCatalog';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -333,6 +338,21 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('alta_direccion') || id.includes('dofa') || id.includes('plan_trabajo')) {
     return <BarChart3 className={`${sizeClass} text-purple-600`} />;
   }
+  if (id.includes('scraping') || id.includes('web_scraper')) {
+    return <Terminal className={`${sizeClass} text-orange-500`} />;
+  }
+  if (id.includes('skill')) {
+    return <Puzzle className={`${sizeClass} text-violet-600 dark:text-violet-400`} />;
+  }
+  if (id.includes('subagent')) {
+    return <Bot className={`${sizeClass} text-indigo-600 dark:text-indigo-400`} />;
+  }
+  if (id.includes('rule') || id.includes('regla')) {
+    return <Scale className={`${sizeClass} text-emerald-600 dark:text-emerald-400`} />;
+  }
+  if (id.includes('busqueda') || id.includes('search')) {
+    return <Search className={`${sizeClass} text-sky-500`} />;
+  }
 
   return <ShieldCheck className={`${sizeClass} text-teal-600`} />;
 }
@@ -368,7 +388,8 @@ interface VisualNodeInstance {
     | 'square_output'
     | 'circle_model'
     | 'circle_memory'
-    | 'circle_tool';
+    | 'circle_tool'
+    | 'custom_node';
   title: string;
   subtitle: string;
   x: number;
@@ -377,6 +398,7 @@ interface VisualNodeInstance {
   height: number;
   removable?: boolean;
   group?: 'triggers' | 'extractors' | 'memories' | 'inputs' | 'hitos' | 'outputs';
+  customNodeType?: 'skill' | 'subagent' | 'rule' | 'web_scraper' | 'web_search';
 }
 
 export default function WappyWorkflowCanvas({
@@ -395,7 +417,14 @@ export default function WappyWorkflowCanvas({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [paletteTab, setPaletteTab] = useState<
-    'triggers' | 'extractors' | 'ai_engine' | 'memories' | 'connectors' | 'hitos' | 'outputs'
+    | 'triggers'
+    | 'extractors'
+    | 'ai_engine'
+    | 'memories'
+    | 'connectors'
+    | 'hitos'
+    | 'outputs'
+    | 'skills_rules'
   >('triggers');
   const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
 
@@ -409,6 +438,52 @@ export default function WappyWorkflowCanvas({
   const [selectedHitoFilter, setSelectedHitoFilter] = useState<string>('all');
   const [constructionNotice, setConstructionNotice] = useState<string | null>(null);
 
+  // Estado en tiempo real de la instancia Google Antigravity del usuario (necesaria para Web Scraping con Script y Carpetas PC)
+  const [antigravityStatus, setAntigravityStatus] = useState<{
+    connected: boolean;
+    localConnected: boolean;
+    cloudConnected: boolean;
+    activeMode: string;
+  }>({
+    connected: false,
+    localConnected: false,
+    cloudConnected: false,
+    activeMode: 'none',
+  });
+
+  // Creador de Nodos Personalizados del Usuario (Skills, Sub-Agentes, Reglas, Web Scraping AGY, Búsqueda Web)
+  const [selectedSkillFilter, setSelectedSkillFilter] = useState<
+    'all' | 'skill' | 'subagent' | 'rule' | 'web_scraper' | 'web_search' | 'my_created'
+  >('all');
+  const [showCustomNodeBuilder, setShowCustomNodeBuilder] = useState<boolean>(false);
+  const [newCustomNodeForm, setNewCustomNodeForm] = useState<{
+    nodeType: 'skill' | 'subagent' | 'rule' | 'web_scraper' | 'web_search';
+    title: string;
+    subtitle: string;
+    content: string;
+    targetUrl: string;
+    scriptEngine: 'python_bs4' | 'node_cheerio' | 'chrome_mcp' | 'custom_script';
+    scriptCode: string;
+  }>({
+    nodeType: 'skill',
+    title: '',
+    subtitle: '',
+    content: '',
+    targetUrl: '',
+    scriptEngine: 'python_bs4',
+    scriptCode: '',
+  });
+  const [savedUserLibraryNodes, setSavedUserLibraryNodes] = useState<CanvasCustomUserNode[]>(() => {
+    try {
+      const raw = localStorage.getItem('wappy_custom_workflow_nodes_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (_) {}
+    return [];
+  });
+
   useEffect(() => {
     let mounted = true;
     axios
@@ -416,6 +491,19 @@ export default function WappyWorkflowCanvas({
       .then((res) => {
         if (mounted && Array.isArray(res.data?.disabledApps)) {
           setDisabledSgsstApps(res.data.disabledApps);
+        }
+      })
+      .catch(() => {});
+    axios
+      .get('/api/mcp-bridge/antigravity/status')
+      .then((res) => {
+        if (mounted && res.data) {
+          setAntigravityStatus({
+            connected: Boolean(res.data.connected),
+            localConnected: Boolean(res.data.localConnected),
+            cloudConnected: Boolean(res.data.cloudConnected),
+            activeMode: res.data.activeMode || 'none',
+          });
         }
       })
       .catch(() => {});
@@ -755,6 +843,25 @@ export default function WappyWorkflowCanvas({
       });
     });
 
+    // NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
+    const customNodesList = workflowNodes?.canvasLayout?.customNodes || [];
+    customNodesList.forEach((cn, idx) => {
+      const pos = customPositions[cn.key] || { x: 274 + idx * 116, y: 332 };
+      list.push({
+        key: cn.key,
+        nodeId: cn.key,
+        shape: 'custom_node',
+        customNodeType: cn.nodeType,
+        title: cn.title,
+        subtitle: cn.subtitle,
+        x: pos.x,
+        y: pos.y,
+        width: 74,
+        height: 74,
+        removable: true,
+      });
+    });
+
     return list;
   }, [
     workflowNodes,
@@ -1064,7 +1171,7 @@ export default function WappyWorkflowCanvas({
     });
   };
 
-  // Actualizar la configuración individual de cualquier nodo del lienzo (campos, contexto entrada/salida, segundo prompt, modelo IA)
+  // Actualizar la configuración individual de cualquier nodo del lienzo (campos, contexto entrada/salida, segundo prompt, modelo IA, scraping, skills, reglas)
   const handleUpdateNodeConfig = (nodeKey: string, partial: Partial<CanvasNodeConfig>) => {
     if (!onChange || readOnly) return;
     const prevConfigs = workflowNodes?.canvasLayout?.nodeConfigs || {};
@@ -1090,15 +1197,156 @@ export default function WappyWorkflowCanvas({
       );
     }
 
+    // Si es un Nodo Personalizado (Skill, Sub-Agente, Regla, Web Scraper, Búsqueda Web), sincronizar también en customNodes
+    let nextCustomNodes = workflowNodes?.canvasLayout?.customNodes;
+    if (Array.isArray(nextCustomNodes) && nextCustomNodes.some((cn) => cn.key === nodeKey)) {
+      nextCustomNodes = nextCustomNodes.map((cn) =>
+        cn.key === nodeKey
+          ? {
+              ...cn,
+              ...(partial.targetUrl !== undefined ? { targetUrl: partial.targetUrl } : {}),
+              ...(partial.scriptEngine ? { scriptEngine: partial.scriptEngine } : {}),
+              ...(partial.scriptCode !== undefined ? { scriptCode: partial.scriptCode } : {}),
+              ...(partial.skillContent !== undefined ? { content: partial.skillContent } : {}),
+              ...(partial.ruleText !== undefined ? { content: partial.ruleText } : {}),
+              ...(partial.prompt !== undefined ? { content: partial.prompt } : {}),
+            }
+          : cn,
+      );
+    }
+
     onChange({
       ...workflowNodes,
       canvasLayout: {
         ...(workflowNodes?.canvasLayout || {}),
         ...(nextExtra ? { extraAgents: nextExtra } : {}),
+        ...(nextCustomNodes ? { customNodes: nextCustomNodes } : {}),
         nodeConfigs: {
           ...prevConfigs,
           [nodeKey]: nextConfig,
         },
+      },
+    });
+  };
+
+  // Agregar un nodo de Skill, Sub-Agente, Regla, Web Scraping con Antigravity o Búsqueda Web al lienzo
+  const handleAddCustomNodeToCanvas = (
+    nodeData: Omit<CanvasCustomUserNode, 'key'> & { key?: string },
+    dropPos?: { x: number; y: number },
+  ) => {
+    if (!onChange || readOnly) return;
+    const prevCustom = workflowNodes?.canvasLayout?.customNodes || [];
+    const baseKey = nodeData.key || `custom_${nodeData.nodeType}_${Date.now()}`;
+    const alreadyExists = prevCustom.find((c) => c.key === baseKey);
+    if (alreadyExists) {
+      setActiveConfigNodeKey(alreadyExists.key);
+      return;
+    }
+    const newCustomNode: CanvasCustomUserNode = {
+      ...nodeData,
+      key: baseKey,
+    };
+    const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+    if (dropPos) {
+      nextPositions[baseKey] = {
+        x: Math.max(20, Math.round(dropPos.x - 37)),
+        y: Math.max(20, Math.round(dropPos.y - 37)),
+      };
+    }
+    const prevConfigs = workflowNodes?.canvasLayout?.nodeConfigs || {};
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        customNodes: [...prevCustom, newCustomNode],
+        positions: nextPositions,
+        nodeConfigs: {
+          ...prevConfigs,
+          [baseKey]: {
+            ...(prevConfigs[baseKey] || {}),
+            ...(newCustomNode.targetUrl ? { targetUrl: newCustomNode.targetUrl } : {}),
+            ...(newCustomNode.scriptEngine ? { scriptEngine: newCustomNode.scriptEngine } : {}),
+            ...(newCustomNode.scriptCode ? { scriptCode: newCustomNode.scriptCode } : {}),
+            ...(newCustomNode.nodeType === 'skill' && newCustomNode.content
+              ? { skillContent: newCustomNode.content }
+              : {}),
+            ...(newCustomNode.nodeType === 'rule' && newCustomNode.content
+              ? { ruleText: newCustomNode.content }
+              : {}),
+            ...(newCustomNode.nodeType === 'subagent' && newCustomNode.content
+              ? { prompt: newCustomNode.content }
+              : {}),
+          },
+        },
+      },
+    });
+    setActiveConfigNodeKey(baseKey);
+  };
+
+  // Crear un nodo propio desde el formulario "+ Crear Mi Propio Nodo", guardarlo en la librería local del usuario y añadirlo al lienzo
+  const handleCreateAndSaveCustomNode = () => {
+    if (!onChange || readOnly) return;
+    const cleanTitle = newCustomNodeForm.title.trim();
+    if (!cleanTitle) return;
+
+    const defaultSubtitles: Record<CanvasCustomUserNode['nodeType'], string> = {
+      skill: 'Skill Procedural',
+      subagent: 'Sub-Agente IA',
+      rule: 'Regla Obligatoria',
+      web_scraper: 'Script Antigravity',
+      web_search: 'Búsqueda en Vivo',
+    };
+    const createdNode: CanvasCustomUserNode = {
+      key: `user_${newCustomNodeForm.nodeType}_${Date.now()}`,
+      nodeType: newCustomNodeForm.nodeType,
+      title: cleanTitle,
+      subtitle: newCustomNodeForm.subtitle.trim() || defaultSubtitles[newCustomNodeForm.nodeType],
+      content: newCustomNodeForm.content.trim() || `Ejecutar ${cleanTitle} dentro del flujo.`,
+      ...(newCustomNodeForm.targetUrl.trim()
+        ? { targetUrl: newCustomNodeForm.targetUrl.trim() }
+        : {}),
+      ...(newCustomNodeForm.nodeType === 'web_scraper'
+        ? {
+            scriptEngine: newCustomNodeForm.scriptEngine,
+            scriptCode:
+              newCustomNodeForm.scriptCode.trim() ||
+              `# Script Web Scraping en Google Antigravity (${newCustomNodeForm.scriptEngine})\n# Extraer contenido estructurado y tablas de: ${newCustomNodeForm.targetUrl.trim() || 'https://...'}`,
+          }
+        : {}),
+    };
+
+    const nextLibrary = [createdNode, ...savedUserLibraryNodes];
+    setSavedUserLibraryNodes(nextLibrary);
+    try {
+      localStorage.setItem('wappy_custom_workflow_nodes_v1', JSON.stringify(nextLibrary));
+    } catch (_) {}
+
+    handleAddCustomNodeToCanvas(createdNode);
+    setNewCustomNodeForm({
+      nodeType: newCustomNodeForm.nodeType,
+      title: '',
+      subtitle: '',
+      content: '',
+      targetUrl: '',
+      scriptEngine: 'python_bs4',
+      scriptCode: '',
+    });
+    setShowCustomNodeBuilder(false);
+  };
+
+  const handleRemoveCustomNode = (key: string) => {
+    if (!onChange || readOnly) return;
+    const nextCustom = (workflowNodes?.canvasLayout?.customNodes || []).filter((c) => c.key !== key);
+    const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
+      (ed) => ed.from !== key && ed.to !== key,
+    );
+    if (activeConfigNodeKey === key) setActiveConfigNodeKey(null);
+    onChange({
+      ...workflowNodes,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        customNodes: nextCustom,
+        edges: nextEdges,
       },
     });
   };
@@ -1586,6 +1834,8 @@ export default function WappyWorkflowCanvas({
 
       if (parsed.kind === 'ai_engine') {
         handleSelectAiEngineModel(parsed.engine, parsed.model);
+      } else if (parsed.kind === 'custom_node' && parsed.customNode) {
+        handleAddCustomNodeToCanvas(parsed.customNode, dropPos);
       } else if (parsed.group && parsed.nodeId) {
         if (parsed.group === 'trigger') {
           if (!activeTriggers.includes(parsed.nodeId)) {
@@ -1670,6 +1920,11 @@ export default function WappyWorkflowCanvas({
                 { id: 'connectors', label: '🔧 5. Herramientas del Agente', badge: (workflowNodes.inputs || []).length },
                 { id: 'hitos', label: '🛡️ 6. Los 8 Hitos / 50 Apps SST', badge: (workflowNodes.hitos || []).length },
                 { id: 'outputs', label: '📤 7. Bitácora & Salida', badge: (workflowNodes.outputs || []).length },
+                {
+                  id: 'skills_rules',
+                  label: '🧩 8. Skills, Sub-Agentes, Reglas & Scraping',
+                  badge: (workflowNodes?.canvasLayout?.customNodes || []).length,
+                },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1718,7 +1973,7 @@ export default function WappyWorkflowCanvas({
               </span>
             ) : paletteTab === 'extractors' ? (
               <span>
-                📥 <strong>Etapa 2 — Extracción / Lectura Previa:</strong> Antes de que el Agente IA piense, extrae información de <strong>Gmail</strong>, <strong>Google Drive</strong>, <strong>OneDrive</strong>, una <strong>Carpeta en tu Computador (vía Antigravity)</strong> o un <strong>Aplicativo / Base de Trabajadores de Somos SST</strong> y envíasela al Agente.
+                📥 <strong>Etapa 2 — Extracción / Lectura Previa:</strong> Antes de que el Agente IA piense, extrae información de <strong>Gmail</strong>, <strong>Google Drive</strong>, <strong>OneDrive</strong>, una <strong>Carpeta en tu Computador (vía Antigravity)</strong>, <strong>Web Scraping con Antigravity (Script)</strong>, <strong>Búsqueda en la Web</strong> o cualquier <strong>Aplicativo de Somos SST</strong>.
               </span>
             ) : paletteTab === 'memories' ? (
               <span>
@@ -1732,6 +1987,10 @@ export default function WappyWorkflowCanvas({
               <span>
                 📤 <strong>Etapa 5 — Bitácora Final y Notificación:</strong> Al terminar todo el flujo, envía el informe detallado de la bitácora a <strong>Gmail</strong>, como <strong>Notificación Directa en WAPPY + Tenshi</strong> o de regreso a <strong>Google Antigravity (PC o Cloud)</strong>.
               </span>
+            ) : paletteTab === 'skills_rules' ? (
+              <span>
+                🧩 <strong>Skills, Sub-Agentes, Reglas, Búsqueda Web y Web Scraping con Antigravity:</strong> Conecta habilidades procedurales (<code>SKILL.md</code>), sub-agentes especialistas, reglas obligatorias o scripts de <strong>Web Scraping en tu instancia de Google Antigravity</strong>, o pulsa <strong>«+ Crear Mi Propio Nodo»</strong>.
+              </span>
             ) : (
               <span>
                 💡 <strong>Arrastra cualquier cuadrito al lienzo punteado</strong> (o haz clic sobre él) para conectarlo al flujo. Dentro del lienzo puedes mover los nodos y estirar los cables desde los puertos.
@@ -1740,7 +1999,374 @@ export default function WappyWorkflowCanvas({
           </div>
 
           {/* CUADRITOS ARRASTRABLES CON LOGOS SVG ORIGINALES */}
-          {paletteTab === 'ai_engine' ? (
+          {paletteTab === 'skills_rules' ? (
+            <div className="flex flex-col gap-2.5">
+              {/* Barra superior de filtros + Estado de la Instancia de Antigravity + Botón "+ Crear Mi Propio Nodo" */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex flex-wrap items-center gap-1">
+                  {[
+                    { id: 'all', label: '🌐 Todos' },
+                    { id: 'skill', label: '🧩 Skills (SKILL.md)' },
+                    { id: 'subagent', label: '🤖 Sub-Agentes' },
+                    { id: 'rule', label: '📏 Reglas (Rules)' },
+                    { id: 'web_scraper', label: '🕷️ Web Scraping AGY (Script)' },
+                    { id: 'web_search', label: '🔍 Búsqueda Web' },
+                    { id: 'my_created', label: `⭐ Mis Nodos (${savedUserLibraryNodes.length})` },
+                  ].map((fTab) => (
+                    <button
+                      key={fTab.id}
+                      type="button"
+                      onClick={() => setSelectedSkillFilter(fTab.id as any)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border ${
+                        selectedSkillFilter === fTab.id
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                      }`}
+                    >
+                      {fTab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Indicador en vivo de si la instancia de Google Antigravity del usuario está configurada/conectada */}
+                  <span
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 border ${
+                      antigravityStatus.connected
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                        : 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                    }`}
+                    title="El nodo de Web Scraping con Script se ejecuta en tu instancia configurada de Google Antigravity (Local PC o Cloud 24/7)"
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        antigravityStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                      }`}
+                    />
+                    {antigravityStatus.connected
+                      ? `Instancia Antigravity Activa (${antigravityStatus.localConnected ? 'Local PC' : 'Cloud 24/7'})`
+                      : 'Web Scraping AGY: Requiere tu instancia Antigravity configurada'}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomNodeBuilder((v) => !v)}
+                    className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#C7F303] dark:hover:bg-[#b8e002] text-white dark:text-[#0E1300] text-[10.5px] font-extrabold flex items-center gap-1 shadow-xs transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {showCustomNodeBuilder ? 'Cerrar Creador' : '+ Crear Mi Propio Nodo'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Formulario desplegable para que el usuario cree su propio Nodo de Skill, Sub-Agente, Regla, Web Scraping con Script o Búsqueda Web */}
+              {showCustomNodeBuilder && (
+                <div className="p-3 rounded-2xl border-2 border-purple-400/80 dark:border-[#C7F303]/80 bg-purple-50/40 dark:bg-slate-800/80 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-800 dark:text-[#C7F303] flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Crear Mi Propio Nodo Reutilizable para el Lienzo WAPPY
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Se guardará en tu catálogo «⭐ Mis Nodos» y se agregará al flujo actual
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                        1. Tipo de Nodo a Crear
+                      </label>
+                      <select
+                        value={newCustomNodeForm.nodeType}
+                        onChange={(e) =>
+                          setNewCustomNodeForm((prev) => ({
+                            ...prev,
+                            nodeType: e.target.value as any,
+                          }))
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
+                      >
+                        <option value="skill">🧩 Skill (Habilidad / SKILL.md)</option>
+                        <option value="subagent">🤖 Sub-Agente Especialista</option>
+                        <option value="rule">📏 Regla Obligatoria (Rule / Guardrail)</option>
+                        <option value="web_scraper">🕷️ Web Scraping con Antigravity (Script)</option>
+                        <option value="web_search">🌐 Búsqueda en la Web (Web Search)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                        2. Nombre del Nodo *
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomNodeForm.title}
+                        onChange={(e) =>
+                          setNewCustomNodeForm((prev) => ({ ...prev, title: e.target.value }))
+                        }
+                        placeholder={
+                          newCustomNodeForm.nodeType === 'web_scraper'
+                            ? 'Ej: Scraper Circulares MinTrabajo'
+                            : newCustomNodeForm.nodeType === 'skill'
+                              ? 'Ej: Skill Acta COPASST Pro'
+                              : newCustomNodeForm.nodeType === 'subagent'
+                                ? 'Ej: Sub-Agente Médico Revisor'
+                                : newCustomNodeForm.nodeType === 'rule'
+                                  ? 'Ej: Regla Solo Mayores de 50 Años'
+                                  : 'Ej: Buscar Jurisprudencia ARL'
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                        3. Subtítulo / Etiqueta Corta
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomNodeForm.subtitle}
+                        onChange={(e) =>
+                          setNewCustomNodeForm((prev) => ({ ...prev, subtitle: e.target.value }))
+                        }
+                        placeholder="Ej: Script Python / Regla SST / Sub-Agente"
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Campos adicionales cuando el usuario crea un nodo de Web Scraping con Antigravity o Búsqueda Web */}
+                  {(newCustomNodeForm.nodeType === 'web_scraper' ||
+                    newCustomNodeForm.nodeType === 'web_search') && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[10px] font-extrabold uppercase text-orange-600 dark:text-orange-400 mb-1">
+                          🔗 URL(s) Objetivo o Dominios Web a Consultar / Scrapear
+                        </label>
+                        <input
+                          type="text"
+                          value={newCustomNodeForm.targetUrl}
+                          onChange={(e) =>
+                            setNewCustomNodeForm((prev) => ({ ...prev, targetUrl: e.target.value }))
+                          }
+                          placeholder="Ej: https://www.mintrabajo.gov.co/... o consulta de búsqueda..."
+                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                        />
+                      </div>
+
+                      {newCustomNodeForm.nodeType === 'web_scraper' && (
+                        <div>
+                          <label className="block text-[10px] font-extrabold uppercase text-orange-600 dark:text-orange-400 mb-1">
+                            🐍 Motor de Script en tu Instancia de Google Antigravity
+                          </label>
+                          <select
+                            value={newCustomNodeForm.scriptEngine}
+                            onChange={(e) =>
+                              setNewCustomNodeForm((prev) => ({
+                                ...prev,
+                                scriptEngine: e.target.value as any,
+                              }))
+                            }
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
+                          >
+                            <option value="python_bs4">
+                              🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
+                            </option>
+                            <option value="node_cheerio">
+                              🟢 Node.js (Cheerio + Puppeteer en Antigravity)
+                            </option>
+                            <option value="chrome_mcp">
+                              🌐 Chrome DevTools MCP (Navegador Real Conectado)
+                            </option>
+                            <option value="custom_script">
+                              💻 Script / Comando Personalizado en Antigravity
+                            </option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {newCustomNodeForm.nodeType === 'web_scraper' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300">
+                          💻 Script de Web Scraping o Selectores CSS que ejecutará Antigravity
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const urlSample =
+                              newCustomNodeForm.targetUrl.trim() || 'https://ejemplo.gov.co';
+                            const generated =
+                              newCustomNodeForm.scriptEngine === 'python_bs4'
+                                ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${urlSample}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor row in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(row.get_text(strip=True))`
+                                : newCustomNodeForm.scriptEngine === 'node_cheerio'
+                                  ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${urlSample}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
+                                  : `Abrir ${urlSample} con Chrome DevTools MCP, extraer todas las tablas, titulares y enlaces PDF y devolverlos en Markdown limpio.`;
+                            setNewCustomNodeForm((prev) => ({ ...prev, scriptCode: generated }));
+                          }}
+                          className="text-[10px] font-extrabold text-purple-600 dark:text-[#C7F303] hover:underline"
+                        >
+                          ⚡ Autogenerar Script Base de Scraping
+                        </button>
+                      </div>
+                      <textarea
+                        rows={3}
+                        value={newCustomNodeForm.scriptCode}
+                        onChange={(e) =>
+                          setNewCustomNodeForm((prev) => ({ ...prev, scriptCode: e.target.value }))
+                        }
+                        placeholder="Escribe o autogenera el script Python / Node.js o los selectores CSS que tu instancia de Google Antigravity ejecutará..."
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-[11px] text-slate-800 dark:text-slate-100"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      4. Contenido de la Skill (SKILL.md), Prompt del Sub-Agente, Regla o Instrucción de Extracción
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={newCustomNodeForm.content}
+                      onChange={(e) =>
+                        setNewCustomNodeForm((prev) => ({ ...prev, content: e.target.value }))
+                      }
+                      placeholder="Describe qué hace este nodo cuando se conecta al flujo (ej. pasos de la Skill, rol del Sub-Agente, regla que jamás debe romperse o qué datos extraer del sitio web)..."
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomNodeBuilder(false)}
+                      className="px-3 py-1 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateAndSaveCustomNode}
+                      disabled={!newCustomNodeForm.title.trim()}
+                      className="px-3.5 py-1 rounded-xl bg-gradient-to-r from-purple-600 to-teal-600 disabled:opacity-40 text-white text-[11px] font-extrabold shadow-sm"
+                    >
+                      ➕ Crear Nodo y Agregar al Lienzo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Catálogo horizontal de Nodos de Skills, Sub-Agentes, Reglas, Web Scraping AGY y Nodos creados por el usuario */}
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
+                {[
+                  ...savedUserLibraryNodes.map((uNode) => ({
+                    id: uNode.key,
+                    shortLabel: uNode.title,
+                    label: uNode.title,
+                    badge: uNode.subtitle,
+                    toolHint: uNode.content,
+                    promptHint: uNode.content,
+                    customNodePayload: uNode,
+                    isUserCreated: true,
+                  })),
+                  ...SKILL_RULE_SUBAGENT_NODES.map((catNode) => {
+                    const inferredType: CanvasCustomUserNode['nodeType'] = catNode.id.startsWith('skill_')
+                      ? 'skill'
+                      : catNode.id.startsWith('subagent_')
+                        ? 'subagent'
+                        : catNode.id.startsWith('rule_')
+                          ? 'rule'
+                          : catNode.id.includes('scraper') || catNode.id.includes('scraping')
+                            ? 'web_scraper'
+                            : 'web_search';
+                    return {
+                      ...catNode,
+                      customNodePayload: {
+                        key: `custom_${catNode.id}`,
+                        nodeType: inferredType,
+                        title: catNode.shortLabel,
+                        subtitle: catNode.badge || 'Nodo Especial',
+                        content: catNode.promptHint,
+                        ...(inferredType === 'web_scraper'
+                          ? { scriptEngine: 'python_bs4' as const }
+                          : {}),
+                      },
+                      isUserCreated: false,
+                    };
+                  }),
+                ]
+                  .filter((item) => {
+                    if (selectedSkillFilter === 'all') return true;
+                    if (selectedSkillFilter === 'my_created') return item.isUserCreated;
+                    return item.customNodePayload.nodeType === selectedSkillFilter;
+                  })
+                  .map((item) => {
+                    const isAlreadyOnCanvas = (workflowNodes?.canvasLayout?.customNodes || []).some(
+                      (c) => c.key === item.customNodePayload.key,
+                    );
+                    return (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData(
+                            'application/wappy-flow-node',
+                            JSON.stringify({
+                              kind: 'custom_node',
+                              customNode: item.customNodePayload,
+                            }),
+                          );
+                        }}
+                        onClick={() => {
+                          if (isAlreadyOnCanvas) {
+                            handleRemoveCustomNode(item.customNodePayload.key);
+                          } else {
+                            handleAddCustomNodeToCanvas(item.customNodePayload);
+                          }
+                        }}
+                        title={`${item.label} — Haz clic o arrastra al lienzo (${item.promptHint})`}
+                        className="group/tile cursor-grab active:cursor-grabbing flex flex-col items-center w-[92px] shrink-0 select-none"
+                      >
+                        <div
+                          className={`relative w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all duration-150 shadow-sm ${
+                            isAlreadyOnCanvas
+                              ? 'bg-white dark:bg-slate-800 border-purple-600 dark:border-[#C7F303] ring-2 ring-purple-500/25 dark:ring-[#C7F303]/25'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400 group-hover/tile:-translate-y-0.5 group-hover/tile:shadow-md'
+                          }`}
+                        >
+                          {renderOfficialNodeSvg(
+                            item.customNodePayload.nodeType === 'web_scraper'
+                              ? 'web_scraper'
+                              : item.customNodePayload.nodeType === 'skill'
+                                ? 'skill'
+                                : item.customNodePayload.nodeType === 'subagent'
+                                  ? 'subagent'
+                                  : item.customNodePayload.nodeType === 'rule'
+                                    ? 'rule'
+                                    : 'web_search',
+                            'w-7 h-7',
+                          )}
+                          {isAlreadyOnCanvas && (
+                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-purple-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center shadow">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </span>
+                          )}
+                        </div>
+                        <span className="mt-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 text-center leading-tight line-clamp-2">
+                          {item.shortLabel}
+                        </span>
+                        <span className="mt-0.5 text-[8.5px] font-extrabold text-purple-600 dark:text-purple-400 truncate max-w-full">
+                          {item.badge}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : paletteTab === 'ai_engine' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
               {AI_ENGINE_MODELS.map((m) => {
                 const isSelected =
@@ -2187,6 +2813,18 @@ export default function WappyWorkflowCanvas({
                 >
                   <UserCheck className="w-3 h-3" />
                   + Aprobación
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaletteTab('skills_rules');
+                    setShowCustomNodeBuilder(true);
+                  }}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-[#C7F303] border border-violet-300 dark:border-violet-700 transition flex items-center gap-1"
+                  title="Crear tu propio nodo de Skill (SKILL.md), Sub-Agente, Regla, Búsqueda Web o Script de Web Scraping con Antigravity"
+                >
+                  <Puzzle className="w-3 h-3" />
+                  + Crear Mi Nodo / Scraper
                 </button>
                 <button
                   type="button"
@@ -2936,6 +3574,115 @@ export default function WappyWorkflowCanvas({
               );
             }
 
+            // 4-BIS. FIGURA NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
+            if (node.shape === 'custom_node') {
+              const badgeText =
+                node.customNodeType === 'skill'
+                  ? '🧩 Skill'
+                  : node.customNodeType === 'subagent'
+                    ? '🤖 Sub-Agente'
+                    : node.customNodeType === 'rule'
+                      ? '📏 Regla'
+                      : node.customNodeType === 'web_scraper'
+                        ? '🕷️ Scraper AGY'
+                        : '🌐 Búsqueda Web';
+              const badgeColor =
+                node.customNodeType === 'skill'
+                  ? 'bg-violet-600'
+                  : node.customNodeType === 'subagent'
+                    ? 'bg-indigo-600'
+                    : node.customNodeType === 'rule'
+                      ? 'bg-emerald-600'
+                      : node.customNodeType === 'web_scraper'
+                        ? 'bg-orange-600'
+                        : 'bg-sky-600';
+              const borderColor =
+                node.customNodeType === 'skill'
+                  ? 'border-violet-400 dark:border-violet-600 group-hover/node:border-violet-500'
+                  : node.customNodeType === 'subagent'
+                    ? 'border-indigo-400 dark:border-indigo-600 group-hover/node:border-indigo-500'
+                    : node.customNodeType === 'rule'
+                      ? 'border-emerald-400 dark:border-emerald-600 group-hover/node:border-emerald-500'
+                      : node.customNodeType === 'web_scraper'
+                        ? 'border-orange-400 dark:border-orange-600 group-hover/node:border-orange-500'
+                        : 'border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500';
+              const iconId =
+                node.customNodeType === 'web_scraper'
+                  ? 'web_scraper'
+                  : node.customNodeType === 'skill'
+                    ? 'skill'
+                    : node.customNodeType === 'subagent'
+                      ? 'subagent'
+                      : node.customNodeType === 'rule'
+                        ? 'rule'
+                        : 'web_search';
+
+              return (
+                <div
+                  key={node.key}
+                  onPointerDown={(e) => handleNodePointerDown(e, node)}
+                  onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
+                  style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+                  title="Haz clic sobre este nodo para configurar su Skill, Prompt de Sub-Agente, Regla o Script de Web Scraping en Antigravity"
+                  className={`absolute z-20 group/node select-none ${
+                    readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                  }`}
+                >
+                  <span
+                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full ${badgeColor} text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap`}
+                  >
+                    {badgeText}
+                  </span>
+
+                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-purple-500 border-2 border-white dark:border-slate-900" />
+
+                  <div
+                    className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 ${borderColor} shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}
+                  >
+                    {renderOfficialNodeSvg(iconId, 'w-8 h-8')}
+
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveCustomNode(node.key);
+                        }}
+                        className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                        title="Quitar este nodo del lienzo"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div
+                    onPointerDown={(e) =>
+                      handlePortPointerDown(
+                        e,
+                        node.key,
+                        'main_out',
+                        node.x + node.width,
+                        node.y + node.height / 2,
+                      )
+                    }
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                    title="Arrastra desde este puerto para conectarlo con el Agente IA o cualquier otro módulo del flujo"
+                  />
+
+                  <div className="mt-1.5 w-[118px] -ml-[22px] text-center pointer-events-none">
+                    <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                      {node.title}
+                    </div>
+                    <div className="text-[9px] text-purple-600 dark:text-purple-400 font-semibold truncate">
+                      {node.subtitle}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             // 5. FIGURA SUB-NODOS CIRCULARES (Modelo IA *, Memoria y Herramienta con Rombo superior ◆)
             const isModelCircle = node.shape === 'circle_model';
             const isMemoryCircle = node.shape === 'circle_memory';
@@ -3044,7 +3791,7 @@ export default function WappyWorkflowCanvas({
               <span className="flex items-center gap-2">
                 <Sliders className="w-3.5 h-3.5 text-purple-600 dark:text-[#C7F303] shrink-0" />
                 <span>
-                  💡 <strong>Edición por Nodo:</strong> Haz clic sobre <strong>cualquier nodo del lienzo</strong> (ej. <em>Extraer Trabajadores</em>, <em>Agente IA #1</em>, <em>Agente IA #2</em>, <em>Memoria</em> o <em>Condición Si/No</em>) para elegir sus campos exactos (ej. solo <strong>Nombre, Cédula y Edad</strong>), su <strong>Modelo de IA</strong>, su <strong>Segundo Prompt</strong> y su <strong>Contexto de Entrada y Salida</strong>.
+                  💡 <strong>Edición por Nodo:</strong> Haz clic sobre <strong>cualquier nodo del lienzo</strong> (ej. <em>Extraer Trabajadores</em>, <em>Web Scraping AGY</em>, <em>Skill</em>, <em>Sub-Agente</em>, <em>Regla</em>, <em>Agente IA #1/#2</em> o <em>Condición Si/No</em>) para elegir sus campos exactos (ej. solo <strong>Nombre, Cédula y Edad</strong>), su <strong>Script de Web Scraping</strong>, su <strong>Modelo de IA</strong>, su <strong>Segundo Prompt</strong> y su <strong>Contexto de Entrada y Salida</strong>.
                 </span>
               </span>
               <button
@@ -3066,6 +3813,22 @@ export default function WappyWorkflowCanvas({
         const extraAgentObj = isExtraAgent
           ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === activeNode.key)
           : null;
+        const customNodeObj =
+          activeNode.shape === 'custom_node'
+            ? (workflowNodes?.canvasLayout?.customNodes || []).find((cn) => cn.key === activeNode.key)
+            : null;
+        const isWebScraperNode =
+          activeNode.customNodeType === 'web_scraper' ||
+          activeNode.nodeId.includes('scraping') ||
+          activeNode.nodeId.includes('web_scraper');
+        const isWebSearchNode =
+          activeNode.customNodeType === 'web_search' || activeNode.nodeId.includes('web_search');
+        const isSkillNode =
+          activeNode.customNodeType === 'skill' || activeNode.nodeId.startsWith('skill_');
+        const isRuleNode =
+          activeNode.customNodeType === 'rule' || activeNode.nodeId.startsWith('rule_');
+        const isSubagentCustomNode =
+          activeNode.customNodeType === 'subagent' || activeNode.nodeId.startsWith('subagent_');
 
         const toggleFieldChip = (fieldLabel: string) => {
           const exists = selectedFields.includes(fieldLabel);
@@ -3282,8 +4045,169 @@ export default function WappyWorkflowCanvas({
                 })}
               </div>
             ) : (
-              /* C) SI EL NODO SELECCIONADO ES UN EXTRACTOR, PERFIL SOCIODEMOGRÁFICO, MEMORIA, TOOL, CONDICIÓN SI/NO, HITO O SALIDA */
+              /* C) SI EL NODO SELECCIONADO ES UN EXTRACTOR, WEB SCRAPER ANTIGRAVITY, SKILL, SUB-AGENTE, REGLA, BÚSQUEDA WEB, MEMORIA, TOOL, CONDICIÓN SI/NO, HITO O SALIDA */
               <div className="space-y-3">
+                {/* C.1) BLOQUE ESPECIAL SI ES UN NODO DE WEB SCRAPING CON ANTIGRAVITY (SCRIPT) */}
+                {isWebScraperNode && (
+                  <div className="p-3 rounded-xl border border-orange-300 dark:border-orange-700/80 bg-orange-50/40 dark:bg-orange-950/25 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-extrabold text-orange-800 dark:text-orange-300 flex items-center gap-1.5">
+                        <Terminal className="w-3.5 h-3.5" />
+                        🕷️ Configuración de Script de Web Scraping vía Google Antigravity
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold border ${
+                          antigravityStatus.connected
+                            ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-400'
+                            : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-400'
+                        }`}
+                      >
+                        {antigravityStatus.connected
+                          ? `🟢 Tu Instancia Antigravity está Conectada (${antigravityStatus.localConnected ? 'Local Mac/PC' : 'Cloud 24/7'})`
+                          : '⚠️ Requiere tener configurada tu instancia de Google Antigravity'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                          🔗 URL(s) del Sitio Web a Scrapear (separadas por coma)
+                        </label>
+                        <input
+                          type="text"
+                          value={currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? ''}
+                          onChange={(e) =>
+                            handleUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })
+                          }
+                          placeholder="Ej: https://www.mintrabajo.gov.co/normatividad/..."
+                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                          🐍 Motor de Script que ejecutará tu Instancia Antigravity
+                        </label>
+                        <select
+                          value={
+                            currentCfg.scriptEngine || customNodeObj?.scriptEngine || 'python_bs4'
+                          }
+                          onChange={(e) =>
+                            handleUpdateNodeConfig(activeNode.key, {
+                              scriptEngine: e.target.value as any,
+                            })
+                          }
+                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
+                        >
+                          <option value="python_bs4">
+                            🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
+                          </option>
+                          <option value="node_cheerio">
+                            🟢 Node.js (Cheerio + Puppeteer en Antigravity)
+                          </option>
+                          <option value="chrome_mcp">
+                            🌐 Chrome DevTools MCP (Navegador Real Conectado)
+                          </option>
+                          <option value="custom_script">
+                            💻 Script Personalizado en Antigravity
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                          💻 Código del Script o Selectores CSS de Extracción
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const target =
+                              (currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? '').trim() ||
+                              'https://ejemplo.gov.co';
+                            const engine =
+                              currentCfg.scriptEngine ||
+                              customNodeObj?.scriptEngine ||
+                              'python_bs4';
+                            const autoScript =
+                              engine === 'python_bs4'
+                                ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${target}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor el in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(el.get_text(strip=True))`
+                                : engine === 'node_cheerio'
+                                  ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${target}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
+                                  : `Navegar a ${target} con Chrome DevTools MCP, extraer todas las tablas y enlaces PDF y entregarlos en Markdown limpio.`;
+                            handleUpdateNodeConfig(activeNode.key, { scriptCode: autoScript });
+                          }}
+                          className="text-[10px] font-extrabold text-orange-600 dark:text-[#C7F303] hover:underline"
+                        >
+                          ⚡ Autogenerar Script para esta URL
+                        </button>
+                      </div>
+                      <textarea
+                        rows={3}
+                        value={currentCfg.scriptCode ?? customNodeObj?.scriptCode ?? ''}
+                        onChange={(e) =>
+                          handleUpdateNodeConfig(activeNode.key, { scriptCode: e.target.value })
+                        }
+                        placeholder="Escribe aquí el script Python / Node.js o los selectores CSS que tu instancia de Google Antigravity ejecutará..."
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-[11px] text-slate-800 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* C.2) BLOQUE ESPECIAL SI ES UN NODO DE BÚSQUEDA EN LA WEB */}
+                {isWebSearchNode && (
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-sky-700 dark:text-sky-300 mb-1">
+                      🌐 Consulta de Búsqueda en la Web o Dominios Prioritarios (.gov.co, MinTrabajo, ARL)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? ''}
+                      onChange={(e) =>
+                        handleUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })
+                      }
+                      placeholder="Ej: site:mintrabajo.gov.co últimas circulares SST 2026..."
+                      className="w-full px-3 py-1.5 rounded-xl border border-sky-300 dark:border-sky-700 bg-sky-50/30 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                )}
+
+                {/* C.3) BLOQUE ESPECIAL SI ES UN NODO DE SKILL (SKILL.md), SUB-AGENTE O REGLA */}
+                {(isSkillNode || isRuleNode || isSubagentCustomNode) && (
+                  <div>
+                    <label className="block text-[10.5px] font-extrabold uppercase text-purple-700 dark:text-[#C7F303] mb-1">
+                      {isSkillNode
+                        ? '🧩 Instrucciones Paso a Paso de esta Skill (SKILL.md)'
+                        : isRuleNode
+                          ? '📏 Regla Obligatoria / Guardrail que el Flujo Debe Cumplir'
+                          : '🤖 Rol e Instrucción Específica de este Sub-Agente Especialista'}
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={
+                        isSkillNode
+                          ? currentCfg.skillContent ?? customNodeObj?.content ?? ''
+                          : isRuleNode
+                            ? currentCfg.ruleText ?? customNodeObj?.content ?? ''
+                            : currentCfg.prompt ?? customNodeObj?.content ?? ''
+                      }
+                      onChange={(e) => {
+                        if (isSkillNode) {
+                          handleUpdateNodeConfig(activeNode.key, { skillContent: e.target.value });
+                        } else if (isRuleNode) {
+                          handleUpdateNodeConfig(activeNode.key, { ruleText: e.target.value });
+                        } else {
+                          handleUpdateNodeConfig(activeNode.key, { prompt: e.target.value });
+                        }
+                      }}
+                      placeholder="Escribe aquí el contenido detallado que aplicará este nodo dentro del flujo..."
+                      className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-purple-50/30 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
                     1. Selecciona qué Campos o Datos específicos deseas de «{activeNode.title}» (Haz clic para marcar/desmarcar):

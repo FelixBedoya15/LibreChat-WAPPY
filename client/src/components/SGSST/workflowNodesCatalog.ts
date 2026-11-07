@@ -95,6 +95,20 @@ export interface CanvasLogicNode {
   subtitle: string;
 }
 
+export interface CanvasCustomUserNode {
+  key: string;
+  nodeType: 'skill' | 'subagent' | 'rule' | 'web_scraper' | 'web_search';
+  title: string;
+  subtitle: string;
+  content?: string;
+  targetUrl?: string;
+  scriptEngine?: 'python_bs4_playwright' | 'node_cheerio_puppeteer' | 'chrome_devtools_mcp' | 'custom_script';
+  scriptCode?: string;
+  aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
+  aiModel?: string;
+  agentId?: string;
+}
+
 export interface CanvasNodeConfig {
   fields?: string[];
   inputContext?: string;
@@ -105,6 +119,11 @@ export interface CanvasNodeConfig {
   prompt?: string;
   conditionTrueLabel?: string;
   conditionFalseLabel?: string;
+  targetUrl?: string;
+  scriptEngine?: 'python_bs4_playwright' | 'node_cheerio_puppeteer' | 'chrome_devtools_mcp' | 'custom_script';
+  scriptCode?: string;
+  skillContent?: string;
+  ruleText?: string;
 }
 
 export interface WorkflowNodesConfig {
@@ -125,6 +144,7 @@ export interface WorkflowNodesConfig {
     removedWires?: string[];
     extraAgents?: CanvasExtraAgentNode[];
     logicNodes?: CanvasLogicNode[];
+    customNodes?: CanvasCustomUserNode[];
     nodeConfigs?: Record<string, CanvasNodeConfig>;
   } | null;
 }
@@ -298,12 +318,167 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
     id: 'extract_sst_app',
     label: 'Extraer Datos de Aplicativo / Matriz (Somos SST)',
     shortLabel: 'Extraer Aplicativo SST',
-    badge: 'Lee los 7 Hitos',
+    badge: 'Lee los 8 Hitos',
     description:
-      'Extrae los datos actuales de cualquier aplicativo o matriz de los 7 Hitos de Somos SST (0312, GTC-45, PESV, Químicos, Comités, ATEL, ACPM).',
+      'Extrae los datos actuales de cualquier aplicativo o matriz de los 8 Hitos de Somos SST (0312, GTC-45, PESV, Químicos, Comités, ATEL, ACPM, Predictivo).',
     category: 'extractor',
     toolHint: 'Extraer información actual de los aplicativos y matrices de Somos SST (somos_sst: resumen_empresa, consultar_informacion_empresa)',
     badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+  },
+  {
+    id: 'extract_web_scraping_agy',
+    label: 'Web Scraping con Antigravity (Script Python / Node / Playwright)',
+    shortLabel: 'Web Scraping AGY',
+    badge: 'Script en tu Instancia',
+    description:
+      'Ejecuta un script de Web Scraping en tu instancia configurada de Google Antigravity (Python BeautifulSoup/Playwright, Node.js Cheerio o Chrome DevTools) para extraer tablas, normas o datos de cualquier página web.',
+    category: 'extractor',
+    toolHint: 'Ejecutar script de Web Scraping mediante la instancia conectada de Google Antigravity (google_antigravity: delegate_task / script Python/Node/Playwright)',
+    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
+  },
+  {
+    id: 'extract_web_search',
+    label: 'Búsqueda en la Web en Tiempo Real (MinTrabajo / SUIN / ARL)',
+    shortLabel: 'Búsqueda Web',
+    badge: 'Consulta Internet',
+    description:
+      'Realiza una búsqueda en vivo en la web (portales oficiales, decretos, resoluciones, guías técnicas o noticias) y entrega los hallazgos al Agente IA.',
+    category: 'extractor',
+    toolHint: 'Búsqueda en tiempo real en internet y portales oficiales (web_search)',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+];
+
+/**
+ * Catálogo base de Skills (SKILL.md), Sub-Agentes Especialistas, Reglas de Cumplimiento y Web Scraping
+ * que el usuario puede arrastrar al lienzo o tomar como base para crear sus propios nodos personalizados.
+ */
+export const SKILL_RULE_SUBAGENT_NODES: Array<{
+  id: string;
+  nodeType: 'skill' | 'subagent' | 'rule' | 'web_scraper' | 'web_search';
+  label: string;
+  shortLabel: string;
+  subtitle: string;
+  content: string;
+  targetUrl?: string;
+  scriptEngine?: 'python_bs4_playwright' | 'node_cheerio_puppeteer' | 'chrome_devtools_mcp' | 'custom_script';
+}> = [
+  // 🧩 SKILLS
+  {
+    id: 'skill_sgsst_tools',
+    nodeType: 'skill',
+    label: 'Skill: Herramientas Operativas SG-SST (GTC-45, PESV y SGA)',
+    shortLabel: 'Skill: Motores SST',
+    subtitle: 'SKILL.md · GTC-45 & PESV',
+    content:
+      'Aplica la metodología oficial de la GTC-45 (ND x NE = NP; NP x NC = NR), el Plan Estratégico de Seguridad Vial Res. 20223040040595 y el Sistema Globalmente Armonizado SGA Dec. 1496 de 2018.',
+  },
+  {
+    id: 'skill_google_connectors',
+    nodeType: 'skill',
+    label: 'Skill: Conectores Google Workspace, NotebookLM & Antigravity',
+    shortLabel: 'Skill: Google & AGY',
+    subtitle: 'SKILL.md · Drive & MCP',
+    content:
+      'Orquesta lecturas y escrituras entre Google Drive, Google Sheets, Google Docs, Gmail, cuadernos RAG de NotebookLM y el puente reactivo Push SSE de Google Antigravity.',
+  },
+  {
+    id: 'skill_web_scraper_script',
+    nodeType: 'skill',
+    label: 'Skill: Web Scraping & Extracción Estructurada (Antigravity)',
+    shortLabel: 'Skill: Web Scraping',
+    subtitle: 'SKILL.md · Script & Tablas',
+    content:
+      'Construye y ejecuta scripts de Web Scraping en la instancia de Google Antigravity (Python BeautifulSoup/Playwright o Node.js Cheerio), limpia el HTML y convierte los datos extraídos en tablas Markdown o JSON.',
+  },
+  {
+    id: 'skill_auditoria_normativa',
+    nodeType: 'skill',
+    label: 'Skill: Auditoría Jurídica SST Colombia (Dec. 1072 / Res. 0312)',
+    shortLabel: 'Skill: Auditoría Legal',
+    subtitle: 'SKILL.md · Ley Colombiana',
+    content:
+      'Verifica cada hallazgo contra los artículos exactos del Decreto 1072 de 2015, Resolución 0312 de 2019, Resolución 2764 de 2022 y Resolución 4272 de 2021.',
+  },
+  // 🤖 SUB-AGENTES
+  {
+    id: 'subagent_researcher',
+    nodeType: 'subagent',
+    label: 'Sub-Agente: Investigador Web & Documental',
+    shortLabel: 'Sub-Agente: Investigador',
+    subtitle: 'Sub-Agente · Búsqueda y Síntesis',
+    content:
+      'Actúa como Sub-Agente Investigador: explora las fuentes documentales y páginas web indicadas, verifica la vigencia normativa y entrega un dossier técnico verificado al Agente Principal.',
+  },
+  {
+    id: 'subagent_scraper_agy',
+    nodeType: 'subagent',
+    label: 'Sub-Agente: Ingeniero de Web Scraping (Antigravity)',
+    shortLabel: 'Sub-Agente: Scraper AGY',
+    subtitle: 'Sub-Agente · Script en tu PC/Cloud',
+    content:
+      'Actúa como Sub-Agente Ingeniero de Scraping en Google Antigravity: ejecuta el script de extracción sobre la URL objetivo, extrae tablas/enlaces/textos y devuelve la data limpia al flujo.',
+    targetUrl: 'https://www.mintrabajo.gov.co',
+    scriptEngine: 'python_bs4_playwright',
+  },
+  {
+    id: 'subagent_auditor_calidad',
+    nodeType: 'subagent',
+    label: 'Sub-Agente: Auditor de Calidad y Cumplimiento 0312',
+    shortLabel: 'Sub-Agente: Auditor SST',
+    subtitle: 'Sub-Agente · Control de Calidad',
+    content:
+      'Actúa como Sub-Agente Auditor de Calidad: revisa los cálculos, tablas y recomendaciones antes de actualizar los Hitos o enviar el correo final.',
+  },
+  // 📏 REGLAS (RULES)
+  {
+    id: 'rule_veracidad_estricta',
+    nodeType: 'rule',
+    label: 'Regla: Veracidad Estricta (Prohibido Inventar Datos)',
+    shortLabel: 'Regla: Cero Invención',
+    subtitle: 'Regla · Integridad de Datos',
+    content:
+      'REGLA OBLIGATORIA: Jamás inventes ni simules trabajadores, accidentes, archivos o resultados de scraping. Si una fuente no devuelve datos reales, repórtalo con total transparencia.',
+  },
+  {
+    id: 'rule_solo_criticos',
+    nodeType: 'rule',
+    label: 'Regla: Filtrar Solo Hallazgos Críticos o Próximos a Vencer',
+    shortLabel: 'Regla: Solo Críticos',
+    subtitle: 'Regla · Filtro de Prioridad',
+    content:
+      'REGLA OBLIGATORIA: Reporta y escala únicamente hallazgos de riesgo Crítico/Alto (Nivel I o II en GTC-45) o documentos/exámenes vencidos o próximos a vencer en los siguientes 30 días.',
+  },
+  {
+    id: 'rule_reserva_legal',
+    nodeType: 'rule',
+    label: 'Regla: Reserva de Historia Clínica y Datos Sensibles (Res. 2346)',
+    shortLabel: 'Regla: Reserva Médica',
+    subtitle: 'Regla · Protección de Datos',
+    content:
+      'REGLA OBLIGATORIA: Protege la confidencialidad de diagnósticos médicos e historias clínicas conforme a la Resolución 2346 de 2007 y Ley 1581 de Habeas Data.',
+  },
+  // 🕷️ WEB SCRAPING CON ANTIGRAVITY & BÚSQUEDA WEB
+  {
+    id: 'scraper_node_antigravity',
+    nodeType: 'web_scraper',
+    label: 'Nodo: Web Scraping con Antigravity (Script Python / Playwright)',
+    shortLabel: 'Web Scraping AGY',
+    subtitle: 'Script en tu Instancia AGY',
+    content:
+      'Ejecuta un script de Web Scraping en tu instancia conectada de Google Antigravity para extraer información estructurada de la URL configurada.',
+    targetUrl: 'https://www.mintrabajo.gov.co',
+    scriptEngine: 'python_bs4_playwright',
+  },
+  {
+    id: 'search_node_live_web',
+    nodeType: 'web_search',
+    label: 'Nodo: Búsqueda en la Web en Vivo (Consultas y Normas)',
+    shortLabel: 'Búsqueda Web Viva',
+    subtitle: 'Motor Web en Tiempo Real',
+    content:
+      'Realiza búsquedas en vivo en la web sobre los términos y dominios configurados en este nodo.',
+    targetUrl: 'site:mintrabajo.gov.co OR site:suin-juriscol.gov.co',
   },
 ];
 
@@ -538,10 +713,18 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
   {
     id: 'web_search',
     label: 'Búsqueda Web Legal en Vivo (MinTrabajo/SUIN)',
-    shortLabel: 'Web Search Legal',
+    shortLabel: 'Búsqueda Web Legal',
     category: 'IA, MCP & Web',
     toolHint: 'web_search (consulta en tiempo real de leyes, resoluciones y sentencias en Colombia)',
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'tool_web_scraping_agy',
+    label: 'Web Scraping con Antigravity (Script Python / Node / Playwright)',
+    shortLabel: 'Web Scraping AGY',
+    category: 'IA, MCP & Web',
+    toolHint: 'google_antigravity (ejecuta script de Web Scraping con Python BeautifulSoup/Playwright, Node.js Cheerio o Chrome DevTools en la instancia Antigravity del usuario)',
+    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
     id: 'webhook_api',
@@ -1345,7 +1528,8 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
     MEMORY_NODES.find((n) => n.id === normId) ||
     INPUT_CONNECTOR_NODES.find((n) => n.id === normId) ||
     HITO_APP_NODES.find((n) => n.id === normId || n.sgsstAppId === normId) ||
-    OUTPUT_ACTION_NODES.find((n) => n.id === normId)
+    OUTPUT_ACTION_NODES.find((n) => n.id === normId) ||
+    SKILL_RULE_SUBAGENT_NODES.find((n) => n.id === normId)
   );
 }
 
@@ -1353,6 +1537,42 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
  * Campos rápidos seleccionables con 1 clic al pulsar sobre cualquier nodo del lienzo (estilo editor de propiedades de nodo).
  */
 export function getPresetFieldsForNode(nodeId: string, shape?: string): string[] {
+  if (nodeId.includes('scraping') || nodeId.includes('web_scraper')) {
+    return [
+      'Títulos y Encabezados (H1/H2)',
+      'Tablas de Datos Extraídas',
+      'Enlaces y Documentos PDF',
+      'Resoluciones / Normas Nuevas',
+      'Precios / Tarifas / Indicadores',
+      'Texto Completo Limpio (Markdown)',
+      'Capturas de Pantalla (Chrome MCP)',
+    ];
+  }
+  if (nodeId.includes('web_search') || nodeId.includes('busqueda')) {
+    return [
+      'Fuentes Oficiales (.gov.co / MinTrabajo)',
+      'Últimas Noticias y Circulares',
+      'Citas con URL Verificada',
+      'Resumen Comparativo en Tabla',
+      'Jurisprudencia y Conceptos Técnicos',
+    ];
+  }
+  if (nodeId.includes('skill') || shape === 'custom_skill') {
+    return [
+      'Aplicar Procedimiento Paso a Paso',
+      'Validar Formato de Salida',
+      'Ejecutar Checklist Técnico',
+      'Incluir Plantilla Oficial',
+    ];
+  }
+  if (nodeId.includes('rule') || nodeId.includes('regla') || shape === 'custom_rule') {
+    return [
+      'Cero Invención de Datos (Estricto)',
+      'Anonimizar Datos Sensibles (Ley 1581)',
+      'Citar Artículo Exacto de la Norma',
+      'Bloquear Envío si Faltan Soportes',
+    ];
+  }
   if (
     nodeId.includes('trabajadores') ||
     nodeId.includes('sociodemografico') ||
@@ -1456,7 +1676,12 @@ export function buildPromptFromWorkflowNodes(
   const engineMode = nodes.aiEngine || 'wappy';
   const modelId = nodes.aiModel || 'gemini-3.6-flash';
   const inputDefs = (nodes.inputs || [])
-    .map((id) => INPUT_CONNECTOR_NODES.find((n) => n.id === id) || HITO_APP_NODES.find((h) => h.id === id))
+    .map(
+      (id) =>
+        INPUT_CONNECTOR_NODES.find((n) => n.id === id) ||
+        HITO_APP_NODES.find((h) => h.id === id) ||
+        SKILL_RULE_SUBAGENT_NODES.find((s) => s.id === id),
+    )
     .filter(Boolean) as WorkflowNodeDef[];
   const hitoDefs = (nodes.hitos || [])
     .map((id) => getNodeDefById(id))
@@ -1472,6 +1697,21 @@ export function buildPromptFromWorkflowNodes(
     const parts: string[] = [];
     if (cfg.fields && cfg.fields.length > 0) {
       parts.push(`Campos requeridos: [${cfg.fields.join(', ')}]`);
+    }
+    if (cfg.targetUrl?.trim()) {
+      parts.push(`URL(s) Objetivo: "${cfg.targetUrl.trim()}"`);
+    }
+    if (cfg.scriptEngine) {
+      parts.push(`Motor de Script Antigravity: ${cfg.scriptEngine}`);
+    }
+    if (cfg.scriptCode?.trim()) {
+      parts.push(`Script/Selector de Extracción: "${cfg.scriptCode.trim()}"`);
+    }
+    if (cfg.skillContent?.trim()) {
+      parts.push(`Skill (SKILL.md): "${cfg.skillContent.trim()}"`);
+    }
+    if (cfg.ruleText?.trim()) {
+      parts.push(`Regla Obligatoria: "${cfg.ruleText.trim()}"`);
     }
     if (cfg.inputContext?.trim()) {
       parts.push(`Contexto de entrada: "${cfg.inputContext.trim()}"`);
@@ -1569,6 +1809,41 @@ export function buildPromptFromWorkflowNodes(
     );
   }
 
+  const customNodes = nodes.canvasLayout?.customNodes || [];
+  if (customNodes.length > 0) {
+    const customDescriptions = customNodes.map((cn) => {
+      const cfg = nodeConfigs[cn.key] || {};
+      const typeLabel =
+        cn.nodeType === 'skill'
+          ? '🧩 SKILL (Habilidad Procedural)'
+          : cn.nodeType === 'subagent'
+            ? '🤖 SUB-AGENTE ESPECIALISTA'
+            : cn.nodeType === 'rule'
+              ? '📏 REGLA OBLIGATORIA (Guardrail)'
+              : cn.nodeType === 'web_scraper'
+                ? '🕷️ WEB SCRAPING CON ANTIGRAVITY (Script)'
+                : '🌐 BÚSQUEDA EN LA WEB EN VIVO';
+      const content = (
+        cfg.skillContent ||
+        cfg.ruleText ||
+        cfg.prompt ||
+        cn.content ||
+        ''
+      ).trim();
+      const url = (cfg.targetUrl || cn.targetUrl || '').trim();
+      const engine = cfg.scriptEngine || cn.scriptEngine || '';
+      const script = (cfg.scriptCode || cn.scriptCode || '').trim();
+      return `\n   • ${typeLabel} [${cn.title}]: ${content || cn.subtitle || 'Aplicar en el flujo'}${
+        url ? ` | URL(s): ${url}` : ''
+      }${engine ? ` | Motor Script Antigravity: ${engine}` : ''}${
+        script ? ` | Script/Selector: ${script}` : ''
+      }${formatNodeConfigDetail(cn.key)}`;
+    });
+    lines.push(
+      `\n7. SKILLS, SUB-AGENTES, REGLAS Y SCRIPTS DE WEB SCRAPING ACTIVOS:${customDescriptions.join('')}`,
+    );
+  }
+
   const customEdges = nodes.canvasLayout?.edges || [];
   if (customEdges.length > 0) {
     const resolveKeyLabel = (key: string): string => {
@@ -1577,6 +1852,8 @@ export function buildPromptFromWorkflowNodes(
       if (key === 'trigger_root') return triggerDefs[0]?.shortLabel || 'Disparador Principal';
       const extraAg = extraAgents.find((a) => a.key === key);
       if (extraAg) return `Agente IA (${extraAg.agentName || 'Segunda IA'})`;
+      const customNd = customNodes.find((c) => c.key === key);
+      if (customNd) return `${customNd.title} (${customNd.subtitle})`;
       const cleanedId = key
         .replace(/^(trigger_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
       const def = getNodeDefById(cleanedId);
@@ -1586,7 +1863,7 @@ export function buildPromptFromWorkflowNodes(
       (ed) => `[${resolveKeyLabel(ed.from)}] ──▶ [${resolveKeyLabel(ed.to)}]`,
     );
     lines.push(
-      `\n7. SECUENCIA E INTERCONEXIONES PERSONALIZADAS DEL LIENZO: Respeta estrictamente este orden de conexión definido en el campo: ${routeStrings.join(' ; ')}.`,
+      `\n8. SECUENCIA E INTERCONEXIONES PERSONALIZADAS DEL LIENZO: Respeta estrictamente este orden de conexión definido en el campo: ${routeStrings.join(' ; ')}.`,
     );
   }
 
