@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+const CompanyInfo = require('../../../models/CompanyInfo');
 const TenshiPendingAction = require('../../../models/TenshiPendingAction');
 const TenshiProceduralMemory = require('../../../models/TenshiProceduralMemory');
 let logger = console;
@@ -332,6 +334,29 @@ function buildGenerativeWidgetForTool(toolName, args = {}, rawResult = null) {
 async function manageProceduralMemory(args = {}, userId, companyId = null, companyName = '') {
   const accion = String(args.accion || 'listar').toLowerCase().trim();
 
+  let effectiveCompanyId = companyId ? String(companyId) : null;
+  let effectiveCompanyName = companyName || '';
+  if (!effectiveCompanyId && userId) {
+    const CompModel = mongoose.models.CompanyInfo || CompanyInfo;
+    if (CompModel) {
+      const activeComp = await CompModel.findOne({ user: userId, isActive: true })
+        .select('_id companyName')
+        .lean()
+        .catch(() => null);
+      if (activeComp) {
+        effectiveCompanyId = String(activeComp._id);
+        if (!effectiveCompanyName) effectiveCompanyName = activeComp.companyName || '';
+      }
+    }
+  }
+  const compQuery = effectiveCompanyId
+    ? {
+        companyId: mongoose.Types.ObjectId.isValid(effectiveCompanyId)
+          ? { $in: [effectiveCompanyId, new mongoose.Types.ObjectId(effectiveCompanyId)] }
+          : effectiveCompanyId,
+      }
+    : { $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+
   if (accion === 'guardar' || accion === 'registrar' || accion === 'crear' || accion === 'registrar_habito') {
     const trigger = String(
       args.disparador || args.trigger || args.cuando || args.contexto || 'Regla Operativa General'
@@ -348,9 +373,10 @@ async function manageProceduralMemory(args = {}, userId, companyId = null, compa
       };
     }
 
-    // Evitar duplicados exactos actualizando si ya existe el mismo trigger
+    // Evitar duplicados exactos actualizando si ya existe el mismo trigger en la empresa activa
     let doc = await TenshiProceduralMemory.findOne({
       user: userId,
+      ...compQuery,
       trigger: { $regex: new RegExp(`^${trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
     });
 
@@ -358,14 +384,14 @@ async function manageProceduralMemory(args = {}, userId, companyId = null, compa
       doc.rule = rule;
       doc.category = category;
       doc.isActive = true;
-      if (companyId) doc.companyId = companyId;
-      if (companyName) doc.companyName = companyName;
+      if (effectiveCompanyId) doc.companyId = effectiveCompanyId;
+      if (effectiveCompanyName) doc.companyName = effectiveCompanyName;
       await doc.save();
     } else {
       doc = await TenshiProceduralMemory.create({
         user: userId,
-        companyId: companyId || undefined,
-        companyName: companyName || '',
+        companyId: effectiveCompanyId || undefined,
+        companyName: effectiveCompanyName,
         category,
         trigger,
         rule,
@@ -373,7 +399,11 @@ async function manageProceduralMemory(args = {}, userId, companyId = null, compa
       });
     }
 
-    const allHabits = await TenshiProceduralMemory.find({ user: userId, isActive: true })
+    const allHabits = await TenshiProceduralMemory.find({
+      user: userId,
+      isActive: true,
+      ...compQuery,
+    })
       .sort({ updatedAt: -1 })
       .limit(12)
       .lean();
@@ -422,16 +452,27 @@ async function manageProceduralMemory(args = {}, userId, companyId = null, compa
     const idOrTrigger = String(args.id || args.disparador || args.trigger || args.clave || '').trim();
     let deleted = null;
     if (idOrTrigger.match(/^[0-9a-fA-F]{24}$/)) {
-      deleted = await TenshiProceduralMemory.findOneAndDelete({ _id: idOrTrigger, user: userId });
+      deleted = await TenshiProceduralMemory.findOneAndDelete({
+        _id: idOrTrigger,
+        user: userId,
+        ...compQuery,
+      });
     } else if (idOrTrigger) {
       const safeRx = new RegExp(idOrTrigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       deleted = await TenshiProceduralMemory.findOneAndDelete({
         user: userId,
-        $or: [{ trigger: safeRx }, { rule: safeRx }],
+        $and: [
+          compQuery,
+          { $or: [{ trigger: safeRx }, { rule: safeRx }] },
+        ],
       });
     }
 
-    const remaining = await TenshiProceduralMemory.find({ user: userId, isActive: true })
+    const remaining = await TenshiProceduralMemory.find({
+      user: userId,
+      isActive: true,
+      ...compQuery,
+    })
       .sort({ updatedAt: -1 })
       .limit(12)
       .lean();
@@ -470,7 +511,11 @@ async function manageProceduralMemory(args = {}, userId, companyId = null, compa
   }
 
   // Listar por defecto
-  const habits = await TenshiProceduralMemory.find({ user: userId, isActive: true })
+  const habits = await TenshiProceduralMemory.find({
+    user: userId,
+    isActive: true,
+    ...compQuery,
+  })
     .sort({ updatedAt: -1 })
     .limit(15)
     .lean();
@@ -518,9 +563,27 @@ async function manageProceduralMemory(args = {}, userId, companyId = null, compa
 async function getProceduralMemoryPromptBlock(userId, companyId = null, maxItems = 10) {
   try {
     if (!userId) return '';
+    let effectiveCompanyId = companyId ? String(companyId) : null;
+    if (!effectiveCompanyId) {
+      const CompModel = mongoose.models.CompanyInfo || CompanyInfo;
+      if (CompModel) {
+        const activeComp = await CompModel.findOne({ user: userId, isActive: true })
+          .select('_id')
+          .lean()
+          .catch(() => null);
+        if (activeComp) {
+          effectiveCompanyId = String(activeComp._id);
+        }
+      }
+    }
+
     const query = { user: userId, isActive: true };
-    if (companyId) {
-      query.$or = [{ companyId }, { companyId: { $exists: false } }, { companyId: null }];
+    if (effectiveCompanyId) {
+      query.companyId = mongoose.Types.ObjectId.isValid(effectiveCompanyId)
+        ? { $in: [effectiveCompanyId, new mongoose.Types.ObjectId(effectiveCompanyId)] }
+        : effectiveCompanyId;
+    } else {
+      query.$or = [{ companyId: null }, { companyId: { $exists: false } }];
     }
     const habits = await TenshiProceduralMemory.find(query)
       .sort({ updatedAt: -1 })
@@ -644,7 +707,7 @@ async function autoSynthesizeProceduralRule(userText, userId, companyId = null, 
  * Búsqueda Instantánea de Historial (< 5ms, 0 tokens de embeddings, ranking tipo BM25 en memoria)
  * sobre conversaciones de Tenshi, mensajes de agentes especialistas e informes SG-SST pasados.
  */
-async function searchInstantHistory(args = {}, userId) {
+async function searchInstantHistory(args = {}, userId, companyId = null) {
   try {
     const rawQuery = String(args.consulta || args.query || args.termino || args.palabra_clave || '').trim();
     const limit = Math.min(Math.max(parseInt(args.limite || args.limit || '8', 10) || 8, 1), 20);
@@ -658,6 +721,32 @@ async function searchInstantHistory(args = {}, userId) {
 
     const TenshiMessage = require('~/models/TenshiMessage');
     const { Message, Conversation } = require('~/db/models');
+
+    let effectiveCompanyId = companyId ? String(companyId) : null;
+    if (!effectiveCompanyId) {
+      const CompModel = mongoose.models.CompanyInfo || CompanyInfo;
+      if (CompModel) {
+        const activeComp = await CompModel.findOne({ user: userId, isActive: true })
+          .select('_id')
+          .lean()
+          .catch(() => null);
+        if (activeComp) {
+          effectiveCompanyId = String(activeComp._id);
+        }
+      }
+    }
+
+    let allowedConvoIds = null;
+    if (effectiveCompanyId) {
+      const companyConvos = await Conversation.find({
+        user: String(userId),
+        tags: `company:${effectiveCompanyId}`,
+      })
+        .select('conversationId')
+        .lean()
+        .catch(() => []);
+      allowedConvoIds = companyConvos.map((c) => c.conversationId).filter(Boolean);
+    }
 
     // Tokenizar términos significativos para ranking tipo BM25
     const terms = rawQuery
@@ -675,6 +764,7 @@ async function searchInstantHistory(args = {}, userId) {
     const [tenshiHits, agentMsgHits, convoHits] = await Promise.all([
       TenshiMessage.find({
         user: userId,
+        ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
         $or: [{ content: regexOr }, { 'file.title': regexOr }],
       })
         .sort({ createdAt: -1 })
@@ -682,17 +772,21 @@ async function searchInstantHistory(args = {}, userId) {
         .select('role content file.title createdAt')
         .lean()
         .catch(() => []),
-      Message.find({
-        user: String(userId),
-        text: regexOr,
-      })
-        .sort({ createdAt: -1 })
-        .limit(25)
-        .select('sender text conversationId isCreatedByUser createdAt')
-        .lean()
-        .catch(() => []),
+      effectiveCompanyId && (!allowedConvoIds || allowedConvoIds.length === 0)
+        ? Promise.resolve([])
+        : Message.find({
+            user: String(userId),
+            ...(effectiveCompanyId ? { conversationId: { $in: allowedConvoIds } } : {}),
+            text: regexOr,
+          })
+            .sort({ createdAt: -1 })
+            .limit(25)
+            .select('sender text conversationId isCreatedByUser createdAt')
+            .lean()
+            .catch(() => []),
       Conversation.find({
         user: String(userId),
+        ...(effectiveCompanyId ? { tags: `company:${effectiveCompanyId}` } : {}),
         title: regexOr,
       })
         .sort({ updatedAt: -1 })

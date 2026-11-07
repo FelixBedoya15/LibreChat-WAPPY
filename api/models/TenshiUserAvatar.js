@@ -7,7 +7,11 @@ const tenshiUserAvatarSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
-            unique: true,
+            index: true,
+        },
+        companyId: {
+            type: String,
+            default: null,
             index: true,
         },
         avatarId: {
@@ -43,10 +47,13 @@ const tenshiUserAvatarSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-const TenshiUserAvatar =
-    mongoose.models.TenshiUserAvatar || mongoose.model('TenshiUserAvatar', tenshiUserAvatarSchema);
+tenshiUserAvatarSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
-TenshiUserAvatar.resolveEffectiveAvatarProfile = async function (userId, existingConfig = null) {
+tenshiUserAvatarSchema.statics.resolveEffectiveAvatarProfile = async function (
+    userId,
+    existingConfig = null,
+    companyId = null
+) {
     let config = existingConfig;
     if (!config) {
         try {
@@ -66,7 +73,9 @@ TenshiUserAvatar.resolveEffectiveAvatarProfile = async function (userId, existin
             'Amigable, proactivo, experto en SG-SST y cercano con el usuario.',
     };
 
-    let userDoc = null;
+    let userAvatar = null;
+    let effectiveCompanyId = companyId ? String(companyId).trim() : null;
+
     if (userId) {
         const cleanUserId =
             typeof userId === 'object' && !(userId instanceof mongoose.Types.ObjectId)
@@ -74,31 +83,76 @@ TenshiUserAvatar.resolveEffectiveAvatarProfile = async function (userId, existin
                 : String(userId);
         if (cleanUserId && mongoose.Types.ObjectId.isValid(cleanUserId)) {
             try {
-                userDoc = await TenshiUserAvatar.findOne({ user: cleanUserId }).lean();
+                if (!effectiveCompanyId && mongoose.models.CompanyInfo) {
+                    const activeComp = await mongoose.models.CompanyInfo.findOne({
+                        user: cleanUserId,
+                        isActive: true,
+                    })
+                        .select('_id')
+                        .lean()
+                        .catch(() => null);
+                    if (activeComp?._id) effectiveCompanyId = String(activeComp._id);
+                }
+
+                if (effectiveCompanyId) {
+                    userAvatar = await this.findOne({
+                        user: cleanUserId,
+                        companyId: effectiveCompanyId,
+                    }).lean();
+                }
+                if (!userAvatar) {
+                    userAvatar = await this.findOne({
+                        user: cleanUserId,
+                        $or: [
+                            { companyId: null },
+                            { companyId: '' },
+                            { companyId: { $exists: false } },
+                        ],
+                    }).lean();
+                }
             } catch (_) {
-                userDoc = null;
+                userAvatar = null;
             }
         }
     }
 
     const effective = {
-        avatarId: userDoc?.isCustomized && userDoc?.avatarId ? userDoc.avatarId : defaults.avatarId,
-        name: userDoc?.isCustomized && userDoc?.name?.trim() ? userDoc.name.trim() : defaults.name,
-        gender: userDoc?.isCustomized && userDoc?.gender ? userDoc.gender : defaults.gender,
-        voice: userDoc?.isCustomized && userDoc?.voice ? userDoc.voice : defaults.voice,
+        avatarId:
+            userAvatar?.isCustomized && userAvatar?.avatarId
+                ? userAvatar.avatarId
+                : defaults.avatarId,
+        name:
+            userAvatar?.isCustomized && userAvatar?.name?.trim()
+                ? userAvatar.name.trim()
+                : defaults.name,
+        gender:
+            userAvatar?.isCustomized && userAvatar?.gender ? userAvatar.gender : defaults.gender,
+        voice: userAvatar?.isCustomized && userAvatar?.voice ? userAvatar.voice : defaults.voice,
         personality:
-            userDoc?.isCustomized && userDoc?.personality?.trim()
-                ? userDoc.personality.trim()
+            userAvatar?.isCustomized && userAvatar?.personality?.trim()
+                ? userAvatar.personality.trim()
                 : defaults.personality,
-        personalityPreset: userDoc?.personalityPreset || 'consultor',
-        isCustomized: Boolean(userDoc?.isCustomized),
+        personalityPreset: userAvatar?.personalityPreset || 'consultor',
+        isCustomized: Boolean(userAvatar?.isCustomized),
+        companyId: effectiveCompanyId,
     };
 
     return {
-        userAvatar: userDoc || null,
+        companyId: effectiveCompanyId,
+        userAvatar: userAvatar || null,
         defaults,
         effective,
     };
 };
+
+const TenshiUserAvatar =
+    mongoose.models.TenshiUserAvatar || mongoose.model('TenshiUserAvatar', tenshiUserAvatarSchema);
+
+TenshiUserAvatar.resolveEffectiveAvatarProfile =
+    tenshiUserAvatarSchema.statics.resolveEffectiveAvatarProfile.bind(TenshiUserAvatar);
+
+if (TenshiUserAvatar.collection) {
+    TenshiUserAvatar.collection.dropIndex('user_1').catch(() => {});
+}
 
 module.exports = TenshiUserAvatar;

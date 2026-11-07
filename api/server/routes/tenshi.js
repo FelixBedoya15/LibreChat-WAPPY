@@ -204,6 +204,16 @@ function extractOptionalUserId(req) {
     return null;
 }
 
+async function resolveActiveCompanyForUser(userId, explicitCompanyId = null) {
+    if (!userId) return null;
+    const CompanyInfoModel = mongoose.models.CompanyInfo || require('../../models/CompanyInfo');
+    if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+        const found = await CompanyInfoModel.findOne({ _id: explicitCompanyId, user: userId }).lean().catch(() => null);
+        if (found) return found;
+    }
+    return await CompanyInfoModel.findOne({ user: userId, isActive: true }).lean().catch(() => null);
+}
+
 router.get('/config', async (req, res) => {
     try {
         let config = await TenshiConfig.findOne();
@@ -217,9 +227,17 @@ router.get('/config', async (req, res) => {
         }
         const configObj = config.toObject ? config.toObject() : config;
         const optionalUserId = extractOptionalUserId(req);
-        const avatarProfile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(optionalUserId, configObj);
+        const activeComp = optionalUserId
+            ? await resolveActiveCompanyForUser(optionalUserId, req.query.companyId)
+            : null;
+        const avatarProfile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(
+            optionalUserId,
+            configObj,
+            activeComp?._id ? String(activeComp._id) : null
+        );
         res.json({
             ...configObj,
+            companyId: avatarProfile.companyId || null,
             userAvatar: avatarProfile.userAvatar,
             defaultAvatarProfile: avatarProfile.defaults,
             effectiveAvatar: avatarProfile.effective,
@@ -251,8 +269,12 @@ router.post('/config', requireJwtAuth, async (req, res) => {
 
 router.get('/user-avatar', requireJwtAuth, async (req, res) => {
     try {
-        const targetUserId = String(req.user?.id || req.user?._id);
-        const profile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(targetUserId);
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser)
+            ? String(req.user.parentUser)
+            : String(req.user?.id || req.user?._id);
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
+        const compId = activeComp?._id ? String(activeComp._id) : null;
+        const profile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(targetUserId, null, compId);
         res.json(profile);
     } catch (error) {
         console.error('Error fetching Tenshi user avatar:', error);
@@ -262,12 +284,20 @@ router.get('/user-avatar', requireJwtAuth, async (req, res) => {
 
 router.post('/user-avatar', requireJwtAuth, async (req, res) => {
     try {
-        const targetUserId = String(req.user?.id || req.user?._id);
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser)
+            ? String(req.user.parentUser)
+            : String(req.user?.id || req.user?._id);
+        const activeComp = await resolveActiveCompanyForUser(
+            targetUserId,
+            req.body?.companyId || req.query?.companyId
+        );
+        const compId = activeComp?._id ? String(activeComp._id) : null;
         if (req.body.resetToDefault === true) {
             await TenshiUserAvatar.findOneAndUpdate(
-                { user: targetUserId },
+                { user: targetUserId, companyId: compId },
                 {
                     $set: {
+                        companyId: compId,
                         isCustomized: false,
                         avatarId: '',
                         name: '',
@@ -281,9 +311,10 @@ router.post('/user-avatar', requireJwtAuth, async (req, res) => {
             );
         } else {
             await TenshiUserAvatar.findOneAndUpdate(
-                { user: targetUserId },
+                { user: targetUserId, companyId: compId },
                 {
                     $set: {
+                        companyId: compId,
                         avatarId: req.body.avatarId ?? '',
                         name: req.body.name ?? '',
                         gender: req.body.gender ?? '',
@@ -296,7 +327,7 @@ router.post('/user-avatar', requireJwtAuth, async (req, res) => {
                 { upsert: true, new: true }
             );
         }
-        const profile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(targetUserId);
+        const profile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(targetUserId, null, compId);
         res.json(profile);
     } catch (error) {
         console.error('Error saving Tenshi user avatar:', error);
@@ -393,9 +424,14 @@ router.get('/history', requireJwtAuth, async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
         const userIds = [req.user.id, targetUserId].filter(Boolean);
-        const history = await TenshiMessage.find({ user: { $in: userIds } }).sort({ createdAt: 1 }).lean();
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
+        const historyFilter = activeComp?._id
+            ? { user: { $in: userIds }, companyId: String(activeComp._id) }
+            : { user: { $in: userIds }, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+        const history = await TenshiMessage.find(historyFilter).sort({ createdAt: 1 }).lean();
         res.json(history.map(m => ({
             _id: m._id,
+            companyId: m.companyId || null,
             role: m.role,
             content: m.content,
             image: m.image,
@@ -414,12 +450,15 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 
 router.post('/message', requireJwtAuth, async (req, res) => {
     try {
-        const { role = 'assistant', content, htmlReport, file, qrCode, widget, image, media } = req.body;
+        const { role = 'assistant', content, htmlReport, file, qrCode, widget, image, media, companyId } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, companyId);
         const newMsg = await TenshiMessage.create({
             user: req.user.id,
+            companyId: activeComp?._id ? String(activeComp._id) : null,
             role,
             content: content.trim(),
             image,
@@ -575,8 +614,17 @@ router.post('/governance/:id/reject', requireJwtAuth, async (req, res) => {
 router.get('/procedural-memory', requireJwtAuth, async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
         const includeInactive = req.query.includeInactive === 'true' || req.query.all === 'true';
         const filter = includeInactive ? { user: targetUserId } : { user: targetUserId, isActive: true };
+        if (activeComp?._id) {
+            const strId = String(activeComp._id);
+            filter.companyId = mongoose.Types.ObjectId.isValid(strId)
+                ? { $in: [strId, new mongoose.Types.ObjectId(strId)] }
+                : strId;
+        } else {
+            filter.$or = [{ companyId: null }, { companyId: { $exists: false } }];
+        }
         const habits = await TenshiProceduralMemory.find(filter)
             .sort({ updatedAt: -1 })
             .limit(50)
@@ -584,6 +632,7 @@ router.get('/procedural-memory', requireJwtAuth, async (req, res) => {
         res.json(habits.map((h) => ({
             id: String(h._id),
             _id: String(h._id),
+            companyId: h.companyId ? String(h.companyId) : null,
             category: h.category,
             trigger: h.trigger,
             rule: h.rule,
@@ -606,15 +655,23 @@ router.post('/procedural-memory', requireJwtAuth, async (req, res) => {
         if (!trigger || !rule) {
             return res.status(400).json({ error: 'Se requiere trigger y rule.' });
         }
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, companyId || req.query.companyId);
+        const effectiveCompanyId = companyId ? String(companyId) : (activeComp?._id ? String(activeComp._id) : null);
+        const effectiveCompanyName = companyName || activeComp?.companyName || '';
         const out = await manageProceduralMemory(
             { accion: 'guardar', trigger, regla: rule, categoria: category },
             targetUserId,
-            companyId,
-            companyName
+            effectiveCompanyId,
+            effectiveCompanyName
         );
         if (out.widget?.data?.items) {
+            const msgFilter = {
+                user: { $in: [req.user.id, targetUserId].filter(Boolean) },
+                'widget.widgetType': 'procedural_memory',
+                ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
+            };
             await TenshiMessage.updateMany(
-                { user: { $in: [req.user.id, targetUserId].filter(Boolean) }, 'widget.widgetType': 'procedural_memory' },
+                msgFilter,
                 { $set: { 'widget.data.items': out.widget.data.items, 'widget.data.habits': out.widget.data.items } }
             ).catch(() => {});
         }
@@ -645,20 +702,36 @@ router.put('/procedural-memory/:id', requireJwtAuth, async (req, res) => {
             return res.status(404).json({ error: 'Regla no encontrada.' });
         }
 
-        const activeHabits = await TenshiProceduralMemory.find({ user: targetUserId, isActive: true })
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId || updated.companyId);
+        const compId = updated.companyId ? String(updated.companyId) : (activeComp?._id ? String(activeComp._id) : null);
+        const activeFilter = { user: targetUserId, isActive: true };
+        if (compId) {
+            activeFilter.companyId = mongoose.Types.ObjectId.isValid(compId)
+                ? { $in: [compId, new mongoose.Types.ObjectId(compId)] }
+                : compId;
+        } else {
+            activeFilter.$or = [{ companyId: null }, { companyId: { $exists: false } }];
+        }
+
+        const activeHabits = await TenshiProceduralMemory.find(activeFilter)
             .sort({ updatedAt: -1 })
             .limit(30)
             .lean();
         const mappedActive = activeHabits.map((h) => ({
             id: String(h._id),
             _id: String(h._id),
+            companyId: h.companyId ? String(h.companyId) : null,
             category: h.category,
             trigger: h.trigger,
             rule: h.rule,
             isActive: h.isActive,
         }));
         await TenshiMessage.updateMany(
-            { user: { $in: [req.user.id, targetUserId].filter(Boolean) }, 'widget.widgetType': 'procedural_memory' },
+            {
+                user: { $in: [req.user.id, targetUserId].filter(Boolean) },
+                'widget.widgetType': 'procedural_memory',
+                ...(compId ? { companyId: compId } : {}),
+            },
             { $set: { 'widget.data.items': mappedActive, 'widget.data.habits': mappedActive } }
         ).catch(() => {});
 
@@ -667,6 +740,7 @@ router.put('/procedural-memory/:id', requireJwtAuth, async (req, res) => {
             item: {
                 id: String(updated._id),
                 _id: String(updated._id),
+                companyId: updated.companyId ? String(updated.companyId) : null,
                 category: updated.category,
                 trigger: updated.trigger,
                 rule: updated.rule,
@@ -689,20 +763,35 @@ router.delete('/procedural-memory/:id', requireJwtAuth, async (req, res) => {
             _id: req.params.id,
             user: targetUserId,
         });
-        const remaining = await TenshiProceduralMemory.find({ user: targetUserId, isActive: true })
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId || deleted?.companyId);
+        const compId = deleted?.companyId ? String(deleted.companyId) : (activeComp?._id ? String(activeComp._id) : null);
+        const remainingFilter = { user: targetUserId, isActive: true };
+        if (compId) {
+            remainingFilter.companyId = mongoose.Types.ObjectId.isValid(compId)
+                ? { $in: [compId, new mongoose.Types.ObjectId(compId)] }
+                : compId;
+        } else {
+            remainingFilter.$or = [{ companyId: null }, { companyId: { $exists: false } }];
+        }
+        const remaining = await TenshiProceduralMemory.find(remainingFilter)
             .sort({ updatedAt: -1 })
             .limit(30)
             .lean();
         const mappedRemaining = remaining.map((h) => ({
             id: String(h._id),
             _id: String(h._id),
+            companyId: h.companyId ? String(h.companyId) : null,
             category: h.category,
             trigger: h.trigger,
             rule: h.rule,
             isActive: h.isActive,
         }));
         await TenshiMessage.updateMany(
-            { user: { $in: [req.user.id, targetUserId].filter(Boolean) }, 'widget.widgetType': 'procedural_memory' },
+            {
+                user: { $in: [req.user.id, targetUserId].filter(Boolean) },
+                'widget.widgetType': 'procedural_memory',
+                ...(compId ? { companyId: compId } : {}),
+            },
             { $set: { 'widget.data.items': mappedRemaining, 'widget.data.habits': mappedRemaining } }
         ).catch(() => {});
         res.json({ success: Boolean(deleted), deleted, items: mappedRemaining });
@@ -960,7 +1049,13 @@ router.post('/gtc45/save-to-hito1', requireJwtAuth, async (req, res) => {
 
 router.delete('/history', requireJwtAuth, async (req, res) => {
     try {
-        await TenshiMessage.deleteMany({ user: req.user.id });
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const userIds = [req.user.id, targetUserId].filter(Boolean);
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
+        const deleteFilter = activeComp?._id
+            ? { user: { $in: userIds }, companyId: String(activeComp._id) }
+            : { user: { $in: userIds }, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+        await TenshiMessage.deleteMany(deleteFilter);
         res.json({ success: true });
     } catch (error) {
         console.error('Error clearing Tenshi history:', error);
@@ -981,9 +1076,10 @@ router.put('/message/:id', requireJwtAuth, async (req, res) => {
         targetMsg.content = content;
         await targetMsg.save();
 
-        // Delete all subsequent messages
+        // Delete all subsequent messages in the same company
         await TenshiMessage.deleteMany({
             user: req.user.id,
+            companyId: targetMsg.companyId || null,
             createdAt: { $gt: targetMsg.createdAt }
         });
 
@@ -1002,9 +1098,10 @@ router.delete('/message/:id', requireJwtAuth, async (req, res) => {
             return res.status(404).json({ error: 'Message not found' });
         }
 
-        // Delete this message and all subsequent ones
+        // Delete this message and all subsequent ones in the same company
         await TenshiMessage.deleteMany({
             user: req.user.id,
+            companyId: targetMsg.companyId || null,
             createdAt: { $gte: targetMsg.createdAt }
         });
 
@@ -1057,9 +1154,26 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             userImageForDb = undefined;
         }
 
+        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        if (!req.body.conversationId) {
+            req.body.conversationId = `tenshi-${targetUserId}`;
+        }
+
+        let companyInfo = null;
+        if (req.user?.isSubUser && req.user?.assignedCompany) {
+            companyInfo = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean().catch(() => null);
+        }
+        if (!companyInfo) {
+            companyInfo = await resolveActiveCompanyForUser(targetUserId, req.body?.companyId);
+        }
+        if (!companyInfo) {
+            companyInfo = await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null);
+        }
+
         if (userQuery && !userQuery.startsWith('[RESULTADO_GUI]')) {
             TenshiMessage.create({
                 user: req.user.id,
+                companyId: companyInfo?._id ? String(companyInfo._id) : null,
                 role: 'user',
                 content: userQuery,
                 image: userImageForDb,
@@ -1067,35 +1181,18 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             }).catch(e => console.error('Error saving user TenshiMessage:', e));
         }
 
-        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
-        if (!req.body.conversationId) {
-            req.body.conversationId = `tenshi-${targetUserId}`;
-        }
-
         // Fetch dynamic knowledge concurrently via Promise.all for maximum response speed
-        const [latestBlogs, latestCourses, ticketContext, companyInfo, rawMemories, recentTenshiReports] = await Promise.all([
+        const [latestBlogs, latestCourses, ticketContext, rawMemories, recentTenshiReports] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
             getRelevantTickets(req, userQuery).catch(() => ''),
-            (async () => {
-                let info = null;
-                if (req.user?.isSubUser && req.user?.assignedCompany) {
-                    info = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean().catch(() => null);
-                }
-                if (!info) {
-                    info = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null);
-                }
-                if (!info) {
-                    info = await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null);
-                }
-                return info;
-            })(),
             getAllUserMemories(targetUserId).catch(() => []),
             (async () => {
                 try {
                     const userFilter = [String(req.user.id), targetUserId].filter(Boolean);
                     const reports = await TenshiMessage.find({
                         user: { $in: userFilter },
+                        ...(companyInfo?._id ? { companyId: String(companyInfo._id) } : {}),
                         $or: [
                             { htmlReport: { $exists: true, $nin: [null, ''] } },
                             { 'file.content': { $exists: true, $nin: [null, ''] } }
@@ -1123,10 +1220,9 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 let liveWorkerCount = null;
                 try {
                     const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData || require('./sgsst/perfilSociodemografico');
-                    const socioDoc = await PerfilSocioModel.findOne({
-                        user: targetUserId,
-                        ...(companyInfo._id ? { companyId: companyInfo._id } : {})
-                    }).lean() || await PerfilSocioModel.findOne({ user: targetUserId }).lean();
+                    const socioDoc = companyInfo._id
+                        ? await PerfilSocioModel.findOne({ user: targetUserId, companyId: companyInfo._id }).lean()
+                        : await PerfilSocioModel.findOne({ user: targetUserId }).lean();
 
                     if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
                         const activeWorkers = socioDoc.trabajadores.filter(w => {
@@ -1227,8 +1323,9 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         const { effective: effectiveAvatar } = await TenshiUserAvatar.resolveEffectiveAvatarProfile(
-            req.user?.id || targetUserId,
-            config
+            targetUserId,
+            config,
+            companyInfo?._id ? String(companyInfo._id) : null
         );
         fullCompanyAndMemoryBlock += `\n\n[IDENTIDAD, GÉNERO Y PERSONALIDAD DE TU AVATAR WAPPY CONFIGURADO POR EL USUARIO]:
 - Tu nombre actual para este usuario es: "${effectiveAvatar.name}". Si te llaman por tu nombre o te preguntan cómo te llamas, responde como "${effectiveAvatar.name}".
@@ -3472,17 +3569,42 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'seleccionar_empresa' || call.name === 'wappy_seleccionar_empresa' || call.name === 'wappy_activar_empresa') {
                                     const term = call.args?.nombre_o_id || call.args?.empresa || call.args?.nombre || call.args?.id || call.args?.companyId || call.args?.target;
-                                    let query = { user: targetUserId };
+                                    const buildAccentInsensitiveRegex = (raw) => {
+                                        const base = String(raw || '')
+                                            .normalize('NFD')
+                                            .replace(/[\u0300-\u036f]/g, '')
+                                            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                                            .replace(/a/gi, '[aáàäâ]')
+                                            .replace(/e/gi, '[eéèëê]')
+                                            .replace(/i/gi, '[iíìïî]')
+                                            .replace(/o/gi, '[oóòöô]')
+                                            .replace(/u/gi, '[uúùüû]')
+                                            .replace(/n/gi, '[nñ]');
+                                        return new RegExp(base, 'i');
+                                    };
+                                    let found = null;
                                     if (mongoose.isValidObjectId(term)) {
-                                        query._id = term;
-                                    } else {
-                                        const safeRegex = new RegExp(String(term || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-                                        query.$or = [
-                                            { companyName: safeRegex },
-                                            { nit: term }
-                                        ];
+                                        found = await CompanyInfo.findOne({ user: targetUserId, _id: term });
                                     }
-                                    const found = await CompanyInfo.findOne(query);
+                                    if (!found && term) {
+                                        const safeRegex = buildAccentInsensitiveRegex(term);
+                                        found = await CompanyInfo.findOne({
+                                            user: targetUserId,
+                                            $or: [
+                                                { companyName: safeRegex },
+                                                { nit: term }
+                                            ]
+                                        });
+                                    }
+                                    if (!found && term) {
+                                        const normTerm = String(term).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+                                        const allUserCompanies = await CompanyInfo.find({ user: targetUserId });
+                                        found = allUserCompanies.find((c) => {
+                                            const normName = String(c.companyName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                                            const normNit = String(c.nit || '').toLowerCase();
+                                            return normName.includes(normTerm) || normTerm.includes(normName) || (normNit && normNit.includes(normTerm));
+                                        }) || null;
+                                    }
                                     if (found) {
                                         await CompanyInfo.updateMany({ user: targetUserId }, { isActive: false });
                                         found.isActive = true;
@@ -3500,7 +3622,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                             company = await CompanyInfo.findOne({ user: targetUserId, _id: term });
                                         }
                                         if (!company) {
-                                            const safeRegex = new RegExp(String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                                            const accentPattern = String(term)
+                                                .normalize('NFD')
+                                                .replace(/[\u0300-\u036f]/g, '')
+                                                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                                                .replace(/a/gi, '[aáàäâ]')
+                                                .replace(/e/gi, '[eéèëê]')
+                                                .replace(/i/gi, '[iíìïî]')
+                                                .replace(/o/gi, '[oóòöô]')
+                                                .replace(/u/gi, '[uúùüû]')
+                                                .replace(/n/gi, '[nñ]');
+                                            const safeRegex = new RegExp(accentPattern, 'i');
                                             company = await CompanyInfo.findOne({
                                                 user: targetUserId,
                                                 $or: [{ companyName: safeRegex }, { nit: term }]
@@ -4255,6 +4387,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
         ) {
             await TenshiMessage.create({
                 user: req.user.id,
+                companyId: companyInfo?._id ? String(companyInfo._id) : null,
                 role: 'assistant',
                 content: responseText,
                 htmlReport: capturedHtmlReport || undefined,

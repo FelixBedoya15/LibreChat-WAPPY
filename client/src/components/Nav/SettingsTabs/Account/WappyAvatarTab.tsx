@@ -66,13 +66,16 @@ export default function WappyAvatarTab() {
   const { data: avatarData, isLoading } = useQuery(
     ['tenshiUserAvatar', token],
     async () => {
+      const compId =
+        typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
       try {
-        const res = await axios.get('/api/tenshi/user-avatar', {
+        const res = await axios.get(`/api/tenshi/user-avatar${q}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         return res.data;
       } catch {
-        const fallback = await axios.get('/api/tenshi/config', {
+        const fallback = await axios.get(`/api/tenshi/config${q}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         return {
@@ -93,6 +96,21 @@ export default function WappyAvatarTab() {
       refetchOnWindowFocus: false,
     }
   );
+
+  useEffect(() => {
+    const handleCompanySwitch = () => {
+      queryClient.invalidateQueries(['tenshiUserAvatar']);
+      queryClient.invalidateQueries(['tenshiConfig']);
+    };
+    window.addEventListener('wappy-company-changed', handleCompanySwitch);
+    window.addEventListener('wappy-company-updated', handleCompanySwitch);
+    window.addEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+    return () => {
+      window.removeEventListener('wappy-company-changed', handleCompanySwitch);
+      window.removeEventListener('wappy-company-updated', handleCompanySwitch);
+      window.removeEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+    };
+  }, [queryClient]);
 
   useEffect(() => {
     if (avatarData?.effective) {
@@ -120,9 +138,15 @@ export default function WappyAvatarTab() {
 
   const saveMutation = useMutation(
     async (payload: Partial<AvatarFormState> & { resetToDefault?: boolean }) => {
-      const res = await axios.post('/api/tenshi/user-avatar', payload, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const compId =
+        typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const res = await axios.post(
+        '/api/tenshi/user-avatar',
+        { ...payload, ...(compId ? { companyId: compId } : {}) },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
       return res.data;
     },
     {

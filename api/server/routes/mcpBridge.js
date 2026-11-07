@@ -192,21 +192,116 @@ async function getActiveCompany(userId) {
   return company;
 }
 
-// Helper para aislamiento multitenant estricto por empresa
+// Helper para aislamiento multitenant estricto por empresa (sin $or de nivel superior para evitar colisiones)
 function companyScope(userId, companyId) {
-  if (companyId) {
-    const cIdStr = companyId.toString();
-    const cIdObj = mongoose.Types.ObjectId.isValid(cIdStr) ? new mongoose.Types.ObjectId(cIdStr) : cIdStr;
-    const filter = { companyId: { $in: [cIdObj, cIdStr] } };
-    if (userId) {
-      filter.user = userId;
-    }
-    return filter;
+  if (!companyId) {
+    return {
+      user: userId,
+      companyId: { $in: [null, ''] },
+    };
   }
+  const cidStr = String(companyId);
+  const cidObj = mongoose.Types.ObjectId.isValid(cidStr)
+    ? new mongoose.Types.ObjectId(cidStr)
+    : null;
   return {
     user: userId,
-    $or: [{ companyId: null }, { companyId: { $exists: false } }],
+    companyId: cidObj ? { $in: [cidStr, cidObj] } : cidStr,
   };
+}
+
+function buildAccentInsensitiveRegex(rawStr) {
+  const clean = String(rawStr || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const pattern = clean
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/a/gi, '[aáàäâã]')
+    .replace(/e/gi, '[eéèëê]')
+    .replace(/i/gi, '[iíìïî]')
+    .replace(/o/gi, '[oóòöôõ]')
+    .replace(/u/gi, '[uúùüû]')
+    .replace(/n/gi, '[nñ]');
+  return new RegExp(pattern, 'i');
+}
+
+function normalizeCompanySearchText(rawStr) {
+  return String(rawStr || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function findUserCompanyByTerm(userId, rawTerm, { lean = false } = {}) {
+  const targetTerm = String(rawTerm || '').trim();
+  if (!targetTerm) return null;
+
+  if (mongoose.isValidObjectId(targetTerm)) {
+    const q = CompanyInfo.findOne({ user: userId, _id: targetTerm });
+    const byId = lean ? await q.lean() : await q;
+    if (byId) return byId;
+  }
+
+  const accentRegex = buildAccentInsensitiveRegex(targetTerm);
+  const qRegex = CompanyInfo.findOne({
+    user: userId,
+    $or: [{ companyName: accentRegex }, { nit: targetTerm }],
+  });
+  const byRegex = lean ? await qRegex.lean() : await qRegex;
+  if (byRegex) return byRegex;
+
+  // Fallback por palabras normalizadas (NFD sin diacríticos) sobre las empresas del usuario
+  const allQuery = CompanyInfo.find({ user: userId });
+  const userCompanies = lean ? await allQuery.lean() : await allQuery;
+  if (!userCompanies.length) return null;
+
+  const normTarget = normalizeCompanySearchText(targetTerm);
+  if (!normTarget) return null;
+
+  const cleanTargetNit = targetTerm.replace(/[^0-9a-zA-Z]/g, '').toLowerCase();
+  for (const comp of userCompanies) {
+    const normName = normalizeCompanySearchText(comp.companyName);
+    const cleanNit = String(comp.nit || '').replace(/[^0-9a-zA-Z]/g, '').toLowerCase();
+    if (cleanTargetNit && cleanNit && cleanNit === cleanTargetNit) {
+      return comp;
+    }
+    if (normName && (normName.includes(normTarget) || (normName.length >= 3 && normTarget.includes(normName)))) {
+      return comp;
+    }
+  }
+
+  const stopWords = new Set(['sas', 's', 'a', 'ltda', 'sa', 'empresa', 'la', 'el', 'los', 'las', 'de', 'del', 'y', 'e', 'en', 'por', 'para', 'con']);
+  const targetTokens = normTarget.split(' ').filter((w) => w.length >= 2 && !stopWords.has(w));
+  if (!targetTokens.length) return null;
+
+  let bestMatch = null;
+  let bestScore = 0;
+  for (const comp of userCompanies) {
+    const normName = normalizeCompanySearchText(comp.companyName);
+    const nameTokens = normName.split(' ').filter(Boolean);
+    let matchedCount = 0;
+    for (const tk of targetTokens) {
+      if (nameTokens.some((nt) => nt === tk || (tk.length >= 4 && (nt.includes(tk) || tk.includes(nt))))) {
+        matchedCount++;
+      }
+    }
+    if (matchedCount > 0) {
+      const ratio = matchedCount / targetTokens.length;
+      if (matchedCount === targetTokens.length || (matchedCount >= 2 && ratio >= 0.6)) {
+        const score = matchedCount * 10 + ratio;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = comp;
+        }
+      }
+    }
+  }
+
+  return bestMatch;
 }
 
 // Helper para sincronizar memoria de IA
@@ -536,16 +631,7 @@ router.get('/profile', requireApiKeyOrJwt, async (req, res) => {
 
     let company = null;
     if (term) {
-      if (mongoose.isValidObjectId(term)) {
-        company = await CompanyInfo.findOne({ user: targetUserId, _id: term }).lean();
-      }
-      if (!company) {
-        const safeRegex = new RegExp(String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-        company = await CompanyInfo.findOne({
-          user: targetUserId,
-          $or: [{ companyName: safeRegex }, { nit: term }],
-        }).lean();
-      }
+      company = await findUserCompanyByTerm(targetUserId, term, { lean: true });
     }
 
     if (!company) {
@@ -670,17 +756,7 @@ router.get('/companies/:id', requireApiKeyOrJwt, async (req, res) => {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const targetId = req.params.id;
 
-    let company = null;
-    if (mongoose.isValidObjectId(targetId)) {
-      company = await CompanyInfo.findOne({ user: targetUserId, _id: targetId }).lean();
-    }
-    if (!company) {
-      const safeRegex = new RegExp(String(targetId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      company = await CompanyInfo.findOne({
-        user: targetUserId,
-        $or: [{ companyName: safeRegex }, { nit: targetId }],
-      }).lean();
-    }
+    const company = await findUserCompanyByTerm(targetUserId, targetId, { lean: true });
 
     if (!company) {
       return res.status(404).json({ error: `Empresa "${targetId}" no encontrada.` });
@@ -5652,17 +5728,14 @@ router.post('/companies', requireApiKeyOrJwt, async (req, res) => {
 
 router.put('/companies/:id', requireApiKeyOrJwt, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const targetId = req.params.id;
     const updates = req.body || {};
 
-    const company = await CompanyInfo.findOne({
-      user: userId,
-      _id: targetId,
-    });
+    const company = await findUserCompanyByTerm(userId, targetId, { lean: false });
 
     if (!company) {
-      return res.status(404).json({ error: `Empresa con ID "${targetId}" no encontrada.` });
+      return res.status(404).json({ error: `Empresa con ID o nombre "${targetId}" no encontrada.` });
     }
 
     Object.assign(company, updates);
@@ -5693,19 +5766,7 @@ router.post(['/companies/:id/activate', '/companies/:id/select', '/companies/act
     }
 
     const targetTerm = String(rawTarget).trim();
-    let company = null;
-
-    if (mongoose.isValidObjectId(targetTerm)) {
-      company = await CompanyInfo.findOne({ user: targetUserId, _id: targetTerm });
-    }
-
-    if (!company) {
-      const safeRegex = new RegExp(targetTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      company = await CompanyInfo.findOne({
-        user: targetUserId,
-        $or: [{ companyName: safeRegex }, { nit: targetTerm }],
-      });
-    }
+    const company = await findUserCompanyByTerm(targetUserId, targetTerm, { lean: false });
 
     if (!company) {
       return res.status(404).json({ error: `Empresa "${targetTerm}" no encontrada entre tus empresas registradas.` });
@@ -8565,17 +8626,24 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       Conversation.findOne({
         user: String(targetUserId),
         title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
-        tags: { $elemMatch: { $regex: /^sgsst-/i } },
-        ...(companyId ? {
-          $or: [
-            { tags: `company:${companyId}` },
-            { tags: { $not: /^company:/ } },
-          ],
-        } : {}),
+        ...(companyId
+          ? {
+              $and: [
+                { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
+                { tags: `company:${companyId}` },
+              ],
+            }
+          : {
+              $and: [
+                { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
+                { tags: { $not: /^company:/ } },
+              ],
+            }),
       }).sort({ updatedAt: -1 }).select('title tags updatedAt').lean().catch(() => null),
       TenshiMessage.findOne({
         user: targetUserId,
-        'file.title': { $exists: true, $nin: ['', 'New Chat', 'new chat'] },
+        ...(companyId ? { companyId } : { companyId: { $in: [null, ''] } }),
+        'file.title': { $exists: true, $ne: '', $nin: ['', 'New Chat', 'new chat'] },
       }).sort({ createdAt: -1 }).select('file.title createdAt').lean().catch(() => null),
       gcalWithTimeout,
     ]);

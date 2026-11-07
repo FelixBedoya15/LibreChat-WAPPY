@@ -1499,16 +1499,13 @@ export default function TenshiChat() {
   }, [isVoiceActive, isOpen, isAuthenticated, token, fetchDailyBriefing]);
 
   useEffect(() => {
-    const onCompanyChanged = (e: Event) => {
-      const detail = (e as CustomEvent)?.detail;
-      const newCompId = detail?.companyId || localStorage.getItem('wappy_active_company_id') || '';
-      fetchDailyBriefing(newCompId);
+    const onReloadSgsst = () => {
+      const currentCompId = localStorage.getItem('wappy_active_company_id') || '';
+      fetchDailyBriefing(currentCompId);
     };
-    window.addEventListener('wappy-empresa-cambiada', onCompanyChanged);
-    window.addEventListener('wappy-reload-sgsst-data', onCompanyChanged);
+    window.addEventListener('wappy-reload-sgsst-data', onReloadSgsst);
     return () => {
-      window.removeEventListener('wappy-empresa-cambiada', onCompanyChanged);
-      window.removeEventListener('wappy-reload-sgsst-data', onCompanyChanged);
+      window.removeEventListener('wappy-reload-sgsst-data', onReloadSgsst);
     };
   }, [fetchDailyBriefing]);
 
@@ -4700,10 +4697,33 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     setIsFullscreen(false);
   }, []);
 
-  const { data: config } = useQuery(
-    ['tenshiConfig', token],
+  const [activeCompanyId, setActiveCompanyId] = useState<string>(() => {
+    try {
+      return typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+    } catch {
+      return '';
+    }
+  });
+
+  const getTenshiUrlWithCompany = useCallback(
+    (baseUrl: string, overrideCompanyId?: string) => {
+      const cid =
+        overrideCompanyId !== undefined
+          ? overrideCompanyId
+          : (typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') : '') ||
+            activeCompanyId ||
+            '';
+      if (!cid) return baseUrl;
+      const sep = baseUrl.includes('?') ? '&' : '?';
+      return `${baseUrl}${sep}companyId=${encodeURIComponent(cid)}`;
+    },
+    [activeCompanyId],
+  );
+
+  const { data: config, refetch: refetchTenshiConfig } = useQuery(
+    ['tenshiConfig', token, activeCompanyId],
     async () => {
-      const res = await axios.get('/api/tenshi/config', {
+      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/config'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       return res.data;
@@ -4725,20 +4745,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       };
       setActiveAvatarProfile(eff);
       try {
-        const prevId = localStorage.getItem('wappy_active_avatar_id');
         localStorage.setItem('wappy_active_avatar_id', eff.avatarId || 'gato');
         localStorage.setItem('wappy_active_avatar_profile', JSON.stringify(eff));
-        if (prevId !== eff.avatarId) {
-          window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
-        }
+        window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
       } catch (_) {}
     }
   }, [config]);
 
   const { data: historyData, refetch: refetchHistory } = useQuery(
-    ['tenshiHistory', token],
+    ['tenshiHistory', token, activeCompanyId],
     async () => {
-      const res = await axios.get('/api/tenshi/history', {
+      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       return res.data;
@@ -4753,6 +4770,80 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   useEffect(() => {
     refetchHistoryRef.current = refetchHistory;
   }, [refetchHistory]);
+
+  // Sincronización reactiva inmediata al cambiar de empresa activa (Historial, Avatar y Briefing Diario)
+  useEffect(() => {
+    const handleCompanySwitch = async (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const newCompId =
+        detail?.companyId ||
+        detail?.empresaId ||
+        (typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') : '') ||
+        '';
+
+      setActiveCompanyId(newCompId);
+
+      // 1. Limpiar los mensajes en memoria al saludo inicial de Tenshi y recargar el historial exclusivo de la nueva empresa
+      setMessages([
+        {
+          role: 'assistant',
+          content:
+            '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+        },
+      ]);
+      queryClient.invalidateQueries(['tenshiHistory']);
+      setTimeout(() => {
+        refetchHistoryRef.current?.();
+      }, 30);
+
+      // 2. Invalidar y volver a consultar /api/tenshi/config para actualizar activeAvatarProfile de la nueva empresa
+      queryClient.invalidateQueries(['tenshiConfig']);
+      queryClient.invalidateQueries(['tenshiUserAvatar']);
+      if (isAuthenticated) {
+        try {
+          const cfgRes = await axios.get(getTenshiUrlWithCompany('/api/tenshi/config', newCompId), {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (cfgRes?.data) {
+            const eff = cfgRes.data.effectiveAvatar || {
+              avatarId: cfgRes.data.defaultAvatarId || 'gato',
+              name: cfgRes.data.name || 'Tenshi',
+              gender: cfgRes.data.defaultGender || 'masculino',
+              voice: cfgRes.data.defaultVoice || 'Puck',
+              personality: cfgRes.data.defaultPersonality || '',
+            };
+            setActiveAvatarProfile(eff);
+            try {
+              localStorage.setItem('wappy_active_avatar_id', eff.avatarId || 'gato');
+              localStorage.setItem('wappy_active_avatar_profile', JSON.stringify(eff));
+              window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
+            } catch (_) {}
+          }
+        } catch (_) {
+          refetchTenshiConfig();
+        }
+      }
+
+      // 3. Actualizar la tarjeta de Briefing Ejecutivo Diario inmediatamente para la nueva empresa activa
+      fetchDailyBriefing(newCompId);
+    };
+
+    window.addEventListener('wappy-company-changed', handleCompanySwitch);
+    window.addEventListener('wappy-company-updated', handleCompanySwitch);
+    window.addEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+    return () => {
+      window.removeEventListener('wappy-company-changed', handleCompanySwitch);
+      window.removeEventListener('wappy-company-updated', handleCompanySwitch);
+      window.removeEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+    };
+  }, [
+    isAuthenticated,
+    token,
+    queryClient,
+    getTenshiUrlWithCompany,
+    refetchTenshiConfig,
+    fetchDailyBriefing,
+  ]);
 
   useEffect(() => {
     if (isOpen) {
@@ -4904,7 +4995,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         });
       } else {
         setMessages((prev) => {
-          const localExtras = prev.filter((m) => m.file || m.htmlReport || m.media || m.image);
+          const nowTs = Date.now();
+          const localExtras = prev.filter(
+            (m: any) =>
+              (m.file || m.htmlReport || m.media || m.image) &&
+              m._localCreatedAt &&
+              nowTs - Number(m._localCreatedAt) <= 8000,
+          );
           if (localExtras.length > 0) return localExtras;
           return [
             {
@@ -4921,7 +5018,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const handleClearHistory = async () => {
     if (!confirm('¿Deseas reiniciar la conversación con Tenshi?')) return;
     try {
-      await axios.delete('/api/tenshi/history', {
+      await axios.delete(getTenshiUrlWithCompany('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setMessages([
@@ -4940,10 +5037,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const handleDeleteMessage = async (msgId: string) => {
     if (!confirm('¿Deseas eliminar este mensaje y el resto de la conversación a partir de este punto?')) return;
     try {
-      await axios.delete(`/api/tenshi/message/${msgId}`, {
+      await axios.delete(getTenshiUrlWithCompany(`/api/tenshi/message/${msgId}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const res = await axios.get('/api/tenshi/history', {
+      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setMessages(res.data.length > 0 ? res.data : [
@@ -4963,13 +5060,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     setEditingMessageId(null);
     setIsTyping(true);
     try {
+      const currentCid =
+        (typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') : '') ||
+        activeCompanyId ||
+        undefined;
       await axios.put(
-        `/api/tenshi/message/${msgId}`,
-        { content: newContent },
+        getTenshiUrlWithCompany(`/api/tenshi/message/${msgId}`),
+        { content: newContent, companyId: currentCid },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
       
-      const res = await axios.get('/api/tenshi/history', {
+      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setMessages(res.data);
@@ -4989,11 +5090,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const handleRegenerate = async (msgId: string) => {
     setIsTyping(true);
     try {
-      await axios.delete(`/api/tenshi/message/${msgId}`, {
+      await axios.delete(getTenshiUrlWithCompany(`/api/tenshi/message/${msgId}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       
-      const res = await axios.get('/api/tenshi/history', {
+      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setMessages(res.data);
@@ -5452,11 +5553,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         };
       });
 
+      const currentActiveCompId =
+        (typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') : '') ||
+        activeCompanyId ||
+        undefined;
+
       const response = await axios.post(
-        '/api/tenshi/chat',
+        getTenshiUrlWithCompany('/api/tenshi/chat'),
         {
           messages: sanitizedMessages,
           browserState: domState,
+          companyId: currentActiveCompId,
           tenshiKey: typeof window !== 'undefined' ? localStorage.getItem('librechat_user_key_tenshi_google') || undefined : undefined,
         },
         {
@@ -5842,7 +5949,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         rawDetails.toLowerCase().includes('timeout')
       ) {
         try {
-          const histRes = await axios.get('/api/tenshi/history', {
+          const histRes = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             timeout: 10000,
           });

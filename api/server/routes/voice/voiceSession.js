@@ -43,6 +43,104 @@ function sanitizeSlug(title) {
         .replace(/\s+/g, '-');
 }
 
+function buildAccentInsensitiveRegex(str) {
+    const clean = String(str || '')
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    const pattern = clean
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/a/gi, '[aáàäâã]')
+        .replace(/e/gi, '[eéèëê]')
+        .replace(/i/gi, '[iíìïî]')
+        .replace(/o/gi, '[oóòöôõ]')
+        .replace(/u/gi, '[uúùüû]')
+        .replace(/n/gi, '[nñ]');
+    return new RegExp(pattern, 'i');
+}
+
+async function findCompanyByTermForUser(targetUserId, term) {
+    if (!targetUserId || !term) return null;
+    const rawTerm = String(term).trim();
+    if (!rawTerm) return null;
+
+    if (mongoose.isValidObjectId(rawTerm)) {
+        const byId = await CompanyInfo.findOne({ user: targetUserId, _id: rawTerm });
+        if (byId) return byId;
+    }
+
+    const accentRegex = buildAccentInsensitiveRegex(rawTerm);
+    const directMatch = await CompanyInfo.findOne({
+        user: targetUserId,
+        $or: [
+            { companyName: accentRegex },
+            { nit: rawTerm },
+            { nit: accentRegex },
+        ],
+    });
+    if (directMatch) return directMatch;
+
+    const norm = (s) =>
+        String(s || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    const stopWords = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'e', 'o', 'en', 'sas', 'ltda', 'sa', 'empresa', 'compania']);
+    const normTerm = norm(rawTerm);
+    const words = normTerm.split(' ').filter((w) => w.length >= 2 && !stopWords.has(w));
+    if (words.length === 0) return null;
+
+    const allCompanies = await CompanyInfo.find({ user: targetUserId });
+    if (!allCompanies || allCompanies.length === 0) return null;
+
+    const fullMatch = allCompanies.find((c) => {
+        const hay = `${norm(c.companyName)} ${norm(c.nit)}`;
+        return words.every((w) => hay.includes(w));
+    });
+    if (fullMatch) return fullMatch;
+
+    let best = null;
+    let bestScore = 0;
+    for (const c of allCompanies) {
+        const hay = `${norm(c.companyName)} ${norm(c.nit)}`;
+        const score = words.filter((w) => hay.includes(w)).length;
+        if (score > bestScore) {
+            bestScore = score;
+            best = c;
+        }
+    }
+    return bestScore > 0 ? best : null;
+}
+
+async function getActiveCompanyForUser(userId) {
+    if (!userId) return null;
+    try {
+        let targetUserId = userId;
+        try {
+            const User = mongoose.models.User || require('~/models/User');
+            const userDoc = await User.findById(userId).select('isSubUser parentUser').lean();
+            if (userDoc?.isSubUser && userDoc?.parentUser) {
+                targetUserId = userDoc.parentUser.toString();
+            }
+        } catch (_) {}
+        return await CompanyInfo.findOne({ user: targetUserId, isActive: true })
+            .select('_id companyName nit')
+            .lean()
+            .catch(() => null);
+    } catch (_) {
+        return null;
+    }
+}
+
+async function resolveActiveCompanyId(userId) {
+    const activeComp = await getActiveCompanyForUser(userId);
+    return activeComp?._id ? String(activeComp._id) : null;
+}
+
 async function findMatchingCourse(query) {
     if (!query || typeof query !== 'string') return null;
     const clean = query.trim();
@@ -3193,20 +3291,26 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     let rawMemories = [];
                     const userIds = [this.userId, targetUserId].filter(Boolean);
 
-                    const [companyInfo, fetchedMemories, recentTenshiMessages, recentTenshiReports] = await Promise.all([
-                        (async () => {
-                            if (this.config.companyId && mongoose.isValidObjectId(this.config.companyId)) {
-                                const byId = await CompanyInfo.findOne({ _id: this.config.companyId, user: targetUserId }).lean().catch(() => null);
-                                if (byId) return byId;
-                            }
-                            return await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
-                                .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null));
-                        })(),
+                    const companyInfo = await (async () => {
+                        if (this.config.companyId && mongoose.isValidObjectId(this.config.companyId)) {
+                            const byId = await CompanyInfo.findOne({ _id: this.config.companyId, user: targetUserId }).lean().catch(() => null);
+                            if (byId) return byId;
+                        }
+                        return await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean().catch(() => null)
+                            .then(async (c) => c || await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null));
+                    })();
+                    const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
+                    this.activeCompanyId = activeCompId;
+
+                    const [fetchedMemories, recentTenshiMessages, recentTenshiReports] = await Promise.all([
                         isMemoryEnabled ? getAllUserMemories(targetUserId).catch(() => []) : Promise.resolve([]),
                         (async () => {
                             try {
                                 const TenshiMessage = require('~/models/TenshiMessage');
-                                return await TenshiMessage.find({ user: { $in: userIds } })
+                                return await TenshiMessage.find({
+                                    user: { $in: userIds },
+                                    ...(activeCompId ? { companyId: activeCompId } : {}),
+                                })
                                     .sort({ createdAt: -1 })
                                     .limit(12)
                                     .select('role content image media file htmlReport createdAt')
@@ -3220,6 +3324,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                 const TenshiMessage = require('~/models/TenshiMessage');
                                 return await TenshiMessage.find({
                                     user: { $in: userIds },
+                                    ...(activeCompId ? { companyId: activeCompId } : {}),
                                     $or: [
                                         { htmlReport: { $exists: true, $nin: [null, ''] } },
                                         { 'file.content': { $exists: true, $nin: [null, ''] } }
@@ -3392,16 +3497,14 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         const { Conversation } = require('~/db/models');
                         const { getCalendarClient } = require('~/server/services/googleCalendar');
                         const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
+                        const activeCompMatch = activeCompId
+                            ? (mongoose.Types.ObjectId.isValid(activeCompId)
+                                ? { $in: [activeCompId, new mongoose.Types.ObjectId(activeCompId)] }
+                                : activeCompId)
+                            : { $in: [null, ''] };
                         const taskScope = {
                             user: targetUserId,
-                            ...(activeCompId ? {
-                                $or: [
-                                    { companyId: activeCompId },
-                                    { companyId: { $exists: false } },
-                                    { companyId: null },
-                                    { companyId: '' },
-                                ],
-                            } : {}),
+                            companyId: activeCompMatch,
                         };
 
                         const now = new Date();
@@ -3486,13 +3589,14 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                             Conversation.findOne({
                                 user: String(targetUserId),
                                 title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
-                                tags: { $elemMatch: { $regex: /^sgsst-/i } },
-                                ...(activeCompId ? {
-                                    $or: [
-                                        { tags: `company:${activeCompId}` },
-                                        { tags: { $not: /^company:/ } },
-                                    ],
-                                } : {}),
+                                ...(activeCompId
+                                    ? {
+                                        $and: [
+                                            { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
+                                            { tags: `company:${activeCompId}` },
+                                        ],
+                                    }
+                                    : { tags: { $elemMatch: { $regex: /^sgsst-/i } } }),
                             }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
                             calendarPromiseWithTimeout,
                         ]);
@@ -3575,7 +3679,11 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                     // ─── MODO DE PERSONALIDAD ADAPTATIVA DE TENSHI (1 CLIC) + AVATAR WAPPY DEL USUARIO ───
                     let effectiveAvatar = null;
                     try {
-                        const resolvedAvatar = await TenshiUserAvatar.resolveEffectiveAvatarProfile(this.userId);
+                        const resolvedAvatar = await TenshiUserAvatar.resolveEffectiveAvatarProfile(
+                            this.userId,
+                            null,
+                            companyInfo?._id ? String(companyInfo._id) : null
+                        );
                         effectiveAvatar = resolvedAvatar?.effective || null;
                         if (effectiveAvatar) {
                             this.config.voice = effectiveAvatar.voice || this.config?.voice || 'Puck';
@@ -4169,8 +4277,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 });
                                 const mdContent = `🎬 **Video generado con Google Flow Studio (Veo 3.1 Lite)**\n\n[🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl}${vidRes.posterUrl ? `?poster=${encodeURIComponent(vidRes.posterUrl)}` : ''})\n\n💾 **Guardado en WAPPY (30 días):** \`${vidRes.publicUrl}\``;
                                 if (this.userId) {
+                                    const activeCompId = await resolveActiveCompanyId(this.userId);
                                     await TenshiMessage.create({
                                         user: this.userId,
+                                        companyId: activeCompId,
                                         role: 'assistant',
                                         content: mdContent,
                                     }).catch(() => {});
@@ -4196,8 +4306,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 });
                                 const mdContent = `✨ **Imagen generada con Google Flow Studio (Nano Banana 2 Lite)**\n\n![${prompt.slice(0, 80)}](${imgRes.publicUrl})\n\n💾 **Guardado en WAPPY (30 días):** \`${imgRes.publicUrl}\``;
                                 if (this.userId) {
+                                    const activeCompId = await resolveActiveCompanyId(this.userId);
                                     await TenshiMessage.create({
                                         user: this.userId,
+                                        companyId: activeCompId,
                                         role: 'assistant',
                                         content: mdContent,
                                     }).catch(() => {});
@@ -4651,21 +4763,13 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 }
                             } catch (uErr) { }
 
-                            let query = { user: targetUserId };
-                            if (mongoose.isValidObjectId(term)) {
-                                query._id = term;
-                            } else {
-                                const safeRegex = new RegExp(String(term || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-                                query.$or = [
-                                    { companyName: safeRegex },
-                                    { nit: term }
-                                ];
-                            }
-                            const found = await CompanyInfo.findOne(query);
+                            const found = await findCompanyByTermForUser(targetUserId, term);
                             if (found) {
                                 await CompanyInfo.updateMany({ user: targetUserId }, { isActive: false });
                                 found.isActive = true;
                                 await found.save();
+                                this.activeCompanyId = String(found._id);
+                                if (this.config) this.config.companyId = String(found._id);
                                 await syncCompanyMemory(targetUserId, found);
                                 logger.info(`[VoiceSession] Activated company "${found.companyName}" (${found._id})`);
 
@@ -4724,16 +4828,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
                             let company = null;
                             if (term) {
-                                if (mongoose.isValidObjectId(term)) {
-                                    company = await CompanyInfo.findOne({ user: targetUserId, _id: term });
-                                }
-                                if (!company) {
-                                    const safeRegex = new RegExp(String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-                                    company = await CompanyInfo.findOne({
-                                        user: targetUserId,
-                                        $or: [{ companyName: safeRegex }, { nit: term }]
-                                    });
-                                }
+                                company = await findCompanyByTermForUser(targetUserId, term);
                             }
                             if (!company) {
                                 company = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
@@ -4876,16 +4971,18 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     if (fc.name === 'wappy_memoria_procedimental') {
                         try {
                             const companyInfo = await getActiveCompanyForUser(this.userId);
+                            const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
                             const memRes = await manageProceduralMemory(
                                 fc.args || {},
                                 this.userId,
-                                companyInfo?._id || null,
+                                activeCompId,
                                 companyInfo?.companyName || '',
                             );
                             if (memRes.widget) {
                                 try {
                                     await TenshiMessage.create({
                                         user: this.userId,
+                                        companyId: activeCompId,
                                         role: 'assistant',
                                         content: `🧠 **Memoria Procedural de Hábitos Operativos**\n${memRes.mensaje || 'Hábitos actualizados.'}`,
                                         source: 'voice',
@@ -4925,8 +5022,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             const widget = buildGenerativeWidgetForTool(fc.name, fc.args || {}, null);
                             if (widget) {
                                 try {
+                                    const activeCompId = await resolveActiveCompanyId(this.userId);
                                     await TenshiMessage.create({
                                         user: this.userId,
+                                        companyId: activeCompId,
                                         role: 'assistant',
                                         content: `✨ **${widget.title || 'Widget Interactivo'}**\n_${widget.subtitle || 'Interactúa directamente en la tarjeta inferior.'}_`,
                                         source: 'voice',
@@ -5259,8 +5358,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             if (qrRes && qrRes.exito) {
                                 try {
                                     const TenshiMessage = require('~/models/TenshiMessage');
+                                    const activeCompId = await resolveActiveCompanyId(this.userId);
                                     await TenshiMessage.create({
                                         user: this.userId,
+                                        companyId: activeCompId,
                                         role: 'assistant',
                                         content: `📱 **Código QR y Enlace Generado**: [${qrRes.titulo}](${qrRes.url})\n\n${qrRes.descripcion}\n\n*${qrRes.instrucciones}*`,
                                         qrCode: qrRes,
@@ -5920,11 +6021,13 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             // Gobernanza Human-in-the-Loop (HITL) — Acciones críticas requieren autorización humana en tarjeta interactiva
                             if (isGovernedTool(targetTool, targetArgs)) {
                                 const companyInfo = await getActiveCompanyForUser(this.userId);
-                                const staged = await stageGovernedAction(targetTool, targetArgs, this.userId, companyInfo?._id || null);
+                                const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
+                                const staged = await stageGovernedAction(targetTool, targetArgs, this.userId, activeCompId);
                                 if (staged.widget) {
                                     try {
                                         await TenshiMessage.create({
                                             user: this.userId,
+                                            companyId: activeCompId,
                                             role: 'assistant',
                                             content: `🛡️ **Control de Gobernanza SG-SST (Aprobación Requerida)**\nHe preparado la solicitud **${staged.widget.title}**: _${staged.widget.subtitle}_.\nPor seguridad, autoriza la operación haciendo clic en **"Autorizar y Ejecutar"** en la tarjeta inferior.`,
                                             source: 'voice',
@@ -5980,8 +6083,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 : null;
                             if (autoWidget) {
                                 try {
+                                    const activeCompId = await resolveActiveCompanyId(this.userId);
                                     await TenshiMessage.create({
                                         user: this.userId,
+                                        companyId: activeCompId,
                                         role: 'assistant',
                                         content: `📊 **${autoWidget.title}** — _${autoWidget.subtitle || 'Vista interactiva en tiempo real'}_`,
                                         source: 'voice',
@@ -6015,8 +6120,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                         `- **7. Skills Cargadas:** ${Array.isArray(ag.skills) && ag.skills.length > 0 ? `${ag.skills.length} skills activas` : 'Estándar'}\n` +
                                         `- **8. Frases Iniciadoras:**\n${startersText}\n` +
                                         `- **9. Subagentes Encadenados:** ${Array.isArray(ag.agent_ids) && ag.agent_ids.length > 0 ? ag.agent_ids.join(', ') : 'Ninguno'}`;
+                                    const activeCompId = await resolveActiveCompanyId(this.userId);
                                     await TenshiMessage.create({
                                         user: this.userId,
+                                        companyId: activeCompId,
                                         role: 'assistant',
                                         content: summaryMd,
                                         source: 'voice',
@@ -6208,7 +6315,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     if (fc.name === 'wappy_buscar_historial_instantaneo') {
                         logger.info(`[VoiceSession] Gemini Live invoked "wappy_buscar_historial_instantaneo" with args:`, JSON.stringify(fc.args));
                         try {
-                            const histRes = await searchInstantHistory(fc.args || {}, this.userId);
+                            const activeCompId = await resolveActiveCompanyId(this.userId);
+                            const histRes = await searchInstantHistory(fc.args || {}, this.userId, activeCompId);
                             if (this.geminiClient) {
                                 this.sendGeminiToolResponse([{
                                     id: fc.id,
@@ -8132,7 +8240,11 @@ Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación 
             if (!dbContext && (this.config?.mode === 'tenshi_voice' || !this.conversationId || this.conversationId === 'new')) {
                 try {
                     const TenshiMessage = require('~/models/TenshiMessage');
-                    const tenshiMsgs = await TenshiMessage.find({ user: this.userId })
+                    const activeCompId = await resolveActiveCompanyId(this.userId);
+                    const tenshiMsgs = await TenshiMessage.find({
+                        user: this.userId,
+                        ...(activeCompId ? { companyId: activeCompId } : {}),
+                    })
                         .sort({ createdAt: -1 })
                         .limit(20)
                         .lean();
@@ -9160,8 +9272,10 @@ ${workerSubHeaderHtml}
                         // 1. Respaldo en Tenshi en su chat (Widget Flotante / TenshiMessage)
                         try {
                             const TenshiMessage = require('~/models/TenshiMessage');
+                            const activeCompId = await resolveActiveCompanyId(this.userId);
                             await TenshiMessage.create({
                                 user: this.userId,
+                                companyId: activeCompId,
                                 role: 'assistant',
                                 content: tenshiReportDesc,
                                 htmlReport: reportHtml,
@@ -10086,9 +10200,11 @@ ${workerSubHeaderHtml}
             try {
                 const TenshiMessage = require('~/models/TenshiMessage');
                 if (this.userId) {
+                    const activeCompId = await resolveActiveCompanyId(this.userId);
                     if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
                         await TenshiMessage.create({
                             user: this.userId,
+                            companyId: activeCompId,
                             role: 'user',
                             content: finalUserText,
                         }).catch(err => logger.error('[VoiceSession] Error saving Tenshi user message:', err));
@@ -10099,6 +10215,7 @@ ${workerSubHeaderHtml}
                     if (currentAiText && currentAiText.trim()) {
                         await TenshiMessage.create({
                             user: this.userId,
+                            companyId: activeCompId,
                             role: 'assistant',
                             content: currentAiText.trim(),
                             file: canvasFileToAttach || undefined,
@@ -10108,6 +10225,7 @@ ${workerSubHeaderHtml}
                         const fileLabel = canvasFileToAttach.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
                         await TenshiMessage.create({
                             user: this.userId,
+                            companyId: activeCompId,
                             role: 'assistant',
                             content: `📁 **${fileLabel} generado**: *${canvasFileToAttach.title}*`,
                             file: canvasFileToAttach,
@@ -10125,6 +10243,7 @@ ${workerSubHeaderHtml}
                             let tenshiConvo = await Conversation.findOne({
                                 user: String(this.userId),
                                 agent_id: TENSHI_AGENT_ID,
+                                ...(activeCompId ? { tags: `company:${activeCompId}` } : {}),
                             }).sort({ updatedAt: -1 });
 
                             const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
@@ -10136,7 +10255,7 @@ ${workerSubHeaderHtml}
                                     title: canvasFileToAttach.title || 'Documento SG-SST',
                                     endpoint: 'agents',
                                     agent_id: TENSHI_AGENT_ID,
-                                    tags: ['tenshi-canvas', 'sgsst'],
+                                    tags: ['tenshi-canvas', 'sgsst', ...(activeCompId ? [`company:${activeCompId}`] : [])],
                                     createdAt: new Date(),
                                     updatedAt: new Date(),
                                 });

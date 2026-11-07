@@ -121,10 +121,21 @@ export default function MemoriaProceduralPanel() {
   const [saving, setSaving] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
-  const fetchRules = async () => {
+  const getActiveCompanyId = () =>
+    typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+
+  const fetchRules = async (forceOrEvent?: boolean | React.MouseEvent) => {
+    const isForceReset = forceOrEvent === true;
+    if (isForceReset) {
+      setRules([]);
+    }
     setLoading(true);
     try {
-      const res = await axios.get('/api/tenshi/procedural-memory?includeInactive=true');
+      const compId = getActiveCompanyId();
+      const qs = compId
+        ? `?includeInactive=true&companyId=${encodeURIComponent(compId)}`
+        : '?includeInactive=true';
+      const res = await axios.get(`/api/tenshi/procedural-memory${qs}`);
       if (Array.isArray(res.data)) {
         setRules(
           res.data.map((r: any) => ({
@@ -138,16 +149,36 @@ export default function MemoriaProceduralPanel() {
             updatedAt: r.updatedAt,
           })),
         );
+      } else {
+        setRules([]);
       }
     } catch (err) {
       console.error('[MemoriaProceduralPanel] Error cargando reglas:', err);
+      if (isForceReset) setRules([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchHabits = (force: boolean = false) => fetchRules(force);
+
   useEffect(() => {
-    fetchRules();
+    fetchHabits(false);
+
+    const handleCompanySwitch = () => {
+      setIsFormOpen(false);
+      setEditingRuleId(null);
+      fetchHabits(true);
+    };
+
+    window.addEventListener('wappy-company-changed', handleCompanySwitch);
+    window.addEventListener('wappy-company-updated', handleCompanySwitch);
+    window.addEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+    return () => {
+      window.removeEventListener('wappy-company-changed', handleCompanySwitch);
+      window.removeEventListener('wappy-company-updated', handleCompanySwitch);
+      window.removeEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -182,11 +213,13 @@ export default function MemoriaProceduralPanel() {
     if (!formTrigger.trim() || !formRule.trim() || saving) return;
     setSaving(true);
     try {
+      const compId = getActiveCompanyId() || undefined;
       if (editingRuleId) {
         const res = await axios.put(`/api/tenshi/procedural-memory/${editingRuleId}`, {
           category: formCategory,
           trigger: formTrigger.trim(),
           rule: formRule.trim(),
+          companyId: compId,
         });
         if (res.data?.item) {
           setRules((prev) =>
@@ -201,6 +234,7 @@ export default function MemoriaProceduralPanel() {
           category: formCategory,
           trigger: formTrigger.trim(),
           rule: formRule.trim(),
+          companyId: compId,
         });
         await fetchRules();
         showToast('Nueva regla guardada y activa en Tenshi y Agentes IA');
@@ -222,8 +256,10 @@ export default function MemoriaProceduralPanel() {
       prev.map((r) => (r.id === item.id ? { ...r, isActive: nextState } : r)),
     );
     try {
+      const compId = getActiveCompanyId() || undefined;
       await axios.put(`/api/tenshi/procedural-memory/${item.id}`, {
         isActive: nextState,
+        companyId: compId,
       });
       showToast(
         nextState
@@ -241,7 +277,9 @@ export default function MemoriaProceduralPanel() {
     const prevRules = [...rules];
     setRules((prev) => prev.filter((r) => r.id !== id));
     try {
-      await axios.delete(`/api/tenshi/procedural-memory/${id}`);
+      const compId = getActiveCompanyId();
+      const qs = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      await axios.delete(`/api/tenshi/procedural-memory/${id}${qs}`);
       showToast('Regla eliminada de la Memoria Procedural');
     } catch (err) {
       setRules(prevRules);
@@ -256,10 +294,12 @@ export default function MemoriaProceduralPanel() {
   }) => {
     setSaving(true);
     try {
+      const compId = getActiveCompanyId() || undefined;
       await axios.post('/api/tenshi/procedural-memory', {
         category: preset.category,
         trigger: preset.trigger,
         rule: preset.rule,
+        companyId: compId,
       });
       await fetchRules();
       showToast(`Plantilla "${preset.title}" activada en Tenshi`);

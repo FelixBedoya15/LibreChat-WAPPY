@@ -220,7 +220,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const fetchAutomations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/sgsst/automatizaciones');
+      const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      const res = await axios.get(`/api/sgsst/automatizaciones${q}`);
       setAutomations(res.data || []);
     } catch (err: any) {
       showToast({
@@ -236,7 +238,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const fetchPresets = useCallback(async () => {
     setPresetsLoading(true);
     try {
-      const res = await axios.get('/api/sgsst/automatizaciones/presets');
+      const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      const res = await axios.get(`/api/sgsst/automatizaciones/presets${q}`);
       setPresets(res.data || []);
     } catch (err: any) {
       showToast({
@@ -252,7 +256,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const fetchLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
-      const res = await axios.get('/api/sgsst/automatizaciones/logs');
+      const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      const res = await axios.get(`/api/sgsst/automatizaciones/logs${q}`);
       setLogs(res.data || []);
     } catch (err: any) {
       showToast({
@@ -297,27 +303,38 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     loadPlanLimit();
   }, [fetchAutomations, fetchPresets, loadPlanLimit]);
 
-  // Refresco silencioso en tiempo real cuando Tenshi o un agente crea/activa/desactiva/edita/elimina tareas
+  // Refresco silencioso en tiempo real cuando Tenshi o un agente crea/activa/desactiva/edita/elimina tareas o se cambia de empresa
   useEffect(() => {
     const handleSilentReload = async () => {
       try {
-        const res = await axios.get('/api/sgsst/automatizaciones');
-        setAutomations(res.data || []);
-        if (activeTab === 'logs') {
-          const logsRes = await axios.get('/api/sgsst/automatizaciones/logs');
-          setLogs(logsRes.data || []);
-        } else if (activeTab === 'presets') {
-          const presetsRes = await axios.get('/api/sgsst/automatizaciones/presets');
-          setPresets(presetsRes.data || []);
+        const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+        const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+        const [autoRes, logsRes, presetsRes] = await Promise.allSettled([
+          axios.get(`/api/sgsst/automatizaciones${q}`),
+          axios.get(`/api/sgsst/automatizaciones/logs${q}`),
+          axios.get(`/api/sgsst/automatizaciones/presets${q}`),
+        ]);
+        if (autoRes.status === 'fulfilled') {
+          setAutomations(autoRes.value.data || []);
+        }
+        if (logsRes.status === 'fulfilled') {
+          setLogs(logsRes.value.data || []);
+        }
+        if (presetsRes.status === 'fulfilled') {
+          setPresets(presetsRes.value.data || []);
         }
       } catch (_) {}
     };
     window.addEventListener('wappy-reload-sgsst-data', handleSilentReload);
     window.addEventListener('wappy-empresa-cambiada', handleSilentReload);
+    window.addEventListener('wappy-company-changed', handleSilentReload);
+    window.addEventListener('wappy-company-updated', handleSilentReload);
     window.addEventListener('wappy-automatizaciones-updated', handleSilentReload);
     return () => {
       window.removeEventListener('wappy-reload-sgsst-data', handleSilentReload);
       window.removeEventListener('wappy-empresa-cambiada', handleSilentReload);
+      window.removeEventListener('wappy-company-changed', handleSilentReload);
+      window.removeEventListener('wappy-company-updated', handleSilentReload);
       window.removeEventListener('wappy-automatizaciones-updated', handleSilentReload);
     };
   }, [activeTab]);

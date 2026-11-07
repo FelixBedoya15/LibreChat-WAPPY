@@ -416,9 +416,18 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const isLocked = !isProOrAdmin;
 
   // Fetch tasks
-  const fetchTasks = async (force: boolean = false) => {
+  const fetchTasks = async (force: boolean = false, clearPrev: boolean = false) => {
+    if (clearPrev) {
+      setTasks([]);
+      setIsLoading(true);
+    }
     try {
-      const url = force ? '/api/sgsst/kanban/data?force=true' : '/api/sgsst/kanban/data';
+      const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const params = new URLSearchParams();
+      if (force) params.set('force', 'true');
+      if (compId) params.set('companyId', compId);
+      const qs = params.toString();
+      const url = qs ? `/api/sgsst/kanban/data?${qs}` : '/api/sgsst/kanban/data';
       const res = await axios.get(url, { timeout: 15000 });
       if (Array.isArray(res.data)) {
         setTasks(res.data);
@@ -433,10 +442,14 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           status: 'error',
         });
       }
-      setTasks(prev => (Array.isArray(prev) ? prev : []));
+      setTasks(prev => (clearPrev ? [] : Array.isArray(prev) ? prev : []));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadKanbanData = (clearPrev: boolean = true) => {
+    return fetchTasks(true, clearPrev);
   };
 
   useEffect(() => {
@@ -446,12 +459,26 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       fetchTasks(true);
     };
 
+    const handleCompanySwitch = () => {
+      setEditingTask(null);
+      setIsModalOpen(false);
+      loadKanbanData(true);
+    };
+
     window.addEventListener('wappy-refresh-kanban', handleWappyRefresh);
     window.addEventListener('wappy-refresh-calendar', handleWappyRefresh);
+    window.addEventListener('wappy-company-changed', handleCompanySwitch);
+    window.addEventListener('wappy-company-updated', handleCompanySwitch);
+    window.addEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+    window.addEventListener('wappy-reload-sgsst-data', handleWappyRefresh);
 
     return () => {
       window.removeEventListener('wappy-refresh-kanban', handleWappyRefresh);
       window.removeEventListener('wappy-refresh-calendar', handleWappyRefresh);
+      window.removeEventListener('wappy-company-changed', handleCompanySwitch);
+      window.removeEventListener('wappy-company-updated', handleCompanySwitch);
+      window.removeEventListener('wappy-empresa-cambiada', handleCompanySwitch);
+      window.removeEventListener('wappy-reload-sgsst-data', handleWappyRefresh);
     };
   }, []);
 
