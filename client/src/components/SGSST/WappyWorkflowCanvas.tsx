@@ -74,6 +74,8 @@ import {
   normalizeTriggersList,
   normalizeExtractorsList,
   normalizeMemoriesList,
+  WAPPY_AGENT_AVATAR_ROTATION,
+  getRotatedAgentAvatar,
   type WorkflowNodesConfig,
   type CanvasNodePosition,
   type CanvasWireEdge,
@@ -405,7 +407,30 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     return <Puzzle className={`${sizeClass} text-violet-600 dark:text-violet-400`} />;
   }
   if (id.includes('subagent')) {
-    return <Bot className={`${sizeClass} text-indigo-600 dark:text-indigo-400`} />;
+    const subAvatars = [
+      '/assets/tenshi_suricato.png',
+      '/assets/tenshi_perro.png',
+      '/assets/tenshi_paloma.png',
+      '/assets/tenshi_capibara.png',
+    ];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    const avatarUrl = id.includes('auditor')
+      ? '/assets/tenshi_suricato.png'
+      : id.includes('medico')
+        ? '/assets/tenshi_perro.png'
+        : id.includes('redactor')
+          ? '/assets/tenshi_paloma.png'
+          : subAvatars[hash % subAvatars.length];
+    return (
+      <img
+        src={avatarUrl}
+        alt="Sub-Agente WAPPY"
+        className={`${sizeClass} object-contain drop-shadow-sm select-none pointer-events-none scale-125`}
+      />
+    );
   }
   if (id.includes('rule') || id.includes('regla')) {
     return <Scale className={`${sizeClass} text-emerald-600 dark:text-emerald-400`} />;
@@ -3792,17 +3817,22 @@ export default function WappyWorkflowCanvas({
               );
             }
 
-            // 2. ETAPA 3: FIGURA AGENTE IA (Principal o Agente IA #2/#3 con Segundo Prompt y opción de Tenshi Avatar 3D)
+            // 2. ETAPA 3: FIGURA AGENTE IA (Principal con Tenshi 3D + Sub-Agentes #2/#3/#4 rotando Avatares Suri, Max, Paz, Capi)
             if (node.shape === 'agent') {
               const isExtraAgent = node.key.startsWith('agent_extra_');
-              const extraConfig = isExtraAgent
-                ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === node.key)
-                : null;
+              const extraAgentsArr = workflowNodes?.canvasLayout?.extraAgents || [];
+              const extraIdx = isExtraAgent
+                ? Math.max(0, extraAgentsArr.findIndex((ea) => ea.key === node.key))
+                : -1;
+              const extraConfig = isExtraAgent ? extraAgentsArr[extraIdx] || null : null;
               const currentSelectedAgentId = isExtraAgent
                 ? extraConfig?.agentId || ''
                 : agentId || '';
-              const isTenshiAvatarSelected =
-                currentSelectedAgentId === 'tenshi_avatar_orchestrator';
+              // Rotación automática de Avatares 3D: Principal = Tenshi (Gato), #2 = Suri (Suricato), #3 = Max (Perro), #4 = Paz (Paloma), #5 = Capi (Capibara)
+              const rotatedAvatar = getRotatedAgentAvatar(
+                isExtraAgent ? extraIdx + 1 : 0,
+                nodeCfg?.avatarSrc,
+              );
 
               return (
                 <div
@@ -3810,7 +3840,7 @@ export default function WappyWorkflowCanvas({
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
                   onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  title="Haz clic sobre este Agente IA para editar su Prompt, Modelo de IA y Contexto de Entrada/Salida"
+                  title="Haz clic sobre este Agente IA para editar su Prompt, Modelo de IA, Avatar 3D y Contexto de Entrada/Salida"
                   className={`absolute z-20 group/node select-none ${
                     readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                   }`}
@@ -3835,17 +3865,16 @@ export default function WappyWorkflowCanvas({
                       </button>
                     )}
 
-                    {/* Icono del Agente: Avatar 3D de Tenshi si se elige Tenshi Avatar, o icono de Agente Especialista */}
-                    <div className="w-11 h-11 rounded-xl bg-slate-900 dark:bg-purple-950/80 text-white dark:text-[#C7F303] flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
-                      {isTenshiAvatarSelected ? (
-                        <img
-                          src="/assets/tenshi-avatar.png"
-                          alt="Tenshi Avatar"
-                          className="w-10 h-10 object-contain drop-shadow-sm"
-                        />
-                      ) : (
-                        <Bot className="w-6 h-6" />
-                      )}
+                    {/* Icono del Agente: Avatar 3D Oficial de Tenshi en el Principal y Rotación Automática en los Sub-Agentes */}
+                    <div
+                      title={`Avatar 3D: ${rotatedAvatar.name}`}
+                      className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-slate-900 dark:to-purple-950/90 border border-emerald-200/80 dark:border-purple-800/70 flex items-center justify-center shrink-0 shadow-sm overflow-hidden"
+                    >
+                      <img
+                        src={rotatedAvatar.src}
+                        alt={rotatedAvatar.name}
+                        className="w-10 h-10 object-contain drop-shadow-sm select-none pointer-events-none scale-115"
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
@@ -3853,7 +3882,7 @@ export default function WappyWorkflowCanvas({
                           {node.title}
                         </span>
                         <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 whitespace-nowrap">
-                          {isExtraAgent ? '2do Prompt' : 'Principal'}
+                          {isExtraAgent ? `${rotatedAvatar.animal} · #${extraIdx + 2}` : 'Principal'}
                         </span>
                       </div>
 

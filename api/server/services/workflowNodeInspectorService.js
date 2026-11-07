@@ -2737,6 +2737,8 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
   }
 
   if (canonicalId === 'wappy_memory_procedural') {
+    const fs = require('fs');
+    const path = require('path');
     const TenshiProceduralMemory = getSafeModel('TenshiProceduralMemory', null, '~/models/TenshiProceduralMemory');
     const procDocs = await findManyCompanyDocs(TenshiProceduralMemory, userId, company, { updatedAt: -1 }, 30);
     const riskLvl = String(company?.riskLevel || 'I').toUpperCase();
@@ -2748,43 +2750,91 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
           ? 'Capítulo II (21 Estándares Mínimos — 11 a 50 trabajadores Riesgo I-III)'
           : 'Capítulo III (60 Estándares Mínimos — >50 trabajadores o Riesgo IV-V)';
 
+    // Cargar todas las normas en Markdown (.md) de la Base de Datos Normativa de Tenshi
+    const candidateRoots = [
+      '/app/uploads',
+      path.resolve(__dirname, '../../../uploads'),
+      path.resolve(process.cwd(), 'uploads'),
+    ];
+    const mdNormRecords = [];
+    const seenMdNames = new Set();
+
+    for (const rootDir of candidateRoots) {
+      if (!fs.existsSync(rootDir)) continue;
+      let subdirs = [];
+      try {
+        subdirs = fs.readdirSync(rootDir, { withFileTypes: true });
+      } catch (_) {
+        continue;
+      }
+      for (const entry of subdirs) {
+        if (!entry.isDirectory()) continue;
+        const fullSubPath = path.join(rootDir, entry.name);
+        let files = [];
+        try {
+          files = fs.readdirSync(fullSubPath);
+        } catch (_) {
+          continue;
+        }
+        for (const f of files.sort()) {
+          if (!f.toLowerCase().endsWith('.md')) continue;
+          const cleanId = f.replace(/^[0-9a-f-]{36}__/i, '').replace(/\.md$/i, '');
+          if (seenMdNames.has(cleanId)) continue;
+          seenMdNames.add(cleanId);
+
+          let rawExcerpt = '';
+          let sizeKb = 1;
+          try {
+            const fullFile = path.join(fullSubPath, f);
+            const st = fs.statSync(fullFile);
+            sizeKb = Math.max(1, Math.round(st.size / 1024));
+            const raw = fs.readFileSync(fullFile, 'utf8').slice(0, 1200);
+            rawExcerpt = raw
+              .split(/\r?\n/)
+              .map((l) => l.replace(/^#+\s*/, '').replace(/\*\*/g, '').trim())
+              .filter((l) => l.length > 18)
+              .slice(0, 2)
+              .join(' — ')
+              .slice(0, 240);
+          } catch (_) {}
+
+          const prettyTitle = cleanId.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+          const low = cleanId.toLowerCase();
+          let badge = 'NORMA .MD';
+          let badgeTone = 'teal';
+          if (low.includes('vademecum') || low.includes('2025') || low.includes('2026')) {
+            badge = 'VIGENTE 2025-2026';
+            badgeTone = 'emerald';
+          } else if (low.includes('bateria') || low.includes('protocolo') || low.includes('psicosocial')) {
+            badge = 'PSICOSOCIAL .MD';
+            badgeTone = 'purple';
+          } else if (low.includes('sentencia') || low.includes('circular')) {
+            badge = 'JURISPRUDENCIA .MD';
+            badgeTone = 'amber';
+          } else if (low.includes('sustantivo') || low.includes('sustentivo')) {
+            badge = 'CST .MD';
+            badgeTone = 'indigo';
+          }
+
+          mdNormRecords.push({
+            id: cleanId,
+            label: `📘 ${prettyTitle}`,
+            sublabel: `${cleanId}.md (${sizeKb} KB) • ${rawExcerpt || 'Base de Datos Normativa Markdown de Tenshi'}`,
+            badge,
+            badgeTone,
+            isCritical: false,
+            fields: {
+              'Documento Normativo Markdown (.md)': prettyTitle,
+              'Archivo Fuente Tenshi RAG': `${cleanId}.md (${sizeKb} KB)`,
+              'Extracto / Alcance Legal': rawExcerpt || 'Norma oficial en Markdown indexada en Tenshi RAG',
+            },
+          });
+        }
+      }
+    }
+
     const baseNorms = [
-      {
-        id: 'norm_0312',
-        label: `Resolución 0312 de 2019 · ${estandaresChapter}`,
-        sublabel: `Aplica a ${company?.companyName || 'la empresa'} (${workersN} trab. · Riesgo ARL ${riskLvl} · CIIU ${company?.ciiu || 'N/A'})`,
-        badge: 'OBLIGATORIA',
-        badgeTone: 'teal',
-        isCritical: false,
-        fields: {
-          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': `Resolución 0312 de 2019 — ${estandaresChapter}`,
-          'Criterio de Aplicabilidad': `Trabajadores: ${workersN} | Clase de Riesgo ARL: ${riskLvl} (${company?.arl || 'ARL'})`,
-        },
-      },
-      {
-        id: 'norm_1072',
-        label: 'Decreto 1072 de 2015 (Libro 2, Parte 2, Título 4, Capítulo 6) · Decreto Único Reglamentario SG-SST',
-        sublabel: 'Ciclo PHVA, Política, Matriz Legal, IPEVR GTC-45, Auditoría Anual y Revisión por la Alta Dirección',
-        badge: 'DEC. 1072',
-        badgeTone: 'emerald',
-        isCritical: false,
-        fields: {
-          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': 'Decreto 1072 de 2015 Art. 2.2.4.6.1 al 2.2.4.6.37',
-          'Criterio de Aplicabilidad': `Comité: ${workersN < 10 ? 'Vigía SST (<10 trab.)' : 'COPASST Paritario (≥10 trab.)'}`,
-        },
-      },
-      {
-        id: 'norm_gtc45_2764',
-        label: 'GTC-45 (2012) + Resolución 2764 de 2022 (Batería Riesgo Psicosocial) + Decreto 1496 de 2018 (SGA)',
-        sublabel: 'Metodología de valoración de peligros, batería psicosocial, PESV Res. 40595 y etiquetado químico SGA',
-        badge: 'TÉCNICA SST',
-        badgeTone: 'indigo',
-        isCritical: false,
-        fields: {
-          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': 'GTC-45 + Res. 2764/2022 + Res. 4272/2021 + Dec. 1496/2018',
-          'Criterio de Aplicabilidad': `Actividad: ${company?.economicActivity || 'General'}`,
-        },
-      },
+      ...mdNormRecords,
       ...procDocs.map((pm, idx) => ({
         id: String(pm._id || `pm_${idx}`),
         label: `[Regla Aprendida] ${pm.title || pm.category || `Regla #${idx + 1}`}`,
@@ -2793,18 +2843,20 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
         badgeTone: 'purple',
         isCritical: false,
         fields: {
-          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': pm.rule || pm.content || '',
+          'Documento Normativo Markdown (.md)': pm.title || pm.trigger || `Regla #${idx + 1}`,
+          'Archivo Fuente Tenshi RAG': 'TenshiProceduralMemory (MongoDB)',
+          'Extracto / Alcance Legal': pm.rule || pm.content || '',
         },
       })),
     ];
 
     return {
-      moduleTitle: 'Equipo 4 · Memoria Normativa y Procedural Aplicable a la Empresa',
-      sourceCollection: 'CompanyInfo + TenshiProceduralMemory',
+      moduleTitle: `Equipo 4 · Base de Datos Normativa Markdown de Tenshi (${mdNormRecords.length} Normas .md)`,
+      sourceCollection: 'Tenshi Normative Markdown DB (/uploads/*.md) + TenshiProceduralMemory',
       kpis: [
+        { label: 'Normas Markdown (.md)', value: `${mdNormRecords.length} archivos .md`, tone: 'emerald' },
         { label: 'Riesgo ARL / Nómina', value: `Riesgo ${riskLvl} · ${workersN} trab.`, tone: 'teal' },
-        { label: 'Estándares Res. 0312', value: estandaresChapter.split(' (')[0], tone: 'emerald' },
-        { label: 'Órgano Paritario', value: workersN < 10 ? 'Vigía SST' : 'COPASST', tone: 'indigo' },
+        { label: 'Estándares Res. 0312', value: estandaresChapter.split(' (')[0], tone: 'indigo' },
         { label: 'Reglas Aprendidas', value: procDocs.length, tone: 'purple' },
       ],
       records: baseNorms,
@@ -3173,10 +3225,12 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
       if (
         !canonical.startsWith('hito') &&
         canonical !== 'tool_sst_company' &&
+        canonical !== 'wappy_memory_procedural' &&
         rawNodeId !== 'extract_sst_workers' &&
         rawNodeId !== 'extract_sst_app' &&
         rawNodeId !== 'somos_sst_trabajadores' &&
-        rawNodeId !== 'somos_sst_empresa'
+        rawNodeId !== 'somos_sst_empresa' &&
+        rawNodeId !== 'wappy_memory_procedural'
       ) {
         return;
       }
@@ -3187,6 +3241,7 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
         nodeConfigs[`tool_hitos_${rawNodeId}`] ||
         nodeConfigs[`ext_${rawNodeId}`] ||
         nodeConfigs[`tool_inputs_${rawNodeId}`] ||
+        nodeConfigs[`sub_memory_${rawNodeId}`] ||
         {};
       const dedupKey = `${canonical}::${rawKey}`;
       if (seenCanonical.has(dedupKey)) return;
@@ -3197,6 +3252,7 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
     for (const extId of wf.extractors || []) pushCandidate(`ext_${extId}`, extId);
     for (const inId of wf.inputs || []) pushCandidate(`tool_inputs_${inId}`, inId);
     for (const hitoId of wf.hitos || []) pushCandidate(`tool_hitos_${hitoId}`, hitoId);
+    for (const memId of wf.memories || []) pushCandidate(`sub_memory_${memId}`, memId);
     for (const [k, v] of Object.entries(nodeConfigs)) {
       if (v && typeof v === 'object') pushCandidate(k, k);
     }

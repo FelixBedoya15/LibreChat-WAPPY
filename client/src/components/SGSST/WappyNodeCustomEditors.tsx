@@ -41,11 +41,17 @@ import ExpandableButton from '~/components/Common/ExpandableButton';
 import {
   AI_ENGINE_MODELS,
   SKILL_RULE_SUBAGENT_NODES,
+  WAPPY_AGENT_AVATAR_ROTATION,
+  getRotatedAgentAvatar,
   getNodeModuleMetadata,
   type CanvasNodeConfig,
   type CanvasExtraAgentNode,
   type CanvasCustomUserNode,
 } from './workflowNodesCatalog';
+import {
+  TENSHI_NORMATIVE_MARKDOWN_DOCS,
+  TENSHI_NORMATIVE_CATEGORIES,
+} from './tenshiNormativeMarkdownCatalog';
 
 export interface LiveInspectorPayload {
   loading: boolean;
@@ -277,6 +283,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   const [customFieldInput, setCustomFieldInput] = useState('');
   const [liveRecordSearch, setLiveRecordSearch] = useState('');
   const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [normativeCategoryFilter, setNormativeCategoryFilter] = useState<string>('all');
+  const [normativeSearchQuery, setNormativeSearchQuery] = useState<string>('');
 
   const rawId = (activeNode.nodeId || '').trim();
   const cleanId = rawId.replace(
@@ -1320,6 +1328,55 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         </div>
 
+        {/* Selector Visual de Avatar 3D del Agente (Tenshi en Principal, Rotación Automática en Sub-Agentes) */}
+        <div className="p-3 rounded-2xl border border-emerald-200 dark:border-slate-700 bg-emerald-50/30 dark:bg-slate-900/50 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-teal-800 dark:text-[#C7F303]">
+              🐾 Avatar 3D de este Agente en el Lienzo (Rotación automática por Sub-Agente)
+            </span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              Principal: Tenshi (Gato) · #2: Suri (Suricato) · #3: Max (Perro) · #4: Paz (Paloma) · #5: Capi (Capibara)
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {WAPPY_AGENT_AVATAR_ROTATION.slice(0, 5).map((av, idx) => {
+              const defaultAvatar = getRotatedAgentAvatar(
+                isExtraAgent
+                  ? Math.max(1, parseInt(activeNode.key.replace(/\D+/g, ''), 10) || 1)
+                  : 0,
+                currentCfg.avatarSrc,
+              );
+              const isSelectedAv = defaultAvatar.src === av.src;
+              return (
+                <button
+                  key={av.id}
+                  type="button"
+                  onClick={() => onUpdateNodeConfig(activeNode.key, { avatarSrc: av.src })}
+                  className={`p-2 rounded-xl border-2 flex items-center gap-2 text-left transition ${
+                    isSelectedAv
+                      ? 'bg-white dark:bg-slate-800 border-teal-500 dark:border-[#C7F303] shadow-xs ring-1 ring-teal-500/20'
+                      : 'bg-white/70 dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-teal-400'
+                  }`}
+                >
+                  <img
+                    src={av.src}
+                    alt={av.name}
+                    className="w-9 h-9 object-contain shrink-0 drop-shadow-xs"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-extrabold text-slate-900 dark:text-white truncate">
+                      {av.name}
+                    </div>
+                    <div className="text-[9.5px] font-bold text-teal-600 dark:text-teal-400 truncate">
+                      {idx === 0 ? 'Principal' : `Sub-Agente #${idx}`}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Editor Principal del Prompt de este Agente (Reemplaza el bloque suelto de la Imagen 3) */}
         <div className="p-3.5 rounded-2xl bg-purple-50/40 dark:bg-slate-800/60 border border-purple-200 dark:border-slate-700 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1576,49 +1633,230 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       );
     }
 
-    // 4.3 MEMORIA NORMATIVA SST COLOMBIANA
+    // 4.3 MEMORIA NORMATIVA SST COLOMBIANA (100 DOCUMENTOS .MD DE LA BASE DE DATOS NORMATIVA DE TENSHI)
     if (cleanId.includes('procedural')) {
       const selectedNorms = currentCfg.legalStandards || [
-        'Decreto 1072 de 2015',
-        'Resolución 0312 de 2019',
+        'VADEMECUM_MAESTRO_SST_COLOMBIA_2026',
+        'Decreto_1072_de_2015_Por_medio_del_cual_se_expide_el_Decreto__nico_Reglamentario_del_Sector_Trabajo',
+        'Resoluci_n_312_de_2019_Estandares_minimos_en_Seguridad_y_Salud_en_el_Trabajo',
+        'Resoluci_n_1843_DE_2025_Por_la_cual_se_regula_la_pr_ctica_de_evaluaciones_m_dicas_ocupacionales__y_se_dictan_otras_disposiciones',
       ];
+
+      const filteredNormativeDocs = TENSHI_NORMATIVE_MARKDOWN_DOCS.filter((doc) => {
+        const matchCat =
+          normativeCategoryFilter === 'all' || doc.category === normativeCategoryFilter;
+        if (!matchCat) return false;
+        if (!normativeSearchQuery.trim()) return true;
+        const q = normativeSearchQuery.toLowerCase().trim();
+        return (
+          doc.title.toLowerCase().includes(q) ||
+          doc.fileName.toLowerCase().includes(q) ||
+          doc.summary.toLowerCase().includes(q) ||
+          doc.categoryLabel.toLowerCase().includes(q)
+        );
+      });
+
+      const selectNormativeCombo = (ids: string[]) => {
+        onUpdateNodeConfig(activeNode.key, {
+          legalStandards: ids,
+          selectedRecordIds: ids,
+          recordFilterMode: 'selected',
+        });
+      };
+
       return (
-        <div className="space-y-3">
-          <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200">
-            ⚖️ Selecciona qué Normas Colombianas debe aplicar y citar obligatoriamente el Agente:
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-            {COLOMBIAN_LEGAL_STANDARDS.map((std) => {
-              const active = selectedNorms.includes(std.id);
+        <div className="space-y-3.5">
+          {/* Cabecera y Combos Rápidos de la Base de Datos Normativa Markdown de Tenshi */}
+          <div className="p-3.5 rounded-2xl border border-pink-200 dark:border-slate-700 bg-pink-50/30 dark:bg-slate-800/50 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Scale className="w-4 h-4 text-pink-600 dark:text-[#C7F303]" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                  Base de Datos Normativa en Markdown de Tenshi ({TENSHI_NORMATIVE_MARKDOWN_DOCS.length} Archivos .MD Oficiales)
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-pink-600 text-white">
+                  {selectedNorms.length} normas activas
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ExpandableButton
+                  size="sm"
+                  variant="emerald"
+                  alwaysExpanded
+                  icon={<Check className="w-3.5 h-3.5" />}
+                  label={`Todas (${TENSHI_NORMATIVE_MARKDOWN_DOCS.length} .md)`}
+                  onClick={() =>
+                    selectNormativeCombo(TENSHI_NORMATIVE_MARKDOWN_DOCS.map((d) => d.id))
+                  }
+                />
+                <ExpandableButton
+                  size="sm"
+                  variant="teal"
+                  alwaysExpanded
+                  icon={<Sparkles className="w-3.5 h-3.5" />}
+                  label="Vademécum + Vigentes 2024–2026"
+                  onClick={() =>
+                    selectNormativeCombo(
+                      TENSHI_NORMATIVE_MARKDOWN_DOCS.filter(
+                        (d) =>
+                          d.category === 'vademecum_2026' ||
+                          d.category === 'sentencias_circulares',
+                      ).map((d) => d.id),
+                    )
+                  }
+                />
+                <ExpandableButton
+                  size="sm"
+                  variant="purple"
+                  alwaysExpanded
+                  icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                  label="Núcleo SG-SST (1072, 0312, 1843, 4272, PESV)"
+                  onClick={() =>
+                    selectNormativeCombo([
+                      'VADEMECUM_MAESTRO_SST_COLOMBIA_2026',
+                      'Decreto_1072_de_2015_Por_medio_del_cual_se_expide_el_Decreto__nico_Reglamentario_del_Sector_Trabajo',
+                      'Resoluci_n_312_de_2019_Estandares_minimos_en_Seguridad_y_Salud_en_el_Trabajo',
+                      'Resoluci_n_1843_DE_2025_Por_la_cual_se_regula_la_pr_ctica_de_evaluaciones_m_dicas_ocupacionales__y_se_dictan_otras_disposiciones',
+                      'Resoluci_n_3461_de_2025_Por_el_cual_se_derroga_las_Resoluciones_652_y_1356_de_2012._Comit__de_Convivencia_Laboral',
+                      'Resoluci_n_4272_de_2021_Por_la_cual_se_establecen_',
+                      'Resoluci_n_40595_de_2022_Implementacion_PESV',
+                      'Decreto_1496_de_2018_Por_el_cual_se_adopta_el_Sist',
+                      'Resoluci_n_2764_de_2022_Por_la_cual_se_adopta_la_Bater_a_de_instrumentos_para_la_evaluaci_n_de_factores_de_Riesgo_Psicosocial',
+                    ])
+                  }
+                />
+                <ExpandableButton
+                  size="sm"
+                  variant="indigo"
+                  alwaysExpanded
+                  icon={<BookOpen className="w-3.5 h-3.5" />}
+                  label="Batería y 14 Protocolos Psicosociales"
+                  onClick={() =>
+                    selectNormativeCombo(
+                      TENSHI_NORMATIVE_MARKDOWN_DOCS.filter(
+                        (d) => d.category === 'psicosocial_protocolos',
+                      ).map((d) => d.id),
+                    )
+                  }
+                />
+                {selectedNorms.length > 0 && (
+                  <ExpandableButton
+                    size="sm"
+                    variant="rose"
+                    alwaysExpanded
+                    icon={<Trash2 className="w-3.5 h-3.5" />}
+                    label="Limpiar"
+                    onClick={() => selectNormativeCombo([])}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Pestañas de Categoría Normativa + Buscador */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div className="flex flex-wrap gap-1.5">
+                {TENSHI_NORMATIVE_CATEGORIES.map((cat) => {
+                  const isAct = normativeCategoryFilter === cat.id;
+                  const countInCat =
+                    cat.id === 'all'
+                      ? TENSHI_NORMATIVE_MARKDOWN_DOCS.length
+                      : TENSHI_NORMATIVE_MARKDOWN_DOCS.filter((d) => d.category === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setNormativeCategoryFilter(cat.id)}
+                      className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition ${
+                        isAct
+                          ? 'bg-pink-600 text-white border-pink-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-pink-400'
+                      }`}
+                    >
+                      {cat.label.replace(/\s*\(\d+\)$/, '')} ({countInCat})
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="relative min-w-[260px] flex-1 max-w-md">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={normativeSearchQuery}
+                  onChange={(e) => setNormativeSearchQuery(e.target.value)}
+                  placeholder="Buscar entre los 100 archivos .md (ej. 1843, 0312, burnout, sentencia, CST)..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Cuadrícula Seleccionable de las 100 Normas en Markdown (.md) de Tenshi */}
+          <div className="max-h-[340px] overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {filteredNormativeDocs.map((doc) => {
+              const active =
+                selectedNorms.includes(doc.id) || selectedNorms.includes(doc.title);
               return (
                 <button
-                  key={std.id}
+                  key={doc.id}
                   type="button"
                   onClick={() => {
                     const next = active
-                      ? selectedNorms.filter((n) => n !== std.id)
-                      : [...selectedNorms, std.id];
-                    onUpdateNodeConfig(activeNode.key, { legalStandards: next });
+                      ? selectedNorms.filter((n) => n !== doc.id && n !== doc.title)
+                      : [...selectedNorms, doc.id];
+                    onUpdateNodeConfig(activeNode.key, {
+                      legalStandards: next,
+                      selectedRecordIds: next,
+                      recordFilterMode: 'selected',
+                    });
                   }}
-                  className={`p-3 rounded-2xl border-2 text-left transition ${
+                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
                     active
-                      ? 'bg-pink-50/80 dark:bg-slate-800 border-pink-500 ring-1 ring-pink-500/30'
+                      ? 'bg-pink-50/80 dark:bg-slate-800 border-pink-500 dark:border-[#C7F303] ring-1 ring-pink-500/20 shadow-xs'
                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-pink-400'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                      {std.title}
-                    </span>
-                    {active && <Check className="w-3.5 h-3.5 text-pink-600 stroke-[3]" />}
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-snug">
+                        📘 {doc.title}
+                      </span>
+                      <span
+                        className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 mt-0.5 ${
+                          active
+                            ? 'bg-pink-600 dark:bg-[#C7F303] border-pink-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
+                            : 'border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {active && <Check className="w-3 h-3 stroke-[3]" />}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="px-1.5 py-0.5 rounded bg-pink-100 dark:bg-pink-950/70 text-pink-800 dark:text-pink-300 text-[9px] font-black uppercase">
+                        {doc.badge}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-mono truncate max-w-[180px]">
+                        {doc.fileName}
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-400">
+                        {doc.sizeKb} KB
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                    {std.subtitle}
+
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-snug">
+                    {doc.summary}
                   </p>
                 </button>
               );
             })}
           </div>
+
+          {renderLiveRecordsTableSection(
+            '📄 Vista en Vivo de los Archivos Normativos Markdown (.md) Indexados en Tenshi',
+          )}
         </div>
       );
     }
