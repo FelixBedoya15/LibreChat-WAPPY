@@ -9,6 +9,7 @@ import {
     TENSHI_AVATAR_PRESETS,
     TENSHI_VOICES,
     PERSONALITY_ARCHETYPES,
+    REGIONAL_VOCAB_OPTIONS,
     getAvatarPresetById,
 } from './tenshiAvatarCatalog';
 import ExpandableButton from '~/components/Common/ExpandableButton';
@@ -249,10 +250,7 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                                 />
                                 <div className="text-xs">
                                     <div className="font-extrabold text-teal-800 dark:text-teal-200">
-                                        {formData.name || 'Tenshi'}
-                                    </div>
-                                    <div className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">
-                                        {getAvatarPresetById(formData.defaultAvatarId).name}
+                                        {formData.name || getAvatarPresetById(formData.defaultAvatarId).name}
                                     </div>
                                     <div className="text-[10px] text-gray-500 dark:text-gray-400">
                                         🎙️ {formData.defaultVoice} • {formData.defaultGender}
@@ -264,7 +262,7 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                         {/* Selector de Personaje por Defecto */}
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-2">
-                                Personaje Predeterminado (9 Avatares Ultra-HD)
+                                Personaje Predeterminado
                             </label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                                 {TENSHI_AVATAR_PRESETS.map((preset) => {
@@ -295,9 +293,6 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                                             <span className="mt-1 text-[11px] font-bold text-gray-900 dark:text-white text-center truncate w-full">
                                                 {preset.name}
                                             </span>
-                                            <span className="text-[9px] text-teal-600 dark:text-teal-400 font-semibold truncate w-full text-center">
-                                                {preset.badge}
-                                            </span>
                                         </div>
                                     );
                                 })}
@@ -316,8 +311,8 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                                     onChange={handleChange}
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-gray-900"
                                 >
-                                    <option value="masculino">Masculino (Listo / Experto)</option>
-                                    <option value="femenino">Femenino (Lista / Experta)</option>
+                                    <option value="masculino">Masculino (Listo / Amigo)</option>
+                                    <option value="femenino">Femenino (Lista / Amiga)</option>
                                     <option value="neutro">Neutro (Lenguaje neutro)</option>
                                 </select>
                             </div>
@@ -340,12 +335,12 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                             </div>
                         </div>
 
-                        {/* Personalidad por Defecto */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                Personalidad y Tono por Defecto
+                        {/* Personalidad y Vocablo por Defecto */}
+                        <div className="space-y-2.5">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Personalidad y Vocablo Regional por Defecto
                             </label>
-                            <div className="flex flex-wrap gap-1.5 mb-2">
+                            <div className="flex flex-wrap gap-1.5">
                                 {PERSONALITY_ARCHETYPES.map((arch) => (
                                     <button
                                         key={arch.id}
@@ -363,12 +358,32 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                                     </button>
                                 ))}
                             </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {REGIONAL_VOCAB_OPTIONS.map((reg) => (
+                                    <button
+                                        key={reg.id}
+                                        type="button"
+                                        onClick={() =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                defaultPersonality: prev.defaultPersonality
+                                                    ? `${prev.defaultPersonality.replace(/Habla con[\s\S]*$/i, '').trim()} ${reg.prompt}`.trim()
+                                                    : reg.prompt,
+                                            }))
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-xl border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-xs font-bold text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 transition-all cursor-pointer"
+                                    >
+                                        <span>{reg.emoji}</span>
+                                        <span>{reg.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                             <textarea
                                 name="defaultPersonality"
                                 value={formData.defaultPersonality}
                                 onChange={handleChange}
                                 rows={3}
-                                placeholder="Describe cómo debe comportarse y hablar el Avatar Wappy por defecto..."
+                                placeholder="Describe la personalidad y el vocablo regional por defecto..."
                                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-gray-900 text-sm"
                             />
                         </div>

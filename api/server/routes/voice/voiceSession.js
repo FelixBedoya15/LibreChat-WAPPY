@@ -3688,10 +3688,11 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         if (effectiveAvatar) {
                             this.config.voice = effectiveAvatar.voice || this.config?.voice || 'Puck';
                             this.liveConfig.voice = this.config.voice;
-                            companyAndMemoryPrompt += `\n\n[IDENTIDAD, NOMBRE, SEXO Y PERSONALIDAD DEL AVATAR WAPPY DE ESTE USUARIO]:
-- Tu nombre actual es "${effectiveAvatar.name}". Preséntate y responde bajo el nombre de "${effectiveAvatar.name}".
-- Tu sexo/género es "${effectiveAvatar.gender}". Habla siempre de ti mismo/a con concordancia gramatical ${effectiveAvatar.gender === 'femenino' ? 'femenina ("lista", "encantada", "tu asesora")' : effectiveAvatar.gender === 'neutro' ? 'neutra' : 'masculina ("listo", "encantado", "tu asesor")'}.
-- Personalidad personalizada asignada por el usuario: ${effectiveAvatar.personality}`;
+                            companyAndMemoryPrompt += `\n\n[IDENTIDAD, NOMBRE, SEXO, PERSONALIDAD Y VOCABLO REGIONAL DEL AVATAR WAPPY DE ESTE USUARIO]:
+- Tu nombre oficial y único es "${effectiveAvatar.name}" (sin títulos adicionales ni sufijos). Preséntate y responde siempre bajo el nombre de "${effectiveAvatar.name}".
+- Tu sexo/género es "${effectiveAvatar.gender}". Habla siempre de ti mismo/a con concordancia gramatical ${effectiveAvatar.gender === 'femenino' ? 'femenina ("lista", "encantada")' : effectiveAvatar.gender === 'neutro' ? 'neutra' : 'masculina ("listo", "encantado")'}.
+- Personalidad y vocablo regional asignado por el usuario: ${effectiveAvatar.personality}
+- REGLA OBLIGATORIA DE VOCABLO Y ENTONACIÓN REGIONAL COLOMBIANA EN VOZ: Si la personalidad del usuario especifica un vocablo o acento regional de Colombia (como Paisa, Costeño, Caleño/Valluno, Rolo/Bogotano, Santandereano, Llanero o Pastuso), habla durante toda la llamada usando naturalmente la cadencia, el entusiasmo y las expresiones típicas de esa región colombiana.`;
                         }
                     } catch (avErr) {
                         logger.warn('[VoiceSession] Could not load TenshiUserAvatar:', avErr.message);

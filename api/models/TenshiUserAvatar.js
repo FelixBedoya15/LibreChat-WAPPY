@@ -49,6 +49,31 @@ const tenshiUserAvatarSchema = new mongoose.Schema(
 
 tenshiUserAvatarSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
+const LEGACY_SST_PERSONALITY_MAP = {
+    'Amigable, proactivo, experto en SG-SST y cercano con el usuario.':
+        'Amigable, carismático, servicial y siempre con buena energía para ayudarte.',
+    'Ingeniero preventor alerta, detallista en inspecciones de campo, práctico y enfocado en controlar riesgos SST.':
+        'Ingenioso, observador, ágil y súper práctico para resolver cualquier duda al instante.',
+    'Compañero leal, entusiasta, protector de la seguridad en terreno y motivador del equipo de trabajo.':
+        'Leal, entusiasta, alegre y motivador; un gran parcero dispuesto a acompañarte en todo.',
+    'Ejecutiva, diplomática, estructurada y serena. Especialista en comunicación asertiva, comités y alta dirección.':
+        'Serena, empática, clara al hablar y con un trato cálido, cordial y armonioso.',
+    'Sereno, empático y paciente. Experto en bienestar laboral, riesgo psicosocial y acompañamiento tranquilo paso a paso.':
+        'Tranquilo, relajado, paciente y descomplicado; explica todo paso a paso con total calma.',
+};
+
+const cleanAvatarName = (rawName, fallback = 'Tenshi') => {
+    const str = String(rawName || '').trim();
+    if (!str) return fallback;
+    return str.split('—')[0].split(' - ')[0].trim() || fallback;
+};
+
+const cleanAvatarPersonality = (rawText) => {
+    const str = String(rawText || '').trim();
+    if (!str) return 'Amigable, carismático, servicial y siempre con buena energía para ayudarte.';
+    return LEGACY_SST_PERSONALITY_MAP[str] || str;
+};
+
 tenshiUserAvatarSchema.statics.resolveEffectiveAvatarProfile = async function (
     userId,
     existingConfig = null,
@@ -65,12 +90,10 @@ tenshiUserAvatarSchema.statics.resolveEffectiveAvatarProfile = async function (
 
     const defaults = {
         avatarId: config.defaultAvatarId || 'gato',
-        name: config.name || 'Tenshi',
+        name: cleanAvatarName(config.name, 'Tenshi'),
         gender: config.defaultGender || 'masculino',
         voice: config.defaultVoice || 'Puck',
-        personality:
-            config.defaultPersonality ||
-            'Amigable, proactivo, experto en SG-SST y cercano con el usuario.',
+        personality: cleanAvatarPersonality(config.defaultPersonality),
     };
 
     let userAvatar = null;
@@ -116,6 +139,13 @@ tenshiUserAvatarSchema.statics.resolveEffectiveAvatarProfile = async function (
         }
     }
 
+    if (userAvatar) {
+        userAvatar.name = cleanAvatarName(userAvatar.name, '');
+        if (userAvatar.personality) {
+            userAvatar.personality = cleanAvatarPersonality(userAvatar.personality);
+        }
+    }
+
     const effective = {
         avatarId:
             userAvatar?.isCustomized && userAvatar?.avatarId
@@ -123,14 +153,14 @@ tenshiUserAvatarSchema.statics.resolveEffectiveAvatarProfile = async function (
                 : defaults.avatarId,
         name:
             userAvatar?.isCustomized && userAvatar?.name?.trim()
-                ? userAvatar.name.trim()
+                ? cleanAvatarName(userAvatar.name, defaults.name)
                 : defaults.name,
         gender:
             userAvatar?.isCustomized && userAvatar?.gender ? userAvatar.gender : defaults.gender,
         voice: userAvatar?.isCustomized && userAvatar?.voice ? userAvatar.voice : defaults.voice,
         personality:
             userAvatar?.isCustomized && userAvatar?.personality?.trim()
-                ? userAvatar.personality.trim()
+                ? cleanAvatarPersonality(userAvatar.personality)
                 : defaults.personality,
         personalityPreset: userAvatar?.personalityPreset || 'consultor',
         isCustomized: Boolean(userAvatar?.isCustomized),

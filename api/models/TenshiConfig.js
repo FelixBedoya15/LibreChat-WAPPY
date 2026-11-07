@@ -54,7 +54,7 @@ const tenshiConfigSchema = mongoose.Schema(
         },
         defaultPersonality: {
             type: String,
-            default: 'Amigable, proactivo, experto en SG-SST y cercano con el usuario.',
+            default: 'Amigable, carismático, servicial y siempre con buena energía para ayudarte.',
         }
     },
     { timestamps: true }

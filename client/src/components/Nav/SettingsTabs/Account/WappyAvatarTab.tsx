@@ -15,6 +15,7 @@ import {
   Trophy,
   Check,
   Wand2,
+  MapPin,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
@@ -28,6 +29,7 @@ import {
   TENSHI_AVATAR_PRESETS,
   TENSHI_VOICES,
   PERSONALITY_ARCHETYPES,
+  REGIONAL_VOCAB_OPTIONS,
   getAvatarPresetById,
   TenshiAvatarPreset,
 } from '~/components/Tenshi/tenshiAvatarCatalog';
@@ -49,6 +51,8 @@ export default function WappyAvatarTab() {
   const [collectionTab, setCollectionTab] = useState<'custom' | 'classic'>('custom');
   const [previewMood, setPreviewMood] = useState<TenshiAvatarMood>('idle');
   const [hasCustomOverride, setHasCustomOverride] = useState<boolean>(false);
+  const [selectedTraitId, setSelectedTraitId] = useState<string>('amigable');
+  const [selectedDialectId, setSelectedDialectId] = useState<string>('');
 
   const [form, setForm] = useState<AvatarFormState>(() => {
     const initialPreset = getAvatarPresetById(
@@ -86,7 +90,7 @@ export default function WappyAvatarTab() {
             voice: fallback.data?.defaultVoice || 'Puck',
             personality:
               fallback.data?.defaultPersonality ||
-              'Amigable, proactivo, experto en SG-SST y cercano con el usuario.',
+              'Amigable, carismático, servicial y siempre con buena energía para ayudarte.',
           },
           userCustom: null,
         };
@@ -116,16 +120,27 @@ export default function WappyAvatarTab() {
     if (avatarData?.effective) {
       const eff = avatarData.effective;
       const preset = getAvatarPresetById(eff.avatarId);
+      const loadedPersonality = eff.personality || preset.defaultPersonality;
       setForm({
         avatarId: preset.id,
         name: eff.name || preset.defaultPersonaName,
         gender:
           eff.gender === 'femenino' || eff.gender === 'neutro' ? eff.gender : 'masculino',
         voice: eff.voice || preset.defaultVoice,
-        personality: eff.personality || preset.defaultPersonality,
+        personality: loadedPersonality,
       });
       setCollectionTab(preset.collection);
       setHasCustomOverride(Boolean(avatarData.userCustom?.avatarId || avatarData.userCustom?.name));
+
+      const matchedTrait = PERSONALITY_ARCHETYPES.find((a) =>
+        loadedPersonality.includes(a.prompt)
+      );
+      if (matchedTrait) setSelectedTraitId(matchedTrait.id);
+
+      const matchedDialect = REGIONAL_VOCAB_OPTIONS.find((d) =>
+        loadedPersonality.includes(d.prompt)
+      );
+      if (matchedDialect) setSelectedDialectId(matchedDialect.id);
     }
   }, [avatarData]);
 
@@ -193,7 +208,6 @@ export default function WappyAvatarTab() {
   const handleSelectCharacter = (preset: TenshiAvatarPreset) => {
     tenshiAudio.playBlip();
     setForm((prev) => {
-      // Si el nombre o personalidad actual coincide con el default de otro preset, actualizar automáticamente a la sugerencia del nuevo personaje
       const prevPreset = getAvatarPresetById(prev.avatarId);
       const isUsingDefaultName = !prev.name?.trim() || prev.name === prevPreset.defaultPersonaName;
       const isUsingDefaultPersonality =
@@ -221,12 +235,37 @@ export default function WappyAvatarTab() {
       voice: activePreset.defaultVoice,
       personality: activePreset.defaultPersonality,
     }));
+    setSelectedDialectId('');
     setPreviewMood('love');
     setTimeout(() => setPreviewMood('idle'), 2200);
     showToast({
-      message: `Identidad sugerida de ${activePreset.name} aplicada`,
+      message: `Identidad sugerida de ${activePreset.defaultPersonaName} aplicada`,
       status: 'info',
     });
+  };
+
+  const buildCombinedPersonality = (traitId: string, dialectId: string) => {
+    const trait = PERSONALITY_ARCHETYPES.find((t) => t.id === traitId);
+    const dialect = REGIONAL_VOCAB_OPTIONS.find((d) => d.id === dialectId);
+    const parts: string[] = [];
+    if (trait) parts.push(trait.prompt);
+    if (dialect) parts.push(dialect.prompt);
+    return parts.join(' ') || activePreset.defaultPersonality;
+  };
+
+  const handleSelectTrait = (traitId: string) => {
+    tenshiAudio.playBlip();
+    setSelectedTraitId(traitId);
+    const combined = buildCombinedPersonality(traitId, selectedDialectId);
+    setForm((prev) => ({ ...prev, personality: combined }));
+  };
+
+  const handleSelectDialect = (dialectId: string) => {
+    tenshiAudio.playBlip();
+    const nextDialect = selectedDialectId === dialectId ? '' : dialectId;
+    setSelectedDialectId(nextDialect);
+    const combined = buildCombinedPersonality(selectedTraitId, nextDialect);
+    setForm((prev) => ({ ...prev, personality: combined }));
   };
 
   const handleTestEmotion = (mood: TenshiAvatarMood) => {
@@ -245,15 +284,25 @@ export default function WappyAvatarTab() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
-        const genderText =
-          form.gender === 'femenino'
-            ? 'lista para ayudarte'
-            : form.gender === 'neutro'
-            ? 'disponible para ayudarte'
-            : 'listo para ayudarte';
-        const utterance = new SpeechSynthesisUtterance(
-          `¡Hola! Soy ${form.name || activePreset.defaultPersonaName}, tu copiloto en WAPPY, ${genderText}.`
-        );
+        const displayName = form.name || activePreset.defaultPersonaName;
+        const pLower = (form.personality || '').toLowerCase();
+        let sampleText = `¡Hola! Soy ${displayName}, y estoy aquí para ayudarte en todo lo que necesites.`;
+        if (pLower.includes('paisa') || selectedDialectId === 'paisa') {
+          sampleText = `¡Quiubo pues! Soy ${displayName}, ¡qué alegría saludarte pues! Hágale que aquí estoy pa' ayudarte con mucho gusto.`;
+        } else if (pLower.includes('coste') || pLower.includes('caribe') || selectedDialectId === 'costeno') {
+          sampleText = `¡Ajá, mi llave! Soy ${displayName}, todo firme y bacano por acá para ayudarte en lo que necesites.`;
+        } else if (pLower.includes('cale') || pLower.includes('vallun') || selectedDialectId === 'caleno') {
+          sampleText = `¡Oí, ve! Mirá, soy ${displayName}, ¡qué chévere saludarte! De una te ayudo con toda la actitud, ¿oís?`;
+        } else if (pLower.includes('rolo') || pLower.includes('bogot') || selectedDialectId === 'rolo') {
+          sampleText = `¡Qué más, cómo vas! Soy ${displayName}, fresco que de una te ayudo con lo que necesites.`;
+        } else if (pLower.includes('santander') || selectedDialectId === 'santandereano') {
+          sampleText = `¡Quiubo mano! Soy ${displayName}, hágale sin miedo que aquí vamos directo al grano.`;
+        } else if (pLower.includes('llaner') || selectedDialectId === 'llanero') {
+          sampleText = `¡Buen día, pariente! Soy ${displayName}, pa'lante es que vamos camarita.`;
+        } else if (pLower.includes('pastus') || pLower.includes('nariñ') || selectedDialectId === 'pastuso') {
+          sampleText = `¡Qué fue pues! Soy ${displayName}, aquí estoy con mucho cariño pues para ayudarte.`;
+        }
+        const utterance = new SpeechSynthesisUtterance(sampleText);
         utterance.lang = 'es-CO';
         utterance.rate = 1.04;
         utterance.pitch = form.gender === 'femenino' ? 1.18 : 0.98;
@@ -282,10 +331,6 @@ export default function WappyAvatarTab() {
         <div className="relative flex flex-col md:flex-row items-center gap-6">
           {/* Interactive Avatar Stage */}
           <div className="relative flex flex-col items-center justify-center rounded-2xl border border-emerald-500/25 bg-white/80 dark:bg-zinc-950/70 px-6 py-4 shadow-inner shrink-0">
-            <span className="mb-1 inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {activePreset.badge}
-            </span>
             <TenshiAvatar
               size={150}
               avatarId={form.avatarId}
@@ -329,7 +374,7 @@ export default function WappyAvatarTab() {
 
             <div>
               <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent">
-                {form.name || activePreset.defaultPersonaName} — {activePreset.name}
+                {form.name || activePreset.defaultPersonaName}
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-zinc-300 line-clamp-2">
                 {form.personality || activePreset.defaultPersonality}
@@ -399,10 +444,10 @@ export default function WappyAvatarTab() {
           <div>
             <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
               <Bot className="h-4 w-4 text-teal-500" />
-              1. Elige tu Personaje Avatar Wappy (Ultra-HD)
+              1. Elige tu Personaje Avatar Wappy
             </h4>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Selecciona entre los trajes especiales o la colección con el uniforme clásico esmeralda de WAPPY.
+              Selecciona entre los trajes especiales o la colección con el uniforme clásico.
             </p>
           </div>
 
@@ -450,10 +495,7 @@ export default function WappyAvatarTab() {
                     : 'border-slate-200/80 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 hover:border-teal-500/40 hover:bg-teal-500/5'
                 )}
               >
-                <div className="w-full flex items-center justify-between gap-1 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300 truncate">
-                    {preset.animal}
-                  </span>
+                <div className="w-full flex items-center justify-end min-h-[16px]">
                   {isSelected && (
                     <span className="flex h-4 w-4 items-center justify-center rounded-md bg-teal-500 text-white shrink-0">
                       <Check className="h-3 w-3 stroke-[3]" />
@@ -474,9 +516,6 @@ export default function WappyAvatarTab() {
                 <div className="w-full text-center mt-1">
                   <div className="text-xs font-extrabold text-slate-900 dark:text-zinc-100 truncate">
                     {preset.name}
-                  </div>
-                  <div className="text-[10px] font-medium text-slate-500 dark:text-zinc-400 truncate">
-                    {preset.badge}
                   </div>
                 </div>
               </div>
@@ -534,8 +573,8 @@ export default function WappyAvatarTab() {
             <div className="grid grid-cols-3 gap-2">
               {(
                 [
-                  { id: 'masculino', label: 'Masculino', desc: 'Listo / Experto' },
-                  { id: 'femenino', label: 'Femenino', desc: 'Lista / Experta' },
+                  { id: 'masculino', label: 'Masculino', desc: 'Listo / Amigo' },
+                  { id: 'femenino', label: 'Femenino', desc: 'Lista / Amiga' },
                   { id: 'neutro', label: 'Neutro', desc: 'Lenguaje neutro' },
                 ] as const
               ).map((g) => {
@@ -615,42 +654,78 @@ export default function WappyAvatarTab() {
         </div>
       </div>
 
-      {/* SECTION 3: PERSONALIDAD Y COMPORTAMIENTO */}
+      {/* SECTION 3: PERSONALIDAD Y VOCABLO REGIONAL */}
       <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 p-5 shadow-xs space-y-4">
         <div>
           <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-purple-500" />
-            3. Personalidad y Comportamiento con tu Cuenta
+            3. Personalidad y Vocablo Regional
           </h4>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
-            Elige un arquetipo rápido o escribe libremente cómo quieres que tu Avatar Wappy te hable y te asista.
+            Elige su personalidad y el tipo de vocablo o acento regional colombiano con el que quieres que te hable.
           </p>
         </div>
 
-        {/* Quick Archetype Chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          {PERSONALITY_ARCHETYPES.map((arch) => {
-            const isCurrent = form.personality?.trim() === arch.prompt.trim();
-            return (
-              <button
-                key={arch.id}
-                type="button"
-                onClick={() => {
-                  tenshiAudio.playBlip();
-                  setForm((prev) => ({ ...prev, personality: arch.prompt }));
-                }}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95',
-                  isCurrent
-                    ? 'border-purple-500/50 bg-purple-500/15 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500/30'
-                    : 'border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:border-purple-500/40 hover:bg-purple-500/10'
-                )}
-              >
-                <span>{arch.emoji}</span>
-                <span>{arch.label}</span>
-              </button>
-            );
-          })}
+        {/* Row A: Personalidades */}
+        <div className="space-y-1.5">
+          <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+            Estilo de Personalidad
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {PERSONALITY_ARCHETYPES.map((arch) => {
+              const isCurrent =
+                selectedTraitId === arch.id ||
+                (form.personality || '').includes(arch.prompt);
+              return (
+                <button
+                  key={arch.id}
+                  type="button"
+                  onClick={() => handleSelectTrait(arch.id)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95',
+                    isCurrent
+                      ? 'border-purple-500/50 bg-purple-500/15 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500/30'
+                      : 'border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:border-purple-500/40 hover:bg-purple-500/10'
+                  )}
+                >
+                  <span>{arch.emoji}</span>
+                  <span>{arch.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Row B: Vocablo / Modismo de Zonas de Colombia */}
+        <div className="space-y-1.5">
+          <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+            <MapPin className="h-3.5 w-3.5" />
+            Vocablo y Modismos por Zona de Colombia
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {REGIONAL_VOCAB_OPTIONS.map((reg) => {
+              const isCurrent =
+                selectedDialectId === reg.id ||
+                (form.personality || '').includes(reg.prompt);
+              return (
+                <button
+                  key={reg.id}
+                  type="button"
+                  onClick={() => handleSelectDialect(reg.id)}
+                  title={reg.region}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95',
+                    isCurrent
+                      ? 'border-teal-500/50 bg-teal-500/15 text-teal-700 dark:text-teal-300 ring-1 ring-teal-500/30'
+                      : 'border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:border-teal-500/40 hover:bg-teal-500/10'
+                  )}
+                >
+                  <span>{reg.emoji}</span>
+                  <span>{reg.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div>
@@ -659,11 +734,11 @@ export default function WappyAvatarTab() {
             value={form.personality}
             onChange={(e) => setForm((prev) => ({ ...prev, personality: e.target.value }))}
             maxLength={600}
-            placeholder="Ej: Háblame de forma muy ejecutiva, llámame Ingeniero y enfócate en riesgos críticos y normatividad SST colombiana..."
+            placeholder="Ej: Sé muy alegre y cercano, háblame con modismos paisas ('¡Quiubo pues!', 'parcero', 'hágale pues') y con buen sentido del humor..."
             className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
           />
           <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-500">
-            <span>Se inyecta en tiempo real tanto en el chat escrito como en la voz en vivo.</span>
+            <span>Se aplica en tiempo real tanto en el chat escrito como en la voz en vivo.</span>
             <span>{(form.personality || '').length}/600</span>
           </div>
         </div>
