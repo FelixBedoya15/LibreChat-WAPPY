@@ -4506,7 +4506,10 @@ export default function WappyWorkflowCanvas({
         };
 
         return (
-          <div className="rounded-2xl border-2 border-purple-500/80 dark:border-[#C7F303]/80 bg-white dark:bg-slate-900 p-4 shadow-lg transition-all">
+          <div
+            id="wappy-node-config-inspector"
+            className="rounded-2xl border-2 border-purple-500/80 dark:border-[#C7F303]/80 bg-white dark:bg-slate-900 p-4 shadow-lg transition-all"
+          >
             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-slate-800 border border-purple-200 dark:border-slate-700 flex items-center justify-center shrink-0">
@@ -4670,41 +4673,48 @@ export default function WappyWorkflowCanvas({
                   </div>
                 </div>
               </div>
-            ) : activeNode.shape === 'circle_model' ? (
-              /* B) SI EL NODO SELECCIONADO ES EL CÍRCULO DE MODELO IA */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                {AI_ENGINE_MODELS.map((m) => {
-                  const isSel =
-                    (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
-                    (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
-                    (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => handleSelectAiEngineModel(m.engine, m.model)}
-                      className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 ${
-                        isSel
-                          ? 'bg-purple-50 dark:bg-purple-950/50 border-purple-500 ring-2 ring-purple-500/30'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400'
-                      }`}
-                    >
-                      <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                        {m.shortLabel}
-                      </span>
-                      <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">
-                        {m.subtitle}
-                      </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2">
-                        {m.description}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
             ) : (
-              /* C) SI EL NODO SELECCIONADO ES UN EXTRACTOR, WEB SCRAPER ANTIGRAVITY, SKILL, SUB-AGENTE, REGLA, BÚSQUEDA WEB, MEMORIA, TOOL, CONDICIÓN SI/NO, HITO O SALIDA */
+              /* B) TODOS LOS NODOS DE LOS 8 EQUIPOS (Disparadores, Extractores, Motor IA, Memorias, Herramientas, 8 Hitos/50 Apps, Salidas y Skills/Sub-Agentes/Reglas/Scraping) */
               <div className="space-y-3">
+                {/* B.0) BLOQUE ESPECIAL SI ES EL NODO CIRCULAR DE MOTOR IA (Equipo 3) */}
+                {activeNode.shape === 'circle_model' && (
+                  <div className="p-3 rounded-xl border border-purple-200 dark:border-purple-800/70 bg-purple-50/30 dark:bg-purple-950/20 space-y-2">
+                    <span className="text-[10.5px] font-extrabold uppercase text-purple-800 dark:text-[#C7F303] flex items-center gap-1.5">
+                      <Cpu className="w-3.5 h-3.5" />
+                      🧠 Seleccionar Motor y Modelo de IA del Flujo (Equipo 3)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                      {AI_ENGINE_MODELS.map((m) => {
+                        const isSel =
+                          (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
+                          (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
+                          (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => handleSelectAiEngineModel(m.engine, m.model)}
+                            className={`p-2.5 rounded-xl border text-left transition flex flex-col gap-0.5 ${
+                              isSel
+                                ? 'bg-purple-100/80 dark:bg-purple-950/60 border-purple-500 ring-2 ring-purple-500/30'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                            }`}
+                          >
+                            <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                              {m.shortLabel}
+                            </span>
+                            <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                              {m.subtitle}
+                            </span>
+                            <span className="text-[9.5px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                              {m.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {/* C.1) BLOQUE ESPECIAL SI ES UN NODO DE WEB SCRAPING CON ANTIGRAVITY (SCRIPT) */}
                 {isWebScraperNode && (
                   <div className="p-3 rounded-xl border border-orange-300 dark:border-orange-700/80 bg-orange-50/40 dark:bg-orange-950/25 space-y-2.5">

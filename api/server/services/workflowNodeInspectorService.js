@@ -2554,6 +2554,559 @@ async function inspectHito6To8(canonicalId, userId, company) {
 }
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * INSPECTORES EN VIVO DE EQUIPOS 1 Y 4 (DISPARADORES & MEMORIAS DEL AGENTE)
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
+  const companyIdStr = company?._id ? String(company._id) : null;
+  const Automation = getSafeModel('Automation', null, '~/models/Automation');
+  const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
+
+  // EQUIPO 1: DISPARADORES (⚡ 1. Disparador)
+  const triggerTitles = {
+    schedule_cron: 'Equipo 1 · Disparador Cron Programado (Por Horario)',
+    trigger_tenshi: 'Equipo 1 · Disparador Tenshi IA (Orden por Voz o Chat)',
+    trigger_antigravity: 'Equipo 1 · Disparador Google Antigravity Local (Mac/PC + MCP)',
+    trigger_antigravity_cloud: 'Equipo 1 · Disparador Google Antigravity Cloud 24/7',
+    trigger_email: 'Equipo 1 · Disparador Correo Electrónico Entrante (Gmail)',
+    trigger_agent: 'Equipo 1 · Disparador por Delegación de Agente Especialista IA',
+    trigger_qr_worker: 'Equipo 1 · Disparador Reporte QR de Trabajador en Campo',
+    trigger_webhook: 'Equipo 1 · Disparador Webhook / API Externa (Buk RRHH / ERP)',
+  };
+
+  if (triggerTitles[canonicalId]) {
+    const autoFilter = companyIdStr
+      ? { companyId: companyIdStr, isSystemPreset: { $ne: true } }
+      : userId
+        ? { user: userId, isSystemPreset: { $ne: true } }
+        : { isSystemPreset: { $ne: true } };
+    const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
+
+    const [automations, logs] = await Promise.all([
+      Automation ? Automation.find(autoFilter).sort({ updatedAt: -1 }).limit(40).lean().catch(() => []) : [],
+      AutomationLog ? AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(30).lean().catch(() => []) : [],
+    ]);
+
+    const activeCount = automations.filter((a) => a.status === 'active').length;
+    const withThisTrigger = automations.filter(
+      (a) => a.workflowNodes?.trigger === canonicalId || (a.workflowNodes?.triggers || []).includes(canonicalId)
+    );
+    const lastLog = logs[0] || null;
+
+    const records = [
+      ...automations.map((a, i) => {
+        const usesTrigger =
+          a.workflowNodes?.trigger === canonicalId || (a.workflowNodes?.triggers || []).includes(canonicalId);
+        return {
+          id: String(a._id || `auto_${i}`),
+          label: `[Tarea ${a.status === 'active' ? 'ACTIVA' : 'INACTIVA'}] ${a.name || 'Automatización'}`,
+          sublabel: `Agente: ${a.agentName || 'Consultor SG-SST'} • Frecuencia: ${a.scheduleType || 'daily'} (${String(a.scheduleConfig?.hour ?? 8).padStart(2, '0')}:${String(a.scheduleConfig?.minute ?? 0).padStart(2, '0')})`,
+          badge: `${usesTrigger ? 'Usa este Disparador · ' : ''}${a.lastRunStatus ? `Última: ${a.lastRunStatus.toUpperCase()}` : a.status.toUpperCase()}`,
+          badgeTone: a.lastRunStatus === 'failed' ? 'rose' : a.status === 'active' ? 'emerald' : 'slate',
+          isCritical: a.lastRunStatus === 'failed',
+          fields: {
+            'Nombre de la Automatización': a.name || '',
+            'Estado del Disparador': a.status || 'inactive',
+            'Frecuencia y Horario Programado': `${a.scheduleType || 'daily'} ${String(a.scheduleConfig?.hour ?? 8).padStart(2, '0')}:${String(a.scheduleConfig?.minute ?? 0).padStart(2, '0')}`,
+            'Agente Asignado': a.agentName || '',
+            'Última Corrida y Estado': a.lastRunAt ? `${new Date(a.lastRunAt).toLocaleString('es-CO')} (${a.lastRunStatus || 'N/A'})` : 'Sin ejecutar aún',
+            'Próxima Ejecución Programada': a.nextRunAt ? new Date(a.nextRunAt).toLocaleString('es-CO') : 'No programada',
+          },
+        };
+      }),
+      ...logs.slice(0, 15).map((l, i) => ({
+        id: String(l._id || `log_${i}`),
+        label: `[Corrida ${String(l.status || 'success').toUpperCase()}] ${l.agentName || 'Agente IA'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
+        sublabel: String(l.result || l.error || l.prompt || '').replace(/\s+/g, ' ').slice(0, 180),
+        badge: String(l.status || 'success').toUpperCase(),
+        badgeTone: l.status === 'failed' ? 'rose' : l.status === 'running' ? 'amber' : 'indigo',
+        isCritical: l.status === 'failed',
+        fields: {
+          'Fecha y Hora de Ejecución': l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : '',
+          'Estado de la Corrida': l.status || '',
+          'Agente Ejecutor': l.agentName || '',
+          'Resultado / Bitácora': String(l.result || l.error || '').slice(0, 500),
+        },
+      })),
+    ];
+
+    return {
+      moduleTitle: triggerTitles[canonicalId],
+      sourceCollection: 'Automation + AutomationLog',
+      kpis: [
+        { label: 'Tareas Activas / Total', value: `${activeCount} / ${automations.length}`, tone: activeCount > 0 ? 'emerald' : 'amber' },
+        { label: 'Con este Disparador', value: withThisTrigger.length, tone: 'teal' },
+        { label: 'Corridas en Bitácora', value: logs.length, tone: 'indigo' },
+        {
+          label: 'Última Corrida',
+          value: lastLog?.runAt ? `${new Date(lastLog.runAt).toLocaleDateString('es-CO')} (${lastLog.status})` : 'Sin corridas',
+          tone: lastLog?.status === 'failed' ? 'rose' : 'emerald',
+        },
+      ],
+      records,
+    };
+  }
+
+  // EQUIPO 4: MEMORIAS DEL AGENTE (💾 4. Memorias)
+  if (canonicalId === 'wappy_memory_antiduplicate') {
+    const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
+    const logs = AutomationLog ? await AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(40).lean().catch(() => []) : [];
+    const successLogs = logs.filter((l) => l.status === 'success');
+    const failedLogs = logs.filter((l) => l.status === 'failed');
+
+    return {
+      moduleTitle: 'Equipo 4 · Memoria de Bitácora Previa (Control Anti-Duplicados)',
+      sourceCollection: 'AutomationLog',
+      kpis: [
+        { label: 'Ejecuciones Exitosas', value: successLogs.length, tone: 'emerald' },
+        { label: 'Ejecuciones con Error', value: failedLogs.length, tone: failedLogs.length > 0 ? 'rose' : 'teal' },
+        { label: 'Total en Memoria', value: logs.length, tone: 'indigo' },
+        { label: 'Filtro Anti-Duplicados', value: 'ACTIVO', tone: 'emerald' },
+      ],
+      records: logs.map((l, i) => {
+        const preview = String(l.result || l.error || '').replace(/\s+/g, ' ').trim().slice(0, 350);
+        return {
+          id: String(l._id || `mem_log_${i}`),
+          label: `[Corrida ${l.status === 'success' ? 'Procesada' : l.status}] ${l.agentName || 'Agente'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
+          sublabel: preview || 'Ejecución registrada en bitácora anti-duplicados',
+          badge: l.status === 'success' ? 'No Duplicar' : String(l.status || '').toUpperCase(),
+          badgeTone: l.status === 'failed' ? 'rose' : 'emerald',
+          isCritical: l.status === 'failed',
+          fields: {
+            'Fecha y Hora de Última Ejecución Exitosa': l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : '',
+            'IDs / Hashes de Archivos de Drive ya Procesados': preview.slice(0, 250),
+            'Cédulas / Registros de Trabajadores ya Sincronizados': preview.slice(0, 250),
+            'Resumen de Novedades Detectadas en la Última Corrida': preview,
+          },
+        };
+      }),
+    };
+  }
+
+  if (canonicalId === 'wappy_rag_documental' || canonicalId === 'notebooklm') {
+    const LiveDocument = getSafeModel('LiveDocument', null, '~/models/LiveDocument');
+    const NotebookSession = getSafeModel('NotebookSession', null, '~/models/NotebookSession');
+    const [liveDocs, notebooks] = await Promise.all([
+      findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 50),
+      findManyCompanyDocs(NotebookSession, userId, company, { updatedAt: -1 }, 30),
+    ]);
+
+    const records = [
+      ...liveDocs.map((d, i) => ({
+        id: String(d._id || `livedoc_${i}`),
+        label: `📄 [Documento Vivo] ${d.title || 'Documento SG-SST'}`,
+        sublabel: `Archivo: ${d.originalFileName || 'Editor WAPPY'} (${d.originalFileType || 'HTML/MD'}) • Actualizado: ${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : ''}`,
+        badge: d.originalFileType ? String(d.originalFileType).toUpperCase() : 'DOC VIVO',
+        badgeTone: 'teal',
+        isCritical: false,
+        fields: {
+          'Título del Documento Vivo / Protocolo Interno': d.title || '',
+          'Archivo Original y Formato': `${d.originalFileName || 'N/A'} (${d.originalFileType || 'texto'})`,
+          'Extracto / Contenido RAG': String(d.content || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500),
+          'Fecha de Última Actualización': d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : '',
+        },
+      })),
+      ...notebooks.map((nb, i) => ({
+        id: String(nb._id || `nb_${i}`),
+        label: `📓 [Cuaderno NotebookLM] ${nb.title || nb.notebookTitle || 'Cuaderno RAG SST'}`,
+        sublabel: `URL: ${nb.notebookUrl || 'Google NotebookLM'} • Fuentes: ${(nb.sources || []).length}`,
+        badge: 'NOTEBOOKLM RAG',
+        badgeTone: 'purple',
+        isCritical: false,
+        fields: {
+          'Título del Documento Vivo / Protocolo Interno': nb.title || nb.notebookTitle || 'Cuaderno NotebookLM',
+          'Extracto / Contenido RAG': nb.summary || nb.lastResponse || nb.notebookUrl || '',
+        },
+      })),
+    ];
+
+    return {
+      moduleTitle:
+        canonicalId === 'notebooklm'
+          ? 'Equipo 5 · Conector Google NotebookLM & Documentos Vivos RAG'
+          : 'Equipo 4 · Memoria Documental RAG (Documentos Vivos + NotebookLM)',
+      sourceCollection: 'LiveDocument + NotebookSession',
+      kpis: [
+        { label: 'Documentos Vivos RAG', value: liveDocs.length, tone: 'teal' },
+        { label: 'Cuadernos NotebookLM', value: notebooks.length, tone: 'purple' },
+        { label: 'Total Fuentes RAG', value: records.length, tone: 'emerald' },
+      ],
+      records,
+    };
+  }
+
+  if (canonicalId === 'wappy_memory_procedural') {
+    const TenshiProceduralMemory = getSafeModel('TenshiProceduralMemory', null, '~/models/TenshiProceduralMemory');
+    const procDocs = await findManyCompanyDocs(TenshiProceduralMemory, userId, company, { updatedAt: -1 }, 30);
+    const riskLvl = String(company?.riskLevel || 'I').toUpperCase();
+    const workersN = Number(company?.workerCount || 0);
+    const estandaresChapter =
+      workersN <= 10 && ['I', 'II', 'III'].includes(riskLvl)
+        ? 'Capítulo I (7 Estándares Mínimos — ≤10 trabajadores Riesgo I-III)'
+        : workersN <= 50 && ['I', 'II', 'III'].includes(riskLvl)
+          ? 'Capítulo II (21 Estándares Mínimos — 11 a 50 trabajadores Riesgo I-III)'
+          : 'Capítulo III (60 Estándares Mínimos — >50 trabajadores o Riesgo IV-V)';
+
+    const baseNorms = [
+      {
+        id: 'norm_0312',
+        label: `Resolución 0312 de 2019 · ${estandaresChapter}`,
+        sublabel: `Aplica a ${company?.companyName || 'la empresa'} (${workersN} trab. · Riesgo ARL ${riskLvl} · CIIU ${company?.ciiu || 'N/A'})`,
+        badge: 'OBLIGATORIA',
+        badgeTone: 'teal',
+        isCritical: false,
+        fields: {
+          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': `Resolución 0312 de 2019 — ${estandaresChapter}`,
+          'Criterio de Aplicabilidad': `Trabajadores: ${workersN} | Clase de Riesgo ARL: ${riskLvl} (${company?.arl || 'ARL'})`,
+        },
+      },
+      {
+        id: 'norm_1072',
+        label: 'Decreto 1072 de 2015 (Libro 2, Parte 2, Título 4, Capítulo 6) · Decreto Único Reglamentario SG-SST',
+        sublabel: 'Ciclo PHVA, Política, Matriz Legal, IPEVR GTC-45, Auditoría Anual y Revisión por la Alta Dirección',
+        badge: 'DEC. 1072',
+        badgeTone: 'emerald',
+        isCritical: false,
+        fields: {
+          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': 'Decreto 1072 de 2015 Art. 2.2.4.6.1 al 2.2.4.6.37',
+          'Criterio de Aplicabilidad': `Comité: ${workersN < 10 ? 'Vigía SST (<10 trab.)' : 'COPASST Paritario (≥10 trab.)'}`,
+        },
+      },
+      {
+        id: 'norm_gtc45_2764',
+        label: 'GTC-45 (2012) + Resolución 2764 de 2022 (Batería Riesgo Psicosocial) + Decreto 1496 de 2018 (SGA)',
+        sublabel: 'Metodología de valoración de peligros, batería psicosocial, PESV Res. 40595 y etiquetado químico SGA',
+        badge: 'TÉCNICA SST',
+        badgeTone: 'indigo',
+        isCritical: false,
+        fields: {
+          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': 'GTC-45 + Res. 2764/2022 + Res. 4272/2021 + Dec. 1496/2018',
+          'Criterio de Aplicabilidad': `Actividad: ${company?.economicActivity || 'General'}`,
+        },
+      },
+      ...procDocs.map((pm, idx) => ({
+        id: String(pm._id || `pm_${idx}`),
+        label: `[Regla Aprendida] ${pm.title || pm.category || `Regla #${idx + 1}`}`,
+        sublabel: String(pm.rule || pm.content || '').slice(0, 180),
+        badge: 'MEMORIA IA',
+        badgeTone: 'purple',
+        isCritical: false,
+        fields: {
+          'Norma Aplicable según Nivel de Riesgo ARL y N° de Trabajadores': pm.rule || pm.content || '',
+        },
+      })),
+    ];
+
+    return {
+      moduleTitle: 'Equipo 4 · Memoria Normativa y Procedural Aplicable a la Empresa',
+      sourceCollection: 'CompanyInfo + TenshiProceduralMemory',
+      kpis: [
+        { label: 'Riesgo ARL / Nómina', value: `Riesgo ${riskLvl} · ${workersN} trab.`, tone: 'teal' },
+        { label: 'Estándares Res. 0312', value: estandaresChapter.split(' (')[0], tone: 'emerald' },
+        { label: 'Órgano Paritario', value: workersN < 10 ? 'Vigía SST' : 'COPASST', tone: 'indigo' },
+        { label: 'Reglas Aprendidas', value: procDocs.length, tone: 'purple' },
+      ],
+      records: baseNorms,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * INSPECTOR INTEGRAL DE LOS EQUIPOS 1, 2, 4, 5 Y 7 (NODOS DEL FLUJO)
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+async function inspectOtherNodeTeams(ctx) {
+  const { canonicalId, userId, company } = ctx;
+  const companyIdStr = company?._id ? String(company._id) : null;
+
+  // 1. Verificar primero Equipo 1 (Disparadores) y Equipo 4 (Memorias)
+  const trigOrMem = await inspectTriggersAndMemoryTeams(ctx);
+  if (trigOrMem) return trigOrMem;
+
+  // 2. Equipo 2 y 5: Google Workspace (Drive, Sheets, Docs, Calendar, Gmail)
+  if (
+    ['extract_drive', 'google_drive', 'google_sheets', 'google_docs', 'google_calendar', 'extract_gmail', 'google_gmail'].includes(
+      canonicalId
+    )
+  ) {
+    let scopedEmail = company?.googleDrive?.email || '';
+    let hasToken = Boolean(company?.googleDrive?.isConnected);
+    const folderName = company?.googleDrive?.folderName || `SG-SST ${company?.companyName || ''}`.trim();
+    try {
+      const { getScopedAuthValue } = require('~/server/services/googleAuthHelper');
+      const [em, rt, at] = await Promise.all([
+        getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_EMAIL', false).catch(() => null),
+        getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_REFRESH_TOKEN', false).catch(() => null),
+        getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_ACCESS_TOKEN', false).catch(() => null),
+      ]);
+      if (em) scopedEmail = em;
+      if (rt || at || em) hasToken = true;
+    } catch (_) {}
+
+    const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
+    const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
+    const logs = AutomationLog ? await AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(15).lean().catch(() => []) : [];
+
+    const records = [
+      {
+        id: `gws_conn_${companyIdStr || 'active'}`,
+        label: hasToken
+          ? `✅ Google Workspace Conectado (${scopedEmail || company?.email || 'Cuenta vinculada'})`
+          : `⚠️ Google Workspace No Vinculado en ${company?.companyName || 'esta empresa'}`,
+        sublabel: `Carpeta/Scope: ${folderName} • Servicio: ${canonicalId.toUpperCase()}`,
+        badge: hasToken ? 'CONECTADO' : 'SIN VINCULAR',
+        badgeTone: hasToken ? 'emerald' : 'rose',
+        isCritical: !hasToken,
+        fields: {
+          'Estado de Conexión OAuth2 Google Workspace': hasToken ? 'Conectado y Activo' : 'Desconectado',
+          'Cuenta de Google Vinculada': scopedEmail || 'Sin vincular',
+          'Carpeta / Repositorio de la Empresa': folderName,
+          'Empresa Activa': company?.companyName || '',
+        },
+      },
+      ...logs.map((l, idx) => ({
+        id: String(l._id || `gws_log_${idx}`),
+        label: `[Sincronización ${l.status}] ${l.agentName || 'Agente'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
+        sublabel: String(l.result || l.error || '').replace(/\s+/g, ' ').slice(0, 180),
+        badge: String(l.status || 'success').toUpperCase(),
+        badgeTone: l.status === 'failed' ? 'rose' : 'indigo',
+        isCritical: l.status === 'failed',
+        fields: {
+          'Detalle de Sincronización / Archivos Procesados': String(l.result || l.error || '').slice(0, 500),
+        },
+      })),
+    ];
+
+    return {
+      moduleTitle: `Equipo 2/5 · Conector Google Workspace (${canonicalId.replace(/^(extract_|google_)/, '').toUpperCase()})`,
+      sourceCollection: 'CompanyInfo + GoogleOAuth + AutomationLog',
+      kpis: [
+        { label: 'Estado Google OAuth', value: hasToken ? 'CONECTADO' : 'NO CONECTADO', tone: hasToken ? 'emerald' : 'rose' },
+        { label: 'Cuenta Vinculada', value: scopedEmail || 'Pendiente', tone: hasToken ? 'teal' : 'amber' },
+        { label: 'Carpeta SG-SST', value: folderName, tone: 'indigo' },
+        { label: 'Sincronizaciones', value: logs.length, tone: 'purple' },
+      ],
+      records,
+    };
+  }
+
+  // 3. Equipo 2 y 5: Microsoft OneDrive / SharePoint
+  if (['extract_onedrive', 'one_drive'].includes(canonicalId)) {
+    let scopedEmail = company?.oneDrive?.email || '';
+    let hasToken = Boolean(company?.oneDrive?.isConnected);
+    const folderName = company?.oneDrive?.folderName || `OneDrive SG-SST ${company?.companyName || ''}`.trim();
+    try {
+      const { getScopedAuthValue } = require('~/server/services/oneDriveAuthHelper');
+      const [em, rt, at] = await Promise.all([
+        getScopedAuthValue(userId, companyIdStr, 'ONEDRIVE_EMAIL', false).catch(() => null),
+        getScopedAuthValue(userId, companyIdStr, 'ONEDRIVE_REFRESH_TOKEN', false).catch(() => null),
+        getScopedAuthValue(userId, companyIdStr, 'ONEDRIVE_ACCESS_TOKEN', false).catch(() => null),
+      ]);
+      if (em) scopedEmail = em;
+      if (rt || at || em) hasToken = true;
+    } catch (_) {}
+
+    return {
+      moduleTitle: 'Equipo 2/5 · Conector Microsoft OneDrive / SharePoint Corporativo',
+      sourceCollection: 'CompanyInfo + OneDriveOAuth',
+      kpis: [
+        { label: 'Estado OneDrive', value: hasToken ? 'CONECTADO' : 'NO CONECTADO', tone: hasToken ? 'emerald' : 'rose' },
+        { label: 'Cuenta Microsoft', value: scopedEmail || 'Pendiente', tone: hasToken ? 'teal' : 'amber' },
+        { label: 'Carpeta Corporativa', value: folderName, tone: 'indigo' },
+      ],
+      records: [
+        {
+          id: `onedrive_conn_${companyIdStr || 'active'}`,
+          label: hasToken
+            ? `✅ Microsoft OneDrive Conectado (${scopedEmail || 'Cuenta Corporativa'})`
+            : `⚠️ Microsoft OneDrive No Vinculado en ${company?.companyName || 'esta empresa'}`,
+          sublabel: `Carpeta: ${folderName} • Empresa: ${company?.companyName || ''}`,
+          badge: hasToken ? 'CONECTADO' : 'SIN VINCULAR',
+          badgeTone: hasToken ? 'emerald' : 'rose',
+          isCritical: !hasToken,
+          fields: {
+            'Estado de Conexión Microsoft OneDrive': hasToken ? 'Conectado' : 'Desconectado',
+            'Cuenta Microsoft 365': scopedEmail || 'Sin vincular',
+            'Carpeta OneDrive': folderName,
+          },
+        },
+      ],
+    };
+  }
+
+  // 4. Equipo 2: Resumen 360° de Aplicativos Somos SST (extract_sst_app)
+  if (canonicalId === 'extract_sst_app') {
+    const [dRes, wRes, gtcRes, acpmRes] = await Promise.all([
+      inspectHito1And2('hito1_diagnostico_0312', userId, company),
+      inspectHito1And2('hito2_perfil_socio', userId, company),
+      inspectHito1And2('hito2_matriz_ipevar', userId, company),
+      inspectHito6To8('hito7_acpm', userId, company),
+    ]);
+    return {
+      moduleTitle: 'Equipo 2 · Resumen 360° de Aplicativos (0312 + Trabajadores + GTC-45 + ACPM)',
+      sourceCollection: 'DiagnosticoData + SgsstWorker + GTC45WorkspaceSession + KanbanTask',
+      kpis: [
+        dRes?.kpis?.[0] || { label: 'Puntaje 0312', value: '0%', tone: 'teal' },
+        wRes?.kpis?.[0] || { label: 'Trabajadores', value: 0, tone: 'indigo' },
+        gtcRes?.kpis?.[1] || { label: 'Peligros Críticos GTC-45', value: 0, tone: 'rose' },
+        acpmRes?.kpis?.[0] || { label: 'Tareas ACPM', value: 0, tone: 'amber' },
+      ],
+      records: [
+        ...(dRes?.records?.filter((r) => r.isCritical).slice(0, 15) || []),
+        ...(gtcRes?.records?.filter((r) => r.isCritical).slice(0, 15) || []),
+        ...(acpmRes?.records?.slice(0, 15) || []),
+        ...(wRes?.records?.slice(0, 20) || []),
+      ],
+    };
+  }
+
+  // 5. Equipo 5: APIs Científicas y Geoespaciales (OpenWeather, OpenStreetMap, PubChem, MedlinePlus)
+  if (canonicalId === 'pronostico_clima_sst' || canonicalId === 'buscar_centros_emergencia') {
+    const sedes = Array.isArray(company?.sedes) && company.sedes.length > 0
+      ? company.sedes
+      : [{ nombre: 'Sede Principal', city: company?.city || 'Bogotá', departamento: company?.departamento || '', address: company?.address || '' }];
+    const isClima = canonicalId === 'pronostico_clima_sst';
+    return {
+      moduleTitle: isClima
+        ? 'Equipo 5 · OpenWeather API (Clima, Lluvia, Viento, UV y Estrés Térmico por Sede)'
+        : 'Equipo 5 · OpenStreetMap (Clínicas MEDEVAC, Hospitales y Bomberos por Sede)',
+      sourceCollection: 'CompanyInfo.sedes + PlanEmergenciasData',
+      kpis: [
+        { label: 'Ciudad Principal', value: company?.city || 'Bogotá', tone: 'teal' },
+        { label: 'Sedes Registradas', value: sedes.length, tone: 'indigo' },
+        { label: 'Dirección', value: company?.address || 'Registrada', tone: 'emerald' },
+      ],
+      records: sedes.map((s, i) => ({
+        id: `sede_${i}`,
+        label: `[${s.nombre || `Sede #${i + 1}`}] ${s.city || company?.city || 'Ciudad'} (${s.departamento || company?.departamento || 'Colombia'})`,
+        sublabel: `Dirección: ${s.address || company?.address || 'S/D'} • Actividades: ${s.generalActivities || company?.economicActivity || 'Operación General'}`,
+        badge: isClima ? 'Monitoreo Clima SST' : 'Georreferencia MEDEVAC',
+        badgeTone: 'teal',
+        isCritical: false,
+        fields: {
+          'Ciudad / Municipio y Departamento de la Sede': `${s.city || company?.city || ''} (${s.departamento || company?.departamento || ''})`,
+          'Dirección Exacta para Georreferenciación': s.address || company?.address || '',
+          'Sede / Centro de Trabajo': s.nombre || 'Sede Principal',
+        },
+      })),
+    };
+  }
+
+  if (canonicalId === 'consultar_pubchem_quimico') {
+    const [chemTerreno, chemSga] = await Promise.all([
+      inspectHito3To5('hito5_registro_quimico', userId, company),
+      inspectHito1And2('hito3_quimicos_sga', userId, company),
+    ]);
+    const records = [...(chemTerreno?.records || []), ...(chemSga?.records || [])];
+    return {
+      moduleTitle: 'Equipo 5 · PubChem NIH (Sustancias Químicas de la Empresa para Consulta Toxicológica)',
+      sourceCollection: 'SgsstChemicalData + ChemicalCompatibilitySession',
+      kpis: [
+        { label: 'Químicos en Terreno', value: chemTerreno?.records?.length || 0, tone: 'teal' },
+        { label: 'Sustancias Matriz SGA', value: chemSga?.records?.length || 0, tone: 'indigo' },
+        { label: 'Sin FDS / Alerta', value: records.filter((r) => r.isCritical).length, tone: 'rose' },
+      ],
+      records,
+    };
+  }
+
+  if (canonicalId === 'consultar_medlineplus_rehabilitacion') {
+    const saludRes = await inspectHito1And2('hito2_condiciones_salud', userId, company);
+    const critWorkers = (saludRes?.records || []).filter((r) => r.isCritical);
+    return {
+      moduleTitle: 'Equipo 5 · MedlinePlus NIH (Casos Médicos, CIE-10 y Restricciones para Guías de Rehabilitación)',
+      sourceCollection: 'PerfilSociodemograficoData + SgsstWorker',
+      kpis: [
+        { label: 'Casos con Restricción/Alerta', value: critWorkers.length, tone: critWorkers.length > 0 ? 'rose' : 'emerald' },
+        { label: 'Total Evaluados EMO', value: saludRes?.records?.length || 0, tone: 'teal' },
+      ],
+      records: critWorkers.length > 0 ? critWorkers : saludRes?.records || [],
+    };
+  }
+
+  // 6. Equipo 7: Bitácora & Salida (email_report, wappy_notification, canvas_doc, somos_sst_update, antigravity_local_report, antigravity_cloud_report, google_slides)
+  if (
+    [
+      'email_report',
+      'wappy_notification',
+      'canvas_doc',
+      'somos_sst_update',
+      'antigravity_local_report',
+      'antigravity_cloud_report',
+      'google_slides',
+    ].includes(canonicalId)
+  ) {
+    const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
+    const Notification = getSafeModel('Notification', null, '~/models/Notification');
+    const LiveDocument = getSafeModel('LiveDocument', null, '~/models/LiveDocument');
+    const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
+
+    const [logs, notifs, docs] = await Promise.all([
+      AutomationLog ? AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(20).lean().catch(() => []) : [],
+      findManyCompanyDocs(Notification, userId, company, { createdAt: -1 }, 20),
+      findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 20),
+    ]);
+
+    const records = [
+      ...logs.map((l, i) => ({
+        id: String(l._id || `out_log_${i}`),
+        label: `📤 [Bitácora Ejecutada] ${l.agentName || 'Agente IA'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
+        sublabel: String(l.result || l.error || '').replace(/\s+/g, ' ').slice(0, 180),
+        badge: String(l.status || 'success').toUpperCase(),
+        badgeTone: l.status === 'failed' ? 'rose' : 'emerald',
+        isCritical: l.status === 'failed',
+        fields: {
+          'Fecha de Envío / Ejecución': l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : '',
+          'Agente Responsable': l.agentName || '',
+          'Contenido Despachado': String(l.result || l.error || '').slice(0, 500),
+        },
+      })),
+      ...notifs.map((n, i) => ({
+        id: String(n._id || `out_notif_${i}`),
+        label: `🔔 [Notificación WAPPY] ${n.title || 'Alerta SST'}`,
+        sublabel: String(n.body || '').slice(0, 180),
+        badge: n.read ? 'Leída' : 'NUEVA',
+        badgeTone: n.read ? 'slate' : 'teal',
+        isCritical: !n.read,
+        fields: {
+          'Título de la Notificación': n.title || '',
+          'Mensaje Enviado': n.body || '',
+        },
+      })),
+      ...docs.map((d, i) => ({
+        id: String(d._id || `out_doc_${i}`),
+        label: `📄 [Documento LiveEditor] ${d.title || 'Informe Oficial'}`,
+        sublabel: `Actualizado: ${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : ''}`,
+        badge: 'LIVE DOC',
+        badgeTone: 'indigo',
+        isCritical: false,
+        fields: {
+          'Título del Documento': d.title || '',
+          'Contenido': String(d.content || '').replace(/<[^>]+>/g, ' ').slice(0, 400),
+        },
+      })),
+    ];
+
+    return {
+      moduleTitle: `Equipo 7 · Bitácora y Canal de Salida (${canonicalId.toUpperCase()})`,
+      sourceCollection: 'AutomationLog + Notification + LiveDocument',
+      kpis: [
+        { label: 'Bitácoras Emitidas', value: logs.length, tone: 'emerald' },
+        { label: 'Notificaciones WAPPY', value: notifs.length, tone: 'teal' },
+        { label: 'Documentos LiveEditor', value: docs.length, tone: 'indigo' },
+      ],
+      records,
+    };
+  }
+
+  return null;
+}
+
+/**
  * Función principal para el endpoint GET /api/sgsst/automatizaciones/node-live-inspector
  */
 async function inspectNodeLiveData({ userId, companyId, nodeId }) {
@@ -2566,6 +3119,9 @@ async function inspectNodeLiveData({ userId, companyId, nodeId }) {
   }
   if (!result) {
     result = await inspectHito6To8(canonicalId, userId, company);
+  }
+  if (!result) {
+    result = await inspectOtherNodeTeams({ canonicalId, rawNodeId: nodeId, userId, company });
   }
 
   // Fallback para extract_sst_app o cualquier otro nodo
@@ -2656,7 +3212,12 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
       });
 
       const cfg = item.cfg || {};
-      const selectedFields = Array.isArray(cfg.selectedFields) ? cfg.selectedFields.filter(Boolean) : [];
+      const rawSelectedFields = Array.isArray(cfg.selectedFields)
+        ? cfg.selectedFields
+        : Array.isArray(cfg.fields)
+          ? cfg.fields
+          : [];
+      const selectedFields = rawSelectedFields.filter(Boolean);
       const strictFilter = cfg.strictFieldFilter !== false && selectedFields.length > 0;
       const filterMode = cfg.recordFilterMode || 'all';
       const selectedRecordIds = Array.isArray(cfg.selectedRecordIds) ? cfg.selectedRecordIds : [];
@@ -2722,6 +3283,7 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
 
 module.exports = {
   inspectNodeLiveData,
+  inspectOtherNodeTeams,
   buildSurgicalLiveContextForWorkflow,
   normalizeInspectorNodeId,
 };
