@@ -67,6 +67,8 @@ import {
   getNodeDefById,
   getNodeModuleMetadata,
   getPresetFieldsForNode,
+  buildNodeConfigSummary,
+  MODULE_METADATA_MAP,
   normalizeTriggersList,
   normalizeExtractorsList,
   normalizeMemoriesList,
@@ -452,6 +454,42 @@ export default function WappyWorkflowCanvas({
     previewTitle: null,
     previewText: null,
     previewLoading: false,
+  });
+  const [liveRecordSearch, setLiveRecordSearch] = useState<string>('');
+  const [nodeLiveInspectorData, setNodeLiveInspectorData] = useState<{
+    loading: boolean;
+    supported: boolean;
+    nodeId: string | null;
+    companyName: string;
+    sourceCollection: string;
+    totalRecords: number;
+    criticalCount: number;
+    kpis: Array<{
+      label: string;
+      value: string | number;
+      status?: 'ok' | 'warn' | 'critical' | 'info' | string;
+    }>;
+    records: Array<{
+      id: string;
+      label: string;
+      sublabel?: string;
+      badge?: string;
+      isCritical?: boolean;
+      fields?: Record<string, any>;
+      values?: Record<string, any>;
+      data?: Record<string, any>;
+      [key: string]: any;
+    }>;
+  }>({
+    loading: false,
+    supported: false,
+    nodeId: null,
+    companyName: '',
+    sourceCollection: '',
+    totalRecords: 0,
+    criticalCount: 0,
+    kpis: [],
+    records: [],
   });
   const pointerDownClientRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -1585,6 +1623,215 @@ export default function WappyWorkflowCanvas({
       cancelled = true;
     };
   }, [activeConfigNodeKey, readOnly, visualNodes]);
+
+  // Cargar automáticamente el Inspector de Datos y Resultados Reales en Vivo (/api/sgsst/automatizaciones/node-live-inspector)
+  useEffect(() => {
+    setLiveRecordSearch('');
+    if (!activeConfigNodeKey || readOnly) {
+      setNodeLiveInspectorData({
+        loading: false,
+        supported: false,
+        nodeId: null,
+        companyName: '',
+        sourceCollection: '',
+        totalRecords: 0,
+        criticalCount: 0,
+        kpis: [],
+        records: [],
+      });
+      return;
+    }
+
+    const activeNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
+    if (!activeNode) return;
+
+    const cleanId = (activeNode.nodeId || '')
+      .trim()
+      .replace(/^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
+
+    const isLiveInspectable =
+      Boolean(MODULE_METADATA_MAP[cleanId]) ||
+      cleanId.startsWith('hito') ||
+      cleanId === 'extract_sst_workers' ||
+      cleanId === 'extract_sst_app' ||
+      cleanId.startsWith('somos_sst_') ||
+      cleanId.startsWith('matriz_') ||
+      cleanId.startsWith('consultar_analitica_') ||
+      cleanId === 'cursos_lms' ||
+      cleanId === 'acpm_task' ||
+      cleanId === 'wappy_memory_company' ||
+      cleanId === 'tool_sst_company';
+
+    if (!isLiveInspectable) {
+      setNodeLiveInspectorData({
+        loading: false,
+        supported: false,
+        nodeId: cleanId,
+        companyName: '',
+        sourceCollection: '',
+        totalRecords: 0,
+        criticalCount: 0,
+        kpis: [],
+        records: [],
+      });
+      return;
+    }
+
+    let cancelled = false;
+    setNodeLiveInspectorData((prev) => ({
+      ...prev,
+      loading: true,
+      supported: true,
+      nodeId: cleanId,
+    }));
+
+    const token =
+      (typeof window !== 'undefined' && (window as any).platformUserToken) ||
+      localStorage.getItem('token') ||
+      '';
+
+    axios
+      .get(
+        `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(activeNode.nodeId)}`,
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+      )
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data || {};
+        const recordsList = Array.isArray(data.records) ? data.records : [];
+        const kpisList = Array.isArray(data.kpis) ? data.kpis : [];
+        const computedCrit =
+          typeof data.criticalCount === 'number'
+            ? data.criticalCount
+            : recordsList.filter((r: any) => Boolean(r?.isCritical)).length;
+        setNodeLiveInspectorData({
+          loading: false,
+          supported: true,
+          nodeId: cleanId,
+          companyName: data.companyName || 'Empresa Activa',
+          sourceCollection: data.sourceCollection || '',
+          totalRecords:
+            typeof data.totalRecords === 'number' ? data.totalRecords : recordsList.length,
+          criticalCount: computedCrit,
+          kpis: kpisList,
+          records: recordsList,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setNodeLiveInspectorData({
+          loading: false,
+          supported: true,
+          nodeId: cleanId,
+          companyName: 'Empresa Activa',
+          sourceCollection: '',
+          totalRecords: 0,
+          criticalCount: 0,
+          kpis: [],
+          records: [],
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConfigNodeKey, readOnly, visualNodes]);
+
+  // Extrae los pares { field, value } reales de un registro de MongoDB para la Vista Previa Quirúrgica en Vivo
+  const resolveRecordSurgicalPreview = useCallback(
+    (
+      rec: {
+        id: string;
+        label: string;
+        sublabel?: string;
+        badge?: string;
+        fields?: Record<string, any>;
+        values?: Record<string, any>;
+        data?: Record<string, any>;
+        [key: string]: any;
+      },
+      chosenFields: string[],
+    ): Array<{ field: string; value: string }> => {
+      const bag: Record<string, any> = {
+        ...(rec.data && typeof rec.data === 'object' ? rec.data : {}),
+        ...(rec.values && typeof rec.values === 'object' ? rec.values : {}),
+        ...(rec.fields && typeof rec.fields === 'object' ? rec.fields : {}),
+      };
+      // Si el registro tiene propiedades planas adicionales, incorporarlas sin pisar bag
+      Object.entries(rec || {}).forEach(([k, v]) => {
+        if (
+          !['id', '_id', 'label', 'sublabel', 'badge', 'isCritical', 'fields', 'values', 'data'].includes(
+            k,
+          ) &&
+          bag[k] === undefined &&
+          v !== undefined &&
+          v !== null &&
+          typeof v !== 'object'
+        ) {
+          bag[k] = v;
+        }
+      });
+
+      const normalizeStr = (s: string) =>
+        String(s || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '');
+
+      const bagEntries = Object.entries(bag);
+      if (bagEntries.length === 0) return [];
+
+      if (!Array.isArray(chosenFields) || chosenFields.length === 0) {
+        return bagEntries
+          .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+          .slice(0, 4)
+          .map(([k, v]) => ({
+            field: k,
+            value: Array.isArray(v) ? v.join(', ') : String(v),
+          }));
+      }
+
+      const result: Array<{ field: string; value: string }> = [];
+      chosenFields.forEach((targetField) => {
+        // 1. Coincidencia exacta
+        if (bag[targetField] !== undefined && bag[targetField] !== null && String(bag[targetField]).trim() !== '') {
+          result.push({
+            field: targetField,
+            value: Array.isArray(bag[targetField]) ? bag[targetField].join(', ') : String(bag[targetField]),
+          });
+          return;
+        }
+        // 2. Coincidencia normalizada o por palabras clave
+        const normTarget = normalizeStr(targetField);
+        const targetTokens = String(targetField || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .split(/[^a-z0-9]+/)
+          .filter((t) => t.length >= 3 && !['del', 'las', 'los', 'por', 'con', 'para', 'una'].includes(t));
+
+        const matched = bagEntries.find(([k]) => {
+          const normKey = normalizeStr(k);
+          if (!normKey) return false;
+          if (normKey === normTarget || normKey.includes(normTarget) || normTarget.includes(normKey)) {
+            return true;
+          }
+          return targetTokens.some((tok) => normKey.includes(tok));
+        });
+
+        if (matched && matched[1] !== undefined && matched[1] !== null && String(matched[1]).trim() !== '') {
+          result.push({
+            field: targetField,
+            value: Array.isArray(matched[1]) ? matched[1].join(', ') : String(matched[1]),
+          });
+        }
+      });
+
+      return result;
+    },
+    [],
+  );
 
   // Previsualizar el contenido de un informe guardado directamente desde la configuración del nodo
   const handlePreviewNodeReport = async (convId: string, title: string) => {
@@ -3251,9 +3498,7 @@ export default function WappyWorkflowCanvas({
                       {node.title}
                     </div>
                     <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
-                      {nodeCfg?.fields && nodeCfg.fields.length > 0
-                        ? `${nodeCfg.fields.length} campos elegidos`
-                        : node.subtitle}
+                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
                   </div>
                 </div>
@@ -3625,9 +3870,7 @@ export default function WappyWorkflowCanvas({
                       {node.title}
                     </div>
                     <div className="text-[9px] text-teal-600 dark:text-teal-400 font-semibold truncate">
-                      {nodeCfg?.fields && nodeCfg.fields.length > 0
-                        ? `${nodeCfg.fields.length} acciones`
-                        : node.subtitle}
+                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
                   </div>
                 </div>
@@ -3886,9 +4129,7 @@ export default function WappyWorkflowCanvas({
                     {node.title}
                   </div>
                   <div className="text-[8.5px] font-semibold text-slate-400 truncate">
-                    {nodeCfg?.fields && nodeCfg.fields.length > 0
-                      ? `${nodeCfg.fields.length} campos`
-                      : node.subtitle}
+                    {buildNodeConfigSummary(nodeCfg) || node.subtitle}
                   </div>
 
                   {isModelCircle && !readOnly && (
@@ -3946,6 +4187,10 @@ export default function WappyWorkflowCanvas({
         const moduleMeta = getNodeModuleMetadata(activeNode.nodeId, activeNode.shape);
         const presetFields = moduleMeta.fields;
         const selectedFields = currentCfg.fields || [];
+        const recordFilterMode: 'all' | 'critical_only' | 'selected' =
+          currentCfg.recordFilterMode || 'all';
+        const selectedRecordIds = currentCfg.selectedRecordIds || [];
+        const selectedRecordLabels = currentCfg.selectedRecordLabels || [];
         const selectedReportIds = currentCfg.selectedReportIds || [];
         const selectedReportTitles = currentCfg.selectedReportTitles || [];
         const isStrictFilter = currentCfg.strictFieldFilter !== false;
@@ -3954,6 +4199,28 @@ export default function WappyWorkflowCanvas({
               f.toLowerCase().includes(fieldSearchQuery.trim().toLowerCase()),
             )
           : presetFields;
+        const filteredLiveRecords = (nodeLiveInspectorData.records || []).filter((rec) => {
+          if (recordFilterMode === 'critical_only' && !rec.isCritical) {
+            return false;
+          }
+          if (!liveRecordSearch.trim()) return true;
+          const q = liveRecordSearch.trim().toLowerCase();
+          const inHeader =
+            String(rec.label || '')
+              .toLowerCase()
+              .includes(q) ||
+            String(rec.sublabel || '')
+              .toLowerCase()
+              .includes(q) ||
+            String(rec.badge || '')
+              .toLowerCase()
+              .includes(q);
+          if (inHeader) return true;
+          const pairs = resolveRecordSurgicalPreview(rec, selectedFields);
+          return pairs.some(
+            (p) => p.field.toLowerCase().includes(q) || p.value.toLowerCase().includes(q),
+          );
+        });
         const isExtraAgent = activeNode.key.startsWith('agent_extra_');
         const extraAgentObj = isExtraAgent
           ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === activeNode.key)
@@ -3993,6 +4260,30 @@ export default function WappyWorkflowCanvas({
           handleUpdateNodeConfig(activeNode.key, {
             fields: allAlreadySelected ? [] : comboFields,
             strictFieldFilter: true,
+            reportTags: moduleMeta.reportTags,
+          });
+        };
+
+        const handleSetRecordFilterMode = (mode: 'all' | 'critical_only' | 'selected') => {
+          handleUpdateNodeConfig(activeNode.key, {
+            recordFilterMode: mode,
+            reportTags: moduleMeta.reportTags,
+          });
+        };
+
+        const toggleSelectLiveRecord = (recId: string, recLabel: string, recSublabel?: string) => {
+          const fullLabel = recSublabel ? `${recLabel} (${recSublabel})` : recLabel;
+          const exists = selectedRecordIds.includes(recId);
+          const nextIds = exists
+            ? selectedRecordIds.filter((id) => id !== recId)
+            : [...selectedRecordIds, recId];
+          const nextLabels = exists
+            ? selectedRecordLabels.filter((lbl) => lbl !== fullLabel && lbl !== recLabel)
+            : Array.from(new Set([...selectedRecordLabels, fullLabel]));
+          handleUpdateNodeConfig(activeNode.key, {
+            recordFilterMode: 'selected',
+            selectedRecordIds: nextIds,
+            selectedRecordLabels: nextLabels,
             reportTags: moduleMeta.reportTags,
           });
         };
@@ -4563,6 +4854,254 @@ export default function WappyWorkflowCanvas({
                     )}
                   </div>
                 </div>
+
+                {/* 1-A. 📊 CONTENIDO Y RESULTADOS REALES EN VIVO DE «{activeNode.title}» (MONGO DB EN TIEMPO REAL) */}
+                {nodeLiveInspectorData.supported && (
+                  <div className="p-3 rounded-xl border-2 border-emerald-400/80 dark:border-emerald-700/80 bg-emerald-50/35 dark:bg-emerald-950/20 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-emerald-600 dark:text-[#C7F303] shrink-0" />
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-black uppercase tracking-wide text-emerald-950 dark:text-[#C7F303]">
+                              📊 CONTENIDO Y RESULTADOS REALES EN VIVO DE «{activeNode.title}» (
+                              {nodeLiveInspectorData.companyName || 'Empresa Activa'})
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                              {nodeLiveInspectorData.loading
+                                ? 'Consultando MongoDB en vivo...'
+                                : `${nodeLiveInspectorData.totalRecords} registro(s) reales · ${nodeLiveInspectorData.criticalCount} crítico(s)/en brecha`}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400">
+                            Visualiza los indicadores reales guardados en la base de datos de tu empresa y elige si el nodo procesará todos los registros, solo los críticos/en brecha o registros específicos con vista previa quirúrgica de los campos elegidos.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Píldoras de KPIs Reales en Vivo */}
+                    {nodeLiveInspectorData.kpis && nodeLiveInspectorData.kpis.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {nodeLiveInspectorData.kpis.map((kpi, idx) => {
+                          const statusColor =
+                            kpi.status === 'critical'
+                              ? 'bg-rose-100/90 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700'
+                              : kpi.status === 'warn'
+                                ? 'bg-amber-100/90 dark:bg-amber-950/70 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                                : kpi.status === 'ok'
+                                  ? 'bg-emerald-100/90 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
+                                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700';
+                          return (
+                            <div
+                              key={`${kpi.label}_${idx}`}
+                              className={`px-2.5 py-1 rounded-xl border text-[10.5px] font-bold flex items-center gap-1.5 shadow-2xs ${statusColor}`}
+                            >
+                              <span className="opacity-80">{kpi.label}:</span>
+                              <span className="font-black">{kpi.value}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* 3 Botones Píldora de Filtro de Registros (recordFilterMode) */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleSetRecordFilterMode('all')}
+                          className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
+                            recordFilterMode === 'all'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                              : 'bg-white hover:bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {recordFilterMode === 'all' && <Check className="w-3 h-3 stroke-[3]" />}
+                          📋 Todos los registros ({nodeLiveInspectorData.totalRecords})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetRecordFilterMode('critical_only')}
+                          className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
+                            recordFilterMode === 'critical_only'
+                              ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                              : 'bg-white hover:bg-rose-50 dark:bg-slate-900 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                          }`}
+                        >
+                          {recordFilterMode === 'critical_only' && (
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          )}
+                          🚨 Solo Críticos / En Brecha / Con Alerta ({nodeLiveInspectorData.criticalCount})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetRecordFilterMode('selected')}
+                          className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
+                            recordFilterMode === 'selected'
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                              : 'bg-white hover:bg-purple-50 dark:bg-slate-900 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800'
+                          }`}
+                        >
+                          {recordFilterMode === 'selected' && (
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          )}
+                          🎯 Seleccionar registros específicos ({selectedRecordIds.length})
+                        </button>
+                      </div>
+
+                      {/* Buscador de registros en vivo + acciones rápidas de selección */}
+                      {nodeLiveInspectorData.records.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="relative">
+                            <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={liveRecordSearch}
+                              onChange={(e) => setLiveRecordSearch(e.target.value)}
+                              placeholder="Buscar por cédula, nombre, cargo, código..."
+                              className="pl-6 pr-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10.5px] text-slate-800 dark:text-slate-100 w-56"
+                            />
+                          </div>
+                          {filteredLiveRecords.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const allVisIds = Array.from(
+                                  new Set([
+                                    ...selectedRecordIds,
+                                    ...filteredLiveRecords.map((r) => r.id),
+                                  ]),
+                                );
+                                const allVisLabels = Array.from(
+                                  new Set([
+                                    ...selectedRecordLabels,
+                                    ...filteredLiveRecords.map((r) =>
+                                      r.sublabel ? `${r.label} (${r.sublabel})` : r.label,
+                                    ),
+                                  ]),
+                                );
+                                handleUpdateNodeConfig(activeNode.key, {
+                                  recordFilterMode: 'selected',
+                                  selectedRecordIds: allVisIds,
+                                  selectedRecordLabels: allVisLabels,
+                                  reportTags: moduleMeta.reportTags,
+                                });
+                              }}
+                              className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:border-purple-400"
+                            >
+                              Marcar Visibles ({filteredLiveRecords.length})
+                            </button>
+                          )}
+                          {selectedRecordIds.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateNodeConfig(activeNode.key, {
+                                  recordFilterMode: 'all',
+                                  selectedRecordIds: [],
+                                  selectedRecordLabels: [],
+                                  reportTags: moduleMeta.reportTags,
+                                })
+                              }
+                              className="px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-[10px] font-bold text-rose-700 dark:text-rose-300"
+                            >
+                              Limpiar Selección ({selectedRecordIds.length})
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Lista Interactiva de Registros Reales con Vista Previa Quirúrgica de Campos Elegidos */}
+                    {nodeLiveInspectorData.loading ? (
+                      <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+                        Cargando registros y resultados reales desde MongoDB para «{activeNode.title}»...
+                      </div>
+                    ) : filteredLiveRecords.length > 0 ? (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {filteredLiveRecords.slice(0, 60).map((rec) => {
+                          const isRecChecked = selectedRecordIds.includes(rec.id);
+                          const surgicalPairs = resolveRecordSurgicalPreview(rec, selectedFields);
+                          return (
+                            <div
+                              key={rec.id}
+                              onClick={() =>
+                                toggleSelectLiveRecord(rec.id, rec.label, rec.sublabel)
+                              }
+                              className={`p-2 rounded-xl border transition cursor-pointer ${
+                                isRecChecked
+                                  ? 'bg-purple-600/10 dark:bg-purple-950/40 border-purple-500 ring-1 ring-purple-500/30'
+                                  : rec.isCritical
+                                    ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60 hover:border-rose-400'
+                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <span
+                                    className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                                      isRecChecked
+                                        ? 'bg-purple-600 border-purple-600 text-white'
+                                        : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                                    }`}
+                                  >
+                                    {isRecChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                                  </span>
+                                  <span className="text-[11px] font-extrabold text-slate-900 dark:text-white truncate">
+                                    {rec.label}
+                                  </span>
+                                  {rec.sublabel && (
+                                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                                      · {rec.sublabel}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {rec.badge && (
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold border shrink-0 ${
+                                      rec.isCritical
+                                        ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700'
+                                        : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                                    }`}
+                                  >
+                                    {rec.badge}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Píldoras de Vista Previa Quirúrgica con los valores reales de los campos seleccionados */}
+                              {surgicalPairs.length > 0 && (
+                                <div className="mt-1.5 pl-6 flex flex-wrap items-center gap-1">
+                                  {surgicalPairs.map((pair, pIdx) => (
+                                    <span
+                                      key={`${rec.id}_p_${pIdx}`}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-[9.5px] text-slate-700 dark:text-slate-200 max-w-full"
+                                    >
+                                      <strong className="text-teal-700 dark:text-[#C7F303] font-extrabold shrink-0">
+                                        {pair.field}:
+                                      </strong>
+                                      <span className="truncate max-w-[260px]">{pair.value}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[10.5px] text-slate-500 dark:text-slate-400 italic">
+                        {liveRecordSearch.trim() || recordFilterMode === 'critical_only'
+                          ? 'No hay registros que coincidan con el filtro actual en este aplicativo.'
+                          : `Aún no hay registros individuales cargados en «${activeNode.title}» para la empresa activa (el nodo extraerá los KPIs o alimentará este aplicativo durante la ejecución).`}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 1-BIS. 📜 HISTORIAL DE INFORMES GUARDADOS DEL APLICATIVO (SI EL NODO CORRESPONDE A UN APLICATIVO DE SOMOS SST) */}
                 {moduleMeta.reportTags && moduleMeta.reportTags.length > 0 && (

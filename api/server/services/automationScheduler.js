@@ -10,6 +10,7 @@ const Notification = require('~/models/Notification');
 const TenshiMessage = require('~/models/TenshiMessage');
 const KanbanTask = require('~/models/KanbanTask');
 const sendEmail = require('~/server/utils/sendEmail');
+const { buildSurgicalLiveContextForWorkflow } = require('~/server/services/workflowNodeInspectorService');
 
 let schedulerInterval = null;
 let isCheckingAutomations = false; // Evita que dos ticks del intervalo se solapen
@@ -641,18 +642,26 @@ async function runAutomation(automation, isManual = false) {
       }
     } catch (_) {}
 
+    let liveDatabaseSurgicalBlock = '';
+    try {
+      liveDatabaseSurgicalBlock = await buildSurgicalLiveContextForWorkflow(automation, automationCompany);
+    } catch (liveErr) {
+      console.error('[AutomationScheduler] Error construyendo extracción quirúrgica en vivo:', liveErr?.message || liveErr);
+    }
+
     const companyHeaderBlock = automationCompany
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
         `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
         antigravityEngineDirective +
         previousRunMemoryBlock +
         canvasNodesContextBlock +
+        liveDatabaseSurgicalBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : `${antigravityEngineDirective}${previousRunMemoryBlock}${canvasNodesContextBlock}`;
+      : `${antigravityEngineDirective}${previousRunMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
 
     // Override agent model if specified in the WAPPY workflow canvas

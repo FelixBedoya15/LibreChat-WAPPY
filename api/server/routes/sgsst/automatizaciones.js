@@ -6,6 +6,7 @@ const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
 const { Agent } = require('~/db/models');
 const { runAutomation, calculateNextRun, stopAutomation } = require('~/server/services/automationScheduler');
+const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
 
 const UserPlan = require('~/db/models/UserPlan');
 
@@ -504,6 +505,30 @@ async function getEffectiveAutomationLimit(userId, userRole) {
   }
   return { limit: 0, plan };
 }
+
+/**
+ * GET /api/sgsst/automatizaciones/node-live-inspector
+ * Inspecciona en tiempo real los registros, KPIs, brechas e informes de cualquiera de los 50 aplicativos de los 8 Hitos.
+ */
+router.get('/node-live-inspector', async (req, res) => {
+  try {
+    const nodeId = String(req.query.nodeId || '').trim();
+    if (!nodeId) {
+      return res.status(400).json({ error: 'El parámetro nodeId es obligatorio.' });
+    }
+    const explicitCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
+    const companyId = explicitCompanyId || (await getActiveCompanyId(req.user.id));
+    const data = await inspectNodeLiveData({
+      userId: req.user.id,
+      companyId,
+      nodeId,
+    });
+    return res.json({ success: true, ...data });
+  } catch (error) {
+    console.error('[API Automatizaciones] Error en node-live-inspector:', error);
+    return res.status(500).json({ error: 'Error al consultar datos en vivo del nodo.' });
+  }
+});
 
 /**
  * GET /api/sgsst/automatizaciones/presets
