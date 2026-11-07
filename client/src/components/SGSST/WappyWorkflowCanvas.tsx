@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import axios from 'axios';
 import {
   Globe,
   HeartPulse,
@@ -45,6 +46,8 @@ import {
   Sliders,
   Repeat,
   GitMerge,
+  Lock,
+  Hammer,
 } from 'lucide-react';
 import {
   TRIGGER_NODES,
@@ -54,6 +57,9 @@ import {
   OUTPUT_ACTION_NODES,
   AI_ENGINE_MODELS,
   MEMORY_NODES,
+  HITOS_8_FILTER_TABS,
+  DEFAULT_CONSTRUCTION_APP_IDS,
+  isWorkflowNodeUnderConstruction,
   getNodeDefById,
   getPresetFieldsForNode,
   normalizeTriggersList,
@@ -397,6 +403,26 @@ export default function WappyWorkflowCanvas({
   const [activeConfigNodeKey, setActiveConfigNodeKey] = useState<string | null>(null);
   const [customFieldInput, setCustomFieldInput] = useState<string>('');
   const pointerDownClientRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Estado sincronizado con Somos SST (/api/sgsst/config) de qué aplicativos están "En Construcción"
+  const [disabledSgsstApps, setDisabledSgsstApps] = useState<string[]>(DEFAULT_CONSTRUCTION_APP_IDS);
+  const [selectedHitoFilter, setSelectedHitoFilter] = useState<string>('all');
+  const [constructionNotice, setConstructionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    axios
+      .get('/api/sgsst/config')
+      .then((res) => {
+        if (mounted && Array.isArray(res.data?.disabledApps)) {
+          setDisabledSgsstApps(res.data.disabledApps);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Lista de agentes accesibles por el usuario + Tenshi Avatar (Orquestador 3D de Voz y Gestión) diferenciado de Tenshi Agente de texto
   const availableAgentsWithTenshiAvatar = useMemo(() => {
@@ -1423,6 +1449,15 @@ export default function WappyWorkflowCanvas({
   ) => {
     if (!onChange || readOnly) return;
 
+    const candidateNode = getNodeDefById(nodeId);
+    if (isWorkflowNodeUnderConstruction(candidateNode, disabledSgsstApps)) {
+      setConstructionNotice(
+        `🚧 «${candidateNode?.label || nodeId}» se encuentra en modo Construcción en Somos SST: el nodo aparece en su Hito pero aún no se puede seleccionar.`,
+      );
+      return;
+    }
+    setConstructionNotice(null);
+
     if (group === 'trigger') {
       const exists = activeTriggers.includes(nodeId);
       let nextTriggers: string[];
@@ -1632,14 +1667,17 @@ export default function WappyWorkflowCanvas({
                         : aiModel.replace('gemini-', ''),
                 },
                 { id: 'memories', label: '💾 4. Memorias del Agente', badge: activeMemories.length },
-                { id: 'connectors', label: '🔧 5. Tools del Agente', badge: (workflowNodes.inputs || []).length },
-                { id: 'hitos', label: '🛡️ 6. Cambiar en Hito / App', badge: (workflowNodes.hitos || []).length },
+                { id: 'connectors', label: '🔧 5. Herramientas del Agente', badge: (workflowNodes.inputs || []).length },
+                { id: 'hitos', label: '🛡️ 6. Los 8 Hitos / 50 Apps SST', badge: (workflowNodes.hitos || []).length },
                 { id: 'outputs', label: '📤 7. Bitácora & Salida', badge: (workflowNodes.outputs || []).length },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setPaletteTab(tab.id as any)}
+                  onClick={() => {
+                    setPaletteTab(tab.id as any);
+                    setConstructionNotice(null);
+                  }}
                   className={`px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold transition flex items-center gap-1.5 border ${
                     paletteTab === tab.id
                       ? 'bg-slate-900 text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-sm'
@@ -1688,7 +1726,7 @@ export default function WappyWorkflowCanvas({
               </span>
             ) : paletteTab === 'hitos' ? (
               <span>
-                🛡️ <strong>Etapa 4 — Acción en Hito o Aplicativo:</strong> Elige en qué matriz o aplicativo de los <strong>7 Hitos de Somos SST</strong> el Agente debe guardar, actualizar o modificar registros tras procesar la información.
+                🛡️ <strong>Etapa 4 — Todos los 50 Aplicativos de los 8 Hitos de Somos SST:</strong> Elige en qué aplicativo de los <strong>8 Hitos</strong> el Agente debe guardar o modificar registros. Los aplicativos en modo <strong>🚧 En Construcción</strong> aparecen visibles pero bloqueados hasta que se activen.
               </span>
             ) : paletteTab === 'outputs' ? (
               <span>
@@ -1795,75 +1833,178 @@ export default function WappyWorkflowCanvas({
               })}
             </div>
           ) : (
-            <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
-              {(paletteTab === 'extractors'
-                ? EXTRACTOR_NODES
-                : paletteTab === 'connectors'
-                  ? INPUT_CONNECTOR_NODES
-                  : paletteTab === 'hitos'
-                    ? HITO_APP_NODES
-                    : paletteTab === 'triggers'
-                      ? TRIGGER_NODES
-                      : OUTPUT_ACTION_NODES
-              ).map((node) => {
-                const groupKey =
-                  paletteTab === 'extractors'
-                    ? 'extractors'
-                    : paletteTab === 'connectors'
-                      ? 'inputs'
-                      : paletteTab === 'hitos'
-                        ? 'hitos'
-                        : paletteTab === 'triggers'
-                          ? 'trigger'
-                          : 'outputs';
-                const isSelected =
-                  groupKey === 'trigger'
-                    ? activeTriggers.includes(node.id)
-                    : groupKey === 'extractors'
-                      ? activeExtractors.includes(node.id)
-                      : (workflowNodes[groupKey] || []).includes(node.id);
-
-                return (
-                  <div
-                    key={node.id}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData(
-                        'application/wappy-flow-node',
-                        JSON.stringify({ kind: 'node', group: groupKey, nodeId: node.id }),
-                      );
-                    }}
-                    onClick={() => toggleOrAddCatalogNode(groupKey, node.id)}
-                    title={`${node.label} — Arrastra al lienzo o haz clic para ${isSelected ? 'quitar' : 'conectar'}`}
-                    className="group/tile flex flex-col items-center w-[78px] shrink-0 cursor-grab active:cursor-grabbing select-none"
-                  >
-                    {/* Cuadrito con Logo SVG Original */}
-                    <div
-                      className={`relative w-14 h-14 flex items-center justify-center bg-white dark:bg-slate-800 border-2 transition-all duration-150 shadow-sm group-hover/tile:-translate-y-0.5 group-hover/tile:shadow-md ${
-                        groupKey === 'trigger'
-                          ? 'rounded-l-[22px] rounded-r-[10px]'
-                          : 'rounded-2xl'
-                      } ${
-                        isSelected
-                          ? 'border-purple-600 dark:border-[#C7F303] ring-2 ring-purple-500/25 dark:ring-[#C7F303]/25'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-purple-400'
+            <div className="flex flex-col gap-2">
+              {/* Barra de filtro por los 8 Hitos de Somos SST (disponible en Extraer Datos, Herramientas y Los 8 Hitos) */}
+              {(paletteTab === 'hitos' || paletteTab === 'extractors' || paletteTab === 'connectors') && (
+                <div className="flex flex-wrap items-center gap-1 pb-1 border-b border-slate-100 dark:border-slate-800/80">
+                  {paletteTab !== 'hitos' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedHitoFilter('external');
+                        setConstructionNotice(null);
+                      }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border ${
+                        selectedHitoFilter === 'external'
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
                       }`}
                     >
-                      {renderOfficialNodeSvg(node.id, 'w-7 h-7')}
+                      🌐 Conectores / Fuentes ({paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})
+                    </button>
+                  )}
+                  {HITOS_8_FILTER_TABS.map((hTab) => {
+                    const isActive =
+                      selectedHitoFilter === hTab.id ||
+                      (paletteTab === 'hitos' && selectedHitoFilter === 'external' && hTab.id === 'all');
+                    return (
+                      <button
+                        key={hTab.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedHitoFilter(hTab.id);
+                          setConstructionNotice(null);
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border ${
+                          isActive
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                        }`}
+                      >
+                        {hTab.shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-                      {/* Insignia de conectado */}
-                      {isSelected && (
-                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-purple-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center shadow">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+              {/* Aviso cuando el usuario hace clic sobre un aplicativo en modo Construcción */}
+              {constructionNotice && (
+                <div className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 flex items-center justify-between gap-2 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                  <span className="flex items-center gap-1.5">
+                    <Hammer className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    {constructionNotice}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setConstructionNotice(null)}
+                    className="text-amber-700 dark:text-amber-300 hover:underline text-[10px] font-extrabold shrink-0"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
+                {(paletteTab === 'extractors'
+                  ? selectedHitoFilter === 'external'
+                    ? EXTRACTOR_NODES
+                    : selectedHitoFilter === 'all'
+                      ? [...EXTRACTOR_NODES, ...HITO_APP_NODES]
+                      : HITO_APP_NODES.filter((h) => h.hitoId === selectedHitoFilter)
+                  : paletteTab === 'connectors'
+                    ? selectedHitoFilter === 'external'
+                      ? INPUT_CONNECTOR_NODES
+                      : selectedHitoFilter === 'all'
+                        ? [...INPUT_CONNECTOR_NODES, ...HITO_APP_NODES]
+                        : HITO_APP_NODES.filter((h) => h.hitoId === selectedHitoFilter)
+                    : paletteTab === 'hitos'
+                      ? selectedHitoFilter === 'all' || selectedHitoFilter === 'external'
+                        ? HITO_APP_NODES
+                        : HITO_APP_NODES.filter((h) => h.hitoId === selectedHitoFilter)
+                      : paletteTab === 'triggers'
+                        ? TRIGGER_NODES
+                        : OUTPUT_ACTION_NODES
+                ).map((node) => {
+                  const groupKey =
+                    paletteTab === 'extractors'
+                      ? 'extractors'
+                      : paletteTab === 'connectors'
+                        ? 'inputs'
+                        : paletteTab === 'hitos'
+                          ? 'hitos'
+                          : paletteTab === 'triggers'
+                            ? 'trigger'
+                            : 'outputs';
+                  const isUnderConstruction = isWorkflowNodeUnderConstruction(node, disabledSgsstApps);
+                  const isSelected =
+                    !isUnderConstruction &&
+                    (groupKey === 'trigger'
+                      ? activeTriggers.includes(node.id)
+                      : groupKey === 'extractors'
+                        ? activeExtractors.includes(node.id)
+                        : (workflowNodes[groupKey] || []).includes(node.id));
+
+                  return (
+                    <div
+                      key={`${groupKey}_${node.id}`}
+                      draggable={!isUnderConstruction}
+                      onDragStart={(e) => {
+                        if (isUnderConstruction) {
+                          e.preventDefault();
+                          return;
+                        }
+                        e.dataTransfer.setData(
+                          'application/wappy-flow-node',
+                          JSON.stringify({ kind: 'node', group: groupKey, nodeId: node.id }),
+                        );
+                      }}
+                      onClick={() => toggleOrAddCatalogNode(groupKey, node.id)}
+                      title={
+                        isUnderConstruction
+                          ? `🚧 ${node.label} — Aplicativo en Construcción en Somos SST (No seleccionable)`
+                          : `${node.label} — Arrastra al lienzo o haz clic para ${isSelected ? 'quitar' : 'conectar'}`
+                      }
+                      className={`group/tile flex flex-col items-center w-[84px] shrink-0 select-none ${
+                        isUnderConstruction
+                          ? 'cursor-not-allowed opacity-65'
+                          : 'cursor-grab active:cursor-grabbing'
+                      }`}
+                    >
+                      {/* Cuadrito con Logo SVG Original */}
+                      <div
+                        className={`relative w-14 h-14 flex items-center justify-center border-2 transition-all duration-150 shadow-sm ${
+                          groupKey === 'trigger'
+                            ? 'rounded-l-[22px] rounded-r-[10px]'
+                            : 'rounded-2xl'
+                        } ${
+                          isUnderConstruction
+                            ? 'bg-amber-50/40 dark:bg-amber-950/20 border-dashed border-amber-400/90 dark:border-amber-600/80'
+                            : isSelected
+                              ? 'bg-white dark:bg-slate-800 border-purple-600 dark:border-[#C7F303] ring-2 ring-purple-500/25 dark:ring-[#C7F303]/25 group-hover/tile:-translate-y-0.5 group-hover/tile:shadow-md'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400 group-hover/tile:-translate-y-0.5 group-hover/tile:shadow-md'
+                        }`}
+                      >
+                        {renderOfficialNodeSvg(node.id, 'w-7 h-7')}
+
+                        {/* Insignia de En Construcción (Candado) o de Conectado (Check) */}
+                        {isUnderConstruction ? (
+                          <span
+                            className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow"
+                            title="Aplicativo en Construcción (No seleccionable)"
+                          >
+                            <Lock className="w-2.5 h-2.5 stroke-[2.5]" />
+                          </span>
+                        ) : (
+                          isSelected && (
+                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-purple-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center shadow">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </span>
+                          )
+                        )}
+                      </div>
+                      <span className="mt-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 text-center leading-tight line-clamp-2">
+                        {node.shortLabel}
+                      </span>
+                      {isUnderConstruction && (
+                        <span className="mt-0.5 px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[8px] font-extrabold uppercase tracking-tight">
+                          🚧 En Constr.
                         </span>
                       )}
                     </div>
-                    <span className="mt-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 text-center leading-tight line-clamp-2">
-                      {node.shortLabel}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

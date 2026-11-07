@@ -8,6 +8,59 @@ export interface WorkflowNodeDef {
   icon?: string;
   badge?: string;
   description?: string;
+  /** ID oficial del aplicativo en Somos SST (PHASE_CATEGORIES en constants.ts) */
+  sgsstAppId?: string;
+  /** ID oficial del Hito en Somos SST ('hito1' .. 'hito8') */
+  hitoId?: 'hito1' | 'hito2' | 'hito3' | 'hito4' | 'hito5' | 'hito6' | 'hito7' | 'hito8';
+  /** Si el aplicativo está en modo construcción por defecto */
+  defaultConstruction?: boolean;
+}
+
+/**
+ * Aplicativos en modo construcción por defecto en Somos SST (sincronizado además en vivo con GET /api/sgsst/config -> disabledApps).
+ */
+export const DEFAULT_CONSTRUCTION_APP_IDS: string[] = [
+  'legal',
+  'comite_pesv',
+  'brigada_emergencias',
+  'equipos_emergencia',
+  'comunicaciones_sst',
+  'simulacros_emergencia',
+  'app_builder',
+  'investigacion_profunda',
+];
+
+export const HITOS_8_FILTER_TABS: Array<{ id: string; label: string; shortLabel: string }> = [
+  { id: 'all', label: 'Todos los 8 Hitos (50 Apps)', shortLabel: 'Todos (50)' },
+  { id: 'hito1', label: 'Hito 1 · Gobernanza y Legal (15)', shortLabel: 'Hito 1 (15)' },
+  { id: 'hito2', label: 'Hito 2 · Huella Biocéntrica (4)', shortLabel: 'Hito 2 (4)' },
+  { id: 'hito3', label: 'Hito 3 · Comités y Brigadas (4)', shortLabel: 'Hito 3 (4)' },
+  { id: 'hito4', label: 'Hito 4 · Evaluación Dinámica (4)', shortLabel: 'Hito 4 (4)' },
+  { id: 'hito5', label: 'Hito 5 · Operativa y Terreno (10)', shortLabel: 'Hito 5 (10)' },
+  { id: 'hito6', label: 'Hito 6 · Cultura y Escuela (6)', shortLabel: 'Hito 6 (6)' },
+  { id: 'hito7', label: 'Hito 7 · Auditoría y ATEL (6)', shortLabel: 'Hito 7 (6)' },
+  { id: 'hito8', label: 'Hito 8 · IA Predictiva (1)', shortLabel: 'Hito 8 (1)' },
+];
+
+export function isWorkflowNodeUnderConstruction(
+  node?: WorkflowNodeDef | null,
+  disabledApps?: string[] | null,
+): boolean {
+  if (!node) return false;
+  const activeDisabledList =
+    Array.isArray(disabledApps) && disabledApps.length > 0
+      ? disabledApps
+      : DEFAULT_CONSTRUCTION_APP_IDS;
+  if (node.sgsstAppId && activeDisabledList.includes(node.sgsstAppId)) {
+    return true;
+  }
+  if (node.hitoId && activeDisabledList.includes(node.hitoId)) {
+    return true;
+  }
+  if (!disabledApps && node.defaultConstruction) {
+    return true;
+  }
+  return false;
 }
 
 export interface CanvasNodePosition {
@@ -256,7 +309,9 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
 
 export function normalizeExtractorsList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
   if (Array.isArray(nodes?.extractors) && nodes!.extractors!.length > 0) {
-    const valid = nodes!.extractors!.filter((id) => EXTRACTOR_NODES.some((e) => e.id === id));
+    const valid = nodes!.extractors!.filter(
+      (id) => EXTRACTOR_NODES.some((e) => e.id === id) || HITO_APP_NODES.some((h) => h.id === id),
+    );
     if (valid.length > 0) return Array.from(new Set(valid));
   }
   const derived: string[] = [];
@@ -596,217 +651,578 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
 ];
 
 export const HITO_APP_NODES: WorkflowNodeDef[] = [
-  // Hito 1
+  // ═══ HITO 1: GOBERNANZA Y CIMIENTO LEGAL (15 APLICATIVOS) ═══
   {
-    id: 'hito1_diagnostico_0312',
-    label: 'Hito 1 · Diagnóstico Estándares Mínimos (Res. 0312)',
-    shortLabel: 'H1: Diagnóstico 0312',
-    category: 'Hito 1: Organización',
-    toolHint: 'Diagnóstico de Estándares Mínimos Res. 0312 (somos_sst: diagnostico)',
+    id: 'hito1_dofa',
+    sgsstAppId: 'contexto_organizacion',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Contexto y Partes Interesadas (DOFA / Stakeholders)',
+    shortLabel: 'H1: Contexto DOFA',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Contexto y Partes Interesadas DOFA / Stakeholders (somos_sst: contexto)',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   },
   {
-    id: 'hito1_matriz_legal',
-    label: 'Hito 1 · Matriz Legal y Normativa Vigente',
-    shortLabel: 'H1: Matriz Legal',
-    category: 'Hito 1: Organización',
-    toolHint: 'Matriz Legal SG-SST (somos_sst: matriz_legal)',
+    id: 'hito1_diagnostico_0312',
+    sgsstAppId: 'diagnostico',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Diagnóstico Inicial Estándares Mínimos (Res. 0312)',
+    shortLabel: 'H1: Diagnóstico 0312',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Diagnóstico Inicial de Estándares Mínimos Res. 0312 (somos_sst: diagnostico)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito1_responsable',
+    sgsstAppId: 'responsable',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Responsable SG-SST (Licencia e Idoneidad)',
+    shortLabel: 'H1: Responsable SST',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Asignación y Licencia del Responsable SG-SST (somos_sst: responsable)',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   },
   {
     id: 'hito1_politica_objetivos',
-    label: 'Hito 1 · Política y Objetivos del SG-SST',
-    shortLabel: 'H1: Política y Objetivos',
-    category: 'Hito 1: Organización',
-    toolHint: 'Política y Objetivos SG-SST (somos_sst: politica)',
+    sgsstAppId: 'politica',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Política de SST',
+    shortLabel: 'H1: Política SST',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Política del SG-SST (somos_sst: politica)',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   },
   {
-    id: 'hito1_dofa',
-    label: 'Hito 1 · Contexto Organizacional y Matriz DOFA',
-    shortLabel: 'H1: Contexto DOFA',
-    category: 'Hito 1: Organización',
-    toolHint: 'Contexto Organizacional DOFA (somos_sst: contexto)',
+    id: 'hito1_objetivos',
+    sgsstAppId: 'objetivos',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Objetivos de SST (Indicadores)',
+    shortLabel: 'H1: Objetivos SST',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Objetivos y Metas Cuantificables del SG-SST (somos_sst: objetivos)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito1_matriz_legal',
+    sgsstAppId: 'legal',
+    hitoId: 'hito1',
+    defaultConstruction: true,
+    label: 'Hito 1 · Matriz Legal',
+    shortLabel: 'H1: Matriz Legal',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Matriz Legal SG-SST (somos_sst: matriz_legal)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito1_rhs',
+    sgsstAppId: 'rhs',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Reglamento de Higiene (RHS)',
+    shortLabel: 'H1: Reglamento RHS',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Reglamento de Higiene y Seguridad Industrial RHS (somos_sst: rhs)',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   },
   {
     id: 'hito1_rit',
-    label: 'Hito 1 · Reglamento Interno de Trabajo (RIT)',
-    shortLabel: 'H1: Editor RIT',
-    category: 'Hito 1: Organización',
-    toolHint: 'Reglamento Interno de Trabajo (editor_rit / somos_sst: rit)',
+    sgsstAppId: 'rit',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Reglamento Interno (RIT)',
+    shortLabel: 'H1: Reglamento RIT',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Reglamento Interno de Trabajo RIT (somos_sst: rit)',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   },
-  // Hito 2
+  {
+    id: 'hito1_participacion_ipevar',
+    sgsstAppId: 'participacion_ipevar',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Participación IPEVR Comunitaria',
+    shortLabel: 'H1: Participación IPEVR',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Participación IPEVR Comunitaria de Trabajadores (somos_sst: participacion_ipevar)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
   {
     id: 'hito2_matriz_ipevar',
-    label: 'Hito 2 · Matriz de Peligros IPEVAR (GTC-45)',
-    shortLabel: 'H2: Matriz GTC-45',
-    category: 'Hito 2: Planificación',
-    toolHint: 'Matriz de Peligros GTC-45 (matriz_ipevar)',
+    sgsstAppId: 'matriz_ipevar_oficial',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Matriz IPEVR (GTC 45)',
+    shortLabel: 'H1: Matriz GTC 45',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Matriz Oficial de Peligros IPEVR GTC 45 (matriz_ipevar)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito3_matriz_pesv',
+    sgsstAppId: 'matriz_pesv_oficial',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Matriz de Riesgos Viales (PESV)',
+    shortLabel: 'H1: Matriz PESV',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Matriz Oficial de Riesgos Viales PESV Res. 40595 (matriz_pesv)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito3_quimicos_sga',
+    sgsstAppId: 'matriz_compatibilidad_oficial',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Matriz de Compatibilidad Química (SGA)',
+    shortLabel: 'H1: Compatibilidad SGA',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Matriz Oficial de Compatibilidad Química SGA Dec. 1496 (matriz_compatibilidad)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito1_oportunidades_sst',
+    sgsstAppId: 'oportunidades_sst',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Riesgos del Sistema y Oportunidades SST',
+    shortLabel: 'H1: Oportunidades SST',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Riesgos Estratégicos del Sistema y Oportunidades SST ISO 45001 (somos_sst: oportunidades)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito6_vulnerabilidad',
+    sgsstAppId: 'vulnerabilidad',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Análisis de Vulnerabilidad',
+    shortLabel: 'H1: Vulnerabilidad',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Análisis de Amenazas y Vulnerabilidad Diamante de Colores (somos_sst: vulnerabilidad)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'hito1_plan_emergencias',
+    sgsstAppId: 'plan_emergencias',
+    hitoId: 'hito1',
+    label: 'Hito 1 · Plan de Emergencias y Contingencias (PPRE)',
+    shortLabel: 'H1: Plan Emergencias',
+    badge: 'Hito 1 · Gobernanza',
+    category: 'Hito 1: Gobernanza y Cimiento Legal',
+    toolHint: 'Plan de Prevención, Preparación y Respuesta ante Emergencias PPRE, MEDEVAC y PONs (somos_sst: plan_emergencias)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+
+  // ═══ HITO 2: HUELLA BIOCÉNTRICA (4 APLICATIVOS) ═══
+  {
+    id: 'hito2_perfiles_cargo',
+    sgsstAppId: 'perfil_cargo',
+    hitoId: 'hito2',
+    label: 'Hito 2 · Perfiles de Cargo (Roles)',
+    shortLabel: 'H2: Perfiles de Cargo',
+    badge: 'Hito 2 · Biocéntrica',
+    category: 'Hito 2: Huella Biocéntrica',
+    toolHint: 'Perfiles de Cargo y Profesiograma (somos_sst: cargos)',
     badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
   },
   {
     id: 'hito2_perfil_socio',
-    label: 'Hito 2 · Perfil Sociodemográfico y Exámenes Médicos (EMO)',
-    shortLabel: 'H2: Sociodemográfico y EMO',
-    category: 'Hito 2: Planificación',
-    toolHint: 'Perfil Sociodemográfico y Exámenes Médicos (somos_sst: alimentar_sociodemografico_masivo / actualizar_examen_medico)',
+    sgsstAppId: 'perfil_socio',
+    hitoId: 'hito2',
+    label: 'Hito 2 · Perfil Sociodemográfico',
+    shortLabel: 'H2: Sociodemográfico',
+    badge: 'Hito 2 · Biocéntrica',
+    category: 'Hito 2: Huella Biocéntrica',
+    toolHint: 'Perfil Sociodemográfico y Expedientes de Trabajadores (somos_sst: alimentar_sociodemografico_masivo)',
     badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
   },
   {
-    id: 'hito2_perfiles_cargo',
-    label: 'Hito 2 · Perfiles de Cargo y Profesiograma',
-    shortLabel: 'H2: Perfiles de Cargo',
-    category: 'Hito 2: Planificación',
-    toolHint: 'Perfiles de Cargo (somos_sst: cargos)',
+    id: 'hito2_condiciones_salud',
+    sgsstAppId: 'condiciones_salud',
+    hitoId: 'hito2',
+    label: 'Hito 2 · Informe Condiciones de Salud',
+    shortLabel: 'H2: Condiciones Salud',
+    badge: 'Hito 2 · Biocéntrica',
+    category: 'Hito 2: Huella Biocéntrica',
+    toolHint: 'Informe de Condiciones de Salud y Exámenes Médicos Ocupacionales EMO (somos_sst: actualizar_examen_medico)',
     badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
   },
   {
-    id: 'hito2_cronograma',
-    label: 'Hito 2 · Cronograma Anual y Plan de Trabajo Kanban',
-    shortLabel: 'H2: Cronograma Kanban',
-    category: 'Hito 2: Planificación',
-    toolHint: 'Cronograma Anual SG-SST (somos_sst: kanban)',
+    id: 'hito2_oraculo_predictivo',
+    sgsstAppId: 'oraculo_predictivo',
+    hitoId: 'hito2',
+    label: 'Hito 2 · Dictamen de Compatibilidad Cargo-Persona',
+    shortLabel: 'H2: Compatibilidad Cargo',
+    badge: 'Hito 2 · Biocéntrica',
+    category: 'Hito 2: Huella Biocéntrica',
+    toolHint: 'Dictamen de Compatibilidad Cargo-Persona y Aptitud Bioindividual (somos_sst: oraculo_predictivo)',
     badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
   },
-  // Hito 3
+
+  // ═══ HITO 3: COMITÉS, BRIGADAS Y ÓRGANOS DE GOBERNANZA (4 APLICATIVOS) ═══
   {
-    id: 'hito3_epp',
-    label: 'Hito 3 · Matriz y Control de Entrega de EPP',
-    shortLabel: 'H3: Matriz EPP',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Matriz y Entregas de EPP (somos_sst: epp)',
-    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    id: 'hito4_comites',
+    sgsstAppId: 'copasst',
+    hitoId: 'hito3',
+    label: 'Hito 3 · COPASST / Vigía de SST',
+    shortLabel: 'H3: COPASST / Vigía',
+    badge: 'Hito 3 · Comités',
+    category: 'Hito 3: Comités, Brigadas y Gobernanza',
+    toolHint: 'Comité Paritario de Seguridad y Salud en el Trabajo COPASST / Vigía y Actas (somos_sst: copasst)',
+    badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
   },
   {
-    id: 'hito3_quimicos_sga',
-    label: 'Hito 3 · Inventario y Compatibilidad Química SGA',
-    shortLabel: 'H3: Químicos SGA',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Matriz de Compatibilidad Química SGA (matriz_compatibilidad)',
-    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    id: 'hito3_cocolab',
+    sgsstAppId: 'cocolab',
+    hitoId: 'hito3',
+    label: 'Hito 3 · Comité de Convivencia Laboral',
+    shortLabel: 'H3: Convivencia CCL',
+    badge: 'Hito 3 · Comités',
+    category: 'Hito 3: Comités, Brigadas y Gobernanza',
+    toolHint: 'Comité de Convivencia Laboral CCL y Prevención de Acoso (somos_sst: convivencia)',
+    badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
   },
   {
-    id: 'hito3_alturas',
-    label: 'Hito 3 · Equipos y Permisos de Trabajo en Alturas (Res. 4272)',
-    shortLabel: 'H3: Trabajo en Alturas',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Equipos y Permisos de Trabajo en Alturas (somos_sst: alturas)',
-    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    id: 'hito3_comite_pesv',
+    sgsstAppId: 'comite_pesv',
+    hitoId: 'hito3',
+    defaultConstruction: true,
+    label: 'Hito 3 · Comité de Seguridad Vial (CSV - PESV)',
+    shortLabel: 'H3: Comité Vial CSV',
+    badge: 'Hito 3 · Comités',
+    category: 'Hito 3: Comités, Brigadas y Gobernanza',
+    toolHint: 'Comité de Seguridad Vial CSV - PESV (somos_sst: comite_pesv)',
+    badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
   },
   {
-    id: 'hito3_ats',
-    label: 'Hito 3 · Análisis de Trabajo Seguro (ATS)',
-    shortLabel: 'H3: ATS',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Análisis de Trabajo Seguro ATS (somos_sst: ats)',
+    id: 'hito3_brigada_emergencias',
+    sgsstAppId: 'brigada_emergencias',
+    hitoId: 'hito3',
+    defaultConstruction: true,
+    label: 'Hito 3 · Brigada de Emergencias & Comité de Crisis (SCI)',
+    shortLabel: 'H3: Brigada SCI',
+    badge: 'Hito 3 · Comités',
+    category: 'Hito 3: Comités, Brigadas y Gobernanza',
+    toolHint: 'Brigada de Emergencias y Sistema Comando de Incidentes SCI (somos_sst: brigada)',
+    badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
+  },
+
+  // ═══ HITO 4: EVALUACIÓN DINÁMICA DE RIESGOS (4 APLICATIVOS) ═══
+  {
+    id: 'hito4_bio_ipevar',
+    sgsstAppId: 'peligros',
+    hitoId: 'hito4',
+    label: 'Hito 4 · Matriz Bio-IPEVR',
+    shortLabel: 'H4: Matriz Bio-IPEVR',
+    badge: 'Hito 4 · Evaluación',
+    category: 'Hito 4: Evaluación Dinámica de Riesgos',
+    toolHint: 'Matriz Bio-IPEVR por Trabajador y Percepción Anatómica (somos_sst: peligros)',
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   },
   {
     id: 'hito3_owas',
-    label: 'Hito 3 · Evaluación Ergonómica Método OWAS',
-    shortLabel: 'H3: Ergonomía OWAS',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Evaluación Ergonómica OWAS (somos_sst: owas)',
+    sgsstAppId: 'metodo_owas',
+    hitoId: 'hito4',
+    label: 'Hito 4 · Método OWAS (Evaluación Ergonómica)',
+    shortLabel: 'H4: Método OWAS',
+    badge: 'Hito 4 · Evaluación',
+    category: 'Hito 4: Evaluación Dinámica de Riesgos',
+    toolHint: 'Evaluación Ergonómica Postural Método OWAS (somos_sst: owas)',
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   },
   {
     id: 'hito3_estudio_puesto',
-    label: 'Hito 3 · Estudio de Puesto de Trabajo (EPT)',
-    shortLabel: 'H3: Estudio Puesto',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Estudio de Puesto de Trabajo EPT (somos_sst: estudio_puesto)',
+    sgsstAppId: 'estudio_puesto',
+    hitoId: 'hito4',
+    label: 'Hito 4 · Estudio de Puesto de Trabajo (EPT)',
+    shortLabel: 'H4: Estudio Puesto EPT',
+    badge: 'Hito 4 · Evaluación',
+    category: 'Hito 4: Evaluación Dinámica de Riesgos',
+    toolHint: 'Estudio de Puesto de Trabajo EPT Biomecánico con IA (somos_sst: estudio_puesto)',
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-  },
-  {
-    id: 'hito3_matriz_pesv',
-    label: 'Hito 3 · Plan Estratégico de Seguridad Vial (Matriz PESV)',
-    shortLabel: 'H3: Matriz PESV',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Matriz de Riesgos Viales PESV (matriz_pesv)',
-    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-  },
-  {
-    id: 'hito3_vehiculos',
-    label: 'Hito 3 · Parque Automotor e Inspección Preoperacional',
-    shortLabel: 'H3: Parque Automotor',
-    category: 'Hito 3: Gestión del Riesgo',
-    toolHint: 'Parque Automotor y Vehículos (somos_sst: vehiculos)',
-    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-  },
-  // Hito 4, 5, 6, 7
-  {
-    id: 'hito4_comites',
-    label: 'Hito 4 · Comités COPASST y Convivencia Laboral (CCL)',
-    shortLabel: 'H4: Comités COPASST/CCL',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Comités COPASST y CCL (somos_sst)',
-    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-  },
-  {
-    id: 'hito4_actos_condiciones',
-    label: 'Hito 4 · Buzón de Actos y Condiciones Inseguras',
-    shortLabel: 'H4: Actos y Condiciones',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Reporte de Actos y Condiciones Inseguras (somos_sst: actos)',
-    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
   },
   {
     id: 'hito4_psicosocial',
-    label: 'Hito 4 · Vigilancia de Riesgo Psicosocial y Batería',
-    shortLabel: 'H4: Riesgo Psicosocial',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Programa de Vigilancia Psicosocial (consultar_analitica_psicosocial)',
+    sgsstAppId: 'animo',
+    hitoId: 'hito4',
+    label: 'Hito 4 · Termómetro Psicosocial',
+    shortLabel: 'H4: Termómetro Psicosocial',
+    badge: 'Hito 4 · Evaluación',
+    category: 'Hito 4: Evaluación Dinámica de Riesgos',
+    toolHint: 'Termómetro Psicosocial y Clima Emocional (consultar_analitica_psicosocial)',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+
+  // ═══ HITO 5: DINÁMICA OPERATIVA Y TERRENO (10 APLICATIVOS) ═══
+  {
+    id: 'hito5_compras_sst',
+    sgsstAppId: 'compras_sst',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Compras y Adquisiciones en SST',
+    shortLabel: 'H5: Compras SST',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Compras y Adquisiciones en SST Dec. 1072 Art. 2.2.4.6.27 (somos_sst: compras)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito5_contratistas',
+    sgsstAppId: 'contratistas_proveedores',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Control y Gestión de Contratistas',
+    shortLabel: 'H5: Contratistas',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Control y Gestión de Contratistas y Proveedores PILA (somos_sst: contratistas)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito5_gestion_cambio',
+    sgsstAppId: 'gestion_cambio',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Gestión del Cambio en SST (MOC)',
+    shortLabel: 'H5: Gestión del Cambio',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Gestión del Cambio en SST MOC Dec. 1072 Art. 2.2.4.6.26 (somos_sst: gestion_cambio)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito3_ats',
+    sgsstAppId: 'analisis_trabajo_seguro',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Análisis de Trabajo Seguro (ATS)',
+    shortLabel: 'H5: Análisis ATS',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Análisis de Trabajo Seguro ATS Paso a Paso (somos_sst: ats)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito3_alturas',
+    sgsstAppId: 'permiso_alturas',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Permiso de Trabajo en Alturas',
+    shortLabel: 'H5: Permiso Alturas',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Permiso de Trabajo en Alturas Res. 4272 (somos_sst: permiso_alturas)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito5_equipos_alturas',
+    sgsstAppId: 'heights_lifecycle',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Hoja de Vida de Equipos de Alturas',
+    shortLabel: 'H5: Equipos Alturas',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Hoja de Vida e Inspección de Equipos de Alturas (somos_sst: alturas)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito3_epp',
+    sgsstAppId: 'epp_delivery',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Entrega y Seguimiento de EPP',
+    shortLabel: 'H5: Entrega de EPP',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Entrega y Seguimiento de Elementos de Protección Personal EPP (somos_sst: epp)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito5_registro_quimico',
+    sgsstAppId: 'chemical_registry',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Registro y Rótulo de Productos Químicos',
+    shortLabel: 'H5: Registro Químico',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Inventario, FDS y Rótulo SGA de Productos Químicos (somos_sst: chemicals)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito3_vehiculos',
+    sgsstAppId: 'vehicles_pesv',
+    hitoId: 'hito5',
+    label: 'Hito 5 · Hoja de Vida Automotores (PESV)',
+    shortLabel: 'H5: Automotores PESV',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Hoja de Vida de Automotores e Inspección Preoperacional PESV (somos_sst: vehiculos)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'hito5_equipos_emergencia',
+    sgsstAppId: 'equipos_emergencia',
+    hitoId: 'hito5',
+    defaultConstruction: true,
+    label: 'Hito 5 · Inventario e Inspección de Equipos de Emergencia',
+    shortLabel: 'H5: Equipos Emergencia',
+    badge: 'Hito 5 · Terreno',
+    category: 'Hito 5: Dinámica Operativa y Terreno',
+    toolHint: 'Inventario e Inspección de Extintores, Botiquines y Camillas (somos_sst: equipos_emergencia)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+
+  // ═══ HITO 6: CULTURA, ESCUELA E INNOVACIÓN (6 APLICATIVOS) ═══
+  {
+    id: 'hito6_comunicaciones_sst',
+    sgsstAppId: 'comunicaciones_sst',
+    hitoId: 'hito6',
+    defaultConstruction: true,
+    label: 'Hito 6 · Plan y Matriz de Comunicaciones SST',
+    shortLabel: 'H6: Comunicaciones SST',
+    badge: 'Hito 6 · Cultura',
+    category: 'Hito 6: Cultura, Escuela e Innovación',
+    toolHint: 'Plan y Matriz de Comunicaciones Internas y Externas SST (somos_sst: comunicaciones)',
     badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
   },
   {
     id: 'hito5_capacitaciones',
-    label: 'Hito 5 · Programa Anual de Capacitaciones e Inducción',
-    shortLabel: 'H5: Capacitaciones',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Programa Anual de Capacitaciones (somos_sst: capacitaciones)',
+    sgsstAppId: 'capacitaciones',
+    hitoId: 'hito6',
+    label: 'Hito 6 · Programa de Capacitación SG-SST',
+    shortLabel: 'H6: Capacitaciones',
+    badge: 'Hito 6 · Cultura',
+    category: 'Hito 6: Cultura, Escuela e Innovación',
+    toolHint: 'Programa Anual de Capacitación e Inducción SG-SST (somos_sst: capacitaciones)',
+    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+  {
+    id: 'hito6_ruta_aprendizaje',
+    sgsstAppId: 'ruta_aprendizaje',
+    hitoId: 'hito6',
+    label: 'Hito 6 · Rutas de Aprendizaje (LMS)',
+    shortLabel: 'H6: Rutas LMS',
+    badge: 'Hito 6 · Cultura',
+    category: 'Hito 6: Cultura, Escuela e Innovación',
+    toolHint: 'Rutas de Aprendizaje y Certificación en Academia WAPPY LMS (cursos_lms)',
+    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+  {
+    id: 'hito4_actos_condiciones',
+    sgsstAppId: 'reporte_actos',
+    hitoId: 'hito6',
+    label: 'Hito 6 · Reporte de Actos y Condiciones',
+    shortLabel: 'H6: Actos y Condiciones',
+    badge: 'Hito 6 · Cultura',
+    category: 'Hito 6: Cultura, Escuela e Innovación',
+    toolHint: 'Reporte de Actos y Condiciones Inseguras en Campo (somos_sst: actos)',
+    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+  {
+    id: 'hito6_simulacros_emergencia',
+    sgsstAppId: 'simulacros_emergencia',
+    hitoId: 'hito6',
+    defaultConstruction: true,
+    label: 'Hito 6 · Gestión y Evaluación de Simulacros de Emergencia',
+    shortLabel: 'H6: Simulacros',
+    badge: 'Hito 6 · Cultura',
+    category: 'Hito 6: Cultura, Escuela e Innovación',
+    toolHint: 'Planeación y Evaluación de Simulacros de Emergencia (somos_sst: simulacros)',
+    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+  {
+    id: 'hito6_app_builder',
+    sgsstAppId: 'app_builder',
+    hitoId: 'hito6',
+    defaultConstruction: true,
+    label: 'Hito 6 · Creador de Aplicativos (App Builder)',
+    shortLabel: 'H6: App Builder',
+    badge: 'Hito 6 · Cultura',
+    category: 'Hito 6: Cultura, Escuela e Innovación',
+    toolHint: 'Creador de Micro-Aplicativos y Formularios SST (somos_sst: app_builder)',
+    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+
+  // ═══ HITO 7: AUDITORÍA, CAUSALIDAD Y MEJORA CONTINUA (6 APLICATIVOS) ═══
+  {
+    id: 'hito7_estadisticas_atel',
+    sgsstAppId: 'estadisticas',
+    hitoId: 'hito7',
+    label: 'Hito 7 · Gestión Integral de Ausentismo & ATEL',
+    shortLabel: 'H7: Ausentismo y ATEL',
+    badge: 'Hito 7 · Auditoría',
+    category: 'Hito 7: Auditoría, Causalidad y Mejora',
+    toolHint: 'Estadísticas de Ausentismo e Indicadores ATEL Res. 0312 Art. 30 (somos_sst: estadisticas)',
     badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
   },
   {
-    id: 'hito6_vulnerabilidad',
-    label: 'Hito 6 · Análisis de Vulnerabilidad y Plan de Emergencias',
-    shortLabel: 'H6: Vulnerabilidad y Emergencias',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Análisis de Vulnerabilidad y Plan de Emergencias (somos_sst: vulnerabilidad)',
-    badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-  },
-  {
     id: 'hito7_investigacion_atel',
-    label: 'Hito 7 · Investigación de Accidentes e Incidentes (ATEL)',
+    sgsstAppId: 'investigacion_atel',
+    hitoId: 'hito7',
+    label: 'Hito 7 · Investigación ATEL',
     shortLabel: 'H7: Investigación ATEL',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Investigación de Accidentes ATEL (somos_sst: registrar_accidente_atel)',
-    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
-  },
-  {
-    id: 'hito7_auditoria',
-    label: 'Hito 7 · Auditoría Anual del SG-SST',
-    shortLabel: 'H7: Auditoría Anual',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Auditoría Anual SG-SST (somos_sst: auditoria)',
-    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
+    badge: 'Hito 7 · Auditoría',
+    category: 'Hito 7: Auditoría, Causalidad y Mejora',
+    toolHint: 'Investigación de Accidentes e Incidentes ATEL Árbol de Causas / Ishikawa (somos_sst: registrar_accidente_atel)',
+    badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
   },
   {
     id: 'hito7_acpm',
-    label: 'Hito 7 · Centro de Control ACPM (Acciones Correctivas/Preventivas)',
-    shortLabel: 'H7: Plan de Acción ACPM',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Centro de Control ACPM (somos_sst: crear_actividad_acpm)',
-    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
+    sgsstAppId: 'control_acpm',
+    hitoId: 'hito7',
+    label: 'Hito 7 · Tablero Kanban ACPM',
+    shortLabel: 'H7: Tablero ACPM',
+    badge: 'Hito 7 · Auditoría',
+    category: 'Hito 7: Auditoría, Causalidad y Mejora',
+    toolHint: 'Tablero Kanban de Acciones Correctivas, Preventivas y de Mejora ACPM (somos_sst: crear_actividad_acpm)',
+    badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+  },
+  {
+    id: 'hito7_auditoria',
+    sgsstAppId: 'auditoria',
+    hitoId: 'hito7',
+    label: 'Hito 7 · Informe de Auditoría SG-SST',
+    shortLabel: 'H7: Auditoría SG-SST',
+    badge: 'Hito 7 · Auditoría',
+    category: 'Hito 7: Auditoría, Causalidad y Mejora',
+    toolHint: 'Informe de Auditoría Anual del SG-SST (somos_sst: auditoria)',
+    badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
   },
   {
     id: 'hito7_alta_direccion',
-    label: 'Hito 7 · Revisión por la Alta Dirección y Rendición de Cuentas',
+    sgsstAppId: 'alta_direccion',
+    hitoId: 'hito7',
+    label: 'Hito 7 · Revisión por la Alta Dirección',
     shortLabel: 'H7: Alta Dirección',
-    category: 'Hitos 4-7: Cultura, Emergencias y Mejora',
-    toolHint: 'Revisión por la Alta Dirección (somos_sst)',
-    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
+    badge: 'Hito 7 · Auditoría',
+    category: 'Hito 7: Auditoría, Causalidad y Mejora',
+    toolHint: 'Revisión Anual por la Alta Dirección de 22 Puntos (somos_sst: alta_direccion)',
+    badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+  },
+  {
+    id: 'hito7_investigacion_profunda',
+    sgsstAppId: 'investigacion_profunda',
+    hitoId: 'hito7',
+    defaultConstruction: true,
+    label: 'Hito 7 · Investigación Profunda SST',
+    shortLabel: 'H7: Investigación Profunda',
+    badge: 'Hito 7 · Auditoría',
+    category: 'Hito 7: Auditoría, Causalidad y Mejora',
+    toolHint: 'Investigación Profunda de Doctrina y Jurisprudencia SST (somos_sst: investigacion_profunda)',
+    badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+  },
+
+  // ═══ HITO 8: INTELIGENCIA ARTIFICIAL & ORÁCULO PREDICTIVO (1 APLICATIVO) ═══
+  {
+    id: 'hito8_predictivo',
+    sgsstAppId: 'predictivo',
+    hitoId: 'hito8',
+    label: 'Hito 8 · Centro de Inteligencia Predictiva',
+    shortLabel: 'H8: Oráculo Predictivo',
+    badge: 'Hito 8 · IA Predictiva',
+    category: 'Hito 8: Inteligencia Artificial & Oráculo Predictivo',
+    toolHint: 'Centro de Inteligencia Predictiva, Gemelo Digital y Radar de 9 Dominios (somos_sst: predictivo)',
+    badgeColor: 'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300 border-pink-200 dark:border-pink-800',
   },
 ];
 
@@ -920,13 +1336,15 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
         ? 'trigger_webhook'
         : id === 'drive_folder_watch' || id === 'drive_watch' || id === 'sgsst_db_audit' || id === 'sst_deadline_watch'
           ? 'schedule_cron'
-          : id;
+          : id === 'hito2_cronograma'
+            ? 'hito7_acpm'
+            : id;
   return (
     TRIGGER_NODES.find((n) => n.id === normId) ||
     EXTRACTOR_NODES.find((n) => n.id === normId) ||
     MEMORY_NODES.find((n) => n.id === normId) ||
     INPUT_CONNECTOR_NODES.find((n) => n.id === normId) ||
-    HITO_APP_NODES.find((n) => n.id === normId) ||
+    HITO_APP_NODES.find((n) => n.id === normId || n.sgsstAppId === normId) ||
     OUTPUT_ACTION_NODES.find((n) => n.id === normId)
   );
 }
@@ -1029,7 +1447,7 @@ export function buildPromptFromWorkflowNodes(
     .filter(Boolean) as WorkflowNodeDef[];
   const extractorIds = normalizeExtractorsList(nodes);
   const extractorDefs = extractorIds
-    .map((eid) => EXTRACTOR_NODES.find((e) => e.id === eid))
+    .map((eid) => EXTRACTOR_NODES.find((e) => e.id === eid) || HITO_APP_NODES.find((h) => h.id === eid))
     .filter(Boolean) as WorkflowNodeDef[];
   const memoryIds = normalizeMemoriesList(nodes);
   const memoryDefs = memoryIds
@@ -1038,10 +1456,10 @@ export function buildPromptFromWorkflowNodes(
   const engineMode = nodes.aiEngine || 'wappy';
   const modelId = nodes.aiModel || 'gemini-3.6-flash';
   const inputDefs = (nodes.inputs || [])
-    .map((id) => INPUT_CONNECTOR_NODES.find((n) => n.id === id))
+    .map((id) => INPUT_CONNECTOR_NODES.find((n) => n.id === id) || HITO_APP_NODES.find((h) => h.id === id))
     .filter(Boolean) as WorkflowNodeDef[];
   const hitoDefs = (nodes.hitos || [])
-    .map((id) => HITO_APP_NODES.find((n) => n.id === id))
+    .map((id) => getNodeDefById(id))
     .filter(Boolean) as WorkflowNodeDef[];
   const outputDefs = (nodes.outputs || [])
     .map((id) => OUTPUT_ACTION_NODES.find((n) => n.id === id))
