@@ -533,6 +533,28 @@ server.tool(
   }
 );
 
+server.tool(
+  'wappy_investigar_trabajador_360',
+  {
+    tipoDoc: z.string().optional().describe('Tipo de documento: CC (por defecto), CE, PEP, PPT, TI, PA'),
+    cedula: z.string().optional().describe('Número de cédula o documento de identidad del trabajador a investigar'),
+    placa: z.string().optional().describe('Placa del vehículo asignado o del conductor (para SIMIT y RUNT)'),
+    nombre: z.string().optional().describe('Nombre completo del trabajador (si se omite, se obtiene automáticamente desde MinTrabajo con la cédula para consultar Rama Judicial)'),
+    includePdf: z.boolean().optional().describe('Si es true (por defecto), descarga en Base64 el PDF oficial del último certificado de Trabajo en Alturas en MinTrabajo'),
+  },
+  async (args) => {
+    try {
+      const data = await wappyRequest('/workers/osint-360', {
+        method: 'POST',
+        body: JSON.stringify(args),
+      });
+      return formatMcpResponse(data);
+    } catch (err) {
+      return formatMcpError(err);
+    }
+  }
+);
+
 // ─── 6. CRONOGRAMA SST Y TAREAS KANBAN ──────────────────────────────────────
 
 server.tool(

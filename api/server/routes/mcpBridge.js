@@ -2025,6 +2025,46 @@ router.post('/workers/:idOrCedula/reactivar', requireApiKeyOrJwt, async (req, re
   }
 });
 
+router.post('/workers/osint-360', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { investigarTrabajador360 } = require('~/server/services/osintWorkerService');
+    const result = await investigarTrabajador360(req.body || {});
+    return res.json(result);
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /workers/osint-360 error:', error);
+    return res.status(500).json({ ok: false, error: 'Error al ejecutar investigación 360° del trabajador.' });
+  }
+});
+
+router.post('/workers/osint-mintrabajo-pdf', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { descargarPdfConstanciaMinTrabajo } = require('~/server/services/osintWorkerService');
+    const result = await descargarPdfConstanciaMinTrabajo(req.body || {});
+    if (!result.ok) {
+      return res.status(404).json(result);
+    }
+    return res.json(result);
+  } catch (error) {
+    logger.error('[MCP Bridge] POST /workers/osint-mintrabajo-pdf error:', error);
+    return res.status(500).json({ ok: false, error: 'Error al descargar constancia PDF de MinTrabajo.' });
+  }
+});
+
+router.get('/workers/osint-catalog', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const { obtenerCatalogoPortales360 } = require('~/server/services/osintWorkerService');
+    const portalesOficiales = obtenerCatalogoPortales360(req.query || {});
+    return res.json({
+      ok: true,
+      portalesOficiales,
+      ...portalesOficiales,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] GET /workers/osint-catalog error:', error);
+    return res.status(500).json({ ok: false, error: 'Error al obtener catálogo de portales oficiales.' });
+  }
+});
+
 // ─── 6. CRONOGRAMA SST Y TAREAS KANBAN ──────────────────────────────────────
 
 router.get('/tasks', requireApiKeyOrJwt, async (req, res) => {

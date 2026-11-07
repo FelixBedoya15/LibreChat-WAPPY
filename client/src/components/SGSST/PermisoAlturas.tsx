@@ -14,8 +14,9 @@ import {
     X,
     FileText,
     Plus,
-    Trash2
-, Download, Video, Film } from 'lucide-react';
+    Trash2,
+    ShieldCheck,
+    Download, Video, Film } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -32,6 +33,8 @@ import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import AcpmActionPlanBox, { type ActionPlanItem } from './AcpmActionPlanBox';
+import ExpandableButton from '~/components/Common/ExpandableButton';
+import WorkerOsint360Modal from './WorkerOsint360Modal';
 
 const WorkerAutocomplete = ({
     value,
@@ -141,6 +144,11 @@ const PermisoAlturas = () => {
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
     const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
+    const [osintModalState, setOsintModalState] = useState<{
+        isOpen: boolean;
+        cedula?: string;
+        nombre?: string;
+    }>({ isOpen: false, cedula: '', nombre: '' });
 
     const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.6-flash');
 
@@ -623,6 +631,24 @@ const PermisoAlturas = () => {
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Permiso_Alturas"
                 onDummy={handleDummyData}
+                customSections={[
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ExpandableButton
+                            variant="cyan"
+                            size="md"
+                            icon={<ShieldCheck className="h-4 w-4" />}
+                            label="Verificar Certificado MinTrabajo"
+                            title="Consultar en vivo Certificado de Trabajo en Alturas (Res. 4272) y Espacios Confinados (Res. 0491) en MinTrabajo"
+                            onClick={() =>
+                                setOsintModalState({
+                                    isOpen: true,
+                                    cedula: trabajadoresList[0]?.cedula || '',
+                                    nombre: trabajadoresList[0]?.nombre || '',
+                                })
+                            }
+                        />
+                    </div>
+                ]}
             />
 
             {isHistoryOpen && (
@@ -696,6 +722,20 @@ const PermisoAlturas = () => {
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
                                             className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
+                                        />
+                                        <ExpandableButton
+                                            variant="cyan"
+                                            size="sm"
+                                            icon={<ShieldCheck className="h-4 w-4" />}
+                                            label="Verificar MinTrabajo"
+                                            title="Verificar certificado de alturas vigente en MinTrabajo para esta cédula"
+                                            onClick={() =>
+                                                setOsintModalState({
+                                                    isOpen: true,
+                                                    cedula: trabajador.cedula || '',
+                                                    nombre: trabajador.nombre || '',
+                                                })
+                                            }
                                         />
                                         <button
                                             onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))}
@@ -1015,6 +1055,13 @@ const PermisoAlturas = () => {
                     </div>
                 </div>
             )}
+
+            <WorkerOsint360Modal
+                isOpen={osintModalState.isOpen}
+                onClose={() => setOsintModalState((prev) => ({ ...prev, isOpen: false }))}
+                initialCedula={osintModalState.cedula}
+                initialNombre={osintModalState.nombre}
+            />
         </div>
     );
 };

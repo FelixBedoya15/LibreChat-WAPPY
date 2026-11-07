@@ -58,6 +58,8 @@ import { smartMapExcelToWorkers, toTitleCase, formatWorkerName, normalizeWorkerR
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { SOCIODEMOGRAFICO_FIELDS } from './moduleFieldDefinitions';
+import ExpandableButton from '~/components/Common/ExpandableButton';
+import WorkerOsint360Modal from './WorkerOsint360Modal';
 
 const CATEGORIAS_LICENCIA = [
     'A1',
@@ -292,6 +294,13 @@ const PerfilSociodemografico = () => {
     // Sub-users Management Modal State
     const [showSubUserManager, setShowSubUserManager] = useState(false);
     const [selectedWorkerDocForSubUser, setSelectedWorkerDocForSubUser] = useState<string>('');
+
+    // Investigación 360° OSINT Modal State
+    const [osintModalState, setOsintModalState] = useState<{
+        isOpen: boolean;
+        cedula?: string;
+        nombre?: string;
+    }>({ isOpen: false, cedula: '', nombre: '' });
 
     // Estado Laboral Filter & Search State (Activo vs Retirado)
     const [statusFilter, setStatusFilter] = useState<'all' | 'activo' | 'retirado'>('all');
@@ -1318,7 +1327,21 @@ const PerfilSociodemografico = () => {
                 onDownloadTemplate={handleDownloadTemplate}
                 hasData={trabajadores.length > 0}
                 customSections={[
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ExpandableButton
+                            variant="cyan"
+                            size="md"
+                            icon={<Shield className="h-4 w-4" />}
+                            label="Investigar Cédula 360° / Alturas / ARL / SIMIT"
+                            title="Abrir Central de Investigación 360° (MinTrabajo Alturas y Confinados con PDF, Rama Judicial, SIMIT, RUNT y ARL)"
+                            onClick={() =>
+                                setOsintModalState({
+                                    isOpen: true,
+                                    cedula: '',
+                                    nombre: '',
+                                })
+                            }
+                        />
                         <ToolbarButton
                             id="inbox-perfil"
                             onClick={handleLoadInbox}
@@ -1588,6 +1611,21 @@ const PerfilSociodemografico = () => {
                                             </span>
                                             <span className="text-[9px] text-text-secondary font-bold uppercase tracking-tighter">Score Biocéntrico</span>
                                         </div>
+                                        <ExpandableButton
+                                            variant="cyan"
+                                            size="sm"
+                                            icon={<Shield className="h-4 w-4" />}
+                                            label="Investigar 360°"
+                                            title="Investigar Cédula 360° (MinTrabajo Alturas/Confinados PDF, Rama Judicial, ARL, SIMIT, RUNT)"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOsintModalState({
+                                                    isOpen: true,
+                                                    cedula: w.identificacion || '',
+                                                    nombre: w.nombre || '',
+                                                });
+                                            }}
+                                        />
                                         {!user?.isSubUser && (
                                             <button
                                                 onClick={(e) => {
@@ -2706,6 +2744,13 @@ const PerfilSociodemografico = () => {
                     setSelectedWorkerDocForSubUser('');
                 }}
                 initialWorkerDoc={selectedWorkerDocForSubUser}
+            />
+
+            <WorkerOsint360Modal
+                isOpen={osintModalState.isOpen}
+                onClose={() => setOsintModalState((prev) => ({ ...prev, isOpen: false }))}
+                initialCedula={osintModalState.cedula}
+                initialNombre={osintModalState.nombre}
             />
         </div>
     );

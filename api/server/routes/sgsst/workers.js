@@ -7,6 +7,11 @@ const { AuthKeys } = require('librechat-data-provider');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const feedWorkerEvent = require('./feedWorkerHelper');
+const {
+    investigarTrabajador360,
+    descargarPdfConstanciaMinTrabajo,
+    obtenerCatalogoPortales360,
+} = require('../../services/osintWorkerService');
 const mongoose = require('mongoose');
 
 // We need to access PerfilSociodemograficoData. It's currently defined dynamically in its own route file,
@@ -461,6 +466,46 @@ async function syncWorkerWithOraculoH1(worker, userId) {
 // IMPORTANT: Specific routes MUST come before wildcard /:perfilId to avoid
 // Express matching them incorrectly.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// POST: Investigación 360° de Trabajador y Conductor en Fuentes Oficiales (MinTrabajo PDF + Rama Judicial + 26 Portales)
+router.post('/osint-360', requireJwtAuth, async (req, res) => {
+    try {
+        const result = await investigarTrabajador360(req.body || {});
+        return res.json(result);
+    } catch (error) {
+        logger.error('[SGSST Workers] POST /osint-360 error:', error);
+        return res.status(500).json({ ok: false, error: 'Error ejecutando investigación 360° del trabajador' });
+    }
+});
+
+// POST: Descargar PDF de Constancia de Alturas / Espacios Confinados desde MinTrabajo
+router.post('/osint-mintrabajo-pdf', requireJwtAuth, async (req, res) => {
+    try {
+        const result = await descargarPdfConstanciaMinTrabajo(req.body || {});
+        if (!result.ok) {
+            return res.status(404).json(result);
+        }
+        return res.json(result);
+    } catch (error) {
+        logger.error('[SGSST Workers] POST /osint-mintrabajo-pdf error:', error);
+        return res.status(500).json({ ok: false, error: 'Error descargando constancia PDF de MinTrabajo' });
+    }
+});
+
+// GET: Catálogo de los 26 Portales Oficiales de Verificación 360° en Colombia
+router.get('/osint-catalog', requireJwtAuth, async (req, res) => {
+    try {
+        const portalesOficiales = obtenerCatalogoPortales360(req.query || {});
+        return res.json({
+            ok: true,
+            portalesOficiales,
+            ...portalesOficiales,
+        });
+    } catch (error) {
+        logger.error('[SGSST Workers] GET /osint-catalog error:', error);
+        return res.status(500).json({ ok: false, error: 'Error obteniendo catálogo de portales oficiales' });
+    }
+});
 
 // GET: Carga ultrarrápida centralizada para el Hub Bio-Individual
 router.get('/hub-data', requireJwtAuth, async (req, res) => {
