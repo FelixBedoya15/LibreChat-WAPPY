@@ -52,6 +52,8 @@ import {
   Puzzle,
   Search,
 } from 'lucide-react';
+import ExpandableButton from '~/components/Common/ExpandableButton';
+import WappyNodeCustomEditor from './WappyNodeCustomEditors';
 import {
   TRIGGER_NODES,
   EXTRACTOR_NODES,
@@ -429,6 +431,20 @@ interface WappyWorkflowCanvasProps {
   prompt?: string;
   onChangePrompt?: (nextPrompt: string) => void;
   onAutoBuildPrompt?: () => void;
+  scheduleType?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  onChangeScheduleType?: (type: 'hourly' | 'daily' | 'weekly' | 'monthly') => void;
+  hour?: number;
+  onChangeHour?: (hour: number) => void;
+  minute?: number;
+  onChangeMinute?: (minute: number) => void;
+  daysOfWeek?: number[];
+  onChangeDaysOfWeek?: (days: number[]) => void;
+  dayOfMonth?: number;
+  onChangeDayOfMonth?: (day: number) => void;
+  intervalHours?: number;
+  onChangeIntervalHours?: (hours: number) => void;
+  emailsStr?: string;
+  onChangeEmailsStr?: (emails: string) => void;
   readOnly?: boolean;
   compact?: boolean;
 }
@@ -469,6 +485,20 @@ export default function WappyWorkflowCanvas({
   prompt = '',
   onChangePrompt,
   onAutoBuildPrompt,
+  scheduleType = 'daily',
+  onChangeScheduleType,
+  hour = 8,
+  onChangeHour,
+  minute = 0,
+  onChangeMinute,
+  daysOfWeek = [1],
+  onChangeDaysOfWeek,
+  dayOfMonth = 1,
+  onChangeDayOfMonth,
+  intervalHours = 1,
+  onChangeIntervalHours,
+  emailsStr = '',
+  onChangeEmailsStr,
   readOnly = false,
   compact = false,
 }: WappyWorkflowCanvasProps) {
@@ -2451,14 +2481,14 @@ export default function WappyWorkflowCanvas({
             </div>
 
             {onAutoBuildPrompt && (
-              <button
-                type="button"
+              <ExpandableButton
+                size="sm"
+                variant="purple"
+                alwaysExpanded
+                icon={<Wand2 className="w-3.5 h-3.5" />}
+                label="Autogenerar Prompt desde el Lienzo"
                 onClick={onAutoBuildPrompt}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white text-[11px] font-extrabold uppercase tracking-wider shadow-sm transition flex items-center gap-1.5"
-              >
-                <Wand2 className="w-3.5 h-3.5" />
-                Autogenerar Prompt desde el Lienzo
-              </button>
+              />
             )}
           </div>
 
@@ -4442,43 +4472,6 @@ export default function WappyWorkflowCanvas({
 
         const currentCfg: CanvasNodeConfig =
           workflowNodes?.canvasLayout?.nodeConfigs?.[activeNode.key] || {};
-        const moduleMeta = getNodeModuleMetadata(activeNode.nodeId, activeNode.shape);
-        const presetFields = moduleMeta.fields;
-        const selectedFields = currentCfg.fields || [];
-        const recordFilterMode: 'all' | 'critical_only' | 'selected' =
-          currentCfg.recordFilterMode || 'all';
-        const selectedRecordIds = currentCfg.selectedRecordIds || [];
-        const selectedRecordLabels = currentCfg.selectedRecordLabels || [];
-        const selectedReportIds = currentCfg.selectedReportIds || [];
-        const selectedReportTitles = currentCfg.selectedReportTitles || [];
-        const isStrictFilter = currentCfg.strictFieldFilter !== false;
-        const filteredPresetFields = fieldSearchQuery.trim()
-          ? presetFields.filter((f) =>
-              f.toLowerCase().includes(fieldSearchQuery.trim().toLowerCase()),
-            )
-          : presetFields;
-        const filteredLiveRecords = (nodeLiveInspectorData.records || []).filter((rec) => {
-          if (recordFilterMode === 'critical_only' && !rec.isCritical) {
-            return false;
-          }
-          if (!liveRecordSearch.trim()) return true;
-          const q = liveRecordSearch.trim().toLowerCase();
-          const inHeader =
-            String(rec.label || '')
-              .toLowerCase()
-              .includes(q) ||
-            String(rec.sublabel || '')
-              .toLowerCase()
-              .includes(q) ||
-            String(rec.badge || '')
-              .toLowerCase()
-              .includes(q);
-          if (inHeader) return true;
-          const pairs = resolveRecordSurgicalPreview(rec, selectedFields);
-          return pairs.some(
-            (p) => p.field.toLowerCase().includes(q) || p.value.toLowerCase().includes(q),
-          );
-        });
         const isExtraAgent = activeNode.key.startsWith('agent_extra_');
         const extraAgentObj = isExtraAgent
           ? (workflowNodes?.canvasLayout?.extraAgents || []).find((ea) => ea.key === activeNode.key)
@@ -4487,105 +4480,6 @@ export default function WappyWorkflowCanvas({
           activeNode.shape === 'custom_node'
             ? (workflowNodes?.canvasLayout?.customNodes || []).find((cn) => cn.key === activeNode.key)
             : null;
-        const cleanActiveNodeId = (activeNode.nodeId || '').replace(
-          /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
-          '',
-        );
-        const catalogScraperDef = SKILL_RULE_SUBAGENT_NODES.find(
-          (sn) => sn.id === cleanActiveNodeId || sn.id === activeNode.nodeId,
-        );
-        const defaultCatalogEngine =
-          catalogScraperDef?.scriptEngine === 'chrome_devtools_mcp'
-            ? 'chrome_mcp'
-            : catalogScraperDef?.scriptEngine === 'node_cheerio_puppeteer'
-              ? 'node_cheerio'
-              : 'python_bs4';
-        const isWebScraperNode =
-          activeNode.customNodeType === 'web_scraper' ||
-          activeNode.nodeId.includes('scraping') ||
-          activeNode.nodeId.includes('web_scraper') ||
-          activeNode.nodeId.includes('scraper_agy_');
-        const isWebSearchNode =
-          activeNode.customNodeType === 'web_search' || activeNode.nodeId.includes('web_search');
-        const isSkillNode =
-          activeNode.customNodeType === 'skill' || activeNode.nodeId.startsWith('skill_');
-        const isRuleNode =
-          activeNode.customNodeType === 'rule' || activeNode.nodeId.startsWith('rule_');
-        const isSubagentCustomNode =
-          activeNode.customNodeType === 'subagent' || activeNode.nodeId.startsWith('subagent_');
-
-        const toggleFieldChip = (fieldLabel: string) => {
-          const exists = selectedFields.includes(fieldLabel);
-          const nextFields = exists
-            ? selectedFields.filter((f) => f !== fieldLabel)
-            : [...selectedFields, fieldLabel];
-          handleUpdateNodeConfig(activeNode.key, {
-            fields: nextFields,
-            reportTags: moduleMeta.reportTags,
-          });
-        };
-
-        const applyQuickCombo = (comboFields: string[]) => {
-          const allAlreadySelected =
-            comboFields.length === selectedFields.length &&
-            comboFields.every((cf) => selectedFields.includes(cf));
-          handleUpdateNodeConfig(activeNode.key, {
-            fields: allAlreadySelected ? [] : comboFields,
-            strictFieldFilter: true,
-            reportTags: moduleMeta.reportTags,
-          });
-        };
-
-        const handleSetRecordFilterMode = (mode: 'all' | 'critical_only' | 'selected') => {
-          handleUpdateNodeConfig(activeNode.key, {
-            recordFilterMode: mode,
-            reportTags: moduleMeta.reportTags,
-          });
-        };
-
-        const toggleSelectLiveRecord = (recId: string, recLabel: string, recSublabel?: string) => {
-          const fullLabel = recSublabel ? `${recLabel} (${recSublabel})` : recLabel;
-          const exists = selectedRecordIds.includes(recId);
-          const nextIds = exists
-            ? selectedRecordIds.filter((id) => id !== recId)
-            : [...selectedRecordIds, recId];
-          const nextLabels = exists
-            ? selectedRecordLabels.filter((lbl) => lbl !== fullLabel && lbl !== recLabel)
-            : Array.from(new Set([...selectedRecordLabels, fullLabel]));
-          handleUpdateNodeConfig(activeNode.key, {
-            recordFilterMode: 'selected',
-            selectedRecordIds: nextIds,
-            selectedRecordLabels: nextLabels,
-            reportTags: moduleMeta.reportTags,
-          });
-        };
-
-        const toggleSelectReport = (convId: string, convTitle: string) => {
-          const exists = selectedReportIds.includes(convId);
-          const nextIds = exists
-            ? selectedReportIds.filter((id) => id !== convId)
-            : [...selectedReportIds, convId];
-          const nextTitles = exists
-            ? selectedReportTitles.filter((t) => t !== convTitle)
-            : Array.from(new Set([...selectedReportTitles, convTitle]));
-          handleUpdateNodeConfig(activeNode.key, {
-            selectedReportIds: nextIds,
-            selectedReportTitles: nextTitles,
-            reportTags: moduleMeta.reportTags,
-          });
-        };
-
-        const handleAddCustomField = () => {
-          const val = customFieldInput.trim();
-          if (!val) return;
-          if (!selectedFields.includes(val)) {
-            handleUpdateNodeConfig(activeNode.key, {
-              fields: [...selectedFields, val],
-              reportTags: moduleMeta.reportTags,
-            });
-          }
-          setCustomFieldInput('');
-        };
 
         return (
           <div
@@ -4600,1003 +4494,85 @@ export default function WappyWorkflowCanvas({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-[#C7F303]">
-                      ⚙️ Configuración del Nodo: {activeNode.title}
+                      ⚙️ Configuración de: {activeNode.title}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                       {activeNode.subtitle}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Personaliza exactamente qué datos procesa este nodo, su contexto de entrada/salida y sus instrucciones específicas.
+                    Ajusta los parámetros específicos de este nodo dentro de tu flujo automatizado.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 {onAutoBuildPrompt && (
-                  <button
-                    type="button"
+                  <ExpandableButton
+                    size="sm"
+                    variant="purple"
+                    alwaysExpanded
+                    icon={<Wand2 className="w-3.5 h-3.5" />}
+                    label="Reflejar en el Prompt"
+                    title="Actualizar el prompt general con la configuración de este nodo"
                     onClick={onAutoBuildPrompt}
-                    className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-purple-600 to-teal-600 text-white text-[10.5px] font-extrabold flex items-center gap-1 shadow-xs"
-                    title="Actualizar las instrucciones generales con la configuración de este nodo"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                    Reflejar en el Prompt
-                  </button>
+                  />
                 )}
-                <button
-                  type="button"
-                  onClick={() => setActiveConfigNodeKey(null)}
-                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                <ExpandableButton
+                  size="sm"
+                  variant="neutral"
+                  icon={<X className="w-3.5 h-3.5" />}
+                  label="Cerrar"
                   title="Cerrar configuración del nodo"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                  onClick={() => setActiveConfigNodeKey(null)}
+                />
               </div>
             </div>
 
-            {/* A) SI EL NODO SELECCIONADO ES UN AGENTE IA (Principal o Agente IA #2 / #3 con Segundo Prompt) */}
-            {activeNode.shape === 'agent' ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      1. Agente Especialista o Avatar Asignado
-                    </label>
-                    <select
-                      value={isExtraAgent ? extraAgentObj?.agentId || '' : agentId || ''}
-                      onChange={(e) => {
-                        if (isExtraAgent) {
-                          handleUpdateExtraAgent(activeNode.key, e.target.value);
-                        } else if (onSelectAgent) {
-                          onSelectAgent(e.target.value);
-                        }
-                      }}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-white"
-                    >
-                      {availableAgentsWithTenshiAvatar.map((ag) => (
-                        <option key={ag.id} value={ag.id}>
-                          {ag.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      2. Motor y Modelo de IA para este Agente
-                    </label>
-                    <select
-                      value={
-                        isExtraAgent
-                          ? `${currentCfg.aiEngine || extraAgentObj?.aiEngine || 'wappy'}:::${currentCfg.aiModel || extraAgentObj?.aiModel || 'gemini-3.6-flash'}`
-                          : `${aiEngine}:::${aiModel}`
-                      }
-                      onChange={(e) => {
-                        const [eng, mod] = e.target.value.split(':::') as [
-                          'wappy' | 'antigravity' | 'antigravity_cloud',
-                          string,
-                        ];
-                        if (isExtraAgent) {
-                          handleUpdateNodeConfig(activeNode.key, { aiEngine: eng, aiModel: mod });
-                        } else {
-                          handleSelectAiEngineModel(eng, mod);
-                        }
-                      }}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-white"
-                    >
-                      {AI_ENGINE_MODELS.map((m) => (
-                        <option key={m.id} value={`${m.engine}:::${m.model}`}>
-                          {m.shortLabel} — {m.subtitle}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10.5px] font-extrabold uppercase text-purple-700 dark:text-[#C7F303] mb-1">
-                    {isExtraAgent
-                      ? `3. Segundo Prompt Exclusivo para ${activeNode.title} (${extraAgentObj?.agentName || 'IA Revisora'})`
-                      : `3. Prompt / Instrucción del ${activeNode.title} Principal`}
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={
-                      isExtraAgent
-                        ? currentCfg.prompt ?? extraAgentObj?.prompt ?? ''
-                        : prompt || currentCfg.prompt || ''
-                    }
-                    onChange={(e) => {
-                      if (isExtraAgent) {
-                        handleUpdateNodeConfig(activeNode.key, { prompt: e.target.value });
-                      } else {
-                        if (onChangePrompt) onChangePrompt(e.target.value);
-                        handleUpdateNodeConfig(activeNode.key, { prompt: e.target.value });
-                      }
-                    }}
-                    placeholder={
-                      isExtraAgent
-                        ? 'Escribe aquí el segundo prompt para este segundo Agente IA (ej: "Revisa el acta del COPASST generada por el Agente #1, verifica que cumpla el Decreto 1072 y autoriza el envío del correo")...'
-                        : 'Escribe qué debe analizar y ejecutar el Agente IA Principal...'
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-purple-50/30 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      4. Contexto de Entrada (Qué recibe este Agente)
-                    </label>
-                    <input
-                      type="text"
-                      value={currentCfg.inputContext || ''}
-                      onChange={(e) =>
-                        handleUpdateNodeConfig(activeNode.key, { inputContext: e.target.value })
-                      }
-                      placeholder="Ej: Recibe listado con Nombre, Cédula y Edad desde Extraer Trabajadores..."
-                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      5. Contexto de Salida (Qué entrega al siguiente nodo)
-                    </label>
-                    <input
-                      type="text"
-                      value={currentCfg.outputContext || ''}
-                      onChange={(e) =>
-                        handleUpdateNodeConfig(activeNode.key, { outputContext: e.target.value })
-                      }
-                      placeholder="Ej: Entrega tabla validada y acta lista para enviar por correo..."
-                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* B) TODOS LOS NODOS DE LOS 8 EQUIPOS (Disparadores, Extractores, Motor IA, Memorias, Herramientas, 8 Hitos/50 Apps, Salidas y Skills/Sub-Agentes/Reglas/Scraping) */
-              <div className="space-y-3">
-                {/* B.0) BLOQUE ESPECIAL SI ES EL NODO CIRCULAR DE MOTOR IA (Equipo 3) */}
-                {activeNode.shape === 'circle_model' && (
-                  <div className="p-3 rounded-xl border border-purple-200 dark:border-purple-800/70 bg-purple-50/30 dark:bg-purple-950/20 space-y-2">
-                    <span className="text-[10.5px] font-extrabold uppercase text-purple-800 dark:text-[#C7F303] flex items-center gap-1.5">
-                      <Cpu className="w-3.5 h-3.5" />
-                      🧠 Seleccionar Motor y Modelo de IA del Flujo (Equipo 3)
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                      {AI_ENGINE_MODELS.map((m) => {
-                        const isSel =
-                          (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
-                          (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
-                          (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => handleSelectAiEngineModel(m.engine, m.model)}
-                            className={`p-2.5 rounded-xl border text-left transition flex flex-col gap-0.5 ${
-                              isSel
-                                ? 'bg-purple-100/80 dark:bg-purple-950/60 border-purple-500 ring-2 ring-purple-500/30'
-                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400'
-                            }`}
-                          >
-                            <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                              {m.shortLabel}
-                            </span>
-                            <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">
-                              {m.subtitle}
-                            </span>
-                            <span className="text-[9.5px] text-slate-500 dark:text-slate-400 line-clamp-2">
-                              {m.description}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {/* C.1) BLOQUE ESPECIAL SI ES UN NODO DE WEB SCRAPING CON ANTIGRAVITY (SCRIPT) */}
-                {isWebScraperNode && (
-                  <div className="p-3 rounded-xl border border-orange-300 dark:border-orange-700/80 bg-orange-50/40 dark:bg-orange-950/25 space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] font-extrabold text-orange-800 dark:text-orange-300 flex items-center gap-1.5">
-                        <Terminal className="w-3.5 h-3.5" />
-                        🕷️ Configuración de Script de Web Scraping vía Google Antigravity
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold border ${
-                          antigravityStatus.connected
-                            ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-400'
-                            : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-400'
-                        }`}
-                      >
-                        {antigravityStatus.connected
-                          ? `🟢 Tu Instancia Antigravity está Conectada (${antigravityStatus.localConnected ? 'Local Mac/PC' : 'Cloud 24/7'})`
-                          : '⚠️ Requiere tener configurada tu instancia de Google Antigravity'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                          🔗 URL(s) del Sitio Web a Scrapear (separadas por coma)
-                        </label>
-                        <input
-                          type="text"
-                          value={
-                            currentCfg.targetUrl ??
-                            customNodeObj?.targetUrl ??
-                            catalogScraperDef?.targetUrl ??
-                            ''
-                          }
-                          onChange={(e) =>
-                            handleUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })
-                          }
-                          placeholder="Ej: https://www.mintrabajo.gov.co/normatividad/..."
-                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                          🐍 Motor de Script que ejecutará tu Instancia Antigravity
-                        </label>
-                        <select
-                          value={
-                            currentCfg.scriptEngine ||
-                            customNodeObj?.scriptEngine ||
-                            defaultCatalogEngine
-                          }
-                          onChange={(e) =>
-                            handleUpdateNodeConfig(activeNode.key, {
-                              scriptEngine: e.target.value as any,
-                            })
-                          }
-                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
-                        >
-                          <option value="python_bs4">
-                            🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
-                          </option>
-                          <option value="node_cheerio">
-                            🟢 Node.js (Cheerio + Puppeteer en Antigravity)
-                          </option>
-                          <option value="chrome_mcp">
-                            🌐 Chrome DevTools MCP (Navegador Real Conectado)
-                          </option>
-                          <option value="custom_script">
-                            💻 Script Personalizado en Antigravity
-                          </option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
-                          💻 Código del Script o Selectores CSS de Extracción
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (catalogScraperDef?.scriptCode) {
-                              handleUpdateNodeConfig(activeNode.key, {
-                                targetUrl:
-                                  currentCfg.targetUrl ||
-                                  customNodeObj?.targetUrl ||
-                                  catalogScraperDef.targetUrl ||
-                                  '',
-                                scriptEngine: defaultCatalogEngine as any,
-                                scriptCode: catalogScraperDef.scriptCode,
-                              });
-                              return;
-                            }
-                            const target =
-                              (
-                                currentCfg.targetUrl ??
-                                customNodeObj?.targetUrl ??
-                                catalogScraperDef?.targetUrl ??
-                                ''
-                              ).trim() || 'https://ejemplo.gov.co';
-                            const engine =
-                              currentCfg.scriptEngine ||
-                              customNodeObj?.scriptEngine ||
-                              defaultCatalogEngine;
-                            const autoScript =
-                              engine === 'python_bs4'
-                                ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${target}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor el in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(el.get_text(strip=True))`
-                                : engine === 'node_cheerio'
-                                  ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${target}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
-                                  : `Navegar a ${target} con Chrome DevTools MCP, extraer todas las tablas y enlaces PDF y entregarlos en Markdown limpio.`;
-                            handleUpdateNodeConfig(activeNode.key, { scriptCode: autoScript });
-                          }}
-                          className="text-[10px] font-extrabold text-orange-600 dark:text-[#C7F303] hover:underline"
-                        >
-                          ⚡ Autogenerar Script para esta URL
-                        </button>
-                      </div>
-                      <textarea
-                        rows={3}
-                        value={
-                          currentCfg.scriptCode ??
-                          customNodeObj?.scriptCode ??
-                          catalogScraperDef?.scriptCode ??
-                          ''
-                        }
-                        onChange={(e) =>
-                          handleUpdateNodeConfig(activeNode.key, { scriptCode: e.target.value })
-                        }
-                        placeholder="Escribe aquí el script Python / Node.js o los selectores CSS que tu instancia de Google Antigravity ejecutará..."
-                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-[11px] text-slate-800 dark:text-slate-100"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* C.2) BLOQUE ESPECIAL SI ES UN NODO DE BÚSQUEDA EN LA WEB */}
-                {isWebSearchNode && (
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-sky-700 dark:text-sky-300 mb-1">
-                      🌐 Consulta de Búsqueda en la Web o Dominios Prioritarios (.gov.co, MinTrabajo, ARL)
-                    </label>
-                    <input
-                      type="text"
-                      value={currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? ''}
-                      onChange={(e) =>
-                        handleUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })
-                      }
-                      placeholder="Ej: site:mintrabajo.gov.co últimas circulares SST 2026..."
-                      className="w-full px-3 py-1.5 rounded-xl border border-sky-300 dark:border-sky-700 bg-sky-50/30 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                )}
-
-                {/* C.3) BLOQUE ESPECIAL SI ES UN NODO DE SKILL (SKILL.md), SUB-AGENTE O REGLA */}
-                {(isSkillNode || isRuleNode || isSubagentCustomNode) && (
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-purple-700 dark:text-[#C7F303] mb-1">
-                      {isSkillNode
-                        ? '🧩 Instrucciones Paso a Paso de esta Skill (SKILL.md)'
-                        : isRuleNode
-                          ? '📏 Regla Obligatoria / Guardrail que el Flujo Debe Cumplir'
-                          : '🤖 Rol e Instrucción Específica de este Sub-Agente Especialista'}
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={
-                        isSkillNode
-                          ? currentCfg.skillContent ?? customNodeObj?.content ?? ''
-                          : isRuleNode
-                            ? currentCfg.ruleText ?? customNodeObj?.content ?? ''
-                            : currentCfg.prompt ?? customNodeObj?.content ?? ''
-                      }
-                      onChange={(e) => {
-                        if (isSkillNode) {
-                          handleUpdateNodeConfig(activeNode.key, { skillContent: e.target.value });
-                        } else if (isRuleNode) {
-                          handleUpdateNodeConfig(activeNode.key, { ruleText: e.target.value });
-                        } else {
-                          handleUpdateNodeConfig(activeNode.key, { prompt: e.target.value });
-                        }
-                      }}
-                      placeholder="Escribe aquí el contenido detallado que aplicará este nodo dentro del flujo..."
-                      className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-purple-50/30 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                )}
-
-                {/* 1. SELECCIÓN QUIRÚRGICA DE CAMPOS Y RESULTADOS PROPIOS DEL APLICATIVO */}
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/40 space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-extrabold uppercase text-slate-800 dark:text-slate-100">
-                          1. {moduleMeta.fieldsLabel}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-teal-100 dark:bg-teal-950/70 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700">
-                          {selectedFields.length > 0
-                            ? `🎯 ${selectedFields.length} de ${presetFields.length} campos elegidos (Sin Saturar)`
-                            : `${presetFields.length} campos disponibles`}
-                        </span>
-                      </div>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Elige <strong>únicamente</strong> los campos o resultados que necesitas de{' '}
-                        <strong>{moduleMeta.moduleTitle}</strong> (ej. solo <em>Cédula y Nombre Completo</em> o{' '}
-                        <em>Tarjetas Preventivas</em>) para que el nodo no lea ni arrastre información innecesaria en cada paso.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {presetFields.length > 6 && (
-                        <div className="relative">
-                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            value={fieldSearchQuery}
-                            onChange={(e) => setFieldSearchQuery(e.target.value)}
-                            placeholder="Filtrar campo..."
-                            className="pl-6 pr-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] text-slate-800 dark:text-slate-100 w-32"
-                          />
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleUpdateNodeConfig(activeNode.key, {
-                            fields: presetFields,
-                            strictFieldFilter: true,
-                            reportTags: moduleMeta.reportTags,
-                          })
-                        }
-                        className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:border-purple-400"
-                      >
-                        Marcar Todos
-                      </button>
-                      {selectedFields.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleUpdateNodeConfig(activeNode.key, {
-                              fields: [],
-                              reportTags: moduleMeta.reportTags,
-                            })
-                          }
-                          className="px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-[10px] font-bold text-rose-700 dark:text-rose-300"
-                        >
-                          Limpiar ({selectedFields.length})
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ⚡ COMBOS RÁPIDOS DE EXTRACCIÓN QUIRÚRGICA (1 CLIC) */}
-                  {moduleMeta.quickCombos && moduleMeta.quickCombos.length > 0 && (
-                    <div className="p-2.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60">
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-800 dark:text-[#C7F303] mb-1.5 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Combos Rápidos de Extracción Quirúrgica (1 Clic — Evita Saturar el Proceso):
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {moduleMeta.quickCombos.map((combo) => {
-                          const isComboActive =
-                            combo.fields.length === selectedFields.length &&
-                            combo.fields.every((cf) => selectedFields.includes(cf));
-                          return (
-                            <button
-                              key={combo.label}
-                              type="button"
-                              onClick={() => applyQuickCombo(combo.fields)}
-                              title={combo.description}
-                              className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold transition flex items-center gap-1 border ${
-                                isComboActive
-                                  ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                                  : 'bg-white hover:bg-purple-100/70 dark:bg-slate-900 dark:hover:bg-slate-800 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700'
-                              }`}
-                            >
-                              {isComboActive && <Check className="w-3 h-3 stroke-[3]" />}
-                              {combo.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* LISTA DE CHIPS DE CAMPOS Y RESULTADOS PROPIOS DEL APLICATIVO */}
-                  <div className="flex flex-wrap items-center gap-1.5 max-h-48 overflow-y-auto pr-1">
-                    {filteredPresetFields.map((fieldLabel) => {
-                      const active = selectedFields.includes(fieldLabel);
-                      return (
-                        <button
-                          key={fieldLabel}
-                          type="button"
-                          onClick={() => toggleFieldChip(fieldLabel)}
-                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 border text-left ${
-                            active
-                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                              : 'bg-white hover:bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          {active && <Check className="w-3 h-3 stroke-[3] shrink-0" />}
-                          <span>{fieldLabel}</span>
-                        </button>
-                      );
-                    })}
-                    {selectedFields
-                      .filter((f) => !presetFields.includes(f))
-                      .map((customF) => (
-                        <button
-                          key={customF}
-                          type="button"
-                          onClick={() => toggleFieldChip(customF)}
-                          className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-teal-600 text-white border border-teal-600 flex items-center gap-1"
-                        >
-                          <Check className="w-3 h-3 stroke-[3] shrink-0" />
-                          <span>{customF}</span>
-                        </button>
-                      ))}
-                  </div>
-
-                  {/* Agregar campo personalizado + Switch de Extracción Quirúrgica Estricta */}
-                  <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md">
-                      <input
-                        type="text"
-                        value={customFieldInput}
-                        onChange={(e) => setCustomFieldInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddCustomField();
-                          }
-                        }}
-                        placeholder="Añadir otro campo o columna personalizada y pulsar +..."
-                        className="flex-1 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] text-slate-800 dark:text-slate-100"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddCustomField}
-                        className="px-2.5 py-1 rounded-xl bg-slate-900 dark:bg-[#C7F303] text-white dark:text-[#0E1300] text-[10.5px] font-extrabold shrink-0"
-                      >
-                        + Añadir Campo
-                      </button>
-                    </div>
-
-                    {selectedFields.length > 0 && (
-                      <label className="flex items-center gap-1.5 text-[10.5px] font-bold text-teal-800 dark:text-teal-300 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={isStrictFilter}
-                          onChange={(e) =>
-                            handleUpdateNodeConfig(activeNode.key, {
-                              strictFieldFilter: e.target.checked,
-                              reportTags: moduleMeta.reportTags,
-                            })
-                          }
-                          className="rounded border-teal-400 text-teal-600 focus:ring-teal-500"
-                        />
-                        <span>
-                          🔒 Modo Quirúrgico Estricto (Extraer <strong>SOLO</strong> estos{' '}
-                          {selectedFields.length} campos para no saturar el flujo)
-                        </span>
-                      </label>
-                    )}
-                  </div>
-                </div>
-
-                {/* 1-A. 📊 CONTENIDO Y RESULTADOS REALES EN VIVO DE «{activeNode.title}» (MONGO DB EN TIEMPO REAL) */}
-                {nodeLiveInspectorData.supported && (
-                  <div className="p-3 rounded-xl border-2 border-emerald-400/80 dark:border-emerald-700/80 bg-emerald-50/35 dark:bg-emerald-950/20 space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-emerald-600 dark:text-[#C7F303] shrink-0" />
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-black uppercase tracking-wide text-emerald-950 dark:text-[#C7F303]">
-                              📊 CONTENIDO Y RESULTADOS REALES EN VIVO DE «{activeNode.title}» (
-                              {nodeLiveInspectorData.companyName || 'Empresa Activa'})
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-                              {nodeLiveInspectorData.loading
-                                ? 'Consultando MongoDB en vivo...'
-                                : `${nodeLiveInspectorData.totalRecords} registro(s) reales · ${nodeLiveInspectorData.criticalCount} crítico(s)/en brecha`}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-600 dark:text-slate-400">
-                            Visualiza los indicadores reales guardados en la base de datos de tu empresa y elige si el nodo procesará todos los registros, solo los críticos/en brecha o registros específicos con vista previa quirúrgica de los campos elegidos.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Píldoras de KPIs Reales en Vivo */}
-                    {nodeLiveInspectorData.kpis && nodeLiveInspectorData.kpis.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {nodeLiveInspectorData.kpis.map((kpi, idx) => {
-                          const statusColor =
-                            kpi.status === 'critical'
-                              ? 'bg-rose-100/90 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700'
-                              : kpi.status === 'warn'
-                                ? 'bg-amber-100/90 dark:bg-amber-950/70 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
-                                : kpi.status === 'ok'
-                                  ? 'bg-emerald-100/90 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
-                                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700';
-                          return (
-                            <div
-                              key={`${kpi.label}_${idx}`}
-                              className={`px-2.5 py-1 rounded-xl border text-[10.5px] font-bold flex items-center gap-1.5 shadow-2xs ${statusColor}`}
-                            >
-                              <span className="opacity-80">{kpi.label}:</span>
-                              <span className="font-black">{kpi.value}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* 3 Botones Píldora de Filtro de Registros (recordFilterMode) */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleSetRecordFilterMode('all')}
-                          className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
-                            recordFilterMode === 'all'
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                              : 'bg-white hover:bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          {recordFilterMode === 'all' && <Check className="w-3 h-3 stroke-[3]" />}
-                          📋 Todos los registros ({nodeLiveInspectorData.totalRecords})
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSetRecordFilterMode('critical_only')}
-                          className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
-                            recordFilterMode === 'critical_only'
-                              ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                              : 'bg-white hover:bg-rose-50 dark:bg-slate-900 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800'
-                          }`}
-                        >
-                          {recordFilterMode === 'critical_only' && (
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          )}
-                          🚨 Solo Críticos / En Brecha / Con Alerta ({nodeLiveInspectorData.criticalCount})
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSetRecordFilterMode('selected')}
-                          className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
-                            recordFilterMode === 'selected'
-                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                              : 'bg-white hover:bg-purple-50 dark:bg-slate-900 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800'
-                          }`}
-                        >
-                          {recordFilterMode === 'selected' && (
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          )}
-                          🎯 Seleccionar registros específicos ({selectedRecordIds.length})
-                        </button>
-                      </div>
-
-                      {/* Buscador de registros en vivo + acciones rápidas de selección */}
-                      {nodeLiveInspectorData.records.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <div className="relative">
-                            <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
-                            <input
-                              type="text"
-                              value={liveRecordSearch}
-                              onChange={(e) => setLiveRecordSearch(e.target.value)}
-                              placeholder="Buscar por cédula, nombre, cargo, código..."
-                              className="pl-6 pr-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10.5px] text-slate-800 dark:text-slate-100 w-56"
-                            />
-                          </div>
-                          {filteredLiveRecords.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allVisIds = Array.from(
-                                  new Set([
-                                    ...selectedRecordIds,
-                                    ...filteredLiveRecords.map((r) => r.id),
-                                  ]),
-                                );
-                                const allVisLabels = Array.from(
-                                  new Set([
-                                    ...selectedRecordLabels,
-                                    ...filteredLiveRecords.map((r) =>
-                                      r.sublabel ? `${r.label} (${r.sublabel})` : r.label,
-                                    ),
-                                  ]),
-                                );
-                                handleUpdateNodeConfig(activeNode.key, {
-                                  recordFilterMode: 'selected',
-                                  selectedRecordIds: allVisIds,
-                                  selectedRecordLabels: allVisLabels,
-                                  reportTags: moduleMeta.reportTags,
-                                });
-                              }}
-                              className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:border-purple-400"
-                            >
-                              Marcar Visibles ({filteredLiveRecords.length})
-                            </button>
-                          )}
-                          {selectedRecordIds.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleUpdateNodeConfig(activeNode.key, {
-                                  recordFilterMode: 'all',
-                                  selectedRecordIds: [],
-                                  selectedRecordLabels: [],
-                                  reportTags: moduleMeta.reportTags,
-                                })
-                              }
-                              className="px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-[10px] font-bold text-rose-700 dark:text-rose-300"
-                            >
-                              Limpiar Selección ({selectedRecordIds.length})
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Lista Interactiva de Registros Reales con Vista Previa Quirúrgica de Campos Elegidos */}
-                    {nodeLiveInspectorData.loading ? (
-                      <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-emerald-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-                        Cargando registros y resultados reales desde MongoDB para «{activeNode.title}»...
-                      </div>
-                    ) : filteredLiveRecords.length > 0 ? (
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                        {filteredLiveRecords.slice(0, 60).map((rec) => {
-                          const isRecChecked = selectedRecordIds.includes(rec.id);
-                          const surgicalPairs = resolveRecordSurgicalPreview(rec, selectedFields);
-                          return (
-                            <div
-                              key={rec.id}
-                              onClick={() =>
-                                toggleSelectLiveRecord(rec.id, rec.label, rec.sublabel)
-                              }
-                              className={`p-2 rounded-xl border transition cursor-pointer ${
-                                isRecChecked
-                                  ? 'bg-purple-600/10 dark:bg-purple-950/40 border-purple-500 ring-1 ring-purple-500/30'
-                                  : rec.isCritical
-                                    ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60 hover:border-rose-400'
-                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
-                              }`}
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <span
-                                    className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
-                                      isRecChecked
-                                        ? 'bg-purple-600 border-purple-600 text-white'
-                                        : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
-                                    }`}
-                                  >
-                                    {isRecChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                                  </span>
-                                  <span className="text-[11px] font-extrabold text-slate-900 dark:text-white truncate">
-                                    {rec.label}
-                                  </span>
-                                  {rec.sublabel && (
-                                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-                                      · {rec.sublabel}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {rec.badge && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold border shrink-0 ${
-                                      rec.isCritical
-                                        ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700'
-                                        : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                                    }`}
-                                  >
-                                    {rec.badge}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Píldoras de Vista Previa Quirúrgica con los valores reales de los campos seleccionados */}
-                              {surgicalPairs.length > 0 && (
-                                <div className="mt-1.5 pl-6 flex flex-wrap items-center gap-1">
-                                  {surgicalPairs.map((pair, pIdx) => (
-                                    <span
-                                      key={`${rec.id}_p_${pIdx}`}
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-[9.5px] text-slate-700 dark:text-slate-200 max-w-full"
-                                    >
-                                      <strong className="text-teal-700 dark:text-[#C7F303] font-extrabold shrink-0">
-                                        {pair.field}:
-                                      </strong>
-                                      <span className="truncate max-w-[260px]">{pair.value}</span>
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[10.5px] text-slate-500 dark:text-slate-400 italic">
-                        {liveRecordSearch.trim() || recordFilterMode === 'critical_only'
-                          ? 'No hay registros que coincidan con el filtro actual en este aplicativo.'
-                          : `Aún no hay registros individuales cargados en «${activeNode.title}» para la empresa activa (el nodo extraerá los KPIs o alimentará este aplicativo durante la ejecución).`}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 1-BIS. 📜 HISTORIAL DE INFORMES GUARDADOS DEL APLICATIVO (SI EL NODO CORRESPONDE A UN APLICATIVO DE SOMOS SST) */}
-                {moduleMeta.reportTags && moduleMeta.reportTags.length > 0 && (
-                  <div className="p-3 rounded-xl border border-teal-300/80 dark:border-teal-800/80 bg-teal-50/40 dark:bg-teal-950/20 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-extrabold uppercase text-teal-900 dark:text-teal-200">
-                              📜 Historial de Informes de «{activeNode.title}»
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-700">
-                              {nodeReportHistory.loading
-                                ? 'Consultando historial...'
-                                : `${nodeReportHistory.conversations.length} informe(s) en la empresa activa`}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-600 dark:text-slate-400">
-                            Selecciona si deseas que este nodo tome como base el último informe generado en el aplicativo o informes específicos de su historial.
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleUpdateNodeConfig(activeNode.key, {
-                            includeLatestReport: !currentCfg.includeLatestReport,
-                            reportTags: moduleMeta.reportTags,
-                          })
-                        }
-                        className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition flex items-center gap-1 ${
-                          currentCfg.includeLatestReport
-                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                            : 'bg-white hover:bg-teal-100/60 dark:bg-slate-900 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-700'
-                        }`}
-                      >
-                        {currentCfg.includeLatestReport && <Check className="w-3 h-3 stroke-[3]" />}
-                        📜 Incluir Siempre el Último Informe del Historial
-                      </button>
-                    </div>
-
-                    {nodeReportHistory.conversations.length > 0 ? (
-                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                        {nodeReportHistory.conversations.slice(0, 12).map((rep) => {
-                          const isRepSelected = selectedReportIds.includes(rep.conversationId);
-                          const isPreviewing = nodeReportHistory.previewConvId === rep.conversationId;
-                          const dateFormatted = rep.updatedAt
-                            ? new Date(rep.updatedAt).toLocaleDateString('es-CO', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                              })
-                            : '';
-                          return (
-                            <div
-                              key={rep.conversationId}
-                              className={`px-2.5 py-1.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-[11px] transition ${
-                                isRepSelected
-                                  ? 'bg-teal-600/10 dark:bg-teal-900/40 border-teal-500 text-teal-950 dark:text-teal-100'
-                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => toggleSelectReport(rep.conversationId, rep.title)}
-                                className="flex items-center gap-2 text-left flex-1 min-w-0"
-                              >
-                                <span
-                                  className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
-                                    isRepSelected
-                                      ? 'bg-teal-600 border-teal-600 text-white'
-                                      : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
-                                  }`}
-                                >
-                                  {isRepSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                                </span>
-                                <span className="font-bold truncate">{rep.title}</span>
-                                {dateFormatted && (
-                                  <span className="text-[9.5px] text-slate-400 shrink-0">
-                                    ({dateFormatted})
-                                  </span>
-                                )}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handlePreviewNodeReport(rep.conversationId, rep.title)
-                                }
-                                className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-200 shrink-0"
-                              >
-                                {isPreviewing ? 'Ocultar Vista Previa' : '👁️ Ver Resumen'}
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      !nodeReportHistory.loading && (
-                        <div className="text-[10.5px] text-slate-500 dark:text-slate-400 italic">
-                          Aún no hay informes guardados en el historial de «{activeNode.title}» para la empresa activa (puedes activar «Incluir Siempre el Último Informe» para que lo tome apenas se genere).
-                        </div>
-                      )
-                    )}
-
-                    {/* Vista previa en línea del informe seleccionado */}
-                    {nodeReportHistory.previewConvId && (
-                      <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-800 text-[11px] text-slate-700 dark:text-slate-200">
-                        <div className="font-extrabold text-teal-700 dark:text-teal-300 mb-1 flex items-center justify-between">
-                          <span>📄 Vista Previa: {nodeReportHistory.previewTitle}</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setNodeReportHistory((prev) => ({
-                                ...prev,
-                                previewConvId: null,
-                                previewTitle: null,
-                                previewText: null,
-                              }))
-                            }
-                            className="text-[10px] text-slate-400 hover:text-slate-600"
-                          >
-                            Cerrar ✕
-                          </button>
-                        </div>
-                        <p className="text-[10.5px] leading-relaxed text-slate-600 dark:text-slate-300">
-                          {nodeReportHistory.previewLoading
-                            ? 'Cargando contenido del informe...'
-                            : nodeReportHistory.previewText}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      2. Contexto de Entrada
-                    </label>
-                    <input
-                      type="text"
-                      value={currentCfg.inputContext || ''}
-                      onChange={(e) =>
-                        handleUpdateNodeConfig(activeNode.key, { inputContext: e.target.value })
-                      }
-                      placeholder="Ej: Recibe señal del disparador o filtro de sede..."
-                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      3. Contexto de Salida
-                    </label>
-                    <input
-                      type="text"
-                      value={currentCfg.outputContext || ''}
-                      onChange={(e) =>
-                        handleUpdateNodeConfig(activeNode.key, { outputContext: e.target.value })
-                      }
-                      placeholder="Ej: Entregar solo Nombre, Cédula y Edad al Agente IA..."
-                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      4. Filtro / Regla Específica del Nodo
-                    </label>
-                    <input
-                      type="text"
-                      value={currentCfg.customInstruction || ''}
-                      onChange={(e) =>
-                        handleUpdateNodeConfig(activeNode.key, {
-                          customInstruction: e.target.value,
-                        })
-                      }
-                      placeholder="Ej: Solo trabajadores activos o mayores de 50 años..."
-                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+            <WappyNodeCustomEditor
+              activeNode={activeNode}
+              currentCfg={currentCfg}
+              onUpdateNodeConfig={handleUpdateNodeConfig}
+              agentId={agentId}
+              onSelectAgent={onSelectAgent}
+              availableAgentsWithTenshiAvatar={availableAgentsWithTenshiAvatar}
+              aiEngine={aiEngine}
+              aiModel={aiModel}
+              onSelectAiEngineModel={handleSelectAiEngineModel}
+              prompt={prompt}
+              onChangePrompt={onChangePrompt}
+              onAutoBuildPrompt={onAutoBuildPrompt}
+              extraAgentObj={extraAgentObj}
+              onUpdateExtraAgent={handleUpdateExtraAgent}
+              customNodeObj={customNodeObj}
+              scheduleType={scheduleType}
+              onChangeScheduleType={onChangeScheduleType}
+              hour={hour}
+              onChangeHour={onChangeHour}
+              minute={minute}
+              onChangeMinute={onChangeMinute}
+              daysOfWeek={daysOfWeek}
+              onChangeDaysOfWeek={onChangeDaysOfWeek}
+              dayOfMonth={dayOfMonth}
+              onChangeDayOfMonth={onChangeDayOfMonth}
+              intervalHours={intervalHours}
+              onChangeIntervalHours={onChangeIntervalHours}
+              emailsStr={emailsStr}
+              onChangeEmailsStr={onChangeEmailsStr}
+              antigravityStatus={antigravityStatus}
+              nodeLiveInspectorData={nodeLiveInspectorData}
+              nodeReportHistory={nodeReportHistory}
+              onPreviewNodeReport={handlePreviewNodeReport}
+              onCloseReportPreview={() =>
+                setNodeReportHistory((prev) => ({
+                  ...prev,
+                  previewConvId: null,
+                  previewTitle: null,
+                  previewText: null,
+                }))
+              }
+              resolveRecordSurgicalPreview={resolveRecordSurgicalPreview}
+            />
           </div>
         );
       })()}

@@ -154,6 +154,51 @@ export interface CanvasNodeConfig {
   scriptCode?: string;
   skillContent?: string;
   ruleText?: string;
+  /** Parámetros propios de Disparadores (Equipo 1) */
+  voiceCommand?: string;
+  triggerChannel?: 'voice' | 'chat' | 'both';
+  emailSenderFilter?: string;
+  emailSubjectFilter?: string;
+  onlyWithAttachments?: boolean;
+  qrPortalTarget?: string;
+  qrSeverityFilter?: 'all' | 'critical_only';
+  sourceAgentId?: string;
+  webhookSecret?: string;
+  watchFolderPath?: string;
+  /** Parámetros propios de Extractores (Equipo 2) */
+  driveFolderName?: string;
+  fileTypeFilter?: string;
+  onlyNewFiles?: boolean;
+  maxItems?: number;
+  timeWindow?: string;
+  workerStatusFilter?: 'active' | 'all' | 'retired' | 'with_restrictions';
+  /** Parámetros propios de Motor IA y Memorias (Equipos 3 y 4) */
+  temperature?: string;
+  agentOutputStyle?: 'executive_report' | 'structured_table' | 'silent_action';
+  dedupWindow?: '24h' | '7d' | '30d' | 'all';
+  dedupKey?: 'cedula' | 'standard_id' | 'filename';
+  legalStandards?: string[];
+  /** Modo de operación en Aplicativos de Hitos SST (Equipo 6) */
+  hitoOperationMode?: 'extract_only' | 'write_register' | 'audit_and_update';
+  /** Parámetros propios de Bitácora y Salidas (Equipo 7) */
+  emailSubject?: string;
+  onlyOnCriticalAlerts?: boolean;
+  alertPriority?: 'info' | 'warn' | 'critical';
+  tenshiSpeakSummary?: boolean;
+  whatsappNumbers?: string;
+  calendarEventTitle?: string;
+  calendarDurationMinutes?: number;
+  calendarAttendees?: string;
+  documentTitle?: string;
+  documentTemplate?: string;
+  kanbanStatus?: 'todo' | 'in_progress' | 'urgent';
+  kanbanPriority?: 'high' | 'medium' | 'low';
+  kanbanDueDays?: number;
+  kanbanAssignee?: string;
+  /** Parámetros propios de Nodos Lógicos If / Loop / Aprobación (Equipo 8) */
+  ifConditionType?: 'critical_findings' | 'numeric_threshold' | 'keyword_match' | 'ai_evaluation';
+  ifRuleExpression?: string;
+  approverEmail?: string;
 }
 
 export interface NodeQuickCombo {
@@ -7806,6 +7851,34 @@ export function buildNodeConfigSummary(cfg?: CanvasNodeConfig): string {
   if (cfg.targetUrl?.trim()) {
     badges.push('🔗 URL');
   }
+  if (cfg.hitoOperationMode === 'extract_only') {
+    badges.push('🔍 Solo Extraer');
+  } else if (cfg.hitoOperationMode === 'write_register') {
+    badges.push('✍️ Registrar/Actualizar');
+  } else if (cfg.hitoOperationMode === 'audit_and_update') {
+    badges.push('🔄 Auditar + Actualizar');
+  }
+  if (cfg.voiceCommand?.trim()) {
+    badges.push(`🎙️ "${cfg.voiceCommand.trim()}"`);
+  }
+  if (cfg.emailSenderFilter?.trim() || cfg.emailSubjectFilter?.trim()) {
+    badges.push('📧 Filtro Gmail');
+  }
+  if (cfg.driveFolderName?.trim()) {
+    badges.push(`📁 ${cfg.driveFolderName.trim()}`);
+  }
+  if (cfg.watchFolderPath?.trim()) {
+    badges.push(`💻 ${cfg.watchFolderPath.trim()}`);
+  }
+  if (cfg.dedupWindow) {
+    badges.push(`🛡️ Anti-dup ${cfg.dedupWindow}`);
+  }
+  if (cfg.legalStandards && cfg.legalStandards.length > 0) {
+    badges.push(`⚖️ ${cfg.legalStandards.length} normas`);
+  }
+  if (cfg.ifRuleExpression?.trim()) {
+    badges.push('🔀 Regla Si/No');
+  }
   if (cfg.customInstruction?.trim()) {
     badges.push('⚙️ Instrucción');
   }
@@ -7918,6 +7991,64 @@ export function buildPromptFromWorkflowNodes(
     }
     if (cfg.outputContext?.trim()) {
       parts.push(`Formato/Contexto de salida: "${cfg.outputContext.trim()}"`);
+    }
+    if (cfg.hitoOperationMode === 'extract_only') {
+      parts.push(`Modo en Aplicativo SST: SOLO LEER / EXTRAER DATOS PUNTUALES`);
+    } else if (cfg.hitoOperationMode === 'write_register') {
+      parts.push(`Modo en Aplicativo SST: CREAR / ACTUALIZAR REGISTROS`);
+    } else if (cfg.hitoOperationMode === 'audit_and_update') {
+      parts.push(`Modo en Aplicativo SST: AUDITAR BRECHAS Y ACTUALIZAR`);
+    }
+    if (cfg.voiceCommand?.trim()) {
+      parts.push(`Comando de Voz/Chat: "${cfg.voiceCommand.trim()}"`);
+    }
+    if (cfg.emailSenderFilter?.trim()) {
+      parts.push(`Filtro Remitente Gmail: "${cfg.emailSenderFilter.trim()}"`);
+    }
+    if (cfg.emailSubjectFilter?.trim()) {
+      parts.push(`Filtro Asunto Gmail: "${cfg.emailSubjectFilter.trim()}"`);
+    }
+    if (cfg.onlyWithAttachments) {
+      parts.push(`Solo correos con archivos adjuntos (PDF/Excel/Word)`);
+    }
+    if (cfg.qrPortalTarget?.trim()) {
+      parts.push(`Portal QR Vigilado: ${cfg.qrPortalTarget.trim()} (${cfg.qrSeverityFilter === 'critical_only' ? 'Solo críticos' : 'Todos'})`);
+    }
+    if (cfg.driveFolderName?.trim()) {
+      parts.push(`Carpeta/Archivo Drive: "${cfg.driveFolderName.trim()}" (${cfg.fileTypeFilter || 'Todos los formatos'}${cfg.onlyNewFiles ? ', solo nuevos/modificados' : ''})`);
+    }
+    if (cfg.watchFolderPath?.trim()) {
+      parts.push(`Ruta Local Mac/PC (Antigravity): "${cfg.watchFolderPath.trim()}"`);
+    }
+    if (cfg.workerStatusFilter) {
+      parts.push(`Filtro Trabajadores: ${cfg.workerStatusFilter}`);
+    }
+    if (cfg.dedupWindow) {
+      parts.push(`Ventana Anti-Duplicados: ${cfg.dedupWindow} (clave: ${cfg.dedupKey || 'cedula'})`);
+    }
+    if (cfg.legalStandards && cfg.legalStandards.length > 0) {
+      parts.push(`Normas Obligatorias a Citar: [${cfg.legalStandards.join(', ')}]`);
+    }
+    if (cfg.emailSubject?.trim()) {
+      parts.push(`Asunto del Correo: "${cfg.emailSubject.trim()}"`);
+    }
+    if (cfg.onlyOnCriticalAlerts) {
+      parts.push(`Enviar notificación SOLO si existen alertas críticas o vencimientos`);
+    }
+    if (cfg.whatsappNumbers?.trim()) {
+      parts.push(`Destinatarios WhatsApp: ${cfg.whatsappNumbers.trim()}`);
+    }
+    if (cfg.calendarEventTitle?.trim()) {
+      parts.push(`Agendar Evento: "${cfg.calendarEventTitle.trim()}" (${cfg.calendarDurationMinutes || 60} min)`);
+    }
+    if (cfg.documentTitle?.trim()) {
+      parts.push(`Documento Vivo: "${cfg.documentTitle.trim()}" (${cfg.documentTemplate || 'Informe'})`);
+    }
+    if (cfg.kanbanPriority || cfg.kanbanDueDays) {
+      parts.push(`Tarea ACPM Kanban: Prioridad ${cfg.kanbanPriority || 'high'}, Plazo ${cfg.kanbanDueDays || 7} días${cfg.kanbanAssignee ? `, Responsable: ${cfg.kanbanAssignee}` : ''}`);
+    }
+    if (cfg.ifRuleExpression?.trim()) {
+      parts.push(`Condición Si/No: "${cfg.ifRuleExpression.trim()}" | Si CUMPLE (Sí): "${cfg.conditionTrueLabel || 'Continuar a Hito/Alerta'}" | Si NO CUMPLE (No): "${cfg.conditionFalseLabel || 'Solo registrar en bitácora'}"`);
     }
     if (cfg.customInstruction?.trim()) {
       parts.push(`Instrucción específica: "${cfg.customInstruction.trim()}"`);

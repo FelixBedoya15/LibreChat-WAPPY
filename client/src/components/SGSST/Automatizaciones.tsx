@@ -707,16 +707,28 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   // Handle save
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formAgentId || !formPrompt.trim()) {
+    if (!formName.trim() || !formAgentId) {
       showToast({
-        message: 'Por favor complete todos los campos obligatorios.',
+        message: 'Por favor ingresa el nombre de la tarea y selecciona el agente especialista.',
         status: 'error'
       });
       return;
     }
 
     const selectedAgent = agents.find(a => a.id === formAgentId);
-    const agentName = selectedAgent ? selectedAgent.name : 'Agente';
+    const agentName = selectedAgent ? selectedAgent.name : 'Consultor SG-SST';
+
+    // Si el prompt está vacío o el usuario editó nodos directamente en el lienzo, autogenerarlo
+    const finalPrompt =
+      formPrompt.trim() ||
+      buildPromptFromWorkflowNodes(
+        formName.trim() || 'Flujo Automatizado SG-SST',
+        agentName,
+        formWorkflowNodes,
+      );
+    if (!formPrompt.trim()) {
+      setFormPrompt(finalPrompt);
+    }
 
     const emails = formEmailsStr
       .split(',')
@@ -735,7 +747,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       name: formName.trim(),
       agentId: formAgentId,
       agentName,
-      prompt: formPrompt.trim(),
+      prompt: finalPrompt,
       scheduleType: formScheduleType,
       scheduleConfig,
       emails,
@@ -1838,12 +1850,11 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
               )}
 
-              {/* Fila 1: Nombre + Agente */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Título de la tarea */}
-                <div>
+              {/* Fila 1: Nombre de la Tarea / Flujo (Sin duplicar selectores que ya viven en los nodos del lienzo) */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3">
+                <div className="flex-1">
                   <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Nombre de la Tarea / Flujo <span className="text-red-500">*</span>
+                    Nombre de la Tarea / Flujo Autónomo <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1851,51 +1862,62 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     placeholder="ej. Vigilancia Drive -> Registro ATEL e Inspecciones"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
+                    className="w-full px-3.5 py-2 text-sm font-semibold bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
                   />
                 </div>
 
-                {/* Selector de Agente */}
-                <div className="relative">
-                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Agente Especialista IA (Nodo Central) <span className="text-red-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setIsAgentOpen(!isAgentOpen); }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white text-left"
-                  >
-                    <span>🤖 {agents.find(a => a.id === formAgentId)?.name || 'Seleccione un agente'}</span>
-                    <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
-                  </button>
-                  {isAgentOpen && (
-                    <div className="absolute z-[120] mt-1 w-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {agents.map((agent) => (
-                        <button
-                          key={agent.id}
-                          type="button"
-                          onClick={() => {
-                            setFormAgentId(agent.id);
-                            setIsAgentOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-900 dark:text-white transition duration-150 ${
-                            formAgentId === agent.id ? 'bg-purple-50/50 dark:bg-purple-900/10 font-semibold text-purple-600 dark:text-purple-400' : ''
-                          }`}
-                        >
-                          {agent.name}
-                        </button>
-                      ))}
-                      {agents.length === 0 && (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          No hay agentes disponibles
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema */}
+                {isAdmin && (
+                  <div className="px-3.5 py-2 rounded-xl border border-teal-300/70 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-950/20 flex items-center">
+                    {!isPresetModalMode && (
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-extrabold text-teal-900 dark:text-teal-200">
+                        <input
+                          type="checkbox"
+                          checked={formSaveAsSystemPreset}
+                          onChange={(e) => setFormSaveAsSystemPreset(e.target.checked)}
+                          className="rounded border-teal-400 text-teal-600 focus:ring-teal-500"
+                        />
+                        <span>🌐 Publicar en Catálogo Global</span>
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* CONSTRUCTOR VISUAL DE FLUJOS Y CONECTORES WAPPY (LIENZO INTERACTIVO + LOGOS SVG) */}
+              {isAdmin && (isPresetModalMode || formSaveAsSystemPreset) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-teal-300/70 dark:border-teal-800/60 bg-teal-50/30 dark:bg-teal-950/20">
+                  <div>
+                    <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
+                      Categoría del Catálogo Global
+                    </label>
+                    <select
+                      value={formPresetCategory}
+                      onChange={(e) => setFormPresetCategory(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-lg dark:text-white"
+                    >
+                      {PRESET_CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.icon} {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
+                      Resumen para los usuarios
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Breve explicación del beneficio..."
+                      value={formPresetDescription}
+                      onChange={(e) => setFormPresetDescription(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-lg dark:text-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* CONSTRUCTOR VISUAL DE FLUJOS Y CONECTORES WAPPY (TODA LA CONFIGURACIÓN VIVE DENTRO DE CADA NODO AL HACER CLIC) */}
               <WappyWorkflowCanvas
                 workflowNodes={formWorkflowNodes}
                 onChange={setFormWorkflowNodes}
@@ -1906,269 +1928,51 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 onAutoBuildPrompt={handleAutoBuildPrompt}
                 prompt={formPrompt}
                 onChangePrompt={setFormPrompt}
+                scheduleType={formScheduleType}
+                onChangeScheduleType={setFormScheduleType}
+                hour={formHour}
+                onChangeHour={setFormHour}
+                minute={formMinute}
+                onChangeMinute={setFormMinute}
+                daysOfWeek={formDaysOfWeek}
+                onChangeDaysOfWeek={setFormDaysOfWeek}
+                dayOfMonth={formDayOfMonth}
+                onChangeDayOfMonth={setFormDayOfMonth}
+                intervalHours={formIntervalHours}
+                onChangeIntervalHours={setFormIntervalHours}
+                emailsStr={formEmailsStr}
+                onChangeEmailsStr={setFormEmailsStr}
               />
 
-              {/* Fila Horario + Correos */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Trigger / Frecuencia */}
-                <div className="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 bg-gray-50/70 dark:bg-gray-850">
-                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2.5">
-                    ⏱️ Programación del Disparador de Tiempo
-                  </label>
-
-                  <div className="grid grid-cols-2 gap-3 mb-2">
-                    <div className="relative">
-                      <label className="block text-[10px] text-gray-500 mb-1">Frecuencia</label>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setIsFreqOpen(!isFreqOpen); }}
-                        className="w-full flex items-center justify-between px-3 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 dark:text-white text-left"
-                      >
-                        <span>
-                          {formScheduleType === 'daily' ? 'Diario' :
-                           formScheduleType === 'weekly' ? 'Semanal' :
-                           formScheduleType === 'monthly' ? 'Mensual' :
-                           formScheduleType === 'hourly' ? 'Cada X Horas' : 'Seleccionar'}
-                        </span>
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                      </button>
-                      {isFreqOpen && (
-                        <div className="absolute z-[120] mt-1 w-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          {[
-                            { id: 'daily', name: 'Diario', triggerNode: 'schedule_daily' },
-                            { id: 'weekly', name: 'Semanal', triggerNode: 'schedule_weekly' },
-                            { id: 'monthly', name: 'Mensual', triggerNode: 'schedule_monthly' },
-                            { id: 'hourly', name: 'Cada X Horas', triggerNode: 'schedule_hourly' }
-                          ].map((item) => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => {
-                                setFormScheduleType(item.id as any);
-                                setFormWorkflowNodes((prev) => ({ ...prev, trigger: item.triggerNode }));
-                                setIsFreqOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-900 dark:text-white transition duration-150 ${
-                                formScheduleType === item.id ? 'bg-purple-50/50 dark:bg-purple-900/10 font-semibold text-purple-600 dark:text-purple-400' : ''
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Hour and Minute (except hourly) */}
-                    {formScheduleType !== 'hourly' && (
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="block text-[10px] text-gray-500 mb-1">Hora (0-23)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={23}
-                            value={formHour}
-                            onChange={(e) => setFormHour(Number(e.target.value))}
-                            className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-[10px] text-gray-500 mb-1">Minuto</label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={59}
-                            value={formMinute}
-                            onChange={(e) => setFormMinute(Number(e.target.value))}
-                            className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Interval Hours for hourly */}
-                    {formScheduleType === 'hourly' && (
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Horas de Intervalo</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={168}
-                          value={formIntervalHours}
-                          onChange={(e) => setFormIntervalHours(Number(e.target.value))}
-                          className="w-full px-3 py-1.5 text-xs bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Additional Weekly Option */}
-                  {formScheduleType === 'weekly' && (
-                    <div className="mt-2">
-                      <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                        Días de la Semana
-                      </label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[
-                          { id: 1, label: 'L', name: 'Lunes' },
-                          { id: 2, label: 'M', name: 'Martes' },
-                          { id: 3, label: 'M', name: 'Miércoles' },
-                          { id: 4, label: 'J', name: 'Jueves' },
-                          { id: 5, label: 'V', name: 'Viernes' },
-                          { id: 6, label: 'S', name: 'Sábado' },
-                          { id: 0, label: 'D', name: 'Domingo' }
-                        ].map((day) => {
-                          const isSelected = formDaysOfWeek.includes(day.id);
-                          return (
-                            <button
-                              key={day.id}
-                              type="button"
-                              onClick={() => {
-                                if (isSelected) {
-                                  if (formDaysOfWeek.length > 1) {
-                                    setFormDaysOfWeek(formDaysOfWeek.filter(d => d !== day.id));
-                                  }
-                                } else {
-                                  setFormDaysOfWeek([...formDaysOfWeek, day.id]);
-                                }
-                              }}
-                              className={`w-8 h-8 flex items-center justify-center text-xs font-extrabold rounded-full border transition-all duration-200 cursor-pointer ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-transparent text-white shadow-md'
-                                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300'
-                              }`}
-                              title={day.name}
-                            >
-                              {day.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Additional Monthly Option */}
-                  {formScheduleType === 'monthly' && (
-                    <div className="mt-2">
-                      <label className="block text-[10px] text-gray-500 mb-1">Día del Mes (1-31)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={31}
-                        value={formDayOfMonth}
-                        onChange={(e) => setFormDayOfMonth(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none dark:text-white"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Destinatarios y Opciones de Plantilla Global Admin */}
-                <div className="flex flex-col gap-3 justify-between">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      📧 Correos de Destinatarios (separados por coma)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="ej. medico.laboral@gmail.com, gerencia@empresa.com"
-                      value={formEmailsStr}
-                      onChange={(e) => setFormEmailsStr(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema */}
-                  {isAdmin && (
-                    <div className="p-3 rounded-2xl border border-teal-300/70 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-950/20">
-                      {!isPresetModalMode && (
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-extrabold text-teal-900 dark:text-teal-200">
-                          <input
-                            type="checkbox"
-                            checked={formSaveAsSystemPreset}
-                            onChange={(e) => setFormSaveAsSystemPreset(e.target.checked)}
-                            className="rounded border-teal-400 text-teal-600 focus:ring-teal-500"
-                          />
-                          <span>🌐 Publicar también como Tarea Preestablecida para TODOS los usuarios</span>
-                        </label>
-                      )}
-                      {(isPresetModalMode || formSaveAsSystemPreset) && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
-                              Categoría del Catálogo
-                            </label>
-                            <select
-                              value={formPresetCategory}
-                              onChange={(e) => setFormPresetCategory(e.target.value)}
-                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-lg dark:text-white"
-                            >
-                              {PRESET_CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.icon} {c.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
-                              Resumen para los usuarios
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Breve explicación del beneficio..."
-                              value={formPresetDescription}
-                              onChange={(e) => setFormPresetDescription(e.target.value)}
-                              className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-lg dark:text-white"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Instrucción / Prompt */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Instrucciones Autónomas para el Agente (Prompt de Ejecución) <span className="text-red-500">*</span>
-                  </label>
-                  <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
-                    Puedes escribirlo o pulsar "Autogenerar Prompt desde los Nodos"
+              {/* Pie del Modal: Resumen en vivo + Botones Oficiales WAPPY (ExpandableButton) */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200 dark:border-gray-800 pt-3.5 mt-1">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300">
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold">
+                    💡 Haz clic en cualquier nodo del lienzo (Cron, Agente IA, Hito SST, Gmail) para abrir su editor propio
                   </span>
                 </div>
-                <textarea
-                  required
-                  rows={5}
-                  placeholder="Selecciona los conectores arriba y pulsa 'Autogenerar Prompt desde los Nodos', o escribe aquí la orden detallada que ejecutará el agente..."
-                  value={formPrompt}
-                  onChange={(e) => setFormPrompt(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white font-mono text-xs leading-relaxed"
-                />
-              </div>
 
-              {/* Botones de acción */}
-              <div className="flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800 pt-4 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-750 dark:text-gray-200 font-bold rounded-lg text-xs uppercase tracking-wider transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-lg text-xs uppercase tracking-wider transition shadow-md"
-                >
-                  {isPresetModalMode
-                    ? 'Guardar Plantilla Global'
-                    : editingAutomation
-                      ? 'Guardar Cambios'
-                      : 'Guardar Tarea y Flujo'}
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <ExpandableButton
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    icon={<XCircle className="w-4 h-4" />}
+                    text="Cancelar"
+                    variant="secondary"
+                  />
+                  <ExpandableButton
+                    type="submit"
+                    icon={<CheckCircle className="w-4 h-4" />}
+                    text={
+                      isPresetModalMode
+                        ? 'Guardar Plantilla Global'
+                        : editingAutomation
+                          ? 'Guardar Cambios'
+                          : 'Guardar Tarea y Flujo'
+                    }
+                    variant="violet"
+                  />
+                </div>
               </div>
             </form>
           </div>
