@@ -33,6 +33,7 @@ import {
   Data,
   Balance,
   Account,
+  WappyAvatarTab,
   IntegrationsTab,
   PartnersTab,
   Admin,
@@ -106,6 +107,12 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
         value: SettingsTabValues.ACCOUNT,
         icon: User,
         label: 'com_nav_setting_account' as TranslationKeys,
+        section: 'account' as const,
+      },
+      {
+        value: 'wappy-avatar',
+        icon: Bot,
+        label: 'Avatar Wappy' as TranslationKeys,
         section: 'account' as const,
       },
       {
@@ -272,6 +279,13 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
           icon: User,
           title: 'Mi Cuenta y Perfil',
           subtitle: 'Datos personales, seguridad de acceso y opciones de perfil',
+        };
+      case 'wappy-avatar':
+        return {
+          icon: Bot,
+          title: 'Avatar Wappy',
+          subtitle: 'Personaliza el personaje, nombre, sexo, voz y personalidad de tu asistente IA',
+          color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
         };
       case 'integrations':
         return {
@@ -539,6 +553,9 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
                     )}
                     <Tabs.Content value={SettingsTabValues.ACCOUNT} tabIndex={-1} className="outline-none">
                       <Account />
+                    </Tabs.Content>
+                    <Tabs.Content value="wappy-avatar" tabIndex={-1} className="outline-none">
+                      <WappyAvatarTab />
                     </Tabs.Content>
                     <Tabs.Content value={'integrations'} tabIndex={-1} className="outline-none">
                       <IntegrationsTab />

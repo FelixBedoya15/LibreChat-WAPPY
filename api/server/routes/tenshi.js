@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 const { requireJwtAuth } = require('../middleware');
 const TenshiConfig = require('../../models/TenshiConfig');
+const TenshiUserAvatar = require('../../models/TenshiUserAvatar');
 const TenshiMessage = require('../../models/TenshiMessage');
 const { BlogPost } = require('../../models/BlogPost');
 const { Course } = require('../../models/Course');
@@ -183,6 +185,25 @@ function getPlatformManual() {
     return cachedManualContent;
 }
 
+function extractOptionalUserId(req) {
+    if (req.user?.id || req.user?._id) {
+        return String(req.user.id || req.user._id);
+    }
+    const authHeader = req.headers?.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+            const token = authHeader.slice(7).trim();
+            if (token && process.env.JWT_SECRET) {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                if (decoded?.id) {
+                    return String(decoded.id);
+                }
+            }
+        } catch (_) {}
+    }
+    return null;
+}
+
 router.get('/config', async (req, res) => {
     try {
         let config = await TenshiConfig.findOne();
@@ -194,7 +215,15 @@ router.get('/config', async (req, res) => {
             config.skills.push('skill-admin-metricas-sistema');
             await config.save().catch(() => {});
         }
-        res.json(config.toObject ? config.toObject() : config);
+        const configObj = config.toObject ? config.toObject() : config;
+        const optionalUserId = extractOptionalUserId(req);
+        const avatarProfile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(optionalUserId, configObj);
+        res.json({
+            ...configObj,
+            userAvatar: avatarProfile.userAvatar,
+            defaultAvatarProfile: avatarProfile.defaults,
+            effectiveAvatar: avatarProfile.effective,
+        });
     } catch (error) {
         console.error('Error fetching Tenshi config:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -216,6 +245,61 @@ router.post('/config', requireJwtAuth, async (req, res) => {
         res.json(config);
     } catch (error) {
         console.error('Error saving Tenshi config:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/user-avatar', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = String(req.user?.id || req.user?._id);
+        const profile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(targetUserId);
+        res.json(profile);
+    } catch (error) {
+        console.error('Error fetching Tenshi user avatar:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.post('/user-avatar', requireJwtAuth, async (req, res) => {
+    try {
+        const targetUserId = String(req.user?.id || req.user?._id);
+        if (req.body.resetToDefault === true) {
+            await TenshiUserAvatar.findOneAndUpdate(
+                { user: targetUserId },
+                {
+                    $set: {
+                        isCustomized: false,
+                        avatarId: '',
+                        name: '',
+                        gender: '',
+                        voice: '',
+                        personality: '',
+                        personalityPreset: 'consultor',
+                    },
+                },
+                { upsert: true, new: true }
+            );
+        } else {
+            await TenshiUserAvatar.findOneAndUpdate(
+                { user: targetUserId },
+                {
+                    $set: {
+                        avatarId: req.body.avatarId ?? '',
+                        name: req.body.name ?? '',
+                        gender: req.body.gender ?? '',
+                        voice: req.body.voice ?? '',
+                        personality: req.body.personality ?? '',
+                        personalityPreset: req.body.personalityPreset ?? 'consultor',
+                        isCustomized: true,
+                    },
+                },
+                { upsert: true, new: true }
+            );
+        }
+        const profile = await TenshiUserAvatar.resolveEffectiveAvatarProfile(targetUserId);
+        res.json(profile);
+    } catch (error) {
+        console.error('Error saving Tenshi user avatar:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -1141,6 +1225,15 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 - Conoces de antemano la Razón Social, NIT, Representante Legal, Trabajadores, ARL, Sedes, Macroprocesos y datos de la memoria.
 - NUNCA digas "no tengo acceso a la empresa", "no sé qué empresa está activa" ni le pidas al usuario que repita datos que ya están en esta ficha o memoria. Úsalos con total familiaridad y exactitud en todas tus respuestas.`;
         }
+
+        const { effective: effectiveAvatar } = await TenshiUserAvatar.resolveEffectiveAvatarProfile(
+            req.user?.id || targetUserId,
+            config
+        );
+        fullCompanyAndMemoryBlock += `\n\n[IDENTIDAD, GÉNERO Y PERSONALIDAD DE TU AVATAR WAPPY CONFIGURADO POR EL USUARIO]:
+- Tu nombre actual para este usuario es: "${effectiveAvatar.name}". Si te llaman por tu nombre o te preguntan cómo te llamas, responde como "${effectiveAvatar.name}".
+- Tu género/sexo configurado es: "${effectiveAvatar.gender}". Usa concordancia gramatical ${effectiveAvatar.gender === 'femenino' ? 'femenina (ej. "estoy lista", "soy tu consultora/asistente")' : effectiveAvatar.gender === 'neutro' ? 'neutra e inclusiva' : 'masculina (ej. "estoy listo", "soy tu consultor/asistente")'} al referirte a ti mismo/a.
+- Tu personalidad y estilo de trato para este usuario es: ${effectiveAvatar.personality}\n`;
 
         let recentConvosBlock = '';
         if (recentTenshiReports && recentTenshiReports.length > 0) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn } from '~/utils';
 import { tenshiAudio } from './tenshiAudio';
+import { getAvatarPresetById } from './tenshiAvatarCatalog';
 
 export type TenshiAvatarMood =
   | 'idle'
@@ -20,6 +21,7 @@ export type TenshiAvatarMood =
 
 export interface TenshiAvatarProps {
   size?: number; // en píxeles (ej. 315, 180, 140, 92, 56, 32)
+  avatarId?: string;
   mood?: TenshiAvatarMood;
   isSpeaking?: boolean;
   outputAmplitude?: number; // 0..1
@@ -156,6 +158,7 @@ export function analyzeTenshiEmotionFromText(
 
 export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   size = 140,
+  avatarId,
   mood: explicitMood,
   isSpeaking = false,
   outputAmplitude = 0,
@@ -171,6 +174,40 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   statusPlacement = 'bottom',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [globalAvatarId, setGlobalAvatarId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('wappy_active_avatar_id') || 'gato';
+    }
+    return 'gato';
+  });
+
+  useEffect(() => {
+    const handleAvatarUpdated = (e: Event) => {
+      const custom = e as CustomEvent<{ avatarId?: string }>;
+      const nextId =
+        custom.detail?.avatarId ||
+        localStorage.getItem('wappy_active_avatar_id') ||
+        'gato';
+      setGlobalAvatarId(nextId);
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'wappy_active_avatar_id' && e.newValue) {
+        setGlobalAvatarId(e.newValue);
+      }
+    };
+    window.addEventListener('wappy-avatar-updated', handleAvatarUpdated);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('wappy-avatar-updated', handleAvatarUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const preset = useMemo(
+    () => getAvatarPresetById(avatarId || globalAvatarId),
+    [avatarId, globalAvatarId]
+  );
+
   const [tilt, setTilt] = useState({
     rx: 0,
     ry: 0,
@@ -695,10 +732,11 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         <div
           className={lensCommonClass}
           style={{
-            left: '30.7%',
-            top: '31.8%',
-            width: '25.6%',
-            height: '15.4%',
+            left: preset.leftLens.left,
+            top: preset.leftLens.top,
+            width: preset.leftLens.width,
+            height: preset.leftLens.height,
+            borderRadius: preset.leftLens.borderRadius || undefined,
           }}
         >
           <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent animate-tenshi-lens-gleam pointer-events-none" />
@@ -709,10 +747,11 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         <div
           className={lensCommonClass}
           style={{
-            left: '68.4%',
-            top: '31.7%',
-            width: '25.6%',
-            height: '15.2%',
+            left: preset.rightLens.left,
+            top: preset.rightLens.top,
+            width: preset.rightLens.width,
+            height: preset.rightLens.height,
+            borderRadius: preset.rightLens.borderRadius || undefined,
           }}
         >
           <span
@@ -1122,8 +1161,10 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           )}
 
           <img
-            src="/assets/tenshi.png"
-            alt="Tenshi"
+            src={preset.src}
+            alt={preset.name}
+            draggable={false}
+            style={{ imageRendering: 'auto' }}
             className="h-full w-full object-contain object-center pointer-events-none select-none"
             onError={(e) => {
               e.currentTarget.src = '/assets/logo.svg';

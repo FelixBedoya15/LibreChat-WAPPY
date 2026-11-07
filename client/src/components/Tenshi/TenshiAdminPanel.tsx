@@ -2,8 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastContext } from '@librechat/client';
-import { Settings, Save, Sparkles, MessageSquare, Bot, AlertCircle, Cpu, Check } from 'lucide-react';
+import { Settings, Save, Sparkles, MessageSquare, Bot, AlertCircle, Cpu, Check, Volume2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { TenshiAvatar } from './TenshiAvatar';
+import {
+    TENSHI_AVATAR_PRESETS,
+    TENSHI_VOICES,
+    PERSONALITY_ARCHETYPES,
+    getAvatarPresetById,
+} from './tenshiAvatarCatalog';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 
 interface Skill {
     id: string;
@@ -34,6 +42,10 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
     const [formData, setFormData] = useState({
         name: 'Tenshi',
         description: '',
+        defaultAvatarId: 'gato',
+        defaultGender: 'masculino' as 'masculino' | 'femenino' | 'neutro',
+        defaultVoice: 'Puck',
+        defaultPersonality: 'Amigable, proactivo, experto en SG-SST y cercano con el usuario.',
         model: '',
         provider: '',
         location: 'bottom-right',
@@ -96,6 +108,12 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
             setFormData({
                 name: config.name || 'Tenshi',
                 description: config.description || '',
+                defaultAvatarId: config.defaultAvatarId || 'gato',
+                defaultGender: config.defaultGender || 'masculino',
+                defaultVoice: config.defaultVoice || 'Puck',
+                defaultPersonality:
+                    config.defaultPersonality ||
+                    'Amigable, proactivo, experto en SG-SST y cercano con el usuario.',
                 model: config.model || '',
                 provider: config.provider || '',
                 location: config.location || 'bottom-right',
@@ -123,10 +141,28 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
             return res.data;
         },
         {
-            onSuccess: () => {
+            onSuccess: (resData) => {
                 showToast({ message: 'Configuración de Tenshi guardada correctamente', status: 'success' });
                 queryClient.invalidateQueries(['tenshiConfigAdmin']);
                 queryClient.invalidateQueries(['tenshiConfig']);
+                queryClient.invalidateQueries(['tenshiUserAvatar']);
+
+                // Si el administrador no tiene un override personal activo, sincronizar el avatar global en vivo
+                const hasUserCustom = Boolean(config?.userCustomAvatar?.avatarId || config?.userCustomAvatar?.name);
+                if (!hasUserCustom) {
+                    const effective = {
+                        avatarId: resData?.defaultAvatarId || formData.defaultAvatarId || 'gato',
+                        name: resData?.name || formData.name || 'Tenshi',
+                        gender: resData?.defaultGender || formData.defaultGender || 'masculino',
+                        voice: resData?.defaultVoice || formData.defaultVoice || 'Puck',
+                        personality: resData?.defaultPersonality || formData.defaultPersonality || '',
+                    };
+                    try {
+                        localStorage.setItem('wappy_active_avatar_id', effective.avatarId);
+                        localStorage.setItem('wappy_active_avatar_profile', JSON.stringify(effective));
+                    } catch (_) {}
+                    window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: effective }));
+                }
             },
             onError: () => {
                 showToast({ message: 'Error guardando config', status: 'error' });
@@ -182,13 +218,159 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Asistente</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Asistente (Por defecto en la plataforma)</label>
                                 <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-900" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción corta</label>
                                 <input type="text" name="description" value={formData.description} onChange={handleChange} placeholder="Ej: Asistente virtual experto en SG-SST" className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-900" />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Avatar Wappy por Defecto (Global para la Plataforma) */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-700">
+                            <div>
+                                <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-900 dark:text-white">
+                                    <Sparkles className="w-5 h-5 text-teal-500" /> Avatar Wappy por Defecto (Global para la Plataforma)
+                                </h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Define qué personaje, sexo, voz y personalidad verán todos los usuarios que aún no hayan personalizado su propio Avatar Wappy.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3 bg-teal-50/70 dark:bg-teal-950/30 border border-teal-500/30 rounded-2xl px-4 py-2 shrink-0">
+                                <TenshiAvatar
+                                    size={64}
+                                    avatarId={formData.defaultAvatarId}
+                                    interactive={false}
+                                    showHaloEffect={true}
+                                    showHUD={true}
+                                />
+                                <div className="text-xs">
+                                    <div className="font-extrabold text-teal-800 dark:text-teal-200">
+                                        {formData.name || 'Tenshi'}
+                                    </div>
+                                    <div className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">
+                                        {getAvatarPresetById(formData.defaultAvatarId).name}
+                                    </div>
+                                    <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                                        🎙️ {formData.defaultVoice} • {formData.defaultGender}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Selector de Personaje por Defecto */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-2">
+                                Personaje Predeterminado (9 Avatares Ultra-HD)
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                                {TENSHI_AVATAR_PRESETS.map((preset) => {
+                                    const selected = formData.defaultAvatarId === preset.id;
+                                    return (
+                                        <div
+                                            key={preset.id}
+                                            onClick={() =>
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    defaultAvatarId: preset.id,
+                                                }))
+                                            }
+                                            className={cn(
+                                                'flex flex-col items-center rounded-xl border p-2.5 cursor-pointer transition-all select-none',
+                                                selected
+                                                    ? 'border-teal-500 bg-teal-500/10 ring-2 ring-teal-500/25'
+                                                    : 'border-gray-200 dark:border-gray-700 hover:border-teal-500/40 bg-gray-50/50 dark:bg-gray-900/40'
+                                            )}
+                                        >
+                                            <TenshiAvatar
+                                                size={68}
+                                                avatarId={preset.id}
+                                                interactive={false}
+                                                showHaloEffect={selected}
+                                                showHUD={true}
+                                            />
+                                            <span className="mt-1 text-[11px] font-bold text-gray-900 dark:text-white text-center truncate w-full">
+                                                {preset.name}
+                                            </span>
+                                            <span className="text-[9px] text-teal-600 dark:text-teal-400 font-semibold truncate w-full text-center">
+                                                {preset.badge}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Sexo y Voz por Defecto */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Sexo / Género por Defecto
+                                </label>
+                                <select
+                                    name="defaultGender"
+                                    value={formData.defaultGender}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-gray-900"
+                                >
+                                    <option value="masculino">Masculino (Listo / Experto)</option>
+                                    <option value="femenino">Femenino (Lista / Experta)</option>
+                                    <option value="neutro">Neutro (Lenguaje neutro)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1.5">
+                                    <Volume2 className="w-4 h-4 text-teal-500" /> Voz Gemini Live por Defecto
+                                </label>
+                                <select
+                                    name="defaultVoice"
+                                    value={formData.defaultVoice}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-gray-900"
+                                >
+                                    {TENSHI_VOICES.map((v) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name} — {v.genderLabel} ({v.tone})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Personalidad por Defecto */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                Personalidad y Tono por Defecto
+                            </label>
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                {PERSONALITY_ARCHETYPES.map((arch) => (
+                                    <button
+                                        key={arch.id}
+                                        type="button"
+                                        onClick={() =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                defaultPersonality: arch.prompt,
+                                            }))
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-xl border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-xs font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer"
+                                    >
+                                        <span>{arch.emoji}</span>
+                                        <span>{arch.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <textarea
+                                name="defaultPersonality"
+                                value={formData.defaultPersonality}
+                                onChange={handleChange}
+                                rows={3}
+                                placeholder="Describe cómo debe comportarse y hablar el Avatar Wappy por defecto..."
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-gray-900 text-sm"
+                            />
                         </div>
                     </div>
 

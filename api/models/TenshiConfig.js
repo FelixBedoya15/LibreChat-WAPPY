@@ -38,6 +38,23 @@ const tenshiConfigSchema = mongoose.Schema(
         skills: {
             type: [String],
             default: [],
+        },
+        defaultAvatarId: {
+            type: String,
+            default: 'gato',
+        },
+        defaultGender: {
+            type: String,
+            enum: ['masculino', 'femenino', 'neutro'],
+            default: 'masculino',
+        },
+        defaultVoice: {
+            type: String,
+            default: 'Puck',
+        },
+        defaultPersonality: {
+            type: String,
+            default: 'Amigable, proactivo, experto en SG-SST y cercano con el usuario.',
         }
     },
     { timestamps: true }

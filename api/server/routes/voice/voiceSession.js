@@ -12,6 +12,7 @@ const { generateWithKeyRotation, SGSST_FALLBACK_MODELS, LIVE_FALLBACK_MODELS } =
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
 const TenshiMessage = require('~/models/TenshiMessage');
+const TenshiUserAvatar = require('~/models/TenshiUserAvatar');
 const { Course } = require('~/models/Course');
 const { BlogPost } = require('~/models/BlogPost');
 const { syncCompanyMemory } = require('../sgsst/companyInfo');
@@ -3571,8 +3572,24 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         logger.warn('[VoiceSession] Could not build daily briefing context:', briefErr.message);
                     }
 
-                    // ─── MODO DE PERSONALIDAD ADAPTATIVA DE TENSHI (1 CLIC) ───
-                    const initialPersonality = (this.config?.personality || 'consultor').toLowerCase();
+                    // ─── MODO DE PERSONALIDAD ADAPTATIVA DE TENSHI (1 CLIC) + AVATAR WAPPY DEL USUARIO ───
+                    let effectiveAvatar = null;
+                    try {
+                        const resolvedAvatar = await TenshiUserAvatar.resolveEffectiveAvatarProfile(this.userId);
+                        effectiveAvatar = resolvedAvatar?.effective || null;
+                        if (effectiveAvatar) {
+                            this.config.voice = effectiveAvatar.voice || this.config?.voice || 'Puck';
+                            this.liveConfig.voice = this.config.voice;
+                            companyAndMemoryPrompt += `\n\n[IDENTIDAD, NOMBRE, SEXO Y PERSONALIDAD DEL AVATAR WAPPY DE ESTE USUARIO]:
+- Tu nombre actual es "${effectiveAvatar.name}". Preséntate y responde bajo el nombre de "${effectiveAvatar.name}".
+- Tu sexo/género es "${effectiveAvatar.gender}". Habla siempre de ti mismo/a con concordancia gramatical ${effectiveAvatar.gender === 'femenino' ? 'femenina ("lista", "encantada", "tu asesora")' : effectiveAvatar.gender === 'neutro' ? 'neutra' : 'masculina ("listo", "encantado", "tu asesor")'}.
+- Personalidad personalizada asignada por el usuario: ${effectiveAvatar.personality}`;
+                        }
+                    } catch (avErr) {
+                        logger.warn('[VoiceSession] Could not load TenshiUserAvatar:', avErr.message);
+                    }
+
+                    const initialPersonality = (this.config?.personality || effectiveAvatar?.personalityPreset || 'consultor').toLowerCase();
                     if (initialPersonality === 'express') {
                         companyAndMemoryPrompt += `\n\n[MODO DE PERSONALIDAD ACTIVO: ⚡ EJECUTIVO EXPRESS]:
 Responde SIEMPRE en máximo 1 a 2 frases ultra-directas y al grano. Prioriza datos puntuales, cifras y acciones inmediatas sin introducciones largas.`;

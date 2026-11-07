@@ -1621,6 +1621,33 @@ export default function TenshiChat() {
   const [hoveredPersonality, setHoveredPersonality] = useState<'express' | 'consultor' | 'auditor' | null>(null);
   const sendPersonalityRef = useRef<((p: string) => void) | null>(null);
 
+  const [activeAvatarProfile, setActiveAvatarProfile] = useState<{
+    avatarId?: string;
+    name?: string;
+    gender?: string;
+    voice?: string;
+    personality?: string;
+  } | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('wappy_active_avatar_profile');
+        if (raw) return JSON.parse(raw);
+      } catch (_) {}
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    const handleAvatarEvent = (e: Event) => {
+      const custom = e as CustomEvent;
+      if (custom.detail) {
+        setActiveAvatarProfile(custom.detail);
+      }
+    };
+    window.addEventListener('wappy-avatar-updated', handleAvatarEvent);
+    return () => window.removeEventListener('wappy-avatar-updated', handleAvatarEvent);
+  }, []);
+
   const handleSelectPersonality = useCallback((mode: 'express' | 'consultor' | 'auditor') => {
     tenshiAudio.playBlip();
     setPersonalityMode(mode);
@@ -2249,7 +2276,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const sessionOptions = useMemo(
     () => ({
       mode: 'tenshi_voice',
-      voice: 'Puck',
+      initialVoice: activeAvatarProfile?.voice || 'Puck',
+      voice: activeAvatarProfile?.voice || 'Puck',
       route: `${location.pathname}${location.search}`,
       companyId: localStorage.getItem('wappy_active_company_id') || undefined,
       personality: personalityMode,
@@ -3510,7 +3538,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode]
+    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode, activeAvatarProfile?.voice]
   );
 
   const {
@@ -4685,6 +4713,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       staleTime: 5 * 60 * 1000,
     },
   );
+
+  useEffect(() => {
+    if (config) {
+      const eff = config.effectiveAvatar || {
+        avatarId: config.defaultAvatarId || 'gato',
+        name: config.name || 'Tenshi',
+        gender: config.defaultGender || 'masculino',
+        voice: config.defaultVoice || 'Puck',
+        personality: config.defaultPersonality || '',
+      };
+      setActiveAvatarProfile(eff);
+      try {
+        const prevId = localStorage.getItem('wappy_active_avatar_id');
+        localStorage.setItem('wappy_active_avatar_id', eff.avatarId || 'gato');
+        localStorage.setItem('wappy_active_avatar_profile', JSON.stringify(eff));
+        if (prevId !== eff.avatarId) {
+          window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
+        }
+      } catch (_) {}
+    }
+  }, [config]);
 
   const { data: historyData, refetch: refetchHistory } = useQuery(
     ['tenshiHistory', token],
@@ -6411,7 +6460,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 leading-none">
-                    {config?.name || 'Tenshi'}
+                    {activeAvatarProfile?.name || config?.effectiveAvatar?.name || config?.name || 'Tenshi'}
                   </h3>
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-bold">
                     WAPPY SST
@@ -7433,7 +7482,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </div>
               <div>
                 <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-100 leading-none">
-                  {config?.name || 'Tenshi'}
+                  {activeAvatarProfile?.name || config?.effectiveAvatar?.name || config?.name || 'Tenshi'}
                 </h3>
                 <p className="mt-0.5 text-[9px] font-medium text-slate-500 dark:text-zinc-400">
                   {isTenshiSpeaking
