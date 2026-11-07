@@ -12265,6 +12265,83 @@ router.post('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
+const pendingOsintRelayRequests = new Map();
+
+function dispatchOsintViaAntigravityDaemon({
+  action = 'query',
+  tipoDoc = 'CC',
+  cedula = '',
+  includePdf = true,
+  eventTarget = '',
+  timeoutMs = 16000,
+} = {}) {
+  let targetRes = null;
+  for (const [, clients] of antigravityStreamClients.entries()) {
+    if (!clients || clients.size === 0) continue;
+    for (const clientRes of clients) {
+      if (clientRes.__wappyClientType !== 'browser' && clientRes.__wappyDaemonEnv !== 'cloud') {
+        targetRes = clientRes;
+        break;
+      }
+    }
+    if (targetRes) break;
+  }
+  if (!targetRes) {
+    for (const [, clients] of antigravityStreamClients.entries()) {
+      if (!clients || clients.size === 0) continue;
+      for (const clientRes of clients) {
+        if (clientRes.__wappyClientType !== 'browser') {
+          targetRes = clientRes;
+          break;
+        }
+      }
+      if (targetRes) break;
+    }
+  }
+  if (!targetRes) {
+    return Promise.resolve(null);
+  }
+
+  const requestId = `osint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingOsintRelayRequests.delete(requestId);
+      resolve(null);
+    }, timeoutMs);
+
+    pendingOsintRelayRequests.set(requestId, { resolve, timer });
+    try {
+      const frame = `event: osint_mintrabajo_request\ndata: ${JSON.stringify({
+        requestId,
+        action,
+        tipoDoc,
+        cedula,
+        includePdf,
+        eventTarget,
+      })}\n\n`;
+      targetRes.write(frame);
+      if (typeof targetRes.flush === 'function') targetRes.flush();
+    } catch (_) {
+      clearTimeout(timer);
+      pendingOsintRelayRequests.delete(requestId);
+      resolve(null);
+    }
+  });
+}
+
+global.dispatchOsintViaAntigravityDaemon = dispatchOsintViaAntigravityDaemon;
+
+router.post('/antigravity/osint-callback', requireApiKeyOrJwt, (req, res) => {
+  const { requestId, result } = req.body || {};
+  if (requestId && pendingOsintRelayRequests.has(requestId)) {
+    const entry = pendingOsintRelayRequests.get(requestId);
+    clearTimeout(entry.timer);
+    pendingOsintRelayRequests.delete(requestId);
+    entry.resolve(result || null);
+  }
+  return res.json({ ok: true });
+});
+
 router.broadcastAntigravityEvent = broadcastAntigravityEvent;
 router.countAntigravityDaemons = countAntigravityDaemons;
 router.getUserAntigravityMode = getUserAntigravityMode;

@@ -195,10 +195,10 @@ async function executeMinTrabajoSession({ tipoDoc = 'CC', cedula = '' }) {
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
   const cleanCedula = String(cedula || '').trim();
 
-  // 1. GET consulta_ext.aspx
+  // 1. GET consulta_ext.aspx (timeout rápido de 2.5s para detectar geo-bloqueo en VPS y saltar al relay colombiano)
   const getRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_ext.aspx`, {
     headers: DEFAULT_HEADERS,
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(2500),
   });
   let cookieHeader = mergeCookies(getRes);
   const htmlExt = await getRes.text();
@@ -392,6 +392,22 @@ async function consultarAlturasMinTrabajo({ tipoDoc = 'CC', cedula, includePdf =
       historialCompleto,
     };
   } catch (error) {
+    if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+      try {
+        logger.info(`[OSINT MinTrabajo] Reenviando consulta de cédula ${cleanCedula} por túnel IP Colombia (wappy-push-daemon)...`);
+        const relayed = await global.dispatchOsintViaAntigravityDaemon({
+          action: 'query',
+          tipoDoc: cleanTipoDoc,
+          cedula: cleanCedula,
+          includePdf,
+        });
+        if (relayed && typeof relayed === 'object') {
+          return relayed;
+        }
+      } catch (relayErr) {
+        logger.warn(`[OSINT MinTrabajo] Falló relay por daemon para ${cleanCedula}: ${relayErr.message}`);
+      }
+    }
     logger.warn(`[OSINT MinTrabajo] Error consultando cédula ${cleanCedula}: ${error.message}`);
     return {
       encontrado: false,
@@ -480,6 +496,22 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
       contentType: 'application/pdf',
     };
   } catch (error) {
+    if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+      try {
+        logger.info(`[OSINT MinTrabajo PDF] Reenviando descarga de constancia ${cleanCedula} por túnel IP Colombia (wappy-push-daemon)...`);
+        const relayed = await global.dispatchOsintViaAntigravityDaemon({
+          action: 'pdf',
+          tipoDoc: cleanTipoDoc,
+          cedula: cleanCedula,
+          eventTarget,
+        });
+        if (relayed && typeof relayed === 'object' && relayed.ok) {
+          return relayed;
+        }
+      } catch (relayErr) {
+        logger.warn(`[OSINT MinTrabajo PDF] Falló relay por daemon para ${cleanCedula}: ${relayErr.message}`);
+      }
+    }
     logger.error(`[OSINT MinTrabajo PDF] Error descargando constancia ${cleanCedula}:`, error);
     return {
       ok: false,
