@@ -47,6 +47,9 @@ export function isWorkflowNodeUnderConstruction(
   disabledApps?: string[] | null,
 ): boolean {
   if (!node) return false;
+  if (node.defaultConstruction) {
+    return true;
+  }
   const activeDisabledList =
     Array.isArray(disabledApps) && disabledApps.length > 0
       ? disabledApps
@@ -55,9 +58,6 @@ export function isWorkflowNodeUnderConstruction(
     return true;
   }
   if (node.hitoId && activeDisabledList.includes(node.hitoId)) {
-    return true;
-  }
-  if (!disabledApps && node.defaultConstruction) {
     return true;
   }
   return false;
@@ -191,7 +191,9 @@ export interface CanvasNodeConfig {
   calendarAttendees?: string;
   documentTitle?: string;
   documentTemplate?: string;
-  kanbanStatus?: 'todo' | 'in_progress' | 'urgent';
+  kanbanStatus?: 'todo' | 'in_progress' | 'due_soon' | 'overdue' | 'done' | 'urgent';
+  kanbanActionType?: 'correctiva' | 'preventiva' | 'mejora';
+  kanbanTaskTitle?: string;
   kanbanPriority?: 'high' | 'medium' | 'low';
   kanbanDueDays?: number;
   kanbanAssignee?: string;
@@ -465,9 +467,10 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'extract_onedrive',
-    label: 'Extraer de Microsoft OneDrive / SharePoint',
+    label: 'Extraer de Microsoft OneDrive / SharePoint (En Construcción)',
     shortLabel: 'Extraer OneDrive',
-    badge: 'Lee OneDrive',
+    badge: 'En Construcción',
+    defaultConstruction: true,
     description:
       'Lee carpetas y documentos corporativos alojados en Microsoft OneDrive / SharePoint y entrega los datos al Agente IA.',
     category: 'extractor',
@@ -1211,6 +1214,17 @@ export const TRIGGER_NODES: WorkflowNodeDef[] = [
     toolHint: 'Disparo por evento externo vía Webhook / API REST',
     badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
   },
+  {
+    id: 'trigger_whatsapp',
+    label: 'WhatsApp Entrante (Bot Oficial / Audio / Fotos en Campo)',
+    shortLabel: 'WhatsApp Bot',
+    category: 'trigger',
+    badge: 'En Construcción',
+    defaultConstruction: true,
+    description: 'Se dispara cuando un trabajador o líder envía un reporte, foto o nota de voz por WhatsApp.',
+    toolHint: 'Disparo por mensaje o reporte entrante vía WhatsApp Business API',
+    badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+  },
 ];
 
 export function normalizeTriggerId(rawId?: string): string {
@@ -1236,143 +1250,69 @@ export function normalizeTriggersList(nodes?: Partial<WorkflowNodesConfig> | nul
   return unique.length > 0 ? unique : ['schedule_cron'];
 }
 
+export const TOOL_SUBGROUP_TABS: Array<{ id: string; label: string; shortLabel: string }> = [
+  { id: 'all_tools', label: 'Todas las Herramientas del Agente', shortLabel: 'Todas' },
+  { id: 'wappy_tools', label: 'Herramientas Nativas WAPPY & Motores SST', shortLabel: 'Herramientas WAPPY' },
+  { id: 'google_tools', label: 'Suite Google Workspace, NotebookLM & Flow', shortLabel: 'Google' },
+  { id: 'api_tools', label: 'APIs Externas, Ciencia & Web Legal', shortLabel: 'APIs' },
+  { id: 'mcp_tools', label: 'Conectores MCP, Antigravity & OneDrive', shortLabel: 'MCP' },
+];
+
 export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
-  // Google Workspace & Cloud
-  {
-    id: 'google_drive',
-    label: 'Google Drive (Carpetas/PDF/Excel)',
-    shortLabel: 'Google Drive',
-    category: 'Google & Cloud',
-    toolHint: 'google_drive (list_files_and_folders, read_document_content)',
-    badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-  },
-  {
-    id: 'google_sheets',
-    label: 'Google Sheets (Hojas de Cálculo)',
-    shortLabel: 'Google Sheets',
-    category: 'Google & Cloud',
-    toolHint: 'google_sheets (read_spreadsheet, update_spreadsheet_values)',
-    badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-  },
-  {
-    id: 'google_docs',
-    label: 'Google Docs (Documentos)',
-    shortLabel: 'Google Docs',
-    category: 'Google & Cloud',
-    toolHint: 'google_docs',
-    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
-  },
-  {
-    id: 'google_gmail',
-    label: 'Google Gmail (Bandeja de Correo)',
-    shortLabel: 'Gmail',
-    category: 'Google & Cloud',
-    toolHint: 'google_gmail',
-    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
-  },
-  {
-    id: 'google_calendar',
-    label: 'Google Calendar (Agenda)',
-    shortLabel: 'Google Calendar',
-    category: 'Google & Cloud',
-    toolHint: 'google_calendar',
-    badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-  },
-  {
-    id: 'one_drive',
-    label: 'Microsoft OneDrive / SharePoint',
-    shortLabel: 'OneDrive',
-    category: 'Google & Cloud',
-    toolHint: 'one_drive',
-    badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
-  },
-  // Google AI, MCP & Web
-  {
-    id: 'notebooklm',
-    label: 'Google NotebookLM (Cuadernos RAG)',
-    shortLabel: 'NotebookLM',
-    category: 'IA, MCP & Web',
-    toolHint: 'notebooklm (consultar cuadernos documentales)',
-    badgeColor: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
-  },
-  {
-    id: 'google_flow',
-    label: 'Google Flow Studio (Veo / Imagen)',
-    shortLabel: 'Google Flow',
-    category: 'IA, MCP & Web',
-    toolHint: 'google_flow (generación visual SST)',
-    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
-  },
-  {
-    id: 'google_antigravity',
-    label: 'Google Antigravity Local (Puente Mac / PC)',
-    shortLabel: 'Antigravity Local',
-    category: 'IA, MCP & Web',
-    toolHint: 'google_antigravity (puente reactivo con Mac/PC)',
-    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-  },
-  {
-    id: 'google_antigravity_cloud',
-    label: 'Google Antigravity Cloud 24/7 (antigravity.google.com)',
-    shortLabel: 'Antigravity Cloud',
-    category: 'IA, MCP & Web',
-    toolHint: 'google_antigravity (entorno Cloud 24/7 en antigravity.google.com sin PC prendido)',
-    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
-  },
-  {
-    id: 'web_search',
-    label: 'Búsqueda Web Legal en Vivo (MinTrabajo/SUIN)',
-    shortLabel: 'Búsqueda Web Legal',
-    category: 'IA, MCP & Web',
-    toolHint: 'web_search (consulta en tiempo real de leyes, resoluciones y sentencias en Colombia)',
-    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-  },
-  {
-    id: 'tool_web_scraping_agy',
-    label: 'Web Scraping con Antigravity (Script Python / Node / Playwright)',
-    shortLabel: 'Web Scraping AGY',
-    category: 'IA, MCP & Web',
-    toolHint: 'google_antigravity (ejecuta script de Web Scraping con Python BeautifulSoup/Playwright, Node.js Cheerio o Chrome DevTools en la instancia Antigravity del usuario)',
-    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
-  },
-  {
-    id: 'webhook_api',
-    label: 'Webhook API / Integración Buk RRHH',
-    shortLabel: 'API / Buk',
-    category: 'IA, MCP & Web',
-    toolHint: 'webhook externo / sincronización API RRHH',
-    badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
-  },
-  // APIs Científicas y Motores WAPPY
+  // 🟢 HERRAMIENTAS WAPPY (Motores Nativos SG-SST, Expedientes 360, LiveEditor, LMS)
   {
     id: 'somos_sst_empresa',
     label: 'Contexto Empresa Activa (Somos SST)',
     shortLabel: 'Empresa SST',
-    category: 'APIs & Motores SST',
+    category: 'wappy_tools',
     toolHint: 'somos_sst (consultar_informacion_empresa y resumen_empresa)',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   },
   {
     id: 'somos_sst_trabajadores',
-    label: 'Bio-Motor Trabajadores y Expedientes',
-    shortLabel: 'Bio-Motor Trabajadores',
-    category: 'APIs & Motores SST',
+    label: 'Bio-Motor Trabajadores y Expedientes 360°',
+    shortLabel: 'Trabajadores 360°',
+    category: 'wappy_tools',
     toolHint: 'somos_sst (listar_trabajadores, consultar_expediente_integral)',
     badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'somos_sst_perfiles_cargo',
+    label: 'Perfiles de Cargo y Funciones (Somos SST)',
+    shortLabel: 'Perfiles de Cargo',
+    category: 'wappy_tools',
+    toolHint: 'wappy_consultar_perfiles_cargo (funciones, competencias, riesgos y requisitos del cargo del trabajador)',
+    badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+  },
+  {
+    id: 'somos_sst_epp',
+    label: 'Control y Entregas de EPP por Trabajador (Somos SST)',
+    shortLabel: 'Entregas EPP',
+    category: 'wappy_tools',
+    toolHint: 'wappy_consultar_epp (verificar entregas de Elementos de Protección Personal firmadas por el trabajador)',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'somos_sst_examenes',
+    label: 'Evaluaciones Médicas Ocupacionales EMO (Res. 1843)',
+    shortLabel: 'Exámenes EMO',
+    category: 'wappy_tools',
+    toolHint: 'somos_sst (consultar exámenes médicos ocupacionales, concepto de aptitud y restricciones del trabajador)',
+    badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
   },
   {
     id: 'matriz_ipevar',
     label: 'Motor Matriz IPEVAR / GTC-45',
     shortLabel: 'Motor GTC-45',
-    category: 'APIs & Motores SST',
-    toolHint: 'matriz_ipevar (leer y evaluar peligros GTC-45)',
+    category: 'wappy_tools',
+    toolHint: 'matriz_ipevar (leer y evaluar peligros GTC-45 y controles existentes en fuente, medio e individuo)',
     badgeColor: 'bg-lime-50 text-lime-700 dark:bg-lime-950/40 dark:text-lime-300 border-lime-200 dark:border-lime-800',
   },
   {
     id: 'matriz_pesv',
     label: 'Motor Matriz Vial PESV (Res. 40595)',
     shortLabel: 'Motor PESV',
-    category: 'APIs & Motores SST',
+    category: 'wappy_tools',
     toolHint: 'matriz_pesv (leer y evaluar riesgos viales)',
     badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
   },
@@ -1380,47 +1320,15 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
     id: 'matriz_compatibilidad',
     label: 'Motor Químico SGA (Dec. 1496 / ONU)',
     shortLabel: 'Motor Químico SGA',
-    category: 'APIs & Motores SST',
+    category: 'wappy_tools',
     toolHint: 'matriz_compatibilidad (inventario químico y FDS)',
     badgeColor: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
-  },
-  {
-    id: 'pronostico_clima_sst',
-    label: 'OpenWeather API (Clima y Alertas SST)',
-    shortLabel: 'OpenWeather Clima',
-    category: 'APIs & Motores SST',
-    toolHint: 'pronóstico climático SST (lluvia, tormentas, viento, UV, estrés térmico)',
-    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
-  },
-  {
-    id: 'consultar_pubchem_quimico',
-    label: 'PubChem NIH (Fichas Químicas y GHS)',
-    shortLabel: 'PubChem NIH',
-    category: 'APIs & Motores SST',
-    toolHint: 'base de datos química PubChem NIH',
-    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-  },
-  {
-    id: 'consultar_medlineplus_rehabilitacion',
-    label: 'MedlinePlus NIH (Guías CIE-10 / Rehab)',
-    shortLabel: 'MedlinePlus NIH',
-    category: 'APIs & Motores SST',
-    toolHint: 'guías médicas MedlinePlus NIH por código CIE-10',
-    badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-  },
-  {
-    id: 'buscar_centros_emergencia',
-    label: 'OpenStreetMap (Hospitales / Bomberos)',
-    shortLabel: 'Centros Emergencia',
-    category: 'APIs & Motores SST',
-    toolHint: 'geolocalización de clínicas, hospitales y bomberos cercanos',
-    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
   },
   {
     id: 'consultar_analitica_psicosocial',
     label: 'Analítica Psicosocial y Clima Laboral',
     shortLabel: 'Analítica Psicosocial',
-    category: 'APIs & Motores SST',
+    category: 'wappy_tools',
     toolHint: 'consultar_analitica_psicosocial',
     badgeColor: 'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300 border-pink-200 dark:border-pink-800',
   },
@@ -1428,17 +1336,177 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
     id: 'consultar_analitica_actos_condiciones',
     label: 'Analítica de Actos y Condiciones Inseguras',
     shortLabel: 'Analítica Actos',
-    category: 'APIs & Motores SST',
+    category: 'wappy_tools',
     toolHint: 'consultar_analitica_actos_condiciones',
     badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+  },
+  {
+    id: 'canvas_doc',
+    label: 'Editor Vivo / Canvas Documental WAPPY (Word/PDF)',
+    shortLabel: 'Editor Vivo WAPPY',
+    category: 'wappy_tools',
+    toolHint: 'wappy_guardar_documento_vivo (redactar y guardar informe o acta oficial en el Editor Vivo de Somos SST)',
+    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
     id: 'cursos_lms',
     label: 'Academia WAPPY LMS (Cursos y Progreso)',
     shortLabel: 'Academia LMS',
-    category: 'APIs & Motores SST',
+    category: 'wappy_tools',
     toolHint: 'cursos formativos y avance en Academia WAPPY LMS',
     badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+  },
+
+  // 🔵 GOOGLE (Google Workspace, NotebookLM, Google Flow)
+  {
+    id: 'google_drive',
+    label: 'Google Drive (Carpetas/PDF/Excel/FURAT)',
+    shortLabel: 'Google Drive',
+    category: 'google_tools',
+    toolHint: 'google_drive (list_files_and_folders, read_document_content)',
+    badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+  },
+  {
+    id: 'google_sheets',
+    label: 'Google Sheets (Hojas de Cálculo)',
+    shortLabel: 'Google Sheets',
+    category: 'google_tools',
+    toolHint: 'google_sheets (read_spreadsheet, update_spreadsheet_values)',
+    badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+  },
+  {
+    id: 'google_docs',
+    label: 'Google Docs (Documentos e Informes)',
+    shortLabel: 'Google Docs',
+    category: 'google_tools',
+    toolHint: 'google_docs',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'google_slides',
+    label: 'Google Slides (Presentaciones Ejecutivas)',
+    shortLabel: 'Google Slides',
+    category: 'google_tools',
+    toolHint: 'google_slides',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'google_gmail',
+    label: 'Google Gmail (Bandeja de Correo)',
+    shortLabel: 'Gmail',
+    category: 'google_tools',
+    toolHint: 'google_gmail',
+    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
+  },
+  {
+    id: 'google_calendar',
+    label: 'Google Calendar (Agenda y Citaciones)',
+    shortLabel: 'Google Calendar',
+    category: 'google_tools',
+    toolHint: 'google_calendar',
+    badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+  },
+  {
+    id: 'notebooklm',
+    label: 'Google NotebookLM (Cuadernos RAG)',
+    shortLabel: 'NotebookLM',
+    category: 'google_tools',
+    toolHint: 'notebooklm (consultar cuadernos documentales)',
+    badgeColor: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
+  },
+  {
+    id: 'google_flow',
+    label: 'Google Flow Studio (Veo / Imagen)',
+    shortLabel: 'Google Flow',
+    category: 'google_tools',
+    toolHint: 'google_flow (generación visual SST)',
+    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
+  },
+
+  // 🟠 APIS EXTERNAS, CIENCIA & WEB LEGAL
+  {
+    id: 'web_search',
+    label: 'Búsqueda Web Legal en Vivo (MinTrabajo/SUIN)',
+    shortLabel: 'Búsqueda Web Legal',
+    category: 'api_tools',
+    toolHint: 'web_search (consulta en tiempo real de leyes, resoluciones y sentencias en Colombia)',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'pronostico_clima_sst',
+    label: 'OpenWeather API (Clima y Alertas SST)',
+    shortLabel: 'OpenWeather Clima',
+    category: 'api_tools',
+    toolHint: 'pronóstico climático SST (lluvia, tormentas, viento, UV, estrés térmico)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'consultar_pubchem_quimico',
+    label: 'PubChem NIH (Fichas Químicas y GHS)',
+    shortLabel: 'PubChem NIH',
+    category: 'api_tools',
+    toolHint: 'base de datos química PubChem NIH',
+    badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'consultar_medlineplus_rehabilitacion',
+    label: 'MedlinePlus NIH (Guías CIE-10 / Rehab)',
+    shortLabel: 'MedlinePlus NIH',
+    category: 'api_tools',
+    toolHint: 'guías médicas MedlinePlus NIH por código CIE-10',
+    badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+  },
+  {
+    id: 'buscar_centros_emergencia',
+    label: 'OpenStreetMap API (Hospitales / Bomberos)',
+    shortLabel: 'Centros Emergencia',
+    category: 'api_tools',
+    toolHint: 'geolocalización de clínicas, hospitales y bomberos cercanos',
+    badgeColor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800',
+  },
+  {
+    id: 'webhook_api',
+    label: 'Webhook API / Integración Buk RRHH',
+    shortLabel: 'API / Buk',
+    category: 'api_tools',
+    toolHint: 'webhook externo / sincronización API RRHH',
+    badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+  },
+
+  // 🟣 CONECTORES MCP, ANTIGRAVITY & ONEDRIVE (EN CONSTRUCCIÓN)
+  {
+    id: 'google_antigravity',
+    label: 'Google Antigravity Local (Puente MCP Mac / PC)',
+    shortLabel: 'Antigravity Local',
+    category: 'mcp_tools',
+    toolHint: 'google_antigravity (puente reactivo MCP con Mac/PC)',
+    badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  },
+  {
+    id: 'google_antigravity_cloud',
+    label: 'Google Antigravity Cloud 24/7 (MCP Cloud)',
+    shortLabel: 'Antigravity Cloud',
+    category: 'mcp_tools',
+    toolHint: 'google_antigravity (entorno Cloud 24/7 en antigravity.google.com sin PC prendido)',
+    badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+  },
+  {
+    id: 'tool_web_scraping_agy',
+    label: 'Web Scraping MCP con Antigravity (Playwright / Chrome DevTools)',
+    shortLabel: 'Web Scraping MCP',
+    category: 'mcp_tools',
+    toolHint: 'google_antigravity (ejecuta script de Web Scraping con Python BeautifulSoup/Playwright, Node.js Cheerio o Chrome DevTools MCP)',
+    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
+  },
+  {
+    id: 'one_drive',
+    label: 'Microsoft OneDrive / SharePoint (En Construcción)',
+    shortLabel: 'OneDrive',
+    badge: 'En Construcción',
+    defaultConstruction: true,
+    category: 'mcp_tools',
+    toolHint: 'one_drive',
+    badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
   },
 ];
 
@@ -2066,11 +2134,12 @@ export const OUTPUT_ACTION_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'acpm_task',
-    label: 'Crear Acción Correctiva / Preventiva en Centro de Control ACPM',
-    shortLabel: 'Crear Tarea ACPM',
-    badge: 'Kanban ACPM',
+    label: 'Crear Actividad en el Centro de Control (en Cualquiera de sus Etapas)',
+    shortLabel: 'Centro de Control',
+    badge: 'Etapas Kanban',
     category: 'output',
-    toolHint: 'Registra automáticamente hallazgos o alertas pendientes en el Centro de Control ACPM (crear_actividad_acpm)',
+    toolHint:
+      'Registra automáticamente el resultado como una actividad en el Centro de Control en la etapa elegida (Pendientes, En Ejecución, Próximas a Vencer, Vencidas o Completadas)',
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   },
   {
@@ -8215,6 +8284,17 @@ export function buildNodeConfigSummary(cfg?: CanvasNodeConfig): string {
   if (cfg.ifRuleExpression?.trim()) {
     badges.push('🔀 Regla Si/No');
   }
+  if (cfg.kanbanStatus) {
+    const stageLabels: Record<string, string> = {
+      todo: '📋 Etapa: Pendientes',
+      in_progress: '⚙️ Etapa: En Ejecución',
+      due_soon: '⏳ Etapa: Próximas a Vencer',
+      overdue: '🚨 Etapa: Vencidas (Alerta)',
+      done: '✅ Etapa: Completadas',
+      urgent: '🚨 Etapa: Vencidas (Alerta)',
+    };
+    badges.push(stageLabels[cfg.kanbanStatus] || `📋 Etapa: ${cfg.kanbanStatus}`);
+  }
   if (cfg.customInstruction?.trim()) {
     badges.push('⚙️ Instrucción');
   }
@@ -8380,8 +8460,27 @@ export function buildPromptFromWorkflowNodes(
     if (cfg.documentTitle?.trim()) {
       parts.push(`Documento Vivo: "${cfg.documentTitle.trim()}" (${cfg.documentTemplate || 'Informe'})`);
     }
-    if (cfg.kanbanPriority || cfg.kanbanDueDays) {
-      parts.push(`Tarea ACPM Kanban: Prioridad ${cfg.kanbanPriority || 'high'}, Plazo ${cfg.kanbanDueDays || 7} días${cfg.kanbanAssignee ? `, Responsable: ${cfg.kanbanAssignee}` : ''}`);
+    if (
+      cfg.kanbanStatus ||
+      cfg.kanbanActionType ||
+      cfg.kanbanPriority ||
+      cfg.kanbanDueDays ||
+      cfg.kanbanAssignee ||
+      cfg.kanbanTaskTitle
+    ) {
+      const stageMap: Record<string, string> = {
+        todo: 'Pendientes (Por Hacer)',
+        in_progress: 'En Ejecución / En Curso',
+        due_soon: 'Próximas a Vencer',
+        overdue: 'Vencidas (Alerta)',
+        done: 'Completadas',
+        urgent: 'Vencidas (Alerta)',
+      };
+      const stLabel = stageMap[cfg.kanbanStatus || 'todo'] || 'Pendientes (Por Hacer)';
+      const actLabel = cfg.kanbanActionType || 'correctiva';
+      parts.push(
+        `Crear Actividad en Centro de Control: Etapa "${stLabel}", Tipo de Acción "${actLabel}", Prioridad ${cfg.kanbanPriority || 'high'}, Plazo ${cfg.kanbanDueDays || 7} días${cfg.kanbanAssignee ? `, Responsable: ${cfg.kanbanAssignee}` : ''}${cfg.kanbanTaskTitle ? `, Título: "${cfg.kanbanTaskTitle}"` : ''}`,
+      );
     }
     if (cfg.ifRuleExpression?.trim()) {
       parts.push(`Condición Si/No: "${cfg.ifRuleExpression.trim()}" | Si CUMPLE (Sí): "${cfg.conditionTrueLabel || 'Continuar a Hito/Alerta'}" | Si NO CUMPLE (No): "${cfg.conditionFalseLabel || 'Solo registrar en bitácora'}"`);

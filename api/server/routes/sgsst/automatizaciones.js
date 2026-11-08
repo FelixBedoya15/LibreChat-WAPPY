@@ -89,6 +89,117 @@ async function getActiveCompanyId(userId) {
 // Catálogo oficial de Tareas Preestablecidas del Sistema (Flujos Autónomos de WAPPY IA)
 const DEFAULT_SYSTEM_PRESETS = [
   {
+    presetKey: 'preset_voz_tenshi_furat_investigacion_atel_360',
+    presetCategory: 'atel_inspecciones',
+    name: '🎙️ Orden por Voz a Tenshi ➔ FURAT en Drive ➔ Investigación de Accidente ATEL 360° (Res. 1401)',
+    presetDescription:
+      'El usuario le pide por voz a Tenshi investigar el accidente del trabajador X. El flujo descarga el FURAT de la carpeta Accidentes en Google Drive, verifica Memoria de la Empresa, Matriz GTC-45 y controles existentes, ATS, Reportes de Actos y Condiciones Inseguras, Capacitaciones, Perfil del Cargo, EPP y EMO; realiza el análisis causal (5 Porqués + Ishikawa) en el aplicativo de Investigación ATEL, redacta el informe en el Editor Vivo y lo envía por correo y a Tenshi.',
+    agentTargetName: 'Investigador ATEL',
+    scheduleType: 'daily',
+    scheduleConfig: { hour: 8, minute: 0, dayOfWeek: [1, 2, 3, 4, 5], dayOfMonth: 1, intervalHours: 1 },
+    workflowNodes: {
+      trigger: 'trigger_tenshi',
+      triggers: ['trigger_tenshi'],
+      extractors: ['extract_drive', 'extract_sst_workers'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memoryNode: 'wappy_memory_company',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      inputs: ['somos_sst_perfiles_cargo', 'somos_sst_epp', 'somos_sst_examenes'],
+      includeIfNode: false,
+      hitos: [
+        'hito2_matriz_ipevar',
+        'hito3_ats',
+        'hito4_actos_condiciones',
+        'hito6_capacitaciones',
+        'hito7_investigacion_atel',
+      ],
+      outputs: ['canvas_doc', 'acpm_task', 'email_report', 'wappy_notification'],
+      canvasLayout: {
+        positions: {
+          trigger_root: { x: 24, y: 118 },
+          extractor_extract_drive: { x: 136, y: 66 },
+          extractor_extract_sst_workers: { x: 136, y: 168 },
+          agent_root: { x: 256, y: 108 },
+          sub_model: { x: 144, y: 274 },
+          sub_memory: { x: 236, y: 274 },
+          sub_memory_wappy_memory_procedural: { x: 328, y: 274 },
+          tool_inputs_somos_sst_perfiles_cargo: { x: 420, y: 274 },
+          tool_inputs_somos_sst_epp: { x: 512, y: 274 },
+          tool_inputs_somos_sst_examenes: { x: 604, y: 274 },
+          custom_subagent_chat_investigador_atel: { x: 528, y: 112 },
+          tool_hitos_hito2_matriz_ipevar: { x: 650, y: 22 },
+          tool_hitos_hito3_ats: { x: 650, y: 112 },
+          tool_hitos_hito4_actos_condiciones: { x: 650, y: 202 },
+          tool_hitos_hito6_capacitaciones: { x: 768, y: 58 },
+          tool_hitos_hito7_investigacion_atel: { x: 768, y: 162 },
+          out_canvas_doc: { x: 896, y: 14 },
+          out_acpm_task: { x: 896, y: 98 },
+          out_email_report: { x: 896, y: 182 },
+          out_wappy_notification: { x: 896, y: 266 },
+        },
+        customNodes: [
+          {
+            key: 'custom_subagent_chat_investigador_atel',
+            nodeType: 'subagent',
+            title: 'Investigador ATEL',
+            subtitle: 'Agente Chat WAPPY',
+            content:
+              'Delega al Sub-Agente Investigador ATEL el cruce forense del FURAT con la Matriz GTC-45, ATS, Actos/Condiciones Inseguras, Capacitaciones, Perfil del Cargo, EPP y EMO, aplicando los 5 Porqués y Espina de Pescado (Ishikawa) bajo la Resolución 1401 de 2007.',
+          },
+        ],
+        nodeConfigs: {
+          trigger_root: {
+            customInstruction:
+              'Escucha la orden por voz del usuario a Tenshi IA: "Deseo que realices la investigación de accidente del trabajador X, el FURAT se encuentra en la carpeta de Accidentes en Google Drive".',
+          },
+          extractor_extract_drive: {
+            driveFolderName: 'Accidentes',
+            fileTypeFilter: 'pdf_word_sheets',
+            customInstruction:
+              'Busca y descarga la información del FURAT (Formato Único de Reporte de Accidente de Trabajo) del trabajador indicado dentro de la carpeta "Accidentes" en Google Drive.',
+          },
+          extractor_extract_sst_workers: {
+            workerStatusFilter: 'Activos',
+            customInstruction:
+              'Extrae la ficha integral 360° del trabajador accidentado (cargo, antigüedad, EPS, ARL, sede y antecedentes).',
+          },
+          tool_hitos_hito7_investigacion_atel: {
+            customInstruction:
+              'Realiza el análisis causal (5 Porqués + Ishikawa: Causas Inmediatas y Causas Básicas), registra el informe técnico en el aplicativo de Investigación ATEL (Res. 1401 de 2007) y cópialo para enviarlo por correo y a Tenshi.',
+          },
+          out_acpm_task: {
+            kanbanStatus: 'todo',
+            kanbanActionType: 'correctiva',
+            kanbanPriority: 'high',
+            kanbanDueDays: 7,
+            kanbanTaskTitle: 'Plan de Acción Investigación de Accidente ATEL (Res. 1401)',
+          },
+        },
+        edges: [
+          { id: 'e1', from: 'trigger_root', to: 'extractor_extract_drive', kind: 'main' },
+          { id: 'e2', from: 'trigger_root', to: 'extractor_extract_sst_workers', kind: 'main' },
+          { id: 'e3', from: 'extractor_extract_drive', to: 'agent_root', kind: 'main' },
+          { id: 'e4', from: 'extractor_extract_sst_workers', to: 'agent_root', kind: 'main' },
+          { id: 'e5', from: 'agent_root', to: 'custom_subagent_chat_investigador_atel', kind: 'main' },
+          { id: 'e6', from: 'custom_subagent_chat_investigador_atel', to: 'tool_hitos_hito2_matriz_ipevar', kind: 'main' },
+          { id: 'e7', from: 'custom_subagent_chat_investigador_atel', to: 'tool_hitos_hito3_ats', kind: 'main' },
+          { id: 'e8', from: 'custom_subagent_chat_investigador_atel', to: 'tool_hitos_hito4_actos_condiciones', kind: 'main' },
+          { id: 'e9', from: 'tool_hitos_hito2_matriz_ipevar', to: 'tool_hitos_hito6_capacitaciones', kind: 'main' },
+          { id: 'e10', from: 'tool_hitos_hito3_ats', to: 'tool_hitos_hito7_investigacion_atel', kind: 'main' },
+          { id: 'e11', from: 'tool_hitos_hito4_actos_condiciones', to: 'tool_hitos_hito7_investigacion_atel', kind: 'main' },
+          { id: 'e12', from: 'tool_hitos_hito6_capacitaciones', to: 'tool_hitos_hito7_investigacion_atel', kind: 'main' },
+          { id: 'e13', from: 'tool_hitos_hito7_investigacion_atel', to: 'out_canvas_doc', kind: 'main' },
+          { id: 'e14', from: 'tool_hitos_hito7_investigacion_atel', to: 'out_acpm_task', kind: 'main' },
+          { id: 'e15', from: 'tool_hitos_hito7_investigacion_atel', to: 'out_email_report', kind: 'main' },
+          { id: 'e16', from: 'tool_hitos_hito7_investigacion_atel', to: 'out_wappy_notification', kind: 'main' },
+        ],
+      },
+    },
+    prompt:
+      'Cuando el usuario le ordene por voz a Tenshi IA realizar la investigación de accidente de trabajo de un trabajador indicando que el FURAT está en la carpeta "Accidentes" de Google Drive: 1) Descarga y extrae todos los datos del FURAT desde la carpeta "Accidentes" en Google Drive (google_drive) y consulta el expediente 360° del trabajador accidentado (wappy_investigar_trabajador_360). 2) Verifica la Memoria de la Empresa (NIT, CIIU, ARL, Sedes) y la Memoria Normativa (Resolución 1401 de 2007, Decreto 1072 de 2015 y GTC-45). 3) Verifica en Somos SST: a) Matriz de Peligros GTC-45 y controles existentes (fuente, medio, individuo) para el cargo/proceso; b) Análisis de Trabajo Seguro (ATS) de la tarea; c) Reportes previos de Actos y Condiciones Inseguras en el área; d) Capacitaciones e inducción recibidas por el trabajador accidentado; e) Perfil del Cargo, entregas de EPP y Exámenes Médicos Ocupacionales (EMO). 4) Con apoyo del Sub-Agente Investigador ATEL y el aplicativo de Investigación ATEL (Hito 7), realiza el análisis causal completo (5 Porqués + Diagrama de Ishikawa: Causas Inmediatas [Actos y Condiciones Subestándar] y Causas Básicas [Factores Personales y del Trabajo]), registra el informe en el aplicativo de Investigación ATEL, estructúralo en el Editor Vivo (LiveEditor) y envíalo completo por correo electrónico (Gmail) y de vuelta a Tenshi IA.',
+  },
+  {
     presetKey: 'preset_vencimientos_emo_epp',
     presetCategory: 'salud_vencimientos',
     name: 'Alerta Temprana de Vencimientos: Exámenes Médicos (EMO), Alturas y EPP',

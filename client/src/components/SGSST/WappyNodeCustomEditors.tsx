@@ -2074,55 +2074,156 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       );
     }
 
-    // 7.5 CREAR TAREA EN CENTRO DE CONTROL / KANBAN ACPM
+    // 7.5 CREAR ACTIVIDAD EN EL CENTRO DE CONTROL (EN CUALQUIERA DE SUS ETAPAS)
     if (cleanId.includes('acpm_task')) {
+      const activeStage = currentCfg.kanbanStatus || 'todo';
+      const controlStages: Array<{
+        id: 'todo' | 'in_progress' | 'due_soon' | 'overdue' | 'done';
+        badge: string;
+        label: string;
+        variant: 'teal' | 'cyan' | 'amber' | 'danger' | 'compliance-ok';
+        icon: React.ReactNode;
+      }> = [
+        {
+          id: 'todo',
+          badge: '1 · Pendientes',
+          label: 'Etapa 1: Pendientes (Por Hacer)',
+          variant: 'teal',
+          icon: <Kanban className="w-3.5 h-3.5" />,
+        },
+        {
+          id: 'in_progress',
+          badge: '2 · En Ejecución',
+          label: 'Etapa 2: En Ejecución / En Curso',
+          variant: 'cyan',
+          icon: <Activity className="w-3.5 h-3.5" />,
+        },
+        {
+          id: 'due_soon',
+          badge: '3 · Próximas a Vencer',
+          label: 'Etapa 3: Próximas a Vencer (Seguimiento)',
+          variant: 'amber',
+          icon: <Clock className="w-3.5 h-3.5" />,
+        },
+        {
+          id: 'overdue',
+          badge: '4 · Vencidas (Alerta)',
+          label: 'Etapa 4: Vencidas (Alerta Crítica)',
+          variant: 'danger',
+          icon: <AlertTriangle className="w-3.5 h-3.5" />,
+        },
+        {
+          id: 'done',
+          badge: '5 · Completadas',
+          label: 'Etapa 5: Completadas (Evidencia Cerrada)',
+          variant: 'compliance-ok',
+          icon: <Check className="w-3.5 h-3.5" />,
+        },
+      ];
+
       return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🚨 Prioridad de la Tarea ACPM en el Kanban
+        <div className="space-y-3">
+          {/* Selector de Etapa del Centro de Control con Botones Oficiales WAPPY (ExpandableButton) */}
+          <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60">
+            <label className="block text-xs font-extrabold uppercase text-amber-900 dark:text-amber-300 mb-1.5">
+              📋 1. Elige en qué Etapa del Centro de Control se creará la Actividad
             </label>
-            <select
-              value={currentCfg.kanbanPriority || 'high'}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { kanbanPriority: e.target.value as any })
-              }
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="high">🔴 Prioridad Alta (Crítica)</option>
-              <option value="medium">🟡 Prioridad Media (Preventiva)</option>
-              <option value="low">🟢 Prioridad Baja (Mejora)</option>
-            </select>
+            <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
+              {controlStages.map((st) => (
+                <ExpandableButton
+                  key={st.id}
+                  type="button"
+                  size="sm"
+                  variant={st.variant}
+                  isActive={activeStage === st.id}
+                  icon={st.icon}
+                  badge={st.badge}
+                  label={st.label}
+                  title={st.label}
+                  onClick={() => onUpdateNodeConfig(activeNode.key, { kanbanStatus: st.id })}
+                />
+              ))}
+            </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🛡️ 2. Tipo de Acción (ACPM)
+              </label>
+              <select
+                value={currentCfg.kanbanActionType || 'correctiva'}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { kanbanActionType: e.target.value as any })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="correctiva">🛠️ Acción Correctiva</option>
+                <option value="preventiva">🛡️ Acción Preventiva</option>
+                <option value="mejora">🚀 Acción de Mejora</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🚨 3. Prioridad en el Centro de Control
+              </label>
+              <select
+                value={currentCfg.kanbanPriority || 'high'}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { kanbanPriority: e.target.value as any })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="high">🔴 Prioridad Alta (Crítica)</option>
+                <option value="medium">🟡 Prioridad Media (Preventiva)</option>
+                <option value="low">🟢 Prioridad Baja (Mejora)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                📆 4. Plazo de Cumplimiento (Días)
+              </label>
+              <select
+                value={currentCfg.kanbanDueDays || 7}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { kanbanDueDays: Number(e.target.value) })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value={1}>Inmediato (24 horas)</option>
+                <option value={3}>3 días</option>
+                <option value={7}>7 días (1 semana)</option>
+                <option value={15}>15 días</option>
+                <option value={30}>30 días (1 mes)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                👤 5. Responsable Asignado
+              </label>
+              <input
+                type="text"
+                value={currentCfg.kanbanAssignee || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { kanbanAssignee: e.target.value })
+                }
+                placeholder="Ej: Coordinador SST / Jefe de Planta"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              📆 Plazo de Cumplimiento (Días)
-            </label>
-            <select
-              value={currentCfg.kanbanDueDays || 7}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { kanbanDueDays: Number(e.target.value) })
-              }
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value={1}>Inmediato (24 horas)</option>
-              <option value={3}>3 días</option>
-              <option value={7}>7 días (1 semana)</option>
-              <option value={15}>15 días</option>
-              <option value={30}>30 días (1 mes)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              👤 Responsable Asignado
+              ✏️ 6. Título Personalizado de la Actividad en el Centro de Control (Opcional)
             </label>
             <input
               type="text"
-              value={currentCfg.kanbanAssignee || ''}
+              value={currentCfg.kanbanTaskTitle || ''}
               onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { kanbanAssignee: e.target.value })
+                onUpdateNodeConfig(activeNode.key, { kanbanTaskTitle: e.target.value })
               }
-              placeholder="Ej: Coordinador SST / Jefe de Planta"
+              placeholder="Ej: Plan de Acción Investigación ATEL — Seguimiento de Controles"
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>

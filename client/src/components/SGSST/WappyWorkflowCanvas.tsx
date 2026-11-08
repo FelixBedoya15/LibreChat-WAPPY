@@ -74,6 +74,7 @@ import {
   AI_ENGINE_MODELS,
   MEMORY_NODES,
   HITOS_8_FILTER_TABS,
+  TOOL_SUBGROUP_TABS,
   DEFAULT_CONSTRUCTION_APP_IDS,
   isWorkflowNodeUnderConstruction,
   getNodeDefById,
@@ -230,6 +231,22 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     return (
       <svg viewBox="0 0 48 48" className={sizeClass}>
         <path fill="#0078D4" d="M38.5,24.2c-0.7-5.8-5.6-10.2-11.6-10.2c-4.6,0-8.6,2.6-10.5,6.5c-0.7-0.2-1.5-0.3-2.3-0.3 c-4.9,0-8.9,3.9-9.1,8.8C2.7,30.2,1,32.6,1,35.4C1,39.1,4,42,7.7,42h29.8c4.7,0,8.5-3.8,8.5-8.5C46,28.8,42.7,24.9,38.5,24.2z" />
+      </svg>
+    );
+  }
+
+  // WhatsApp Bot (En Construcción)
+  if (id.includes('whatsapp')) {
+    return (
+      <svg viewBox="0 0 48 48" className={sizeClass}>
+        <path
+          fill="#25D366"
+          d="M24,4C13,4,4,13,4,24c0,3.6,1,7,2.7,9.9L4,44l10.4-2.7C17.2,43,20.5,44,24,44c11,0,20-9,20-20S35,4,24,4z"
+        />
+        <path
+          fill="#FFFFFF"
+          d="M34.6,28.7c-0.6-0.3-3.4-1.7-3.9-1.9c-0.5-0.2-0.9-0.3-1.3,0.3c-0.4,0.6-1.5,1.9-1.8,2.3c-0.3,0.4-0.7,0.4-1.3,0.1c-0.6-0.3-2.5-0.9-4.7-2.9c-1.7-1.5-2.9-3.4-3.2-4c-0.3-0.6,0-0.9,0.3-1.2c0.3-0.3,0.6-0.7,0.9-1c0.3-0.3,0.4-0.6,0.6-1c0.2-0.4,0.1-0.7-0.1-1c-0.2-0.3-1.3-3.1-1.8-4.3c-0.5-1.1-0.9-1-1.3-1c-0.3,0-0.7,0-1.1,0c-0.4,0-1,0.1-1.6,0.7c-0.5,0.6-2.1,2-2.1,4.9s2.1,5.7,2.4,6.1c0.3,0.4,4.2,6.4,10.1,9c1.4,0.6,2.5,1,3.4,1.2c1.4,0.5,2.7,0.4,3.7,0.2c1.1-0.2,3.4-1.4,3.9-2.7c0.5-1.3,0.5-2.5,0.3-2.7C35.5,29.1,35.1,29,34.6,28.7z"
+        />
       </svg>
     );
   }
@@ -588,10 +605,15 @@ export default function WappyWorkflowCanvas({
     | 'ai_engine'
     | 'memories'
     | 'connectors'
+    | 'skills_rules'
+    | 'subagents'
+    | 'scraping'
     | 'hitos'
     | 'outputs'
-    | 'skills_rules'
   >('triggers');
+  const [selectedToolSubgroup, setSelectedToolSubgroup] = useState<
+    'all_tools' | 'wappy_tools' | 'google_tools' | 'api_tools' | 'mcp_tools'
+  >('all_tools');
   const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
 
   // Nodo actualmente abierto en el Inspector de Configuración por Nodo (al hacer clic sobre cualquier nodo)
@@ -3244,7 +3266,7 @@ export default function WappyWorkflowCanvas({
       {/* ─── BARRA DE PALETA DE CUADRITOS CON LOGOS SVG ORIGINALES (Solo en modo editor) ─── */}
       {!readOnly && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-sm">
-          {/* Pestañas de las 8 Etapas Consecutivas del Flujo (Estilo Oficial WAPPY ExpandableButton con Espacio Amplio) */}
+          {/* Pestañas de las 10 Etapas Consecutivas del Flujo (Estilo Oficial WAPPY ExpandableButton con Espacio Amplio) */}
           <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 mb-2.5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
               {[
@@ -3284,29 +3306,55 @@ export default function WappyWorkflowCanvas({
                 },
                 {
                   id: 'connectors',
-                  label: '5. Herramientas',
+                  label: '5. Herramientas (WAPPY · Google · APIs · MCP)',
                   badge: `5 · ${(workflowNodes.inputs || []).length}`,
                   variant: 'cyan' as const,
                   icon: <Sliders className="w-3.5 h-3.5" />,
                 },
                 {
                   id: 'skills_rules',
-                  label: '6. Skills, Sub-Agentes & Scraping',
-                  badge: `6 · ${(workflowNodes?.canvasLayout?.customNodes || []).length}`,
-                  variant: 'indigo' as const,
+                  label: '6. Skills & Reglas',
+                  badge: `6 · ${
+                    (workflowNodes?.canvasLayout?.customNodes || []).filter(
+                      (c) => c.nodeType === 'skill' || c.nodeType === 'rule',
+                    ).length
+                  }`,
+                  variant: 'violet' as const,
                   icon: <Puzzle className="w-3.5 h-3.5" />,
                 },
                 {
+                  id: 'subagents',
+                  label: '7. Sub-Agentes (30)',
+                  badge: `7 · ${
+                    (workflowNodes?.canvasLayout?.customNodes || []).filter(
+                      (c) => c.nodeType === 'subagent',
+                    ).length
+                  }`,
+                  variant: 'indigo' as const,
+                  icon: <Bot className="w-3.5 h-3.5" />,
+                },
+                {
+                  id: 'scraping',
+                  label: '8. Scraping & Web',
+                  badge: `8 · ${
+                    (workflowNodes?.canvasLayout?.customNodes || []).filter(
+                      (c) => c.nodeType === 'web_scraper' || c.nodeType === 'web_search',
+                    ).length
+                  }`,
+                  variant: 'amber' as const,
+                  icon: <Terminal className="w-3.5 h-3.5" />,
+                },
+                {
                   id: 'hitos',
-                  label: '7. Los 8 Hitos / 50 Apps SST',
-                  badge: `7 · ${(workflowNodes.hitos || []).length}`,
+                  label: '9. Los 8 Hitos / 50 Apps SST',
+                  badge: `9 · ${(workflowNodes.hitos || []).length}`,
                   variant: 'teal' as const,
                   icon: <ShieldCheck className="w-3.5 h-3.5" />,
                 },
                 {
                   id: 'outputs',
-                  label: '8. Bitácora & Salida',
-                  badge: `8 · ${(workflowNodes.outputs || []).length}`,
+                  label: '10. Bitácora & Salida',
+                  badge: `10 · ${(workflowNodes.outputs || []).length}`,
                   variant: 'emerald' as const,
                   icon: <Bell className="w-3.5 h-3.5" />,
                 },
@@ -3324,6 +3372,16 @@ export default function WappyWorkflowCanvas({
                   onClick={() => {
                     setPaletteTab(tab.id as any);
                     setConstructionNotice(null);
+                    if (tab.id === 'skills_rules') {
+                      setSelectedSkillFilter('all');
+                      setNewCustomNodeForm((prev) => ({ ...prev, nodeType: 'skill' }));
+                    } else if (tab.id === 'subagents') {
+                      setSelectedSkillFilter('subagent');
+                      setNewCustomNodeForm((prev) => ({ ...prev, nodeType: 'subagent' }));
+                    } else if (tab.id === 'scraping') {
+                      setSelectedSkillFilter('web_scraper');
+                      setNewCustomNodeForm((prev) => ({ ...prev, nodeType: 'web_scraper' }));
+                    }
                     // Al cambiar de equipo en la barra superior, auto-seleccionar el primer nodo activo de ese equipo en el Inspector
                     if (tab.id === 'triggers') {
                       setActiveConfigNodeKey('trigger_root');
@@ -3341,10 +3399,20 @@ export default function WappyWorkflowCanvas({
                       const firstOut = (workflowNodes.outputs || [])[0] || 'email_report';
                       setActiveConfigNodeKey(`out_${firstOut}`);
                     } else if (
-                      tab.id === 'skills_rules' &&
+                      (tab.id === 'skills_rules' || tab.id === 'subagents' || tab.id === 'scraping') &&
                       (workflowNodes?.canvasLayout?.customNodes || []).length > 0
                     ) {
-                      setActiveConfigNodeKey(workflowNodes.canvasLayout!.customNodes![0].key);
+                      const matchingCustom = (workflowNodes.canvasLayout!.customNodes || []).find(
+                        (c) =>
+                          tab.id === 'subagents'
+                            ? c.nodeType === 'subagent'
+                            : tab.id === 'scraping'
+                              ? c.nodeType === 'web_scraper' || c.nodeType === 'web_search'
+                              : c.nodeType === 'skill' || c.nodeType === 'rule',
+                      );
+                      setActiveConfigNodeKey(
+                        matchingCustom?.key || workflowNodes.canvasLayout!.customNodes![0].key,
+                      );
                     }
                   }}
                 />
@@ -3356,27 +3424,39 @@ export default function WappyWorkflowCanvas({
           <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-2 px-1">
             {paletteTab === 'triggers' ? (
               <span>
-                ⚡ <strong>Etapa 1 — Disparador:</strong> Elige quién o qué inicia la tarea (<strong>Cron Programado</strong>, <strong>Tenshi IA</strong>, <strong>Antigravity Local/Cloud</strong>, <strong>Correo Entrante</strong>, <strong>Agente IA</strong>, <strong>Reporte QR</strong> o <strong>Webhook API</strong>). Puedes activar varios a la vez.
+                ⚡ <strong>Etapa 1 — Disparador:</strong> Elige quién o qué inicia la tarea (<strong>Cron Programado</strong>, <strong>Tenshi IA</strong>, <strong>Antigravity Local/Cloud</strong>, <strong>Correo Entrante</strong>, <strong>Agente IA</strong>, <strong>Reporte QR</strong>, <strong>Webhook API</strong> o <strong>WhatsApp Bot 🚧</strong>). Puedes activar varios a la vez.
               </span>
             ) : paletteTab === 'extractors' ? (
               <span>
-                📥 <strong>Etapa 2 — Extracción / Lectura Previa:</strong> Antes de que el Agente IA piense, extrae información de <strong>Gmail</strong>, <strong>Google Drive</strong>, <strong>OneDrive</strong>, una <strong>Carpeta en tu Computador (vía Antigravity)</strong>, <strong>Web Scraping con Antigravity (Script)</strong>, <strong>Búsqueda en la Web</strong> o cualquier <strong>Aplicativo de Somos SST</strong>.
+                📥 <strong>Etapa 2 — Extracción / Lectura Previa:</strong> Antes de que el Agente IA piense, extrae información de <strong>Gmail</strong>, <strong>Google Drive</strong>, una <strong>Carpeta en tu Computador (vía Antigravity)</strong>, <strong>Web Scraping con Antigravity (Script)</strong>, <strong>Búsqueda en la Web</strong> o cualquier <strong>Aplicativo de Somos SST</strong> (OneDrive 🚧 En Construcción).
               </span>
             ) : paletteTab === 'memories' ? (
               <span>
                 💾 <strong>Rombo Memory (◆) — Las 4 Memorias del Agente:</strong> Define qué recuerda el Agente antes de analizar los datos (datos de la <strong>Empresa Activa</strong>, <strong>Bitácora Anti-Duplicados</strong>, <strong>Cuadernos RAG NotebookLM</strong> o <strong>Reglas Normativas SST</strong>).
               </span>
-            ) : paletteTab === 'hitos' ? (
+            ) : paletteTab === 'connectors' ? (
               <span>
-                🛡️ <strong>Etapa 4 — Todos los 50 Aplicativos de los 8 Hitos de Somos SST:</strong> Elige en qué aplicativo de los <strong>8 Hitos</strong> el Agente debe guardar o modificar registros. Los aplicativos en modo <strong>🚧 En Construcción</strong> aparecen visibles pero bloqueados hasta que se activen.
-              </span>
-            ) : paletteTab === 'outputs' ? (
-              <span>
-                📤 <strong>Etapa 5 — Bitácora Final y Notificación:</strong> Al terminar todo el flujo, envía el informe detallado de la bitácora a <strong>Gmail</strong>, como <strong>Notificación Directa en WAPPY + Tenshi</strong> o de regreso a <strong>Google Antigravity (PC o Cloud)</strong>.
+                🔧 <strong>Etapa 5 — Herramientas del Agente discriminadas por grupo:</strong> Filtra entre <strong>🟢 Herramientas WAPPY</strong>, <strong>🔵 Google Workspace</strong>, <strong>🟠 APIs Externas</strong> y <strong>🟣 Conectores MCP</strong> (OneDrive 🚧 En Construcción).
               </span>
             ) : paletteTab === 'skills_rules' ? (
               <span>
-                🧩 <strong>Skills, Sub-Agentes, Reglas, Búsqueda Web y Web Scraping con Antigravity:</strong> Conecta habilidades procedurales (<code>SKILL.md</code>), sub-agentes especialistas, reglas obligatorias o scripts de <strong>Web Scraping en tu instancia de Google Antigravity</strong>, o pulsa <strong>«+ Crear Mi Propio Nodo»</strong>.
+                🧩 <strong>Etapa 6 — Skills Procedurales (<code>SKILL.md</code>) y Reglas Obligatorias (<code>Rules</code>):</strong> Conecta protocolos paso a paso y guardrails normativos que el Agente jamás debe romper, o crea tu propia Skill/Regla.
+              </span>
+            ) : paletteTab === 'subagents' ? (
+              <span>
+                🤖 <strong>Etapa 7 — Sub-Agentes de Chat y Especialistas (30 disponibles + ✏️ Sub-Agente Editable):</strong> Delega pasos del flujo a cualquiera de los <strong>23 Agentes de Chat de WAPPY</strong>, a los <strong>6 Especialistas Técnicos</strong> o al <strong>✏️ Sub-Agente Editable</strong> (configura su nombre, avatar 3D, modelo y prompt).
+              </span>
+            ) : paletteTab === 'scraping' ? (
+              <span>
+                🕷️ <strong>Etapa 8 — Web Scraping con Google Antigravity y Búsqueda Web Viva:</strong> Ejecuta scripts reales de <strong>Python / Playwright / Chrome DevTools MCP</strong> en tu instancia de Antigravity (Alturas, ARL, Pensiones, ReTHUS, RUNT/SIMIT, Antecedentes) o consulta la web en vivo.
+              </span>
+            ) : paletteTab === 'hitos' ? (
+              <span>
+                🛡️ <strong>Etapa 9 — Todos los 50 Aplicativos de los 8 Hitos de Somos SST:</strong> Elige en qué aplicativo de los <strong>8 Hitos</strong> el Agente debe guardar o modificar registros. Los aplicativos en modo <strong>🚧 En Construcción</strong> aparecen visibles pero bloqueados hasta que se activen.
+              </span>
+            ) : paletteTab === 'outputs' ? (
+              <span>
+                📤 <strong>Etapa 10 — Bitácora Final y Notificación:</strong> Al terminar todo el flujo, envía el informe detallado de la bitácora a <strong>Gmail</strong>, como <strong>Notificación Directa en WAPPY + Tenshi</strong> o de regreso a <strong>Google Antigravity (PC o Cloud)</strong>.
               </span>
             ) : (
               <span>
@@ -3386,62 +3466,85 @@ export default function WappyWorkflowCanvas({
           </div>
 
           {/* CUADRITOS ARRASTRABLES CON LOGOS SVG ORIGINALES */}
-          {paletteTab === 'skills_rules' ? (
+          {paletteTab === 'skills_rules' || paletteTab === 'subagents' || paletteTab === 'scraping' ? (
             <div className="flex flex-col gap-2.5">
-              {/* Barra superior de filtros + Estado de la Instancia de Antigravity + Botón "+ Crear Mi Propio Nodo" (Estilo Oficial ExpandableButton) */}
+              {/* Barra superior de sub-filtros según el grupo activo (Skills & Reglas vs Sub-Agentes vs Scraping & Web) */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex flex-wrap items-center gap-2 py-1 px-1">
-                  {[
-                    {
-                      id: 'all',
-                      badge: 'Todos',
-                      label: 'Ver Todos los Nodos Especiales',
-                      variant: 'purple' as const,
-                      icon: <Globe className="w-3.5 h-3.5" />,
-                    },
-                    {
-                      id: 'skill',
-                      badge: 'Skills',
-                      label: 'Skills Procedurales (SKILL.md)',
-                      variant: 'violet' as const,
-                      icon: <Puzzle className="w-3.5 h-3.5" />,
-                    },
-                    {
-                      id: 'subagent',
-                      badge: 'Sub-Agentes (30)',
-                      label: 'Todos los Sub-Agentes & Especialistas',
-                      variant: 'indigo' as const,
-                      icon: <Bot className="w-3.5 h-3.5" />,
-                    },
-                    {
-                      id: 'rule',
-                      badge: 'Reglas',
-                      label: 'Reglas Obligatorias (Rules)',
-                      variant: 'emerald' as const,
-                      icon: <Scale className="w-3.5 h-3.5" />,
-                    },
-                    {
-                      id: 'web_scraper',
-                      badge: 'Scraping AGY',
-                      label: 'Web Scraping AGY (Script)',
-                      variant: 'amber' as const,
-                      icon: <Terminal className="w-3.5 h-3.5" />,
-                    },
-                    {
-                      id: 'web_search',
-                      badge: 'Web',
-                      label: 'Búsqueda Web Oficial',
-                      variant: 'cyan' as const,
-                      icon: <Search className="w-3.5 h-3.5" />,
-                    },
-                    {
-                      id: 'my_created',
-                      badge: `Mis Nodos (${savedUserLibraryNodes.length})`,
-                      label: 'Mis Nodos Personalizados',
-                      variant: 'teal' as const,
-                      icon: <Sparkles className="w-3.5 h-3.5" />,
-                    },
-                  ].map((fTab) => (
+                  {(paletteTab === 'skills_rules'
+                    ? [
+                        {
+                          id: 'all',
+                          badge: 'Todos',
+                          label: 'Skills y Reglas (Todos)',
+                          variant: 'violet' as const,
+                          icon: <Puzzle className="w-3.5 h-3.5" />,
+                        },
+                        {
+                          id: 'skill',
+                          badge: 'Skills (SKILL.md)',
+                          label: 'Skills Procedurales (SKILL.md)',
+                          variant: 'purple' as const,
+                          icon: <Puzzle className="w-3.5 h-3.5" />,
+                        },
+                        {
+                          id: 'rule',
+                          badge: 'Reglas (Rules)',
+                          label: 'Reglas Obligatorias (Guardrails)',
+                          variant: 'emerald' as const,
+                          icon: <Scale className="w-3.5 h-3.5" />,
+                        },
+                        {
+                          id: 'my_created',
+                          badge: `Mis Nodos (${savedUserLibraryNodes.length})`,
+                          label: 'Mis Nodos Personalizados',
+                          variant: 'teal' as const,
+                          icon: <Sparkles className="w-3.5 h-3.5" />,
+                        },
+                      ]
+                    : paletteTab === 'subagents'
+                      ? [
+                          {
+                            id: 'subagent',
+                            badge: 'Todos los Sub-Agentes (30)',
+                            label: 'Todos los Sub-Agentes de Chat y Especialistas (30)',
+                            variant: 'indigo' as const,
+                            icon: <Bot className="w-3.5 h-3.5" />,
+                          },
+                          {
+                            id: 'my_created',
+                            badge: `Mis Sub-Agentes (${
+                              savedUserLibraryNodes.filter((n) => n.nodeType === 'subagent').length
+                            })`,
+                            label: 'Mis Sub-Agentes Creados',
+                            variant: 'teal' as const,
+                            icon: <Sparkles className="w-3.5 h-3.5" />,
+                          },
+                        ]
+                      : [
+                          {
+                            id: 'all',
+                            badge: 'Scraping + Web (8)',
+                            label: 'Todos los Scrapers AGY y Búsqueda Web',
+                            variant: 'amber' as const,
+                            icon: <Terminal className="w-3.5 h-3.5" />,
+                          },
+                          {
+                            id: 'web_scraper',
+                            badge: 'Scrapers AGY (7)',
+                            label: 'Web Scraping AGY con Script Real',
+                            variant: 'orange' as const,
+                            icon: <Terminal className="w-3.5 h-3.5" />,
+                          },
+                          {
+                            id: 'web_search',
+                            badge: 'Búsqueda Web Viva',
+                            label: 'Búsqueda Web Oficial en Tiempo Real',
+                            variant: 'cyan' as const,
+                            icon: <Search className="w-3.5 h-3.5" />,
+                          },
+                        ]
+                  ).map((fTab) => (
                     <ExpandableButton
                       key={fTab.id}
                       type="button"
@@ -3458,23 +3561,25 @@ export default function WappyWorkflowCanvas({
 
                 <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
                   {/* Indicador en vivo de si la instancia de Google Antigravity del usuario está configurada/conectada */}
-                  <span
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 border ${
-                      antigravityStatus.connected
-                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                        : 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700'
-                    }`}
-                    title="El nodo de Web Scraping con Script se ejecuta en tu instancia configurada de Google Antigravity (Local PC o Cloud 24/7)"
-                  >
+                  {paletteTab === 'scraping' && (
                     <span
-                      className={`w-2 h-2 rounded-full ${
-                        antigravityStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 border ${
+                        antigravityStatus.connected
+                          ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                          : 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700'
                       }`}
-                    />
-                    {antigravityStatus.connected
-                      ? `Instancia Antigravity Activa (${antigravityStatus.localConnected ? 'Local PC' : 'Cloud 24/7'})`
-                      : 'Web Scraping AGY: Requiere tu instancia Antigravity configurada'}
-                  </span>
+                      title="El nodo de Web Scraping con Script se ejecuta en tu instancia configurada de Google Antigravity (Local PC o Cloud 24/7)"
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          antigravityStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                        }`}
+                      />
+                      {antigravityStatus.connected
+                        ? `Instancia Antigravity Activa (${antigravityStatus.localConnected ? 'Local PC' : 'Cloud 24/7'})`
+                        : 'Web Scraping AGY: Requiere tu instancia Antigravity configurada'}
+                    </span>
+                  )}
 
                   <ExpandableButton
                     type="button"
@@ -3482,13 +3587,38 @@ export default function WappyWorkflowCanvas({
                     variant="primary"
                     isActive={showCustomNodeBuilder}
                     icon={<Plus className="w-3.5 h-3.5" />}
-                    badge={showCustomNodeBuilder ? 'Cerrar' : '+ Crear Nodo'}
+                    badge={
+                      showCustomNodeBuilder
+                        ? 'Cerrar'
+                        : paletteTab === 'subagents'
+                          ? '+ Crear Sub-Agente'
+                          : paletteTab === 'scraping'
+                            ? '+ Crear Scraper'
+                            : '+ Crear Skill / Regla'
+                    }
                     label={
                       showCustomNodeBuilder
                         ? 'Cerrar Creador de Nodos'
-                        : '+ Crear Mi Propio Nodo / Sub-Agente'
+                        : paletteTab === 'subagents'
+                          ? '+ Crear Nuevo Sub-Agente Personalizado'
+                          : paletteTab === 'scraping'
+                            ? '+ Crear Nuevo Nodo de Web Scraping AGY'
+                            : '+ Crear Nueva Skill o Regla Personalizada'
                     }
-                    onClick={() => setShowCustomNodeBuilder((v) => !v)}
+                    onClick={() => {
+                      if (!showCustomNodeBuilder) {
+                        setNewCustomNodeForm((prev) => ({
+                          ...prev,
+                          nodeType:
+                            paletteTab === 'subagents'
+                              ? 'subagent'
+                              : paletteTab === 'scraping'
+                                ? 'web_scraper'
+                                : 'skill',
+                        }));
+                      }
+                      setShowCustomNodeBuilder((v) => !v);
+                    }}
                   />
                 </div>
               </div>
@@ -3776,9 +3906,31 @@ export default function WappyWorkflowCanvas({
                     })),
                 ]
                   .filter((item) => {
+                    const nType = item.customNodePayload.nodeType;
+                    if (paletteTab === 'skills_rules') {
+                      if (selectedSkillFilter === 'my_created') {
+                        return item.isUserCreated && (nType === 'skill' || nType === 'rule');
+                      }
+                      if (selectedSkillFilter === 'all') {
+                        return nType === 'skill' || nType === 'rule';
+                      }
+                      return nType === selectedSkillFilter;
+                    }
+                    if (paletteTab === 'subagents') {
+                      if (selectedSkillFilter === 'my_created') {
+                        return item.isUserCreated && nType === 'subagent';
+                      }
+                      return nType === 'subagent';
+                    }
+                    if (paletteTab === 'scraping') {
+                      if (selectedSkillFilter === 'all') {
+                        return nType === 'web_scraper' || nType === 'web_search';
+                      }
+                      return nType === selectedSkillFilter;
+                    }
                     if (selectedSkillFilter === 'all') return true;
                     if (selectedSkillFilter === 'my_created') return item.isUserCreated;
-                    return item.customNodePayload.nodeType === selectedSkillFilter;
+                    return nType === selectedSkillFilter;
                   })
                   .map((item) => {
                     const isAlreadyOnCanvas = (workflowNodes?.canvasLayout?.customNodes || []).some(
@@ -3987,8 +4139,71 @@ export default function WappyWorkflowCanvas({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {/* Barra de filtro por los 8 Hitos de Somos SST (Estilo Oficial WAPPY ExpandableButton con Espacio Amplio) */}
-              {(paletteTab === 'hitos' || paletteTab === 'extractors' || paletteTab === 'connectors') && (
+              {/* Barra de sub-grupos discriminados para 5. Herramientas (WAPPY · Google · APIs · MCP) */}
+              {paletteTab === 'connectors' && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
+                  <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
+                    {TOOL_SUBGROUP_TABS.map((tTab) => {
+                      const isActive = selectedToolSubgroup === tTab.id;
+                      const toolsInSubgroup =
+                        tTab.id === 'all_tools'
+                          ? INPUT_CONNECTOR_NODES
+                          : INPUT_CONNECTOR_NODES.filter((n) => n.category === tTab.id);
+                      const activeInputs = workflowNodes.inputs || [];
+                      const activeCountInSubgroup = toolsInSubgroup.filter(
+                        (n) =>
+                          !isWorkflowNodeUnderConstruction(n, disabledSgsstApps) &&
+                          activeInputs.includes(n.id),
+                      ).length;
+                      const variantMap: Record<string, any> = {
+                        all_tools: 'cyan',
+                        wappy_tools: 'teal',
+                        google_tools: 'blue',
+                        api_tools: 'amber',
+                        mcp_tools: 'purple',
+                      };
+                      const iconMap: Record<string, React.ReactNode> = {
+                        all_tools: <Globe className="w-3.5 h-3.5" />,
+                        wappy_tools: <HeartPulse className="w-3.5 h-3.5" />,
+                        google_tools: <FileText className="w-3.5 h-3.5" />,
+                        api_tools: <CloudSun className="w-3.5 h-3.5" />,
+                        mcp_tools: <Cpu className="w-3.5 h-3.5" />,
+                      };
+                      return (
+                        <ExpandableButton
+                          key={tTab.id}
+                          type="button"
+                          size="sm"
+                          variant={variantMap[tTab.id] || 'cyan'}
+                          isActive={isActive}
+                          icon={iconMap[tTab.id]}
+                          badge={
+                            <span className="inline-flex items-center gap-1">
+                              <span>
+                                {tTab.shortLabel} ({toolsInSubgroup.length})
+                              </span>
+                              {activeCountInSubgroup > 0 && (
+                                <span className="text-emerald-600 dark:text-[#C7F303]">
+                                  ✓{activeCountInSubgroup}
+                                </span>
+                              )}
+                            </span>
+                          }
+                          label={`${tTab.label} (${toolsInSubgroup.length})`}
+                          title={`${tTab.label} — ${toolsInSubgroup.length} herramientas disponibles · ${activeCountInSubgroup} conectada(s)`}
+                          onClick={() => {
+                            setSelectedToolSubgroup(tTab.id as any);
+                            setConstructionNotice(null);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Barra de filtro por los 8 Hitos de Somos SST (para 2. Extraer Datos y 9. Los 8 Hitos / 50 Apps SST) */}
+              {(paletteTab === 'hitos' || paletteTab === 'extractors') && (
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
                   <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                     {paletteTab !== 'hitos' && (
@@ -3998,8 +4213,8 @@ export default function WappyWorkflowCanvas({
                         variant="teal"
                         isActive={selectedHitoFilter === 'external'}
                         icon={<Globe className="w-3.5 h-3.5" />}
-                        badge={`Fuentes (${paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})`}
-                        label={`Conectores / Fuentes (${paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})`}
+                        badge={`Fuentes (${EXTRACTOR_NODES.length})`}
+                        label={`Conectores / Fuentes (${EXTRACTOR_NODES.length})`}
                         onClick={() => {
                           setSelectedHitoFilter('external');
                           setConstructionNotice(null);
@@ -4015,11 +4230,7 @@ export default function WappyWorkflowCanvas({
                           ? HITO_APP_NODES
                           : HITO_APP_NODES.filter((n) => n.hitoId === hTab.id);
                       const activeListForCurrentPalette =
-                        paletteTab === 'extractors'
-                          ? activeExtractors
-                          : paletteTab === 'connectors'
-                            ? workflowNodes.inputs || []
-                            : workflowNodes.hitos || [];
+                        paletteTab === 'extractors' ? activeExtractors : workflowNodes.hitos || [];
                       const activeInTabCount = hitoNodesForTab.filter(
                         (n) =>
                           !isWorkflowNodeUnderConstruction(n, disabledSgsstApps) &&
@@ -4085,11 +4296,9 @@ export default function WappyWorkflowCanvas({
                       ? [...EXTRACTOR_NODES, ...HITO_APP_NODES]
                       : HITO_APP_NODES.filter((h) => h.hitoId === selectedHitoFilter)
                   : paletteTab === 'connectors'
-                    ? selectedHitoFilter === 'external'
+                    ? selectedToolSubgroup === 'all_tools'
                       ? INPUT_CONNECTOR_NODES
-                      : selectedHitoFilter === 'all'
-                        ? [...INPUT_CONNECTOR_NODES, ...HITO_APP_NODES]
-                        : HITO_APP_NODES.filter((h) => h.hitoId === selectedHitoFilter)
+                      : INPUT_CONNECTOR_NODES.filter((n) => n.category === selectedToolSubgroup)
                     : paletteTab === 'hitos'
                       ? selectedHitoFilter === 'all' || selectedHitoFilter === 'external'
                         ? HITO_APP_NODES

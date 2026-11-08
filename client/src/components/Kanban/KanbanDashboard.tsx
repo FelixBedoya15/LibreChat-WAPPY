@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { 
@@ -31,6 +31,9 @@ import {
   Download,
   FileSpreadsheet,
   RefreshCw,
+  Search,
+  Filter,
+  Table2,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -42,6 +45,10 @@ import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
 import SGSSTHeroHeader from '~/components/SGSST/SGSSTHeroHeader';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import KanbanCalendarView, { CalendarTask } from './KanbanCalendarView';
+import KanbanTableView from './KanbanTableView';
+import KanbanTimelineView from './KanbanTimelineView';
+
+export type ACPMViewMode = 'calendar' | 'kanban' | 'table' | 'timeline';
 
 interface KanbanTask {
   _id: string;
@@ -99,19 +106,52 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const { showToast } = useToastContext();
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'kanban'>(() => {
+  const [activeTab, setActiveTab] = useState<ACPMViewMode>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('acpm_active_tab');
-      if (stored === 'kanban' || stored === 'calendar') return stored;
+      if (
+        stored === 'kanban' ||
+        stored === 'calendar' ||
+        stored === 'table' ||
+        stored === 'timeline'
+      ) {
+        return stored;
+      }
     }
     return 'calendar';
   });
 
-  const handleTabChange = (tab: 'calendar' | 'kanban') => {
+  const handleTabChange = (tab: ACPMViewMode) => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       localStorage.setItem('acpm_active_tab', tab);
     }
+  };
+
+  // Notion-style Search & Quick Filter states
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filterPriority, setFilterPriority] = useState<'all' | 'alta' | 'media' | 'baja'>('all');
+  const [filterActionType, setFilterActionType] = useState<
+    'all' | 'correctiva' | 'preventiva' | 'mejora'
+  >('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<
+    'all' | 'todo' | 'due_soon' | 'overdue' | 'done'
+  >('all');
+
+  const hasActiveFilters =
+    Boolean(searchQuery.trim()) ||
+    filterPriority !== 'all' ||
+    filterActionType !== 'all' ||
+    filterCategory !== 'all' ||
+    filterStatus !== 'all';
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setFilterPriority('all');
+    setFilterActionType('all');
+    setFilterCategory('all');
+    setFilterStatus('all');
   };
 
   const [showDashboard, setShowDashboard] = useState<boolean>(() => {
@@ -687,6 +727,72 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     }
   };
 
+  // Quick inline status change (Table / Views)
+  const handleQuickStatusChange = async (
+    taskId: string,
+    newStatus: 'todo' | 'due_soon' | 'overdue' | 'done',
+  ) => {
+    const task = tasks.find((t) => t._id === taskId);
+    if (!task || task.status === newStatus) return;
+
+    const previousTasks = [...tasks];
+    setTasks((prev) => prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t)));
+
+    try {
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: taskId,
+        status: newStatus,
+      });
+      if (res.data && res.data._id) {
+        setTasks((prev) => prev.map((t) => (t._id === taskId ? res.data : t)));
+      }
+      showToast({
+        message: `Estado actualizado a ${getStatusLabel(newStatus)}`,
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Error updating task status:', err);
+      setTasks(previousTasks);
+      showToast({
+        message: 'No se pudo actualizar el estado de la actividad.',
+        status: 'error',
+      });
+    }
+  };
+
+  // Quick inline priority change (Table / Views)
+  const handleQuickPriorityChange = async (
+    taskId: string,
+    newPriority: 'alta' | 'media' | 'baja',
+  ) => {
+    const task = tasks.find((t) => t._id === taskId);
+    if (!task || task.priority === newPriority) return;
+
+    const previousTasks = [...tasks];
+    setTasks((prev) => prev.map((t) => (t._id === taskId ? { ...t, priority: newPriority } : t)));
+
+    try {
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: taskId,
+        priority: newPriority,
+      });
+      if (res.data && res.data._id) {
+        setTasks((prev) => prev.map((t) => (t._id === taskId ? res.data : t)));
+      }
+      showToast({
+        message: `Prioridad actualizada a ${newPriority.toUpperCase()}`,
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Error updating task priority:', err);
+      setTasks(previousTasks);
+      showToast({
+        message: 'No se pudo actualizar la prioridad de la actividad.',
+        status: 'error',
+      });
+    }
+  };
+
   const handleAcceptGroupInvite = async (invitationId: string) => {
     try {
       await axios.post(`/api/chat-sst/invitations/${invitationId}/accept`);
@@ -719,19 +825,43 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     }
   };
 
+  // Filtered tasks for unified Notion-style Search & Quick Filters across all 4 views
+  const filteredTasks = useMemo(() => {
+    const safeList = Array.isArray(tasks) ? tasks : [];
+    const q = searchQuery.trim().toLowerCase();
 
+    return safeList.filter((t) => {
+      if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+      if (filterPriority !== 'all' && (t.priority || 'media') !== filterPriority) return false;
+      if (filterActionType !== 'all' && (t.actionType || 'correctiva') !== filterActionType)
+        return false;
+      if (filterCategory !== 'all' && (t.type || 'manual') !== filterCategory) return false;
+
+      if (q) {
+        const titleMatch = (t.title?.toLowerCase() || '').includes(q);
+        const descMatch = (t.description?.toLowerCase() || '').includes(q);
+        const respMatch = (t.assignedTo?.toLowerCase() || '').includes(q);
+        const refMatch = (t.referenceName?.toLowerCase() || '').includes(q);
+        const srcMatch = (t.sourceModule?.toLowerCase() || '').includes(q);
+        if (!titleMatch && !descMatch && !respMatch && !refMatch && !srcMatch) return false;
+      }
+
+      return true;
+    });
+  }, [tasks, searchQuery, filterStatus, filterPriority, filterActionType, filterCategory]);
 
   // Calculate stats
   const totalCount = tasks.length;
   const overdueCount = tasks.filter(t => t.status === 'overdue').length;
   const dueSoonCount = tasks.filter(t => t.status === 'due_soon').length;
   const doneCount = tasks.filter(t => t.status === 'done').length;
+  const allTodoCount = tasks.filter(t => t.status === 'todo').length;
 
-  // Filter tasks into columns
-  const todoTasks = tasks.filter(t => t.status === 'todo');
-  const dueSoonTasks = tasks.filter(t => t.status === 'due_soon');
-  const overdueTasks = tasks.filter(t => t.status === 'overdue');
-  const doneTasks = tasks.filter(t => t.status === 'done');
+  // Filter tasks into columns (respecting active filters)
+  const todoTasks = filteredTasks.filter(t => t.status === 'todo');
+  const dueSoonTasks = filteredTasks.filter(t => t.status === 'due_soon');
+  const overdueTasks = filteredTasks.filter(t => t.status === 'overdue');
+  const doneTasks = filteredTasks.filter(t => t.status === 'done');
 
   // Compliance calculations
   const complianceRate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 100;
@@ -739,7 +869,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const donePct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
   const dueSoonPct = totalCount > 0 ? Math.round((dueSoonCount / totalCount) * 100) : 0;
   const overduePct = totalCount > 0 ? Math.round((overdueCount / totalCount) * 100) : 0;
-  const todoPct = totalCount > 0 ? Math.round((todoTasks.length / totalCount) * 100) : 0;
+  const todoPct = totalCount > 0 ? Math.round((allTodoCount / totalCount) * 100) : 0;
 
   const categoryInfo: Record<string, { label: string; color: string; bg: string }> = {
     audit_finding: { label: 'Auditoría SG-SST', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-600' },
@@ -998,7 +1128,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
             <>
               <ExpandableButton
                 onClick={toggleDashboard}
-                variant="teal"
+                variant="orange"
                 isActive={showDashboard}
                 icon={
                   showDashboard ? (
@@ -1016,16 +1146,16 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                   fetchTasks(true);
                 }}
                 disabled={isLoading}
-                variant="teal"
+                variant="cyan"
                 icon={
-                  <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 text-teal-600 dark:text-teal-400 ${isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 text-current ${isLoading ? 'animate-spin' : ''}`} />
                 }
                 label="Sincronizar"
               />
 
               <ExpandableButton
                 onClick={triggerFileInput}
-                variant="emerald"
+                variant="blue"
                 icon={<Upload className="w-4 h-4 sm:w-5 sm:h-5 text-current" />}
                 label="Importar Archivo"
               />
@@ -1039,7 +1169,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
               <ExpandableButton
                 onClick={handleDownloadTemplate}
-                variant="teal"
+                variant="blue"
                 icon={<Download className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
                 label="Descargar Formato"
                 title="Descargar Formato / Plantilla Oficial (.xlsx)"
@@ -1047,15 +1177,15 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
               <ExpandableButton
                 onClick={handleExportExcel}
-                variant="emerald"
+                variant="green"
                 icon={<FileSpreadsheet className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
                 label="Exportar Excel"
                 title="Exportar Actividades a Excel (.xlsx)"
               />
 
               <ExpandableButton
-                onClick={openCreateModal}
-                variant="teal"
+                onClick={() => openCreateModal()}
+                variant="emerald"
                 icon={<Plus className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
                 label="Nueva Actividad"
                 title="Nueva Actividad"
@@ -1275,47 +1405,198 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       </div>
 
-      {/* View Mode Tabs: Calendario SST (Primero) vs Tablero Kanban */}
-      <div className="px-6 pt-2 pb-0 flex items-center justify-between border-b border-border-medium/30 bg-white/70 dark:bg-gray-900/70">
-        <div className="flex items-center gap-1 sm:gap-2">
+      {/* View Mode Tabs (4 Vistas Dinámicas estilo Notion + Estética WAPPY) */}
+      <div className="px-6 pt-3 pb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border-medium/30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full">
           <button
+            type="button"
             onClick={() => handleTabChange('calendar')}
-            className={`px-4 py-2.5 font-black text-xs sm:text-sm flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
               activeTab === 'calendar'
-                ? 'border-teal-600 text-teal-700 dark:text-teal-300 bg-teal-500/5 dark:bg-teal-950/20 rounded-t-xl'
-                : 'border-transparent text-text-secondary hover:text-text-primary'
+                ? 'bg-teal-500/15 border-teal-500/50 text-teal-700 dark:text-teal-300 ring-1 ring-teal-500/30 shadow-xs'
+                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-teal-500/10 hover:border-teal-500/30'
             }`}
           >
-            <Calendar className="w-4 h-4 text-teal-500" />
+            <Calendar className="w-4 h-4 text-teal-500 shrink-0" />
             <span>Calendario SST</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-500/10 text-teal-700 dark:text-teal-300">
-              {totalCount}
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300">
+              Comité
             </span>
           </button>
 
           <button
+            type="button"
             onClick={() => handleTabChange('kanban')}
-            className={`px-4 py-2.5 font-black text-xs sm:text-sm flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
               activeTab === 'kanban'
-                ? 'border-teal-600 text-teal-700 dark:text-teal-300 bg-teal-500/5 dark:bg-teal-950/20 rounded-t-xl'
-                : 'border-transparent text-text-secondary hover:text-text-primary'
+                ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-500/30 shadow-xs'
+                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-cyan-500/10 hover:border-cyan-500/30'
             }`}
           >
-            <Trello className="w-4 h-4 text-teal-500" />
+            <Trello className="w-4 h-4 text-cyan-500 shrink-0" />
             <span>Tablero Kanban</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gray-500/10 text-gray-700 dark:text-gray-300">
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-cyan-500/15 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300">
               4 etapas
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('table')}
+            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
+              activeTab === 'table'
+                ? 'bg-purple-500/15 border-purple-500/50 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500/30 shadow-xs'
+                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-purple-500/10 hover:border-purple-500/30'
+            }`}
+          >
+            <Table2 className="w-4 h-4 text-purple-500 shrink-0" />
+            <span>Tabla Dinámica</span>
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300">
+              Base Datos
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('timeline')}
+            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
+              activeTab === 'timeline'
+                ? 'bg-amber-500/15 border-amber-500/50 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 shadow-xs'
+                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-amber-500/10 hover:border-amber-500/30'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>Cronograma Gantt</span>
+            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300">
+              Gerencia
+            </span>
+          </button>
         </div>
 
-        <div className="text-[11px] font-semibold text-text-tertiary hidden sm:flex items-center gap-1.5">
+        <div className="text-[11px] font-semibold text-text-tertiary hidden xl:flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Sincronización en tiempo real</span>
+          <span>Sincronización multi-vista en tiempo real</span>
         </div>
       </div>
 
-      {/* Loading or Views */}
+      {/* Barra Compacta de Búsqueda y Filtros Rápidos estilo Notion (Unificada para las 4 vistas) */}
+      <div className="px-6 py-2.5 bg-surface-primary/70 dark:bg-gray-900/60 backdrop-blur-sm border-b border-border-medium/30 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+          {/* Buscador rápido */}
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="w-3.5 h-3.5 text-teal-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar actividad, responsable, módulo..."
+              className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-white dark:bg-gray-950 border border-border-medium/40 focus:border-teal-500 focus:outline-none text-xs font-semibold text-text-primary placeholder:text-text-tertiary shadow-2xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-rose-500 cursor-pointer"
+                title="Limpiar texto"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-text-tertiary uppercase tracking-wider ml-1">
+            <Filter className="w-3 h-3 text-teal-500" />
+            Filtros:
+          </span>
+
+          {/* Filtro de Estado */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as any)}
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none transition-all ${
+              filterStatus !== 'all'
+                ? 'bg-teal-500/10 border-teal-500/40 text-teal-700 dark:text-teal-300'
+                : 'bg-white dark:bg-gray-950 border-border-medium/40 text-text-secondary'
+            }`}
+          >
+            <option value="all">Estado: Todos</option>
+            <option value="todo">📌 Pendientes</option>
+            <option value="due_soon">⏳ Próximas a vencer</option>
+            <option value="overdue">🚨 Vencidas (Alerta)</option>
+            <option value="done">✅ Completadas</option>
+          </select>
+
+          {/* Filtro de Prioridad */}
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value as any)}
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none transition-all ${
+              filterPriority !== 'all'
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-700 dark:text-amber-300'
+                : 'bg-white dark:bg-gray-950 border-border-medium/40 text-text-secondary'
+            }`}
+          >
+            <option value="all">Prioridad: Todas</option>
+            <option value="alta">🔴 Alta</option>
+            <option value="media">🟡 Media</option>
+            <option value="baja">🟢 Baja</option>
+          </select>
+
+          {/* Filtro de Tipo ACPM */}
+          <select
+            value={filterActionType}
+            onChange={(e) => setFilterActionType(e.target.value as any)}
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none transition-all ${
+              filterActionType !== 'all'
+                ? 'bg-purple-500/10 border-purple-500/40 text-purple-700 dark:text-purple-300'
+                : 'bg-white dark:bg-gray-950 border-border-medium/40 text-text-secondary'
+            }`}
+          >
+            <option value="all">Tipo ACPM: Todos</option>
+            <option value="correctiva">🔧 Correctiva</option>
+            <option value="preventiva">🛡️ Preventiva</option>
+            <option value="mejora">🚀 Mejora</option>
+          </select>
+
+          {/* Filtro de Categoría / Módulo */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none transition-all max-w-[190px] ${
+              filterCategory !== 'all'
+                ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-700 dark:text-cyan-300'
+                : 'bg-white dark:bg-gray-950 border-border-medium/40 text-text-secondary'
+            }`}
+          >
+            <option value="all">Módulo: Todos</option>
+            {Object.entries(categoryInfo).map(([key, info]) => (
+              <option key={key} value={key}>
+                {info.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Contador de filtradas y botón Limpiar */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="px-2.5 py-1 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-[11px] font-extrabold">
+            Mostrando {filteredTasks.length} de {totalCount}
+          </span>
+
+          {hasActiveFilters && (
+            <ExpandableButton
+              onClick={clearAllFilters}
+              variant="danger"
+              size="sm"
+              icon={<X className="w-3.5 h-3.5" />}
+              label="Limpiar filtros"
+              title="Restablecer todos los filtros activos"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Loading or 4 Dynamic Views */}
       {isLoading ? (
         <div className="flex-1 flex flex-col items-center justify-center text-text-secondary min-h-[400px]">
           <Clock className="w-8 h-8 animate-spin text-teal-500 mb-2" />
@@ -1323,12 +1604,36 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       ) : activeTab === 'calendar' ? (
         <KanbanCalendarView
-          tasks={tasks as any}
+          tasks={filteredTasks as any}
           onTasksChange={() => fetchTasks(true)}
           onOpenCreateModal={(date) => openCreateModal(date)}
           onOpenEditModal={(task) => openEditModal(task as any)}
           onDeleteTask={(id) => handleDeleteTask(id)}
           isLoading={isLoading}
+        />
+      ) : activeTab === 'table' ? (
+        <KanbanTableView
+          tasks={filteredTasks as any}
+          onOpenEditModal={(task) => openEditModal(task as any)}
+          onDeleteTask={(id) => handleDeleteTask(id)}
+          onMarkComplete={(id) => handleMarkComplete(id)}
+          onStatusChange={(id, status) => handleQuickStatusChange(id, status)}
+          onPriorityChange={(id, priority) => handleQuickPriorityChange(id, priority)}
+          onOpenCreateModal={(date) => openCreateModal(date)}
+          categoryInfo={categoryInfo}
+          formatDate={formatDate}
+          getDaysDiffText={getDaysDiffText}
+          renderTaskBadge={renderTaskBadge}
+        />
+      ) : activeTab === 'timeline' ? (
+        <KanbanTimelineView
+          tasks={filteredTasks as any}
+          onOpenEditModal={(task) => openEditModal(task as any)}
+          onOpenCreateModal={(date) => openCreateModal(date)}
+          onMarkComplete={(id) => handleMarkComplete(id)}
+          categoryInfo={categoryInfo}
+          formatDate={formatDate}
+          getDaysDiffText={getDaysDiffText}
         />
       ) : (
         /* Board columns container */

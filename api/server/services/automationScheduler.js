@@ -1053,27 +1053,53 @@ async function runAutomation(automation, isManual = false) {
         }
       }
 
-      // 11D. Creación de Tarea / Plan de Acción ACPM en el Cronograma SG-SST (acpm_task)
+      // 11D. Creación de Actividad en el Centro de Control en cualquiera de sus Etapas (acpm_task)
       if (configuredOutputs.includes('acpm_task')) {
         try {
-          const dueIn7Days = new Date(Date.now() + 7 * 24 * 3600000);
+          const allNodeConfigs = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
+          const acpmCfg = allNodeConfigs.out_acpm_task || allNodeConfigs.acpm_task || {};
+          const rawStage = String(acpmCfg.kanbanStatus || 'todo').trim();
+          const validStage =
+            rawStage === 'urgent'
+              ? 'overdue'
+              : ['todo', 'in_progress', 'due_soon', 'overdue', 'done'].includes(rawStage)
+                ? rawStage
+                : 'todo';
+          const rawPriority = String(acpmCfg.kanbanPriority || 'high').toLowerCase();
+          const validPriority =
+            rawPriority === 'low' || rawPriority === 'baja'
+              ? 'baja'
+              : rawPriority === 'medium' || rawPriority === 'media'
+                ? 'media'
+                : 'alta';
+          const validActionType = ['correctiva', 'preventiva', 'mejora'].includes(
+            String(acpmCfg.kanbanActionType || '').toLowerCase(),
+          )
+            ? String(acpmCfg.kanbanActionType).toLowerCase()
+            : 'correctiva';
+          const dueDays = Math.max(1, Number(acpmCfg.kanbanDueDays) || 7);
+          const dueTarget = new Date(Date.now() + dueDays * 24 * 3600000);
+          const customTitle = String(acpmCfg.kanbanTaskTitle || '').trim();
+          const customAssignee = String(acpmCfg.kanbanAssignee || '').trim();
+
           await KanbanTask.create({
             user: automation.user,
             companyId: targetCompanyIdStr || 'DEFAULT',
-            title: `[ACPM Automatización] ${automation.name} — ${compLabel}`,
+            title: customTitle || `[Centro de Control] ${automation.name} — ${compLabel}`,
             description: resultText.substring(0, 3500),
-            status: 'todo',
-            priority: 'alta',
-            actionType: 'correctiva',
+            status: validStage,
+            priority: validPriority,
+            actionType: validActionType,
             type: 'audit_finding',
-            sourceModule: 'Automatización WAPPY (ACPM)',
-            assignedTo: automation.agentName || agent?.name || 'Responsable SG-SST',
+            sourceModule: 'Automatización WAPPY (Centro de Control)',
+            assignedTo: customAssignee || automation.agentName || agent?.name || 'Responsable SG-SST',
             referenceId: String(automation._id),
             referenceName: automation.name,
-            dueDate: dueIn7Days,
+            dueDate: dueTarget,
+            ...(validStage === 'done' ? { completedAt: new Date() } : {}),
           });
         } catch (acpmErr) {
-          console.warn('[AutomationScheduler] Non-blocking ACPM task error:', acpmErr.message);
+          console.warn('[AutomationScheduler] Non-blocking Centro de Control task error:', acpmErr.message);
         }
       }
     });
