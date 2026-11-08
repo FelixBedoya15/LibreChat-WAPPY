@@ -1692,9 +1692,6 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           >
             <Calendar className="w-4 h-4 text-teal-500 shrink-0" />
             <span>Calendario SST</span>
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300">
-              Comité
-            </span>
           </button>
 
           <button
@@ -1708,9 +1705,6 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           >
             <Trello className="w-4 h-4 text-cyan-500 shrink-0" />
             <span>Tablero Kanban</span>
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-cyan-500/15 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300">
-              4 etapas
-            </span>
           </button>
 
           <button
@@ -1724,9 +1718,6 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           >
             <Table2 className="w-4 h-4 text-purple-500 shrink-0" />
             <span>Tabla Dinámica</span>
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300">
-              Base Datos
-            </span>
           </button>
 
           <button
@@ -1740,9 +1731,6 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           >
             <BarChart2 className="w-4 h-4 text-amber-500 shrink-0" />
             <span>Cronograma Gantt</span>
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300">
-              Gerencia
-            </span>
           </button>
         </div>
 
