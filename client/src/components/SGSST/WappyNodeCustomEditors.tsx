@@ -778,20 +778,19 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2">
                   2. Intervalo de Repetición en Horas
                 </label>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                   {[1, 2, 4, 6, 8, 12, 24].map((hVal) => (
-                    <button
+                    <ExpandableButton
                       key={hVal}
                       type="button"
+                      size="sm"
+                      variant={intervalHours === hVal ? 'amber' : 'neutral'}
+                      isActive={intervalHours === hVal}
+                      icon={<Clock className="w-3.5 h-3.5" />}
+                      badge={`Cada ${hVal} h`}
+                      label={`Ejecutar cada ${hVal} hora${hVal > 1 ? 's' : ''}`}
                       onClick={() => onChangeIntervalHours && onChangeIntervalHours(hVal)}
-                      className={`px-3 py-2 rounded-xl text-xs font-extrabold border transition ${
-                        intervalHours === hVal
-                          ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
-                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'
-                      }`}
-                    >
-                      Cada {hVal} h
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -801,37 +800,47 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             <div>
               {scheduleType === 'weekly' ? (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">
                       3. ¿Qué días de la semana se activa?
                     </label>
-                    <div className="flex gap-1.5">
-                      <button
+                    <div className="flex items-center gap-2 py-0.5 px-1">
+                      <ExpandableButton
                         type="button"
+                        size="sm"
+                        variant="teal"
+                        icon={<Calendar className="w-3.5 h-3.5" />}
+                        badge="Lun–Vie"
+                        label="Lunes a Viernes (Días Hábiles)"
                         onClick={() => onChangeDaysOfWeek && onChangeDaysOfWeek([1, 2, 3, 4, 5])}
-                        className="text-[10px] font-extrabold text-teal-600 dark:text-[#C7F303] hover:underline"
-                      >
-                        Lun–Vie
-                      </button>
-                      <span className="text-slate-300">·</span>
-                      <button
+                      />
+                      <ExpandableButton
                         type="button"
+                        size="sm"
+                        variant="purple"
+                        icon={<Calendar className="w-3.5 h-3.5" />}
+                        badge="Lun–Sáb"
+                        label="Lunes a Sábado"
                         onClick={() =>
                           onChangeDaysOfWeek && onChangeDaysOfWeek([1, 2, 3, 4, 5, 6])
                         }
-                        className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 hover:underline"
-                      >
-                        Lun–Sáb
-                      </button>
+                      />
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 py-1 px-1">
                     {WEEK_DAYS.map((day) => {
                       const isSel = daysOfWeek.includes(day.id);
                       return (
-                        <button
+                        <ExpandableButton
                           key={day.id}
                           type="button"
+                          size="sm"
+                          variant={isSel ? 'teal' : 'neutral'}
+                          isActive={isSel}
+                          icon={<Calendar className="w-3.5 h-3.5" />}
+                          badge={day.short}
+                          label={day.name}
+                          title={day.name}
                           onClick={() => {
                             if (!onChangeDaysOfWeek) return;
                             if (isSel) {
@@ -842,15 +851,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                               onChangeDaysOfWeek([...daysOfWeek, day.id]);
                             }
                           }}
-                          title={day.name}
-                          className={`w-10 h-10 rounded-xl font-black text-xs border-2 transition-all flex flex-col items-center justify-center ${
-                            isSel
-                              ? 'bg-teal-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] border-teal-600 dark:border-[#C7F303] shadow-sm scale-105'
-                              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                          }`}
-                        >
-                          {day.short}
-                        </button>
+                        />
                       );
                     })}
                   </div>
@@ -860,7 +861,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2">
                     3. ¿Qué día del mes se activa? (1 al 31)
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="number"
                       min={1}
@@ -872,20 +873,19 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                       }
                       className="w-24 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-base font-black text-center text-slate-900 dark:text-white"
                     />
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2 py-1 px-1">
                       {[1, 5, 15, 25, 30].map((dVal) => (
-                        <button
+                        <ExpandableButton
                           key={dVal}
                           type="button"
+                          size="sm"
+                          variant={dayOfMonth === dVal ? 'teal' : 'neutral'}
+                          isActive={dayOfMonth === dVal}
+                          icon={<Calendar className="w-3.5 h-3.5" />}
+                          badge={`Día ${dVal}`}
+                          label={`Activar el Día ${dVal} del Mes`}
                           onClick={() => onChangeDayOfMonth && onChangeDayOfMonth(dVal)}
-                          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border ${
-                            dayOfMonth === dVal
-                              ? 'bg-teal-600 text-white border-teal-600'
-                              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          Día {dVal}
-                        </button>
+                        />
                       ))}
                     </div>
                   </div>
@@ -930,8 +930,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 placeholder='Ej: "Tenshi, revisa los certificados de afiliación hoy"'
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
-              <div className="flex flex-wrap gap-1.5 mt-2">
+              <div className="flex flex-wrap gap-1.5 mt-2 py-0.5 px-0.5">
                 {[
+                  'Tenshi, realiza la investigación de accidente del trabajador con el FURAT de Drive',
                   'Tenshi, ejecuta la auditoría de hoy',
                   'Tenshi, revisa vencimientos de trabajadores',
                   'Tenshi, procesa los archivos nuevos de Drive',
@@ -953,28 +954,27 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
                 📡 Canal de Escucha de Tenshi
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                 {[
-                  { id: 'both', label: '⚡ Voz 3D + Chat' },
-                  { id: 'voice', label: '🎙️ Solo Voz Live' },
-                  { id: 'chat', label: '💬 Solo Chat' },
+                  { id: 'both', badge: '⚡ Voz + Chat', label: '⚡ Voz 3D Live + Chat Escrito' },
+                  { id: 'voice', badge: '🎙️ Solo Voz', label: '🎙️ Solo Voz Live Multimodal' },
+                  { id: 'chat', badge: '💬 Solo Chat', label: '💬 Solo Chat Escrito en WAPPY' },
                 ].map((ch) => {
                   const active = (currentCfg.triggerChannel || 'both') === ch.id;
                   return (
-                    <button
+                    <ExpandableButton
                       key={ch.id}
                       type="button"
+                      size="sm"
+                      variant={active ? 'teal' : 'neutral'}
+                      isActive={active}
+                      icon={<MessageSquare className="w-3.5 h-3.5" />}
+                      badge={ch.badge}
+                      label={ch.label}
                       onClick={() =>
                         onUpdateNodeConfig(activeNode.key, { triggerChannel: ch.id as any })
                       }
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold transition ${
-                        active
-                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      {ch.label}
-                    </button>
+                    />
                   );
                 })}
               </div>
@@ -1197,6 +1197,56 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               placeholder="Ej: Disparar solo cuando el agente emisor detecte brechas o genere un acta..."
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
+          </div>
+        </div>
+      );
+    }
+
+    // 1.75 DISPARADOR WHATSAPP BOT SST (EN CONSTRUCCIÓN)
+    if (cleanId.includes('whatsapp')) {
+      return (
+        <div className="p-3.5 rounded-2xl border border-amber-300 dark:border-amber-800/70 bg-amber-50/40 dark:bg-amber-950/20 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase text-amber-800 dark:text-amber-300 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              💬 Disparador WhatsApp Bot SST (En Construcción · Próximamente)
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200/80 dark:bg-amber-900/70 text-amber-900 dark:text-amber-200">
+              🚧 En Construcción
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            Este disparador permitirá que los trabajadores o supervisores en campo inicien flujos de Somos SST enviando una <strong>nota de voz</strong>, <strong>fotografía de acto/condición insegura</strong>, <strong>incapacidad médica</strong> o <strong>FURAT en PDF</strong> directamente al número de WhatsApp Business de la empresa.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                📱 Números o Grupos Autorizados (Pre-configuración)
+              </label>
+              <input
+                type="text"
+                value={currentCfg.whatsappNumbers || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { whatsappNumbers: e.target.value })
+                }
+                placeholder="Ej: +57 300 000 0000, Brigadistas, Todos los trabajadores activos"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                ⚡ Palabra Clave o Tipo de Mensaje Esperado
+              </label>
+              <input
+                type="text"
+                value={currentCfg.customInstruction || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+                }
+                placeholder="Ej: Nota de voz reportando incidente, foto en obra o PDF de incapacidad"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
           </div>
         </div>
       );
@@ -1578,29 +1628,28 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
                 🛡️ Ventana de Tiempo Anti-Duplicados
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                 {[
-                  { id: '24h', label: 'Últimas 24h' },
-                  { id: '7d', label: 'Últimos 7 días' },
-                  { id: '30d', label: 'Últimos 30 días' },
-                  { id: 'all', label: 'Histórico Total' },
+                  { id: '24h', badge: 'Últimas 24h', label: 'Omitir repetidos de las últimas 24 horas' },
+                  { id: '7d', badge: '7 días', label: 'Omitir repetidos de los últimos 7 días' },
+                  { id: '30d', badge: '30 días', label: 'Omitir repetidos de los últimos 30 días' },
+                  { id: 'all', badge: 'Histórico Total', label: 'Todo el histórico de ejecuciones' },
                 ].map((win) => {
                   const active = (currentCfg.dedupWindow || '7d') === win.id;
                   return (
-                    <button
+                    <ExpandableButton
                       key={win.id}
                       type="button"
+                      size="sm"
+                      variant={active ? 'rose' : 'neutral'}
+                      isActive={active}
+                      icon={<Clock className="w-3.5 h-3.5" />}
+                      badge={win.badge}
+                      label={win.label}
                       onClick={() =>
                         onUpdateNodeConfig(activeNode.key, { dedupWindow: win.id as any })
                       }
-                      className={`p-2 rounded-xl border text-xs font-extrabold transition ${
-                        active
-                          ? 'bg-pink-600 text-white border-pink-600'
-                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      {win.label}
-                    </button>
+                    />
                   );
                 })}
               </div>
@@ -1610,33 +1659,33 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
                 🔑 Clave para detectar si un registro ya fue procesado
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                 {[
-                  { id: 'cedula', label: 'Por Cédula' },
-                  { id: 'standard_id', label: 'Por ID Hallazgo' },
-                  { id: 'filename', label: 'Por Archivo/Correo' },
+                  { id: 'cedula', badge: 'Por Cédula', label: 'Comparar por Cédula del Trabajador' },
+                  { id: 'standard_id', badge: 'Por ID Hallazgo', label: 'Comparar por Código / ID del Hallazgo' },
+                  { id: 'filename', badge: 'Por Archivo/Correo', label: 'Comparar por Nombre de Archivo o ID de Correo' },
                 ].map((dk) => {
                   const active = (currentCfg.dedupKey || 'cedula') === dk.id;
                   return (
-                    <button
+                    <ExpandableButton
                       key={dk.id}
                       type="button"
+                      size="sm"
+                      variant={active ? 'teal' : 'neutral'}
+                      isActive={active}
+                      icon={<Check className="w-3.5 h-3.5" />}
+                      badge={dk.badge}
+                      label={dk.label}
                       onClick={() =>
                         onUpdateNodeConfig(activeNode.key, { dedupKey: dk.id as any })
                       }
-                      className={`p-2 rounded-xl border text-xs font-extrabold transition ${
-                        active
-                          ? 'bg-teal-600 text-white border-teal-600'
-                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      {dk.label}
-                    </button>
+                    />
                   );
                 })}
               </div>
             </div>
           </div>
+          {renderFieldChecklistSection('pink')}
           {renderLiveRecordsTableSection('📜 Últimas Ejecuciones Reales Guardadas en Bitácora')}
         </div>
       );
@@ -1763,26 +1812,26 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
             {/* Pestañas de Categoría Normativa + Buscador */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                 {TENSHI_NORMATIVE_CATEGORIES.map((cat) => {
                   const isAct = normativeCategoryFilter === cat.id;
                   const countInCat =
                     cat.id === 'all'
                       ? TENSHI_NORMATIVE_MARKDOWN_DOCS.length
                       : TENSHI_NORMATIVE_MARKDOWN_DOCS.filter((d) => d.category === cat.id).length;
+                  const shortTitle = cat.label.replace(/\s*\(\d+\)$/, '');
                   return (
-                    <button
+                    <ExpandableButton
                       key={cat.id}
                       type="button"
+                      size="sm"
+                      variant={isAct ? 'rose' : 'neutral'}
+                      isActive={isAct}
+                      icon={<Scale className="w-3.5 h-3.5" />}
+                      badge={`${shortTitle.split(' ')[0]} (${countInCat})`}
+                      label={`${shortTitle} (${countInCat})`}
                       onClick={() => setNormativeCategoryFilter(cat.id)}
-                      className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold border transition ${
-                        isAct
-                          ? 'bg-pink-600 text-white border-pink-600 shadow-2xs'
-                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-pink-400'
-                      }`}
-                    >
-                      {cat.label.replace(/\s*\(\d+\)$/, '')} ({countInCat})
-                    </button>
+                    />
                   );
                 })}
               </div>
@@ -1872,6 +1921,85 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     // 4.4 MEMORIA DOCUMENTAL RAG (DOCUMENTOS VIVOS Y NOTEBOOKLM)
     return (
       <div className="space-y-3">
+        <div className="p-3.5 rounded-2xl border border-pink-200 dark:border-slate-700 bg-pink-50/30 dark:bg-slate-800/40 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase text-pink-800 dark:text-pink-300 flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4" />
+              📚 Memoria RAG Documental (Cuadernos Google NotebookLM + Documentos Vivo WAPPY)
+            </span>
+            <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+              {[
+                {
+                  id: 'notebooklm_and_live_docs',
+                  badge: '📚 NotebookLM + Docs Vivo',
+                  label: 'Consultar Cuadernos NotebookLM + Documentos Vivo WAPPY',
+                  instruction: 'Consultar simultáneamente los cuadernos de Google NotebookLM y los Documentos Vivo de la empresa con cita exacta.',
+                },
+                {
+                  id: 'only_notebooklm',
+                  badge: '📓 Solo NotebookLM',
+                  label: 'Consultar Únicamente Cuadernos de Google NotebookLM',
+                  instruction: 'Consultar los cuadernos RAG activos en Google NotebookLM citando fuente y sección.',
+                },
+                {
+                  id: 'only_live_docs',
+                  badge: '📄 Solo Docs Vivo',
+                  label: 'Consultar Únicamente Documentos Vivo en Somos SST',
+                  instruction: 'Consultar los reglamentos, actas, políticas y procedimientos guardados en Documentos Vivo de Somos SST.',
+                },
+              ].map((src) => {
+                const isSelected = (currentCfg.customInstruction || '').includes(src.instruction);
+                return (
+                  <ExpandableButton
+                    key={src.id}
+                    type="button"
+                    size="sm"
+                    variant={isSelected ? 'rose' : 'neutral'}
+                    isActive={isSelected}
+                    icon={<BookOpen className="w-3.5 h-3.5" />}
+                    badge={src.badge}
+                    label={src.label}
+                    onClick={() =>
+                      onUpdateNodeConfig(activeNode.key, { customInstruction: src.instruction })
+                    }
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                📓 Cuaderno de NotebookLM o Colección Documental Específica
+              </label>
+              <input
+                type="text"
+                value={currentCfg.documentTitle || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { documentTitle: e.target.value })
+                }
+                placeholder="Ej: Cuaderno Normativo SG-SST / Procedimientos de Alto Riesgo / RIT y RHS"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🔍 Consulta Semántica o Directriz de Cita RAG
+              </label>
+              <input
+                type="text"
+                value={currentCfg.customInstruction || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+                }
+                placeholder="Ej: Extraer citas textuales con nombre del documento y cruzar contra el hallazgo..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+        {renderFieldChecklistSection('pink')}
         {renderLiveRecordsTableSection(
           '📚 Documentos Vivos y Cuadernos NotebookLM de tu Empresa (Marca cuáles consultar)',
         )}
@@ -1928,6 +2056,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               🚨 Enviar correo únicamente cuando el flujo encuentre hallazgos críticos, brechas o vencimientos
             </span>
           </label>
+          {renderFieldChecklistSection('teal')}
         </div>
       );
     }
@@ -1935,50 +2064,52 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     // 7.2 NOTIFICAR EN WAPPY + TENSHI VOZ
     if (cleanId.includes('wappy_notification')) {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
-              🔔 Nivel de Prioridad de la Notificación en WAPPY
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'info', label: '🟢 Informativa' },
-                { id: 'warn', label: '🟡 Preventiva' },
-                { id: 'critical', label: '🔴 Crítica Urgente' },
-              ].map((p) => {
-                const active = (currentCfg.alertPriority || 'warn') === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() =>
-                      onUpdateNodeConfig(activeNode.key, { alertPriority: p.id as any })
-                    }
-                    className={`p-2.5 rounded-xl border text-xs font-extrabold transition ${
-                      active
-                        ? 'bg-teal-600 text-white border-teal-600'
-                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
+                🔔 Nivel de Prioridad de la Notificación en WAPPY
+              </label>
+              <div className="flex flex-wrap items-center gap-2 py-1 px-1">
+                {[
+                  { id: 'info', badge: '🟢 Informativa', label: '🟢 Prioridad Informativa (Verde)', variant: 'emerald' as const },
+                  { id: 'warn', badge: '🟡 Preventiva', label: '🟡 Prioridad Preventiva (Ámbar)', variant: 'amber' as const },
+                  { id: 'critical', badge: '🔴 Crítica Urgente', label: '🔴 Prioridad Crítica Urgente (Roja)', variant: 'danger' as const },
+                ].map((p) => {
+                  const active = (currentCfg.alertPriority || 'warn') === p.id;
+                  return (
+                    <ExpandableButton
+                      key={p.id}
+                      type="button"
+                      size="sm"
+                      variant={active ? p.variant : 'neutral'}
+                      isActive={active}
+                      icon={<Bell className="w-3.5 h-3.5" />}
+                      badge={p.badge}
+                      label={p.label}
+                      onClick={() =>
+                        onUpdateNodeConfig(activeNode.key, { alertPriority: p.id as any })
+                      }
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex items-end">
+              <label className="w-full flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={currentCfg.tenshiSpeakSummary !== false}
+                  onChange={(e) =>
+                    onUpdateNodeConfig(activeNode.key, { tenshiSpeakSummary: e.target.checked })
+                  }
+                  className="rounded border-teal-500 text-teal-600"
+                />
+                <span>🐱 Hacer que Tenshi Avatar 3D te anuncie el resumen al entrar</span>
+              </label>
             </div>
           </div>
-          <div className="flex items-end">
-            <label className="w-full flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
-              <input
-                type="checkbox"
-                checked={currentCfg.tenshiSpeakSummary !== false}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { tenshiSpeakSummary: e.target.checked })
-                }
-                className="rounded border-teal-500 text-teal-600"
-              />
-              <span>🐱 Hacer que Tenshi Avatar 3D te anuncie el resumen al entrar</span>
-            </label>
-          </div>
+          {renderFieldChecklistSection('teal')}
         </div>
       );
     }
@@ -2022,54 +2153,57 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     // 7.4 AGENDAR EN GOOGLE CALENDAR / AGENDA SST
     if (cleanId.includes('calendar')) {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              📅 Título del Evento / Inspección / Comité
-            </label>
-            <input
-              type="text"
-              value={currentCfg.calendarEventTitle || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { calendarEventTitle: e.target.value })
-              }
-              placeholder="Ej: Reunión Extraordinaria COPASST / Revisión SST"
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-            />
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                📅 Título del Evento / Inspección / Comité
+              </label>
+              <input
+                type="text"
+                value={currentCfg.calendarEventTitle || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { calendarEventTitle: e.target.value })
+                }
+                placeholder="Ej: Reunión Extraordinaria COPASST / Revisión SST"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                ⏱️ Duración del Evento
+              </label>
+              <select
+                value={currentCfg.calendarDurationMinutes || 60}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    calendarDurationMinutes: Number(e.target.value),
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value={30}>30 minutos</option>
+                <option value={60}>1 hora (60 min)</option>
+                <option value={90}>1 hora y 30 min</option>
+                <option value={120}>2 horas</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                👥 Correos de Invitados (Opcional)
+              </label>
+              <input
+                type="text"
+                value={currentCfg.calendarAttendees || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { calendarAttendees: e.target.value })
+                }
+                placeholder="Ej: copasst@empresa.com, lider.sst@empresa.com"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              ⏱️ Duración del Evento
-            </label>
-            <select
-              value={currentCfg.calendarDurationMinutes || 60}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, {
-                  calendarDurationMinutes: Number(e.target.value),
-                })
-              }
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value={30}>30 minutos</option>
-              <option value={60}>1 hora (60 min)</option>
-              <option value={90}>1 hora y 30 min</option>
-              <option value={120}>2 horas</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              👥 Correos de Invitados (Opcional)
-            </label>
-            <input
-              type="text"
-              value={currentCfg.calendarAttendees || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { calendarAttendees: e.target.value })
-              }
-              placeholder="Ej: copasst@empresa.com, lider.sst@empresa.com"
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-            />
-          </div>
+          {renderFieldChecklistSection('blue')}
         </div>
       );
     }
@@ -2231,46 +2365,197 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       );
     }
 
-    // 7.6 RESTO DE SALIDAS (Drive Export, Documento Vivo Canvas, Curso LMS, Artículo Blog, Antigravity Report)
+    // 7.6 SALIDA: GUARDAR / ALIMENTAR APLICATIVOS EN SOMOS SST (somos_sst_update)
+    if (cleanId.includes('somos_sst_update')) {
+      return (
+        <div className="space-y-3">
+          <div className="p-3 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/80 dark:border-teal-800/60">
+            <label className="block text-xs font-extrabold uppercase text-teal-900 dark:text-teal-300 mb-1.5">
+              🛡️ Modo de Sincronización en Base de Datos de Somos SST
+            </label>
+            <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
+              {[
+                {
+                  badge: '🔄 Upsert por Cédula',
+                  label: 'Crear o Actualizar Expedientes por Cédula sin Duplicar',
+                  instruction: 'Crear o actualizar expedientes de trabajadores por número de cédula (sin duplicar registros existentes).',
+                },
+                {
+                  badge: '📊 Alimentar Matrices',
+                  label: 'Alimentar Matrices (GTC-45, PESV, Químicos SGA y 0312)',
+                  instruction: 'Guardar los peligros, controles y calificaciones directamente en las matrices del SG-SST de la empresa.',
+                },
+                {
+                  badge: '🚨 Registrar ATEL / Actos',
+                  label: 'Registrar Investigación ATEL y Reportes de Condiciones',
+                  instruction: 'Registrar el informe de investigación ATEL (Res. 1401) o hallazgo de inspección con su plan de acción.',
+                },
+              ].map((opt) => (
+                <ExpandableButton
+                  key={opt.badge}
+                  type="button"
+                  size="sm"
+                  variant={(currentCfg.customInstruction || '').includes(opt.instruction) ? 'teal' : 'neutral'}
+                  isActive={(currentCfg.customInstruction || '').includes(opt.instruction)}
+                  icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                  badge={opt.badge}
+                  label={opt.label}
+                  onClick={() =>
+                    onUpdateNodeConfig(activeNode.key, { customInstruction: opt.instruction })
+                  }
+                />
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🎯 Aplicativo o Hito Principal a Alimentar
+              </label>
+              <input
+                type="text"
+                value={currentCfg.documentTitle || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { documentTitle: e.target.value })
+                }
+                placeholder="Ej: Hito 7 · Investigación ATEL, Hito 2 · Condiciones de Salud, Matriz IPEVR"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                ⚙️ Regla de Validación Antes de Guardar
+              </label>
+              <input
+                type="text"
+                value={currentCfg.customInstruction || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+                }
+                placeholder="Ej: Validar que el trabajador tenga cédula real antes de actualizar..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
+          {renderFieldChecklistSection('teal')}
+        </div>
+      );
+    }
+
+    // 7.7 SALIDA: DOCUMENTO FORMAL EN LIVEEDITOR (canvas_doc)
+    if (cleanId.includes('canvas_doc')) {
+      const activeTpl = currentCfg.documentTemplate || 'Informe Técnico';
+      return (
+        <div className="space-y-3">
+          <div className="p-3 rounded-xl bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border border-fuchsia-200/80 dark:border-fuchsia-800/60">
+            <label className="block text-xs font-extrabold uppercase text-fuchsia-900 dark:text-fuchsia-300 mb-1.5">
+              🎨 1. Plantilla Formal del Documento en LiveEditor (Exportable a Word .docx y PDF)
+            </label>
+            <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
+              {[
+                { id: 'Informe Investigación ATEL Res. 1401', badge: '📋 Informe ATEL', label: 'Informe Oficial de Investigación ATEL (Res. 1401)' },
+                { id: 'Acta Oficial con Cabezote y Firmas', badge: '🏛️ Acta Oficial', label: 'Acta Oficial de Comité (COPASST / CCL / PESV) con Firmas' },
+                { id: 'Informe Ejecutivo de Auditoría 0312', badge: '📊 Auditoría 0312', label: 'Informe Ejecutivo de Auditoría y Brechas Res. 0312' },
+                { id: 'Procedimiento / Programa SG-SST', badge: '📑 Procedimiento', label: 'Procedimiento Operativo Estándar (PON) o Programa PVE' },
+              ].map((tpl) => (
+                <ExpandableButton
+                  key={tpl.id}
+                  type="button"
+                  size="sm"
+                  variant={activeTpl === tpl.id ? 'fuchsia' : 'neutral'}
+                  isActive={activeTpl === tpl.id}
+                  icon={<FileText className="w-3.5 h-3.5" />}
+                  badge={tpl.badge}
+                  label={tpl.label}
+                  onClick={() =>
+                    onUpdateNodeConfig(activeNode.key, { documentTemplate: tpl.id })
+                  }
+                />
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                📄 2. Título Oficial del Documento Vivo
+              </label>
+              <input
+                type="text"
+                value={currentCfg.documentTitle || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { documentTitle: e.target.value })
+                }
+                placeholder="Ej: Informe de Investigación de Accidente de Trabajo — Res. 1401 de 2007"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                ✍️ 3. Estructura de Cabezote, Tablas y Bloque de Firmas
+              </label>
+              <input
+                type="text"
+                value={currentCfg.customInstruction || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+                }
+                placeholder="Ej: Incluir cabezote con NIT, tablas con bordes sólidos y firma de Representante Legal + Responsable SST"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
+          {renderFieldChecklistSection('teal')}
+        </div>
+      );
+    }
+
+    // 7.8 RESTO DE SALIDAS (Google Docs, Google Sheets, Google Slides, Antigravity Local/Cloud Report)
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-            📄 Título / Destino de «{activeNode.title}»
-          </label>
-          <input
-            type="text"
-            value={currentCfg.documentTitle || currentCfg.driveFolderName || ''}
-            onChange={(e) =>
-              onUpdateNodeConfig(activeNode.key, {
-                documentTitle: e.target.value,
-                driveFolderName: e.target.value,
-              })
-            }
-            placeholder={
-              cleanId.includes('drive')
-                ? 'Ej: Carpeta Informes_SG_SST_2026 en Google Drive'
-                : cleanId.includes('antigravity')
-                  ? 'Ej: ~/Documents/Reportes_WAPPY/informe.md'
-                  : 'Ej: Acta Oficial / Informe Ejecutivo de Auditoría'
-            }
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-          />
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              📄 Título / Archivo / Destino de «{activeNode.title}»
+            </label>
+            <input
+              type="text"
+              value={currentCfg.documentTitle || currentCfg.driveFolderName || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, {
+                  documentTitle: e.target.value,
+                  driveFolderName: e.target.value,
+                })
+              }
+              placeholder={
+                cleanId.includes('sheets')
+                  ? 'Ej: Matriz_Control_SST_2026 (Pestaña: Vencimientos)'
+                  : cleanId.includes('slides')
+                    ? 'Ej: Presentacion_Alta_Direccion_SG_SST_2026'
+                    : cleanId.includes('docs')
+                      ? 'Ej: Informe_Auditoria_SG_SST_2026 en Carpeta Drive'
+                      : cleanId.includes('antigravity')
+                        ? 'Ej: ~/Documents/Reportes_WAPPY/bitacora_ejecucion.md'
+                        : 'Ej: Acta Oficial / Informe Ejecutivo de Auditoría'
+              }
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              ⚙️ Formato / Instrucción de Entrega
+            </label>
+            <input
+              type="text"
+              value={currentCfg.customInstruction || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+              }
+              placeholder="Ej: Incluir tabla por cédula, conclusiones normativas y plan de acción..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-            ⚙️ Formato / Instrucción de Entrega
-          </label>
-          <input
-            type="text"
-            value={currentCfg.customInstruction || ''}
-            onChange={(e) =>
-              onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
-            }
-            placeholder="Ej: Incluir tabla firmable, conclusiones normativas y plan de acción..."
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-          />
-        </div>
+        {renderFieldChecklistSection('teal')}
       </div>
     );
   }
@@ -2526,6 +2811,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-slate-100"
           />
         </div>
+        {renderFieldChecklistSection('amber')}
       </div>
     );
   }
@@ -2563,6 +2849,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             />
           ))}
         </div>
+        {renderFieldChecklistSection('cyan')}
       </div>
     );
   }
@@ -2842,29 +3129,32 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
   if (isSkillNode || isRuleNode) {
     return (
-      <div className="space-y-2">
-        <label className="block text-xs font-extrabold uppercase text-purple-700 dark:text-[#C7F303]">
-          {isSkillNode
-            ? '🧩 Instrucciones Procedurales de esta Skill (SKILL.md)'
-            : '📏 Regla Obligatoria / Guardrail que el Flujo Jamás Debe Romper'}
-        </label>
-        <textarea
-          rows={4}
-          value={
-            isSkillNode
-              ? currentCfg.skillContent ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
-              : currentCfg.ruleText ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
-          }
-          onChange={(e) => {
-            if (isSkillNode) {
-              onUpdateNodeConfig(activeNode.key, { skillContent: e.target.value });
-            } else {
-              onUpdateNodeConfig(activeNode.key, { ruleText: e.target.value });
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-extrabold uppercase text-purple-700 dark:text-[#C7F303] mb-1">
+            {isSkillNode
+              ? '🧩 Instrucciones Procedurales de esta Skill (SKILL.md)'
+              : '📏 Regla Obligatoria / Guardrail que el Flujo Jamás Debe Romper'}
+          </label>
+          <textarea
+            rows={4}
+            value={
+              isSkillNode
+                ? currentCfg.skillContent ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
+                : currentCfg.ruleText ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
             }
-          }}
-          placeholder="Escribe aquí las instrucciones exactas de esta Skill o Regla..."
-          className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
-        />
+            onChange={(e) => {
+              if (isSkillNode) {
+                onUpdateNodeConfig(activeNode.key, { skillContent: e.target.value });
+              } else {
+                onUpdateNodeConfig(activeNode.key, { ruleText: e.target.value });
+              }
+            }}
+            placeholder="Escribe aquí las instrucciones exactas de esta Skill o Regla..."
+            className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
+          />
+        </div>
+        {renderFieldChecklistSection('purple')}
       </div>
     );
   }
@@ -2923,6 +3213,38 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </select>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            {[
+              {
+                badge: '🚑 FURAT / ARL',
+                label: 'Filtrar: Reportes FURAT y Notificaciones ARL',
+                subj: 'FURAT, Accidente de Trabajo, Dictamen ARL',
+              },
+              {
+                badge: '🩺 Exámenes EMO',
+                label: 'Filtrar: Conceptos de Aptitud Médica IPS',
+                subj: 'Concepto de Aptitud, Examen Médico Ocupacional, Restricciones',
+              },
+              {
+                badge: '🛡️ Certificados EPS/ARL',
+                label: 'Filtrar: Certificados de Afiliación EPS/ARL/AFP',
+                subj: 'Certificado de Afiliación, Planilla PILA, Seguridad Social',
+              },
+            ].map((preset) => (
+              <ExpandableButton
+                key={preset.badge}
+                size="sm"
+                variant="cyan"
+                icon={<Sparkles className="w-3.5 h-3.5" />}
+                badge={preset.badge}
+                label={preset.label}
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, { emailSubjectFilter: preset.subj })
+                }
+              />
+            ))}
+          </div>
+          {renderFieldChecklistSection('cyan')}
         </div>
       );
     }
@@ -2941,7 +3263,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { driveFolderName: e.target.value })
                 }
-                placeholder="Ej: Certificados_EPS_ARL o Reportes_ATEL"
+                placeholder="Ej: Accidentes_ATEL_FURAT o Certificados_EPS_ARL"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
@@ -2976,6 +3298,50 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </label>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            {[
+              {
+                badge: '📁 Carpeta Accidentes / FURAT',
+                label: 'Carpeta: Accidentes_ATEL_FURAT (PDF)',
+                folder: 'Accidentes_ATEL_FURAT',
+                ft: 'pdf',
+              },
+              {
+                badge: '📁 Certificados EPS/ARL',
+                label: 'Carpeta: Certificados_EPS_ARL (PDF)',
+                folder: 'Certificados_EPS_ARL',
+                ft: 'pdf',
+              },
+              {
+                badge: '📁 Exámenes Médicos EMO',
+                label: 'Carpeta: Examenes_Medicos_Ocupacionales (PDF)',
+                folder: 'Examenes_Medicos_Ocupacionales',
+                ft: 'pdf',
+              },
+              {
+                badge: '📁 Inspecciones SST',
+                label: 'Carpeta: Inspecciones_Seguridad_SST (Todos)',
+                folder: 'Inspecciones_Seguridad_SST',
+                ft: 'all',
+              },
+            ].map((p) => (
+              <ExpandableButton
+                key={p.folder}
+                size="sm"
+                variant="cyan"
+                icon={<Sparkles className="w-3.5 h-3.5" />}
+                badge={p.badge}
+                label={p.label}
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    driveFolderName: p.folder,
+                    fileTypeFilter: p.ft,
+                  })
+                }
+              />
+            ))}
+          </div>
+          {renderFieldChecklistSection('cyan')}
           {renderLiveRecordsTableSection('📂 Archivos y Carpetas Detectados en tu Cuenta')}
         </div>
       );
@@ -3014,6 +3380,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
+          {renderFieldChecklistSection('cyan')}
         </div>
       );
     }
@@ -3027,6 +3394,34 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     !cleanId.startsWith('somos_sst_') &&
     !cleanId.startsWith('hito')
   ) {
+    const toolPresets = cleanId.includes('clima')
+      ? [
+          { badge: '🌦️ Bogotá', label: 'Ciudad: Bogotá D.C. (Lluvia / Trabajo en Alturas)', val: 'Bogota,CO' },
+          { badge: '☀️ Medellín', label: 'Ciudad: Medellín (Radiación UV / Calor)', val: 'Medellin,CO' },
+          { badge: '🌡️ Cali', label: 'Ciudad: Cali (Estrés Térmico / Hidratación)', val: 'Cali,CO' },
+          { badge: '🌬️ Barranquilla', label: 'Ciudad: Barranquilla (Vientos > 30 km/h / Alturas)', val: 'Barranquilla,CO' },
+        ]
+      : cleanId.includes('pubchem')
+        ? [
+            { badge: '🧪 Hipoclorito', label: 'Sustancia: Hipoclorito de Sodio (CAS 7681-52-9)', val: '7681-52-9 Hipoclorito de Sodio' },
+            { badge: '🧪 Ácido Clorhídrico', label: 'Sustancia: Ácido Clorhídrico (CAS 7647-01-0)', val: '7647-01-0 Acido Clorhidrico' },
+            { badge: '🧪 Tolueno / Thinner', label: 'Sustancia: Tolueno / Solventes (CAS 108-88-3)', val: '108-88-3 Tolueno' },
+            { badge: '🧪 Sílice Cristalina', label: 'Sustancia: Sílice Cristalina Respirable (CAS 14808-60-7)', val: '14808-60-7 Silice Cristalina' },
+          ]
+        : cleanId.includes('medline')
+          ? [
+              { badge: '🩺 M54.5 Lumbago', label: 'CIE-10: M54.5 Lumbago / Dolor Lumbar Ocupacional', val: 'M54.5 Lumbago no especificado' },
+              { badge: '🩺 G56.0 Túnel Carpiano', label: 'CIE-10: G56.0 Síndrome del Túnel Carpiano', val: 'G56.0 Sindrome del Tunel Carpiano' },
+              { badge: '🩺 M75.1 Manguito Rotador', label: 'CIE-10: M75.1 Síndrome de Manguito Rotador', val: 'M75.1 Sindrome de Manguito Rotador' },
+              { badge: '🩺 H83.3 Hipoacusia', label: 'CIE-10: H83.3 Hipoacusia Inducida por Ruido', val: 'H83.3 Efectos del ruido sobre el oido interno' },
+            ]
+          : cleanId.includes('emergencia')
+            ? [
+                { badge: '🚑 Radio 5 km', label: 'MEDEVAC: Clínicas y Urgencias ARL a 5 km de la Sede', val: 'Radio 5km Urgencias Traumatologia ARL' },
+                { badge: '🚒 Bomberos + Defensa Civil', label: 'MEDEVAC: Bomberos, Cruz Roja y Defensa Civil', val: 'Radio 10km Bomberos Cruz Roja Defensa Civil' },
+              ]
+            : [];
+
     return (
       <div className="space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -3046,7 +3441,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🎯 Parámetro / Carpeta / Ciudad / Sustancia Objetivo
+              🎯 Parámetro / Carpeta / Ciudad / Sustancia / CIE-10 Objetivo
             </label>
             <input
               type="text"
@@ -3057,11 +3452,32 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   targetUrl: e.target.value,
                 })
               }
-              placeholder="Ej: Nombre de carpeta Drive, ciudad para pronóstico de clima o sustancia CAS..."
+              placeholder="Ej: Carpeta Drive, ciudad para pronóstico de clima, sustancia CAS o código CIE-10..."
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
         </div>
+        {toolPresets.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            {toolPresets.map((tp) => (
+              <ExpandableButton
+                key={tp.val}
+                size="sm"
+                variant="purple"
+                icon={<Sparkles className="w-3.5 h-3.5" />}
+                badge={tp.badge}
+                label={tp.label}
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    driveFolderName: tp.val,
+                    targetUrl: tp.val,
+                  })
+                }
+              />
+            ))}
+          </div>
+        )}
+        {renderFieldChecklistSection('purple')}
         {renderLiveRecordsTableSection()}
       </div>
     );
@@ -3367,13 +3783,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                       </span>
                       <span className="truncate">{rep.title}</span>
                     </button>
-                    <button
-                      type="button"
+                    <ExpandableButton
+                      size="sm"
+                      variant="teal"
+                      isActive={isPreviewing}
+                      icon={<FileText className="w-3.5 h-3.5" />}
+                      badge={isPreviewing ? 'Ocultar' : '👁️ Resumen'}
+                      label={isPreviewing ? 'Ocultar Resumen' : 'Ver Resumen del Informe'}
                       onClick={() => onPreviewNodeReport(rep.conversationId, rep.title)}
-                      className="text-[10.5px] font-bold text-teal-700 dark:text-[#C7F303] hover:underline shrink-0"
-                    >
-                      {isPreviewing ? 'Ocultar' : '👁️ Ver Resumen'}
-                    </button>
+                    />
                   </div>
                 );
               })}
@@ -3382,15 +3800,16 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
           {nodeReportHistory.previewConvId && (
             <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-800 text-xs">
-              <div className="font-extrabold text-teal-700 dark:text-teal-300 mb-1 flex items-center justify-between">
+              <div className="font-extrabold text-teal-700 dark:text-teal-300 mb-1 flex items-center justify-between gap-2">
                 <span>📄 {nodeReportHistory.previewTitle}</span>
-                <button
-                  type="button"
+                <ExpandableButton
+                  size="sm"
+                  variant="slate"
+                  icon={<Trash2 className="w-3.5 h-3.5" />}
+                  badge="Cerrar ✕"
+                  label="Cerrar Vista Previa"
                   onClick={onCloseReportPreview}
-                  className="text-[10px] text-slate-400 hover:text-slate-600"
-                >
-                  Cerrar ✕
-                </button>
+                />
               </div>
               <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
                 {nodeReportHistory.previewLoading

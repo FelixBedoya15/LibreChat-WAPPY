@@ -34,6 +34,12 @@ import {
   Search,
   Filter,
   Table2,
+  MessageSquare,
+  CalendarClock,
+  FileCheck2,
+  Send,
+  History,
+  ShieldCheck,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -45,7 +51,7 @@ import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
 import SGSSTHeroHeader from '~/components/SGSST/SGSSTHeroHeader';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import KanbanCalendarView, { CalendarTask } from './KanbanCalendarView';
-import KanbanTableView from './KanbanTableView';
+import KanbanTableView, { ACPMModalTab } from './KanbanTableView';
 import KanbanTimelineView from './KanbanTimelineView';
 
 export type ACPMViewMode = 'calendar' | 'kanban' | 'table' | 'timeline';
@@ -94,6 +100,29 @@ interface KanbanTask {
   location?: string;
   googleEventId?: string;
   googleHtmlLink?: string;
+  observations?: Array<{
+    id: string;
+    text: string;
+    author: string;
+    type?: 'note' | 'reschedule' | 'closure' | 'status_change';
+    createdAt: string;
+  }>;
+  rescheduleHistory?: Array<{
+    id: string;
+    previousDate: string;
+    newDate: string;
+    reason: string;
+    changedBy: string;
+    changedAt: string;
+  }>;
+  isRescheduled?: boolean;
+  closureDetails?: {
+    howItWasClosed: string;
+    evidenceRef: string;
+    effectiveness: 'eficaz' | 'en_seguimiento' | 'pendiente_verificar' | 'no_eficaz';
+    closedBy: string;
+    closedAt?: string;
+  };
 }
 
 interface KanbanDashboardProps {
@@ -342,44 +371,76 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   };
 
   const handleExportExcel = () => {
-    const mappedTasks = tasks.map((t) => ({
-      descripcion: t.title + (t.description ? ` - ${t.description}` : ''),
-      responsable: t.assignedTo || '',
-      fechaLimite: t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : '',
-      estado: t.columnId === 'done' ? 'Cerrada / Ejecutada' : t.columnId === 'in_progress' ? 'En Ejecución' : 'Pendiente / Abierta',
-      prioridad: t.priority === 'urgent' ? 'Crítica' : t.priority === 'high' ? 'Alta' : t.priority === 'medium' ? 'Media' : 'Baja',
-      origen: t.source || 'ACPM SG-SST',
-      tipoAccion: t.tags?.includes('correctiva') ? 'Acción Correctiva' : t.tags?.includes('mejora') ? 'Acción de Mejora' : 'Acción Preventiva',
-    }));
-    exportModuleDataToExcel(
-      KANBAN_ACPM_FIELDS,
-      mappedTasks,
-      `Tablero_Kanban_ACPM_${new Date().toISOString().split('T')[0]}.xlsx`,
-      false,
-    );
+    const mappedTasks = tasks.map((t) => {
+      const obsSummary =
+        Array.isArray(t.observations) && t.observations.length > 0
+          ? ` | Observaciones (${t.observations.length}): ${t.observations
+              .map((o) => `[${o.author}: ${o.text}]`)
+              .join(' ; ')}`
+          : '';
+      const reschedSummary =
+        Array.isArray(t.rescheduleHistory) && t.rescheduleHistory.length > 0
+          ? ` | Reprogramaciones (${t.rescheduleHistory.length}): ${t.rescheduleHistory
+              .map((r) => `${r.previousDate} -> ${r.newDate} (${r.reason})`)
+              .join(' ; ')}`
+          : '';
+      const closureSummary = t.closureDetails?.howItWasClosed
+        ? ` | Cierre ACPM: ${t.closureDetails.howItWasClosed} (Evidencia: ${
+            t.closureDetails.evidenceRef || 'N/A'
+          }, Eficacia: ${t.closureDetails.effectiveness || 'eficaz'})`
+        : '';
+
+      return {
+        title: t.title || '',
+        description: `${t.description || ''}${obsSummary}${reschedSummary}${closureSummary}`.trim(),
+        dueDate: t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : '',
+        status:
+          t.status === 'done'
+            ? 'Completada (done)'
+            : t.status === 'overdue'
+              ? 'Vencida (overdue)'
+              : t.status === 'due_soon'
+                ? 'Próxima a vencer (due_soon)'
+                : 'Pendiente (todo)',
+        actionType:
+          t.actionType === 'preventiva'
+            ? 'Preventiva'
+            : t.actionType === 'mejora'
+              ? 'Mejora'
+              : 'Correctiva',
+        priority: t.priority === 'alta' ? 'Alta' : t.priority === 'baja' ? 'Baja' : 'Media',
+        assignedTo: t.assignedTo || '',
+        sourceModule: categoryInfo[t.type]?.label || t.sourceModule || 'ACPM SG-SST',
+      };
+    });
+    exportModuleDataToExcel({
+      targetFields: KANBAN_ACPM_FIELDS,
+      data: mappedTasks,
+      fileName: `Tablero_Kanban_ACPM_${new Date().toISOString().split('T')[0]}.xlsx`,
+      isTemplate: false,
+    });
     showToast({
       message: 'Actividades del tablero exportadas a Excel exitosamente',
       status: 'success',
-      severity: 'success',
     });
   };
 
   const handleDownloadTemplate = () => {
-    exportModuleDataToExcel(
-      KANBAN_ACPM_FIELDS,
-      [],
-      'Plantilla_Kanban_ACPM.xlsx',
-      true,
-    );
+    exportModuleDataToExcel({
+      targetFields: KANBAN_ACPM_FIELDS,
+      data: [],
+      fileName: 'Plantilla_Kanban_ACPM.xlsx',
+      isTemplate: true,
+    });
     showToast({
       message: 'Plantilla de Actividades ACPM descargada exitosamente',
       status: 'success',
-      severity: 'success',
     });
   };
   
-  // Modal states
+  // Modal states (360° ACPM Management: Details, Observations, Reschedule, Closure)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [modalTab, setModalTab] = useState<ACPMModalTab>('details');
   const [newTitle, setNewTitle] = useState<string>('');
   const [newDesc, setNewDesc] = useState<string>('');
   const [newDueDate, setNewDueDate] = useState<string>('');
@@ -395,6 +456,27 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<KanbanTask | null>(null);
   const [renewalDate, setRenewalDate] = useState<string>('');
+
+  // Tab 2: Observations states
+  const [newObsText, setNewObsText] = useState<string>('');
+  const [newObsAuthor, setNewObsAuthor] = useState<string>('');
+  const [isSubmittingObs, setIsSubmittingObs] = useState<boolean>(false);
+
+  // Tab 3: Reschedule states
+  const [rescheduleNewDate, setRescheduleNewDate] = useState<string>('');
+  const [rescheduleReason, setRescheduleReason] = useState<string>('');
+  const [rescheduleAuthor, setRescheduleAuthor] = useState<string>('');
+  const [isSubmittingReschedule, setIsSubmittingReschedule] = useState<boolean>(false);
+
+  // Tab 4: Closure & Effectiveness states
+  const [closureHow, setClosureHow] = useState<string>('');
+  const [closureEvidence, setClosureEvidence] = useState<string>('');
+  const [closureEffectiveness, setClosureEffectiveness] = useState<
+    'eficaz' | 'en_seguimiento' | 'pendiente_verificar' | 'no_eficaz'
+  >('eficaz');
+  const [closureAuthor, setClosureAuthor] = useState<string>('');
+  const [closureDate, setClosureDate] = useState<string>('');
+  const [isSubmittingClosure, setIsSubmittingClosure] = useState<boolean>(false);
 
   const getRenewalDetails = (task: KanbanTask) => {
     if (task.referenceId && task.referenceId.startsWith('training_session')) {
@@ -540,17 +622,28 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     const task = tasks.find(t => t._id === taskId);
     if (!task || task.status === newStatus) return;
 
+    // If dragged to 'done' ('Completadas'), open the 360° Closure tab so user can document how it was closed
+    if (newStatus === 'done') {
+      openEditModal({ ...task, status: 'done' }, 'closure');
+    }
+
     // Optimistic UI update
     const previousTasks = [...tasks];
     setTasks(prev => prev.map(t => t._id === taskId ? { ...t, status: newStatus } : t));
 
     try {
-      await axios.post('/api/sgsst/kanban/save', {
+      const res = await axios.post('/api/sgsst/kanban/save', {
         _id: taskId,
         status: newStatus
       });
+      if (res.data && res.data._id) {
+        setTasks(prev => prev.map(t => t._id === taskId ? res.data : t));
+      }
       showToast({
-        message: `Actividad movida a ${getStatusLabel(newStatus)}`,
+        message:
+          newStatus === 'done'
+            ? 'Actividad movida a Completadas. Documenta cómo se cerró la actividad.'
+            : `Actividad movida a ${getStatusLabel(newStatus)}`,
         status: 'success'
       });
     } catch (err) {
@@ -565,6 +658,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
   const openCreateModal = (defaultDate?: string) => {
     setEditingTask(null);
+    setModalTab('details');
     setNewTitle('');
     setNewDesc('');
     setNewDueDate(defaultDate || new Date().toISOString().split('T')[0]);
@@ -578,11 +672,22 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     setNewActionType('correctiva');
     setSendEmailOnSave(false);
     setRenewalDate('');
+    setNewObsText('');
+    setNewObsAuthor(user?.name || 'Coordinador SST');
+    setRescheduleNewDate('');
+    setRescheduleReason('');
+    setRescheduleAuthor(user?.name || 'Coordinador SST');
+    setClosureHow('');
+    setClosureEvidence('');
+    setClosureEffectiveness('eficaz');
+    setClosureAuthor(user?.name || 'Coordinador SST');
+    setClosureDate(new Date().toISOString().split('T')[0]);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (task: KanbanTask) => {
+  const openEditModal = (task: KanbanTask, initialTab: ACPMModalTab = 'details') => {
     setEditingTask(task);
+    setModalTab(initialTab);
     setNewTitle(task.title);
     setNewDesc(task.description || '');
     const dateStr = task.dueDate ? task.dueDate.split('T')[0] : '';
@@ -597,7 +702,186 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     setNewActionType(task.actionType || 'correctiva');
     setSendEmailOnSave(false);
     setRenewalDate('');
+
+    const defaultAuthor = user?.name || task.assignedTo || 'Coordinador SST';
+    setNewObsText('');
+    setNewObsAuthor(defaultAuthor);
+
+    setRescheduleNewDate(dateStr);
+    setRescheduleReason('');
+    setRescheduleAuthor(defaultAuthor);
+
+    setClosureHow(task.closureDetails?.howItWasClosed || '');
+    setClosureEvidence(task.closureDetails?.evidenceRef || '');
+    setClosureEffectiveness(task.closureDetails?.effectiveness || 'eficaz');
+    setClosureAuthor(task.closureDetails?.closedBy || defaultAuthor);
+    setClosureDate(
+      task.closureDetails?.closedAt
+        ? task.closureDetails.closedAt.split('T')[0]
+        : new Date().toISOString().split('T')[0],
+    );
     setIsModalOpen(true);
+  };
+
+  // Add Observation in real time without closing modal
+  const handleAddObservation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    if (!newObsText.trim()) {
+      showToast({ message: 'Escribe el detalle de la observación o seguimiento.', status: 'warning' });
+      return;
+    }
+
+    setIsSubmittingObs(true);
+    try {
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: editingTask._id,
+        title: editingTask.title,
+        status: editingTask.status,
+        newObservation: {
+          text: newObsText.trim(),
+          author: newObsAuthor.trim() || 'Coordinador SST',
+          type: 'note',
+        },
+      });
+      if (res.data && res.data._id) {
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? res.data : t)));
+        setEditingTask(res.data);
+      } else {
+        // Optimistic fallback if backend returns partial
+        const fallbackObs = {
+          id: `obs_${Date.now()}`,
+          text: newObsText.trim(),
+          author: newObsAuthor.trim() || 'Coordinador SST',
+          type: 'note' as const,
+          createdAt: new Date().toISOString(),
+        };
+        const updatedTask: KanbanTask = {
+          ...editingTask,
+          observations: [...(editingTask.observations || []), fallbackObs],
+        };
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? updatedTask : t)));
+        setEditingTask(updatedTask);
+      }
+      setNewObsText('');
+      showToast({ message: 'Observación registrada en la bitácora de la actividad.', status: 'success' });
+    } catch (err) {
+      console.error('Error adding observation:', err);
+      showToast({ message: 'No se pudo guardar la observación.', status: 'error' });
+    } finally {
+      setIsSubmittingObs(false);
+    }
+  };
+
+  // Apply Reschedule with justification & history log
+  const handleApplyReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    if (!rescheduleNewDate || !rescheduleReason.trim()) {
+      showToast({
+        message: 'Ingresa la nueva fecha programada y el motivo de reprogramación.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    setIsSubmittingReschedule(true);
+    try {
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: editingTask._id,
+        title: editingTask.title,
+        reschedule: {
+          newDate: rescheduleNewDate,
+          reason: rescheduleReason.trim(),
+          changedBy: rescheduleAuthor.trim() || 'Coordinador SST',
+        },
+      });
+      if (res.data && res.data._id) {
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? res.data : t)));
+        setEditingTask(res.data);
+        setNewDueDate(rescheduleNewDate);
+      } else {
+        const entry = {
+          id: `resch_${Date.now()}`,
+          previousDate: editingTask.dueDate,
+          newDate: rescheduleNewDate,
+          reason: rescheduleReason.trim(),
+          changedBy: rescheduleAuthor.trim() || 'Coordinador SST',
+          changedAt: new Date().toISOString(),
+        };
+        const updatedTask: KanbanTask = {
+          ...editingTask,
+          dueDate: rescheduleNewDate,
+          isRescheduled: true,
+          rescheduleHistory: [...(editingTask.rescheduleHistory || []), entry],
+        };
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? updatedTask : t)));
+        setEditingTask(updatedTask);
+        setNewDueDate(rescheduleNewDate);
+      }
+      setRescheduleReason('');
+      showToast({
+        message: 'Actividad reprogramada con éxito y registrada en el historial.',
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Error rescheduling task:', err);
+      showToast({ message: 'No se pudo reprogramar la actividad.', status: 'error' });
+    } finally {
+      setIsSubmittingReschedule(false);
+    }
+  };
+
+  // Register full ACPM Closure & Effectiveness
+  const handleRegisterClosure = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    if (!closureHow.trim()) {
+      showToast({
+        message: 'Describe cómo se cerró la actividad o qué control se implementó.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    setIsSubmittingClosure(true);
+    try {
+      const closurePayload = {
+        howItWasClosed: closureHow.trim(),
+        evidenceRef: closureEvidence.trim(),
+        effectiveness: closureEffectiveness,
+        closedBy: closureAuthor.trim() || 'Coordinador SST',
+        closedAt: closureDate ? new Date(closureDate).toISOString() : new Date().toISOString(),
+      };
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: editingTask._id,
+        title: editingTask.title,
+        status: 'done',
+        renewalDate: renewalDate || undefined,
+        closureDetails: closurePayload,
+      });
+      if (res.data && res.data._id) {
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? res.data : t)));
+      } else {
+        const updatedTask: KanbanTask = {
+          ...editingTask,
+          status: 'done',
+          closureDetails: closurePayload,
+        };
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? updatedTask : t)));
+      }
+      showToast({
+        message: '¡Cierre ACPM y evidencia registrados! Actividad marcada como Completada.',
+        status: 'success',
+      });
+      setIsModalOpen(false);
+      setEditingTask(null);
+    } catch (err) {
+      console.error('Error registering closure:', err);
+      showToast({ message: 'No se pudo registrar el cierre de la actividad.', status: 'error' });
+    } finally {
+      setIsSubmittingClosure(false);
+    }
   };
 
   // Create or update task
@@ -1614,7 +1898,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       ) : activeTab === 'table' ? (
         <KanbanTableView
           tasks={filteredTasks as any}
-          onOpenEditModal={(task) => openEditModal(task as any)}
+          onOpenEditModal={(task, tab) => openEditModal(task as any, tab)}
           onDeleteTask={(id) => handleDeleteTask(id)}
           onMarkComplete={(id) => handleMarkComplete(id)}
           onStatusChange={(id, status) => handleQuickStatusChange(id, status)}
@@ -1628,7 +1912,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       ) : activeTab === 'timeline' ? (
         <KanbanTimelineView
           tasks={filteredTasks as any}
-          onOpenEditModal={(task) => openEditModal(task as any)}
+          onOpenEditModal={(task, tab) => openEditModal(task as any, tab)}
           onOpenCreateModal={(date) => openCreateModal(date)}
           onMarkComplete={(id) => handleMarkComplete(id)}
           categoryInfo={categoryInfo}
@@ -1652,7 +1936,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               data-tenshi-column={col.id}
               data-tenshi-column-title={col.title}
               data-tenshi-count={col.tasks.length}
-              className={`flex-shrink-0 w-80 flex flex-col h-full bg-white/70 dark:bg-gray-900/70 border border-border-medium/35 rounded-2xl shadow-sm overflow-hidden ${col.border}`}
+              className={`flex-shrink-0 w-84 flex flex-col h-full bg-white/70 dark:bg-gray-900/70 border border-border-medium/35 rounded-2xl shadow-sm overflow-hidden ${col.border}`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id as any)}
             >
@@ -1674,83 +1958,181 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                     <span className="text-[11px] font-semibold">Suelta o agrega actividades aquí</span>
                   </div>
                 ) : (
-                  col.tasks.map(task => (
-                    <div
-                      key={task._id}
-                      data-tenshi-task={task._id}
-                      data-tenshi-title={task.title}
-                      data-tenshi-status={task.status}
-                      data-tenshi-due={task.dueDate}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task._id)}
-                      className="p-3.5 bg-white dark:bg-gray-950 border border-border-medium/40 hover:border-teal-500/40 dark:border-white/5 rounded-xl shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all group flex flex-col justify-between"
-                    >
-                      <div>
-                        {/* Title & Actions */}
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-bold text-[13px] text-text-primary leading-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                            {task.title}
-                          </h4>
-                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
-                            <button
-                              onClick={() => openEditModal(task)}
-                              className="p-1 text-text-tertiary hover:text-teal-600 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 rounded transition-all"
-                              title="Editar actividad"
+                  col.tasks.map(task => {
+                    const obsList = Array.isArray(task.observations) ? task.observations : [];
+                    const reschedList = Array.isArray(task.rescheduleHistory)
+                      ? task.rescheduleHistory
+                      : [];
+                    const hasClosure = Boolean(task.closureDetails?.howItWasClosed?.trim());
+                    const latestObs = obsList.length > 0 ? obsList[obsList.length - 1] : null;
+
+                    return (
+                      <div
+                        key={task._id}
+                        data-tenshi-task={task._id}
+                        data-tenshi-title={task.title}
+                        data-tenshi-status={task.status}
+                        data-tenshi-due={task.dueDate}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, task._id)}
+                        className="p-3.5 bg-white dark:bg-gray-950 border border-border-medium/40 hover:border-teal-500/40 dark:border-white/5 rounded-2xl shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all group flex flex-col justify-between"
+                      >
+                        <div>
+                          {/* Title & Quick Header Actions */}
+                          <div className="flex items-start justify-between gap-2">
+                            <h4
+                              onClick={() => openEditModal(task, 'details')}
+                              className="font-bold text-[13px] text-text-primary leading-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors cursor-pointer"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTask(task._id)}
-                              className="p-1 text-text-tertiary hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded transition-all"
-                              title="Eliminar actividad"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                              {task.title}
+                            </h4>
+                            <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+                              <button
+                                onClick={() => openEditModal(task, 'details')}
+                                className="p-1 text-text-tertiary hover:text-teal-600 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 rounded-lg transition-all cursor-pointer"
+                                title="Editar detalles"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(task._id)}
+                                className="p-1 text-text-tertiary hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded-lg transition-all cursor-pointer"
+                                title="Eliminar actividad"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
+
+                          {/* Description */}
+                          {task.description && (
+                            <p className="text-[11px] text-text-secondary mt-1.5 line-clamp-2 leading-relaxed">
+                              {task.description}
+                            </p>
+                          )}
+
+                          {/* Reference name & AssignedTo */}
+                          <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
+                            {task.referenceName ? (
+                              <span className="flex items-center gap-1 text-[10px] text-text-tertiary font-bold">
+                                <span className="w-1.5 h-1.5 rounded-sm bg-teal-500" />
+                                {task.referenceName}
+                              </span>
+                            ) : <span />}
+
+                            {task.assignedTo && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-text-secondary">
+                                <User className="w-2.5 h-2.5 text-teal-500" />
+                                {task.assignedTo}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Badges de Seguimiento: Observaciones y Reprogramaciones */}
+                          {(obsList.length > 0 || task.isRescheduled || reschedList.length > 0) && (
+                            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                              {obsList.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(task, 'observations')}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 transition-all cursor-pointer"
+                                  title="Ver bitácora de observaciones"
+                                >
+                                  <MessageSquare className="w-2.5 h-2.5" />
+                                  <span>{obsList.length} {obsList.length === 1 ? 'obs.' : 'obs.'}</span>
+                                </button>
+                              )}
+
+                              {(task.isRescheduled || reschedList.length > 0) && (
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(task, 'reschedule')}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer"
+                                  title="Ver historial de reprogramaciones"
+                                >
+                                  <CalendarClock className="w-2.5 h-2.5" />
+                                  <span>Reprogramada ({reschedList.length || 1})</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Caja Resumen de Cierre ACPM (si tiene detalles de cierre) */}
+                          {hasClosure && (
+                            <div
+                              onClick={() => openEditModal(task, 'closure')}
+                              className="mt-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-1 cursor-pointer hover:bg-emerald-500/15 transition-all"
+                            >
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
+                                  <FileCheck2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                                  Cierre ACPM Documentado
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-[9px] font-black uppercase text-emerald-800 dark:text-emerald-200">
+                                  {task.closureDetails?.effectiveness === 'en_seguimiento'
+                                    ? 'En Seguimiento'
+                                    : task.closureDetails?.effectiveness === 'pendiente_verificar'
+                                      ? 'Por Verificar'
+                                      : task.closureDetails?.effectiveness === 'no_eficaz'
+                                        ? 'No Eficaz'
+                                        : 'Eficaz ✓'}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-emerald-900/90 dark:text-emerald-200/90 line-clamp-2 leading-snug">
+                                {task.closureDetails?.howItWasClosed}
+                              </p>
+                              {task.closureDetails?.evidenceRef && (
+                                <span className="text-[9px] font-bold text-emerald-700/80 dark:text-emerald-300/80 truncate">
+                                  📎 Evidencia: {task.closureDetails.evidenceRef}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Preview sutil de última observación cuando aún no está cerrada */}
+                          {!hasClosure && latestObs && (
+                            <div
+                              onClick={() => openEditModal(task, 'observations')}
+                              className="mt-2 p-2 rounded-xl bg-surface-secondary/50 dark:bg-gray-900/80 border border-border-medium/30 text-[10px] text-text-secondary cursor-pointer hover:border-cyan-500/40 transition-all"
+                            >
+                              <div className="flex items-center justify-between text-[9px] font-bold text-text-tertiary mb-0.5">
+                                <span className="text-cyan-600 dark:text-cyan-400">
+                                  💬 {latestObs.author || 'Seguimiento'}
+                                </span>
+                                <span>{formatDate(latestObs.createdAt)}</span>
+                              </div>
+                              <p className="line-clamp-2 italic text-text-secondary">
+                                &ldquo;{latestObs.text}&rdquo;
+                              </p>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Description */}
-                        {task.description && (
-                          <p className="text-[11px] text-text-secondary mt-1.5 line-clamp-2 leading-relaxed">
-                            {task.description}
-                          </p>
-                        )}
-
-                        {/* Reference name */}
-                        {task.referenceName && (
-                          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-text-tertiary font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-                            {task.referenceName}
+                        {/* Footer: Date, State badges & 3-Button WAPPY Action Bar */}
+                        <div className="mt-3 pt-3 border-t border-border-medium/20 flex flex-col gap-2">
+                          <div className="flex items-center justify-between text-[11px] text-text-tertiary">
+                            <span className="flex items-center gap-1 font-semibold">
+                              <Calendar className="w-3.5 h-3.5 text-text-tertiary" />
+                              {formatDate(task.dueDate)}
+                            </span>
+                            
+                            <span className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] uppercase ${
+                              task.status === 'overdue' 
+                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20' 
+                                : task.status === 'due_soon' 
+                                  ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20'
+                                  : task.status === 'done'
+                                    ? 'bg-green-50 text-green-600 dark:bg-green-950/20'
+                                    : 'bg-gray-50 text-gray-600 dark:bg-gray-800'
+                            }`}>
+                              {getDaysDiffText(task)}
+                            </span>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Footer: Date & State badges */}
-                      <div className="mt-3 pt-3 border-t border-border-medium/20 flex flex-col gap-2">
-                        <div className="flex items-center justify-between text-[11px] text-text-tertiary">
-                          <span className="flex items-center gap-1 font-semibold">
-                            <Calendar className="w-3.5 h-3.5 text-text-tertiary" />
-                            {formatDate(task.dueDate)}
-                          </span>
-                          
-                          <span className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] uppercase ${
-                            task.status === 'overdue' 
-                              ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20' 
-                              : task.status === 'due_soon' 
-                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20'
-                                : task.status === 'done'
-                                  ? 'bg-green-50 text-green-600 dark:bg-green-950/20'
-                                  : 'bg-gray-50 text-gray-600 dark:bg-gray-800'
-                          }`}>
-                            {getDaysDiffText(task)}
-                          </span>
-                        </div>
+                          {renderTaskBadge(task)}
 
-                        {renderTaskBadge(task)}
-
-                        {/* Complete action quick button */}
-                        {task.status !== 'done' && (
-                          task.referenceName === 'group_invitation' ? (
+                          {/* Group invitation or 3-Button WAPPY Quick Action Bar */}
+                          {task.referenceName === 'group_invitation' && task.status !== 'done' ? (
                             <div className="mt-2.5 flex items-center gap-2 w-full">
                               <button
                                 onClick={() => handleAcceptGroupInvite(task.referenceId || '')}
@@ -1768,24 +2150,48 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => {
-                                if (task.type !== 'manual') {
-                                  openEditModal(task);
-                                } else {
-                                  handleMarkComplete(task._id);
+                            <div className="mt-2 grid grid-cols-3 gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(task, 'observations')}
+                                className="py-1.5 px-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10px] font-extrabold flex items-center justify-center gap-1 transition-all duration-200 sm:hover:scale-[1.03] active:scale-95 cursor-pointer"
+                                title="Agregar observación o seguimiento"
+                              >
+                                <MessageSquare className="w-3 h-3 shrink-0" />
+                                <span className="truncate">Observación</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(task, 'reschedule')}
+                                className="py-1.5 px-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 text-[10px] font-extrabold flex items-center justify-center gap-1 transition-all duration-200 sm:hover:scale-[1.03] active:scale-95 cursor-pointer"
+                                title="Reprogramar fecha límite con justificación"
+                              >
+                                <CalendarClock className="w-3 h-3 shrink-0" />
+                                <span className="truncate">Reprogramar</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(task, 'closure')}
+                                className="py-1.5 px-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 text-[10px] font-extrabold flex items-center justify-center gap-1 transition-all duration-200 sm:hover:scale-[1.03] active:scale-95 cursor-pointer"
+                                title={
+                                  task.status === 'done'
+                                    ? 'Ver evidencia y eficacia del cierre'
+                                    : 'Registrar cómo se cerró la actividad'
                                 }
-                              }}
-                              className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-1 bg-surface-tertiary hover:bg-green-500/10 hover:text-green-600 dark:hover:bg-green-950/20 dark:hover:text-green-400 rounded-lg text-[11px] font-bold text-text-secondary transition-all"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              {task.type !== 'manual' ? 'Registrar Cierre / Renovación' : 'Marcar completado'}
-                            </button>
-                          )
-                        )}
+                              >
+                                <FileCheck2 className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  {task.status === 'done' ? 'Ver Cierre' : 'Cerrar ACPM'}
+                                </span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -1805,255 +2211,706 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       )}
 
-      {/* Create Task Dialog Modal (Responsive, ancho optimizado y scroll interno) */}
+      {/* Modal 360° de Gestión de Actividad SG-SST (4 Pestañas Estilo WAPPY: Detalles, Observaciones, Reprogramar, Cierre ACPM) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 px-3 sm:px-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-3xl max-h-[88vh] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-border-medium/30 transform duration-300 animate-in zoom-in-95">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-3xl max-h-[90vh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-border-medium/30 transform duration-300 animate-in zoom-in-95">
+            {/* Cabecera del Modal */}
             <div className="p-4 sm:p-5 border-b border-border-medium/30 flex items-start justify-between gap-3 bg-surface-secondary/20 dark:bg-zinc-950/40 shrink-0">
-              <div>
-                <h2 className="text-base sm:text-lg font-extrabold text-text-primary flex items-center gap-2">
-                  {editingTask ? <Pencil className="w-5 h-5 text-teal-500" /> : <Plus className="w-5 h-5 text-teal-500" />}
-                  {editingTask ? 'Editar Actividad SG-SST' : 'Programar Nueva Actividad / Compromiso'}
-                </h2>
-                <p className="text-xs text-text-tertiary mt-0.5">
-                  {editingTask ? 'Modifica los detalles, horarios y citación de la actividad seleccionada.' : 'Registra la actividad con fecha, horario y citación por correo electrónico.'}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base sm:text-lg font-extrabold text-text-primary flex items-center gap-2">
+                    {editingTask ? (
+                      <Pencil className="w-5 h-5 text-teal-500 shrink-0" />
+                    ) : (
+                      <Plus className="w-5 h-5 text-teal-500 shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {editingTask
+                        ? 'Gestión Integral 360° de Actividad ACPM'
+                        : 'Programar Nueva Actividad / Compromiso'}
+                    </span>
+                  </h2>
+                  {editingTask && (
+                    <span
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase border ${
+                        editingTask.status === 'done'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                          : editingTask.status === 'overdue'
+                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                            : editingTask.status === 'due_soon'
+                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                              : 'bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-300'
+                      }`}
+                    >
+                      {getStatusLabel(editingTask.status)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-tertiary mt-0.5 truncate">
+                  {editingTask
+                    ? editingTask.title
+                    : 'Registra la actividad con fecha, horario y citación por correo electrónico.'}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary dark:hover:bg-zinc-800"
+                className="p-1.5 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary dark:hover:bg-zinc-800 cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <form onSubmit={handleSaveTask} className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-4 text-xs">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-text-secondary">Título de la Actividad *</label>
-                <input 
-                  type="text" 
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Ej: Inspección mensual de botiquines"
-                  className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full disabled:opacity-65"
-                  required
-                  disabled={editingTask !== null && editingTask.type !== 'manual'}
-                />
+
+            {/* Barra de 4 Pestañas 360° (Solo al gestionar una actividad existente) */}
+            {editingTask && (
+              <div className="px-4 sm:px-5 pt-2.5 pb-2 border-b border-border-medium/30 bg-surface-primary/80 dark:bg-gray-900/80 flex items-center gap-1.5 overflow-x-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setModalTab('details')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
+                    modalTab === 'details'
+                      ? 'bg-teal-500/15 border-teal-500/50 text-teal-700 dark:text-teal-300 shadow-2xs'
+                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <ClipboardCheck className="w-3.5 h-3.5 text-teal-500" />
+                  <span>Hallazgo y Detalles</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalTab('observations')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
+                    modalTab === 'observations'
+                      ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-700 dark:text-cyan-300 shadow-2xs'
+                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-cyan-500" />
+                  <span>Observaciones</span>
+                  <span className="px-1.5 py-0.2 rounded-md bg-cyan-500/15 text-[10px] font-black">
+                    {editingTask.observations?.length || 0}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalTab('reschedule')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
+                    modalTab === 'reschedule'
+                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-700 dark:text-amber-300 shadow-2xs'
+                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Reprogramar</span>
+                  <span className="px-1.5 py-0.2 rounded-md bg-amber-500/15 text-[10px] font-black">
+                    {editingTask.rescheduleHistory?.length || 0}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalTab('closure')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
+                    modalTab === 'closure'
+                      ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-700 dark:text-emerald-300 shadow-2xs'
+                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <FileCheck2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Cierre y Evidencia ACPM</span>
+                  {editingTask.closureDetails?.howItWasClosed && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  )}
+                </button>
               </div>
+            )}
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-text-secondary">Descripción y Alcance (Opcional)</label>
-                <textarea 
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Detalles sobre la actividad a realizar..."
-                  className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary min-h-[75px] max-h-[140px] w-full resize-y"
-                />
-              </div>
+            {/* CONTENIDO PESTAÑA 1: HALLAZGO Y DETALLES (O CREACIÓN) */}
+            {(!editingTask || modalTab === 'details') && (
+              <>
+                <form onSubmit={handleSaveTask} className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-4 text-xs">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-text-secondary">Título de la Actividad / Hallazgo *</label>
+                    <input 
+                      type="text" 
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      placeholder="Ej: Inspección mensual de botiquines"
+                      className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                      required
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Fecha Límite *</label>
-                  <input 
-                    type="date" 
-                    value={newDueDate}
-                    onChange={(e) => setNewDueDate(e.target.value)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full disabled:opacity-65"
-                    required
-                    disabled={editingTask !== null && editingTask.type !== 'manual'}
-                  />
-                </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-text-secondary">Descripción del Hallazgo y Alcance (Opcional)</label>
+                    <textarea 
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                      placeholder="Detalles sobre el hallazgo identificado o la actividad a realizar..."
+                      className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary min-h-[75px] max-h-[140px] w-full resize-y"
+                    />
+                  </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Categoría</label>
-                  <select
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer disabled:opacity-65"
-                    disabled={editingTask !== null && editingTask.type !== 'manual'}
-                  >
-                    <option value="manual">General / Manual</option>
-                    <option value="training">Capacitación</option>
-                    <option value="medical_exam">Examen Médico</option>
-                    <option value="copasst_finding">COPASST / Comité</option>
-                    <option value="audit_finding">Auditoría / Hallazgo</option>
-                    <option value="pesv_inspection_finding">PESV / Vial</option>
-                    <option value="other">Otro</option>
-                  </select>
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-text-secondary">Fecha Límite *</label>
+                        {editingTask && (
+                          <button
+                            type="button"
+                            onClick={() => setModalTab('reschedule')}
+                            className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <CalendarClock className="w-3 h-3" />
+                            Reprogramar con bitácora
+                          </button>
+                        )}
+                      </div>
+                      <input 
+                        type="date" 
+                        value={newDueDate}
+                        onChange={(e) => setNewDueDate(e.target.value)}
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                        required
+                      />
+                    </div>
 
-              {/* Horario de Inicio y Fin */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Hora Inicio (Colombia)</label>
-                  <input
-                    type="time"
-                    value={newStartTime}
-                    onChange={(e) => setNewStartTime(e.target.value)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Hora Fin (Colombia)</label>
-                  <input
-                    type="time"
-                    value={newEndTime}
-                    onChange={(e) => setNewEndTime(e.target.value)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
-                  />
-                </div>
-              </div>
-
-              {/* Responsable y Ubicación */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Responsable / Asignado a</label>
-                  <input
-                    type="text"
-                    value={newAssignedTo}
-                    onChange={(e) => setNewAssignedTo(e.target.value)}
-                    placeholder="Ej: Coordinador SST / Juan Pérez"
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Ubicación / Enlace Meet</label>
-                  <input
-                    type="text"
-                    value={newLocation}
-                    onChange={(e) => setNewLocation(e.target.value)}
-                    placeholder="Ej: Sala de Juntas / Google Meet"
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
-                  />
-                </div>
-              </div>
-
-              {/* Prioridad y Tipo de Acción */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Prioridad</label>
-                  <select
-                    value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as any)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
-                  >
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Tipo de Acción</label>
-                  <select
-                    value={newActionType}
-                    onChange={(e) => setNewActionType(e.target.value as any)}
-                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
-                  >
-                    <option value="correctiva">Correctiva</option>
-                    <option value="preventiva">Preventiva</option>
-                    <option value="mejora">Mejora</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Citación por Correo y Google Calendar */}
-              <div className="p-3.5 rounded-2xl bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/40 flex flex-col gap-2.5">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-extrabold text-sky-900 dark:text-sky-300">
-                    Destinatarios para Citación por Correo
-                  </label>
-                  <input
-                    type="text"
-                    value={newEmailAttendees}
-                    onChange={(e) => setNewEmailAttendees(e.target.value)}
-                    placeholder="correos separados por coma (ej: colab@empresa.com, gerente@...)"
-                    className="px-3 py-2 bg-white dark:bg-gray-950 border border-sky-300 dark:border-sky-700/60 rounded-xl text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  />
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-sky-900 dark:text-sky-300 select-none">
-                  <input
-                    type="checkbox"
-                    checked={sendEmailOnSave}
-                    onChange={(e) => setSendEmailOnSave(e.target.checked)}
-                    className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-sky-400"
-                  />
-                  <span>Enviar citación por correo con archivo .ics al guardar</span>
-                </label>
-              </div>
-
-              {editingTask && editingTask.type !== 'manual' && (
-                <div className="p-4 bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-3.5 mt-1 transition-all">
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="text-xs font-extrabold text-teal-800 dark:text-teal-300">
-                        {getRenewalDetails(editingTask).title}
-                      </h3>
-                      <p className="text-[10px] text-teal-700/80 dark:text-teal-400/80 leading-snug mt-0.5">
-                        {getRenewalDetails(editingTask).helper}
-                      </p>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-text-secondary">Categoría / Origen</label>
+                      <select
+                        value={newType}
+                        onChange={(e) => setNewType(e.target.value)}
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
+                      >
+                        <option value="manual">General / Manual</option>
+                        <option value="training">Capacitación</option>
+                        <option value="medical_exam">Examen Médico</option>
+                        <option value="copasst_finding">COPASST / Comité</option>
+                        <option value="audit_finding">Auditoría / Hallazgo</option>
+                        <option value="diagnostico_finding">Diagnóstico Inicial 0312</option>
+                        <option value="unsafe_act_finding">Actos y Condiciones Inseguras</option>
+                        <option value="ipevar_finding">Matriz IPEVR (GTC 45)</option>
+                        <option value="atel_finding">Investigación ATEL</option>
+                        <option value="pesv_inspection_finding">PESV / Vial</option>
+                        <option value="other">Otro</option>
+                      </select>
                     </div>
                   </div>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-text-secondary flex items-center gap-1">
-                      {getRenewalDetails(editingTask).label}
+
+                  {/* Horario de Inicio y Fin */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-text-secondary">Hora Inicio (Colombia)</label>
+                      <input
+                        type="time"
+                        value={newStartTime}
+                        onChange={(e) => setNewStartTime(e.target.value)}
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-text-secondary">Hora Fin (Colombia)</label>
+                      <input
+                        type="time"
+                        value={newEndTime}
+                        onChange={(e) => setNewEndTime(e.target.value)}
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Responsable y Ubicación */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-text-secondary">Responsable / Asignado a</label>
+                      <input
+                        type="text"
+                        value={newAssignedTo}
+                        onChange={(e) => setNewAssignedTo(e.target.value)}
+                        placeholder="Ej: Coordinador SST / Juan Pérez"
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-text-secondary">Ubicación / Enlace Meet</label>
+                      <input
+                        type="text"
+                        value={newLocation}
+                        onChange={(e) => setNewLocation(e.target.value)}
+                        placeholder="Ej: Sala de Juntas / Google Meet"
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Prioridad y Tipo de Acción */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-text-secondary">Prioridad</label>
+                      <select
+                        value={newPriority}
+                        onChange={(e) => setNewPriority(e.target.value as any)}
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
+                      >
+                        <option value="alta">Alta</option>
+                        <option value="media">Media</option>
+                        <option value="baja">Baja</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-text-secondary">Tipo de Acción ACPM</label>
+                      <select
+                        value={newActionType}
+                        onChange={(e) => setNewActionType(e.target.value as any)}
+                        className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-sm focus:outline-none focus:border-teal-500 text-text-primary w-full cursor-pointer"
+                      >
+                        <option value="correctiva">Correctiva</option>
+                        <option value="preventiva">Preventiva</option>
+                        <option value="mejora">Mejora</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Citación por Correo y Google Calendar */}
+                  <div className="p-3.5 rounded-2xl bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/40 flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-extrabold text-sky-900 dark:text-sky-300">
+                        Destinatarios para Citación por Correo
+                      </label>
+                      <input
+                        type="text"
+                        value={newEmailAttendees}
+                        onChange={(e) => setNewEmailAttendees(e.target.value)}
+                        placeholder="correos separados por coma (ej: colab@empresa.com, gerente@...)"
+                        className="px-3 py-2 bg-white dark:bg-gray-950 border border-sky-300 dark:border-sky-700/60 rounded-xl text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-sky-900 dark:text-sky-300 select-none">
+                      <input
+                        type="checkbox"
+                        checked={sendEmailOnSave}
+                        onChange={(e) => setSendEmailOnSave(e.target.checked)}
+                        className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-sky-400"
+                      />
+                      <span>Enviar citación por correo con archivo .ics al guardar</span>
                     </label>
-                    <input 
-                      type="date" 
-                      value={renewalDate}
-                      onChange={(e) => setRenewalDate(e.target.value)}
-                      className="px-3.5 py-2.5 bg-white dark:bg-gray-950 border border-teal-500/40 focus:border-teal-500 rounded-xl text-sm focus:outline-none text-text-primary w-full shadow-inner transition-colors"
+                  </div>
+                </form>
+
+                {/* Action Buttons fijos abajo (Pestaña Detalles) */}
+                <div className="p-4 border-t border-border-medium/30 bg-surface-secondary/20 dark:bg-zinc-950/40 flex items-center justify-between gap-3 shrink-0">
+                  {editingTask ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        handleDeleteTask(editingTask._id);
+                      }}
+                      className="py-2.5 px-4 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                      title="Eliminar esta actividad del tablero"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar</span>
+                    </button>
+                  ) : <div />}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="py-2.5 px-4 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveTask}
+                      disabled={isSaving}
+                      className="py-2.5 px-5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSaving ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Programar Actividad'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* CONTENIDO PESTAÑA 2: BITÁCORA DE OBSERVACIONES Y SEGUIMIENTO */}
+            {editingTask && modalTab === 'observations' && (
+              <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-5 text-xs">
+                <form
+                  onSubmit={handleAddObservation}
+                  className="p-4 rounded-2xl bg-cyan-500/5 dark:bg-cyan-950/20 border border-cyan-500/30 flex flex-col gap-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-extrabold text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
+                      <MessageSquare className="w-4 h-4 text-cyan-500" />
+                      Registrar Nueva Observación o Avance de Gestión
+                    </h3>
+                    <span className="text-[10px] font-bold text-text-tertiary">
+                      Trazabilidad PHVA
+                    </span>
+                  </div>
+
+                  <textarea
+                    value={newObsText}
+                    onChange={(e) => setNewObsText(e.target.value)}
+                    placeholder="Escribe el avance, gestión parcial, cotización, reunión de seguimiento o novedad sobre esta actividad..."
+                    className="px-3.5 py-2.5 bg-white dark:bg-gray-950 border border-cyan-500/30 focus:border-cyan-500 rounded-xl text-xs text-text-primary min-h-[75px] focus:outline-none resize-y"
+                    required
+                  />
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                      <User className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                      <input
+                        type="text"
+                        value={newObsAuthor}
+                        onChange={(e) => setNewObsAuthor(e.target.value)}
+                        placeholder="Registrado por (Ej: Coordinador SST)"
+                        className="px-3 py-1.5 bg-white dark:bg-gray-950 border border-border-medium/40 rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-500 flex-1"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmittingObs}
+                      className="py-2 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm hover:brightness-105 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{isSubmittingObs ? 'Registrando...' : 'Agregar Observación'}</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Línea de tiempo de Observaciones */}
+                <div className="flex flex-col gap-2.5">
+                  <h4 className="text-xs font-extrabold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                    <History className="w-3.5 h-3.5 text-teal-500" />
+                    Historial y Bitácora de la Actividad ({editingTask.observations?.length || 0})
+                  </h4>
+
+                  {!editingTask.observations || editingTask.observations.length === 0 ? (
+                    <div className="p-8 rounded-2xl border border-dashed border-border-medium/40 text-center text-text-tertiary">
+                      <MessageSquare className="w-7 h-7 mx-auto mb-1.5 opacity-30 text-cyan-500" />
+                      <p className="font-bold text-xs text-text-secondary">
+                        Aún no hay observaciones registradas en esta actividad
+                      </p>
+                      <p className="text-[11px] mt-0.5">
+                        Usa el formulario superior para dejar constancia de avances, gestiones o bloqueos.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      {[...editingTask.observations].reverse().map((obs) => {
+                        const isResch = obs.type === 'reschedule';
+                        const isClos = obs.type === 'closure';
+                        return (
+                          <div
+                            key={obs.id}
+                            className={`p-3.5 rounded-2xl border flex flex-col gap-1.5 ${
+                              isClos
+                                ? 'bg-emerald-500/5 border-emerald-500/30'
+                                : isResch
+                                  ? 'bg-amber-500/5 border-amber-500/30'
+                                  : 'bg-surface-secondary/30 dark:bg-gray-950 border-border-medium/30'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="inline-flex items-center gap-1.5 font-extrabold text-xs text-text-primary">
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    isClos
+                                      ? 'bg-emerald-500'
+                                      : isResch
+                                        ? 'bg-amber-500'
+                                        : 'bg-cyan-500'
+                                  }`}
+                                />
+                                {obs.author || 'Coordinador SST'}
+                              </span>
+                              <span className="text-[10px] font-bold text-text-tertiary">
+                                {formatDate(obs.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">
+                              {obs.text}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* CONTENIDO PESTAÑA 3: REPROGRAMAR FECHA LÍMITE CON JUSTIFICACIÓN */}
+            {editingTask && modalTab === 'reschedule' && (
+              <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-5 text-xs">
+                <div className="p-3.5 rounded-2xl bg-surface-secondary/40 dark:bg-gray-950 border border-border-medium/30 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">
+                      Fecha Límite Vigente
+                    </span>
+                    <div className="text-sm font-black text-text-primary flex items-center gap-1.5 mt-0.5">
+                      <Calendar className="w-4 h-4 text-amber-500" />
+                      {formatDate(editingTask.dueDate)} ({getDaysDiffText(editingTask)})
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-extrabold text-[11px]">
+                    {editingTask.rescheduleHistory?.length || 0} reprogramaciones
+                  </span>
+                </div>
+
+                <form
+                  onSubmit={handleApplyReschedule}
+                  className="p-4 rounded-2xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/30 flex flex-col gap-3.5"
+                >
+                  <h3 className="text-xs font-extrabold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                    <CalendarClock className="w-4 h-4 text-amber-500" />
+                    Solicitar / Aplicar Nueva Fecha de Compromiso
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-text-secondary">
+                        Nueva Fecha Programada *
+                      </label>
+                      <input
+                        type="date"
+                        value={rescheduleNewDate}
+                        onChange={(e) => setRescheduleNewDate(e.target.value)}
+                        className="px-3.5 py-2 bg-white dark:bg-gray-950 border border-amber-500/40 rounded-xl text-xs font-bold text-text-primary focus:outline-none focus:border-amber-500"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-text-secondary">
+                        Autorizado / Reprogramado por
+                      </label>
+                      <input
+                        type="text"
+                        value={rescheduleAuthor}
+                        onChange={(e) => setRescheduleAuthor(e.target.value)}
+                        placeholder="Ej: Coordinador SST / Gerencia"
+                        className="px-3.5 py-2 bg-white dark:bg-gray-950 border border-border-medium/40 rounded-xl text-xs text-text-primary focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-text-secondary">
+                      Motivo / Justificación de la Reprogramación *
+                    </label>
+                    <textarea
+                      value={rescheduleReason}
+                      onChange={(e) => setRescheduleReason(e.target.value)}
+                      placeholder="Ej: Espera de llegada de repuestos/guardas por proveedor externo; se reprograma con autorización del COPASST..."
+                      className="px-3.5 py-2.5 bg-white dark:bg-gray-950 border border-amber-500/30 rounded-xl text-xs text-text-primary min-h-[70px] focus:outline-none focus:border-amber-500 resize-y"
+                      required
                     />
-                    <p className="text-[9px] text-text-tertiary italic">
-                      Nota: Al ingresar esta fecha y guardar, la actividad pasará a "Completadas" y se actualizará automáticamente en el módulo correspondiente.
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSubmittingReschedule}
+                      className="py-2 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm hover:brightness-105 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      <CalendarClock className="w-3.5 h-3.5" />
+                      <span>
+                        {isSubmittingReschedule ? 'Reprogramando...' : 'Aplicar Reprogramación'}
+                      </span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Historial de Reprogramaciones */}
+                <div className="flex flex-col gap-2.5">
+                  <h4 className="text-xs font-extrabold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                    <History className="w-3.5 h-3.5 text-amber-500" />
+                    Historial de Cambios de Fecha ({editingTask.rescheduleHistory?.length || 0})
+                  </h4>
+
+                  {!editingTask.rescheduleHistory || editingTask.rescheduleHistory.length === 0 ? (
+                    <div className="p-6 rounded-2xl border border-dashed border-border-medium/40 text-center text-text-tertiary">
+                      <p className="font-bold text-xs text-text-secondary">
+                        Esta actividad mantiene su fecha original sin reprogramaciones
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {[...editingTask.rescheduleHistory].reverse().map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/30 flex flex-col gap-1"
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <span className="font-extrabold text-xs text-amber-800 dark:text-amber-300">
+                              📅 {formatDate(item.previousDate)} ➔ {formatDate(item.newDate)}
+                            </span>
+                            <span className="text-[10px] font-bold text-text-tertiary">
+                              Por {item.changedBy} · {formatDate(item.changedAt)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-text-secondary mt-0.5">
+                            <strong>Motivo:</strong> {item.reason}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* CONTENIDO PESTAÑA 4: CIERRE Y EVIDENCIA ACPM (ESTÁNDAR 7.1.1) */}
+            {editingTask && modalTab === 'closure' && (
+              <form
+                onSubmit={handleRegisterClosure}
+                className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-4 text-xs"
+              >
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-xs font-extrabold text-emerald-800 dark:text-emerald-300">
+                      Acta de Cierre y Verificación de Eficacia ACPM (Dec. 1072 Art. 2.2.4.6.33 · Est. 7.1.1)
+                    </h3>
+                    <p className="text-[11px] text-emerald-700/85 dark:text-emerald-300/85 mt-0.5 leading-snug">
+                      Documenta cómo se ejecutó o cerró la actividad, qué soporte o evidencia respalda el cierre y califica la eficacia del control implementado.
                     </p>
                   </div>
                 </div>
-              )}
-            </form>
 
-            {/* Action Buttons fijos abajo */}
-            <div className="p-4 border-t border-border-medium/30 bg-surface-secondary/20 dark:bg-zinc-950/40 flex items-center justify-between gap-3 shrink-0">
-              {editingTask ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    handleDeleteTask(editingTask._id);
-                  }}
-                  className="py-2.5 px-4 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  title="Eliminar esta actividad del tablero"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Eliminar</span>
-                </button>
-              ) : <div />}
+                {/* Si es tarea automática (Exámenes, SOAT, RTM, Capacitación), mostrar también la fecha de renovación */}
+                {editingTask.type !== 'manual' && (
+                  <div className="p-4 bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-2.5">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-xs font-extrabold text-teal-800 dark:text-teal-300">
+                          {getRenewalDetails(editingTask).title}
+                        </h4>
+                        <p className="text-[10px] text-teal-700/80 dark:text-teal-400/80">
+                          {getRenewalDetails(editingTask).helper}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-text-secondary">
+                        {getRenewalDetails(editingTask).label}
+                      </label>
+                      <input
+                        type="date"
+                        value={renewalDate}
+                        onChange={(e) => setRenewalDate(e.target.value)}
+                        className="px-3.5 py-2 bg-white dark:bg-gray-950 border border-teal-500/40 rounded-xl text-xs font-bold text-text-primary focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                  </div>
+                )}
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="py-2.5 px-4 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveTask}
-                  disabled={isSaving}
-                  className="py-2.5 px-5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition disabled:opacity-50"
-                >
-                  {isSaving ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Programar Actividad'}
-                </button>
-              </div>
-            </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-extrabold text-text-primary">
+                    ¿Cómo se cerró la actividad? (Acción ejecutada / Control implementado) *
+                  </label>
+                  <textarea
+                    value={closureHow}
+                    onChange={(e) => setClosureHow(e.target.value)}
+                    placeholder="Ej: Se instalaron las guardas físicas en las 3 máquinas críticas, se demarcó el área y se realizó capacitación práctica con los operarios del turno..."
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-emerald-500/40 focus:border-emerald-500 rounded-xl text-xs text-text-primary min-h-[90px] focus:outline-none resize-y"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-text-secondary">
+                    Evidencia / Soporte Documental (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={closureEvidence}
+                    onChange={(e) => setClosureEvidence(e.target.value)}
+                    placeholder="Ej: Acta de inspección #18, Registro de asistencia firmado, Factura #4092 o link de Drive"
+                    className="px-3.5 py-2.5 bg-surface-tertiary/40 border border-border-medium/40 focus:border-emerald-500 rounded-xl text-xs text-text-primary focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-text-secondary">
+                      Evaluación de Eficacia
+                    </label>
+                    <select
+                      value={closureEffectiveness}
+                      onChange={(e) => setClosureEffectiveness(e.target.value as any)}
+                      className="px-3 py-2 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-xs font-bold text-text-primary focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    >
+                      <option value="eficaz">✅ Verificada y Eficaz</option>
+                      <option value="en_seguimiento">🔍 En Seguimiento Operativo</option>
+                      <option value="pendiente_verificar">⏳ Pendiente Verificar Eficacia</option>
+                      <option value="no_eficaz">⚠️ No Eficaz (Requiere Nueva Acción)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-text-secondary">
+                      Cerrado / Verificado por
+                    </label>
+                    <input
+                      type="text"
+                      value={closureAuthor}
+                      onChange={(e) => setClosureAuthor(e.target.value)}
+                      placeholder="Ej: Coordinador SST"
+                      className="px-3 py-2 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-xs text-text-primary focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-text-secondary">
+                      Fecha Real de Cierre
+                    </label>
+                    <input
+                      type="date"
+                      value={closureDate}
+                      onChange={(e) => setClosureDate(e.target.value)}
+                      className="px-3 py-2 bg-surface-tertiary/40 border border-border-medium/40 rounded-xl text-xs text-text-primary focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-border-medium/30 flex items-center justify-end gap-2 mt-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="py-2.5 px-4 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingClosure}
+                    className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-emerald-500/15 hover:brightness-105 active:scale-95 transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>
+                      {isSubmittingClosure
+                        ? 'Registrando Cierre...'
+                        : 'Registrar Cierre y Marcar Completada'}
+                    </span>
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

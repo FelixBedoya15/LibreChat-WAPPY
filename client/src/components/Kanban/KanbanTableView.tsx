@@ -27,8 +27,13 @@ import {
   List,
   Flag,
   Tag,
+  MessageSquare,
+  CalendarClock,
+  FileCheck2,
 } from 'lucide-react';
 import ExpandableButton, { ExpandableButtonVariant } from '~/components/Common/ExpandableButton';
+
+export type ACPMModalTab = 'details' | 'observations' | 'reschedule' | 'closure';
 
 export interface TableKanbanTask {
   _id: string;
@@ -49,11 +54,34 @@ export interface TableKanbanTask {
   startTime?: string;
   endTime?: string;
   location?: string;
+  observations?: Array<{
+    id: string;
+    text: string;
+    author: string;
+    type?: 'note' | 'reschedule' | 'closure' | 'status_change';
+    createdAt: string;
+  }>;
+  rescheduleHistory?: Array<{
+    id: string;
+    previousDate: string;
+    newDate: string;
+    reason: string;
+    changedBy: string;
+    changedAt: string;
+  }>;
+  isRescheduled?: boolean;
+  closureDetails?: {
+    howItWasClosed: string;
+    evidenceRef: string;
+    effectiveness: 'eficaz' | 'en_seguimiento' | 'pendiente_verificar' | 'no_eficaz';
+    closedBy: string;
+    closedAt?: string;
+  };
 }
 
 interface KanbanTableViewProps {
   tasks: TableKanbanTask[];
-  onOpenEditModal: (task: TableKanbanTask) => void;
+  onOpenEditModal: (task: TableKanbanTask, initialTab?: ACPMModalTab) => void;
   onDeleteTask: (id: string) => void;
   onMarkComplete: (id: string) => void;
   onStatusChange: (id: string, newStatus: 'todo' | 'due_soon' | 'overdue' | 'done') => void;
@@ -86,7 +114,6 @@ export default function KanbanTableView({
   tasks,
   onOpenEditModal,
   onDeleteTask,
-  onMarkComplete,
   onStatusChange,
   onPriorityChange,
   onOpenCreateModal,
@@ -434,16 +461,16 @@ export default function KanbanTableView({
       {/* Contenedor Tabla Base de Datos estilo Notion + WAPPY Glassmorphism */}
       <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border border-border-medium/30 rounded-2xl shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[980px]">
+          <table className="w-full text-left border-collapse min-w-[1040px]">
             <thead>
               <tr className="border-b border-border-medium/40 bg-surface-secondary/40 dark:bg-gray-950/60 text-[11px] font-extrabold text-text-secondary uppercase tracking-wider select-none">
                 <th className="py-3 px-3 w-11 text-center">✓</th>
                 <th
                   onClick={() => handleSort('title')}
-                  className="py-3 px-3 cursor-pointer group hover:bg-surface-secondary/70 transition-colors min-w-[260px]"
+                  className="py-3 px-3 cursor-pointer group hover:bg-surface-secondary/70 transition-colors min-w-[280px]"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Actividad / Compromiso</span>
+                    <span>Actividad / Compromiso / Gestión</span>
                     {renderSortIcon('title')}
                   </div>
                 </th>
@@ -501,7 +528,7 @@ export default function KanbanTableView({
                     {renderSortIcon('dueDate')}
                   </div>
                 </th>
-                <th className="py-3 px-3 w-28 text-right">Acciones</th>
+                <th className="py-3 px-3 w-44 text-right">Gestión 360°</th>
               </tr>
             </thead>
 
@@ -577,34 +604,37 @@ export default function KanbanTableView({
                           const originLink = getOriginRedirectPath(task);
                           const priorityVal = task.priority || 'media';
                           const actionTypeVal = task.actionType || 'correctiva';
+                          const obsList = Array.isArray(task.observations)
+                            ? task.observations
+                            : [];
+                          const reschedList = Array.isArray(task.rescheduleHistory)
+                            ? task.rescheduleHistory
+                            : [];
+                          const hasClosure = Boolean(task.closureDetails?.howItWasClosed?.trim());
 
                           return (
                             <tr
                               key={task._id}
                               data-tenshi-row={task._id}
                               className={`group hover:bg-teal-500/[0.03] dark:hover:bg-teal-500/[0.05] transition-colors ${
-                                isDone ? 'opacity-75 bg-surface-secondary/10' : ''
+                                isDone ? 'opacity-80 bg-surface-secondary/10' : ''
                               }`}
                             >
-                              {/* 1. Check rápido estilo WAPPY */}
+                              {/* 1. Check rápido estilo WAPPY -> Abre modal de cierre ACPM */}
                               <td className="py-3 px-3 text-center align-middle">
                                 <button
                                   type="button"
                                   onClick={() => {
                                     if (isDone) {
-                                      onStatusChange(task._id, 'todo');
-                                    } else if (task.type !== 'manual') {
-                                      onOpenEditModal(task);
+                                      onOpenEditModal(task, 'closure');
                                     } else {
-                                      onMarkComplete(task._id);
+                                      onOpenEditModal(task, 'closure');
                                     }
                                   }}
                                   title={
                                     isDone
-                                      ? 'Reabrir actividad'
-                                      : task.type !== 'manual'
-                                        ? 'Registrar cierre / renovación'
-                                        : 'Marcar como completada'
+                                      ? 'Ver evidencia de cierre ACPM'
+                                      : 'Registrar cierre y evidencia ACPM'
                                   }
                                   className={`w-7 h-7 rounded-xl inline-flex items-center justify-center border transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer ${
                                     isDone
@@ -616,13 +646,13 @@ export default function KanbanTableView({
                                 </button>
                               </td>
 
-                              {/* 2. Actividad / Descripción */}
+                              {/* 2. Actividad / Descripción / Badges 360° */}
                               <td className="py-3 px-3 align-middle">
-                                <div className="flex flex-col gap-0.5">
-                                  <div className="flex items-center gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <button
                                       type="button"
-                                      onClick={() => onOpenEditModal(task)}
+                                      onClick={() => onOpenEditModal(task, 'details')}
                                       className={`text-left font-bold text-xs sm:text-[13px] hover:text-teal-600 dark:hover:text-teal-400 transition-colors cursor-pointer ${
                                         isDone
                                           ? 'line-through text-text-tertiary'
@@ -631,6 +661,30 @@ export default function KanbanTableView({
                                     >
                                       {task.title?.trim() || 'Actividad sin título'}
                                     </button>
+
+                                    {obsList.length > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onOpenEditModal(task, 'observations')}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 transition-all cursor-pointer"
+                                        title="Ver bitácora de observaciones"
+                                      >
+                                        <MessageSquare className="w-2.5 h-2.5" />
+                                        <span>{obsList.length} obs.</span>
+                                      </button>
+                                    )}
+
+                                    {(task.isRescheduled || reschedList.length > 0) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onOpenEditModal(task, 'reschedule')}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer"
+                                        title="Ver historial de reprogramaciones"
+                                      >
+                                        <CalendarClock className="w-2.5 h-2.5" />
+                                        <span>Reprog. ({reschedList.length || 1})</span>
+                                      </button>
+                                    )}
                                   </div>
 
                                   {task.description && (
@@ -639,7 +693,30 @@ export default function KanbanTableView({
                                     </p>
                                   )}
 
-                                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                  {/* Resumen de Cierre ACPM si está cerrada */}
+                                  {hasClosure && (
+                                    <div
+                                      onClick={() => onOpenEditModal(task, 'closure')}
+                                      className="mt-0.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 cursor-pointer hover:bg-emerald-500/15 transition-colors"
+                                    >
+                                      <FileCheck2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                                      <span className="font-bold truncate max-w-[320px]">
+                                        Cierre: {task.closureDetails?.howItWasClosed}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Última observación si aún no tiene cierre */}
+                                  {!hasClosure && obsList.length > 0 && (
+                                    <div
+                                      onClick={() => onOpenEditModal(task, 'observations')}
+                                      className="mt-0.5 text-[10px] text-text-tertiary italic truncate max-w-[340px] cursor-pointer hover:text-cyan-600 dark:hover:text-cyan-400"
+                                    >
+                                      💬 Últ. nota: &ldquo;{obsList[obsList.length - 1]?.text}&rdquo;
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     {task.referenceName &&
                                       task.referenceName !== 'group_invitation' && (
                                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-400">
@@ -669,8 +746,8 @@ export default function KanbanTableView({
                                       | 'due_soon'
                                       | 'overdue'
                                       | 'done';
-                                    if (nextStatus === 'done' && task.type !== 'manual') {
-                                      onOpenEditModal(task);
+                                    if (nextStatus === 'done') {
+                                      onOpenEditModal(task, 'closure');
                                       return;
                                     }
                                     onStatusChange(task._id, nextStatus);
@@ -774,16 +851,41 @@ export default function KanbanTableView({
                                 </div>
                               </td>
 
-                              {/* 9. Acciones (Botones WAPPY ExpandableButton) */}
+                              {/* 9. Acciones 360° (Botones WAPPY ExpandableButton) */}
                               <td className="py-3 px-3 align-middle text-right">
-                                <div className="inline-flex items-center justify-end gap-1.5">
+                                <div className="inline-flex items-center justify-end gap-1">
                                   <ExpandableButton
-                                    onClick={() => onOpenEditModal(task)}
+                                    onClick={() => onOpenEditModal(task, 'observations')}
+                                    variant="cyan"
+                                    size="sm"
+                                    badge={obsList.length > 0 ? obsList.length : undefined}
+                                    icon={<MessageSquare className="w-3.5 h-3.5" />}
+                                    label="Observación"
+                                    title="Agregar o ver observaciones de seguimiento"
+                                  />
+                                  <ExpandableButton
+                                    onClick={() => onOpenEditModal(task, 'reschedule')}
+                                    variant="amber"
+                                    size="sm"
+                                    icon={<CalendarClock className="w-3.5 h-3.5" />}
+                                    label="Reprogramar"
+                                    title="Reprogramar fecha con justificación"
+                                  />
+                                  <ExpandableButton
+                                    onClick={() => onOpenEditModal(task, 'closure')}
+                                    variant="teal"
+                                    size="sm"
+                                    icon={<FileCheck2 className="w-3.5 h-3.5" />}
+                                    label={isDone ? 'Ver Cierre' : 'Cerrar ACPM'}
+                                    title="Documentar cómo se cerró la actividad y su eficacia"
+                                  />
+                                  <ExpandableButton
+                                    onClick={() => onOpenEditModal(task, 'details')}
                                     variant="orange"
                                     size="sm"
                                     icon={<Pencil className="w-3.5 h-3.5" />}
                                     label="Editar"
-                                    title="Editar actividad"
+                                    title="Editar detalles de la actividad"
                                   />
                                   <ExpandableButton
                                     onClick={() => onDeleteTask(task._id)}

@@ -5813,6 +5813,32 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     ],
     reportTags: ['sgsst-perfil-sociodemografico'],
   },
+  trigger_whatsapp: {
+    moduleTitle: '⚡ Disparador · WhatsApp Bot SST (En Construcción)',
+    moduleBadge: 'Disparador · WhatsApp (Próximamente)',
+    fieldsLabel: 'Eventos y Mensajes de WhatsApp Business API que Dispararán el Flujo',
+    fields: [
+      'Mensaje de Texto o Nota de Voz del Trabajador por WhatsApp',
+      'Fotografía de Acto o Condición Insegura Enviada desde Terreno',
+      'Reporte Inmediato de Accidente / Incidente o Adjunto FURAT en PDF',
+      'Incapacidad Médica o Certificado Enviado por WhatsApp',
+      'Identificación Automática del Colaborador por Número de Celular y Cédula',
+      'Confirmación de Recibido por WhatsApp con Código de Radicado SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Reporte de Actos/Condiciones con Foto + Nota de Voz por WhatsApp',
+        description: 'Captura reportes de campo enviados al bot oficial de WhatsApp',
+        fields: [
+          'Mensaje de Texto o Nota de Voz del Trabajador por WhatsApp',
+          'Fotografía de Acto o Condición Insegura Enviada desde Terreno',
+          'Identificación Automática del Colaborador por Número de Celular y Cédula',
+          'Confirmación de Recibido por WhatsApp con Código de Radicado SST',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-reporte-actos', 'sgsst-casos-atel'],
+  },
 
   // ═══ EQUIPO 2: EXTRAER DATOS (8 NODOS EXTRACTOR_NODES) ═══
   extract_gmail: {
@@ -7865,10 +7891,29 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
     return MODULE_METADATA_MAP.wappy_memory_company;
   }
   if (raw.startsWith('agent_extra') || cleanId.startsWith('agent_extra') || cleanId.includes('subagent')) {
-    return MODULE_METADATA_MAP[cleanId] || MODULE_METADATA_MAP.subagent_auditor_calidad;
+    if (MODULE_METADATA_MAP[cleanId]) return MODULE_METADATA_MAP[cleanId];
+    const subDef = getNodeDefById(cleanId) || getNodeDefById(raw);
+    if (subDef) {
+      return {
+        ...MODULE_METADATA_MAP.subagent_auditor_calidad,
+        moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+        moduleBadge: subDef.badge || 'Sub-Agente WAPPY',
+        fieldsLabel: `Criterios, Entregables y Funciones de ${subDef.label}`,
+      };
+    }
+    return MODULE_METADATA_MAP.subagent_auditor_calidad;
   }
   if (cleanId === 'somos_sst_trabajadores' || cleanId === 'extract_sst_workers') {
     return MODULE_METADATA_MAP.extract_sst_workers;
+  }
+  if (cleanId === 'somos_sst_perfiles_cargo') {
+    return MODULE_METADATA_MAP.hito2_perfiles_cargo;
+  }
+  if (cleanId === 'somos_sst_epp') {
+    return MODULE_METADATA_MAP.hito3_epp;
+  }
+  if (cleanId === 'somos_sst_examenes') {
+    return MODULE_METADATA_MAP.hito2_condiciones_salud;
   }
   if (cleanId === 'matriz_ipevar') {
     return MODULE_METADATA_MAP.hito2_matriz_ipevar;

@@ -14,8 +14,11 @@ import {
   CalendarDays,
   CalendarRange,
   CalendarClock,
+  MessageSquare,
+  FileCheck2,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
+import type { ACPMModalTab } from './KanbanTableView';
 
 export interface TimelineKanbanTask {
   _id: string;
@@ -33,11 +36,34 @@ export interface TimelineKanbanTask {
   companyId?: string;
   completedAt?: string;
   createdAt?: string;
+  observations?: Array<{
+    id: string;
+    text: string;
+    author: string;
+    type?: 'note' | 'reschedule' | 'closure' | 'status_change';
+    createdAt: string;
+  }>;
+  rescheduleHistory?: Array<{
+    id: string;
+    previousDate: string;
+    newDate: string;
+    reason: string;
+    changedBy: string;
+    changedAt: string;
+  }>;
+  isRescheduled?: boolean;
+  closureDetails?: {
+    howItWasClosed: string;
+    evidenceRef: string;
+    effectiveness: 'eficaz' | 'en_seguimiento' | 'pendiente_verificar' | 'no_eficaz';
+    closedBy: string;
+    closedAt?: string;
+  };
 }
 
 interface KanbanTimelineViewProps {
   tasks: TimelineKanbanTask[];
-  onOpenEditModal: (task: TimelineKanbanTask) => void;
+  onOpenEditModal: (task: TimelineKanbanTask, initialTab?: ACPMModalTab) => void;
   onOpenCreateModal: (defaultDate?: string) => void;
   onMarkComplete: (id: string) => void;
   categoryInfo: Record<string, { label: string; color: string; bg: string }>;
@@ -82,7 +108,6 @@ export default function KanbanTimelineView({
   tasks,
   onOpenEditModal,
   onOpenCreateModal,
-  onMarkComplete,
   categoryInfo,
   formatDate,
   getDaysDiffText,
@@ -447,11 +472,11 @@ export default function KanbanTimelineView({
         ) : (
           <div className="flex min-w-0 overflow-hidden">
             {/* Panel Izquierdo Fijo: Actividades y Metadatos */}
-            <div className="w-56 sm:w-72 md:w-80 shrink-0 border-r border-border-medium/40 bg-surface-primary/90 dark:bg-gray-900/90 flex flex-col z-10">
+            <div className="w-60 sm:w-76 md:w-84 shrink-0 border-r border-border-medium/40 bg-surface-primary/90 dark:bg-gray-900/90 flex flex-col z-10">
               {/* Cabecera Izquierda */}
               <div className="h-14 px-3.5 border-b border-border-medium/40 bg-surface-secondary/40 dark:bg-gray-950/60 flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-text-secondary uppercase tracking-wider">
-                  Actividad / Responsable
+                  Actividad / Seguimiento
                 </span>
                 <span className="px-2 py-0.5 rounded-xl text-[10px] font-extrabold bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300">
                   {safeTasks.length}
@@ -492,10 +517,18 @@ export default function KanbanTimelineView({
                       {!isCollapsed &&
                         grp.tasks.map((task) => {
                           const isDone = task.status === 'done';
+                          const obsCount = Array.isArray(task.observations)
+                            ? task.observations.length
+                            : 0;
+                          const isResched =
+                            Boolean(task.isRescheduled) ||
+                            (Array.isArray(task.rescheduleHistory) &&
+                              task.rescheduleHistory.length > 0);
+
                           return (
                             <div
                               key={task._id}
-                              onClick={() => onOpenEditModal(task)}
+                              onClick={() => onOpenEditModal(task, 'details')}
                               className="h-14 px-3 flex items-center justify-between gap-2 hover:bg-teal-500/[0.04] cursor-pointer transition-colors group"
                             >
                               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -503,18 +536,18 @@ export default function KanbanTimelineView({
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (task.type !== 'manual') {
-                                      onOpenEditModal(task);
-                                    } else if (!isDone) {
-                                      onMarkComplete(task._id);
-                                    }
+                                    onOpenEditModal(task, 'closure');
                                   }}
                                   className={`w-6 h-6 rounded-xl shrink-0 inline-flex items-center justify-center border transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 cursor-pointer ${
                                     isDone
                                       ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
                                       : 'bg-teal-500/10 border-teal-500/30 text-teal-600/40 hover:text-teal-600'
                                   }`}
-                                  title={isDone ? 'Completada' : 'Marcar completada'}
+                                  title={
+                                    isDone
+                                      ? 'Ver evidencia de cierre ACPM'
+                                      : 'Registrar cierre ACPM'
+                                  }
                                 >
                                   <Check className="w-3 h-3" />
                                 </button>
@@ -529,8 +562,8 @@ export default function KanbanTimelineView({
                                   >
                                     {task.title?.trim() || 'Actividad sin título'}
                                   </div>
-                                  <div className="flex items-center gap-2 text-[10px] text-text-tertiary mt-0.5">
-                                    <span className="inline-flex items-center gap-0.5 truncate max-w-[115px]">
+                                  <div className="flex items-center gap-1.5 text-[10px] text-text-tertiary mt-0.5">
+                                    <span className="inline-flex items-center gap-0.5 truncate max-w-[95px]">
                                       <User className="w-2.5 h-2.5 text-teal-500 shrink-0" />
                                       {task.assignedTo?.trim() || 'Sin asignar'}
                                     </span>
@@ -538,6 +571,33 @@ export default function KanbanTimelineView({
                                     <span className="font-semibold shrink-0">
                                       {formatDate(task.dueDate)}
                                     </span>
+                                    {obsCount > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onOpenEditModal(task, 'observations');
+                                        }}
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-extrabold cursor-pointer"
+                                        title="Ver observaciones"
+                                      >
+                                        <MessageSquare className="w-2.5 h-2.5" />
+                                        {obsCount}
+                                      </button>
+                                    )}
+                                    {isResched && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onOpenEditModal(task, 'reschedule');
+                                        }}
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold cursor-pointer"
+                                        title="Reprogramada"
+                                      >
+                                        <CalendarClock className="w-2.5 h-2.5" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -645,13 +705,20 @@ export default function KanbanTimelineView({
                                       left: `${bar.leftPct}%`,
                                       width: `${bar.widthPct}%`,
                                     }}
-                                    onClick={() => onOpenEditModal(task)}
-                                    title={`${task.title} · Vence: ${formatDate(task.dueDate)} (${getDaysDiffText(task)})`}
+                                    onClick={() => onOpenEditModal(task, 'details')}
+                                    title={`${task.title} · Vence: ${formatDate(task.dueDate)} (${getDaysDiffText(task)})${
+                                      task.closureDetails?.howItWasClosed
+                                        ? ` · Cierre: ${task.closureDetails.howItWasClosed}`
+                                        : ''
+                                    }`}
                                     className={`absolute h-8 rounded-xl px-2.5 flex items-center justify-between gap-2 cursor-pointer shadow-md hover:scale-[1.01] hover:brightness-105 transition-all z-10 overflow-hidden ${getBarGradientClass(
                                       task.status,
                                     )}`}
                                   >
                                     <div className="flex items-center gap-1.5 min-w-0">
+                                      {task.closureDetails?.howItWasClosed && (
+                                        <FileCheck2 className="w-3.5 h-3.5 shrink-0" />
+                                      )}
                                       <span className="text-[11px] font-extrabold truncate">
                                         {task.title?.trim() || 'Actividad'}
                                       </span>

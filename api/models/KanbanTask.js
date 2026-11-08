@@ -128,6 +128,44 @@ const kanbanTaskSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    isRescheduled: {
+      type: Boolean,
+      default: false,
+    },
+    observations: [
+      {
+        id: { type: String },
+        text: { type: String, trim: true },
+        author: { type: String, trim: true, default: 'Coordinador SST' },
+        type: {
+          type: String,
+          enum: ['note', 'reschedule', 'closure', 'status_change'],
+          default: 'note',
+        },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    rescheduleHistory: [
+      {
+        id: { type: String },
+        previousDate: { type: String },
+        newDate: { type: String },
+        reason: { type: String, trim: true },
+        changedBy: { type: String, trim: true, default: 'Coordinador SST' },
+        changedAt: { type: Date, default: Date.now },
+      },
+    ],
+    closureDetails: {
+      howItWasClosed: { type: String, trim: true, default: '' },
+      evidenceRef: { type: String, trim: true, default: '' },
+      effectiveness: {
+        type: String,
+        enum: ['eficaz', 'en_seguimiento', 'pendiente_verificar', 'no_eficaz'],
+        default: 'eficaz',
+      },
+      closedBy: { type: String, trim: true, default: '' },
+      closedAt: { type: Date },
+    },
   },
   {
     timestamps: true,

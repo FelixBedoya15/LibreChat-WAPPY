@@ -57,6 +57,12 @@ import {
   Trash2,
   Maximize2,
   Minimize2,
+  Database,
+  Calendar,
+  Send,
+  RefreshCw,
+  Briefcase,
+  Building2,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import WappyNodeCustomEditor from './WappyNodeCustomEditors';
@@ -101,7 +107,7 @@ import {
 export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): React.ReactNode {
   const id = (nodeId || '').toLowerCase();
 
-  // Sub-Agentes WAPPY con Rotación Automática de Avatares 3D (Suri Suricato, Max Perro, Paz Paloma, Capi Capibara)
+  // Sub-Agentes WAPPY con Rotación Automática de Avatares 3D (Tenshi, Suri Suricato, Max Perro, Paz Paloma, Capi Capibara)
   if (id.includes('subagent')) {
     const subAvatars = [
       '/assets/tenshi_suricato.png?v=20261108',
@@ -114,15 +120,17 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
       hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
     }
     const avatarUrl =
-      id.includes('research') || id.includes('investigador')
-        ? '/assets/tenshi_suricato.png?v=20261108'
-        : id.includes('scraper') || id.includes('perro')
-          ? '/assets/tenshi_perro.png?v=20261108'
-          : id.includes('auditor') || id.includes('redactor') || id.includes('paloma')
-            ? '/assets/tenshi_paloma.png?v=20261108'
-            : id.includes('medico') || id.includes('legal') || id.includes('capibara')
-              ? '/assets/tenshi_capibara.png?v=20261108'
-              : subAvatars[hash % subAvatars.length];
+      id.includes('subagent_chat_tenshi')
+        ? '/assets/tenshi.png?v=20261108'
+        : id.includes('research') || id.includes('investigador') || id.includes('editable')
+          ? '/assets/tenshi_suricato.png?v=20261108'
+          : id.includes('scraper') || id.includes('perro') || id.includes('alturas') || id.includes('vial')
+            ? '/assets/tenshi_perro.png?v=20261108'
+            : id.includes('auditor') || id.includes('redactor') || id.includes('paloma') || id.includes('instructor')
+              ? '/assets/tenshi_paloma.png?v=20261108'
+              : id.includes('medico') || id.includes('legal') || id.includes('capibara') || id.includes('psicolog')
+                ? '/assets/tenshi_capibara.png?v=20261108'
+                : subAvatars[hash % subAvatars.length];
     return (
       <img
         src={avatarUrl}
@@ -251,7 +259,7 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Google NotebookLM
+  // Google NotebookLM / RAG Documental
   if (id.includes('notebooklm') || id.includes('rag_documental')) {
     return (
       <svg viewBox="0 0 48 48" className={sizeClass}>
@@ -307,6 +315,29 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
+  // ── 6 Scrapers Oficiales por Cédula/Placa vía Antigravity (Evaluar ANTES de id.includes('antigravity')) ──
+  if (id.includes('scraper_agy_alto_riesgo')) {
+    return <HardHat className={`${sizeClass} text-amber-500`} />;
+  }
+  if (id.includes('scraper_agy_arl_directo')) {
+    return <ShieldCheck className={`${sizeClass} text-emerald-500`} />;
+  }
+  if (id.includes('scraper_agy_pensiones_directo')) {
+    return <BarChart3 className={`${sizeClass} text-teal-500`} />;
+  }
+  if (id.includes('scraper_agy_salud_rethus')) {
+    return <Stethoscope className={`${sizeClass} text-rose-500`} />;
+  }
+  if (id.includes('scraper_agy_vial_pesv')) {
+    return <Car className={`${sizeClass} text-orange-500`} />;
+  }
+  if (id.includes('scraper_agy_antecedentes')) {
+    return <Scale className={`${sizeClass} text-rose-500`} />;
+  }
+  if (id.includes('scraping') || id.includes('web_scraper') || id.includes('scraper_agy_') || id.includes('scraper_node')) {
+    return <Terminal className={`${sizeClass} text-orange-500`} />;
+  }
+
   // Google Antigravity Local (Mac/PC) + MCP
   if (id.includes('antigravity')) {
     return (
@@ -349,33 +380,23 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     return <Clapperboard className={`${sizeClass} text-purple-500`} />;
   }
 
-  // ── Iconos Exactos de los 8 Equipos de Nodos y Herramientas WAPPY ──
+  // ── Iconos Exactos de los 10 Equipos de Nodos, Herramientas WAPPY y los 50 Aplicativos SST ──
   if (id.includes('trigger_qr_worker') || id.includes('qr')) {
     return <QrCode className={`${sizeClass} text-fuchsia-600 dark:text-fuchsia-400`} />;
   }
   if (id.includes('trigger_webhook') || id.includes('webhook_api') || id.includes('webhook')) {
     return <Zap className={`${sizeClass} text-amber-500 fill-amber-500/20`} />;
   }
-  if (id.includes('hito8_predictivo') || id.includes('predictivo') || id.includes('oraculo')) {
-    return <Brain className={`${sizeClass} text-indigo-600 dark:text-indigo-400`} />;
+  if (id.includes('schedule_cron')) {
+    return <Clock className={`${sizeClass} text-orange-500`} />;
   }
-  if (id.includes('acpm_task') || id.includes('acpm') || id.includes('mejora_continua')) {
-    return <ClipboardCheck className={`${sizeClass} text-emerald-600 dark:text-emerald-400`} />;
+  if (id.includes('consultar_agente') || id.includes('especialista') || id.includes('trigger_agent')) {
+    return <UserCheck className={`${sizeClass} text-violet-500`} />;
   }
-  if (id.includes('somos_sst_update')) {
-    return <ShieldCheck className={`${sizeClass} text-teal-600 dark:text-teal-400`} />;
-  }
-  if (id.includes('web_search') || id === 'google') {
-    return <Globe className={`${sizeClass} text-blue-500`} />;
-  }
-  if (id.includes('examenes_medicos') || id.includes('profesiograma') || id.includes('sve_') || id.includes('reintegro') || id.includes('rehabilitacion')) {
-    return <Stethoscope className={`${sizeClass} text-rose-500`} />;
-  }
-  if (id.includes('somos_sst') || id.includes('sgsst_db_audit') || id.includes('medlineplus') || id.includes('extract_sst_app') || id.includes('memory_company')) {
-    return <HeartPulse className={`${sizeClass} text-rose-500`} />;
-  }
-  if (id.includes('extract_sst_workers')) {
-    return <Users className={`${sizeClass} text-teal-600`} />;
+
+  // Memorias (Grupo 4)
+  if (id.includes('memory_company')) {
+    return <Building2 className={`${sizeClass} text-pink-500`} />;
   }
   if (id.includes('memory_antiduplicate')) {
     return <Clock className={`${sizeClass} text-amber-500`} />;
@@ -383,19 +404,66 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('memory_procedural')) {
     return <Scale className={`${sizeClass} text-teal-600`} />;
   }
+
+  // Herramientas WAPPY y Extractores Específicos (Evaluar ANTES de cualquier comodín general)
+  if (id.includes('extract_sst_app')) {
+    return <Database className={`${sizeClass} text-purple-600 dark:text-purple-400`} />;
+  }
+  if (id.includes('extract_sst_workers') || id.includes('somos_sst_trabajadores') || id.includes('sociodemografico')) {
+    return <Users className={`${sizeClass} text-teal-600`} />;
+  }
+  if (id.includes('somos_sst_perfiles_cargo') || id.includes('perfiles_cargo')) {
+    return <Briefcase className={`${sizeClass} text-cyan-600 dark:text-cyan-400`} />;
+  }
+  if (id.includes('somos_sst_epp') || id.includes('hito3_epp') || id.includes('epp')) {
+    return <HardHat className={`${sizeClass} text-amber-600`} />;
+  }
+  if (
+    id.includes('somos_sst_examenes') ||
+    id.includes('condiciones_salud') ||
+    id.includes('examenes_medicos') ||
+    id.includes('profesiograma') ||
+    id.includes('medlineplus') ||
+    id.includes('rehabilitacion')
+  ) {
+    return <Stethoscope className={`${sizeClass} text-rose-500`} />;
+  }
+  if (id.includes('somos_sst_empresa')) {
+    return <Building2 className={`${sizeClass} text-teal-600 dark:text-teal-400`} />;
+  }
+  if (id.includes('somos_sst_update')) {
+    return <ShieldCheck className={`${sizeClass} text-teal-600 dark:text-teal-400`} />;
+  }
+  if (id.includes('acpm_task') || id.includes('hito7_acpm') || id.includes('acpm') || id.includes('mejora_continua')) {
+    return <ClipboardCheck className={`${sizeClass} text-emerald-600 dark:text-emerald-400`} />;
+  }
   if (id.includes('canvas_doc') || id.includes('canvas') || id.includes('dictamen')) {
     return <Palette className={`${sizeClass} text-fuchsia-500`} />;
   }
-  if (id.includes('consultar_agente') || id.includes('especialista') || id.includes('trigger_agent')) {
-    return <UserCheck className={`${sizeClass} text-violet-500`} />;
+
+  // Los 50 Aplicativos de los 8 Hitos de Somos SST (con Iconos Distintivos por Función)
+  if (id.includes('hito8_predictivo') || id.includes('predictivo') || id.includes('oraculo')) {
+    return <Brain className={`${sizeClass} text-indigo-600 dark:text-indigo-400`} />;
   }
-  if (id.includes('schedule_cron')) {
-    return <Clock className={`${sizeClass} text-orange-500`} />;
+  if (id.includes('hito1_responsable')) {
+    return <UserCheck className={`${sizeClass} text-teal-600`} />;
   }
-  if (id.includes('automatizaciones')) {
-    return <Cpu className={`${sizeClass} text-purple-500`} />;
+  if (id.includes('hito1_objetivos')) {
+    return <BarChart3 className={`${sizeClass} text-indigo-600`} />;
   }
-  if (id.includes('matriz_ipevar') || id.includes('gtc45')) {
+  if (id.includes('hito1_rhs') || id.includes('hito1_rit') || id.includes('editor_rit') || id.includes('matriz_legal')) {
+    return <Scale className={`${sizeClass} text-indigo-500`} />;
+  }
+  if (id.includes('hito1_participacion_ipevar')) {
+    return <Users className={`${sizeClass} text-amber-600`} />;
+  }
+  if (id.includes('hito1_oportunidades_sst')) {
+    return <Sparkles className={`${sizeClass} text-amber-500`} />;
+  }
+  if (id.includes('compatibilidad_laboral') || id.includes('bio_ipevar')) {
+    return <HeartPulse className={`${sizeClass} text-rose-500`} />;
+  }
+  if (id.includes('matriz_ipevar') || id.includes('gtc45') || id.includes('vulnerabilidad')) {
     return <ShieldAlert className={`${sizeClass} text-amber-500`} />;
   }
   if (id.includes('pesv') || id.includes('parque_automotor') || id.includes('vehicul')) {
@@ -407,22 +475,58 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('editor_live') || id.includes('documentos_vivo') || id.includes('politica')) {
     return <FileEdit className={`${sizeClass} text-blue-500`} />;
   }
-  if (id.includes('editor_rit') || id.includes('matriz_legal') || id.includes('legal')) {
-    return <Scale className={`${sizeClass} text-indigo-500`} />;
-  }
   if (id.includes('psicosocial')) {
     return <Heart className={`${sizeClass} text-pink-500`} />;
   }
-  if (id.includes('actos') || id.includes('estadisticas_atel') || id.includes('owas') || id.includes('ergonomia') || id.includes('puesto_trabajo')) {
+  if (id.includes('convivencia') || id.includes('comites') || id.includes('contratistas')) {
+    return <Users className={`${sizeClass} text-teal-600`} />;
+  }
+  if (id.includes('actos') || id.includes('owas') || id.includes('ergonomia') || id.includes('estudios_puesto')) {
     return <Activity className={`${sizeClass} text-cyan-500`} />;
   }
   if (id.includes('openweather') || id.includes('clima')) {
     return <CloudSun className={`${sizeClass} text-amber-500`} />;
   }
-  if (id.includes('emergencia') || id.includes('vulnerabilidad') || id.includes('osm') || id.includes('brigada') || id.includes('simulacro')) {
+  if (id.includes('emergencia') || id.includes('osm') || id.includes('brigada') || id.includes('simulacro')) {
     return <MapPin className={`${sizeClass} text-red-500`} />;
   }
-  if (id.includes('if_node')) {
+  if (id.includes('alturas') || id.includes('ats') || id.includes('confinados') || id.includes('loto') || id.includes('caliente') || id.includes('izaje')) {
+    return <HardHat className={`${sizeClass} text-amber-600`} />;
+  }
+  if (id.includes('plan_trabajo')) {
+    return <Calendar className={`${sizeClass} text-teal-600`} />;
+  }
+  if (id.includes('induccion')) {
+    return <UserCheck className={`${sizeClass} text-emerald-600`} />;
+  }
+  if (id.includes('compras_sst')) {
+    return <Briefcase className={`${sizeClass} text-blue-600`} />;
+  }
+  if (id.includes('gestion_cambio')) {
+    return <RefreshCw className={`${sizeClass} text-purple-600`} />;
+  }
+  if (id.includes('comunicaciones_sst')) {
+    return <Send className={`${sizeClass} text-sky-500`} />;
+  }
+  if (id.includes('app_builder') || id.includes('automatizaciones')) {
+    return <Cpu className={`${sizeClass} text-purple-500`} />;
+  }
+  if (id.includes('investigacion_profunda')) {
+    return <Search className={`${sizeClass} text-violet-600`} />;
+  }
+  if (id.includes('diagnostico_0312') || id.includes('auditoria') || id.includes('inspeccion')) {
+    return <ClipboardCheck className={`${sizeClass} text-emerald-600`} />;
+  }
+  if (id.includes('academia') || id.includes('capacitacion') || id.includes('cursos_lms') || id.includes('ruta_aprendizaje')) {
+    return <BookOpen className={`${sizeClass} text-indigo-500`} />;
+  }
+  if (id.includes('estadisticas_atel') || id.includes('alta_direccion') || id.includes('dofa') || id.includes('presupuesto') || id.includes('indicadores')) {
+    return <BarChart3 className={`${sizeClass} text-purple-600`} />;
+  }
+  if (id.includes('atel') || id.includes('accidente') || id.includes('incidente')) {
+    return <AlertTriangle className={`${sizeClass} text-rose-600`} />;
+  }
+  if (id.includes('if_node') || id.includes('if_router')) {
     return <GitFork className={`${sizeClass} text-emerald-600`} />;
   }
   if (id.includes('memory') || id.includes('rag')) {
@@ -431,82 +535,14 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('bell') || id.includes('notificacion')) {
     return <Bell className={`${sizeClass} text-amber-500`} />;
   }
-  if (id.includes('alturas') || id.includes('epp') || id.includes('ats') || id.includes('confinados') || id.includes('loto') || id.includes('caliente') || id.includes('izaje')) {
-    return <HardHat className={`${sizeClass} text-amber-600`} />;
-  }
-  if (id.includes('socio') || id.includes('comites') || id.includes('trabajadores') || id.includes('contratistas')) {
-    return <Users className={`${sizeClass} text-teal-600`} />;
-  }
-  if (id.includes('diagnostico_0312') || id.includes('auditoria') || id.includes('inspeccion')) {
-    return <ClipboardCheck className={`${sizeClass} text-emerald-600`} />;
-  }
-  if (id.includes('academia') || id.includes('capacitacion') || id.includes('cursos_lms') || id.includes('inducci')) {
-    return <BookOpen className={`${sizeClass} text-indigo-500`} />;
-  }
-  if (id.includes('atel') || id.includes('accidente') || id.includes('incidente')) {
-    return <AlertTriangle className={`${sizeClass} text-rose-600`} />;
-  }
-  if (id.includes('alta_direccion') || id.includes('dofa') || id.includes('plan_trabajo') || id.includes('presupuesto') || id.includes('indicadores')) {
-    return <BarChart3 className={`${sizeClass} text-purple-600`} />;
-  }
-  if (id.includes('scraper_agy_alto_riesgo')) {
-    return <HardHat className={`${sizeClass} text-amber-500`} />;
-  }
-  if (id.includes('scraper_agy_arl_directo')) {
-    return <ShieldCheck className={`${sizeClass} text-emerald-500`} />;
-  }
-  if (id.includes('scraper_agy_pensiones_directo')) {
-    return <BarChart3 className={`${sizeClass} text-teal-500`} />;
-  }
-  if (id.includes('scraper_agy_salud_rethus')) {
-    return <Heart className={`${sizeClass} text-cyan-500`} />;
-  }
-  if (id.includes('scraper_agy_vial_pesv')) {
-    return <Activity className={`${sizeClass} text-indigo-500`} />;
-  }
-  if (id.includes('scraper_agy_antecedentes')) {
-    return <Scale className={`${sizeClass} text-rose-500`} />;
-  }
-  if (id.includes('scraping') || id.includes('web_scraper') || id.includes('scraper_agy_')) {
-    return <Terminal className={`${sizeClass} text-orange-500`} />;
-  }
   if (id.includes('skill')) {
     return <Puzzle className={`${sizeClass} text-violet-600 dark:text-violet-400`} />;
-  }
-  if (id.includes('subagent')) {
-    const subAvatars = [
-      '/assets/tenshi_suricato.png?v=20261108',
-      '/assets/tenshi_perro.png?v=20261108',
-      '/assets/tenshi_paloma.png?v=20261108',
-      '/assets/tenshi_capibara.png?v=20261108',
-    ];
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-    }
-    const avatarUrl =
-      id === 'subagent_chat_tenshi'
-        ? '/assets/tenshi.png?v=20261108'
-        : id === 'subagent_editable_custom' || id.includes('auditor')
-          ? '/assets/tenshi_suricato.png?v=20261108'
-          : id.includes('medico')
-            ? '/assets/tenshi_perro.png?v=20261108'
-            : id.includes('redactor')
-              ? '/assets/tenshi_paloma.png?v=20261108'
-              : subAvatars[hash % subAvatars.length];
-    return (
-      <img
-        src={avatarUrl}
-        alt="Sub-Agente WAPPY"
-        className={`${sizeClass} object-contain drop-shadow-sm select-none pointer-events-none scale-125`}
-      />
-    );
   }
   if (id.includes('rule') || id.includes('regla')) {
     return <Scale className={`${sizeClass} text-emerald-600 dark:text-emerald-400`} />;
   }
-  if (id.includes('busqueda') || id.includes('search')) {
-    return <Search className={`${sizeClass} text-sky-500`} />;
+  if (id.includes('web_search') || id.includes('busqueda') || id.includes('search') || id === 'google') {
+    return <Globe className={`${sizeClass} text-blue-500`} />;
   }
 
   return <ShieldCheck className={`${sizeClass} text-teal-600`} />;
@@ -4163,9 +4199,9 @@ export default function WappyWorkflowCanvas({
                         mcp_tools: 'purple',
                       };
                       const iconMap: Record<string, React.ReactNode> = {
-                        all_tools: <Globe className="w-3.5 h-3.5" />,
-                        wappy_tools: <HeartPulse className="w-3.5 h-3.5" />,
-                        google_tools: <FileText className="w-3.5 h-3.5" />,
+                        all_tools: <Sparkles className="w-3.5 h-3.5" />,
+                        wappy_tools: <ShieldCheck className="w-3.5 h-3.5" />,
+                        google_tools: <Globe className="w-3.5 h-3.5" />,
                         api_tools: <CloudSun className="w-3.5 h-3.5" />,
                         mcp_tools: <Cpu className="w-3.5 h-3.5" />,
                       };
@@ -5549,27 +5585,6 @@ export default function WappyWorkflowCanvas({
                     <div className="text-[8.5px] font-semibold text-slate-400 truncate">
                       {buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
-
-                    {isModelCircle && !readOnly && (
-                      <button
-                        type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (aiEngine === 'wappy') {
-                            handleSelectAiEngineModel('antigravity', 'gemini-3.6-flash');
-                          } else if (aiEngine === 'antigravity') {
-                            handleSelectAiEngineModel('antigravity_cloud', 'gemini-3.6-flash');
-                          } else {
-                            handleSelectAiEngineModel('wappy', 'gemini-3.6-flash');
-                          }
-                        }}
-                        className="mt-1 px-2 py-0.5 rounded-full text-[8.5px] font-extrabold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition"
-                        title="Alternar entre WAPPY Cloud (Rotación de Claves), Antigravity Local (Mac/PC) y Antigravity Cloud 24/7"
-                      >
-                        Cambiar IA ⇄
-                      </button>
-                    )}
                   </div>
                 </div>
               );

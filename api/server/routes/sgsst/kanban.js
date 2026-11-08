@@ -164,7 +164,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
       const task = taskMap.get(referenceId);
 
       // If document is renewed and expires in > 30 days
-      if (diffDays > 30) {
+      if (diffDays > 30 && (!task || !task.isRescheduled)) {
         if (task && task.status !== 'done') {
           tasksToDelete.push(task._id);
           taskMap.delete(referenceId);
@@ -193,6 +193,26 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           },
         });
         taskMap.set(referenceId, { referenceId, status: calculatedStatus, dueDate, title, description });
+      } else if (task.isRescheduled === true) {
+        const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
+        if (taskDueDate && !isNaN(taskDueDate.getTime()) && task.status !== 'done') {
+          const customDiffDays = Math.round((taskDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          const customStatus = customDiffDays < 0 ? 'overdue' : customDiffDays <= 15 ? 'due_soon' : 'todo';
+          if (task.status !== customStatus) {
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: task._id },
+                update: {
+                  $set: {
+                    status: customStatus,
+                    updatedAt: new Date(),
+                  },
+                },
+              },
+            });
+            task.status = customStatus;
+          }
+        }
       } else {
         const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
         const taskDateStr = taskDueDate && !isNaN(taskDueDate.getTime()) ? taskDueDate.toISOString().split('T')[0] : '';
@@ -480,13 +500,19 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             const newDateStr = ses.fecha;
 
             const updateSet = {};
-            if (taskDateStr !== newDateStr) {
+            if (!task.isRescheduled && taskDateStr !== newDateStr) {
               updateSet.dueDate = sesDate;
             }
             if (task.title !== title) {
               updateSet.title = title;
             }
-            if (task.status !== 'done' && task.status !== status) {
+            if (task.isRescheduled === true && taskDueDate && !isNaN(taskDueDate.getTime()) && task.status !== 'done') {
+              const customDiffDays = Math.round((taskDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              const customStatus = customDiffDays < 0 ? 'overdue' : customDiffDays <= 7 ? 'due_soon' : 'todo';
+              if (task.status !== customStatus) {
+                updateSet.status = customStatus;
+              }
+            } else if (task.status !== 'done' && task.status !== status) {
               updateSet.status = status;
             }
             if (ses.estado === 'Completada' && task.status !== 'done') {
@@ -757,6 +783,14 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           const updateSet = {};
           if (task.description !== description) updateSet.description = description;
           if (task.title !== title) updateSet.title = title;
+          if (task.isRescheduled === true && task.dueDate) {
+            const customDue = new Date(task.dueDate);
+            if (!isNaN(customDue.getTime())) {
+              const customDiffDays = Math.round((customDue.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              const customStatus = customDiffDays < 0 ? 'overdue' : customDiffDays <= 7 ? 'due_soon' : 'todo';
+              if (task.status !== customStatus) updateSet.status = customStatus;
+            }
+          }
 
           if (Object.keys(updateSet).length > 0) {
             updateSet.updatedAt = new Date();
@@ -885,6 +919,14 @@ ${otherControls.length > 0 ? `• Controles Complementarios: ${otherControls.map
             if (task.description !== description) updateSet.description = description;
             if (task.priority !== priority) updateSet.priority = priority;
             if (task.actionType !== actionType) updateSet.actionType = actionType;
+            if (task.isRescheduled === true && task.dueDate) {
+              const customDue = new Date(task.dueDate);
+              if (!isNaN(customDue.getTime())) {
+                const customDiffDays = Math.round((customDue.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                const customStatus = customDiffDays < 0 ? 'overdue' : customDiffDays <= 7 ? 'due_soon' : 'todo';
+                if (task.status !== customStatus) updateSet.status = customStatus;
+              }
+            }
 
             if (Object.keys(updateSet).length > 0) {
               updateSet.updatedAt = new Date();
@@ -1070,7 +1112,23 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'No se encontró empresa activa' });
     }
 
-    const { _id, title, description, dueDate, status, type, renewalDate, startTime, endTime, allDay, emailAttendees, location } = req.body;
+    const {
+      _id,
+      title,
+      description,
+      dueDate,
+      status,
+      type,
+      renewalDate,
+      startTime,
+      endTime,
+      allDay,
+      emailAttendees,
+      location,
+      newObservation,
+      reschedule,
+      closureDetails,
+    } = req.body;
 
     if (_id) {
       // Find task
@@ -1079,12 +1137,27 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         return res.status(404).json({ error: 'Actividad no encontrada' });
       }
 
-      const updateData = { title, description, status, type };
+      const updateData = {};
+      if (title !== undefined) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (status !== undefined) updateData.status = status;
+      if (type !== undefined) updateData.type = type;
       if (startTime !== undefined) updateData.startTime = startTime;
       if (endTime !== undefined) updateData.endTime = endTime;
       if (allDay !== undefined) updateData.allDay = allDay;
-      if (emailAttendees !== undefined) updateData.emailAttendees = Array.isArray(emailAttendees) ? emailAttendees : (typeof emailAttendees === 'string' ? emailAttendees.split(',').map(s => s.trim()).filter(Boolean) : []);
+      if (emailAttendees !== undefined) {
+        updateData.emailAttendees = Array.isArray(emailAttendees)
+          ? emailAttendees
+          : typeof emailAttendees === 'string'
+          ? emailAttendees.split(',').map((s) => s.trim()).filter(Boolean)
+          : [];
+      }
       if (location !== undefined) updateData.location = location;
+
+      const observations = Array.isArray(task.observations) ? [...task.observations] : [];
+      const rescheduleHistory = Array.isArray(task.rescheduleHistory) ? [...task.rescheduleHistory] : [];
+      let observationsModified = false;
+      let rescheduleHistoryModified = false;
 
       // If a renewal date is provided and this is a synchronized task with a referenceId
       if (renewalDate && task.referenceId) {
@@ -1186,6 +1259,90 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       if (req.body.actionType) updateData.actionType = req.body.actionType;
       if (req.body.assignedTo !== undefined) updateData.assignedTo = req.body.assignedTo;
 
+      // 1. Bitácora de observaciones (newObservation)
+      if (newObservation && typeof newObservation.text === 'string' && newObservation.text.trim()) {
+        observations.push({
+          id: 'obs-' + Date.now(),
+          text: newObservation.text.trim(),
+          author: newObservation.author || req.user?.name || 'Coordinador SST',
+          type: newObservation.type || 'note',
+          createdAt: new Date(),
+        });
+        observationsModified = true;
+      }
+
+      // 2. Reprogramación con historial y motivo (reschedule)
+      if (reschedule && reschedule.newDate) {
+        const previousDate = task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '';
+        const reasonText = (reschedule.reason || 'Reprogramación operativa').trim();
+        const changedByAuthor = reschedule.changedBy || req.user?.name || 'Coordinador SST';
+
+        rescheduleHistory.push({
+          id: 'res-' + Date.now(),
+          previousDate,
+          newDate: reschedule.newDate,
+          reason: reasonText,
+          changedBy: changedByAuthor,
+          changedAt: new Date(),
+        });
+        rescheduleHistoryModified = true;
+
+        observations.push({
+          id: 'obs-res-' + Date.now(),
+          text: `Reprogramada de ${previousDate} a ${reschedule.newDate}. Motivo: ${reasonText}`,
+          author: changedByAuthor,
+          type: 'reschedule',
+          createdAt: new Date(),
+        });
+        observationsModified = true;
+
+        const parsedRescheduleDate = new Date(reschedule.newDate);
+        updateData.dueDate = parsedRescheduleDate;
+        updateData.isRescheduled = true;
+
+        if (status !== 'done' && updateData.status !== 'done') {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const diffDays = Math.round((parsedRescheduleDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          updateData.status = diffDays < 0 ? 'overdue' : diffDays <= 7 ? 'due_soon' : 'todo';
+          updateData.completedAt = null;
+        }
+      }
+
+      // 3. Acta / Detalle de cierre de la actividad ACPM (closureDetails)
+      if (closureDetails && typeof closureDetails === 'object') {
+        const howClosed = (closureDetails.howItWasClosed || '').trim();
+        const evRef = (closureDetails.evidenceRef || '').trim();
+        const closedByAuthor = (closureDetails.closedBy || req.user?.name || 'Coordinador SST').trim();
+
+        updateData.closureDetails = {
+          howItWasClosed: howClosed,
+          evidenceRef: evRef,
+          effectiveness: closureDetails.effectiveness || 'eficaz',
+          closedBy: closedByAuthor,
+          closedAt: closureDetails.closedAt ? new Date(closureDetails.closedAt) : new Date(),
+        };
+
+        const effectiveStatus = updateData.status || status || task.status;
+        if (howClosed && effectiveStatus === 'done') {
+          observations.push({
+            id: 'obs-close-' + Date.now(),
+            text: `Cierre registrado: ${howClosed}${evRef ? ' | Evidencia: ' + evRef : ''}`,
+            author: closedByAuthor,
+            type: 'closure',
+            createdAt: new Date(),
+          });
+          observationsModified = true;
+        }
+      }
+
+      if (observationsModified) {
+        updateData.observations = observations;
+      }
+      if (rescheduleHistoryModified) {
+        updateData.rescheduleHistory = rescheduleHistory;
+      }
+
       const updatedTask = await KanbanTask.findOneAndUpdate(
         { _id, user: userId, companyId },
         { $set: updateData },
@@ -1236,6 +1393,42 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         return res.status(400).json({ error: 'Título y fecha de vencimiento son requeridos' });
       }
 
+      const initialObservations = Array.isArray(req.body.observations) ? [...req.body.observations] : [];
+      if (newObservation && typeof newObservation.text === 'string' && newObservation.text.trim()) {
+        initialObservations.push({
+          id: 'obs-' + Date.now(),
+          text: newObservation.text.trim(),
+          author: newObservation.author || req.user?.name || 'Coordinador SST',
+          type: newObservation.type || 'note',
+          createdAt: new Date(),
+        });
+      }
+
+      let initialClosureDetails = undefined;
+      if (closureDetails && typeof closureDetails === 'object') {
+        const howClosed = (closureDetails.howItWasClosed || '').trim();
+        const evRef = (closureDetails.evidenceRef || '').trim();
+        const closedByAuthor = (closureDetails.closedBy || req.user?.name || 'Coordinador SST').trim();
+
+        initialClosureDetails = {
+          howItWasClosed: howClosed,
+          evidenceRef: evRef,
+          effectiveness: closureDetails.effectiveness || 'eficaz',
+          closedBy: closedByAuthor,
+          closedAt: closureDetails.closedAt ? new Date(closureDetails.closedAt) : new Date(),
+        };
+
+        if (howClosed && status === 'done') {
+          initialObservations.push({
+            id: 'obs-close-' + Date.now(),
+            text: `Cierre registrado: ${howClosed}${evRef ? ' | Evidencia: ' + evRef : ''}`,
+            author: closedByAuthor,
+            type: 'closure',
+            createdAt: new Date(),
+          });
+        }
+      }
+
       const task = await KanbanTask.create({
         user: userId,
         companyId,
@@ -1252,6 +1445,9 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         allDay: Boolean(allDay),
         emailAttendees: Array.isArray(emailAttendees) ? emailAttendees : (typeof emailAttendees === 'string' ? emailAttendees.split(',').map(s => s.trim()).filter(Boolean) : []),
         location: location || '',
+        observations: initialObservations,
+        ...(initialClosureDetails ? { closureDetails: initialClosureDetails } : {}),
+        ...(status === 'done' ? { completedAt: new Date() } : {}),
       });
       lastSyncByCompany.delete(companyId.toString());
       return res.json(task);
