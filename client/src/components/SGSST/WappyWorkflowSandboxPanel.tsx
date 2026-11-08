@@ -143,6 +143,9 @@ export interface WappyWorkflowSandboxPanelProps {
   activeStepNodeId: string | null;
   onSelectStepNode: (nodeIdOrKey: string | null) => void;
   emailsStr?: string;
+  liveSteps?: SandboxNodeTraceStep[];
+  totalPlannedSteps?: number;
+  activeStepTitle?: string;
 }
 
 export const QUICK_MOCK_SCENARIOS: Array<{
@@ -275,6 +278,9 @@ export default function WappyWorkflowSandboxPanel({
   activeStepNodeId,
   onSelectStepNode,
   emailsStr = '',
+  liveSteps = [],
+  totalPlannedSteps = 0,
+  activeStepTitle = '',
 }: WappyWorkflowSandboxPanelProps) {
   const [activeTab, setActiveTab] = useState<'response' | 'trace' | 'outputs' | 'mock'>('response');
   const [showRawMarkdown, setShowRawMarkdown] = useState<boolean>(false);
@@ -672,20 +678,41 @@ export default function WappyWorkflowSandboxPanel({
           </div>
         )}
 
-        {/* Estado ejecutando en vivo */}
+        {/* Estado ejecutando en vivo paso por paso */}
         {running && (
-          <div className="py-10 px-4 rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/5 flex flex-col items-center justify-center text-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-[#C7F303]">
+          <div className="py-6 px-4 rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/5 flex flex-col items-center justify-center text-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-[#C7F303]">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
             <div>
               <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                Ejecutando Flujo en Escenario de Desarrollo (Modo Sandbox)...
+                {activeStepTitle
+                  ? `⏳ Ejecutando Paso #${liveSteps.length + 1}${totalPlannedSteps ? ` de ${totalPlannedSteps}` : ''}: ${activeStepTitle}...`
+                  : 'Ejecutando Flujo Consecutivo en Escenario de Desarrollo (Modo Sandbox)...'}
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl mt-1">
-                Recorriendo disparadores, extrayendo registros quirúrgicos reales de la empresa activa, consultando memorias normativas .md y generando dictamen con el Agente IA. Las salidas finales están bloqueadas de forma segura.
+                Avanzando nodo por nodo en el orden exacto de tus conexiones ({liveSteps.length}
+                {totalPlannedSteps ? ` / ${totalPlannedSteps}` : ''} pasos completados). Nodos desconectados ignorados y salidas bloqueadas.
               </p>
             </div>
+            {liveSteps.length > 0 && (
+              <div className="w-full max-w-2xl mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                {liveSteps.map((st, idx) => (
+                  <span
+                    key={`${st.nodeKey || st.nodeId}_${idx}`}
+                    className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold flex items-center gap-1 border ${
+                      st.status === 'simulated_blocked'
+                        ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30'
+                        : 'bg-emerald-500/15 text-emerald-800 dark:text-[#C7F303] border-emerald-500/30'
+                    }`}
+                  >
+                    <span>
+                      {st.status === 'simulated_blocked' ? '🛡️' : '✓'} Paso #{idx + 1}: {st.title}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

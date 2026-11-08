@@ -1,4 +1,7 @@
 const express = require('express');
+const passport = require('passport');
+const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const router = express.Router();
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CompanyInfo = require('~/models/CompanyInfo');
@@ -15,7 +18,38 @@ const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspector
 
 const UserPlan = require('~/db/models/UserPlan');
 
-router.use(requireJwtAuth);
+// Autenticación resiliente: valida JWT Bearer y, si expiró o fue sobreescrito por un token antiguo en localStorage,
+// recupera automáticamente la sesión activa desde la cookie httpOnly refreshToken de WAPPY.
+router.use((req, res, next) => {
+  passport.authenticate('jwt', { session: false }, async (err, user) => {
+    if (!err && user) {
+      user.id = String(user._id || user.id);
+      req.user = user;
+      return next();
+    }
+    try {
+      const cookieHeader = String(req.headers?.cookie || '');
+      let refreshToken = req.cookies?.refreshToken || '';
+      if (!refreshToken && cookieHeader) {
+        const match = cookieHeader.match(/(?:^|;\s*)refreshToken=([^;]+)/);
+        if (match && match[1]) refreshToken = decodeURIComponent(match[1]);
+      }
+      if (refreshToken && process.env.JWT_REFRESH_SECRET) {
+        const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        if (payload && payload.id && mongoose.Types.ObjectId.isValid(String(payload.id))) {
+          const User = mongoose.models.User || mongoose.model('User');
+          const dbUser = await User.findById(payload.id).lean();
+          if (dbUser) {
+            dbUser.id = String(dbUser._id);
+            req.user = dbUser;
+            return next();
+          }
+        }
+      }
+    } catch (_) {}
+    return requireJwtAuth(req, res, next);
+  })(req, res, next);
+});
 
 // Bloquear acceso a sub-usuarios: las automatizaciones son exclusivas de la cuenta principal de la empresa
 router.use((req, res, next) => {
@@ -542,6 +576,7 @@ router.get('/node-live-inspector', async (req, res) => {
  * la respuesta final y la traza nodo por nodo SIN enviar correos ni disparar salidas externas.
  */
 router.post('/test-sandbox', async (req, res) => {
+  const isStreaming = req.query.stream === '1' || req.body?.stream === true;
   try {
     const {
       automationId,
@@ -555,6 +590,7 @@ router.post('/test-sandbox', async (req, res) => {
       emails,
       workflowNodes,
       mockTriggerInput,
+      executionPlan,
     } = req.body || {};
 
     const resolvedCompanyId =
@@ -570,29 +606,69 @@ router.post('/test-sandbox', async (req, res) => {
       } catch (_) {}
     }
 
-    const simulationResult = await runWorkflowSandboxSimulation({
-      user: req.user,
-      companyId: resolvedCompanyId || existingDoc?.companyId || null,
-      name: name ?? existingDoc?.name ?? 'Prueba en Escenario de Desarrollo',
-      agentId: agentId ?? existingDoc?.agentId ?? 'tenshi_avatar_3d',
-      agentName: agentName ?? existingDoc?.agentName ?? 'Tenshi (Avatar 3D)',
-      prompt: prompt ?? existingDoc?.prompt ?? '',
-      scheduleType: scheduleType ?? existingDoc?.scheduleType ?? 'daily',
-      scheduleConfig: scheduleConfig ?? existingDoc?.scheduleConfig ?? { hour: 8, minute: 0 },
-      emails: Array.isArray(emails)
-        ? emails
-        : Array.isArray(existingDoc?.emails) && existingDoc.emails.length > 0
-          ? existingDoc.emails
-          : req.user?.email
-            ? [req.user.email]
-            : [],
-      workflowNodes: workflowNodes ?? existingDoc?.workflowNodes ?? {},
-      mockTriggerInput: typeof mockTriggerInput === 'string' ? mockTriggerInput : '',
-    });
+    if (isStreaming) {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+    }
+
+    const writeStreamEvent = (evt) => {
+      if (!isStreaming || res.writableEnded) return;
+      try {
+        res.write(`${JSON.stringify(evt)}\n`);
+        if (typeof res.flush === 'function') {
+          res.flush();
+        }
+      } catch (_) {}
+    };
+
+    const simulationResult = await runWorkflowSandboxSimulation(
+      {
+        user: req.user,
+        companyId: resolvedCompanyId || existingDoc?.companyId || null,
+        name: name ?? existingDoc?.name ?? 'Prueba en Escenario de Desarrollo',
+        agentId: agentId ?? existingDoc?.agentId ?? 'tenshi_avatar_3d',
+        agentName: agentName ?? existingDoc?.agentName ?? 'Tenshi (Avatar 3D)',
+        prompt: prompt ?? existingDoc?.prompt ?? '',
+        scheduleType: scheduleType ?? existingDoc?.scheduleType ?? 'daily',
+        scheduleConfig: scheduleConfig ?? existingDoc?.scheduleConfig ?? { hour: 8, minute: 0 },
+        emails: Array.isArray(emails)
+          ? emails
+          : Array.isArray(existingDoc?.emails) && existingDoc.emails.length > 0
+            ? existingDoc.emails
+            : req.user?.email
+              ? [req.user.email]
+              : [],
+        workflowNodes: workflowNodes ?? existingDoc?.workflowNodes ?? {},
+        mockTriggerInput: typeof mockTriggerInput === 'string' ? mockTriggerInput : '',
+        executionPlan: Array.isArray(executionPlan) ? executionPlan : [],
+      },
+      isStreaming ? writeStreamEvent : null,
+    );
+
+    if (isStreaming) {
+      writeStreamEvent({ type: 'complete', result: simulationResult });
+      return res.end();
+    }
 
     return res.json(simulationResult);
   } catch (error) {
     console.error('[API Automatizaciones] Error en test-sandbox:', error);
+    if (isStreaming && !res.writableEnded) {
+      try {
+        res.write(
+          `${JSON.stringify({
+            type: 'error',
+            error: error?.message || 'Error al ejecutar la simulación en el Escenario de Desarrollo.',
+          })}\n`,
+        );
+      } catch (_) {}
+      return res.end();
+    }
     return res.status(500).json({
       error: error?.message || 'Error al ejecutar la simulación en el Escenario de Desarrollo.',
     });

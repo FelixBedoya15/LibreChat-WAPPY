@@ -841,11 +841,11 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
 ];
 
 export function normalizeExtractorsList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
-  if (Array.isArray(nodes?.extractors) && nodes!.extractors!.length > 0) {
+  if (Array.isArray(nodes?.extractors)) {
     const valid = nodes!.extractors!.filter(
       (id) => EXTRACTOR_NODES.some((e) => e.id === id) || HITO_APP_NODES.some((h) => h.id === id),
     );
-    if (valid.length > 0) return Array.from(new Set(valid));
+    return Array.from(new Set(valid));
   }
   const derived: string[] = [];
   const ins = Array.isArray(nodes?.inputs) ? nodes!.inputs! : [];
@@ -859,9 +859,9 @@ export function normalizeExtractorsList(nodes?: Partial<WorkflowNodesConfig> | n
 }
 
 export function normalizeMemoriesList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
-  if (Array.isArray(nodes?.memories) && nodes!.memories!.length > 0) {
+  if (Array.isArray(nodes?.memories)) {
     const valid = nodes!.memories!.filter((id) => MEMORY_NODES.some((m) => m.id === id));
-    if (valid.length > 0) return Array.from(new Set(valid));
+    return Array.from(new Set(valid));
   }
   if (nodes?.memoryNode && MEMORY_NODES.some((m) => m.id === nodes.memoryNode)) {
     return [nodes.memoryNode];
