@@ -1427,8 +1427,8 @@ async function executeSandboxAgentCall({
 
     const result = await generateWithKeyRotation(
       preferredModel,
-      fullPrompt,
       reqUser?.id || reqUser,
+      fullPrompt,
       {
         systemInstruction,
         useWebSearch: Boolean(useWebSearch),
@@ -1820,7 +1820,16 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       previewLines.push(`🎯 Filtro Quirúrgico Activo (${surgicalFields.length}): [${surgicalFields.join(', ')}]`);
     }
 
-    const sampleRecords = filteredRecords.slice(0, 12);
+    const normalizeFieldTokens = (txt) =>
+      String(txt || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !['del', 'los', 'las', 'por', 'con', 'para', 'una', 'uno', 'que', 'sus'].includes(w));
+
+    const sampleRecords = filteredRecords.slice(0, 15);
     if (sampleRecords.length > 0) {
       const formattedRows = sampleRecords.map((rec, idx) => {
         if (surgicalFields.length > 0 && !isProceduralNode && rec.fields && typeof rec.fields === 'object') {
@@ -1828,18 +1837,25 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           const entries = Object.entries(rec.fields);
           for (const sf of surgicalFields) {
             const sfNorm = sf.toLowerCase().trim();
-            const match = entries.find(
+            const sfTokens = normalizeFieldTokens(sf);
+            let match = entries.find(
               ([fk]) =>
                 fk.toLowerCase().trim() === sfNorm ||
                 fk.toLowerCase().includes(sfNorm) ||
                 sfNorm.includes(fk.toLowerCase().trim()),
             );
+            if (!match && sfTokens.length > 0) {
+              match = entries.find(([fk]) => {
+                const fkTokens = normalizeFieldTokens(fk);
+                return sfTokens.some((tok) => fkTokens.includes(tok));
+              });
+            }
             if (match && match[1] !== undefined && match[1] !== '') {
               projected.push(`${sf}: ${match[1]}`);
             }
           }
           if (projected.length > 0) {
-            return `  ${idx + 1}. ${projected.join(' | ')}`;
+            return `  ${idx + 1}. [${rec.label || rec.id}] -> ${projected.join(' | ')}`;
           }
         }
         return `  ${idx + 1}. ${rec.label || rec.id}${rec.sublabel ? ` — ${rec.sublabel}` : ''}${rec.badge ? ` [${rec.badge}]` : ''}`;
@@ -2217,6 +2233,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .join(' ➔ ');
       const downstreamTitles = downstreamSteps.map((s) => s.title || s.nodeId).join(' ➔ ');
 
+      const cleanMockInput = mockTriggerInput ? String(mockTriggerInput).trim() : '';
+
       const dynamicFlowDirective =
         `[ORDEN CONSECUTIVO OBLIGATORIO DEL FLUJO CONECTADO EN EL LIENZO (${executionPlan.length} PASOS ACTIVOS)]\n` +
         `${flowSequenceFormatted}\n\n` +
@@ -2227,13 +2245,20 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
       const baseInstructionForAgent =
         customNodePrompt ||
-        (effectiveUserPrompt
-          ? `${effectiveUserPrompt}\n\n(NOTA CRÍTICA: Ajusta este análisis estrictamente a los nodos actualmente conectados en la secuencia: ${connectedDataTitles || 'Disparador'} ➔ ${currentAgentName} ➔ ${downstreamTitles || 'Salida'}).`
-          : `Ejecuta el análisis del flujo para "${companyName}" siguiendo estrictamente el orden consecutivo de los pasos conectados (${connectedDataTitles || 'Disparador'} ➔ ${downstreamTitles || 'Salida'}).`);
+        (cleanMockInput
+          ? `RESPONDE DIRECTAMENTE A ESTA ENTRADA / SOLICITUD DEL DISPARADOR: "${cleanMockInput}"\n` +
+            (effectiveUserPrompt ? `Contexto adicional de la tarea: ${effectiveUserPrompt}\n` : '') +
+            `Cruza los datos reales extraídos en los pasos previos conectados (${connectedDataTitles || 'Disparador'}) para dar una respuesta exacta, completa y accionable a la entrada recibida.`
+          : effectiveUserPrompt
+            ? `${effectiveUserPrompt}\n\n(NOTA CRÍTICA: Ajusta este análisis estrictamente a los nodos actualmente conectados en la secuencia: ${connectedDataTitles || 'Disparador'} ➔ ${currentAgentName} ➔ ${downstreamTitles || 'Salida'}).`
+            : `Ejecuta el análisis del flujo para "${companyName}" siguiendo estrictamente el orden consecutivo de los pasos conectados (${connectedDataTitles || 'Disparador'} ➔ ${downstreamTitles || 'Salida'}).`);
 
       const fullAgentPrompt =
         `[CONTEXTO DE EMPRESA ACTIVA]: "${companyName}" (NIT: ${automationCompany?.nit || 'N/A'})\n` +
         companyProfileMemoryBlock +
+        (cleanMockInput
+          ? `\n🚨 [ENTRADA / SOLICITUD EN VIVO RECIBIDA EN EL DISPARADOR — PRIORIDAD #1 A RESPONDER]:\n"""\n${cleanMockInput}\n"""\n`
+          : '') +
         `\n${dynamicFlowDirective}` +
         `[DATOS REALES EXTRAÍDOS EN LOS PASOS PREVIOS CONECTADOS (#1 AL #${upstreamSteps.length})]:\n` +
         `${upstreamDataFormatted}\n\n` +
@@ -2242,7 +2267,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           : '') +
         `[INSTRUCCIÓN PARA ${currentAgentName.toUpperCase()} (${currentAgentRole}) EN EL PASO #${stepCounter + 1}]:\n` +
         `${baseInstructionForAgent}\n\n` +
-        `Entrega un informe ejecutivo en Markdown claro, conciso y estructurado que refleje fielmente el orden y los datos de los pasos conectados en este flujo.`;
+        `Entrega una respuesta ejecutiva en Markdown clara, concisa y estructurada que RESPONDA DIRECTAMENTE a la entrada recibida usando fielmente el orden y los datos extraídos en los pasos conectados de este flujo.`;
 
       if (isPrimaryAgent) {
         effectiveUserPrompt = baseInstructionForAgent;

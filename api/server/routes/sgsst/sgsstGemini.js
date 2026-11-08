@@ -256,6 +256,18 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     userId = temp;
   }
 
+  // Auto-detección si userId y promptText se pasaron invertidos (promptText como 2º arg y userId ObjectId como 3er arg)
+  if (
+    typeof userId === 'string' &&
+    userId.length > 48 &&
+    typeof promptText === 'string' &&
+    /^[0-9a-fA-F]{24}$/.test(promptText.trim())
+  ) {
+    const tempPrompt = userId;
+    userId = promptText.trim();
+    promptText = tempPrompt;
+  }
+
   const preferredModel = (
     typeof modelInstance === 'string'
       ? modelInstance

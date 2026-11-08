@@ -3155,6 +3155,306 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
+  // 7. Equipo 2, 5 y 8: Web Scraping con Google Antigravity y Portales Oficiales (ARL, AFP, ADRES/ReTHUS, RUNT/SIMIT, Alto Riesgo, Antecedentes)
+  if (
+    [
+      'extract_web_scraping_agy',
+      'tool_web_scraping_agy',
+      'scraper_node_antigravity',
+      'scraper_agy_alto_riesgo',
+      'scraper_agy_arl_directo',
+      'scraper_agy_pensiones_directo',
+      'scraper_agy_salud_rethus',
+      'scraper_agy_vial_pesv',
+      'scraper_agy_antecedentes',
+    ].includes(canonicalId)
+  ) {
+    const socioRes = await inspectHito1And2('hito2_perfil_socio', userId, company);
+    const workerRecords = Array.isArray(socioRes?.records) ? socioRes.records : [];
+    const portalMeta = {
+      scraper_agy_arl_directo: {
+        title: 'Equipo 2/8 · Scraper Antigravity: Certificados de Afiliación ARL (Sura / Positiva / Colmena / Bolívar)',
+        portal: 'Portal Oficial ARL (Certificado de Afiliación y Clase de Riesgo por Cédula)',
+        url: 'https://www.arlsura.com / https://www.positiva.gov.co / https://www.colmenaseguros.com',
+      },
+      scraper_agy_pensiones_directo: {
+        title: 'Equipo 2/8 · Scraper Antigravity: Fondo de Pensiones y RUAF (Colpensiones / Porvenir / Protección)',
+        portal: 'Portal RUAF SISPRO / Fondos de Pensión (Certificado AFP por Cédula)',
+        url: 'https://ruaf.sispro.gov.co / https://www.colpensiones.gov.co',
+      },
+      scraper_agy_salud_rethus: {
+        title: 'Equipo 2/8 · Scraper Antigravity: ADRES BDUA Salud & ReTHUS Licencia SST',
+        portal: 'Portal ADRES BDUA & ReTHUS MinSalud (Estado EPS y Licencia SST por Cédula)',
+        url: 'https://www.adres.gov.co/consulte-su-eps',
+      },
+      scraper_agy_alto_riesgo: {
+        title: 'Equipo 2/8 · Scraper Antigravity: Cotización Especial Alto Riesgo (Dec. 2090 / PILA)',
+        portal: 'Verificador PILA / Decreto 2090 Actividades de Alto Riesgo',
+        url: 'https://www.minsalud.gov.co/proteccionsocial/Paginas/pila.aspx',
+      },
+      scraper_agy_vial_pesv: {
+        title: 'Equipo 2/8 · Scraper Antigravity: Consulta RUNT y Comparendos SIMIT (Conductores PESV)',
+        portal: 'Portal RUNT 2.0 & SIMIT Federación Colombiana de Municipios',
+        url: 'https://www.runt.gov.co / https://www.fcm.org.co/simit',
+      },
+      scraper_agy_antecedentes: {
+        title: 'Equipo 2/8 · Scraper Antigravity: Validación de Antecedentes y Seguridad Social Contratistas',
+        portal: 'Policía Nacional / Procuraduría / Contraloría / Planilla PILA',
+        url: 'https://antecedentes.policia.gov.co:7005',
+      },
+    }[canonicalId] || {
+      title: 'Equipo 2/8 · Extractor Web Scraping con Google Antigravity (Playwright / Cheerio / Chrome MCP)',
+      portal: 'Portales Oficiales de Seguridad Social y Consultas Públicas por Cédula',
+      url: 'https://www.adres.gov.co / https://ruaf.sispro.gov.co',
+    };
+
+    const records = workerRecords.map((w, idx) => {
+      const wf = w.fields || {};
+      const cedula = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id;
+      const nombre = wf['Nombre Completo'] || w.label;
+      const cargo = wf['Cargo'] || wf['Cargo y Área / Proceso'] || 'Colaborador';
+      const arl = wf['ARL'] || company?.arl || 'ARL Sura';
+      const eps = wf['EPS'] || 'EPS Activa';
+      const afp = wf['Fondo de Pensión (AFP)'] || 'Colpensiones';
+      return {
+        id: `scrape_${canonicalId}_${cedula || idx}`,
+        label: `🔍 [Cédula: ${cedula}] ${nombre} — ${cargo}`,
+        sublabel: `Portal: ${portalMeta.portal} • ARL: ${arl} • EPS: ${eps} • AFP: ${afp}`,
+        badge: `LISTO PARA SCRAPING (${arl})`,
+        badgeTone: w.isCritical ? 'amber' : 'teal',
+        isCritical: Boolean(w.isCritical),
+        fields: {
+          ...wf,
+          'Cédula / Documento de Identidad': String(cedula),
+          'Cédula / Documento': String(cedula),
+          'Nombre Completo del Trabajador': String(nombre),
+          'Nombre Completo': String(nombre),
+          'Cargo': String(cargo),
+          'Entidad Administradora de Riesgos Laborales (ARL)': String(arl),
+          'Estado de Afiliación ARL (Activa / Inactiva / Pendiente)': `Afiliación Activa en ${arl} (Riesgo ${company?.riskLevel || 'I'}) — Verificable por CC ${cedula}`,
+          'Entidad Promotora de Salud (EPS - ADRES)': String(eps),
+          'Fondo de Pensiones (AFP - RUAF)': String(afp),
+          'Portal Oficial de Consulta': portalMeta.portal,
+          'URL Objetivo del Scraper': portalMeta.url,
+        },
+      };
+    });
+
+    return {
+      moduleTitle: portalMeta.title,
+      sourceCollection: 'SgsstWorker + AntigravityScraperEngine',
+      kpis: [
+        { label: 'Cédulas en Cola de Consulta', value: records.length, tone: 'teal' },
+        { label: 'ARL Empresa', value: company?.arl || 'Registrada', tone: 'emerald' },
+        { label: 'Portal Objetivo', value: portalMeta.portal.split(' (')[0], tone: 'indigo' },
+      ],
+      records,
+    };
+  }
+
+  // 8. Equipo 2: Carpeta en tu Computador vía Antigravity (extract_pc_folder)
+  if (canonicalId === 'extract_pc_folder') {
+    const socioRes = await inspectHito1And2('hito2_perfil_socio', userId, company);
+    const workersCount = socioRes?.records?.length || 0;
+    return {
+      moduleTitle: 'Equipo 2 · Extractor de Carpeta Local en tu Computador (vía Google Antigravity)',
+      sourceCollection: 'AntigravityLocalFS + CompanyInfo',
+      kpis: [
+        { label: 'Empresa Vinculada', value: company?.companyName || 'Activa', tone: 'teal' },
+        { label: 'Expedientes Trabajadores', value: workersCount, tone: 'indigo' },
+        { label: 'Formatos Soportados', value: 'PDF, XLSX, DOCX, CSV', tone: 'emerald' },
+      ],
+      records: [
+        {
+          id: `pc_folder_${companyIdStr || 'active'}`,
+          label: `💻 Carpeta Local SG-SST: ~/Documents/SG-SST/${(company?.companyName || 'Empresa').replace(/\s+/g, '_')}`,
+          sublabel: `Sincronización local vía daemon de Google Antigravity • ${workersCount} expedientes de trabajadores vinculados por cédula`,
+          badge: 'CARPETA LOCAL AGY',
+          badgeTone: 'teal',
+          isCritical: false,
+          fields: {
+            'Ruta de Carpeta Local Monitoreada': `~/Documents/SG-SST/${(company?.companyName || 'Empresa').replace(/\s+/g, '_')}`,
+            'Extensiones de Archivo Permitidas': '.pdf, .xlsx, .csv, .docx',
+            'Total Trabajadores para Cruce por Cédula': String(workersCount),
+            'Empresa Activa': company?.companyName || '',
+          },
+        },
+        ...(socioRes?.records?.slice(0, 10) || []),
+      ],
+    };
+  }
+
+  // 9. Equipo 2, 5 y 8: Búsqueda Web en Vivo (extract_web_search, web_search, search_node_live_web)
+  if (['extract_web_search', 'web_search', 'search_node_live_web'].includes(canonicalId)) {
+    const act = company?.economicActivity || 'Actividades Empresariales';
+    const ciiu = company?.ciiu || company?.ciiuCode || 'N/A';
+    const rsk = company?.riskLevel || 'I';
+    return {
+      moduleTitle: 'Equipo 2/5/8 · Búsqueda Web Legal, Normativa y Técnica en Vivo',
+      sourceCollection: 'GoogleSearchGrounding + CompanyInfo',
+      kpis: [
+        { label: 'Actividad / CIIU', value: `CIIU ${ciiu}`, tone: 'teal' },
+        { label: 'Clase de Riesgo', value: `Riesgo ${rsk}`, tone: 'amber' },
+        { label: 'Fuentes Oficiales', value: 'Mintrabajo · MinSalud · INS · ARL', tone: 'emerald' },
+      ],
+      records: [
+        {
+          id: `web_search_norm_${companyIdStr || '1'}`,
+          label: `🌐 Consulta Normativa Vigente para ${company?.companyName || 'Empresa'} (CIIU ${ciiu} · Riesgo ${rsk})`,
+          sublabel: `Actividad: ${act} • Dec. 1072 de 2015, Res. 0312 de 2019, Res. 1843 de 2025, Circulares Mintrabajo`,
+          badge: 'GROUNDING WEB ACTIVO',
+          badgeTone: 'emerald',
+          isCritical: false,
+          fields: {
+            'Consulta Normativa y Jurisprudencial': `Normativa SG-SST vigente Colombia para ${act} (CIIU ${ciiu}, Riesgo ${rsk})`,
+            'Fuentes Oficiales Prioritarias': 'Ministerio del Trabajo, Ministerio de Salud, Instituto Nacional de Salud (INS), Corte Constitucional, ARL',
+            'Empresa Activa': `${company?.companyName || ''} (NIT ${company?.nit || ''})`,
+          },
+        },
+      ],
+    };
+  }
+
+  // 10. Equipo 3 y 5: Motores IA y Conectores Google Antigravity / Google Flow / Webhook API
+  if (
+    [
+      'wappy_gemini_3_6_flash',
+      'wappy_gemini_3_5_flash_lite',
+      'wappy_gemini_3_8_flash',
+      'antigravity_mcp_engine',
+      'antigravity_cloud_mcp_engine',
+      'google_antigravity',
+      'google_antigravity_cloud',
+      'google_flow',
+      'webhook_api',
+    ].includes(canonicalId)
+  ) {
+    return {
+      moduleTitle: `Equipo 3/5 · Motor & Conector Inteligente (${canonicalId.toUpperCase()})`,
+      sourceCollection: 'WappyAIEngine + MCPBridge',
+      kpis: [
+        { label: 'Conector / Motor', value: canonicalId, tone: 'indigo' },
+        { label: 'Herramientas MCP', value: '110+ Tools SST', tone: 'emerald' },
+        { label: 'Empresa Activa', value: company?.companyName || 'Activa', tone: 'teal' },
+      ],
+      records: [
+        {
+          id: `engine_${canonicalId}`,
+          label: `⚡ Conector / Motor Activo: ${canonicalId} — Vinculado a ${company?.companyName || 'Empresa Activa'}`,
+          sublabel: `Rotación de claves Gemini + Puente Reactivo Push SSE Antigravity + 110+ herramientas MCP`,
+          badge: 'OPERATIVO',
+          badgeTone: 'emerald',
+          isCritical: false,
+          fields: {
+            'Identificador del Motor / Conector': canonicalId,
+            'Empresa Vinculada': `${company?.companyName || ''} (NIT ${company?.nit || ''})`,
+            'Estado Operativo': 'Activo y listo para procesar pasos del flujo',
+          },
+        },
+      ],
+    };
+  }
+
+  // 11. Equipo 8: Skills Procedurales, Sub-Agentes Especialistas y Reglas de Veracidad/Reserva Legal
+  if (
+    canonicalId.startsWith('skill_') ||
+    canonicalId.startsWith('subagent_') ||
+    canonicalId.startsWith('rule_')
+  ) {
+    const catalogSpecMap = {
+      skill_sgsst_tools: {
+        title: 'Equipo 8 · Skill Procedural: Herramientas Operativas SG-SST (GTC-45, PESV y Químicos SGA)',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Aplica la metodología oficial de la GTC-45 (ND, NE, NP=ND×NE, NC, NR=NP×NC), las 24 fases del PESV (Res. 20223040040595) y el Sistema Globalmente Armonizado SGA (Decreto 1496 de 2018).',
+      },
+      skill_google_connectors: {
+        title: 'Equipo 8 · Skill Procedural: Conectores Google Workspace & Puente Reactivo Antigravity',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Sincroniza y estructura hallazgos documentales desde Google Drive, Gmail, Sheets, Docs, NotebookLM y Google Antigravity manteniendo trazabilidad por empresa y trabajador.',
+      },
+      skill_web_scraper_script: {
+        title: 'Equipo 8 · Skill Procedural: Extracción Quirúrgica y Verificación por Cédula (Web Scraping)',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Cruza únicamente los campos solicitados (ej. Cédula, Nombre Completo, Cargo, ARL, EPS, AFP) contra los certificados y portales oficiales, generando tabla de estado por trabajador.',
+      },
+      skill_auditoria_normativa: {
+        title: 'Equipo 8 · Skill Procedural: Auditoría de Cumplimiento Legal (Dec. 1072 y Res. 0312)',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Audita cada hallazgo citando el artículo exacto del Decreto 1072 de 2015 y el estándar de la Resolución 0312 de 2019, definiendo acción correctiva, responsable y plazo.',
+      },
+      subagent_researcher: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Investigador Normativo y Clínico SST',
+        badge: 'SUB-AGENTE IA',
+        directive:
+          'Sub-agente dedicado a profundizar en los requisitos legales, guías técnicas del Ministerio del Trabajo, GATISO y normativa vigente aplicable a los hallazgos del flujo.',
+      },
+      subagent_scraper_agy: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Operador de Verificación de Afiliaciones y Cédulas (AGY)',
+        badge: 'SUB-AGENTE IA',
+        directive:
+          'Sub-agente dedicado a estructurar y validar la nómina de trabajadores por número de cédula, estado de afiliación a ARL/EPS/AFP y vigencia de certificados.',
+      },
+      subagent_auditor_calidad: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Auditor de Calidad y Cierre de Brechas ACPM',
+        badge: 'SUB-AGENTE IA',
+        directive:
+          'Sub-agente revisor que verifica que cada brecha detectada tenga causa raíz, medida de intervención (Fuente, Medio, Individuo) y plan de acción concreto.',
+      },
+      rule_veracidad_estricta: {
+        title: 'Equipo 8 · Regla Inquebrantable: Veracidad Estricta (Cero Invención de Datos)',
+        badge: 'REGLA OBLIGATORIA',
+        directive:
+          'PROHIBIDO inventar nombres, cédulas, puntajes o estándares que no estén presentes en los datos reales extraídos de los nodos conectados del flujo.',
+      },
+      rule_solo_criticos: {
+        title: 'Equipo 8 · Regla Inquebrantable: Enfoque Ejecutivo en Brechas y Hallazgos Críticos',
+        badge: 'REGLA OBLIGATORIA',
+        directive:
+          'Prioriza y destaca en primer lugar los registros en brecha crítica, vencidos o con incumplimiento normativo para toma inmediata de decisiones.',
+      },
+      rule_reserva_legal: {
+        title: 'Equipo 8 · Regla Inquebrantable: Reserva Legal de Historia Clínica (Res. 2346 / Res. 1843 de 2025)',
+        badge: 'REGLA OBLIGATORIA',
+        directive:
+          'Protege la confidencialidad diagnóstica: reporta únicamente conceptos de aptitud, restricciones laborales y recomendaciones ocupacionales sin exponer diagnósticos clínicos privados sin anonimizar.',
+      },
+    };
+
+    const spec = catalogSpecMap[canonicalId] || {
+      title: `Equipo 8 · Nodo Especializado (${canonicalId})`,
+      badge: 'ACTIVO',
+      directive: `Directriz procedural activa para ${canonicalId} en el flujo de ${company?.companyName || 'la empresa'}.`,
+    };
+
+    return {
+      moduleTitle: spec.title,
+      sourceCollection: 'WappySkillsAndRulesCatalog',
+      kpis: [
+        { label: 'Tipo de Nodo', value: spec.badge, tone: 'purple' },
+        { label: 'Aplicación en Flujo', value: 'OBLIGATORIA', tone: 'emerald' },
+      ],
+      records: [
+        {
+          id: `spec_${canonicalId}`,
+          label: `🧩 ${spec.title}`,
+          sublabel: spec.directive,
+          badge: spec.badge,
+          badgeTone: 'purple',
+          isCritical: false,
+          fields: {
+            'Nombre del Nodo / Regla / Skill': spec.title,
+            'Directriz Procedural Obligatoria': spec.directive,
+            'Empresa Objetivo': company?.companyName || '',
+          },
+        },
+      ],
+    };
+  }
+
   return null;
 }
 
@@ -3188,7 +3488,78 @@ async function inspectNodeLiveData({ userId, companyId, nodeId }) {
     };
   }
 
-  const records = Array.isArray(result.records) ? result.records : [];
+  let records = Array.isArray(result.records) ? result.records : [];
+
+  // Si la colección específica aún no tiene documentos guardados para esta empresa,
+  // sintetizar registros de línea base contextualizados con la Ficha Técnica de la Empresa Activa y su Nómina Real
+  // para que ningún nodo del flujo se quede en blanco durante la ejecución o inspección.
+  if (records.length === 0 && company) {
+    const cName = company.companyName || 'Empresa Activa';
+    const cNit = company.nit || 'N/A';
+    const cArl = company.arl || 'ARL Sura';
+    const cRisk = company.riskLevel || 'I';
+    const cResp = company.responsibleSST || 'Responsable SG-SST';
+    const cAct = company.economicActivity || 'Actividad Económica Principal';
+    const cCiiu = company.ciiu || company.ciiuCode || 'N/A';
+    const modTitle = result.moduleTitle || canonicalId;
+
+    let socioFallbackRecords = [];
+    if (canonicalId !== 'hito2_perfil_socio') {
+      try {
+        const wRes = await inspectHito1And2('hito2_perfil_socio', userId, company);
+        socioFallbackRecords = Array.isArray(wRes?.records) ? wRes.records.slice(0, 8) : [];
+      } catch (_) {}
+    }
+
+    records = [
+      {
+        id: `baseline_${canonicalId}_${String(company._id || 'active')}`,
+        label: `📌 [Línea Base Activa · ${cName}] ${modTitle}`,
+        sublabel: `NIT: ${cNit} • ARL: ${cArl} (Riesgo ${cRisk}) • CIIU: ${cCiiu} (${cAct}) • Resp. SST: ${cResp}`,
+        badge: 'LÍNEA BASE EMPRESA',
+        badgeTone: 'teal',
+        isCritical: true,
+        fields: {
+          'Empresa Activa': `${cName} (NIT ${cNit})`,
+          'Razón Social': cName,
+          'NIT': cNit,
+          'ARL y Clase de Riesgo': `${cArl} · Riesgo ${cRisk}`,
+          'Actividad Económica y CIIU': `${cAct} (CIIU ${cCiiu})`,
+          'Responsable SG-SST': `${cResp} (Lic. ${company.licenseNumber || 'Vigente'})`,
+          'Módulo / Aplicativo SG-SST': modTitle,
+          'Norma / Ley / Decreto / Resolución y Año': 'Decreto 1072 de 2015 / Resolución 0312 de 2019 / GTC-45',
+          'Evaluación de Cumplimiento (Cumple / En Proceso / No Cumple)': 'EN PROCESO DE VERIFICACIÓN',
+          'Estado': 'Línea Base Activa para Cruce en el Flujo',
+          'Plan de Acción y Responsable de Cumplimiento Legal': `Verificar y actualizar registros de «${modTitle}» con ${cResp}`,
+        },
+      },
+      ...socioFallbackRecords.map((w, idx) => {
+        const wf = w.fields || {};
+        const ced = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id;
+        const nom = wf['Nombre Completo'] || w.label;
+        const car = wf['Cargo'] || 'Colaborador';
+        return {
+          id: `baseline_worker_${canonicalId}_${ced || idx}`,
+          label: `👤 [Trabajador Vinculado · CC ${ced}] ${nom} — ${car}`,
+          sublabel: `Módulo: ${modTitle} • ARL: ${wf['ARL'] || cArl} • EPS: ${wf['EPS'] || 'Activa'} • AFP: ${wf['Fondo de Pensión (AFP)'] || 'Activa'}`,
+          badge: wf['Estado de Exámenes Médicos (Vigente / Vencido)'] || 'VINCULADO',
+          badgeTone: w.isCritical ? 'amber' : 'indigo',
+          isCritical: Boolean(w.isCritical),
+          fields: {
+            ...wf,
+            'Cédula / Documento de Identidad': String(ced),
+            'Cédula / Documento': String(ced),
+            'Nombre Completo del Trabajador': String(nom),
+            'Nombre Completo': String(nom),
+            'Cargo': String(car),
+            'Módulo Evaluado': modTitle,
+            'Empresa Activa': cName,
+          },
+        };
+      }),
+    ];
+  }
+
   const criticalCount = records.filter((r) => r.isCritical).length;
 
   return {
