@@ -622,28 +622,17 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     const task = tasks.find(t => t._id === taskId);
     if (!task || task.status === newStatus) return;
 
-    // If dragged to 'done' ('Completadas'), open the 360° Closure tab so user can document how it was closed
-    if (newStatus === 'done') {
-      openEditModal({ ...task, status: 'done' }, 'closure');
-    }
-
     // Optimistic UI update
     const previousTasks = [...tasks];
     setTasks(prev => prev.map(t => t._id === taskId ? { ...t, status: newStatus } : t));
 
     try {
-      const res = await axios.post('/api/sgsst/kanban/save', {
+      await axios.post('/api/sgsst/kanban/save', {
         _id: taskId,
         status: newStatus
       });
-      if (res.data && res.data._id) {
-        setTasks(prev => prev.map(t => t._id === taskId ? res.data : t));
-      }
       showToast({
-        message:
-          newStatus === 'done'
-            ? 'Actividad movida a Completadas. Documenta cómo se cerró la actividad.'
-            : `Actividad movida a ${getStatusLabel(newStatus)}`,
+        message: `Actividad movida a ${getStatusLabel(newStatus)}`,
         status: 'success'
       });
     } catch (err) {
@@ -1936,7 +1925,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
               data-tenshi-column={col.id}
               data-tenshi-column-title={col.title}
               data-tenshi-count={col.tasks.length}
-              className={`flex-shrink-0 w-84 flex flex-col h-full bg-white/70 dark:bg-gray-900/70 border border-border-medium/35 rounded-2xl shadow-sm overflow-hidden ${col.border}`}
+              className={`flex-shrink-0 w-80 flex flex-col h-full bg-white/70 dark:bg-gray-900/70 border border-border-medium/35 rounded-2xl shadow-sm overflow-hidden ${col.border}`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id as any)}
             >
@@ -1958,181 +1947,83 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                     <span className="text-[11px] font-semibold">Suelta o agrega actividades aquí</span>
                   </div>
                 ) : (
-                  col.tasks.map(task => {
-                    const obsList = Array.isArray(task.observations) ? task.observations : [];
-                    const reschedList = Array.isArray(task.rescheduleHistory)
-                      ? task.rescheduleHistory
-                      : [];
-                    const hasClosure = Boolean(task.closureDetails?.howItWasClosed?.trim());
-                    const latestObs = obsList.length > 0 ? obsList[obsList.length - 1] : null;
-
-                    return (
-                      <div
-                        key={task._id}
-                        data-tenshi-task={task._id}
-                        data-tenshi-title={task.title}
-                        data-tenshi-status={task.status}
-                        data-tenshi-due={task.dueDate}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, task._id)}
-                        className="p-3.5 bg-white dark:bg-gray-950 border border-border-medium/40 hover:border-teal-500/40 dark:border-white/5 rounded-2xl shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all group flex flex-col justify-between"
-                      >
-                        <div>
-                          {/* Title & Quick Header Actions */}
-                          <div className="flex items-start justify-between gap-2">
-                            <h4
-                              onClick={() => openEditModal(task, 'details')}
-                              className="font-bold text-[13px] text-text-primary leading-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors cursor-pointer"
+                  col.tasks.map(task => (
+                    <div
+                      key={task._id}
+                      data-tenshi-task={task._id}
+                      data-tenshi-title={task.title}
+                      data-tenshi-status={task.status}
+                      data-tenshi-due={task.dueDate}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task._id)}
+                      className="p-3.5 bg-white dark:bg-gray-950 border border-border-medium/40 hover:border-teal-500/40 dark:border-white/5 rounded-xl shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all group flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Title & Actions */}
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="font-bold text-[13px] text-text-primary leading-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                            {task.title}
+                          </h4>
+                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+                            <button
+                              onClick={() => openEditModal(task)}
+                              className="p-1 text-text-tertiary hover:text-teal-600 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 rounded transition-all"
+                              title="Editar actividad"
                             >
-                              {task.title}
-                            </h4>
-                            <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
-                              <button
-                                onClick={() => openEditModal(task, 'details')}
-                                className="p-1 text-text-tertiary hover:text-teal-600 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 rounded-lg transition-all cursor-pointer"
-                                title="Editar detalles"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteTask(task._id)}
-                                className="p-1 text-text-tertiary hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded-lg transition-all cursor-pointer"
-                                title="Eliminar actividad"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task._id)}
+                              className="p-1 text-text-tertiary hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded transition-all"
+                              title="Eliminar actividad"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-
-                          {/* Description */}
-                          {task.description && (
-                            <p className="text-[11px] text-text-secondary mt-1.5 line-clamp-2 leading-relaxed">
-                              {task.description}
-                            </p>
-                          )}
-
-                          {/* Reference name & AssignedTo */}
-                          <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
-                            {task.referenceName ? (
-                              <span className="flex items-center gap-1 text-[10px] text-text-tertiary font-bold">
-                                <span className="w-1.5 h-1.5 rounded-sm bg-teal-500" />
-                                {task.referenceName}
-                              </span>
-                            ) : <span />}
-
-                            {task.assignedTo && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-text-secondary">
-                                <User className="w-2.5 h-2.5 text-teal-500" />
-                                {task.assignedTo}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Badges de Seguimiento: Observaciones y Reprogramaciones */}
-                          {(obsList.length > 0 || task.isRescheduled || reschedList.length > 0) && (
-                            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                              {obsList.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => openEditModal(task, 'observations')}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 transition-all cursor-pointer"
-                                  title="Ver bitácora de observaciones"
-                                >
-                                  <MessageSquare className="w-2.5 h-2.5" />
-                                  <span>{obsList.length} {obsList.length === 1 ? 'obs.' : 'obs.'}</span>
-                                </button>
-                              )}
-
-                              {(task.isRescheduled || reschedList.length > 0) && (
-                                <button
-                                  type="button"
-                                  onClick={() => openEditModal(task, 'reschedule')}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer"
-                                  title="Ver historial de reprogramaciones"
-                                >
-                                  <CalendarClock className="w-2.5 h-2.5" />
-                                  <span>Reprogramada ({reschedList.length || 1})</span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Caja Resumen de Cierre ACPM (si tiene detalles de cierre) */}
-                          {hasClosure && (
-                            <div
-                              onClick={() => openEditModal(task, 'closure')}
-                              className="mt-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-1 cursor-pointer hover:bg-emerald-500/15 transition-all"
-                            >
-                              <div className="flex items-center justify-between gap-1.5">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
-                                  <FileCheck2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                                  Cierre ACPM Documentado
-                                </span>
-                                <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-[9px] font-black uppercase text-emerald-800 dark:text-emerald-200">
-                                  {task.closureDetails?.effectiveness === 'en_seguimiento'
-                                    ? 'En Seguimiento'
-                                    : task.closureDetails?.effectiveness === 'pendiente_verificar'
-                                      ? 'Por Verificar'
-                                      : task.closureDetails?.effectiveness === 'no_eficaz'
-                                        ? 'No Eficaz'
-                                        : 'Eficaz ✓'}
-                                </span>
-                              </div>
-                              <p className="text-[10px] text-emerald-900/90 dark:text-emerald-200/90 line-clamp-2 leading-snug">
-                                {task.closureDetails?.howItWasClosed}
-                              </p>
-                              {task.closureDetails?.evidenceRef && (
-                                <span className="text-[9px] font-bold text-emerald-700/80 dark:text-emerald-300/80 truncate">
-                                  📎 Evidencia: {task.closureDetails.evidenceRef}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Preview sutil de última observación cuando aún no está cerrada */}
-                          {!hasClosure && latestObs && (
-                            <div
-                              onClick={() => openEditModal(task, 'observations')}
-                              className="mt-2 p-2 rounded-xl bg-surface-secondary/50 dark:bg-gray-900/80 border border-border-medium/30 text-[10px] text-text-secondary cursor-pointer hover:border-cyan-500/40 transition-all"
-                            >
-                              <div className="flex items-center justify-between text-[9px] font-bold text-text-tertiary mb-0.5">
-                                <span className="text-cyan-600 dark:text-cyan-400">
-                                  💬 {latestObs.author || 'Seguimiento'}
-                                </span>
-                                <span>{formatDate(latestObs.createdAt)}</span>
-                              </div>
-                              <p className="line-clamp-2 italic text-text-secondary">
-                                &ldquo;{latestObs.text}&rdquo;
-                              </p>
-                            </div>
-                          )}
                         </div>
 
-                        {/* Footer: Date, State badges & 3-Button WAPPY Action Bar */}
-                        <div className="mt-3 pt-3 border-t border-border-medium/20 flex flex-col gap-2">
-                          <div className="flex items-center justify-between text-[11px] text-text-tertiary">
-                            <span className="flex items-center gap-1 font-semibold">
-                              <Calendar className="w-3.5 h-3.5 text-text-tertiary" />
-                              {formatDate(task.dueDate)}
-                            </span>
-                            
-                            <span className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] uppercase ${
-                              task.status === 'overdue' 
-                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20' 
-                                : task.status === 'due_soon' 
-                                  ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20'
-                                  : task.status === 'done'
-                                    ? 'bg-green-50 text-green-600 dark:bg-green-950/20'
-                                    : 'bg-gray-50 text-gray-600 dark:bg-gray-800'
-                            }`}>
-                              {getDaysDiffText(task)}
-                            </span>
+                        {/* Description */}
+                        {task.description && (
+                          <p className="text-[11px] text-text-secondary mt-1.5 line-clamp-2 leading-relaxed">
+                            {task.description}
+                          </p>
+                        )}
+
+                        {/* Reference name */}
+                        {task.referenceName && (
+                          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-text-tertiary font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                            {task.referenceName}
                           </div>
+                        )}
+                      </div>
 
-                          {renderTaskBadge(task)}
+                      {/* Footer: Date & State badges */}
+                      <div className="mt-3 pt-3 border-t border-border-medium/20 flex flex-col gap-2">
+                        <div className="flex items-center justify-between text-[11px] text-text-tertiary">
+                          <span className="flex items-center gap-1 font-semibold">
+                            <Calendar className="w-3.5 h-3.5 text-text-tertiary" />
+                            {formatDate(task.dueDate)}
+                          </span>
+                          
+                          <span className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] uppercase ${
+                            task.status === 'overdue' 
+                              ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20' 
+                              : task.status === 'due_soon' 
+                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20'
+                                : task.status === 'done'
+                                  ? 'bg-green-50 text-green-600 dark:bg-green-950/20'
+                                  : 'bg-gray-50 text-gray-600 dark:bg-gray-800'
+                          }`}>
+                            {getDaysDiffText(task)}
+                          </span>
+                        </div>
 
-                          {/* Group invitation or 3-Button WAPPY Quick Action Bar */}
-                          {task.referenceName === 'group_invitation' && task.status !== 'done' ? (
+                        {renderTaskBadge(task)}
+
+                        {/* Complete action quick button */}
+                        {task.status !== 'done' && (
+                          task.referenceName === 'group_invitation' ? (
                             <div className="mt-2.5 flex items-center gap-2 w-full">
                               <button
                                 onClick={() => handleAcceptGroupInvite(task.referenceId || '')}
@@ -2150,48 +2041,24 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                               </button>
                             </div>
                           ) : (
-                            <div className="mt-2 grid grid-cols-3 gap-1.5 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(task, 'observations')}
-                                className="py-1.5 px-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10px] font-extrabold flex items-center justify-center gap-1 transition-all duration-200 sm:hover:scale-[1.03] active:scale-95 cursor-pointer"
-                                title="Agregar observación o seguimiento"
-                              >
-                                <MessageSquare className="w-3 h-3 shrink-0" />
-                                <span className="truncate">Observación</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(task, 'reschedule')}
-                                className="py-1.5 px-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 text-[10px] font-extrabold flex items-center justify-center gap-1 transition-all duration-200 sm:hover:scale-[1.03] active:scale-95 cursor-pointer"
-                                title="Reprogramar fecha límite con justificación"
-                              >
-                                <CalendarClock className="w-3 h-3 shrink-0" />
-                                <span className="truncate">Reprogramar</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(task, 'closure')}
-                                className="py-1.5 px-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 text-[10px] font-extrabold flex items-center justify-center gap-1 transition-all duration-200 sm:hover:scale-[1.03] active:scale-95 cursor-pointer"
-                                title={
-                                  task.status === 'done'
-                                    ? 'Ver evidencia y eficacia del cierre'
-                                    : 'Registrar cómo se cerró la actividad'
+                            <button
+                              onClick={() => {
+                                if (task.type !== 'manual') {
+                                  openEditModal(task);
+                                } else {
+                                  handleMarkComplete(task._id);
                                 }
-                              >
-                                <FileCheck2 className="w-3 h-3 shrink-0" />
-                                <span className="truncate">
-                                  {task.status === 'done' ? 'Ver Cierre' : 'Cerrar ACPM'}
-                                </span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                              }}
+                              className="mt-2.5 flex items-center justify-center gap-1.5 w-full py-1 bg-surface-tertiary hover:bg-green-500/10 hover:text-green-600 dark:hover:bg-green-950/20 dark:hover:text-green-400 rounded-lg text-[11px] font-bold text-text-secondary transition-all"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              {task.type !== 'manual' ? 'Registrar Cierre / Renovación' : 'Marcar completado'}
+                            </button>
+                          )
+                        )}
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
                 )}
               </div>
             </div>

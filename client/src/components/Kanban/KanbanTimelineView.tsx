@@ -472,7 +472,7 @@ export default function KanbanTimelineView({
         ) : (
           <div className="flex min-w-0 overflow-hidden">
             {/* Panel Izquierdo Fijo: Actividades y Metadatos */}
-            <div className="w-60 sm:w-76 md:w-84 shrink-0 border-r border-border-medium/40 bg-surface-primary/90 dark:bg-gray-900/90 flex flex-col z-10">
+            <div className="w-60 sm:w-72 md:w-80 shrink-0 border-r border-border-medium/40 bg-surface-primary/90 dark:bg-gray-900/90 flex flex-col z-10">
               {/* Cabecera Izquierda */}
               <div className="h-14 px-3.5 border-b border-border-medium/40 bg-surface-secondary/40 dark:bg-gray-950/60 flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-text-secondary uppercase tracking-wider">
