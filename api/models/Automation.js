@@ -19,6 +19,11 @@ const automationSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    adminOnly: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     presetKey: {
       type: String,
       trim: true,

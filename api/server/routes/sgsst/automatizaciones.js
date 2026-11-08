@@ -517,6 +517,96 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
   }
 }
 
+/**
+ * Asegura que exista un Flujo Simple de 4 pasos (exclusivo para usuarios ADMIN) en la empresa activa,
+ * ideal para probar orden consecutivo (Paso #1 ➔ Paso #2 ➔ Paso #3 ➔ Paso #4), extracción quirúrgica
+ * y el Escenario de Desarrollo (▶ Dar Play · Probar sin Enviar).
+ */
+async function ensureSimpleAdminFlow(user, companyId) {
+  try {
+    if (!user || user.role !== 'ADMIN' || !companyId) return;
+
+    const existingSimple = await Automation.findOne({
+      companyId,
+      isSystemPreset: { $ne: true },
+      $or: [
+        { presetKey: 'admin_simple_flow_v1' },
+        { adminOnly: true, name: /Flujo Simple/i },
+      ],
+    }).lean();
+
+    if (existingSimple) return;
+
+    await Automation.create({
+      user: user.id,
+      companyId,
+      isSystemPreset: false,
+      adminOnly: true,
+      presetKey: 'admin_simple_flow_v1',
+      presetCategory: 'salud_vencimientos',
+      presetDescription:
+        'Flujo lineal limpio de 4 pasos exclusivos para pruebas de Administrador: 1) Disparador Tenshi IA ➔ 2) Extraer Trabajadores (Cédula, Nombre, Cargo, ARL y EPS) ➔ 3) Agente IA Tenshi ➔ 4) Notificación en WAPPY.',
+      name: '⚡ [Solo Admin] Flujo Simple (4 Pasos): Cédula y Nombre ➔ Tenshi IA ➔ Alerta WAPPY',
+      agentId: 'tenshi_avatar_orchestrator',
+      agentName: '🐱 Tenshi Avatar (Voz y Orquestador 3D)',
+      prompt:
+        'Sigue estrictamente el orden consecutivo del flujo (Paso #1 Disparador ➔ Paso #2 Extraer Trabajadores ➔ Paso #3 Agente IA ➔ Paso #4 Notificación WAPPY). Con los datos extraídos en el Paso #2, responde directamente a la consulta de entrada entregando una tabla limpia con Cédula / Documento, Nombre Completo, Cargo, ARL y EPS de los trabajadores activos de la empresa.',
+      scheduleType: 'daily',
+      scheduleConfig: { hour: 8, minute: 0, dayOfWeek: [1, 2, 3, 4, 5] },
+      workflowNodes: {
+        trigger: 'trigger_tenshi',
+        triggers: ['trigger_tenshi'],
+        extractors: ['extract_sst_workers'],
+        aiEngine: 'wappy',
+        aiModel: 'gemini-3.6-flash',
+        memoryNode: 'wappy_memory_company',
+        memories: ['wappy_memory_company'],
+        includeIfNode: false,
+        inputs: [],
+        hitos: [],
+        outputs: ['wappy_notification'],
+        canvasLayout: {
+          positions: {
+            trigger_root: { x: 70, y: 120 },
+            extractor_extract_sst_workers: { x: 270, y: 120 },
+            agent_root: { x: 480, y: 112 },
+            sub_model: { x: 440, y: 275 },
+            sub_memory_wappy_memory_company: { x: 580, y: 275 },
+            out_wappy_notification: { x: 770, y: 120 },
+          },
+          extraElements: [],
+          customEdges: [],
+          removedDefaultEdges: [],
+          nodeConfigs: {
+            extractor_extract_sst_workers: {
+              selectedFields: ['Cédula / Documento', 'Nombre Completo', 'Cargo', 'ARL', 'EPS'],
+              strictFieldFilter: true,
+              inputContext: 'Recibe la consulta o filtro enviado en el Disparador Tenshi IA (Paso #1)',
+              outputContext: 'Entrega únicamente Cédula, Nombre Completo, Cargo, ARL y EPS al Agente IA (Paso #3)',
+              filterRule: 'Solo trabajadores activos de la empresa',
+            },
+            agent_root: {
+              selectedFields: [
+                'Cruce Exacto con Pregunta de Entrada',
+                'Tabla Markdown Estructurada',
+                'Respuesta Directa sin Relleno',
+              ],
+              inputContext: 'Recibe los trabajadores filtrados del Paso #2 (Cédula, Nombre, Cargo, ARL y EPS)',
+              outputContext: 'Genera tabla limpia con Cédula y Nombre Completo para la notificación WAPPY (Paso #4)',
+              filterRule: 'Responder directamente a la entrada del disparador respetando el orden consecutivo',
+            },
+          },
+        },
+      },
+      emails: user.email ? [user.email] : [],
+      status: 'inactive',
+      nextRunAt: null,
+    });
+  } catch (err) {
+    console.error('[API Automatizaciones] Error creando Flujo Simple para ADMIN:', err);
+  }
+}
+
 // Auxiliar para obtener el límite efectivo de automatizaciones del usuario
 async function getEffectiveAutomationLimit(userId, userRole) {
   if (!userId) return { limit: 0, plan: 'free' };
@@ -898,6 +988,10 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
 
+    if (req.user?.role === 'ADMIN') {
+      await ensureSimpleAdminFlow(req.user, companyId);
+    }
+
     // Auto-recuperar tareas bloqueadas en 'running' por más de 10 minutos
     const staleRunningCutoff = new Date(Date.now() - 10 * 60 * 1000);
     await Automation.updateMany(
@@ -905,8 +999,14 @@ router.get('/', async (req, res) => {
       { $set: { lastRunStatus: 'failed', lastRunResult: 'Tiempo de ejecución límite agotado.' } }
     );
 
-    const automations = await Automation.find({ companyId, isSystemPreset: { $ne: true } })
-      .sort({ createdAt: -1 })
+    const findQuery = {
+      companyId,
+      isSystemPreset: { $ne: true },
+      ...(req.user?.role !== 'ADMIN' ? { adminOnly: { $ne: true } } : {}),
+    };
+
+    const automations = await Automation.find(findQuery)
+      .sort({ adminOnly: -1, createdAt: -1 })
       .lean();
     res.json(automations);
   } catch (error) {
