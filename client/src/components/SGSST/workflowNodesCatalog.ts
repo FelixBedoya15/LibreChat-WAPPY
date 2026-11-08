@@ -217,69 +217,70 @@ export const WAPPY_AGENT_AVATAR_ROTATION: WappyAgentAvatarOption[] = [
     name: 'Tenshi (Gato 3D)',
     animal: 'Gato',
     roleHint: 'Agente IA Principal',
-    src: '/assets/tenshi.png',
+    src: '/assets/tenshi.png?v=20261108',
   },
   {
     id: 'suri_suricato',
     name: 'Suri (Suricato 3D)',
     animal: 'Suricato',
     roleHint: 'Sub-Agente / Agente #2',
-    src: '/assets/tenshi_suricato.png',
+    src: '/assets/tenshi_suricato.png?v=20261108',
   },
   {
     id: 'max_perro',
     name: 'Max (Perro 3D)',
     animal: 'Perro',
     roleHint: 'Sub-Agente / Agente #3',
-    src: '/assets/tenshi_perro.png',
+    src: '/assets/tenshi_perro.png?v=20261108',
   },
   {
     id: 'paz_paloma',
     name: 'Paz (Paloma 3D)',
     animal: 'Paloma',
     roleHint: 'Sub-Agente / Agente #4',
-    src: '/assets/tenshi_paloma.png',
+    src: '/assets/tenshi_paloma.png?v=20261108',
   },
   {
     id: 'capi_capibara',
     name: 'Capi (Capibara 3D)',
     animal: 'Capibara',
     roleHint: 'Sub-Agente / Agente #5',
-    src: '/assets/tenshi_capibara.png',
+    src: '/assets/tenshi_capibara.png?v=20261108',
   },
   {
     id: 'suri_clasico',
     name: 'Suri Clásico',
     animal: 'Suricato',
     roleHint: 'Sub-Agente #6',
-    src: '/assets/tenshi_suricato_clasico.png',
+    src: '/assets/tenshi_suricato_clasico.png?v=20261108',
   },
   {
     id: 'max_clasico',
     name: 'Max Clásico',
     animal: 'Perro',
     roleHint: 'Sub-Agente #7',
-    src: '/assets/tenshi_perro_clasico.png',
+    src: '/assets/tenshi_perro_clasico.png?v=20261108',
   },
   {
     id: 'paz_clasico',
     name: 'Paz Clásica',
     animal: 'Paloma',
     roleHint: 'Sub-Agente #8',
-    src: '/assets/tenshi_paloma_clasico.png',
+    src: '/assets/tenshi_paloma_clasico.png?v=20261108',
   },
   {
     id: 'capi_clasico',
     name: 'Capi Clásico',
     animal: 'Capibara',
     roleHint: 'Sub-Agente #9',
-    src: '/assets/tenshi_capibara_clasico.png',
+    src: '/assets/tenshi_capibara_clasico.png?v=20261108',
   },
 ];
 
 export function getRotatedAgentAvatar(index: number, customAvatarSrc?: string): WappyAgentAvatarOption {
   if (customAvatarSrc) {
-    const found = WAPPY_AGENT_AVATAR_ROTATION.find((a) => a.src === customAvatarSrc);
+    const cleanTarget = customAvatarSrc.split('?')[0];
+    const found = WAPPY_AGENT_AVATAR_ROTATION.find((a) => a.src.split('?')[0] === cleanTarget);
     if (found) return found;
   }
   const safeIdx = Math.abs(index) % WAPPY_AGENT_AVATAR_ROTATION.length;
@@ -677,6 +678,15 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
     subtitle: 'Sub-Agente · Control de Calidad',
     content:
       'Actúa como Sub-Agente Auditor de Calidad: revisa los cálculos, tablas y recomendaciones antes de actualizar los Hitos o enviar el correo final.',
+  },
+  {
+    id: 'subagent_medico_laboral',
+    nodeType: 'subagent',
+    label: 'Sub-Agente: Médico Laboral & Vigilancia Epidemiológica',
+    shortLabel: 'Sub-Agente: Médico SST',
+    subtitle: 'Sub-Agente · EMO, SVE y Reintegro',
+    content:
+      'Actúa como Sub-Agente Médico Laboral: analiza restricciones, profesiograma, exámenes ocupacionales (Res. 2346 de 2007) y seguimiento de casos ATEL.',
   },
   // 📏 REGLAS (RULES)
   {

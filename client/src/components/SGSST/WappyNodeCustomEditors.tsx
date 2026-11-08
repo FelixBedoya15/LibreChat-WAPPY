@@ -1346,7 +1346,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   : 0,
                 currentCfg.avatarSrc,
               );
-              const isSelectedAv = defaultAvatar.src === av.src;
+              const isSelectedAv = defaultAvatar.src.split('?')[0] === av.src.split('?')[0];
               return (
                 <button
                   key={av.id}
@@ -1361,6 +1361,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   <img
                     src={av.src}
                     alt={av.name}
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      if (!img.dataset.retried) {
+                        img.dataset.retried = '1';
+                        img.src = `${av.src.split('?')[0]}?t=${Date.now()}`;
+                      } else {
+                        img.src = '/assets/tenshi.png';
+                      }
+                    }}
                     className="w-9 h-9 object-contain shrink-0 drop-shadow-xs"
                   />
                   <div className="min-w-0">

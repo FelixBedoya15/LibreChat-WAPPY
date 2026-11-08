@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Globe,
@@ -98,6 +99,46 @@ import {
 
 export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): React.ReactNode {
   const id = (nodeId || '').toLowerCase();
+
+  // Sub-Agentes WAPPY con Rotación Automática de Avatares 3D (Suri Suricato, Max Perro, Paz Paloma, Capi Capibara)
+  if (id.includes('subagent')) {
+    const subAvatars = [
+      '/assets/tenshi_suricato.png?v=20261108',
+      '/assets/tenshi_perro.png?v=20261108',
+      '/assets/tenshi_paloma.png?v=20261108',
+      '/assets/tenshi_capibara.png?v=20261108',
+    ];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    const avatarUrl =
+      id.includes('research') || id.includes('investigador')
+        ? '/assets/tenshi_suricato.png?v=20261108'
+        : id.includes('scraper') || id.includes('perro')
+          ? '/assets/tenshi_perro.png?v=20261108'
+          : id.includes('auditor') || id.includes('redactor') || id.includes('paloma')
+            ? '/assets/tenshi_paloma.png?v=20261108'
+            : id.includes('medico') || id.includes('legal') || id.includes('capibara')
+              ? '/assets/tenshi_capibara.png?v=20261108'
+              : subAvatars[hash % subAvatars.length];
+    return (
+      <img
+        src={avatarUrl}
+        alt="Sub-Agente WAPPY"
+        onError={(e) => {
+          const img = e.currentTarget;
+          if (!img.dataset.retried) {
+            img.dataset.retried = '1';
+            img.src = `${avatarUrl.split('?')[0]}?t=${Date.now()}`;
+          } else {
+            img.src = '/assets/tenshi.png';
+          }
+        }}
+        className={`${sizeClass} object-contain drop-shadow-sm select-none pointer-events-none scale-125`}
+      />
+    );
+  }
 
   // Google Drive / Extraer de Drive (Logo Oficial Tricolor/Cuatricolor)
   if (id.includes('google_drive') || id.includes('drive_folder') || id.includes('extract_drive')) {
@@ -3162,23 +3203,23 @@ export default function WappyWorkflowCanvas({
     return Math.max(470, maxBottom);
   }, [visualNodes]);
 
-  return (
+  const canvasContent = (
     <div
       className={
         isCanvasFullscreen
-          ? 'fixed inset-0 z-[150] bg-slate-50 dark:bg-slate-950 p-4 overflow-y-auto flex flex-col gap-3'
+          ? 'fixed inset-0 z-[9999] w-screen h-screen bg-[#F6F5EF] dark:bg-[#0C192E] p-4 sm:p-6 overflow-y-auto flex flex-col gap-3'
           : 'flex flex-col gap-3'
       }
     >
       {isCanvasFullscreen && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 text-white border border-slate-700 shadow-lg shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-[#0C192E] text-white border border-teal-500/40 shadow-lg shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#C7F303] animate-pulse" />
             <span className="text-xs font-black uppercase tracking-wider text-[#C7F303]">
               LIENZO DE FLUJOS & NODOS WAPPY — MODO PANTALLA COMPLETA
             </span>
             <span className="text-[11px] text-slate-300 font-semibold hidden sm:inline">
-              · Orden Consecutivo Activo ({connectedExecutionPlan.length} pasos conectados) · Arrastra nodos a la 🗑️ Papelera para eliminarlos · Pulsa Esc para volver
+              · Orden Consecutivo Activo ({connectedExecutionPlan.length} pasos conectados) · Arrastra nodos a la papelera para eliminarlos · Pulsa Esc para volver
             </span>
           </div>
           <ExpandableButton
@@ -3195,7 +3236,7 @@ export default function WappyWorkflowCanvas({
       {/* ─── BARRA DE PALETA DE CUADRITOS CON LOGOS SVG ORIGINALES (Solo en modo editor) ─── */}
       {!readOnly && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-sm">
-          {/* Pestañas de las 5 Etapas del Flujo + 3 Rombos del Agente + Botón Autogenerar Prompt */}
+          {/* Pestañas de las 8 Etapas Consecutivas del Flujo (Del Disparador #1 hasta la Salida Final #8) */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
               {[
@@ -3211,15 +3252,15 @@ export default function WappyWorkflowCanvas({
                         ? 'AGY Local'
                         : aiModel.replace('gemini-', ''),
                 },
-                { id: 'memories', label: '💾 4. Memorias del Agente', badge: activeMemories.length },
-                { id: 'connectors', label: '🔧 5. Herramientas del Agente', badge: (workflowNodes.inputs || []).length },
-                { id: 'hitos', label: '🛡️ 6. Los 8 Hitos / 50 Apps SST', badge: (workflowNodes.hitos || []).length },
-                { id: 'outputs', label: '📤 7. Bitácora & Salida', badge: (workflowNodes.outputs || []).length },
+                { id: 'memories', label: '💾 4. Memorias', badge: activeMemories.length },
+                { id: 'connectors', label: '🔧 5. Herramientas', badge: (workflowNodes.inputs || []).length },
                 {
                   id: 'skills_rules',
-                  label: '🧩 8. Skills, Sub-Agentes, Reglas & Scraping',
+                  label: '🧩 6. Skills, Sub-Agentes & Scraping',
                   badge: (workflowNodes?.canvasLayout?.customNodes || []).length,
                 },
+                { id: 'hitos', label: '🛡️ 7. Los 8 Hitos / 50 Apps SST', badge: (workflowNodes.hitos || []).length },
+                { id: 'outputs', label: '📤 8. Bitácora & Salida', badge: (workflowNodes.outputs || []).length },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -3252,88 +3293,22 @@ export default function WappyWorkflowCanvas({
                   }}
                   className={`px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold transition flex items-center gap-1.5 border ${
                     paletteTab === tab.id
-                      ? 'bg-slate-900 text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-sm'
-                      : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
+                      ? 'bg-[#0D9488] text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#0D9488] dark:hover:border-[#C7F303]/60'
                   }`}
                 >
                   <span>{tab.label}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
                       paletteTab === tab.id
-                        ? 'bg-white/20 text-white dark:bg-black/15 dark:text-[#0E1300]'
-                        : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                        ? 'bg-white/25 text-white dark:bg-black/15 dark:text-[#0E1300]'
+                        : 'bg-teal-50 dark:bg-slate-700 text-teal-700 dark:text-[#C7F303]'
                     }`}
                   >
                     {tab.badge}
                   </span>
                 </button>
               ))}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <ExpandableButton
-                size="sm"
-                variant="emerald"
-                disabled={sandboxRunning}
-                icon={
-                  sandboxRunning ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                  )
-                }
-                label={
-                  sandboxRunning
-                    ? 'Ejecutando Prueba...'
-                    : '▶ Dar Play · Probar sin Enviar'
-                }
-                title="Dar Play al Flujo en Modo Desarrollo (Sin Enviar Salidas)"
-                onClick={handleRunSandboxSimulation}
-              />
-
-              <ExpandableButton
-                size="sm"
-                variant="teal"
-                isActive={sandboxOpen}
-                icon={<Terminal className="w-3.5 h-3.5" />}
-                label="🧪 Escenario Dev"
-                title="Abrir o cerrar el Escenario de Desarrollo (Sandbox)"
-                onClick={() => setSandboxOpen((v) => !v)}
-              />
-
-              {onAutoBuildPrompt && (
-                <ExpandableButton
-                  size="sm"
-                  variant="purple"
-                  icon={<Wand2 className="w-3.5 h-3.5" />}
-                  label="Autogenerar Prompt desde el Lienzo"
-                  onClick={onAutoBuildPrompt}
-                />
-              )}
-
-              <ExpandableButton
-                size="sm"
-                variant={isCanvasFullscreen ? 'amber' : 'indigo'}
-                isActive={isCanvasFullscreen}
-                icon={
-                  isCanvasFullscreen ? (
-                    <Minimize2 className="w-3.5 h-3.5" />
-                  ) : (
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  )
-                }
-                label={
-                  isCanvasFullscreen
-                    ? 'Salir de Pantalla Completa'
-                    : 'Expandir a Pantalla Completa'
-                }
-                title={
-                  isCanvasFullscreen
-                    ? 'Salir de Pantalla Completa (Esc)'
-                    : 'Expandir el Lienzo y Editor de Flujo a Pantalla Completa'
-                }
-                onClick={() => setIsCanvasFullscreen((v) => !v)}
-              />
             </div>
           </div>
 
@@ -3729,7 +3704,7 @@ export default function WappyWorkflowCanvas({
                                 : item.customNodePayload.nodeType === 'skill'
                                   ? 'skill'
                                   : item.customNodePayload.nodeType === 'subagent'
-                                    ? 'subagent'
+                                    ? item.id
                                     : item.customNodePayload.nodeType === 'rule'
                                       ? 'rule'
                                       : 'web_search',
@@ -4178,255 +4153,165 @@ export default function WappyWorkflowCanvas({
           onPointerMove={handleCanvasPointerMove}
           onPointerUp={() => handleCanvasPointerUp()}
         >
-          {/* Controles flotantes del lienzo (Manita, Seleccionar Parte, Seleccionar Todo, Zoom, Otra IA, Nodo If, Conectar a mi Gusto + Dar Play / Escenario Dev) */}
+          {/* Barra superior limpia y unificada del Lienzo WAPPY (1 sola línea, estilo oficial ExpandableButton) */}
           {!compact && (
             <div
               data-canvas-toolbar="true"
               onPointerDown={(e) => e.stopPropagation()}
-              className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm m-2.5 cursor-default"
+              className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-md m-2.5 cursor-default"
             >
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
+              <span className="text-[10.5px] font-black uppercase tracking-wider text-teal-700 dark:text-[#C7F303] mr-1 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Lienzo WAPPY
               </span>
 
-              {/* ─── BOTONES DE DAR PLAY Y ESCENARIO DE DESARROLLO EN BARRA SUPERIOR DEL LIENZO ─── */}
-              <button
-                type="button"
-                disabled={sandboxRunning}
-                onClick={handleRunSandboxSimulation}
-                className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 dark:text-[#C7F303] border border-emerald-500/40 dark:border-[#C7F303]/50 transition flex items-center gap-1 shadow-2xs disabled:opacity-50"
-                title="Ejecutar el flujo en Modo Desarrollo (Probar sin enviar correos ni disparar alertas)"
-              >
-                {sandboxRunning ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Play className="w-3 h-3 fill-current" />
-                )}
-                {sandboxRunning ? 'Probando Flujo...' : '▶ Dar Play · Probar sin Enviar'}
-              </button>
+              {/* ─── 1. NAVEGACIÓN Y ZOOM ─── */}
+              <div className="inline-flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setCanvasTool(canvasTool === 'select' ? 'pan' : 'select')}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 ${
+                    canvasTool === 'pan'
+                      ? 'bg-[#0D9488] text-white dark:bg-[#C7F303] dark:text-[#0E1300] shadow-2xs'
+                      : 'bg-purple-600 text-white shadow-2xs'
+                  }`}
+                  title={
+                    canvasTool === 'pan'
+                      ? 'Modo Manita activo (clic para cambiar a Selección por recuadro)'
+                      : 'Modo Selección activo (clic para volver a Manita)'
+                  }
+                >
+                  {canvasTool === 'pan' ? (
+                    <>
+                      <Hand className="w-3 h-3" />
+                      Manita
+                    </>
+                  ) : (
+                    <>
+                      <MousePointer2 className="w-3 h-3" />
+                      Seleccionar
+                    </>
+                  )}
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setSandboxOpen((v) => !v)}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
-                  sandboxOpen
-                    ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
-                    : 'bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30'
-                }`}
-                title="Abrir o cerrar el Escenario de Desarrollo (Modo Sandbox)"
-              >
-                <Terminal className="w-3 h-3" />
-                🧪 Escenario Dev
-              </button>
-
-              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
-              {/* ─── 1. MANITA (DESPLAZARSE POR EL LIENZO) & SELECCIÓN DE FLUJO ─── */}
-              <button
-                type="button"
-                onClick={() => setCanvasTool('pan')}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
-                  canvasTool === 'pan'
-                    ? 'bg-slate-900 text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                }`}
-                title="Manita: Arrastra sobre el fondo punteado para desplazarte por toda el área de trabajo"
-              >
-                <Hand className="w-3 h-3" />
-                Manita
-              </button>
-
-              {!readOnly && onChange && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setCanvasTool(canvasTool === 'select' ? 'pan' : 'select')}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
-                      canvasTool === 'select'
-                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                    title="Seleccionar una Parte: Dibuja un recuadro sobre varios nodos (o haz Shift + Clic) para mover esa parte junta"
-                  >
-                    <MousePointer2 className="w-3 h-3" />
-                    Seleccionar Parte
-                  </button>
-
+                {!readOnly && onChange && (
                   <button
                     type="button"
                     onClick={handleSelectAllNodes}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
+                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 ${
                       selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                        : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800'
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'
                     }`}
-                    title="Seleccionar Todo el Flujo para arrastrarlo completo a un lado o a cualquier lugar del campo"
+                    title="Seleccionar todo el flujo para moverlo junto"
                   >
                     <Move className="w-3 h-3" />
-                    {selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
-                      ? `Todo Seleccionado (${selectedNodeKeys.length})`
-                      : 'Seleccionar Todo'}
+                    {selectedNodeKeys.length > 0 ? `${selectedNodeKeys.length}` : 'Todo'}
                   </button>
+                )}
 
-                  {selectedNodeKeys.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-[#C7F303] text-[9.5px] font-extrabold flex items-center gap-1 border border-purple-300 dark:border-purple-700">
-                      <span>
-                        ✥ {selectedNodeKeys.length} marcados (arrastra uno para moverlos juntos)
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedNodeKeys([])}
-                        className="ml-0.5 hover:text-rose-600"
-                        title="Deseleccionar nodos"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </>
-              )}
+                <div className="h-3.5 w-[1px] bg-slate-300 dark:bg-slate-600 mx-0.5" />
 
-              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
+                  className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  title="Alejar"
+                >
+                  <ZoomOut className="w-3 h-3" />
+                </button>
+                <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-200 min-w-[32px] text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.min(1.15, Number((z + 0.1).toFixed(2))))}
+                  className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  title="Acercar"
+                >
+                  <ZoomIn className="w-3 h-3" />
+                </button>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-                title="Alejar"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 min-w-[34px] text-center">
-                {Math.round(zoom * 100)}%
-              </span>
-              <button
-                type="button"
-                onClick={() => setZoom((z) => Math.min(1.15, Number((z + 0.1).toFixed(2))))}
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-                title="Acercar"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-
+              {/* ─── 2. NODOS DE LÓGICA Y SUB-AGENTES (ESTILO OFICIAL WAPPY EXPANDABLEBUTTON) ─── */}
               {!readOnly && onChange && (
                 <>
-                  <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
-                  <button
-                    type="button"
+                  <ExpandableButton
+                    size="sm"
+                    variant="purple"
+                    icon={<Plus className="w-3.5 h-3.5" />}
+                    label="+ Otra IA / Agente"
+                    title="Agregar un Sub-Agente IA adicional (rota avatares Suri, Max, Paz, Capi)"
                     onClick={handleAddExtraAgent}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 transition flex items-center gap-1"
-                    title="Agregar un segundo o tercer Agente IA (con su propio Segundo Prompt y Modelo IA) al lienzo"
-                  >
-                    <Plus className="w-3 h-3" />
-                    Otra IA / Agente
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ExpandableButton
+                    size="sm"
+                    variant="emerald"
+                    isActive={includeIfNode}
+                    icon={<GitFork className="w-3.5 h-3.5" />}
+                    label="Condición Sí/No"
+                    title="Activar o quitar nodo de Condición Sí/No"
                     onClick={() =>
                       onChange({
                         ...workflowNodes,
                         includeIfNode: !includeIfNode,
                       })
                     }
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
-                      includeIfNode
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                    }`}
-                    title="Activar/Desactivar nodo de Condición Si/No (evalúa si hay hallazgos o alertas para dividir el flujo en rama SÍ o NO)"
-                  >
-                    <GitFork className="w-3 h-3" />
-                    Condición Si/No
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ExpandableButton
+                    size="sm"
+                    variant="sky"
+                    icon={<Repeat className="w-3.5 h-3.5" />}
+                    label="Iterar (Loop)"
+                    title="Agregar nodo Iterar (Loop) registro por registro"
                     onClick={() => handleAddLogicNode('loop')}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 transition flex items-center gap-1"
-                    title="Agregar nodo Iterar (Loop) para recorrer trabajador por trabajador o archivo por archivo"
-                  >
-                    <Repeat className="w-3 h-3" />
-                    + Iterar
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ExpandableButton
+                    size="sm"
+                    variant="teal"
+                    icon={<GitMerge className="w-3.5 h-3.5" />}
+                    label="Unir Ramas"
+                    title="Agregar nodo Unir Ramas (Merge)"
                     onClick={() => handleAddLogicNode('merge')}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800 transition flex items-center gap-1"
-                    title="Agregar nodo Unir Ramas (Merge) para juntar la salida de dos agentes o dos ramas"
-                  >
-                    <GitMerge className="w-3 h-3" />
-                    + Unir
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ExpandableButton
+                    size="sm"
+                    variant="rose"
+                    icon={<UserCheck className="w-3.5 h-3.5" />}
+                    label="Aprobación"
+                    title="Agregar nodo de Aprobación Humana"
                     onClick={() => handleAddLogicNode('human_approval')}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition flex items-center gap-1"
-                    title="Agregar nodo de Aprobación Humana (Visto Bueno antes de enviar correo o modificar Hito)"
-                  >
-                    <UserCheck className="w-3 h-3" />
-                    + Aprobación
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaletteTab('skills_rules');
-                      setShowCustomNodeBuilder(true);
-                    }}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-[#C7F303] border border-violet-300 dark:border-violet-700 transition flex items-center gap-1"
-                    title="Crear tu propio nodo de Skill (SKILL.md), Sub-Agente, Regla, Búsqueda Web o Script de Web Scraping con Antigravity"
-                  >
-                    <Puzzle className="w-3 h-3" />
-                    + Crear Mi Nodo / Scraper
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDisconnectAllMainWires}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 transition flex items-center gap-1"
-                    title="Cortar los cables automáticos para interconectar los módulos 100% a tu gusto arrastrando desde los puertos (●)"
-                  >
-                    <X className="w-3 h-3" />
-                    Conectar a mi Gusto
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ExpandableButton
+                    size="sm"
+                    variant="neutral"
+                    icon={<RotateCcw className="w-3.5 h-3.5" />}
+                    label="Auto-Organizar"
+                    title="Alinear y organizar automáticamente el flujo en orden consecutivo"
                     onClick={handleResetLayout}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1"
-                    title="Restablecer posiciones y conexiones por defecto"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Auto-Organizar
-                  </button>
+                  />
                 </>
               )}
 
-              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
-              <button
-                type="button"
-                onClick={() => setIsCanvasFullscreen((v) => !v)}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 border ${
-                  isCanvasFullscreen
-                    ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
-                    : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-[#C7F303] border-indigo-300 dark:border-indigo-700'
-                }`}
+              <ExpandableButton
+                size="sm"
+                variant={isCanvasFullscreen ? 'amber' : 'indigo'}
+                isActive={isCanvasFullscreen}
+                icon={
+                  isCanvasFullscreen ? (
+                    <Minimize2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  )
+                }
+                label={isCanvasFullscreen ? 'Salir Pantalla Completa' : 'Pantalla Completa'}
                 title={
                   isCanvasFullscreen
                     ? 'Salir de Pantalla Completa (Esc)'
-                    : 'Expandir Lienzo a Pantalla Completa'
+                    : 'Expandir a Pantalla Completa real (100% navegador)'
                 }
-              >
-                {isCanvasFullscreen ? (
-                  <>
-                    <Minimize2 className="w-3 h-3" />
-                    Salir Pantalla Completa
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 className="w-3 h-3" />
-                    Pantalla Completa
-                  </>
-                )}
-              </button>
+                onClick={() => setIsCanvasFullscreen((v) => !v)}
+              />
             </div>
           )}
 
@@ -5214,7 +5099,7 @@ export default function WappyWorkflowCanvas({
                     : node.customNodeType === 'skill'
                       ? 'skill'
                       : node.customNodeType === 'subagent'
-                        ? 'subagent'
+                        ? node.nodeId
                         : node.customNodeType === 'rule'
                           ? 'rule'
                           : 'web_search';
@@ -5389,7 +5274,7 @@ export default function WappyWorkflowCanvas({
           </div>
         </div>
 
-        {/* ─── PAPELERA INTERACTIVA EN EL ÁREA DE TRABAJO (ARRASTRAR NODOS O CLIC PARA ELIMINAR) ─── */}
+        {/* ─── PAPELERA INTERACTIVA EN EL ÁREA DE TRABAJO (SOLO ICONO SIN TEXTO) ─── */}
         {!compact && !readOnly && onChange && (
           <div
             ref={trashDropZoneRef}
@@ -5402,57 +5287,29 @@ export default function WappyWorkflowCanvas({
             }}
             title={
               selectedNodeKeys.length > 0
-                ? `Haz clic para eliminar los ${selectedNodeKeys.length} nodo(s) seleccionados (o presiona Supr / Backspace)`
-                : 'Arrastra aquí cualquier nodo que ya no quieras en el área de trabajo para eliminarlo'
+                ? `Eliminar ${selectedNodeKeys.length} nodo(s) seleccionado(s)`
+                : 'Papelera: Arrastra aquí cualquier nodo para quitarlo del flujo'
             }
-            className={`absolute bottom-3 right-3 z-30 flex items-center gap-2 px-3.5 py-2 rounded-2xl border-2 transition-all select-none ${
+            className={`absolute bottom-3 right-3 z-30 w-11 h-11 rounded-2xl border-2 flex items-center justify-center transition-all select-none ${
               isOverTrash
-                ? 'bg-rose-600 text-white border-rose-300 scale-110 shadow-xl ring-4 ring-rose-500/40'
+                ? 'bg-rose-600 text-white border-rose-300 scale-125 shadow-xl ring-4 ring-rose-500/40'
                 : draggingNodeKey
-                  ? 'bg-rose-50/95 dark:bg-rose-950/90 text-rose-700 dark:text-rose-200 border-dashed border-rose-400 dark:border-rose-600 shadow-md animate-pulse'
+                  ? 'bg-rose-50/95 dark:bg-rose-950/90 text-rose-600 dark:text-rose-300 border-dashed border-rose-400 dark:border-rose-600 scale-110 shadow-md animate-pulse'
                   : selectedNodeKeys.length > 0
-                    ? 'bg-rose-50/95 hover:bg-rose-600 hover:text-white dark:bg-rose-950/90 text-rose-700 dark:text-rose-200 border-rose-300 dark:border-rose-700 cursor-pointer shadow-md'
-                    : 'bg-white/95 dark:bg-slate-900/95 text-slate-600 dark:text-slate-300 border-slate-200/90 dark:border-slate-700 hover:border-rose-400 shadow-md'
+                    ? 'bg-rose-50/95 hover:bg-rose-600 hover:text-white dark:bg-rose-950/90 text-rose-600 dark:text-rose-300 border-rose-400 dark:border-rose-600 cursor-pointer shadow-md'
+                    : 'bg-white/95 dark:bg-slate-900/95 text-rose-500 dark:text-rose-400 border-rose-300/90 dark:border-rose-700/80 hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 shadow-md'
             }`}
           >
-            <div
-              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${
-                isOverTrash
-                  ? 'bg-white/20 text-white'
-                  : 'bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300'
-              }`}
-            >
-              <Trash2 className={`w-4 h-4 ${isOverTrash ? 'animate-bounce' : ''}`} />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-[10.5px] font-black uppercase tracking-wider">
-                {isOverTrash
-                  ? '¡Suéltalo para Eliminar!'
-                  : draggingNodeKey
-                    ? '🗑️ Suelta aquí para borrar'
-                    : selectedNodeKeys.length > 0
-                      ? `🗑️ Eliminar (${selectedNodeKeys.length})`
-                      : '🗑️ Papelera de Nodos'}
-              </span>
-              <span
-                className={`text-[9px] font-semibold ${
-                  isOverTrash ? 'text-rose-100' : 'text-slate-400 dark:text-slate-400'
-                }`}
-              >
-                {selectedNodeKeys.length > 0
-                  ? 'Clic aquí o tecla Supr'
-                  : 'Arrastra nodos aquí para quitar'}
-              </span>
-            </div>
+            <Trash2 className={`w-5 h-5 ${isOverTrash ? 'animate-bounce' : ''}`} />
           </div>
         )}
 
-        {/* ─── BARRA FLOTANTE INFERIOR CENTRAL ESTILO N8N (TEST WORKFLOW / DAR PLAY + ESCENARIO DE DESARROLLO) ─── */}
+        {/* ─── BOTÓN ÚNICO DE DAR PLAY (MODO DESARROLLO SIN ENVIAR SALIDAS) ─── */}
         {!compact && (
           <div
             data-canvas-toolbar="true"
             onPointerDown={(e) => e.stopPropagation()}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-emerald-500/40 dark:border-[#C7F303]/50 shadow-lg"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 inline-flex items-center p-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-emerald-500/40 dark:border-[#C7F303]/50 shadow-lg"
           >
             <ExpandableButton
               size="sm"
@@ -5465,34 +5322,14 @@ export default function WappyWorkflowCanvas({
                   <Play className="w-3.5 h-3.5 fill-current" />
                 )
               }
-              label="Dar Play (Probar sin Enviar Salidas)"
+              label={
+                sandboxRunning
+                  ? `Probando Paso ${sandboxLiveSteps.length + 1}/${connectedExecutionPlan.length}...`
+                  : 'Dar Play (Probar sin Enviar Salidas)'
+              }
               title="Dar Play al Flujo en Modo Desarrollo (Probar sin Enviar Salidas)"
               onClick={handleRunSandboxSimulation}
             />
-
-            <button
-              type="button"
-              onClick={() => setSandboxOpen((v) => !v)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-[11px] font-extrabold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
-              title="Abrir o cerrar el Escenario de Desarrollo para ver la respuesta final y la traza nodo por nodo"
-            >
-              <span>🧪 Ver Escenario de Desarrollo</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-lg text-[9.5px] font-black ${
-                  sandboxRunning
-                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
-                    : sandboxResult
-                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-[#C7F303]'
-                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}
-              >
-                {sandboxRunning
-                  ? `Paso ${sandboxLiveSteps.length + 1}/${connectedExecutionPlan.length}`
-                  : sandboxResult
-                    ? 'Listo'
-                    : `${connectedExecutionPlan.length} pasos`}
-              </span>
-            </button>
           </div>
         )}
       </div>
@@ -5657,4 +5494,9 @@ export default function WappyWorkflowCanvas({
       })()}
     </div>
   );
+
+  if (isCanvasFullscreen && typeof document !== 'undefined') {
+    return createPortal(canvasContent, document.body);
+  }
+  return canvasContent;
 }
