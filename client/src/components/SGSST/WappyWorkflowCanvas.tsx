@@ -458,22 +458,25 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   }
   if (id.includes('subagent')) {
     const subAvatars = [
-      '/assets/tenshi_suricato.png',
-      '/assets/tenshi_perro.png',
-      '/assets/tenshi_paloma.png',
-      '/assets/tenshi_capibara.png',
+      '/assets/tenshi_suricato.png?v=20261108',
+      '/assets/tenshi_perro.png?v=20261108',
+      '/assets/tenshi_paloma.png?v=20261108',
+      '/assets/tenshi_capibara.png?v=20261108',
     ];
     let hash = 0;
     for (let i = 0; i < id.length; i++) {
       hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
     }
-    const avatarUrl = id.includes('auditor')
-      ? '/assets/tenshi_suricato.png'
-      : id.includes('medico')
-        ? '/assets/tenshi_perro.png'
-        : id.includes('redactor')
-          ? '/assets/tenshi_paloma.png'
-          : subAvatars[hash % subAvatars.length];
+    const avatarUrl =
+      id === 'subagent_chat_tenshi'
+        ? '/assets/tenshi.png?v=20261108'
+        : id === 'subagent_editable_custom' || id.includes('auditor')
+          ? '/assets/tenshi_suricato.png?v=20261108'
+          : id.includes('medico')
+            ? '/assets/tenshi_perro.png?v=20261108'
+            : id.includes('redactor')
+              ? '/assets/tenshi_paloma.png?v=20261108'
+              : subAvatars[hash % subAvatars.length];
     return (
       <img
         src={avatarUrl}
@@ -1718,6 +1721,11 @@ export default function WappyWorkflowCanvas({
         cn.key === nodeKey
           ? {
               ...cn,
+              ...(partial.customTitle !== undefined ? { title: partial.customTitle } : {}),
+              ...(partial.customSubtitle !== undefined ? { subtitle: partial.customSubtitle } : {}),
+              ...(partial.aiEngine ? { aiEngine: partial.aiEngine } : {}),
+              ...(partial.aiModel ? { aiModel: partial.aiModel } : {}),
+              ...(partial.linkedAgentId !== undefined ? { agentId: partial.linkedAgentId } : {}),
               ...(partial.targetUrl !== undefined ? { targetUrl: partial.targetUrl } : {}),
               ...(partial.scriptEngine ? { scriptEngine: partial.scriptEngine } : {}),
               ...(partial.scriptCode !== undefined ? { scriptCode: partial.scriptCode } : {}),
@@ -3235,36 +3243,84 @@ export default function WappyWorkflowCanvas({
 
       {/* ─── BARRA DE PALETA DE CUADRITOS CON LOGOS SVG ORIGINALES (Solo en modo editor) ─── */}
       {!readOnly && (
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-sm">
-          {/* Pestañas de las 8 Etapas Consecutivas del Flujo (Del Disparador #1 hasta la Salida Final #8) */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex flex-wrap items-center gap-1.5">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-sm">
+          {/* Pestañas de las 8 Etapas Consecutivas del Flujo (Estilo Oficial WAPPY ExpandableButton con Espacio Amplio) */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 mb-2.5 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
               {[
-                { id: 'triggers', label: '⚡ 1. Disparador', badge: activeTriggers.length },
-                { id: 'extractors', label: '📥 2. Extraer Datos', badge: activeExtractors.length },
+                {
+                  id: 'triggers',
+                  label: '1. Disparador',
+                  badge: `1 · ${activeTriggers.length}`,
+                  variant: 'amber' as const,
+                  icon: <Zap className="w-3.5 h-3.5" />,
+                },
+                {
+                  id: 'extractors',
+                  label: '2. Extraer Datos',
+                  badge: `2 · ${activeExtractors.length}`,
+                  variant: 'blue' as const,
+                  icon: <FileText className="w-3.5 h-3.5" />,
+                },
                 {
                   id: 'ai_engine',
-                  label: '🧠 3. Motor IA',
-                  badge:
+                  label: '3. Motor IA',
+                  badge: `3 · ${
                     aiEngine === 'antigravity_cloud'
                       ? 'AGY Cloud'
                       : aiEngine === 'antigravity'
                         ? 'AGY Local'
-                        : aiModel.replace('gemini-', ''),
+                        : aiModel.replace('gemini-', '')
+                  }`,
+                  variant: 'purple' as const,
+                  icon: <Brain className="w-3.5 h-3.5" />,
                 },
-                { id: 'memories', label: '💾 4. Memorias', badge: activeMemories.length },
-                { id: 'connectors', label: '🔧 5. Herramientas', badge: (workflowNodes.inputs || []).length },
+                {
+                  id: 'memories',
+                  label: '4. Memorias',
+                  badge: `4 · ${activeMemories.length}`,
+                  variant: 'fuchsia' as const,
+                  icon: <HeartPulse className="w-3.5 h-3.5" />,
+                },
+                {
+                  id: 'connectors',
+                  label: '5. Herramientas',
+                  badge: `5 · ${(workflowNodes.inputs || []).length}`,
+                  variant: 'cyan' as const,
+                  icon: <Sliders className="w-3.5 h-3.5" />,
+                },
                 {
                   id: 'skills_rules',
-                  label: '🧩 6. Skills, Sub-Agentes & Scraping',
-                  badge: (workflowNodes?.canvasLayout?.customNodes || []).length,
+                  label: '6. Skills, Sub-Agentes & Scraping',
+                  badge: `6 · ${(workflowNodes?.canvasLayout?.customNodes || []).length}`,
+                  variant: 'indigo' as const,
+                  icon: <Puzzle className="w-3.5 h-3.5" />,
                 },
-                { id: 'hitos', label: '🛡️ 7. Los 8 Hitos / 50 Apps SST', badge: (workflowNodes.hitos || []).length },
-                { id: 'outputs', label: '📤 8. Bitácora & Salida', badge: (workflowNodes.outputs || []).length },
+                {
+                  id: 'hitos',
+                  label: '7. Los 8 Hitos / 50 Apps SST',
+                  badge: `7 · ${(workflowNodes.hitos || []).length}`,
+                  variant: 'teal' as const,
+                  icon: <ShieldCheck className="w-3.5 h-3.5" />,
+                },
+                {
+                  id: 'outputs',
+                  label: '8. Bitácora & Salida',
+                  badge: `8 · ${(workflowNodes.outputs || []).length}`,
+                  variant: 'emerald' as const,
+                  icon: <Bell className="w-3.5 h-3.5" />,
+                },
               ].map((tab) => (
-                <button
+                <ExpandableButton
                   key={tab.id}
                   type="button"
+                  size="sm"
+                  variant={tab.variant}
+                  isActive={paletteTab === tab.id}
+                  icon={tab.icon}
+                  badge={tab.badge}
+                  label={tab.label}
+                  title={`Etapa ${tab.label}`}
                   onClick={() => {
                     setPaletteTab(tab.id as any);
                     setConstructionNotice(null);
@@ -3291,23 +3347,7 @@ export default function WappyWorkflowCanvas({
                       setActiveConfigNodeKey(workflowNodes.canvasLayout!.customNodes![0].key);
                     }
                   }}
-                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold transition flex items-center gap-1.5 border ${
-                    paletteTab === tab.id
-                      ? 'bg-[#0D9488] text-white dark:bg-[#C7F303] dark:text-[#0E1300] border-transparent shadow-sm'
-                      : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#0D9488] dark:hover:border-[#C7F303]/60'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                      paletteTab === tab.id
-                        ? 'bg-white/25 text-white dark:bg-black/15 dark:text-[#0E1300]'
-                        : 'bg-teal-50 dark:bg-slate-700 text-teal-700 dark:text-[#C7F303]'
-                    }`}
-                  >
-                    {tab.badge}
-                  </span>
-                </button>
+                />
               ))}
             </div>
           </div>
@@ -3348,34 +3388,75 @@ export default function WappyWorkflowCanvas({
           {/* CUADRITOS ARRASTRABLES CON LOGOS SVG ORIGINALES */}
           {paletteTab === 'skills_rules' ? (
             <div className="flex flex-col gap-2.5">
-              {/* Barra superior de filtros + Estado de la Instancia de Antigravity + Botón "+ Crear Mi Propio Nodo" */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex flex-wrap items-center gap-1">
+              {/* Barra superior de filtros + Estado de la Instancia de Antigravity + Botón "+ Crear Mi Propio Nodo" (Estilo Oficial ExpandableButton) */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                   {[
-                    { id: 'all', label: '🌐 Todos' },
-                    { id: 'skill', label: '🧩 Skills (SKILL.md)' },
-                    { id: 'subagent', label: '🤖 Sub-Agentes' },
-                    { id: 'rule', label: '📏 Reglas (Rules)' },
-                    { id: 'web_scraper', label: '🕷️ Web Scraping AGY (Script)' },
-                    { id: 'web_search', label: '🔍 Búsqueda Web' },
-                    { id: 'my_created', label: `⭐ Mis Nodos (${savedUserLibraryNodes.length})` },
+                    {
+                      id: 'all',
+                      badge: 'Todos',
+                      label: 'Ver Todos los Nodos Especiales',
+                      variant: 'purple' as const,
+                      icon: <Globe className="w-3.5 h-3.5" />,
+                    },
+                    {
+                      id: 'skill',
+                      badge: 'Skills',
+                      label: 'Skills Procedurales (SKILL.md)',
+                      variant: 'violet' as const,
+                      icon: <Puzzle className="w-3.5 h-3.5" />,
+                    },
+                    {
+                      id: 'subagent',
+                      badge: 'Sub-Agentes (30)',
+                      label: 'Todos los Sub-Agentes & Especialistas',
+                      variant: 'indigo' as const,
+                      icon: <Bot className="w-3.5 h-3.5" />,
+                    },
+                    {
+                      id: 'rule',
+                      badge: 'Reglas',
+                      label: 'Reglas Obligatorias (Rules)',
+                      variant: 'emerald' as const,
+                      icon: <Scale className="w-3.5 h-3.5" />,
+                    },
+                    {
+                      id: 'web_scraper',
+                      badge: 'Scraping AGY',
+                      label: 'Web Scraping AGY (Script)',
+                      variant: 'amber' as const,
+                      icon: <Terminal className="w-3.5 h-3.5" />,
+                    },
+                    {
+                      id: 'web_search',
+                      badge: 'Web',
+                      label: 'Búsqueda Web Oficial',
+                      variant: 'cyan' as const,
+                      icon: <Search className="w-3.5 h-3.5" />,
+                    },
+                    {
+                      id: 'my_created',
+                      badge: `Mis Nodos (${savedUserLibraryNodes.length})`,
+                      label: 'Mis Nodos Personalizados',
+                      variant: 'teal' as const,
+                      icon: <Sparkles className="w-3.5 h-3.5" />,
+                    },
                   ].map((fTab) => (
-                    <button
+                    <ExpandableButton
                       key={fTab.id}
                       type="button"
+                      size="sm"
+                      variant={fTab.variant}
+                      isActive={selectedSkillFilter === fTab.id}
+                      icon={fTab.icon}
+                      badge={fTab.badge}
+                      label={fTab.label}
                       onClick={() => setSelectedSkillFilter(fTab.id as any)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border ${
-                        selectedSkillFilter === fTab.id
-                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
-                      }`}
-                    >
-                      {fTab.label}
-                    </button>
+                    />
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
                   {/* Indicador en vivo de si la instancia de Google Antigravity del usuario está configurada/conectada */}
                   <span
                     className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 border ${
@@ -3395,14 +3476,20 @@ export default function WappyWorkflowCanvas({
                       : 'Web Scraping AGY: Requiere tu instancia Antigravity configurada'}
                   </span>
 
-                  <button
+                  <ExpandableButton
                     type="button"
+                    size="sm"
+                    variant="primary"
+                    isActive={showCustomNodeBuilder}
+                    icon={<Plus className="w-3.5 h-3.5" />}
+                    badge={showCustomNodeBuilder ? 'Cerrar' : '+ Crear Nodo'}
+                    label={
+                      showCustomNodeBuilder
+                        ? 'Cerrar Creador de Nodos'
+                        : '+ Crear Mi Propio Nodo / Sub-Agente'
+                    }
                     onClick={() => setShowCustomNodeBuilder((v) => !v)}
-                    className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#C7F303] dark:hover:bg-[#b8e002] text-white dark:text-[#0E1300] text-[10.5px] font-extrabold flex items-center gap-1 shadow-xs transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    {showCustomNodeBuilder ? 'Cerrar Creador' : '+ Crear Mi Propio Nodo'}
-                  </button>
+                  />
                 </div>
               </div>
 
@@ -3541,8 +3628,13 @@ export default function WappyWorkflowCanvas({
                         <label className="text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300">
                           💻 Script de Web Scraping o Selectores CSS que ejecutará Antigravity
                         </label>
-                        <button
+                        <ExpandableButton
                           type="button"
+                          size="sm"
+                          variant="purple"
+                          icon={<Wand2 className="w-3.5 h-3.5" />}
+                          badge="Autogenerar"
+                          label="⚡ Autogenerar Script Base de Scraping"
                           onClick={() => {
                             const urlSample =
                               newCustomNodeForm.targetUrl.trim() || 'https://ejemplo.gov.co';
@@ -3554,10 +3646,7 @@ export default function WappyWorkflowCanvas({
                                   : `Abrir ${urlSample} con Chrome DevTools MCP, extraer todas las tablas, titulares y enlaces PDF y devolverlos en Markdown limpio.`;
                             setNewCustomNodeForm((prev) => ({ ...prev, scriptCode: generated }));
                           }}
-                          className="text-[10px] font-extrabold text-purple-600 dark:text-[#C7F303] hover:underline"
-                        >
-                          ⚡ Autogenerar Script Base de Scraping
-                        </button>
+                        />
                       </div>
                       <textarea
                         rows={3}
@@ -3586,28 +3675,31 @@ export default function WappyWorkflowCanvas({
                     />
                   </div>
 
-                  <div className="flex items-center justify-end gap-2">
-                    <button
+                  <div className="flex items-center justify-end gap-2.5 py-1 px-1">
+                    <ExpandableButton
                       type="button"
+                      size="sm"
+                      variant="neutral"
+                      icon={<X className="w-3.5 h-3.5" />}
+                      label="Cancelar"
                       onClick={() => setShowCustomNodeBuilder(false)}
-                      className="px-3 py-1 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold"
-                    >
-                      Cancelar
-                    </button>
-                    <button
+                    />
+                    <ExpandableButton
                       type="button"
-                      onClick={handleCreateAndSaveCustomNode}
+                      size="sm"
+                      variant="purple"
                       disabled={!newCustomNodeForm.title.trim()}
-                      className="px-3.5 py-1 rounded-xl bg-gradient-to-r from-purple-600 to-teal-600 disabled:opacity-40 text-white text-[11px] font-extrabold shadow-sm"
-                    >
-                      ➕ Crear Nodo y Agregar al Lienzo
-                    </button>
+                      icon={<Plus className="w-3.5 h-3.5" />}
+                      badge="+ Crear"
+                      label="Crear Nodo y Agregar al Lienzo"
+                      onClick={handleCreateAndSaveCustomNode}
+                    />
                   </div>
                 </div>
               )}
 
               {/* Catálogo horizontal de Nodos de Skills, Sub-Agentes, Reglas, Web Scraping AGY y Nodos creados por el usuario */}
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
+              <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 px-1">
                 {[
                   ...savedUserLibraryNodes.map((uNode) => ({
                     id: uNode.key,
@@ -3654,6 +3746,34 @@ export default function WappyWorkflowCanvas({
                       isUserCreated: false,
                     };
                   }),
+                  // También incluir cualquier agente de chat dinámico adicional que no esté ya en el catálogo
+                  ...(agents || [])
+                    .filter((ag) => {
+                      const norm = ag.name.trim().toLowerCase();
+                      return !SKILL_RULE_SUBAGENT_NODES.some(
+                        (cn) =>
+                          cn.id.startsWith('subagent_') &&
+                          (cn.shortLabel.toLowerCase().includes(norm) ||
+                            cn.label.toLowerCase().includes(norm)),
+                      );
+                    })
+                    .map((ag) => ({
+                      id: `subagent_dyn_${ag.id}`,
+                      shortLabel: ag.name,
+                      label: `🤖 Sub-Agente Chat: ${ag.name}`,
+                      badge: 'Agente Chat WAPPY',
+                      toolHint: `wappy_consultar_agente_especialista (${ag.name})`,
+                      promptHint: `Delega al Agente de Chat «${ag.name}» el análisis especializado de su área y consolida su dictamen en el flujo.`,
+                      customNodePayload: {
+                        key: `custom_subagent_dyn_${ag.id}`,
+                        nodeType: 'subagent' as const,
+                        title: ag.name,
+                        subtitle: 'Agente Chat WAPPY',
+                        content: `Delega al Agente de Chat «${ag.name}» el análisis especializado de su área y consolida su dictamen en el flujo.`,
+                        agentId: ag.id,
+                      },
+                      isUserCreated: false,
+                    })),
                 ]
                   .filter((item) => {
                     if (selectedSkillFilter === 'all') return true;
@@ -3723,21 +3843,18 @@ export default function WappyWorkflowCanvas({
                           {item.badge}
                         </span>
                         {isAlreadyOnCanvas && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openNodeConfigInspector(item.customNodePayload.key);
-                            }}
-                            className={`mt-1 px-2 py-0.5 rounded-lg text-[8.5px] font-extrabold transition flex items-center gap-0.5 border ${
-                              isInspectingThisCustom
-                                ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
-                                : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-[#C7F303] border-purple-300 dark:border-purple-700'
-                            }`}
-                            title="Configurar este nodo y ver su Estado en Vivo"
-                          >
-                            ⚙️ Configurar
-                          </button>
+                          <div className="mt-1 py-0.5 px-1" onClick={(e) => e.stopPropagation()}>
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="purple"
+                              isActive={isInspectingThisCustom}
+                              icon={<Sliders className="w-3 h-3" />}
+                              label="Configurar"
+                              title="Configurar este nodo y ver su Estado en Vivo"
+                              onClick={() => openNodeConfigInspector(item.customNodePayload.key)}
+                            />
+                          </div>
                         )}
                       </div>
                     );
@@ -3789,21 +3906,18 @@ export default function WappyWorkflowCanvas({
                         {m.description}
                       </p>
                       {isSelected && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openNodeConfigInspector('sub_model');
-                          }}
-                          className={`mt-1.5 px-2 py-0.5 rounded-lg text-[9px] font-extrabold transition inline-flex items-center gap-1 border ${
-                            isInspectingModel
-                              ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
-                              : 'bg-white hover:bg-purple-100 dark:bg-slate-900 text-purple-700 dark:text-[#C7F303] border-purple-300 dark:border-purple-700'
-                          }`}
-                          title="Configurar Motor IA y ver su Estado en Vivo"
-                        >
-                          ⚙️ Configurar
-                        </button>
+                        <div className="mt-1.5 py-0.5" onClick={(e) => e.stopPropagation()}>
+                          <ExpandableButton
+                            type="button"
+                            size="sm"
+                            variant="purple"
+                            isActive={isInspectingModel}
+                            icon={<Sliders className="w-3 h-3" />}
+                            label="Configurar"
+                            title="Configurar Motor IA y ver su Estado en Vivo"
+                            onClick={() => openNodeConfigInspector('sub_model')}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -3853,21 +3967,18 @@ export default function WappyWorkflowCanvas({
                         {(mem as any).promptHint || mem.toolHint}
                       </p>
                       {isSelected && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openNodeConfigInspector(memCanvasKey);
-                          }}
-                          className={`mt-1.5 px-2 py-0.5 rounded-lg text-[9px] font-extrabold transition inline-flex items-center gap-1 border ${
-                            isInspectingMem
-                              ? 'bg-pink-600 text-white border-pink-600 shadow-2xs'
-                              : 'bg-white hover:bg-pink-100 dark:bg-slate-900 text-pink-700 dark:text-[#C7F303] border-pink-300 dark:border-pink-700'
-                          }`}
-                          title="Configurar esta Memoria y ver sus Registros Reales en Vivo"
-                        >
-                          ⚙️ Configurar
-                        </button>
+                        <div className="mt-1.5 py-0.5" onClick={(e) => e.stopPropagation()}>
+                          <ExpandableButton
+                            type="button"
+                            size="sm"
+                            variant="fuchsia"
+                            isActive={isInspectingMem}
+                            icon={<Sliders className="w-3 h-3" />}
+                            label="Configurar"
+                            title="Configurar esta Memoria y ver sus Registros Reales en Vivo"
+                            onClick={() => openNodeConfigInspector(memCanvasKey)}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -3876,25 +3987,24 @@ export default function WappyWorkflowCanvas({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {/* Barra de filtro por los 8 Hitos de Somos SST (disponible en Extraer Datos, Herramientas y Los 8 Hitos) */}
+              {/* Barra de filtro por los 8 Hitos de Somos SST (Estilo Oficial WAPPY ExpandableButton con Espacio Amplio) */}
               {(paletteTab === 'hitos' || paletteTab === 'extractors' || paletteTab === 'connectors') && (
-                <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-slate-100 dark:border-slate-800/80">
-                  <div className="flex flex-wrap items-center gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
+                  <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                     {paletteTab !== 'hitos' && (
-                      <button
+                      <ExpandableButton
                         type="button"
+                        size="sm"
+                        variant="teal"
+                        isActive={selectedHitoFilter === 'external'}
+                        icon={<Globe className="w-3.5 h-3.5" />}
+                        badge={`Fuentes (${paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})`}
+                        label={`Conectores / Fuentes (${paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})`}
                         onClick={() => {
                           setSelectedHitoFilter('external');
                           setConstructionNotice(null);
                         }}
-                        className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border ${
-                          selectedHitoFilter === 'external'
-                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                        }`}
-                      >
-                        🌐 Conectores / Fuentes ({paletteTab === 'extractors' ? EXTRACTOR_NODES.length : INPUT_CONNECTOR_NODES.length})
-                      </button>
+                      />
                     )}
                     {HITOS_8_FILTER_TABS.map((hTab) => {
                       const isActive =
@@ -3919,44 +4029,30 @@ export default function WappyWorkflowCanvas({
                         isWorkflowNodeUnderConstruction(n, disabledSgsstApps),
                       ).length;
                       return (
-                        <button
+                        <ExpandableButton
                           key={hTab.id}
                           type="button"
+                          size="sm"
+                          variant="purple"
+                          isActive={isActive}
+                          icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                          badge={
+                            <span className="inline-flex items-center gap-1">
+                              <span>{hTab.shortLabel}</span>
+                              {activeInTabCount > 0 && (
+                                <span className="text-emerald-600 dark:text-[#C7F303]">
+                                  ✓{activeInTabCount}
+                                </span>
+                              )}
+                            </span>
+                          }
+                          label={hTab.label}
+                          title={`${hTab.label} — ${activeInTabCount} activo(s) en el flujo · ${constructionInTabCount} en Construcción`}
                           onClick={() => {
                             setSelectedHitoFilter(hTab.id);
                             setConstructionNotice(null);
                           }}
-                          title={`${hTab.label} — ${activeInTabCount} activo(s) en el flujo · ${constructionInTabCount} en Construcción`}
-                          className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition border inline-flex items-center gap-1 ${
-                            isActive
-                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-400'
-                          }`}
-                        >
-                          <span>{hTab.shortLabel}</span>
-                          {activeInTabCount > 0 && (
-                            <span
-                              className={`px-1 py-0.2 rounded-full text-[8.5px] font-black ${
-                                isActive
-                                  ? 'bg-white/25 text-white'
-                                  : 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-[#C7F303]'
-                              }`}
-                            >
-                              ✓{activeInTabCount}
-                            </span>
-                          )}
-                          {constructionInTabCount > 0 && (
-                            <span
-                              className={`px-1 py-0.2 rounded-full text-[8.5px] font-black ${
-                                isActive
-                                  ? 'bg-amber-300/30 text-amber-100'
-                                  : 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300'
-                              }`}
-                            >
-                              🚧{constructionInTabCount}
-                            </span>
-                          )}
-                        </button>
+                        />
                       );
                     })}
                   </div>
@@ -3970,17 +4066,18 @@ export default function WappyWorkflowCanvas({
                     <Hammer className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                     {constructionNotice}
                   </span>
-                  <button
+                  <ExpandableButton
                     type="button"
+                    size="sm"
+                    variant="amber"
+                    icon={<X className="w-3 h-3" />}
+                    label="Cerrar"
                     onClick={() => setConstructionNotice(null)}
-                    className="text-amber-700 dark:text-amber-300 hover:underline text-[10px] font-extrabold shrink-0"
-                  >
-                    Cerrar
-                  </button>
+                  />
                 </div>
               )}
 
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
+              <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 px-1">
                 {(paletteTab === 'extractors'
                   ? selectedHitoFilter === 'external'
                     ? EXTRACTOR_NODES
@@ -4100,21 +4197,18 @@ export default function WappyWorkflowCanvas({
                         </span>
                       ) : (
                         isSelected && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openNodeConfigInspector(canvasKeyForTile);
-                            }}
-                            className={`mt-1 px-2 py-0.5 rounded-lg text-[8.5px] font-extrabold transition flex items-center gap-0.5 border ${
-                              isInspectingTile
-                                ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
-                                : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-[#C7F303] border-purple-300 dark:border-purple-700'
-                            }`}
-                            title={`Configurar «${node.shortLabel}» y ver su Estado en Vivo`}
-                          >
-                            ⚙️ Configurar
-                          </button>
+                          <div className="mt-1 py-0.5 px-1" onClick={(e) => e.stopPropagation()}>
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="purple"
+                              isActive={isInspectingTile}
+                              icon={<Sliders className="w-3 h-3" />}
+                              label="Configurar"
+                              title={`Configurar «${node.shortLabel}» y ver su Estado en Vivo`}
+                              onClick={() => openNodeConfigInspector(canvasKeyForTile)}
+                            />
+                          </div>
                         )
                       )}
                     </div>
@@ -4153,85 +4247,77 @@ export default function WappyWorkflowCanvas({
           onPointerMove={handleCanvasPointerMove}
           onPointerUp={() => handleCanvasPointerUp()}
         >
-          {/* Barra superior limpia y unificada del Lienzo WAPPY (1 sola línea, estilo oficial ExpandableButton) */}
+          {/* Barra superior limpia y unificada del Lienzo WAPPY (1 sola línea, estilo oficial ExpandableButton con Espacio Amplio) */}
           {!compact && (
             <div
               data-canvas-toolbar="true"
               onPointerDown={(e) => e.stopPropagation()}
-              className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-md m-2.5 cursor-default"
+              className="sticky left-3 top-3 z-30 inline-flex flex-wrap items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-md m-2.5 cursor-default"
             >
               <span className="text-[10.5px] font-black uppercase tracking-wider text-teal-700 dark:text-[#C7F303] mr-1 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Lienzo WAPPY
               </span>
 
-              {/* ─── 1. NAVEGACIÓN Y ZOOM ─── */}
-              <div className="inline-flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setCanvasTool(canvasTool === 'select' ? 'pan' : 'select')}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 ${
-                    canvasTool === 'pan'
-                      ? 'bg-[#0D9488] text-white dark:bg-[#C7F303] dark:text-[#0E1300] shadow-2xs'
-                      : 'bg-purple-600 text-white shadow-2xs'
-                  }`}
-                  title={
-                    canvasTool === 'pan'
-                      ? 'Modo Manita activo (clic para cambiar a Selección por recuadro)'
-                      : 'Modo Selección activo (clic para volver a Manita)'
-                  }
-                >
-                  {canvasTool === 'pan' ? (
-                    <>
-                      <Hand className="w-3 h-3" />
-                      Manita
-                    </>
+              {/* ─── 1. NAVEGACIÓN Y ZOOM (ESTILO OFICIAL EXPANDABLEBUTTON) ─── */}
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant={canvasTool === 'pan' ? 'teal' : 'purple'}
+                isActive={canvasTool === 'select'}
+                icon={
+                  canvasTool === 'pan' ? (
+                    <Hand className="w-3.5 h-3.5" />
                   ) : (
-                    <>
-                      <MousePointer2 className="w-3 h-3" />
-                      Seleccionar
-                    </>
-                  )}
-                </button>
+                    <MousePointer2 className="w-3.5 h-3.5" />
+                  )
+                }
+                label={canvasTool === 'pan' ? 'Manita (Mover Lienzo)' : 'Seleccionar Nodos'}
+                title={
+                  canvasTool === 'pan'
+                    ? 'Modo Manita activo (clic para cambiar a Selección por recuadro)'
+                    : 'Modo Selección activo (clic para volver a Manita)'
+                }
+                onClick={() => setCanvasTool(canvasTool === 'select' ? 'pan' : 'select')}
+              />
 
-                {!readOnly && onChange && (
-                  <button
-                    type="button"
-                    onClick={handleSelectAllNodes}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 ${
-                      selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
-                        ? 'bg-indigo-600 text-white shadow-2xs'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'
-                    }`}
-                    title="Seleccionar todo el flujo para moverlo junto"
-                  >
-                    <Move className="w-3 h-3" />
-                    {selectedNodeKeys.length > 0 ? `${selectedNodeKeys.length}` : 'Todo'}
-                  </button>
-                )}
-
-                <div className="h-3.5 w-[1px] bg-slate-300 dark:bg-slate-600 mx-0.5" />
-
-                <button
+              {!readOnly && onChange && (
+                <ExpandableButton
                   type="button"
-                  onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
-                  className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-                  title="Alejar"
-                >
-                  <ZoomOut className="w-3 h-3" />
-                </button>
-                <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-200 min-w-[32px] text-center">
-                  {Math.round(zoom * 100)}%
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setZoom((z) => Math.min(1.15, Number((z + 0.1).toFixed(2))))}
-                  className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-                  title="Acercar"
-                >
-                  <ZoomIn className="w-3 h-3" />
-                </button>
-              </div>
+                  size="sm"
+                  variant="indigo"
+                  isActive={
+                    selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
+                  }
+                  icon={<Move className="w-3.5 h-3.5" />}
+                  badge={selectedNodeKeys.length > 0 ? `${selectedNodeKeys.length}` : undefined}
+                  label="Seleccionar Todo el Flujo"
+                  title="Seleccionar todo el flujo para moverlo junto"
+                  onClick={handleSelectAllNodes}
+                />
+              )}
+
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant="neutral"
+                icon={<ZoomOut className="w-3.5 h-3.5" />}
+                label="Alejar (-)"
+                title="Alejar vista del lienzo"
+                onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.1).toFixed(2))))}
+              />
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-200 min-w-[34px] text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant="neutral"
+                icon={<ZoomIn className="w-3.5 h-3.5" />}
+                label="Acercar (+)"
+                title="Acercar vista del lienzo"
+                onClick={() => setZoom((z) => Math.min(1.15, Number((z + 0.1).toFixed(2))))}
+              />
 
               {/* ─── 2. NODOS DE LÓGICA Y SUB-AGENTES (ESTILO OFICIAL WAPPY EXPANDABLEBUTTON) ─── */}
               {!readOnly && onChange && (
@@ -5128,7 +5214,15 @@ export default function WappyWorkflowCanvas({
                     <div
                       className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 ${borderColor} shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}
                     >
-                      {renderOfficialNodeSvg(iconId, 'w-8 h-8')}
+                      {node.customNodeType === 'subagent' && nodeCfg?.avatarSrc ? (
+                        <img
+                          src={nodeCfg.avatarSrc}
+                          alt={node.title}
+                          className="w-9 h-9 object-contain drop-shadow-sm select-none pointer-events-none scale-115"
+                        />
+                      ) : (
+                        renderOfficialNodeSvg(iconId, 'w-8 h-8')
+                      )}
 
                       {!readOnly && (
                         <button
@@ -5376,13 +5470,21 @@ export default function WappyWorkflowCanvas({
                   💡 <strong>Edición por Nodo:</strong> Haz clic sobre <strong>cualquier nodo del lienzo</strong> (ej. <em>Extraer Trabajadores</em>, <em>Web Scraping AGY</em>, <em>Skill</em>, <em>Sub-Agente</em>, <em>Regla</em>, <em>Agente IA #1/#2</em> o <em>Condición Si/No</em>) para elegir sus campos exactos (ej. solo <strong>Nombre, Cédula y Edad</strong>), su <strong>Script de Web Scraping</strong>, su <strong>Modelo de IA</strong>, su <strong>Segundo Prompt</strong> y su <strong>Contexto de Entrada y Salida</strong>.
                 </span>
               </span>
-              <button
-                type="button"
-                onClick={() => setActiveConfigNodeKey(visualNodes.find((n) => n.shape === 'square_extractor')?.key || 'agent_root')}
-                className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-extrabold shrink-0 transition"
-              >
-                Configurar Nodo
-              </button>
+              <div className="shrink-0 py-0.5 px-1">
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="purple"
+                  icon={<Sliders className="w-3.5 h-3.5" />}
+                  label="Configurar Nodo"
+                  title="Abrir configuración del nodo activo"
+                  onClick={() =>
+                    setActiveConfigNodeKey(
+                      visualNodes.find((n) => n.shape === 'square_extractor')?.key || 'agent_root',
+                    )
+                  }
+                />
+              </div>
             </div>
           );
         }

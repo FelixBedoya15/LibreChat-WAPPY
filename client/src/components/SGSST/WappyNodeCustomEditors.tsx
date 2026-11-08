@@ -449,22 +449,22 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
         {/* Barra de Filtro de Registros con ExpandableButton de WAPPY */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
             <ExpandableButton
               size="sm"
               variant="teal"
               isActive={recordFilterMode === 'all'}
-              alwaysExpanded
               icon={<Database className="w-3.5 h-3.5" />}
-              label={`Todos (${nodeLiveInspectorData.totalRecords})`}
+              badge={`Todos (${nodeLiveInspectorData.totalRecords})`}
+              label={`Todos los Registros (${nodeLiveInspectorData.totalRecords})`}
               onClick={() => handleSetRecordFilterMode('all')}
             />
             <ExpandableButton
               size="sm"
               variant="danger"
               isActive={recordFilterMode === 'critical_only'}
-              alwaysExpanded
               icon={<AlertTriangle className="w-3.5 h-3.5" />}
+              badge={`Críticos (${nodeLiveInspectorData.criticalCount})`}
               label={`Solo Críticos / En Brecha (${nodeLiveInspectorData.criticalCount})`}
               onClick={() => handleSetRecordFilterMode('critical_only')}
             />
@@ -472,8 +472,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               size="sm"
               variant="purple"
               isActive={recordFilterMode === 'selected'}
-              alwaysExpanded
               icon={<Check className="w-3.5 h-3.5" />}
+              badge={`Elegidos (${selectedRecordIds.length})`}
               label={`Seleccionados (${selectedRecordIds.length})`}
               onClick={() => handleSetRecordFilterMode('selected')}
             />
@@ -659,8 +659,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   size="sm"
                   variant="amber"
                   isActive={scheduleType !== 'hourly' && hour === preset.h && minute === preset.m}
-                  alwaysExpanded
                   icon={<Clock className="w-3.5 h-3.5" />}
+                  badge={`${String(preset.h).padStart(2, '0')}:${String(preset.m).padStart(2, '0')}`}
                   label={preset.label}
                   onClick={() => {
                     if (onChangeHour) onChangeHour(preset.h);
@@ -935,13 +935,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   'Tenshi, ejecuta la auditoría de hoy',
                   'Tenshi, revisa vencimientos de trabajadores',
                   'Tenshi, procesa los archivos nuevos de Drive',
-                ].map((sample) => (
+                ].map((sample, idx) => (
                   <ExpandableButton
                     key={sample}
                     size="sm"
                     variant="purple"
-                    alwaysExpanded
                     icon={<MessageSquare className="w-3.5 h-3.5" />}
+                    badge={`Frase #${idx + 1}`}
                     label={sample}
                     onClick={() => onUpdateNodeConfig(activeNode.key, { voiceCommand: sample })}
                   />
@@ -1108,13 +1108,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               <QrCode className="w-4 h-4 text-fuchsia-600" />
               1. Elige qué Portal Público QR de Somos SST dispara este flujo al recibir un reporte:
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 py-0.5 px-1">
               <ExpandableButton
                 size="sm"
                 variant="teal"
                 isActive={(currentCfg.qrSeverityFilter || 'all') === 'all'}
-                alwaysExpanded
                 icon={<Check className="w-3.5 h-3.5" />}
+                badge="Todos"
                 label="Cualquier Reporte Nuevo"
                 onClick={() => onUpdateNodeConfig(activeNode.key, { qrSeverityFilter: 'all' })}
               />
@@ -1122,8 +1122,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 size="sm"
                 variant="danger"
                 isActive={currentCfg.qrSeverityFilter === 'critical_only'}
-                alwaysExpanded
                 icon={<AlertTriangle className="w-3.5 h-3.5" />}
+                badge="Solo Críticos"
                 label="Solo Peligro Crítico / Alto"
                 onClick={() =>
                   onUpdateNodeConfig(activeNode.key, { qrSeverityFilter: 'critical_only' })
@@ -1218,8 +1218,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           <ExpandableButton
             size="sm"
             variant="fuchsia"
-            alwaysExpanded
             icon={<Copy className="w-3.5 h-3.5" />}
+            badge={copiedWebhook ? '✓ Copiada' : 'Copiar URL'}
             label={copiedWebhook ? '¡URL Copiada!' : 'Copiar URL Webhook'}
             onClick={() => {
               navigator.clipboard?.writeText(webhookUrl);
@@ -1399,8 +1399,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               <ExpandableButton
                 size="sm"
                 variant="purple"
-                alwaysExpanded
                 icon={<Wand2 className="w-3.5 h-3.5" />}
+                badge="Autogenerar"
                 label="Autogenerar Prompt desde los Nodos Conectados"
                 onClick={onAutoBuildPrompt}
               />
@@ -1688,12 +1688,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
                 <ExpandableButton
                   size="sm"
                   variant="emerald"
-                  alwaysExpanded
                   icon={<Check className="w-3.5 h-3.5" />}
+                  badge={`Todas (${TENSHI_NORMATIVE_MARKDOWN_DOCS.length})`}
                   label={`Todas (${TENSHI_NORMATIVE_MARKDOWN_DOCS.length} .md)`}
                   onClick={() =>
                     selectNormativeCombo(TENSHI_NORMATIVE_MARKDOWN_DOCS.map((d) => d.id))
@@ -1702,8 +1702,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 <ExpandableButton
                   size="sm"
                   variant="teal"
-                  alwaysExpanded
                   icon={<Sparkles className="w-3.5 h-3.5" />}
+                  badge="2024–2026"
                   label="Vademécum + Vigentes 2024–2026"
                   onClick={() =>
                     selectNormativeCombo(
@@ -1718,8 +1718,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 <ExpandableButton
                   size="sm"
                   variant="purple"
-                  alwaysExpanded
                   icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                  badge="Núcleo SST"
                   label="Núcleo SG-SST (1072, 0312, 1843, 4272, PESV)"
                   onClick={() =>
                     selectNormativeCombo([
@@ -1738,8 +1738,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 <ExpandableButton
                   size="sm"
                   variant="indigo"
-                  alwaysExpanded
                   icon={<BookOpen className="w-3.5 h-3.5" />}
+                  badge="Psicosocial"
                   label="Batería y 14 Protocolos Psicosociales"
                   onClick={() =>
                     selectNormativeCombo(
@@ -1753,7 +1753,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   <ExpandableButton
                     size="sm"
                     variant="rose"
-                    alwaysExpanded
                     icon={<Trash2 className="w-3.5 h-3.5" />}
                     label="Limpiar"
                     onClick={() => selectNormativeCombo([])}
@@ -2390,8 +2389,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             <ExpandableButton
               size="sm"
               variant="amber"
-              alwaysExpanded
               icon={<Wand2 className="w-3.5 h-3.5" />}
+              badge="Autogenerar"
               label="Autogenerar Script para esta URL"
               onClick={() => {
                 const target =
@@ -2445,21 +2444,21 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             className="w-full px-3 py-2 rounded-xl border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2 py-0.5 px-1">
           {[
-            'site:mintrabajo.gov.co normatividad SST',
-            'site:minsalud.gov.co resoluciones salud laboral',
-            'site:positiva.gov.co guías preventivas ARL',
-            'site:arlsura.com matriz legal SST',
+            { tag: 'MinTrabajo', q: 'site:mintrabajo.gov.co normatividad SST' },
+            { tag: 'MinSalud', q: 'site:minsalud.gov.co resoluciones salud laboral' },
+            { tag: 'ARL Positiva', q: 'site:positiva.gov.co guías preventivas ARL' },
+            { tag: 'ARL SURA', q: 'site:arlsura.com matriz legal SST' },
           ].map((qPreset) => (
             <ExpandableButton
-              key={qPreset}
+              key={qPreset.q}
               size="sm"
               variant="cyan"
-              alwaysExpanded
               icon={<Globe className="w-3.5 h-3.5" />}
-              label={qPreset}
-              onClick={() => onUpdateNodeConfig(activeNode.key, { targetUrl: qPreset })}
+              badge={qPreset.tag}
+              label={qPreset.q}
+              onClick={() => onUpdateNodeConfig(activeNode.key, { targetUrl: qPreset.q })}
             />
           ))}
         </div>
@@ -2467,35 +2466,302 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     );
   }
 
-  if (isSkillNode || isRuleNode || isSubagentCustomNode) {
+  if (isSubagentCustomNode) {
+    const subagentCatalogOptions = SKILL_RULE_SUBAGENT_NODES.filter((n) =>
+      n.id.startsWith('subagent_'),
+    );
+    const activeTitle =
+      currentCfg.customTitle ?? customNodeObj?.title ?? activeNode.title ?? 'Sub-Agente WAPPY';
+    const activeSubtitle =
+      currentCfg.customSubtitle ?? customNodeObj?.subtitle ?? activeNode.subtitle ?? 'Especialista SST';
+    const activeSubPrompt =
+      currentCfg.prompt ?? customNodeObj?.content ?? catalogScraperDef?.content ?? '';
+    const activeSubEngine = currentCfg.aiEngine || customNodeObj?.aiEngine || aiEngine;
+    const activeSubModel = currentCfg.aiModel || customNodeObj?.aiModel || aiModel;
+    const activeAvatarSrc =
+      currentCfg.avatarSrc ||
+      (activeNode.nodeId === 'subagent_chat_tenshi'
+        ? '/assets/tenshi.png?v=20261108'
+        : '/assets/tenshi_suricato.png?v=20261108');
+
+    return (
+      <div className="space-y-4">
+        {/* Encabezado y Selector de Plantilla / Agente de Chat WAPPY */}
+        <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-slate-800/60 border border-indigo-200 dark:border-slate-700 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-indigo-800 dark:text-[#C7F303] flex items-center gap-1.5">
+              <Bot className="w-4 h-4" />
+              🤖 Estudio Editable de Sub-Agente WAPPY (Personalizable al 100%)
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300">
+              23 Agentes de Chat + 7 Sub-Agentes de Flujo Disponibles
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* 1. Nombre Editable del Sub-Agente */}
+            <div>
+              <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                1. Nombre del Sub-Agente (Editable)
+              </label>
+              <input
+                type="text"
+                value={activeTitle}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customTitle: e.target.value })
+                }
+                placeholder="Ej: Abogado Laboral / Auditor ARL..."
+                className="w-full px-3 py-2 rounded-xl border border-indigo-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              />
+            </div>
+
+            {/* 2. Rol o Especialidad Editable */}
+            <div>
+              <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                2. Rol / Especialidad en el Lienzo
+              </label>
+              <input
+                type="text"
+                value={activeSubtitle}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customSubtitle: e.target.value })
+                }
+                placeholder="Ej: Sub-Agente · Medicina Laboral Res. 1843"
+                className="w-full px-3 py-2 rounded-xl border border-indigo-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              />
+            </div>
+
+            {/* 3. Cargar / Sincronizar con cualquiera de los Agentes de Chat o Sub-Agentes */}
+            <div>
+              <label className="block text-[10.5px] font-extrabold uppercase text-indigo-700 dark:text-[#C7F303] mb-1">
+                3. Cargar Especialista de Chat o Sub-Agente
+              </label>
+              <select
+                value={currentCfg.linkedAgentId || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  if (val.startsWith('cat:')) {
+                    const catId = val.replace('cat:', '');
+                    const foundCat = subagentCatalogOptions.find((c) => c.id === catId);
+                    if (foundCat) {
+                      onUpdateNodeConfig(activeNode.key, {
+                        linkedAgentId: val,
+                        customTitle: foundCat.shortLabel,
+                        customSubtitle: foundCat.subtitle,
+                        prompt: foundCat.content,
+                      });
+                    }
+                  } else {
+                    const foundChatAg = availableAgentsWithTenshiAvatar.find((a) => a.id === val);
+                    const matchingPreset = subagentCatalogOptions.find((c) =>
+                      c.label.toLowerCase().includes((foundChatAg?.name || '').toLowerCase()),
+                    );
+                    if (foundChatAg) {
+                      onUpdateNodeConfig(activeNode.key, {
+                        linkedAgentId: val,
+                        customTitle: foundChatAg.name,
+                        customSubtitle: matchingPreset?.subtitle || 'Sub-Agente · Chat WAPPY',
+                        prompt:
+                          matchingPreset?.content ||
+                          `Actúa como Sub-Agente Especialista «${foundChatAg.name}» de WAPPY. Analiza los datos recibidos del paso anterior desde tu especialidad técnica y normativa, y entrega tu dictamen estructurado al siguiente nodo del flujo.`,
+                      });
+                    }
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-indigo-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="">⚡ Elegir Agente de Chat o Plantilla para autocompletar...</option>
+                <optgroup label="🤖 Todos los Sub-Agentes & Especialistas de Chat WAPPY (30)">
+                  {subagentCatalogOptions.map((subOpt) => (
+                    <option key={subOpt.id} value={`cat:${subOpt.id}`}>
+                      {subOpt.label} ({subOpt.subtitle})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="💬 Agentes de Chat Activos en tu Servidor">
+                  {availableAgentsWithTenshiAvatar.map((ag) => (
+                    <option key={ag.id} value={ag.id}>
+                      💬 {ag.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          {/* 4. Motor y Modelo de IA del Sub-Agente */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                4. Motor y Modelo de IA de este Sub-Agente
+              </label>
+              <select
+                value={
+                  activeSubEngine === 'antigravity_cloud'
+                    ? 'antigravity_cloud:gemini-3.6-flash'
+                    : activeSubEngine === 'antigravity'
+                      ? 'antigravity:gemini-3.6-flash'
+                      : `wappy:${activeSubModel}`
+                }
+                onChange={(e) => {
+                  const [eng, mod] = e.target.value.split(':');
+                  onUpdateNodeConfig(activeNode.key, {
+                    aiEngine: eng as any,
+                    aiModel: mod || 'gemini-3.6-flash',
+                  });
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                {AI_ENGINE_MODELS.map((m) => (
+                  <option key={m.id} value={`${m.engine}:${m.model}`}>
+                    {m.shortLabel} — {m.subtitle}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 5. Selector de Avatar 3D del Sub-Agente */}
+            <div>
+              <label className="block text-[10.5px] font-extrabold uppercase text-teal-800 dark:text-[#C7F303] mb-1">
+                5. Avatar 3D de este Sub-Agente en el Lienzo
+              </label>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {WAPPY_AGENT_AVATAR_ROTATION.slice(0, 5).map((av) => {
+                  const isSel =
+                    activeAvatarSrc.split('?')[0] === av.src.split('?')[0];
+                  return (
+                    <button
+                      key={av.id}
+                      type="button"
+                      onClick={() => onUpdateNodeConfig(activeNode.key, { avatarSrc: av.src })}
+                      title={`${av.name} (${av.roleHint})`}
+                      className={`px-2 py-1 rounded-xl border-2 flex items-center gap-1.5 shrink-0 transition ${
+                        isSel
+                          ? 'bg-white dark:bg-slate-800 border-teal-500 dark:border-[#C7F303] shadow-2xs'
+                          : 'bg-white/70 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                      }`}
+                    >
+                      <img
+                        src={av.src}
+                        alt={av.name}
+                        className="w-6 h-6 object-contain shrink-0"
+                      />
+                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-100">
+                        {av.name.split(' ')[0]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 6. Instrucciones / Prompt Específico del Sub-Agente (Editable) */}
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="block text-xs font-extrabold uppercase text-purple-700 dark:text-[#C7F303]">
+              6. Prompt / Instrucciones Específicas de «{activeTitle}»
+            </label>
+            <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+              {[
+                {
+                  badge: 'Auditar Brechas',
+                  label: 'Plantilla: Auditar Brechas Normativas',
+                  text: `Actúa como Sub-Agente «${activeTitle}». Revisa los registros recibidos del paso anterior, identifica incumplimientos frente a la normativa colombiana vigente y entrega una tabla de hallazgos priorizados (Crítico, Medio, Bajo).`,
+                },
+                {
+                  badge: 'Sintetizar Tabla',
+                  label: 'Plantilla: Sintetizar y Cruzar Datos',
+                  text: `Actúa como Sub-Agente «${activeTitle}». Cruza los datos recibidos de los nodos previos, elimina duplicados y entrega una tabla ejecutiva limpia con las columnas clave para el siguiente paso del flujo.`,
+                },
+                {
+                  badge: 'Redactar Dictamen',
+                  label: 'Plantilla: Redactar Dictamen Técnico',
+                  text: `Actúa como Sub-Agente «${activeTitle}». Redacta un dictamen técnico-preventivo formal con recomendaciones de control en fuente, medio e individuo listas para guardar o enviar.`,
+                },
+              ].map((tpl) => (
+                <ExpandableButton
+                  key={tpl.badge}
+                  type="button"
+                  size="sm"
+                  variant="purple"
+                  icon={<Sparkles className="w-3.5 h-3.5" />}
+                  badge={tpl.badge}
+                  label={tpl.label}
+                  onClick={() => onUpdateNodeConfig(activeNode.key, { prompt: tpl.text })}
+                />
+              ))}
+            </div>
+          </div>
+          <textarea
+            rows={4}
+            value={activeSubPrompt}
+            onChange={(e) => onUpdateNodeConfig(activeNode.key, { prompt: e.target.value })}
+            placeholder="Escribe o edita libremente el rol, criterios normativos, formato de salida e instrucciones exactas que ejecutará este Sub-Agente..."
+            className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs leading-relaxed text-slate-800 dark:text-slate-100"
+          />
+        </div>
+
+        {/* 7. Contexto de Entrada y Salida del Sub-Agente */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              📥 Contexto de Entrada (Qué recibe del paso anterior)
+            </label>
+            <input
+              type="text"
+              value={currentCfg.inputContext || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { inputContext: e.target.value })
+              }
+              placeholder="Ej: Recibe listado de trabajadores, hallazgos o documentos extraídos..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              📤 Contexto de Salida (Qué entrega al siguiente nodo)
+            </label>
+            <input
+              type="text"
+              value={currentCfg.outputContext || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { outputContext: e.target.value })
+              }
+              placeholder="Ej: Entrega dictamen en tabla Markdown + lista de acciones correctivas..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSkillNode || isRuleNode) {
     return (
       <div className="space-y-2">
         <label className="block text-xs font-extrabold uppercase text-purple-700 dark:text-[#C7F303]">
           {isSkillNode
             ? '🧩 Instrucciones Procedurales de esta Skill (SKILL.md)'
-            : isRuleNode
-              ? '📏 Regla Obligatoria / Guardrail que el Flujo Jamás Debe Romper'
-              : '🤖 Rol e Instrucción Específica de este Sub-Agente Especialista'}
+            : '📏 Regla Obligatoria / Guardrail que el Flujo Jamás Debe Romper'}
         </label>
         <textarea
           rows={4}
           value={
             isSkillNode
               ? currentCfg.skillContent ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
-              : isRuleNode
-                ? currentCfg.ruleText ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
-                : currentCfg.prompt ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
+              : currentCfg.ruleText ?? customNodeObj?.content ?? catalogScraperDef?.content ?? ''
           }
           onChange={(e) => {
             if (isSkillNode) {
               onUpdateNodeConfig(activeNode.key, { skillContent: e.target.value });
-            } else if (isRuleNode) {
-              onUpdateNodeConfig(activeNode.key, { ruleText: e.target.value });
             } else {
-              onUpdateNodeConfig(activeNode.key, { prompt: e.target.value });
+              onUpdateNodeConfig(activeNode.key, { ruleText: e.target.value });
             }
           }}
-          placeholder="Escribe aquí las instrucciones exactas de esta Skill, Regla o Sub-Agente..."
+          placeholder="Escribe aquí las instrucciones exactas de esta Skill o Regla..."
           className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
         />
       </div>
@@ -2847,8 +3113,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   size="sm"
                   variant="purple"
                   isActive={isComboActive}
-                  alwaysExpanded
                   icon={<Sparkles className="w-3.5 h-3.5" />}
+                  badge={combo.label.split(' ')[0]}
                   label={combo.label}
                   title={combo.description}
                   onClick={() => applyQuickCombo(combo.fields)}
@@ -2908,8 +3174,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             <ExpandableButton
               size="sm"
               variant="emerald"
-              alwaysExpanded
               icon={<Plus className="w-3.5 h-3.5" />}
+              badge="+ Columna"
               label="Añadir Columna"
               onClick={handleAddCustomField}
             />
@@ -2958,8 +3224,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               size="sm"
               variant="teal"
               isActive={Boolean(currentCfg.includeLatestReport)}
-              alwaysExpanded
               icon={<FileText className="w-3.5 h-3.5" />}
+              badge={currentCfg.includeLatestReport ? '✓ Último Informe' : 'Último Informe'}
               label="Incluir Siempre el Último Informe"
               onClick={() =>
                 onUpdateNodeConfig(activeNode.key, {

@@ -16,12 +16,18 @@ export type ExpandableButtonVariant =
   | 'orange'          // #12: Analíticas / Historial / Versiones / Ver / Editar
   | 'danger'          // #13: Eliminar / Borrar / Limpiar / Peligro (Rose)
   | 'neutral'         // #14: Cerrar / Volver / Cancelar / Pantalla Completa / Default
-  | 'white';          // Especial sobre fondos oscuros/esmeralda
+  | 'white'           // Especial sobre fondos oscuros/esmeralda
+  | 'secondary'       // Alias -> neutral
+  | 'violet'          // Alias -> purple
+  | 'rose'            // Alias -> danger
+  | 'sky';            // Alias -> compliance-warn
 
 export interface ExpandableButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon: React.ReactNode;
-  label: string;
+  label?: string;
+  text?: string;
+  badge?: React.ReactNode;
   variant?: ExpandableButtonVariant;
   isActive?: boolean;
   size?: 'sm' | 'md';
@@ -146,6 +152,8 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
     {
       icon,
       label,
+      text,
+      badge,
       variant,
       isActive = false,
       size = 'md',
@@ -158,10 +166,21 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
     },
     ref,
   ) => {
+    const finalLabel = label || text || '';
+    const mappedVariant: ExpandableButtonVariant | undefined =
+      variant === 'secondary'
+        ? 'neutral'
+        : variant === 'violet'
+          ? 'purple'
+          : variant === 'rose'
+            ? 'danger'
+            : variant === 'sky'
+              ? 'compliance-warn'
+              : variant;
     const resolvedVariant =
-      variant && variant !== 'neutral'
-        ? variant
-        : resolveSemanticVariant(`${label} ${title || ''}`, variant);
+      mappedVariant && mappedVariant !== 'neutral'
+        ? mappedVariant
+        : resolveSemanticVariant(`${finalLabel} ${title || ''}`, mappedVariant);
     const config = WAPPY_SEMANTIC_BUTTON_STYLES[resolvedVariant] || WAPPY_SEMANTIC_BUTTON_STYLES.neutral;
     const currentStyle = isActive ? config.active : config.idle;
 
@@ -178,24 +197,29 @@ export const ExpandableButton = React.forwardRef<HTMLButtonElement, ExpandableBu
       <button
         ref={ref}
         type={type}
-        title={title || label}
+        title={title || finalLabel}
         disabled={disabled}
         className={cn(
           'wappy-expand-btn group relative flex items-center justify-center shrink-0',
           sizeClasses,
           'rounded-xl border outline-none cursor-pointer select-none',
-          'transition-all duration-300 ease-in-out sm:hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed',
+          'transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed',
           'after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-2 hover:after:-inset-x-4 hover:after:pointer-events-auto',
           currentStyle,
           className,
         )}
         {...rest}
       >
-        <div className="relative flex-shrink-0 flex items-center justify-center [&>svg]:h-4 [&>svg]:w-4">
+        <div className="relative flex-shrink-0 flex items-center justify-center gap-1 [&>svg]:h-4 [&>svg]:w-4">
           {icon}
+          {badge !== undefined && badge !== null && badge !== '' && (
+            <span className="text-[10px] font-black leading-none px-1 py-0.5 rounded-md bg-black/10 dark:bg-white/15">
+              {badge}
+            </span>
+          )}
         </div>
         <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[280px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-          <span className={textClasses}>{label}</span>
+          <span className={textClasses}>{finalLabel}</span>
         </div>
       </button>
     );

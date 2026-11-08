@@ -1431,29 +1431,31 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
                       {auto.lastRunResult && (
-                        <button
+                        <ExpandableButton
                           type="button"
-                          onClick={() => setViewResultModal({
-                            title: auto.name,
-                            agentName: auto.agentName,
-                            date: auto.lastRunAt,
-                            content: auto.lastRunResult || '',
-                            conversationId: auto.conversationId
-                          })}
-                          className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-bold transition mr-1 bg-purple-50 dark:bg-purple-950/30 px-2 py-1 rounded-lg"
+                          size="sm"
+                          variant="purple"
+                          icon={<Eye className="w-3.5 h-3.5" />}
+                          label="Ver Informe"
                           title="Ver informe de la última ejecución"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Ver Informe</span>
-                        </button>
+                          onClick={() =>
+                            setViewResultModal({
+                              title: auto.name,
+                              agentName: auto.agentName,
+                              date: auto.lastRunAt,
+                              content: auto.lastRunResult || '',
+                              conversationId: auto.conversationId,
+                            })
+                          }
+                        />
                       )}
 
                       {auto.conversationId && (
                         <a
                           href={`/c/${auto.conversationId}`}
-                          className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-bold transition mr-2"
+                          className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-bold transition mr-1"
                           title="Ver chat del agente"
                         >
                           Ver chat <ExternalLink className="w-3 h-3" />
@@ -1461,48 +1463,60 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                       )}
 
                       {auto.lastRunStatus === 'running' ? (
-                        <button
-                          onClick={() => handleStop(auto._id)}
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="danger"
                           disabled={actionLoadingId === auto._id}
-                          className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/40 rounded-lg transition"
+                          icon={
+                            actionLoadingId === auto._id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Square className="w-3.5 h-3.5 fill-current" />
+                            )
+                          }
+                          label="Detener"
                           title="Detener ejecución en caliente"
-                        >
-                          {actionLoadingId === auto._id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Square className="w-3.5 h-3.5 fill-current" />
-                          )}
-                        </button>
+                          onClick={() => handleStop(auto._id)}
+                        />
                       ) : (
-                        <button
-                          onClick={() => handleRunNow(auto._id)}
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="emerald"
                           disabled={actionLoadingId === auto._id}
-                          className="p-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 disabled:bg-gray-100 disabled:text-gray-400 dark:bg-purple-950/30 dark:text-purple-400 dark:hover:bg-purple-900/40 rounded-lg transition"
+                          icon={
+                            actionLoadingId === auto._id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                            )
+                          }
+                          label="Ejecutar Ahora"
                           title="Ejecutar ahora"
-                        >
-                          {actionLoadingId === auto._id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Play className="w-3.5 h-3.5 fill-current" />
-                          )}
-                        </button>
+                          onClick={() => handleRunNow(auto._id)}
+                        />
                       )}
 
-                      <button
+                      <ExpandableButton
+                        type="button"
+                        size="sm"
+                        variant="neutral"
+                        icon={<Edit3 className="w-3.5 h-3.5" />}
+                        label="Editar"
+                        title="Editar tarea y flujo"
                         onClick={() => handleEditOpen(auto)}
-                        className="p-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 rounded-lg transition"
-                        title="Editar"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                      />
 
-                      <button
+                      <ExpandableButton
+                        type="button"
+                        size="sm"
+                        variant="danger"
+                        icon={<Trash2 className="w-3.5 h-3.5" />}
+                        label="Eliminar"
+                        title="Eliminar tarea"
                         onClick={() => handleDelete(auto._id)}
-                        className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-900/40 rounded-lg transition"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      />
                     </div>
                   </div>
                 </div>
@@ -1533,32 +1547,33 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
               </div>
               {isAdmin && (
-                <button
-                  onClick={handleCreatePresetOpen}
-                  className="shrink-0 px-4 py-2.5 rounded-xl bg-[#C7F303] hover:bg-[#b5dd02] text-[#0E1300] font-extrabold text-xs uppercase tracking-wider transition shadow-md flex items-center gap-1.5"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nueva Tarea Preestablecida (Admin)
-                </button>
+                <div className="shrink-0 py-0.5 px-1">
+                  <ExpandableButton
+                    type="button"
+                    variant="primary"
+                    icon={<Plus className="w-4 h-4" />}
+                    label="Nueva Tarea Preestablecida (Admin)"
+                    title="Crear nueva tarea preestablecida global para todos los usuarios"
+                    onClick={handleCreatePresetOpen}
+                  />
+                </div>
               )}
             </div>
 
             {/* Filtro de categorías */}
-            <div className="flex flex-wrap items-center gap-2 mb-5">
+            <div className="flex flex-wrap items-center gap-2.5 mb-5 py-1 px-1">
               {PRESET_CATEGORIES.map((cat) => (
-                <button
+                <ExpandableButton
                   key={cat.id}
                   type="button"
+                  size="sm"
+                  variant="teal"
+                  isActive={selectedPresetCategory === cat.id}
+                  icon={<span className="text-xs leading-none">{cat.icon}</span>}
+                  badge={cat.label.split(' ')[0]}
+                  label={cat.label}
                   onClick={() => setSelectedPresetCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
-                    selectedPresetCategory === cat.id
-                      ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-800 hover:border-teal-400'
-                  }`}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{cat.label}</span>
-                </button>
+                />
               ))}
             </div>
 
@@ -1596,22 +1611,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                             )}
                             {isAdmin && (
                               <>
-                                <button
+                                <ExpandableButton
                                   type="button"
-                                  onClick={() => handleEditOpen(preset, true)}
-                                  className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition"
+                                  size="sm"
+                                  variant="neutral"
+                                  icon={<Edit3 className="w-3.5 h-3.5" />}
+                                  label="Editar Plantilla"
                                   title="Editar plantilla global (Admin)"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
+                                  onClick={() => handleEditOpen(preset, true)}
+                                />
+                                <ExpandableButton
                                   type="button"
-                                  onClick={() => handleDeletePreset(preset._id)}
-                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 transition"
+                                  size="sm"
+                                  variant="danger"
+                                  icon={<Trash2 className="w-3.5 h-3.5" />}
+                                  label="Eliminar Plantilla"
                                   title="Eliminar plantilla global (Admin)"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                  onClick={() => handleDeletePreset(preset._id)}
+                                />
                               </>
                             )}
                           </div>
@@ -1652,29 +1669,37 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 dark:border-gray-800 pt-3.5">
-                          <button
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-gray-100 dark:border-gray-800 pt-3.5 px-1">
+                          <ExpandableButton
                             type="button"
+                            size="sm"
+                            variant="purple"
+                            icon={<Workflow className="w-3.5 h-3.5" />}
+                            label="Personalizar Nodos"
+                            title="Abrir este flujo en el constructor visual y personalizar sus nodos"
                             onClick={() => handleCustomizeFromPreset(preset)}
-                            className="px-3 py-2 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/60 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs font-bold transition flex items-center gap-1.5"
-                          >
-                            <Workflow className="w-3.5 h-3.5" />
-                            Personalizar Nodos
-                          </button>
+                          />
 
-                          <button
+                          <ExpandableButton
                             type="button"
+                            size="sm"
+                            variant="teal"
                             disabled={actionLoadingId === preset._id}
+                            icon={
+                              actionLoadingId === preset._id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )
+                            }
+                            label={
+                              alreadyInstalled
+                                ? 'Agregar Copia a Mis Tareas'
+                                : 'Usar en mi Empresa'
+                            }
+                            title="Instalar esta tarea automatizada en mi empresa"
                             onClick={() => handleInstallPreset(preset)}
-                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
-                          >
-                            {actionLoadingId === preset._id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                            <span>{alreadyInstalled ? 'Agregar Copia a Mis Tareas' : 'Usar en mi Empresa'}</span>
-                          </button>
+                          />
                         </div>
                       </div>
                     );
@@ -1808,12 +1833,17 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition font-bold p-1.5"
-              >
-                ✖
-              </button>
+              <div className="flex items-center py-0.5 px-1">
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="neutral"
+                  icon={<XCircle className="w-4 h-4" />}
+                  label="Cerrar"
+                  title="Cerrar editor de flujo"
+                  onClick={() => setIsModalOpen(false)}
+                />
+              </div>
             </div>
 
             {/* Form */}
@@ -1850,9 +1880,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
               )}
 
-              {/* Fila 1: Nombre de la Tarea / Flujo (Sin duplicar selectores que ya viven en los nodos del lienzo) */}
-              <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3">
-                <div className="flex-1">
+              {/* Fila 1: Nombre de la Tarea / Flujo + Botón WAPPY ExpandableButton para Publicar en Catálogo Global */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
                     Nombre de la Tarea / Flujo Autónomo <span className="text-red-500">*</span>
                   </label>
@@ -1866,20 +1896,23 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   />
                 </div>
 
-                {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema */}
-                {isAdmin && (
-                  <div className="px-3.5 py-2 rounded-xl border border-teal-300/70 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-950/20 flex items-center">
-                    {!isPresetModalMode && (
-                      <label className="flex items-center gap-2 cursor-pointer text-xs font-extrabold text-teal-900 dark:text-teal-200">
-                        <input
-                          type="checkbox"
-                          checked={formSaveAsSystemPreset}
-                          onChange={(e) => setFormSaveAsSystemPreset(e.target.checked)}
-                          className="rounded border-teal-400 text-teal-600 focus:ring-teal-500"
-                        />
-                        <span>🌐 Publicar en Catálogo Global</span>
-                      </label>
-                    )}
+                {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema (Estilo Oficial ExpandableButton WAPPY) */}
+                {isAdmin && !isPresetModalMode && (
+                  <div className="flex items-center justify-end py-0.5 px-1 shrink-0">
+                    <ExpandableButton
+                      type="button"
+                      variant={formSaveAsSystemPreset ? 'compliance-ok' : 'teal'}
+                      isActive={formSaveAsSystemPreset}
+                      badge={formSaveAsSystemPreset ? '✓ Activo' : undefined}
+                      icon={<Globe className="w-4 h-4" />}
+                      label={
+                        formSaveAsSystemPreset
+                          ? '✓ Publicar en Catálogo Global'
+                          : 'Publicar en Catálogo Global'
+                      }
+                      title="Publicar también esta tarea como plantilla preestablecida en el Catálogo Global para todos los usuarios"
+                      onClick={() => setFormSaveAsSystemPreset((prev) => !prev)}
+                    />
                   </div>
                 )}
               </div>

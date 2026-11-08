@@ -201,6 +201,12 @@ export interface CanvasNodeConfig {
   approverEmail?: string;
   /** Avatar 3D asignado al Agente IA o Sub-Agente en el lienzo */
   avatarSrc?: string;
+  /** Nombre personalizado editable para Sub-Agentes y Nodos propios */
+  customTitle?: string;
+  /** Rol o subtítulo editable para Sub-Agentes y Nodos propios */
+  customSubtitle?: string;
+  /** ID del Agente de Chat vinculado al Sub-Agente */
+  linkedAgentId?: string;
 }
 
 export interface WappyAgentAvatarOption {
@@ -649,13 +655,230 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
     content:
       'Verifica cada hallazgo contra los artículos exactos del Decreto 1072 de 2015, Resolución 0312 de 2019, Resolución 2764 de 2022 y Resolución 4272 de 2021.',
   },
-  // 🤖 SUB-AGENTES
+  // 🤖 SUB-AGENTES (100% Editables + Todos los 23 Agentes de Chat de WAPPY + Sub-Agentes Especialistas de Flujo)
+  {
+    id: 'subagent_editable_custom',
+    nodeType: 'subagent',
+    label: '✏️ Sub-Agente Editable (Personalizable a tu Medida)',
+    shortLabel: '✏️ Sub-Agente Editable',
+    subtitle: 'Editable · Personaliza Rol y Prompt',
+    content:
+      'Actúa como Sub-Agente Especialista Personalizado dentro del flujo: procesa la información recibida del paso anterior según las instrucciones que configures en este nodo y entrega el resultado estructurado al siguiente paso.',
+  },
+  {
+    id: 'subagent_chat_consultor_sgsst',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Consultor SG-SST',
+    shortLabel: 'Consultor SG-SST',
+    subtitle: 'Agente Chat · Asesoría Integral SST',
+    content:
+      'Actúa como el Consultor SG-SST de WAPPY IA: evalúa identificación de peligros, control de riesgos, cumplimiento del Decreto 1072 de 2015 y Resolución 0312 de 2019, y entrega planes de acción preventivos.',
+  },
+  {
+    id: 'subagent_chat_tenshi',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Tenshi (Copiloto Inteligente 3D)',
+    shortLabel: 'Tenshi Copiloto IA',
+    subtitle: 'Agente Chat · Orquestador WAPPY',
+    content:
+      'Actúa como Tenshi, copiloto inteligente de WAPPY IA: coordina los hallazgos de los conectores, sintetiza respuestas directas y ejecuta acciones sobre los aplicativos SG-SST.',
+  },
+  {
+    id: 'subagent_chat_abogado_laboral',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Abogado Laboral SST',
+    shortLabel: 'Abogado Laboral',
+    subtitle: 'Agente Chat · Jurídico & CST',
+    content:
+      'Actúa como Abogado Laboralista experto en derecho laboral colombiano, Código Sustantivo del Trabajo, Decreto 1072 de 2015, descargos, estabilidad laboral reforzada y responsabilidad patronal en ATEL.',
+  },
+  {
+    id: 'subagent_medico_laboral',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Médico Laboral & EMO',
+    shortLabel: 'Médico Laboral',
+    subtitle: 'Agente Chat · EMO, SVE y Reintegro',
+    content:
+      'Actúa como Médico Laboral especialista en evaluaciones médicas ocupacionales (Res. 2346 de 2007), profesiograma, restricciones médicas, calificación de origen y vigilancia epidemiológica.',
+  },
+  {
+    id: 'subagent_chat_fisioterapeuta',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Fisioterapeuta Laboral & Ergonomía',
+    shortLabel: 'Fisioterapeuta SST',
+    subtitle: 'Agente Chat · Biomecánico & OWAS',
+    content:
+      'Actúa como Fisioterapeuta Laboral: analiza exigencias biomecánicas, posturas forzadas, manipulación de cargas, pausas activas y prevención de desórdenes musculoesqueléticos (DME).',
+  },
+  {
+    id: 'subagent_chat_psicologo_sst',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Psicólogo Especialista SST',
+    shortLabel: 'Psicólogo SST',
+    subtitle: 'Agente Chat · Batería Res. 2764',
+    content:
+      'Actúa como Psicólogo Especialista en SST: evalúa factores de riesgo psicosocial intralaboral y extralaboral (Res. 2764 de 2022 y Ley 1010 de 2006), clima laboral y convivencia.',
+  },
+  {
+    id: 'subagent_chat_terapeuta_mental',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Terapeuta en Salud Mental',
+    shortLabel: 'Terapeuta Mental',
+    subtitle: 'Agente Chat · Primeros Auxilios Psicol.',
+    content:
+      'Actúa como Terapeuta en Salud Mental: brinda contención emocional, primeros auxilios psicológicos, manejo de estrés agudo, burnout y bienestar emocional de los trabajadores.',
+  },
+  {
+    id: 'subagent_chat_nutricionista',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Nutricionista Laboral',
+    shortLabel: 'Nutricionista SST',
+    subtitle: 'Agente Chat · Vida Saludable & SVE',
+    content:
+      'Actúa como Nutricionista Laboral: diseña pautas de alimentación saludable, prevención de riesgo cardiovascular y metabólico según los hallazgos de los exámenes médicos.',
+  },
+  {
+    id: 'subagent_chat_primer_respondiente',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Primer Respondiente & Primeros Auxilios',
+    shortLabel: 'Primer Respondiente',
+    subtitle: 'Agente Chat · Atención Primaria AT',
+    content:
+      'Actúa como Primer Respondiente: guía la respuesta inmediata ante accidentes de trabajo, protocolo PAS, RCP básica, control de hemorragias, inmovilización y uso de botiquín.',
+  },
+  {
+    id: 'subagent_chat_emergencias',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Coordinador de Emergencias',
+    shortLabel: 'Coord. Emergencias',
+    subtitle: 'Agente Chat · PONs, Brigada y Amenazas',
+    content:
+      'Actúa como Coordinador de Emergencias: estructura análisis de vulnerabilidad, Procedimientos Operativos Normalizados (PON), planes de evacuación, brigadas y simulacros.',
+  },
+  {
+    id: 'subagent_chat_bioseguridad',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Especialista en Bioseguridad',
+    shortLabel: 'Esp. Bioseguridad',
+    subtitle: 'Agente Chat · Riesgo Biológico & EPP',
+    content:
+      'Actúa como Especialista en Bioseguridad: evalúa exposición a agentes biológicos, protocolos de esterilización, manejo de cortopunzantes, esquemas de vacunación y EPP biológicos.',
+  },
+  {
+    id: 'subagent_chat_electricista',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Ingeniero Electricista SST (RETIE)',
+    shortLabel: 'Ing. Electricista SST',
+    subtitle: 'Agente Chat · RETIE & LOTO Eléctrico',
+    content:
+      'Actúa como Ingeniero Electricista SST: verifica cumplimiento del RETIE, las 5 reglas de oro en riesgo eléctrico, bloqueo y etiquetado (LOTO) y mantenimiento seguro de tableros.',
+  },
+  {
+    id: 'subagent_chat_quimico',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Ingeniero Químico SST (SGA)',
+    shortLabel: 'Ing. Químico SGA',
+    subtitle: 'Agente Chat · FDS & Decreto 1496',
+    content:
+      'Actúa como Ingeniero Químico SST: analiza Fichas de Datos de Seguridad (FDS), matriz de compatibilidad química bajo el Sistema Globalmente Armonizado (Decreto 1496 de 2018) y almacenamiento seguro.',
+  },
+  {
+    id: 'subagent_chat_seguridad_vial',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Coordinador de Seguridad Vial (PESV)',
+    shortLabel: 'Coord. Seguridad Vial',
+    subtitle: 'Agente Chat · PESV Res. 40595',
+    content:
+      'Actúa como Coordinador de Seguridad Vial: audita las 24 fases del PESV (Res. 20223040040595), inspecciones preoperacionales, control de fatiga, velocidad y parque automotor.',
+  },
+  {
+    id: 'subagent_chat_tareas_criticas',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Coordinador de Tareas de Alto Riesgo (TAR)',
+    shortLabel: 'Coord. Tareas Críticas',
+    subtitle: 'Agente Chat · Alturas, Confinados, Caliente',
+    content:
+      'Actúa como Coordinador de Tareas Críticas: valida permisos de trabajo en alturas (Res. 4272 de 2021), espacios confinados (Res. 0491 de 2020), trabajo en caliente, izaje y ATS.',
+  },
+  {
+    id: 'subagent_chat_minas',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Ingeniero de Minas SST',
+    shortLabel: 'Ing. de Minas SST',
+    subtitle: 'Agente Chat · Seguridad Minera Dec. 1886',
+    content:
+      'Actúa como Ingeniero de Minas SST: asesora en ventilación subterránea, monitoreo de gases, sostenimiento, explosivos y cumplimiento del reglamento de seguridad en labores mineras.',
+  },
+  {
+    id: 'subagent_auditor_calidad',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Auditor SG-SST (Res. 0312 / ISO 45001)',
+    shortLabel: 'Auditor SG-SST',
+    subtitle: 'Agente Chat · Auditoría 0312 & ISO 45001',
+    content:
+      'Actúa como Auditor SG-SST: evalúa el cumplimiento de los Estándares Mínimos de la Resolución 0312 de 2019 e ISO 45001, detecta no conformidades y redacta planes de mejora ACPM.',
+  },
+  {
+    id: 'subagent_chat_ambiental',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Ingeniero Ambiental & SGA',
+    shortLabel: 'Ingeniero Ambiental',
+    subtitle: 'Agente Chat · PGIRS, Vertimientos & ISO 14001',
+    content:
+      'Actúa como Ingeniero Ambiental: analiza gestión integral de residuos peligrosos (RESPEL), matriz de aspectos e impactos ambientales, huella de carbono y cumplimiento ambiental.',
+  },
+  {
+    id: 'subagent_chat_redactor',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Redactor Creativo & Comunicaciones SST',
+    shortLabel: 'Redactor Creativo',
+    subtitle: 'Agente Chat · Boletines, Campañas y Actas',
+    content:
+      'Actúa como Redactor Creativo SST: transforma informes técnicos en comunicados claros, boletines preventivos, guiones de sensibilización, actas ejecutivas y campañas de cultura segura.',
+  },
+  {
+    id: 'subagent_chat_profesional_sst',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Profesional SST en Campo',
+    shortLabel: 'Profesional SST',
+    subtitle: 'Agente Chat · Inspecciones & Operación',
+    content:
+      'Actúa como Profesional SST Operativo: realiza seguimiento de inspecciones planeadas, entrega de EPP, cierre de condiciones inseguras y control operativo diario en obra o planta.',
+  },
+  {
+    id: 'subagent_chat_capacitaciones',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Coordinador de Capacitaciones & LMS',
+    shortLabel: 'Coord. Capacitaciones',
+    subtitle: 'Agente Chat · Plan Anual & Evaluaciones',
+    content:
+      'Actúa como Coordinador de Capacitaciones: estructura el programa anual de capacitación, inducciones, reinducciones, evaluaciones de eficacia y mallas curriculares por cargo.',
+  },
+  {
+    id: 'subagent_chat_climatico',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Especialista en Riesgo Climático & Térmico',
+    shortLabel: 'Esp. Riesgo Climático',
+    subtitle: 'Agente Chat · Estrés Térmico, UV y Lluvias',
+    content:
+      'Actúa como Especialista en Riesgo Climático: cruza el pronóstico meteorológico con las tareas a cielo abierto, radiación UV, estrés térmico, tormentas eléctricas e hidratación.',
+  },
+  {
+    id: 'subagent_chat_simulador_atel',
+    nodeType: 'subagent',
+    label: 'Sub-Agente de Chat: Simulador & Investigador de Accidentes ATEL',
+    shortLabel: 'Investigador ATEL',
+    subtitle: 'Agente Chat · Res. 1401, Árbol de Causas y 5 Porqués',
+    content:
+      'Actúa como Investigador y Simulador de Accidentes SST (Res. 1401 de 2007): aplica metodología de los 5 Porqués, Espina de Pescado (Ishikawa) y Árbol de Causas para determinar causas básicas e inmediatas.',
+  },
+  // 🤖 SUB-AGENTES ESPECIALISTAS ADICIONALES PARA FLUJOS AUTÓNOMOS
   {
     id: 'subagent_researcher',
     nodeType: 'subagent',
-    label: 'Sub-Agente: Investigador Web & Documental',
+    label: 'Sub-Agente: Investigador Web & Vigencia Normativa',
     shortLabel: 'Sub-Agente: Investigador',
-    subtitle: 'Sub-Agente · Búsqueda y Síntesis',
+    subtitle: 'Sub-Agente · Búsqueda y Síntesis Legal',
     content:
       'Actúa como Sub-Agente Investigador: explora las fuentes documentales y páginas web indicadas, verifica la vigencia normativa y entrega un dossier técnico verificado al Agente Principal.',
   },
@@ -671,22 +894,40 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
     scriptEngine: 'python_bs4_playwright',
   },
   {
-    id: 'subagent_auditor_calidad',
+    id: 'subagent_analista_ausentismo',
     nodeType: 'subagent',
-    label: 'Sub-Agente: Auditor de Calidad y Cumplimiento 0312',
-    shortLabel: 'Sub-Agente: Auditor SST',
-    subtitle: 'Sub-Agente · Control de Calidad',
+    label: 'Sub-Agente: Analista de Ausentismo, Incapacidades y Siniestralidad',
+    shortLabel: 'Analista Ausentismo',
+    subtitle: 'Sub-Agente · IF, IS, ILI y CIE-10',
     content:
-      'Actúa como Sub-Agente Auditor de Calidad: revisa los cálculos, tablas y recomendaciones antes de actualizar los Hitos o enviar el correo final.',
+      'Actúa como Sub-Agente Analista de Ausentismo: calcula indicadores de Frecuencia (IF), Severidad (IS) y Lesiones Incapacitantes (ILI) bajo Res. 0312, agrupa diagnósticos CIE-10 y detecta casos recurrentes.',
   },
   {
-    id: 'subagent_medico_laboral',
+    id: 'subagent_validador_seguridad_social',
     nodeType: 'subagent',
-    label: 'Sub-Agente: Médico Laboral & Vigilancia Epidemiológica',
-    shortLabel: 'Sub-Agente: Médico SST',
-    subtitle: 'Sub-Agente · EMO, SVE y Reintegro',
+    label: 'Sub-Agente: Validador de Seguridad Social (ARL, EPS, AFP y Planilla PILA)',
+    shortLabel: 'Validador ARL/EPS/AFP',
+    subtitle: 'Sub-Agente · Control de Afiliaciones',
     content:
-      'Actúa como Sub-Agente Médico Laboral: analiza restricciones, profesiograma, exámenes ocupacionales (Res. 2346 de 2007) y seguimiento de casos ATEL.',
+      'Actúa como Sub-Agente Validador de Seguridad Social: cruza la nómina de trabajadores y contratistas para detectar quiénes no tienen ARL, EPS o Fondo de Pensiones activo antes de autorizar ingreso.',
+  },
+  {
+    id: 'subagent_redactor_actas',
+    nodeType: 'subagent',
+    label: 'Sub-Agente: Secretario Redactor de Actas COPASST y Convivencia (CCL)',
+    shortLabel: 'Redactor Actas Comité',
+    subtitle: 'Sub-Agente · Actas Oficiales Firmables',
+    content:
+      'Actúa como Secretario Técnico del COPASST y Comité de Convivencia Laboral: redacta el acta mensual oficial con orden del día, verificación de quórum, seguimiento de compromisos y bloque de firmas.',
+  },
+  {
+    id: 'subagent_sintetizador_gerencia',
+    nodeType: 'subagent',
+    label: 'Sub-Agente: Sintetizador Ejecutivo para Alta Dirección y Gerencia',
+    shortLabel: 'Sintetizador Gerencia',
+    subtitle: 'Sub-Agente · Resumen Gerencial & ROI',
+    content:
+      'Actúa como Sub-Agente Sintetizador para la Alta Dirección: resume todos los pasos previos del flujo en un briefing gerencial de 1 página con KPIs críticos, nivel de riesgo legal y decisiones requeridas.',
   },
   // 📏 REGLAS (RULES)
   {
