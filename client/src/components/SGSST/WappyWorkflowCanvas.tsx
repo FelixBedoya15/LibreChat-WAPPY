@@ -767,8 +767,65 @@ export default function WappyWorkflowCanvas({
     return [];
   });
 
+  // Estado en tiempo real de la Empresa Activa en Somos SST (/api/sgsst/company-info)
+  const [activeCompanyInfo, setActiveCompanyInfo] = useState<{
+    companyName: string;
+    nit: string;
+    arl: string;
+    riskLevel: string;
+    ciiu: string;
+    economicActivity: string;
+    workerCount: number;
+    city: string;
+    address: string;
+    legalRepresentative: string;
+    responsibleSST: string;
+    licenseNumber: string;
+    email: string;
+    sedesCount: number;
+  } | null>(null);
+
   useEffect(() => {
     let mounted = true;
+    const loadActiveCompany = () => {
+      const token =
+        (typeof window !== 'undefined' && (window as any).platformUserToken) ||
+        localStorage.getItem('token') ||
+        '';
+      axios
+        .get(
+          '/api/sgsst/company-info',
+          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+        )
+        .then((res) => {
+          if (!mounted || !res.data || !res.data.companyName) return;
+          const d = res.data;
+          setActiveCompanyInfo({
+            companyName: String(d.companyName || '').trim(),
+            nit: String(d.nit || '').trim(),
+            arl: String(d.arl || '').trim(),
+            riskLevel: String(d.riskLevel || '').trim(),
+            ciiu: String(d.ciiu || '').trim(),
+            economicActivity: String(d.economicActivity || '').trim(),
+            workerCount: Number(d.workerCount || 0),
+            city: String(d.city || '').trim(),
+            address: String(d.address || '').trim(),
+            legalRepresentative: String(d.legalRepresentative || '').trim(),
+            responsibleSST: String(d.responsibleSST || '').trim(),
+            licenseNumber: String(d.licenseNumber || '').trim(),
+            email: String(d.email || '').trim(),
+            sedesCount: Array.isArray(d.sedes) ? Math.max(1, d.sedes.length) : 1,
+          });
+        })
+        .catch(() => {});
+    };
+
+    loadActiveCompany();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('company-switched', loadActiveCompany);
+      window.addEventListener('close-company-info', loadActiveCompany);
+    }
+
     axios
       .get('/api/sgsst/config')
       .then((res) => {
@@ -792,6 +849,10 @@ export default function WappyWorkflowCanvas({
       .catch(() => {});
     return () => {
       mounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('company-switched', loadActiveCompany);
+        window.removeEventListener('close-company-info', loadActiveCompany);
+      }
     };
   }, []);
 
@@ -915,12 +976,16 @@ export default function WappyWorkflowCanvas({
             ? 24 + idx * 108
             : 14 + idx * 96;
       const extPos = customPositions[key] || { x: 146, y: defaultY };
+      const dynamicExtSubtitle =
+        extDef.id === 'extract_sst_workers' && activeCompanyInfo?.companyName
+          ? `${activeCompanyInfo.workerCount ? `${activeCompanyInfo.workerCount} Trab. · ` : ''}${activeCompanyInfo.companyName}`
+          : extDef.badge || '2. Extraer Datos';
       list.push({
         key,
         nodeId: extDef.id,
         shape: 'square_extractor',
         title: extDef.shortLabel,
-        subtitle: extDef.badge || '2. Extraer Datos',
+        subtitle: dynamicExtSubtitle,
         x: extPos.x,
         y: extPos.y,
         width: 70,
@@ -973,12 +1038,21 @@ export default function WappyWorkflowCanvas({
       const defaultX = 274 + idx * 106;
       const defaultY = 228;
       const memPos = customPositions[key] || { x: defaultX, y: defaultY };
+      const isCompanyMem = memDef.id === 'wappy_memory_company';
+      const dynamicMemTitle =
+        isCompanyMem && activeCompanyInfo?.companyName
+          ? `Memoria: ${activeCompanyInfo.companyName}`
+          : memDef.shortLabel;
+      const dynamicMemSubtitle =
+        isCompanyMem && activeCompanyInfo?.nit
+          ? `NIT ${activeCompanyInfo.nit}${activeCompanyInfo.arl ? ` · ${activeCompanyInfo.arl}` : ''}`
+          : memDef.badge || 'Memoria Activa';
       list.push({
         key,
         nodeId: memDef.id,
         shape: 'circle_memory',
-        title: memDef.shortLabel,
-        subtitle: memDef.badge || 'Memoria Activa',
+        title: dynamicMemTitle,
+        subtitle: dynamicMemSubtitle,
         x: memPos.x,
         y: memPos.y,
         width: 62,
@@ -998,12 +1072,25 @@ export default function WappyWorkflowCanvas({
       const defaultX = Math.max(380, memoryRightEdge) + idx * 106;
       const defaultY = 228;
       const pos = customPositions[key] || { x: defaultX, y: defaultY };
+      const dynamicToolTitle =
+        toolId === 'somos_sst_empresa' && activeCompanyInfo?.companyName
+          ? activeCompanyInfo.companyName
+          : def.shortLabel;
+      const dynamicToolSubtitle =
+        toolId === 'somos_sst_empresa' && activeCompanyInfo?.nit
+          ? `NIT ${activeCompanyInfo.nit} · R.${activeCompanyInfo.riskLevel || 'I'}`
+          : toolId === 'somos_sst_trabajadores' && activeCompanyInfo?.companyName
+            ? `${activeCompanyInfo.workerCount ? `${activeCompanyInfo.workerCount} Trab. · ` : ''}${activeCompanyInfo.companyName}`
+            : (toolId === 'pronostico_clima_sst' || toolId === 'buscar_centros_emergencia') &&
+                activeCompanyInfo?.city
+              ? `Sede: ${activeCompanyInfo.city}`
+              : 'Herramienta IA';
       list.push({
         key,
         nodeId: toolId,
         shape: 'circle_tool',
-        title: def.shortLabel,
-        subtitle: 'Herramienta IA',
+        title: dynamicToolTitle,
+        subtitle: dynamicToolSubtitle,
         x: pos.x,
         y: pos.y,
         width: 62,
@@ -1160,6 +1247,7 @@ export default function WappyWorkflowCanvas({
     aiEngine,
     includeIfNode,
     customPositions,
+    activeCompanyInfo,
   ]);
 
   // Calcular los cables curvos Bezier entre los módulos (con soporte para borrar cables automáticos y conectar libremente)
@@ -4119,6 +4207,15 @@ export default function WappyWorkflowCanvas({
                 const memIdx = activeMemories.indexOf(mem.id);
                 const memCanvasKey = memIdx === 0 ? 'sub_memory' : `sub_memory_${mem.id}`;
                 const isInspectingMem = isSelected && activeConfigNodeKey === memCanvasKey;
+                const isCompanyMem = mem.id === 'wappy_memory_company';
+                const memDisplayLabel =
+                  isCompanyMem && activeCompanyInfo?.companyName
+                    ? `Memoria: ${activeCompanyInfo.companyName}${activeCompanyInfo.nit ? ` (NIT ${activeCompanyInfo.nit})` : ''}`
+                    : mem.label;
+                const memDisplaySubtitle =
+                  isCompanyMem && activeCompanyInfo?.companyName
+                    ? `ARL ${activeCompanyInfo.arl || 'N/A'} · Riesgo ${activeCompanyInfo.riskLevel || 'I'} · ${activeCompanyInfo.workerCount || 0} Trab. · ${activeCompanyInfo.city || 'Sede Principal'}`
+                    : (mem as any).subtitle || mem.badge;
                 return (
                   <div
                     key={mem.id}
@@ -4146,10 +4243,10 @@ export default function WappyWorkflowCanvas({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight">
-                        {mem.label}
+                        {memDisplayLabel}
                       </div>
                       <div className="text-[10px] font-bold text-pink-600 dark:text-pink-400 mt-0.5">
-                        {(mem as any).subtitle || mem.badge}
+                        {memDisplaySubtitle}
                       </div>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
                         {(mem as any).promptHint || mem.toolHint}
@@ -4434,8 +4531,15 @@ export default function WappyWorkflowCanvas({
                         )}
                       </div>
                       <span className="mt-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 text-center leading-tight line-clamp-2">
-                        {node.shortLabel}
+                        {node.id === 'somos_sst_empresa' && activeCompanyInfo?.companyName
+                          ? activeCompanyInfo.companyName
+                          : node.shortLabel}
                       </span>
+                      {node.id === 'somos_sst_empresa' && activeCompanyInfo?.nit && !isUnderConstruction && (
+                        <span className="mt-0.5 text-[8.5px] font-extrabold text-teal-600 dark:text-teal-400 truncate max-w-full">
+                          NIT {activeCompanyInfo.nit}
+                        </span>
+                      )}
                       {isUnderConstruction ? (
                         <span className="mt-0.5 px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[8px] font-extrabold uppercase tracking-tight">
                           🚧 En Constr.
@@ -5735,13 +5839,24 @@ export default function WappyWorkflowCanvas({
                   {renderOfficialNodeSvg(activeNode.nodeId, 'w-5 h-5')}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-[#C7F303]">
                       ⚙️ Configuración de: {activeNode.title}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                       {activeNode.subtitle}
                     </span>
+                    {activeCompanyInfo?.companyName && (
+                      <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-[#C7F303] border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                        <Building2 className="w-3 h-3 shrink-0" />
+                        <span>
+                          Empresa Activa: {activeCompanyInfo.companyName}
+                          {activeCompanyInfo.nit ? ` (NIT: ${activeCompanyInfo.nit})` : ''}
+                          {activeCompanyInfo.arl ? ` · ${activeCompanyInfo.arl}` : ''}
+                          {activeCompanyInfo.riskLevel ? ` R.${activeCompanyInfo.riskLevel}` : ''}
+                        </span>
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Ajusta los parámetros específicos de este nodo dentro de tu flujo automatizado.
@@ -5775,6 +5890,7 @@ export default function WappyWorkflowCanvas({
               activeNode={activeNode}
               currentCfg={currentCfg}
               onUpdateNodeConfig={handleUpdateNodeConfig}
+              activeCompanyInfo={activeCompanyInfo}
               agentId={agentId}
               onSelectAgent={onSelectAgent}
               availableAgentsWithTenshiAvatar={availableAgentsWithTenshiAvatar}

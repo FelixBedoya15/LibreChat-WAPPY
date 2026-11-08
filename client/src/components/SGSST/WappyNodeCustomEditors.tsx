@@ -93,6 +93,23 @@ export interface ReportHistoryPayload {
   previewLoading: boolean;
 }
 
+export interface ActiveCompanySummary {
+  companyName: string;
+  nit: string;
+  arl: string;
+  riskLevel: string;
+  ciiu: string;
+  economicActivity: string;
+  workerCount: number;
+  city: string;
+  address: string;
+  legalRepresentative: string;
+  responsibleSST: string;
+  licenseNumber: string;
+  email: string;
+  sedesCount: number;
+}
+
 export interface WappyNodeCustomEditorProps {
   activeNode: {
     key: string;
@@ -105,6 +122,7 @@ export interface WappyNodeCustomEditorProps {
   };
   currentCfg: CanvasNodeConfig;
   onUpdateNodeConfig: (nodeKey: string, partial: Partial<CanvasNodeConfig>) => void;
+  activeCompanyInfo?: ActiveCompanySummary | null;
   // Propiedades globales del flujo sincronizadas con los nodos correspondientes
   agentId?: string;
   onSelectAgent?: (agentId: string) => void;
@@ -245,6 +263,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     activeNode,
     currentCfg,
     onUpdateNodeConfig,
+    activeCompanyInfo,
     agentId,
     onSelectAgent,
     availableAgentsWithTenshiAvatar,
@@ -295,6 +314,37 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   const moduleMeta = getNodeModuleMetadata(activeNode.nodeId, activeNode.shape as any);
   const presetFields = moduleMeta.fields || [];
   const selectedFields = currentCfg.fields || [];
+
+  // Resolución inteligente de la Empresa Activa (desde /api/sgsst/company-info o desde el inspector en vivo)
+  const resolvedCompanyName =
+    activeCompanyInfo?.companyName ||
+    (nodeLiveInspectorData.companyName && nodeLiveInspectorData.companyName !== 'Empresa Activa'
+      ? nodeLiveInspectorData.companyName.replace(/\s*\(NIT:.*$/i, '').trim()
+      : '');
+  const resolvedCompanyFull = activeCompanyInfo?.companyName
+    ? `${activeCompanyInfo.companyName}${activeCompanyInfo.nit ? ` (NIT: ${activeCompanyInfo.nit})` : ''}`
+    : nodeLiveInspectorData.companyName && nodeLiveInspectorData.companyName !== 'Empresa Activa'
+      ? nodeLiveInspectorData.companyName
+      : 'Empresa Activa';
+  const isCompanyNode =
+    cleanId.includes('empresa') ||
+    cleanId === 'wappy_memory_company' ||
+    cleanId === 'tool_sst_company';
+  const resolvedNodeDisplayTitle =
+    isCompanyNode && resolvedCompanyName
+      ? resolvedCompanyFull
+      : (activeNode.title === 'Empresa SST' || activeNode.title === 'Memoria Empresa SST') &&
+          resolvedCompanyName
+        ? resolvedCompanyFull
+        : activeNode.title;
+  const resolvedModuleTitle =
+    isCompanyNode && resolvedCompanyName
+      ? `Datos y Contexto SG-SST de ${resolvedCompanyFull}`
+      : resolvedCompanyName
+        ? `${moduleMeta.moduleTitle
+            .replace(/\s*\(Empresa Activa\)/gi, '')
+            .replace(/Empresa Activa/gi, resolvedCompanyName)}`
+        : moduleMeta.moduleTitle;
   const recordFilterMode: 'all' | 'critical_only' | 'selected' =
     currentCfg.recordFilterMode || 'all';
   const selectedRecordIds = currentCfg.selectedRecordIds || [];
@@ -399,9 +449,153 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     );
   });
 
+  // Sub-componente reutilizable de Checkboxes de Columnas / Parámetros + Combos Rápidos de 1 Clic
+  const renderFieldChecklistSection = (
+    accentTone: 'teal' | 'purple' | 'pink' | 'amber' | 'cyan' | 'blue' = 'purple',
+  ) => {
+    if (!presetFields || presetFields.length === 0) return null;
+    const filteredChecklistFields = fieldSearchQuery.trim()
+      ? presetFields.filter((f) =>
+          f.toLowerCase().includes(fieldSearchQuery.trim().toLowerCase()),
+        )
+      : presetFields;
+    const btnVariant =
+      accentTone === 'pink'
+        ? 'fuchsia'
+        : accentTone === 'amber'
+          ? 'amber'
+          : accentTone === 'cyan'
+            ? 'cyan'
+            : accentTone === 'blue'
+              ? 'blue'
+              : accentTone === 'teal'
+                ? 'teal'
+                : 'purple';
+
+    return (
+      <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-black uppercase text-slate-900 dark:text-white">
+                📋 {moduleMeta.fieldsLabel || `Columnas y Datos de «${resolvedModuleTitle}»`}
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-[#C7F303] border border-teal-300 dark:border-teal-700">
+                {selectedFields.length > 0
+                  ? `${selectedFields.length} seleccionado(s)`
+                  : `Todos (${presetFields.length})`}
+              </span>
+              {resolvedCompanyName && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                  🏢 {resolvedCompanyFull}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            <ExpandableButton
+              size="sm"
+              variant="teal"
+              icon={<Check className="w-3.5 h-3.5" />}
+              badge="Marcar Todos"
+              label="Seleccionar Todos los Parámetros"
+              onClick={() =>
+                onUpdateNodeConfig(activeNode.key, {
+                  fields: presetFields,
+                  strictFieldFilter: true,
+                  reportTags: moduleMeta.reportTags,
+                })
+              }
+            />
+            {selectedFields.length > 0 && (
+              <ExpandableButton
+                size="sm"
+                variant="danger"
+                icon={<Trash2 className="w-3.5 h-3.5" />}
+                badge={`Limpiar (${selectedFields.length})`}
+                label="Limpiar Selección"
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    fields: [],
+                    reportTags: moduleMeta.reportTags,
+                  })
+                }
+              />
+            )}
+          </div>
+        </div>
+
+        {moduleMeta.quickCombos && moduleMeta.quickCombos.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            <span className="text-[10.5px] font-extrabold uppercase text-purple-700 dark:text-[#C7F303] flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              Atajos Rápidos:
+            </span>
+            {moduleMeta.quickCombos.map((combo) => {
+              const isComboActive =
+                combo.fields.length === selectedFields.length &&
+                combo.fields.every((cf) => selectedFields.includes(cf));
+              return (
+                <ExpandableButton
+                  key={combo.label}
+                  size="sm"
+                  variant={btnVariant as any}
+                  isActive={isComboActive}
+                  icon={<Sparkles className="w-3.5 h-3.5" />}
+                  badge={combo.label.replace(/^⚡\s*/, '').split('+')[0].trim()}
+                  label={combo.label}
+                  title={combo.description}
+                  onClick={() => applyQuickCombo(combo.fields)}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-44 overflow-y-auto pr-1">
+          {filteredChecklistFields.map((fieldLabel) => {
+            const active = selectedFields.includes(fieldLabel);
+            return (
+              <label
+                key={fieldLabel}
+                onClick={() => toggleFieldChip(fieldLabel)}
+                className={`px-3 py-2 rounded-xl border flex items-center gap-2.5 cursor-pointer transition select-none text-xs ${
+                  active
+                    ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 dark:border-[#C7F303] font-extrabold text-purple-950 dark:text-white shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-purple-400'
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                    active
+                      ? 'bg-purple-600 dark:bg-[#C7F303] border-purple-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
+                      : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                  }`}
+                >
+                  {active && <Check className="w-3 h-3 stroke-[3]" />}
+                </span>
+                <span className="truncate" title={fieldLabel}>
+                  {fieldLabel}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // Sub-componente reutilizable para la Tabla Real en Vivo de Registros (usado en Aplicativos SST, Trabajadores y Memorias)
   const renderLiveRecordsTableSection = (customTitle?: string) => {
     if (!nodeLiveInspectorData.supported) return null;
+    const defaultLiveTitle = isCompanyNode
+      ? `🏢 Ficha Oficial en Vivo de «${resolvedCompanyFull}»`
+      : `📊 Registros y Estado Real en Vivo — ${resolvedNodeDisplayTitle}${
+          resolvedCompanyName && !resolvedNodeDisplayTitle.includes(resolvedCompanyName)
+            ? ` (${resolvedCompanyName})`
+            : ''
+        }`;
     return (
       <div className="p-3.5 rounded-2xl border border-emerald-300/80 dark:border-emerald-800/70 bg-emerald-50/30 dark:bg-emerald-950/15 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -410,12 +604,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-black uppercase tracking-wide text-emerald-950 dark:text-[#C7F303]">
-                  {customTitle || `📊 Registros y Estado Real en Vivo — ${activeNode.title}`}
+                  {customTitle || defaultLiveTitle}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
                   {nodeLiveInspectorData.loading
                     ? 'Consultando base de datos en vivo...'
-                    : `${nodeLiveInspectorData.totalRecords} registro(s) en ${nodeLiveInspectorData.companyName || 'Empresa Activa'}`}
+                    : `${nodeLiveInspectorData.totalRecords} registro(s) en ${resolvedCompanyFull}`}
                 </span>
               </div>
             </div>
@@ -1578,28 +1772,61 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     // 4.1 MEMORIA DE EMPRESA ACTIVA
     if (cleanId.includes('company')) {
       const companyBlocks = [
-        'Razón Social, NIT y Actividad Económica (CIIU)',
-        'Clase de Riesgo, ARL Afiliada y Tasa de Cotización',
-        'Total de Trabajadores Activos y Distribución por Sedes',
-        'Responsable del SG-SST y Licencia Vigente',
+        {
+          id: 'Razón Social, NIT y Actividad Económica (CIIU)',
+          value: activeCompanyInfo?.companyName
+            ? `${activeCompanyInfo.companyName} · NIT ${activeCompanyInfo.nit || 'N/A'} · CIIU ${activeCompanyInfo.ciiu || 'N/A'} (${activeCompanyInfo.economicActivity || 'Actividad registrada'})`
+            : resolvedCompanyFull,
+        },
+        {
+          id: 'Clase de Riesgo, ARL Afiliada y Tasa de Cotización',
+          value: activeCompanyInfo?.arl
+            ? `ARL ${activeCompanyInfo.arl} · Riesgo ${activeCompanyInfo.riskLevel || 'I'}`
+            : 'Riesgo y ARL registrados en Somos SST',
+        },
+        {
+          id: 'Total de Trabajadores Activos y Distribución por Sedes',
+          value: activeCompanyInfo
+            ? `${activeCompanyInfo.workerCount || 0} trabajador(es) · ${activeCompanyInfo.sedesCount || 1} sede(s) (${activeCompanyInfo.city || 'Sede Principal'})`
+            : 'Plantilla y sedes activas',
+        },
+        {
+          id: 'Responsable del SG-SST y Licencia Vigente',
+          value: activeCompanyInfo
+            ? `Rep. Legal: ${activeCompanyInfo.legalRepresentative || 'N/A'} · Resp. SST: ${activeCompanyInfo.responsibleSST || 'N/A'} (Lic. ${activeCompanyInfo.licenseNumber || 'N/A'})`
+            : 'Representante Legal y Responsable SST',
+        },
       ];
       return (
         <div className="space-y-3">
+          {resolvedCompanyName && (
+            <div className="p-3 rounded-2xl border border-pink-300 dark:border-pink-800/70 bg-pink-50/40 dark:bg-pink-950/20 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-black text-pink-950 dark:text-[#C7F303]">
+                🏢 Memoria Vinculada a la Empresa Activa: «{resolvedCompanyFull}»
+              </span>
+              {activeCompanyInfo && (
+                <span className="font-bold text-slate-600 dark:text-slate-300">
+                  ARL {activeCompanyInfo.arl || 'N/A'} · Riesgo {activeCompanyInfo.riskLevel || 'I'} ·{' '}
+                  {activeCompanyInfo.workerCount || 0} trabajador(es) · {activeCompanyInfo.city || 'Colombia'}
+                </span>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {companyBlocks.map((blk) => {
-              const checked = selectedFields.length === 0 || selectedFields.includes(blk);
+              const checked = selectedFields.length === 0 || selectedFields.includes(blk.id);
               return (
                 <label
-                  key={blk}
-                  onClick={() => toggleFieldChip(blk)}
-                  className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition ${
+                  key={blk.id}
+                  onClick={() => toggleFieldChip(blk.id)}
+                  className={`p-3 rounded-xl border flex items-start gap-2.5 cursor-pointer transition ${
                     checked
                       ? 'bg-pink-50/60 dark:bg-pink-950/25 border-pink-400 dark:border-pink-700'
                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                   }`}
                 >
                   <span
-                    className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                    className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 mt-0.5 ${
                       checked
                         ? 'bg-pink-600 border-pink-600 text-white'
                         : 'border-slate-300 dark:border-slate-600'
@@ -1607,14 +1834,19 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   >
                     {checked && <Check className="w-3 h-3 stroke-[3]" />}
                   </span>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                    {blk}
-                  </span>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                      {blk.id}
+                    </div>
+                    <div className="text-[10.5px] font-semibold text-pink-700 dark:text-[#C7F303] mt-0.5 truncate">
+                      {blk.value}
+                    </div>
+                  </div>
                 </label>
               );
             })}
           </div>
-          {renderLiveRecordsTableSection('🏢 Ficha Real en Vivo de la Empresa Activa')}
+          {renderLiveRecordsTableSection(`🏢 Ficha Real en Vivo de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -3394,40 +3626,61 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     !cleanId.startsWith('somos_sst_') &&
     !cleanId.startsWith('hito')
   ) {
-    const toolPresets = cleanId.includes('clima')
-      ? [
-          { badge: '🌦️ Bogotá', label: 'Ciudad: Bogotá D.C. (Lluvia / Trabajo en Alturas)', val: 'Bogota,CO' },
-          { badge: '☀️ Medellín', label: 'Ciudad: Medellín (Radiación UV / Calor)', val: 'Medellin,CO' },
-          { badge: '🌡️ Cali', label: 'Ciudad: Cali (Estrés Térmico / Hidratación)', val: 'Cali,CO' },
-          { badge: '🌬️ Barranquilla', label: 'Ciudad: Barranquilla (Vientos > 30 km/h / Alturas)', val: 'Barranquilla,CO' },
-        ]
-      : cleanId.includes('pubchem')
+    const companyCityPreset =
+      activeCompanyInfo?.city && cleanId.includes('clima')
         ? [
-            { badge: '🧪 Hipoclorito', label: 'Sustancia: Hipoclorito de Sodio (CAS 7681-52-9)', val: '7681-52-9 Hipoclorito de Sodio' },
-            { badge: '🧪 Ácido Clorhídrico', label: 'Sustancia: Ácido Clorhídrico (CAS 7647-01-0)', val: '7647-01-0 Acido Clorhidrico' },
-            { badge: '🧪 Tolueno / Thinner', label: 'Sustancia: Tolueno / Solventes (CAS 108-88-3)', val: '108-88-3 Tolueno' },
-            { badge: '🧪 Sílice Cristalina', label: 'Sustancia: Sílice Cristalina Respirable (CAS 14808-60-7)', val: '14808-60-7 Silice Cristalina' },
+            {
+              badge: `🏢 Sede ${resolvedCompanyName || 'Activa'}: ${activeCompanyInfo.city}`,
+              label: `Sede Activa de ${resolvedCompanyFull}: ${activeCompanyInfo.city}`,
+              val: `${activeCompanyInfo.city},CO`,
+            },
           ]
-        : cleanId.includes('medline')
+        : activeCompanyInfo?.city && cleanId.includes('emergencia')
           ? [
-              { badge: '🩺 M54.5 Lumbago', label: 'CIE-10: M54.5 Lumbago / Dolor Lumbar Ocupacional', val: 'M54.5 Lumbago no especificado' },
-              { badge: '🩺 G56.0 Túnel Carpiano', label: 'CIE-10: G56.0 Síndrome del Túnel Carpiano', val: 'G56.0 Sindrome del Tunel Carpiano' },
-              { badge: '🩺 M75.1 Manguito Rotador', label: 'CIE-10: M75.1 Síndrome de Manguito Rotador', val: 'M75.1 Sindrome de Manguito Rotador' },
-              { badge: '🩺 H83.3 Hipoacusia', label: 'CIE-10: H83.3 Hipoacusia Inducida por Ruido', val: 'H83.3 Efectos del ruido sobre el oido interno' },
+              {
+                badge: `🏢 Sede ${resolvedCompanyName || 'Activa'}: ${activeCompanyInfo.city}`,
+                label: `Centros de Emergencia alrededor de ${resolvedCompanyFull} (${activeCompanyInfo.address || activeCompanyInfo.city})`,
+                val: `${activeCompanyInfo.address || activeCompanyInfo.city} Urgencias ARL Bomberos`,
+              },
             ]
-          : cleanId.includes('emergencia')
+          : [];
+    const toolPresets = [
+      ...companyCityPreset,
+      ...(cleanId.includes('clima')
+        ? [
+            { badge: '🌦️ Bogotá', label: 'Ciudad: Bogotá D.C. (Lluvia / Trabajo en Alturas)', val: 'Bogota,CO' },
+            { badge: '☀️ Medellín', label: 'Ciudad: Medellín (Radiación UV / Calor)', val: 'Medellin,CO' },
+            { badge: '🌡️ Cali', label: 'Ciudad: Cali (Estrés Térmico / Hidratación)', val: 'Cali,CO' },
+            { badge: '🌬️ Barranquilla', label: 'Ciudad: Barranquilla (Vientos > 30 km/h / Alturas)', val: 'Barranquilla,CO' },
+          ]
+        : cleanId.includes('pubchem')
+          ? [
+              { badge: '🧪 Hipoclorito', label: 'Sustancia: Hipoclorito de Sodio (CAS 7681-52-9)', val: '7681-52-9 Hipoclorito de Sodio' },
+              { badge: '🧪 Ácido Clorhídrico', label: 'Sustancia: Ácido Clorhídrico (CAS 7647-01-0)', val: '7647-01-0 Acido Clorhidrico' },
+              { badge: '🧪 Tolueno / Thinner', label: 'Sustancia: Tolueno / Solventes (CAS 108-88-3)', val: '108-88-3 Tolueno' },
+              { badge: '🧪 Sílice Cristalina', label: 'Sustancia: Sílice Cristalina Respirable (CAS 14808-60-7)', val: '14808-60-7 Silice Cristalina' },
+            ]
+          : cleanId.includes('medline')
             ? [
-                { badge: '🚑 Radio 5 km', label: 'MEDEVAC: Clínicas y Urgencias ARL a 5 km de la Sede', val: 'Radio 5km Urgencias Traumatologia ARL' },
-                { badge: '🚒 Bomberos + Defensa Civil', label: 'MEDEVAC: Bomberos, Cruz Roja y Defensa Civil', val: 'Radio 10km Bomberos Cruz Roja Defensa Civil' },
+                { badge: '🩺 M54.5 Lumbago', label: 'CIE-10: M54.5 Lumbago / Dolor Lumbar Ocupacional', val: 'M54.5 Lumbago no especificado' },
+                { badge: '🩺 G56.0 Túnel Carpiano', label: 'CIE-10: G56.0 Síndrome del Túnel Carpiano', val: 'G56.0 Sindrome del Tunel Carpiano' },
+                { badge: '🩺 M75.1 Manguito Rotador', label: 'CIE-10: M75.1 Síndrome de Manguito Rotador', val: 'M75.1 Sindrome de Manguito Rotador' },
+                { badge: '🩺 H83.3 Hipoacusia', label: 'CIE-10: H83.3 Hipoacusia Inducida por Ruido', val: 'H83.3 Efectos del ruido sobre el oido interno' },
               ]
-            : [];
+            : cleanId.includes('emergencia')
+              ? [
+                  { badge: '🚑 Radio 5 km', label: 'MEDEVAC: Clínicas y Urgencias ARL a 5 km de la Sede', val: 'Radio 5km Urgencias Traumatologia ARL' },
+                  { badge: '🚒 Bomberos + Defensa Civil', label: 'MEDEVAC: Bomberos, Cruz Roja y Defensa Civil', val: 'Radio 10km Bomberos Cruz Roja Defensa Civil' },
+                ]
+              : []),
+    ];
 
     return (
       <div className="space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🔧 Acción Específica que el Agente ejecutará con «{activeNode.title}»
+              🔧 Acción Específica que el Agente ejecutará con «{resolvedNodeDisplayTitle}»
             </label>
             <input
               type="text"
@@ -3435,7 +3688,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               onChange={(e) =>
                 onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
               }
-              placeholder={`Ej: Usar ${activeNode.title} únicamente para consultar o generar el recurso requerido...`}
+              placeholder={`Ej: Usar ${resolvedNodeDisplayTitle} únicamente para consultar o generar el recurso requerido...`}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
@@ -3452,7 +3705,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   targetUrl: e.target.value,
                 })
               }
-              placeholder="Ej: Carpeta Drive, ciudad para pronóstico de clima, sustancia CAS o código CIE-10..."
+              placeholder={
+                activeCompanyInfo?.city && cleanId.includes('clima')
+                  ? `Sede activa por defecto: ${activeCompanyInfo.city} (${resolvedCompanyFull})`
+                  : 'Ej: Carpeta Drive, ciudad para pronóstico de clima, sustancia CAS o código CIE-10...'
+              }
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
@@ -3501,7 +3758,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       {activeNode.shape === 'square_hito' && (
         <div>
           <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2">
-            1. ¿Qué debe hacer el flujo en «{activeNode.title}»?
+            1. ¿Qué debe hacer el flujo en «{resolvedNodeDisplayTitle}» ({resolvedCompanyFull})?
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {[
@@ -3559,7 +3816,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-black uppercase text-slate-900 dark:text-white">
-                📋 Columnas y Datos de «{moduleMeta.moduleTitle}»
+                📋 Columnas y Datos de «{resolvedModuleTitle}»
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-[#C7F303] border border-teal-300 dark:border-teal-700">
                 {selectedFields.length > 0
@@ -3568,7 +3825,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Marca solo las columnas que necesitas para este paso (ej. <em>Cédula y Nombre Completo</em> o <em>Tarjetas Preventivas</em>).
+              Marca solo las columnas que necesitas para este paso en <strong>{resolvedCompanyFull}</strong>.
             </p>
           </div>
 
@@ -3729,10 +3986,16 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
               <div>
                 <span className="text-xs font-black uppercase text-teal-950 dark:text-teal-200">
-                  📜 Historial de Informes de «{activeNode.title}» ({nodeReportHistory.conversations.length})
+                  {isCompanyNode
+                    ? `📜 Historial de Informes SG-SST de «${resolvedCompanyFull}» (${nodeReportHistory.conversations.length})`
+                    : `📜 Historial de Informes de «${resolvedNodeDisplayTitle}»${
+                        resolvedCompanyName && !resolvedNodeDisplayTitle.includes(resolvedCompanyName)
+                          ? ` — ${resolvedCompanyName}`
+                          : ''
+                      } (${nodeReportHistory.conversations.length})`}
                 </span>
                 <p className="text-[10.5px] text-slate-600 dark:text-slate-400">
-                  Puedes incluir el último informe generado en este aplicativo o seleccionar informes anteriores específicos.
+                  Puedes incluir el último informe generado en <strong>{resolvedCompanyFull}</strong> o seleccionar informes anteriores específicos.
                 </p>
               </div>
             </div>
