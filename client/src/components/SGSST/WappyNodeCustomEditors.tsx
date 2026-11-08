@@ -798,7 +798,118 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         ) : (
           <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 italic">
-            Sin registros que coincidan con el filtro actual en «{activeNode.title}».
+            Sin registros que coincidan con el filtro actual en «{resolvedNodeDisplayTitle}».
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     BLOQUE REUTILIZABLE: HISTORIAL DE INFORMES GUARDADOS DE LA EMPRESA ACTIVA
+     ═════════════════════════════════════════════════════════════════════════ */
+  const renderReportHistorySection = () => {
+    if (!moduleMeta.reportTags || moduleMeta.reportTags.length === 0) return null;
+    return (
+      <div className="p-3.5 rounded-2xl border border-teal-300/80 dark:border-teal-800/80 bg-teal-50/35 dark:bg-teal-950/20 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+            <div>
+              <span className="text-xs font-black uppercase text-teal-950 dark:text-teal-200">
+                {isCompanyNode
+                  ? `📜 Historial de Informes SG-SST de «${resolvedCompanyFull}» (${nodeReportHistory.conversations.length})`
+                  : `📜 Historial de Informes de «${resolvedNodeDisplayTitle}»${
+                      resolvedCompanyName && !resolvedNodeDisplayTitle.includes(resolvedCompanyName)
+                        ? ` — ${resolvedCompanyName}`
+                        : ''
+                    } (${nodeReportHistory.conversations.length})`}
+              </span>
+              <p className="text-[10.5px] text-slate-600 dark:text-slate-400">
+                Puedes incluir el último informe generado en <strong>{resolvedCompanyFull}</strong> o seleccionar informes anteriores específicos.
+              </p>
+            </div>
+          </div>
+
+          <ExpandableButton
+            size="sm"
+            variant="teal"
+            isActive={Boolean(currentCfg.includeLatestReport)}
+            icon={<FileText className="w-3.5 h-3.5" />}
+            badge={currentCfg.includeLatestReport ? '✓ Último Informe' : 'Último Informe'}
+            label="Incluir Siempre el Último Informe"
+            onClick={() =>
+              onUpdateNodeConfig(activeNode.key, {
+                includeLatestReport: !currentCfg.includeLatestReport,
+                reportTags: moduleMeta.reportTags,
+              })
+            }
+          />
+        </div>
+
+        {nodeReportHistory.conversations.length > 0 && (
+          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+            {nodeReportHistory.conversations.slice(0, 10).map((rep) => {
+              const isRepSelected = selectedReportIds.includes(rep.conversationId);
+              const isPreviewing = nodeReportHistory.previewConvId === rep.conversationId;
+              return (
+                <div
+                  key={rep.conversationId}
+                  className={`px-3 py-1.5 rounded-xl border flex items-center justify-between gap-2 text-xs ${
+                    isRepSelected
+                      ? 'bg-teal-600/10 border-teal-500 font-bold'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSelectReport(rep.conversationId, rep.title)}
+                    className="flex items-center gap-2 text-left flex-1 truncate"
+                  >
+                    <span
+                      className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                        isRepSelected
+                          ? 'bg-teal-600 border-teal-600 text-white'
+                          : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {isRepSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </span>
+                    <span className="truncate">{rep.title}</span>
+                  </button>
+                  <ExpandableButton
+                    size="sm"
+                    variant="teal"
+                    isActive={isPreviewing}
+                    icon={<FileText className="w-3.5 h-3.5" />}
+                    badge={isPreviewing ? 'Ocultar' : '👁️ Resumen'}
+                    label={isPreviewing ? 'Ocultar Resumen' : 'Ver Resumen del Informe'}
+                    onClick={() => onPreviewNodeReport(rep.conversationId, rep.title)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {nodeReportHistory.previewConvId && (
+          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-800 text-xs">
+            <div className="font-extrabold text-teal-700 dark:text-teal-300 mb-1 flex items-center justify-between gap-2">
+              <span>📄 {nodeReportHistory.previewTitle}</span>
+              <ExpandableButton
+                size="sm"
+                variant="slate"
+                icon={<Trash2 className="w-3.5 h-3.5" />}
+                badge="Cerrar ✕"
+                label="Cerrar Vista Previa"
+                onClick={onCloseReportPreview}
+              />
+            </div>
+            <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+              {nodeReportHistory.previewLoading
+                ? 'Cargando resumen del informe...'
+                : nodeReportHistory.previewText}
+            </p>
           </div>
         )}
       </div>
@@ -1102,6 +1213,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               )}
             </div>
           </div>
+          {renderLiveRecordsTableSection(`⏰ Tareas Programadas y Corridas de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1174,6 +1286,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </div>
             </div>
           </div>
+          {renderLiveRecordsTableSection(`🎙️ Estado del Disparador Tenshi IA en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1237,12 +1350,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
+          {renderLiveRecordsTableSection(`💻 Estado del Disparador Antigravity en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
 
     // 1.5 DISPARADOR CORREO ENTRANTE GMAIL
-    if (cleanId.includes('gmail') || cleanId.includes('email_inbox')) {
+    if (cleanId === 'email' || cleanId.includes('email') || cleanId.includes('gmail')) {
       return (
         <div className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1288,6 +1402,45 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </label>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            {[
+              {
+                badge: '🚑 FURAT / ARL',
+                label: 'Disparar al recibir FURAT o dictamen de ARL',
+                sender: '@positiva.gov.co, @sura.com.co, @colmena.com',
+                subj: 'FURAT, Accidente de Trabajo, Calificación',
+              },
+              {
+                badge: '🩺 Concepto EMO / IPS',
+                label: 'Disparar al recibir Concepto de Aptitud Médica',
+                sender: '',
+                subj: 'Concepto de Aptitud, Examen Médico Ocupacional, Restricciones',
+              },
+              {
+                badge: '📄 Incapacidad EPS',
+                label: 'Disparar al recibir Incapacidad Médica',
+                sender: '',
+                subj: 'Incapacidad Médica, Licencia, Hospitalización',
+              },
+            ].map((p) => (
+              <ExpandableButton
+                key={p.badge}
+                size="sm"
+                variant="cyan"
+                icon={<Sparkles className="w-3.5 h-3.5" />}
+                badge={p.badge}
+                label={p.label}
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    emailSenderFilter: p.sender || currentCfg.emailSenderFilter,
+                    emailSubjectFilter: p.subj,
+                    onlyWithAttachments: true,
+                  })
+                }
+              />
+            ))}
+          </div>
+          {renderLiveRecordsTableSection(`📧 Estado del Disparador por Correo Entrante en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1351,6 +1504,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               );
             })}
           </div>
+          {renderLiveRecordsTableSection(`📱 Estado del Disparador QR en Campo de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1358,40 +1512,43 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     // 1.7 DISPARADOR POR OTRO AGENTE IA
     if (cleanId.includes('agent')) {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🤖 ¿Qué Agente IA dispara este flujo al terminar su trabajo?
-            </label>
-            <select
-              value={currentCfg.sourceAgentId || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { sourceAgentId: e.target.value })
-              }
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="">Cualquier Agente Especialista de la empresa</option>
-              {availableAgentsWithTenshiAvatar.map((ag) => (
-                <option key={ag.id} value={ag.id}>
-                  {ag.name}
-                </option>
-              ))}
-            </select>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🤖 ¿Qué Agente IA dispara este flujo al terminar su trabajo?
+              </label>
+              <select
+                value={currentCfg.sourceAgentId || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { sourceAgentId: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="">Cualquier Agente Especialista de la empresa</option>
+                {availableAgentsWithTenshiAvatar.map((ag) => (
+                  <option key={ag.id} value={ag.id}>
+                    {ag.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                ⚡ Condición de Encadenamiento
+              </label>
+              <input
+                type="text"
+                value={currentCfg.customInstruction || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+                }
+                placeholder="Ej: Disparar solo cuando el agente emisor detecte brechas o genere un acta..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              ⚡ Condición de Encadenamiento
-            </label>
-            <input
-              type="text"
-              value={currentCfg.customInstruction || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
-              }
-              placeholder="Ej: Disparar solo cuando el agente emisor detecte brechas o genere un acta..."
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-            />
-          </div>
+          {renderLiveRecordsTableSection(`🤖 Estado del Disparador por Delegación de Agente en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1442,6 +1599,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
+          {renderLiveRecordsTableSection(`💬 Pre-configuración de Disparador WhatsApp en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1486,6 +1644,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-white"
           />
         </div>
+        {renderLiveRecordsTableSection(`🔗 Estado del Disparador Webhook en «${resolvedCompanyFull}»`)}
       </div>
     );
   }
@@ -1847,6 +2006,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             })}
           </div>
           {renderLiveRecordsTableSection(`🏢 Ficha Real en Vivo de «${resolvedCompanyFull}»`)}
+          {renderReportHistorySection()}
         </div>
       );
     }
@@ -2289,6 +2449,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </span>
           </label>
           {renderFieldChecklistSection('teal')}
+          {renderLiveRecordsTableSection(`📧 Historial de Envíos y Bitácoras de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -2342,6 +2503,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           </div>
           {renderFieldChecklistSection('teal')}
+          {renderLiveRecordsTableSection(`🔔 Notificaciones Reales de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -2436,6 +2598,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           </div>
           {renderFieldChecklistSection('blue')}
+          {renderLiveRecordsTableSection(`📅 Eventos y Agenda SST de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -2593,6 +2756,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
+          {renderFieldChecklistSection('amber')}
+          {renderLiveRecordsTableSection(`📋 Actividades Actuales en el Centro de Control de «${resolvedCompanyFull}»`)}
+          {renderReportHistorySection()}
         </div>
       );
     }
@@ -2670,6 +2836,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           </div>
           {renderFieldChecklistSection('teal')}
+          {renderLiveRecordsTableSection(`🛡️ Estado de los Aplicativos de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -2737,6 +2904,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           </div>
           {renderFieldChecklistSection('teal')}
+          {renderLiveRecordsTableSection(`🎨 Documentos Vivos e Informes de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -2747,7 +2915,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              📄 Título / Archivo / Destino de «{activeNode.title}»
+              📄 Título / Archivo / Destino de «{resolvedNodeDisplayTitle}»
             </label>
             <input
               type="text"
@@ -2788,6 +2956,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         </div>
         {renderFieldChecklistSection('teal')}
+        {renderLiveRecordsTableSection(`📤 Estado de Salida en «${resolvedCompanyFull}»`)}
       </div>
     );
   }
@@ -2927,17 +3096,23 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       : catalogScraperDef?.scriptEngine === 'node_cheerio_puppeteer'
         ? 'node_cheerio'
         : 'python_bs4';
-  const isWebScraperNode =
-    activeNode.customNodeType === 'web_scraper' ||
-    rawId.includes('scraping') ||
-    rawId.includes('web_scraper') ||
-    rawId.includes('scraper_agy_');
-  const isWebSearchNode =
-    activeNode.customNodeType === 'web_search' || rawId.includes('web_search');
   const isSkillNode = activeNode.customNodeType === 'skill' || cleanId.startsWith('skill_');
   const isRuleNode = activeNode.customNodeType === 'rule' || cleanId.startsWith('rule_');
   const isSubagentCustomNode =
     activeNode.customNodeType === 'subagent' || cleanId.startsWith('subagent_');
+  const isWebScraperNode =
+    !isSkillNode &&
+    !isRuleNode &&
+    !isSubagentCustomNode &&
+    (activeNode.customNodeType === 'web_scraper' ||
+      rawId.includes('scraping') ||
+      rawId.includes('web_scraper') ||
+      rawId.includes('scraper_agy_'));
+  const isWebSearchNode =
+    !isSkillNode &&
+    !isRuleNode &&
+    !isSubagentCustomNode &&
+    (activeNode.customNodeType === 'web_search' || rawId.includes('web_search'));
 
   if (isWebScraperNode) {
     return (
@@ -3044,6 +3219,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           />
         </div>
         {renderFieldChecklistSection('amber')}
+        {renderLiveRecordsTableSection(`🕷️ Trabajadores / Vehículos / Entes a Consultar en «${resolvedCompanyFull}»`)}
       </div>
     );
   }
@@ -3082,6 +3258,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           ))}
         </div>
         {renderFieldChecklistSection('cyan')}
+        {renderLiveRecordsTableSection(`🌐 Contexto de «${resolvedCompanyFull}» para Búsqueda en Vivo`)}
       </div>
     );
   }
@@ -3355,6 +3532,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             />
           </div>
         </div>
+        {renderFieldChecklistSection('purple')}
+        {renderLiveRecordsTableSection(`🤖 Datos Reales de «${resolvedCompanyFull}» Disponibles para «${activeTitle}»`)}
+        {renderReportHistorySection()}
       </div>
     );
   }
@@ -3387,6 +3567,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           />
         </div>
         {renderFieldChecklistSection('purple')}
+        {renderLiveRecordsTableSection(
+          isSkillNode
+            ? `🧩 Contexto de «${resolvedCompanyFull}» para aplicar esta Skill`
+            : `📏 Verificación de Regla sobre «${resolvedCompanyFull}»`,
+        )}
       </div>
     );
   }
@@ -3477,6 +3662,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             ))}
           </div>
           {renderFieldChecklistSection('cyan')}
+          {renderLiveRecordsTableSection(`📧 Correos y Adjuntos de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -3579,7 +3765,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       );
     }
 
-    if (cleanId.includes('local_folder') || cleanId.includes('local_pc')) {
+    if (
+      cleanId.includes('pc_folder') ||
+      cleanId.includes('local_folder') ||
+      cleanId.includes('local_pc')
+    ) {
       return (
         <div className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -3612,7 +3802,87 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            {[
+              {
+                badge: '📁 ~/Documents/SST_FURAT',
+                label: 'Carpeta Local: ~/Documents/SST_FURAT (*.pdf)',
+                path: '~/Documents/SST_FURAT',
+                ft: '*.pdf',
+              },
+              {
+                badge: '📁 ~/Documents/Certificados_EPS_ARL',
+                label: 'Carpeta Local: ~/Documents/Certificados_EPS_ARL (*.pdf)',
+                path: '~/Documents/Certificados_EPS_ARL',
+                ft: '*.pdf',
+              },
+              {
+                badge: '📁 ~/Downloads/Planillas_PILA',
+                label: 'Carpeta Local: ~/Downloads/Planillas_PILA (*.pdf, *.xlsx)',
+                path: '~/Downloads/Planillas_PILA',
+                ft: '*.pdf, *.xlsx',
+              },
+            ].map((lp) => (
+              <ExpandableButton
+                key={lp.path}
+                size="sm"
+                variant="amber"
+                icon={<Sparkles className="w-3.5 h-3.5" />}
+                badge={lp.badge}
+                label={lp.label}
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    watchFolderPath: lp.path,
+                    fileTypeFilter: lp.ft,
+                  })
+                }
+              />
+            ))}
+          </div>
           {renderFieldChecklistSection('cyan')}
+          {renderLiveRecordsTableSection(`💻 Estado del Puente Local Antigravity para «${resolvedCompanyFull}»`)}
+        </div>
+      );
+    }
+
+    if (cleanId === 'extract_sst_app') {
+      const selectedAppTarget = currentCfg.documentTitle || 'Matriz IPEVR GTC-45 (Hito 1)';
+      return (
+        <div className="space-y-3">
+          <div className="p-3 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/80 dark:border-teal-800/60 space-y-2">
+            <label className="block text-xs font-extrabold uppercase text-teal-900 dark:text-teal-300">
+              🛡️ 1. Elige de qué Aplicativo o Matriz de «{resolvedCompanyFull}» deseas extraer datos sin IA:
+            </label>
+            <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+              {[
+                { badge: '⚡ Matriz GTC-45', label: 'Extraer Matriz de Peligros IPEVR GTC-45 (Hito 1)', val: 'Matriz IPEVR GTC-45 (Hito 1)' },
+                { badge: '🚗 Matriz PESV', label: 'Extraer Matriz de Riesgos Viales PESV y Flota (Hito 3)', val: 'Matriz PESV y Parque Automotor (Hito 3)' },
+                { badge: '⚖️ Matriz Legal', label: 'Extraer Matriz Legal y Normas en Brecha (Hito 1)', val: 'Matriz Legal SG-SST (Hito 1)' },
+                { badge: '📊 Diagnóstico 0312', label: 'Extraer Diagnóstico Estándares Mínimos Res. 0312 (Hito 1)', val: 'Diagnóstico Res. 0312 (Hito 1)' },
+                { badge: '🚑 Casos ATEL', label: 'Extraer Casos e Investigaciones ATEL (Hito 7)', val: 'Investigación y Estadísticas ATEL (Hito 7)' },
+                { badge: '📋 Tablero ACPM', label: 'Extraer Actividades del Centro de Control ACPM (Hito 7)', val: 'Tablero Kanban ACPM (Hito 7)' },
+              ].map((appOpt) => (
+                <ExpandableButton
+                  key={appOpt.val}
+                  size="sm"
+                  variant={selectedAppTarget === appOpt.val ? 'teal' : 'neutral'}
+                  isActive={selectedAppTarget === appOpt.val}
+                  icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                  badge={appOpt.badge}
+                  label={appOpt.label}
+                  onClick={() =>
+                    onUpdateNodeConfig(activeNode.key, {
+                      documentTitle: appOpt.val,
+                      customInstruction: `Extraer directamente desde MongoDB los registros de ${appOpt.val} para la empresa activa ${resolvedCompanyFull}.`,
+                    })
+                  }
+                />
+              ))}
+            </div>
+          </div>
+          {renderFieldChecklistSection('teal')}
+          {renderLiveRecordsTableSection(`🛡️ Estado de los 50 Aplicativos de «${resolvedCompanyFull}»`)}
+          {renderReportHistorySection()}
         </div>
       );
     }
@@ -3621,11 +3891,84 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   /* ═════════════════════════════════════════════════════════════════════════
      EQUIPO 5: HERRAMIENTAS DEL AGENTE EXTERNAS (Google Suite, Estudios IA, Radares)
      ═════════════════════════════════════════════════════════════════════════ */
-  if (
-    activeNode.shape === 'circle_tool' &&
-    !cleanId.startsWith('somos_sst_') &&
-    !cleanId.startsWith('hito')
-  ) {
+  const isWappySstInternalTool =
+    cleanId.startsWith('somos_sst_') ||
+    cleanId.startsWith('hito') ||
+    cleanId === 'matriz_ipevar' ||
+    cleanId === 'matriz_pesv' ||
+    cleanId === 'matriz_compatibilidad' ||
+    cleanId === 'consultar_analitica_psicosocial' ||
+    cleanId === 'consultar_analitica_actos_condiciones' ||
+    cleanId === 'cursos_lms';
+
+  if (activeNode.shape === 'circle_tool' && cleanId === 'canvas_doc') {
+    const activeTpl = currentCfg.documentTemplate || 'Informe Investigación ATEL Res. 1401';
+    return (
+      <div className="space-y-3">
+        <div className="p-3 rounded-xl bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border border-fuchsia-200/80 dark:border-fuchsia-800/60">
+          <label className="block text-xs font-extrabold uppercase text-fuchsia-900 dark:text-fuchsia-300 mb-1.5">
+            🎨 1. Plantilla Formal del Documento en LiveEditor para «{resolvedCompanyFull}»
+          </label>
+          <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
+            {[
+              { id: 'Informe Investigación ATEL Res. 1401', badge: '📋 Informe ATEL', label: 'Informe Oficial de Investigación ATEL (Res. 1401)' },
+              { id: 'Acta Oficial con Cabezote y Firmas', badge: '🏛️ Acta Oficial', label: 'Acta Oficial de Comité (COPASST / CCL / PESV) con Firmas' },
+              { id: 'Informe Ejecutivo de Auditoría 0312', badge: '📊 Auditoría 0312', label: 'Informe Ejecutivo de Auditoría y Brechas Res. 0312' },
+              { id: 'Procedimiento / Programa SG-SST', badge: '📑 Procedimiento', label: 'Procedimiento Operativo Estándar (PON) o Programa PVE' },
+            ].map((tpl) => (
+              <ExpandableButton
+                key={tpl.id}
+                type="button"
+                size="sm"
+                variant={activeTpl === tpl.id ? 'fuchsia' : 'neutral'}
+                isActive={activeTpl === tpl.id}
+                icon={<FileText className="w-3.5 h-3.5" />}
+                badge={tpl.badge}
+                label={tpl.label}
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, { documentTemplate: tpl.id })
+                }
+              />
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              📄 2. Título Oficial del Documento Vivo
+            </label>
+            <input
+              type="text"
+              value={currentCfg.documentTitle || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { documentTitle: e.target.value })
+              }
+              placeholder={`Ej: Informe Oficial SG-SST — ${resolvedCompanyFull}`}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              ✍️ 3. Estructura de Cabezote, Tablas y Bloque de Firmas
+            </label>
+            <input
+              type="text"
+              value={currentCfg.customInstruction || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+              }
+              placeholder="Ej: Incluir cabezote con NIT, tablas con bordes sólidos y firma de Representante Legal + Responsable SST"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
+        </div>
+        {renderFieldChecklistSection('teal')}
+        {renderLiveRecordsTableSection(`🎨 Documentos Vivos e Informes de «${resolvedCompanyFull}»`)}
+      </div>
+    );
+  }
+
+  if (activeNode.shape === 'circle_tool' && !isWappySstInternalTool) {
     const companyCityPreset =
       activeCompanyInfo?.city && cleanId.includes('clima')
         ? [
@@ -3672,11 +4015,100 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   { badge: '🚑 Radio 5 km', label: 'MEDEVAC: Clínicas y Urgencias ARL a 5 km de la Sede', val: 'Radio 5km Urgencias Traumatologia ARL' },
                   { badge: '🚒 Bomberos + Defensa Civil', label: 'MEDEVAC: Bomberos, Cruz Roja y Defensa Civil', val: 'Radio 10km Bomberos Cruz Roja Defensa Civil' },
                 ]
-              : []),
+              : cleanId === 'google_drive' || cleanId === 'one_drive'
+                ? [
+                    { badge: '📁 Carpeta Accidentes', label: 'Carpeta: Accidentes / FURAT', val: 'Accidentes' },
+                    { badge: '📁 Carpeta EMO / Salud', label: 'Carpeta: Perfil Sociodemográfico y EMO', val: 'Perfil Sociodemografico y EMO' },
+                    { badge: '📁 Carpeta Certificados', label: 'Carpeta: Certificados EPS, ARL y Alturas', val: 'Certificados_SST' },
+                  ]
+                : cleanId === 'google_sheets'
+                  ? [
+                      { badge: '📊 Control Vencimientos', label: 'Hoja: Matriz_Vencimientos_SST (Pestaña: Alertas)', val: 'Matriz_Vencimientos_SST' },
+                      { badge: '📊 Control Ausentismo', label: 'Hoja: Control_Ausentismo_ATEL_2026', val: 'Control_Ausentismo_ATEL_2026' },
+                    ]
+                  : cleanId === 'google_docs'
+                    ? [
+                        { badge: '📄 Informe Auditoría', label: 'Documento: Informe Ejecutivo SG-SST', val: `Informe_Ejecutivo_SGSST_${resolvedCompanyName || 'Empresa'}` },
+                        { badge: '📄 Acta COPASST', label: 'Documento: Acta Mensual COPASST', val: `Acta_COPASST_${resolvedCompanyName || 'Empresa'}` },
+                      ]
+                    : cleanId === 'google_slides'
+                      ? [
+                          { badge: '📽️ Alta Dirección', label: 'Presentación: Revisión por la Alta Dirección', val: `Presentacion_Alta_Direccion_${resolvedCompanyName || 'Empresa'}` },
+                          { badge: '📽️ Inducción SST', label: 'Presentación: Capacitación e Inducción SG-SST', val: `Capacitacion_SGSST_${resolvedCompanyName || 'Empresa'}` },
+                        ]
+                      : cleanId === 'google_calendar'
+                        ? [
+                            { badge: '📅 Reunión COPASST', label: 'Agendar: Reunión Mensual COPASST (60 min)', val: 'Reunión Mensual COPASST' },
+                            { badge: '📅 Seguimiento ATEL', label: 'Agendar: Verificación de Cierre Plan de Acción ATEL', val: 'Seguimiento Plan de Acción Investigación ATEL' },
+                          ]
+                        : cleanId === 'notebooklm'
+                          ? [
+                              { badge: '📚 Cuaderno Normativo', label: 'Cuaderno: Normograma Decreto 1072 + Res. 0312 + GTC-45', val: 'Cuaderno Normativo SG-SST Colombia' },
+                              { badge: '🎙️ Audio Resumen SST', label: 'Generar Podcast / Guía de Estudio para Trabajadores', val: 'Resumen Audio y Cuestionario de Capacitación SST' },
+                            ]
+                          : cleanId === 'google_flow'
+                            ? [
+                                { badge: '🎬 Reel Preventivo 9:16', label: 'Generar Video Corto Preventivo SST (Veo 3)', val: 'Video vertical 9:16 prevención de accidentes laborales' },
+                                { badge: '🖼️ Afiche Visual SST', label: 'Generar Infografía / Afiche de Seguridad (Imagen 3)', val: 'Afiche corporativo uso obligatorio de EPP en planta' },
+                              ]
+                            : []),
     ];
+
+    const paramLabel = cleanId.includes('clima')
+      ? '🌦️ Ciudad / Sede para Pronóstico Climático SST (OpenWeather)'
+      : cleanId.includes('pubchem')
+        ? '🧪 Número CAS o Nombre de la Sustancia Química (PubChem NIH)'
+        : cleanId.includes('medline')
+          ? '🩺 Código CIE-10 o Diagnóstico Ocupacional (MedlinePlus NIH)'
+          : cleanId.includes('emergencia')
+            ? '🚑 Dirección de la Sede o Radio de Búsqueda MEDEVAC (OpenStreetMap)'
+            : cleanId === 'google_drive' || cleanId === 'one_drive'
+              ? '📁 Carpeta o Archivo Objetivo en la Nube'
+              : cleanId === 'google_sheets'
+                ? '📊 Nombre de la Hoja de Cálculo y Pestaña (Google Sheets)'
+                : cleanId === 'google_docs'
+                  ? '📄 Título del Documento en Google Docs'
+                  : cleanId === 'google_slides'
+                    ? '📽️ Título de la Presentación en Google Slides'
+                    : cleanId === 'google_gmail'
+                      ? '📧 Filtro de Búsqueda o Destinatario en Gmail'
+                      : cleanId === 'google_calendar'
+                        ? '📅 Título del Evento o Recordatorio en Google Calendar'
+                        : cleanId === 'notebooklm'
+                          ? '📚 Cuaderno o Fuente en Google NotebookLM'
+                          : cleanId === 'google_flow'
+                            ? '🎬 Escena / Prompt Visual para Google Flow (Veo / Imagen)'
+                            : cleanId.includes('antigravity')
+                              ? '💻Ruta / Comando o Tarea Delegada en Google Antigravity'
+                              : '🔗 Endpoint URL o Parámetro de Consulta';
+
+    const paramPlaceholder =
+      activeCompanyInfo?.city && cleanId.includes('clima')
+        ? `Sede activa por defecto: ${activeCompanyInfo.city} (${resolvedCompanyFull})`
+        : activeCompanyInfo?.city && cleanId.includes('emergencia')
+          ? `Sede activa: ${activeCompanyInfo.address || activeCompanyInfo.city} (${resolvedCompanyFull})`
+          : cleanId.includes('pubchem')
+            ? 'Ej: 7681-52-9 Hipoclorito de Sodio, 108-88-3 Tolueno...'
+            : cleanId.includes('medline')
+              ? 'Ej: M54.5 Lumbago, G56.0 Síndrome del Túnel Carpiano...'
+              : cleanId === 'google_sheets'
+                ? 'Ej: Matriz_Control_SST_2026 (Pestaña: Alertas)'
+                : cleanId === 'notebooklm'
+                  ? 'Ej: Cuaderno Normativo SG-SST / Guía de Inducción...'
+                  : cleanId === 'google_flow'
+                    ? 'Ej: Trabajador usando arnés certificado en trabajo en alturas...'
+                    : `Ej: Recurso o parámetro objetivo para ${resolvedNodeDisplayTitle}...`;
 
     return (
       <div className="space-y-3">
+        {cleanId === 'one_drive' && (
+          <div className="p-3 rounded-xl border border-amber-300 dark:border-amber-800/70 bg-amber-50/40 dark:bg-amber-950/20 flex items-center justify-between gap-2 text-xs text-amber-900 dark:text-amber-200 font-bold">
+            <span>🚧 Conector Microsoft OneDrive / SharePoint en Construcción (Próximamente)</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200/80 dark:bg-amber-900/70">
+              En Construcción
+            </span>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
@@ -3688,13 +4120,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               onChange={(e) =>
                 onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
               }
-              placeholder={`Ej: Usar ${resolvedNodeDisplayTitle} únicamente para consultar o generar el recurso requerido...`}
+              placeholder={`Ej: Usar ${resolvedNodeDisplayTitle} en ${resolvedCompanyFull} para consultar o generar el recurso requerido...`}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🎯 Parámetro / Carpeta / Ciudad / Sustancia / CIE-10 Objetivo
+              {paramLabel}
             </label>
             <input
               type="text"
@@ -3705,11 +4137,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   targetUrl: e.target.value,
                 })
               }
-              placeholder={
-                activeCompanyInfo?.city && cleanId.includes('clima')
-                  ? `Sede activa por defecto: ${activeCompanyInfo.city} (${resolvedCompanyFull})`
-                  : 'Ej: Carpeta Drive, ciudad para pronóstico de clima, sustancia CAS o código CIE-10...'
-              }
+              placeholder={paramPlaceholder}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
@@ -3979,110 +4407,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       {renderLiveRecordsTableSection()}
 
       {/* 4. HISTORIAL DE INFORMES GUARDADOS DE ESTE APLICATIVO */}
-      {moduleMeta.reportTags && moduleMeta.reportTags.length > 0 && (
-        <div className="p-3.5 rounded-2xl border border-teal-300/80 dark:border-teal-800/80 bg-teal-50/35 dark:bg-teal-950/20 space-y-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-              <div>
-                <span className="text-xs font-black uppercase text-teal-950 dark:text-teal-200">
-                  {isCompanyNode
-                    ? `📜 Historial de Informes SG-SST de «${resolvedCompanyFull}» (${nodeReportHistory.conversations.length})`
-                    : `📜 Historial de Informes de «${resolvedNodeDisplayTitle}»${
-                        resolvedCompanyName && !resolvedNodeDisplayTitle.includes(resolvedCompanyName)
-                          ? ` — ${resolvedCompanyName}`
-                          : ''
-                      } (${nodeReportHistory.conversations.length})`}
-                </span>
-                <p className="text-[10.5px] text-slate-600 dark:text-slate-400">
-                  Puedes incluir el último informe generado en <strong>{resolvedCompanyFull}</strong> o seleccionar informes anteriores específicos.
-                </p>
-              </div>
-            </div>
-
-            <ExpandableButton
-              size="sm"
-              variant="teal"
-              isActive={Boolean(currentCfg.includeLatestReport)}
-              icon={<FileText className="w-3.5 h-3.5" />}
-              badge={currentCfg.includeLatestReport ? '✓ Último Informe' : 'Último Informe'}
-              label="Incluir Siempre el Último Informe"
-              onClick={() =>
-                onUpdateNodeConfig(activeNode.key, {
-                  includeLatestReport: !currentCfg.includeLatestReport,
-                  reportTags: moduleMeta.reportTags,
-                })
-              }
-            />
-          </div>
-
-          {nodeReportHistory.conversations.length > 0 && (
-            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-              {nodeReportHistory.conversations.slice(0, 10).map((rep) => {
-                const isRepSelected = selectedReportIds.includes(rep.conversationId);
-                const isPreviewing = nodeReportHistory.previewConvId === rep.conversationId;
-                return (
-                  <div
-                    key={rep.conversationId}
-                    className={`px-3 py-1.5 rounded-xl border flex items-center justify-between gap-2 text-xs ${
-                      isRepSelected
-                        ? 'bg-teal-600/10 border-teal-500 font-bold'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleSelectReport(rep.conversationId, rep.title)}
-                      className="flex items-center gap-2 text-left flex-1 truncate"
-                    >
-                      <span
-                        className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
-                          isRepSelected
-                            ? 'bg-teal-600 border-teal-600 text-white'
-                            : 'border-slate-300 dark:border-slate-600'
-                        }`}
-                      >
-                        {isRepSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                      </span>
-                      <span className="truncate">{rep.title}</span>
-                    </button>
-                    <ExpandableButton
-                      size="sm"
-                      variant="teal"
-                      isActive={isPreviewing}
-                      icon={<FileText className="w-3.5 h-3.5" />}
-                      badge={isPreviewing ? 'Ocultar' : '👁️ Resumen'}
-                      label={isPreviewing ? 'Ocultar Resumen' : 'Ver Resumen del Informe'}
-                      onClick={() => onPreviewNodeReport(rep.conversationId, rep.title)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {nodeReportHistory.previewConvId && (
-            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-800 text-xs">
-              <div className="font-extrabold text-teal-700 dark:text-teal-300 mb-1 flex items-center justify-between gap-2">
-                <span>📄 {nodeReportHistory.previewTitle}</span>
-                <ExpandableButton
-                  size="sm"
-                  variant="slate"
-                  icon={<Trash2 className="w-3.5 h-3.5" />}
-                  badge="Cerrar ✕"
-                  label="Cerrar Vista Previa"
-                  onClick={onCloseReportPreview}
-                />
-              </div>
-              <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
-                {nodeReportHistory.previewLoading
-                  ? 'Cargando resumen del informe...'
-                  : nodeReportHistory.previewText}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+      {renderReportHistorySection()}
     </div>
   );
 }

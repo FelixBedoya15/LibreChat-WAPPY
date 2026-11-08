@@ -315,6 +315,14 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
+  // Skills (SKILL.md) y Reglas (Rules) — evaluar ANTES de scrapers/antigravity/auditoria
+  if (id.startsWith('skill_') || id.startsWith('custom_skill_')) {
+    return <Puzzle className={`${sizeClass} text-violet-600 dark:text-violet-400`} />;
+  }
+  if (id.startsWith('rule_') || id.startsWith('custom_rule_')) {
+    return <Scale className={`${sizeClass} text-emerald-600 dark:text-emerald-400`} />;
+  }
+
   // ── 6 Scrapers Oficiales por Cédula/Placa vía Antigravity (Evaluar ANTES de id.includes('antigravity')) ──
   if (id.includes('scraper_agy_alto_riesgo')) {
     return <HardHat className={`${sizeClass} text-amber-500`} />;
@@ -409,7 +417,12 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('extract_sst_app')) {
     return <Database className={`${sizeClass} text-purple-600 dark:text-purple-400`} />;
   }
-  if (id.includes('extract_sst_workers') || id.includes('somos_sst_trabajadores') || id.includes('sociodemografico')) {
+  if (
+    id.includes('extract_sst_workers') ||
+    id.includes('somos_sst_trabajadores') ||
+    id.includes('sociodemografico') ||
+    id.includes('perfil_socio')
+  ) {
     return <Users className={`${sizeClass} text-teal-600`} />;
   }
   if (id.includes('somos_sst_perfiles_cargo') || id.includes('perfiles_cargo')) {
@@ -478,10 +491,16 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('psicosocial')) {
     return <Heart className={`${sizeClass} text-pink-500`} />;
   }
-  if (id.includes('convivencia') || id.includes('comites') || id.includes('contratistas')) {
+  if (id.includes('convivencia') || id.includes('cocolab') || id.includes('comites') || id.includes('contratistas')) {
     return <Users className={`${sizeClass} text-teal-600`} />;
   }
-  if (id.includes('actos') || id.includes('owas') || id.includes('ergonomia') || id.includes('estudios_puesto')) {
+  if (
+    id.includes('actos') ||
+    id.includes('owas') ||
+    id.includes('ergonomia') ||
+    id.includes('estudios_puesto') ||
+    id.includes('estudio_puesto')
+  ) {
     return <Activity className={`${sizeClass} text-cyan-500`} />;
   }
   if (id.includes('openweather') || id.includes('clima')) {
@@ -490,7 +509,14 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   if (id.includes('emergencia') || id.includes('osm') || id.includes('brigada') || id.includes('simulacro')) {
     return <MapPin className={`${sizeClass} text-red-500`} />;
   }
-  if (id.includes('alturas') || id.includes('ats') || id.includes('confinados') || id.includes('loto') || id.includes('caliente') || id.includes('izaje')) {
+  if (
+    id.includes('alturas') ||
+    id.includes('ats') ||
+    id.includes('confinados') ||
+    id.includes('loto') ||
+    id.includes('caliente') ||
+    (id.includes('izaje') && !id.includes('aprendizaje'))
+  ) {
     return <HardHat className={`${sizeClass} text-amber-600`} />;
   }
   if (id.includes('plan_trabajo')) {
@@ -1154,7 +1180,7 @@ export default function WappyWorkflowCanvas({
         nodeId: hitoId,
         shape: 'square_hito',
         title: def.shortLabel,
-        subtitle: '4. Cambiar en Hito',
+        subtitle: def.badge || '9. Hitos Somos SST',
         x: pos.x,
         y: pos.y,
         width: 72,
@@ -1185,7 +1211,7 @@ export default function WappyWorkflowCanvas({
         nodeId: outId,
         shape: 'square_output',
         title: def.shortLabel,
-        subtitle: def.badge || '5. Bitácora Final',
+        subtitle: def.badge || '10. Bitácora & Salida',
         x: pos.x,
         y: pos.y,
         width: 72,

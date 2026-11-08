@@ -2199,7 +2199,15 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
           ? 'schedule_cron'
           : id === 'hito2_cronograma'
             ? 'hito7_acpm'
-            : id;
+            : id === 'hito6_capacitaciones'
+              ? 'hito5_capacitaciones'
+              : id === 'matriz_legal'
+                ? 'hito1_matriz_legal'
+                : id === 'hito1_politica'
+                  ? 'hito1_politica_objetivos'
+                  : id === 'hito6_emergencias'
+                    ? 'hito1_plan_emergencias'
+                    : id;
   return (
     TRIGGER_NODES.find((n) => n.id === normId) ||
     EXTRACTOR_NODES.find((n) => n.id === normId) ||
@@ -7876,6 +7884,12 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
   if (cleanId === 'hito2_cronograma' || cleanId === 'cronograma' || cleanId === 'acpm_task') {
     return MODULE_METADATA_MAP.hito7_acpm;
   }
+  if (cleanId === 'hito6_capacitaciones') {
+    return MODULE_METADATA_MAP.hito5_capacitaciones;
+  }
+  if (cleanId === 'matriz_legal') {
+    return MODULE_METADATA_MAP.hito1_matriz_legal;
+  }
   if (cleanId === 'hito1_politica' || cleanId === 'politica_objetivos') {
     return MODULE_METADATA_MAP.hito1_politica_objetivos;
   }
@@ -7894,6 +7908,200 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
     if (MODULE_METADATA_MAP[cleanId]) return MODULE_METADATA_MAP[cleanId];
     const subDef = getNodeDefById(cleanId) || getNodeDefById(raw);
     if (subDef) {
+      if (cleanId.includes('medico')) {
+        return {
+          moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+          moduleBadge: subDef.badge || 'Sub-Agente Médico SST',
+          fieldsLabel: `Criterios Clínico-Ocupacionales y Entregables de ${subDef.label}`,
+          fields: [
+            'Concepto de Aptitud Médica Ocupacional (Apto / Apto con Restricciones / Aplazado) — Res. 1843 de 2025',
+            'Vencimiento de Exámenes Médicos Ocupacionales (Ingreso, Periódico, Egreso, Post-Incapacidad)',
+            'Seguimiento a Restricciones y Recomendaciones Médicas Laborales por Cédula y Cargo',
+            'Cruce de Diagnósticos CIE-10 y Sistemas de Vigilancia Epidemiológica (SVE)',
+            'Reserva Estricta de Historia Clínica Ocupacional (Ley 23 de 1981)',
+            'Recomendaciones de Reubicación, Readaptación Laboral y Pausas Activas',
+          ],
+          quickCombos: [
+            {
+              label: '⚡ Concepto EMO + Restricciones Médicas + Vencimientos por Cédula',
+              description: 'Auditoría médico-laboral bajo Res. 1843 de 2025 sin violar reserva clínica',
+              fields: [
+                'Concepto de Aptitud Médica Ocupacional (Apto / Apto con Restricciones / Aplazado) — Res. 1843 de 2025',
+                'Vencimiento de Exámenes Médicos Ocupacionales (Ingreso, Periódico, Egreso, Post-Incapacidad)',
+                'Seguimiento a Restricciones y Recomendaciones Médicas Laborales por Cédula y Cargo',
+                'Reserva Estricta de Historia Clínica Ocupacional (Ley 23 de 1981)',
+              ],
+            },
+          ],
+          reportTags: ['sgsst-condiciones-salud'],
+        };
+      }
+      if (cleanId.includes('investigador_atel') || cleanId.includes('simulador_atel')) {
+        return {
+          moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+          moduleBadge: subDef.badge || 'Sub-Agente ATEL',
+          fieldsLabel: `Criterios de Investigación Causal ATEL (Res. 1401 de 2007) de ${subDef.label}`,
+          fields: [
+            'Extracción Forense del FURAT y Ficha 360° del Trabajador Accidentado',
+            'Metodología de los 5 Porqués y Árbol de Causas / Espina de Pescado (Ishikawa)',
+            'Causas Inmediatas: Actos Subestándar y Condiciones ambientales Subestándar (NTC 3701)',
+            'Causas Básicas: Factores Personales y Factores del Trabajo',
+            'Cruce con Matriz GTC-45, ATS, Reportes de Actos Inseguros, Capacitaciones, EPP y EMO',
+            'Plan de Acción Correctivo en Fuente, Medio e Individuo y Reporte a ARL (≤ 15 días)',
+          ],
+          quickCombos: [
+            {
+              label: '⚡ FURAT + 5 Porqués + Ishikawa + Cruce GTC-45/ATS/EPP + Plan de Acción',
+              description: 'Investigación integral de accidente de trabajo conforme a la Resolución 1401 de 2007',
+              fields: [
+                'Extracción Forense del FURAT y Ficha 360° del Trabajador Accidentado',
+                'Metodología de los 5 Porqués y Árbol de Causas / Espina de Pescado (Ishikawa)',
+                'Causas Inmediatas: Actos Subestándar y Condiciones ambientales Subestándar (NTC 3701)',
+                'Causas Básicas: Factores Personales y Factores del Trabajo',
+                'Cruce con Matriz GTC-45, ATS, Reportes de Actos Inseguros, Capacitaciones, EPP y EMO',
+                'Plan de Acción Correctivo en Fuente, Medio e Individuo y Reporte a ARL (≤ 15 días)',
+              ],
+            },
+          ],
+          reportTags: ['sgsst-investigacion-atel'],
+        };
+      }
+      if (cleanId.includes('abogado') || cleanId.includes('legal')) {
+        return {
+          moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+          moduleBadge: subDef.badge || 'Sub-Agente Jurídico SST',
+          fieldsLabel: `Criterios Jurídico-Laborales y Normativos de ${subDef.label}`,
+          fields: [
+            'Fundamentación en Código Sustantivo del Trabajo (CST), Decreto 1072 de 2015 y Res. 0312 de 2019',
+            'Análisis de Responsabilidad Civil, Laboral, Administrativa y Penal en ATEL',
+            'Revisión de Estabilidad Laboral Reforzada (Salud, Maternidad, Pre-pensionados)',
+            'Validación del Debido Proceso Disciplinario, Descargos y Reglamento Interno (RIT)',
+            'Auditoría de Matriz Legal y Nuevas Normas del Ministerio del Trabajo',
+            'Concepto Jurídico Preventivo y Blindaje Probatorio Documental',
+          ],
+          quickCombos: [
+            {
+              label: '⚡ Blindaje Legal Dec. 1072 / CST + Responsabilidad ATEL + Debido Proceso',
+              description: 'Dictamen jurídico laboral y de cumplimiento SG-SST',
+              fields: [
+                'Fundamentación en Código Sustantivo del Trabajo (CST), Decreto 1072 de 2015 y Res. 0312 de 2019',
+                'Análisis de Responsabilidad Civil, Laboral, Administrativa y Penal en ATEL',
+                'Validación del Debido Proceso Disciplinario, Descargos y Reglamento Interno (RIT)',
+                'Concepto Jurídico Preventivo y Blindaje Probatorio Documental',
+              ],
+            },
+          ],
+          reportTags: ['sgsst-matriz-legal', 'sgsst-rit'],
+        };
+      }
+      if (cleanId.includes('psicologo')) {
+        return {
+          moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+          moduleBadge: subDef.badge || 'Sub-Agente Psicosocial',
+          fieldsLabel: `Criterios de Riesgo Psicosocial (Res. 2764 de 2022) de ${subDef.label}`,
+          fields: [
+            'Evaluación de Factores Intralaborales, Extralaborales e Individuales (Batería Res. 2764 de 2022)',
+            'Prevención de Acoso Laboral y Gestión del Comité de Convivencia Laboral (Ley 1010 de 2006 / Res. 3461 de 2025)',
+            'Detección Temprana de Burnout, Fatiga Mental y Estrés Ocupacional',
+            'Protocolos de Intervención Psicosocial y Primeros Auxilios Psicológicos',
+            'Confidencialidad y Reserva Absoluta de Evaluaciones Psicosociales (Ley 1090 de 2006)',
+          ],
+          quickCombos: [
+            {
+              label: '⚡ Batería Res. 2764 + Prevención Acoso Ley 1010 + Intervención Burnout',
+              description: 'Análisis psicosocial y recomendaciones para el Comité de Convivencia Laboral',
+              fields: [
+                'Evaluación de Factores Intralaborales, Extralaborales e Individuales (Batería Res. 2764 de 2022)',
+                'Prevención de Acoso Laboral y Gestión del Comité de Convivencia Laboral (Ley 1010 de 2006 / Res. 3461 de 2025)',
+                'Detección Temprana de Burnout, Fatiga Mental y Estrés Ocupacional',
+                'Protocolos de Intervención Psicosocial y Primeros Auxilios Psicológicos',
+              ],
+            },
+          ],
+          reportTags: ['sgsst-animo'],
+        };
+      }
+      if (cleanId.includes('fisioterapeuta')) {
+        return {
+          moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+          moduleBadge: subDef.badge || 'Sub-Agente Ergonomía',
+          fieldsLabel: `Criterios Biomecánicos y Ergonómicos (OWAS / EPT) de ${subDef.label}`,
+          fields: [
+            'Evaluación Postural por Método OWAS (Espalda, Brazos, Piernas, Carga y Nivel de Acción 1 a 4)',
+            'Análisis de Estudio de Puesto de Trabajo (EPT) y Antropometría Ocupacional',
+            'Prevención de Desórdenes Musculoesqueléticos (DME) y Manipulación Manual de Cargas',
+            'Plan de Pausas Activas Específicas por Grupo Muscular y Readaptación Laboral',
+            'Controles de Ingeniería y Rediseño Ergonómico de Puestos de Trabajo',
+          ],
+          quickCombos: [
+            {
+              label: '⚡ Evaluación OWAS + Estudio de Puesto (EPT) + Prevención DME',
+              description: 'Vigilancia epidemiológica osteomuscular y controles ergonómicos',
+              fields: [
+                'Evaluación Postural por Método OWAS (Espalda, Brazos, Piernas, Carga y Nivel de Acción 1 a 4)',
+                'Análisis de Estudio de Puesto de Trabajo (EPT) y Antropometría Ocupacional',
+                'Prevención de Desórdenes Musculoesqueléticos (DME) y Manipulación Manual de Cargas',
+                'Controles de Ingeniería y Rediseño Ergonómico de Puestos de Trabajo',
+              ],
+            },
+          ],
+          reportTags: ['sgsst-metodo-owas', 'sgsst-estudio-puesto'],
+        };
+      }
+      if (cleanId.includes('seguridad_vial') || cleanId.includes('pesv')) {
+        return {
+          moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+          moduleBadge: subDef.badge || 'Sub-Agente PESV',
+          fieldsLabel: `Criterios de Seguridad Vial (Res. 20223040040595) de ${subDef.label}`,
+          fields: [
+            'Auditoría de las 24 Pasos del Plan Estratégico de Seguridad Vial (PESV — Res. 20223040040595)',
+            'Verificación de SOAT, Revisión Técnico-Mecánica (RTM) y Licencias de Conducción (RUNT)',
+            'Control de Inspecciones Preoperacionales Diarias y Mantenimiento Preventivo de Flota',
+            'Comparendos e Infracciones de Tránsito (SIMIT) y Factores de Riesgo Vial (Velocidad, Fatiga)',
+            'Plan de Acción para el Comité de Seguridad Vial (CSV)',
+          ],
+          quickCombos: [
+            {
+              label: '⚡ PESV 24 Pasos + Vigencia SOAT/RTM/Licencias + Preoperacionales',
+              description: 'Control integral de flota vehicular, conductores y riesgos viales',
+              fields: [
+                'Auditoría de las 24 Pasos del Plan Estratégico de Seguridad Vial (PESV — Res. 20223040040595)',
+                'Verificación de SOAT, Revisión Técnico-Mecánica (RTM) y Licencias de Conducción (RUNT)',
+                'Control de Inspecciones Preoperacionales Diarias y Mantenimiento Preventivo de Flota',
+                'Plan de Acción para el Comité de Seguridad Vial (CSV)',
+              ],
+            },
+          ],
+          reportTags: ['sgsst-matriz-pesv'],
+        };
+      }
+      if (cleanId.includes('tareas_criticas') || cleanId.includes('electricista') || cleanId.includes('quimico')) {
+        return {
+          moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,
+          moduleBadge: subDef.badge || 'Sub-Agente TAR / Higiene',
+          fieldsLabel: `Criterios de Tareas de Alto Riesgo e Higiene Industrial de ${subDef.label}`,
+          fields: [
+            'Trabajo Seguro en Alturas (Res. 4272 de 2021) y Espacios Confinados (Res. 0491 de 2020)',
+            'Seguridad Eléctrica RETIE, Distancias de Seguridad y Bloqueo/Etiquetado (LOTO)',
+            'Sustancias Químicas SGA (Decreto 1496 de 2018), FDS de 16 Secciones y Matriz de Compatibilidad ONU',
+            'Análisis de Trabajo Seguro (ATS), Permisos de Trabajo y Certificación de Equipos/EPP',
+            'Controles de Ingeniería, Ventilación, Medición de Atmósferas y Plan de Rescate',
+          ],
+          quickCombos: [
+            {
+              label: '⚡ ATS + Permisos de Trabajo (Alturas/Confinados/RETIE/SGA) + Controles',
+              description: 'Validación técnica antes de autorizar tareas críticas o manejo de sustancias',
+              fields: [
+                'Trabajo Seguro en Alturas (Res. 4272 de 2021) y Espacios Confinados (Res. 0491 de 2020)',
+                'Seguridad Eléctrica RETIE, Distancias de Seguridad y Bloqueo/Etiquetado (LOTO)',
+                'Sustancias Químicas SGA (Decreto 1496 de 2018), FDS de 16 Secciones y Matriz de Compatibilidad ONU',
+                'Análisis de Trabajo Seguro (ATS), Permisos de Trabajo y Certificación de Equipos/EPP',
+              ],
+            },
+          ],
+          reportTags: ['sgsst-ats', 'sgsst-permiso-alturas', 'sgsst-compatibilidad-quimica'],
+        };
+      }
       return {
         ...MODULE_METADATA_MAP.subagent_auditor_calidad,
         moduleTitle: `🤖 Sub-Agente · ${subDef.label}`,

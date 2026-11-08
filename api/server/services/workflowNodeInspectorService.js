@@ -122,7 +122,7 @@ function normalizeInspectorNodeId(rawId) {
   let clean = String(rawId || '').trim();
   if (/^trigger_trigger_/.test(clean)) {
     clean = clean.replace(/^trigger_/, '');
-  } else if (!/^trigger_(tenshi|antigravity|antigravity_cloud|email|agent|qr_worker|webhook)$/.test(clean)) {
+  } else if (!/^trigger_(tenshi|antigravity|antigravity_cloud|email|agent|qr_worker|webhook|whatsapp)$/.test(clean)) {
     clean = clean.replace(/^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
   }
 
@@ -141,8 +141,10 @@ function normalizeInspectorNodeId(rawId) {
     antigravity: 'trigger_antigravity',
     antigravity_cloud: 'trigger_antigravity_cloud',
     email: 'trigger_email',
+    agent: 'trigger_agent',
     qr_worker: 'trigger_qr_worker',
     webhook: 'trigger_webhook',
+    whatsapp: 'trigger_whatsapp',
 
     // Los 8 Hitos — 50 Apps SST (Equipo 6 + Aliases Canónicos)
     contexto_organizacion: 'hito1_dofa',
@@ -152,6 +154,7 @@ function normalizeInspectorNodeId(rawId) {
     hito1_politica: 'hito1_politica_objetivos',
     objetivos: 'hito1_objetivos',
     legal: 'hito1_matriz_legal',
+    matriz_legal: 'hito1_matriz_legal',
     rhs: 'hito1_rhs',
     hito1_reglamento_higiene: 'hito1_rhs',
     rit: 'hito1_rit',
@@ -169,12 +172,15 @@ function normalizeInspectorNodeId(rawId) {
     hito4_vulnerabilidad_amenazas: 'hito6_vulnerabilidad',
     plan_emergencias: 'hito1_plan_emergencias',
     hito4_plan_emergencias: 'hito1_plan_emergencias',
+    hito6_emergencias: 'hito1_plan_emergencias',
     perfil_cargo: 'hito2_perfiles_cargo',
+    somos_sst_perfiles_cargo: 'hito2_perfiles_cargo',
     perfil_socio: 'hito2_perfil_socio',
     perfil_sociodemografico: 'hito2_perfil_socio',
     extract_sst_workers: 'hito2_perfil_socio',
     somos_sst_trabajadores: 'hito2_perfil_socio',
     condiciones_salud: 'hito2_condiciones_salud',
+    somos_sst_examenes: 'hito2_condiciones_salud',
     oraculo_predictivo: 'hito2_oraculo_predictivo',
     hito2_compatibilidad_cargo: 'hito2_oraculo_predictivo',
     copasst: 'hito4_comites',
@@ -199,6 +205,7 @@ function normalizeInspectorNodeId(rawId) {
     permiso_alturas: 'hito3_alturas',
     heights_lifecycle: 'hito5_equipos_alturas',
     epp_delivery: 'hito3_epp',
+    somos_sst_epp: 'hito3_epp',
     chemical_registry: 'hito5_registro_quimico',
     hito3_quimicos: 'hito5_registro_quimico',
     vehicles_pesv: 'hito3_vehiculos',
@@ -206,6 +213,7 @@ function normalizeInspectorNodeId(rawId) {
     hito5_inspecciones: 'hito5_equipos_emergencia',
     comunicaciones_sst: 'hito6_comunicaciones_sst',
     capacitaciones: 'hito5_capacitaciones',
+    hito6_capacitaciones: 'hito5_capacitaciones',
     ruta_aprendizaje: 'hito6_ruta_aprendizaje',
     cursos_lms: 'hito6_ruta_aprendizaje',
     reporte_actos: 'hito4_actos_condiciones',
@@ -2573,6 +2581,7 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
     trigger_agent: 'Equipo 1 · Disparador por Delegación de Agente Especialista IA',
     trigger_qr_worker: 'Equipo 1 · Disparador Reporte QR de Trabajador en Campo',
     trigger_webhook: 'Equipo 1 · Disparador Webhook / API Externa (Buk RRHH / ERP)',
+    trigger_whatsapp: 'Equipo 1 · Disparador WhatsApp Business Cloud API (En Construcción)',
   };
 
   if (triggerTitles[canonicalId]) {

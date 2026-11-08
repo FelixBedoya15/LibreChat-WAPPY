@@ -111,7 +111,7 @@ const DEFAULT_SYSTEM_PRESETS = [
         'hito2_matriz_ipevar',
         'hito3_ats',
         'hito4_actos_condiciones',
-        'hito6_capacitaciones',
+        'hito5_capacitaciones',
         'hito7_investigacion_atel',
       ],
       outputs: ['canvas_doc', 'acpm_task', 'email_report', 'wappy_notification'],
@@ -131,7 +131,7 @@ const DEFAULT_SYSTEM_PRESETS = [
           tool_hitos_hito2_matriz_ipevar: { x: 650, y: 22 },
           tool_hitos_hito3_ats: { x: 650, y: 112 },
           tool_hitos_hito4_actos_condiciones: { x: 650, y: 202 },
-          tool_hitos_hito6_capacitaciones: { x: 768, y: 58 },
+          tool_hitos_hito5_capacitaciones: { x: 768, y: 58 },
           tool_hitos_hito7_investigacion_atel: { x: 768, y: 162 },
           out_canvas_doc: { x: 896, y: 14 },
           out_acpm_task: { x: 896, y: 98 },
@@ -185,10 +185,10 @@ const DEFAULT_SYSTEM_PRESETS = [
           { id: 'e6', from: 'custom_subagent_chat_investigador_atel', to: 'tool_hitos_hito2_matriz_ipevar', kind: 'main' },
           { id: 'e7', from: 'custom_subagent_chat_investigador_atel', to: 'tool_hitos_hito3_ats', kind: 'main' },
           { id: 'e8', from: 'custom_subagent_chat_investigador_atel', to: 'tool_hitos_hito4_actos_condiciones', kind: 'main' },
-          { id: 'e9', from: 'tool_hitos_hito2_matriz_ipevar', to: 'tool_hitos_hito6_capacitaciones', kind: 'main' },
+          { id: 'e9', from: 'tool_hitos_hito2_matriz_ipevar', to: 'tool_hitos_hito5_capacitaciones', kind: 'main' },
           { id: 'e10', from: 'tool_hitos_hito3_ats', to: 'tool_hitos_hito7_investigacion_atel', kind: 'main' },
           { id: 'e11', from: 'tool_hitos_hito4_actos_condiciones', to: 'tool_hitos_hito7_investigacion_atel', kind: 'main' },
-          { id: 'e12', from: 'tool_hitos_hito6_capacitaciones', to: 'tool_hitos_hito7_investigacion_atel', kind: 'main' },
+          { id: 'e12', from: 'tool_hitos_hito5_capacitaciones', to: 'tool_hitos_hito7_investigacion_atel', kind: 'main' },
           { id: 'e13', from: 'tool_hitos_hito7_investigacion_atel', to: 'out_canvas_doc', kind: 'main' },
           { id: 'e14', from: 'tool_hitos_hito7_investigacion_atel', to: 'out_acpm_task', kind: 'main' },
           { id: 'e15', from: 'tool_hitos_hito7_investigacion_atel', to: 'out_email_report', kind: 'main' },
@@ -383,11 +383,11 @@ const DEFAULT_SYSTEM_PRESETS = [
       trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       inputs: ['notebooklm', 'cursos_lms', 'google_calendar'],
-      hitos: ['hito5_capacitaciones', 'hito2_cronograma'],
+      hitos: ['hito5_capacitaciones', 'hito7_acpm'],
       outputs: ['somos_sst_update', 'google_slides', 'email_report'],
     },
     prompt:
-      'Consulta en somos_sst (resumen_empresa) el estado del Programa Anual de Capacitaciones (Hito 5) y del Cronograma Anual de Actividades (Hito 2). Identifica qué capacitaciones están pendientes o programadas para el mes en curso, calcula el indicador de cobertura y cumplimiento formativo y entrega un resumen ejecutivo en Markdown con las sesiones prioritarias a convocar.',
+      'Consulta en somos_sst (resumen_empresa) el estado del Programa Anual de Capacitaciones (Hito 5) y del Cronograma Anual de Actividades (Hito 7 ACPM). Identifica qué capacitaciones están pendientes o programadas para el mes en curso, calcula el indicador de cobertura y cumplimiento formativo y entrega un resumen ejecutivo en Markdown con las sesiones prioritarias a convocar.',
   },
   {
     presetKey: 'preset_auditoria_0312_alta_direccion',
@@ -402,7 +402,7 @@ const DEFAULT_SYSTEM_PRESETS = [
       trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi', 'trigger_agent'],
       inputs: ['somos_sst_empresa', 'matriz_ipevar', 'google_sheets'],
-      hitos: ['hito1_diagnostico_0312', 'hito2_cronograma', 'hito7_auditoria', 'hito7_alta_direccion'],
+      hitos: ['hito1_diagnostico_0312', 'hito7_acpm', 'hito7_auditoria', 'hito7_alta_direccion'],
       outputs: ['canvas_doc', 'google_docs', 'email_report'],
     },
     prompt:
@@ -476,14 +476,15 @@ async function ensureDefaultSystemPresets() {
         !Array.isArray(existing.workflowNodes?.triggers) ||
         existing.workflowNodes.triggers.length === 0 ||
         existing.workflowNodes?.trigger === 'drive_folder_watch' ||
-        existing.workflowNodes?.trigger === 'sgsst_db_audit'
+        existing.workflowNodes?.trigger === 'sgsst_db_audit' ||
+        (existing.workflowNodes?.hitos || []).includes('hito6_capacitaciones') ||
+        (existing.workflowNodes?.hitos || []).includes('hito2_cronograma')
       ) {
         await Automation.updateOne(
           { _id: existing._id },
           {
             $set: {
-              'workflowNodes.trigger': preset.workflowNodes.trigger,
-              'workflowNodes.triggers': preset.workflowNodes.triggers,
+              workflowNodes: preset.workflowNodes,
             },
           }
         );
