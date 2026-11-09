@@ -42,8 +42,20 @@ export interface SandboxNodeTraceStep {
   recordsCount?: number;
   surgicalFields?: string[];
   inputContext?: string;
+  inputSummary?: string;
   outputPreview?: string;
   details?: string;
+  sourceNodeKey?: string;
+  sourceNodeTitle?: string;
+  inputItems?: Array<Record<string, any>>;
+  outputItems?: Array<Record<string, any>>;
+  logs?: Array<{
+    timestamp?: string;
+    level: 'info' | 'success' | 'warn' | 'error';
+    message: string;
+    detail?: string;
+  }>;
+  error?: string | null;
 }
 
 export interface SandboxAgentOutput {

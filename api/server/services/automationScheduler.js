@@ -1526,7 +1526,8 @@ function isAntigravityScraperIdentifier(nodeKey, nodeId, customNodeObj = null) {
  */
 async function executeRealAntigravityScraperVerification({
   userIdStr,
-  companyId,
+  companyId: rawCompanyId,
+  targetCompanyIdStr,
   companyName = 'Empresa Activa',
   nodeKey = '',
   nodeId = '',
@@ -1536,8 +1537,21 @@ async function executeRealAntigravityScraperVerification({
   allNodeConfigs = {},
   mockTriggerInput = '',
   promptText = '',
+  upstreamInputItems = [],
+  upstreamSourceTitle = '',
 }) {
+  const companyId = rawCompanyId || targetCompanyIdStr || '';
   const t0 = Date.now();
+  const stepLogs = [];
+  const addLog = (level, message, detail = '') => {
+    stepLogs.push({
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ...(detail ? { detail: String(detail) } : {}),
+    });
+  };
+
   const {
     consultarAlturasMinTrabajo,
     consultarRamaJudicial,
@@ -1560,6 +1574,7 @@ async function executeRealAntigravityScraperVerification({
   // Caso A: Carpeta Local PC / Mac (`extract_pc_folder` / `pc_folder`)
   if (combinedId.includes('extract_pc_folder') || combinedId.includes('pc_folder')) {
     const folderPath = nodeCfg?.watchFolderPath || nodeCfg?.driveFolderName || '~/Documents';
+    addLog('info', `Iniciando lectura de carpeta local "${folderPath}" vía Google Antigravity (${antigravityMode})`);
     let folderRes = null;
     if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
       folderRes = await global
@@ -1577,6 +1592,12 @@ async function executeRealAntigravityScraperVerification({
     const statusMsg = folderRes?.error
       ? `⚠️ ${folderRes.error}`
       : folderRes?.fuente || 'Disco Local vía Google Antigravity (Mac/PC)';
+
+    if (folderRes?.error) {
+      addLog('error', `Error leyendo carpeta ${resolvedDir}: ${folderRes.error}`);
+    } else {
+      addLog('success', `Carpeta ${resolvedDir} leída (${files.length} elemento(s)) en ${durationMs} ms`, statusMsg);
+    }
 
     const lines = [
       `🛰️ **LECTURA DE CARPETA LOCAL VÍA GOOGLE ANTIGRAVITY (${nodeTitle || 'Carpeta de mi PC'})**`,
@@ -1601,6 +1622,25 @@ async function executeRealAntigravityScraperVerification({
       );
     }
 
+    const folderOutputItems =
+      files.length > 0
+        ? files.map((f, idx) => ({
+            index: idx + 1,
+            archivo: f.name,
+            tipo: f.isDirectory ? 'Carpeta' : 'Archivo',
+            tamanoKB: f.sizeKB ?? 0,
+            modificado: f.modifiedAt ? String(f.modifiedAt).split('T')[0] : '—',
+            extracto: f.excerpt || '',
+          }))
+        : [
+            {
+              index: 1,
+              carpeta: resolvedDir,
+              archivos: 0,
+              estado: folderRes?.error || 'Sin archivos leídos',
+            },
+          ];
+
     return {
       durationMs,
       recordsCount: Math.max(1, files.length),
@@ -1608,8 +1648,13 @@ async function executeRealAntigravityScraperVerification({
       verifiedWithCoursesCount: files.length,
       verifiedNoCoursesCount: 0,
       antigravityMode,
+      portalLabel: nodeTitle || 'Carpeta de mi PC',
       inputSummary: `${statusMsg} · Carpeta ${resolvedDir} (${files.length} archivos)`,
       outputPreview: lines.join('\n'),
+      inputItems: Array.isArray(upstreamInputItems) ? upstreamInputItems : [],
+      outputItems: folderOutputItems,
+      logs: stepLogs,
+      error: folderRes?.error || null,
     };
   }
 
@@ -1638,6 +1683,7 @@ async function executeRealAntigravityScraperVerification({
   if (isGenericWebScraper) {
     const targetUrl =
       customNodeObj?.targetUrl || nodeCfg?.targetUrl || 'https://www.mintrabajo.gov.co';
+    addLog('info', `Extrayendo contenido web desde "${targetUrl}" (modo ${antigravityMode})`);
     let scrapeRes = null;
     if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
       scrapeRes = await global
@@ -1679,6 +1725,11 @@ async function executeRealAntigravityScraperVerification({
       }
     }
     const durationMs = Math.max(1, Date.now() - t0);
+    if (scrapeRes?.error) {
+      addLog('error', `Error al consultar URL "${targetUrl}": ${scrapeRes.error}`);
+    } else {
+      addLog('success', `Página extraída exitosamente (${durationMs} ms): ${scrapeRes?.title || targetUrl}`, scrapeRes?.fuente || 'Web Scraper');
+    }
     const lines = [
       `🛰️ **EXTRACCIÓN WEB EN TIEMPO REAL — GOOGLE ANTIGRAVITY (${nodeTitle || 'Web Scraper AGY'})**`,
       modeHeaderLine,
@@ -1699,8 +1750,22 @@ async function executeRealAntigravityScraperVerification({
       verifiedWithCoursesCount: scrapeRes?.textExcerpt ? 1 : 0,
       verifiedNoCoursesCount: scrapeRes?.textExcerpt ? 0 : 1,
       antigravityMode,
+      portalLabel: nodeTitle || 'Web Scraper AGY',
       inputSummary: `${scrapeRes?.fuente || 'Web Scraper Antigravity'} · ${scrapeRes?.url || targetUrl}`,
       outputPreview: lines.join('\n'),
+      inputItems: Array.isArray(upstreamInputItems) ? upstreamInputItems : [],
+      outputItems: [
+        {
+          index: 1,
+          url: scrapeRes?.url || targetUrl,
+          titulo: scrapeRes?.title || 'N/A',
+          fuente: scrapeRes?.fuente || 'Web Scraper Google Antigravity',
+          estado: scrapeRes?.status || 'ok',
+          extracto: scrapeRes?.textExcerpt ? String(scrapeRes.textExcerpt).slice(0, 600) : scrapeRes?.error || '',
+        },
+      ],
+      logs: stepLogs,
+      error: scrapeRes?.error || null,
     };
   }
 
@@ -1725,44 +1790,138 @@ async function executeRealAntigravityScraperVerification({
     ),
   );
 
-  // 2. Cargar trabajadores de la empresa activa desde el mismo inspector en vivo que usa el nodo "Extraer Trabajadores"
-  // (`PerfilSociodemograficoData.trabajadores` + `SgsstWorker`) para que el orden y las cédulas coincidan 100% con el Paso #2.
+  // 2. Prioridad #1 (Flujo real entre nodos estilo n8n):
+  // Si `upstreamInputItems` trae registros del nodo anterior (ej. Paso #2: Extraer Trabajadores), extraer de ahí mismo
   let companyWorkers = [];
-  try {
-    const liveWorkersData = await inspectNodeLiveData({
-      userId: userIdStr,
-      companyId: companyId ? String(companyId) : '',
-      nodeId: 'extract_sst_workers',
-    });
-    if (Array.isArray(liveWorkersData?.records) && liveWorkersData.records.length > 0) {
-      companyWorkers = liveWorkersData.records.map((rec) => ({
-        _id: rec.id,
-        id: rec.id,
-        isCritical: Boolean(rec.isCritical),
-        nombre:
-          rec.fields?.['Nombre Completo'] ||
-          rec.label ||
-          rec.nombre ||
-          'Colaborador',
-        documento:
-          rec.fields?.['Cédula / Documento'] ||
-          rec.documento ||
-          rec.identificacion ||
-          rec.cedula ||
-          '',
-        cargo:
-          rec.fields?.['Cargo / Antigüedad'] ||
-          rec.sublabel ||
-          rec.cargo ||
-          'Operativo',
-        eps: rec.fields?.['EPS'] || '',
-        arl: rec.fields?.['ARL'] || '',
-        nivelRiesgo: rec.badge || 'I',
-        placa: rec.fields?.['Placa'] || rec.placa || '',
-      }));
+  const hasUpstreamItems = Array.isArray(upstreamInputItems) && upstreamInputItems.length > 0;
+  if (hasUpstreamItems) {
+    addLog(
+      'info',
+      `Recibidos ${upstreamInputItems.length} registro(s) de entrada desde "${upstreamSourceTitle || 'Nodo previo'}"`,
+    );
+    const extractDocFromItem = (item) => {
+      if (!item || typeof item !== 'object') return '';
+      const direct =
+        item['Cédula / Documento'] ||
+        item.cedula ||
+        item.documento ||
+        item.identificacion ||
+        item.documentNumber;
+      if (direct !== undefined && direct !== null && String(direct).trim() !== '') {
+        return String(direct).trim();
+      }
+      for (const [k, v] of Object.entries(item)) {
+        if (/c[eé]dula|documento|identificaci[oó]n/i.test(k) && v !== undefined && v !== null && String(v).trim() !== '') {
+          return String(v).trim();
+        }
+      }
+      if (item.id && !/^[a-f0-9]{24}$/i.test(String(item.id))) {
+        return String(item.id).trim();
+      }
+      return '';
+    };
+
+    const upstreamWorkers = upstreamInputItems
+      .map((item, idx) => {
+        const docVal = extractDocFromItem(item);
+        const nameVal =
+          item['Nombre Completo'] ||
+          item.nombre ||
+          item.colaborador ||
+          item.label ||
+          '';
+        const cargoVal =
+          item['Cargo / Antigüedad'] ||
+          item.cargo ||
+          item.detalle ||
+          item.sublabel ||
+          'Operativo';
+        return {
+          _id: item.id || `up_${idx + 1}`,
+          id: item.id || `up_${idx + 1}`,
+          isCritical: Boolean(item.isCritical),
+          nombre: nameVal || (docVal ? `Colaborador (${docVal})` : ''),
+          documento: docVal,
+          cargo: cargoVal,
+          eps: item['EPS'] || item.eps || '',
+          arl: item['ARL'] || item.arl || '',
+          nivelRiesgo: item.estado || item.badge || item.nivelRiesgo || 'I',
+          placa: item['Placa'] || item.placa || '',
+        };
+      })
+      .filter((w) => Boolean(w.documento));
+
+    if (upstreamWorkers.length > 0) {
+      companyWorkers = upstreamWorkers;
+      addLog(
+        'info',
+        `Procesando ${companyWorkers.length} trabajador(es) con cédula transferidos directamente por el flujo desde "${upstreamSourceTitle || 'Nodo previo'}"`,
+      );
     }
-  } catch (err) {
-    console.warn('[Antigravity Scraper] Aviso en inspectNodeLiveData(extract_sst_workers):', err?.message);
+  }
+
+  // Solo si `upstreamInputItems` no trae trabajadores con cédula (ej. si el nodo scraper se conectó directo al disparador o si el filtro quirúrgico omitió la columna cédula), usar el respaldo `inspectNodeLiveData`
+  if (companyWorkers.length === 0) {
+    try {
+      const liveWorkersData = await inspectNodeLiveData({
+        userId: userIdStr,
+        companyId: companyId ? String(companyId) : '',
+        nodeId: 'extract_sst_workers',
+      });
+      if (Array.isArray(liveWorkersData?.records) && liveWorkersData.records.length > 0) {
+        let recordsToMap = liveWorkersData.records;
+        // Si `upstreamInputItems` traía IDs de trabajadores (pero con filtro quirúrgico sin el campo cédula), cruzar por ID/nombre para respetar los registros que envió el nodo anterior
+        if (hasUpstreamItems) {
+          const upstreamIds = new Set(
+            upstreamInputItems.map((it) => String(it.id || '')).filter(Boolean),
+          );
+          const upstreamNames = new Set(
+            upstreamInputItems
+              .map((it) => String(it['Nombre Completo'] || it.nombre || it.label || '').toLowerCase().trim())
+              .filter(Boolean),
+          );
+          const matchedByUpstream = recordsToMap.filter(
+            (r) =>
+              upstreamIds.has(String(r.id)) ||
+              upstreamNames.has(String(r.label || r.fields?.['Nombre Completo'] || '').toLowerCase().trim()),
+          );
+          if (matchedByUpstream.length > 0) {
+            recordsToMap = matchedByUpstream;
+          }
+        }
+        companyWorkers = recordsToMap.map((rec) => ({
+          _id: rec.id,
+          id: rec.id,
+          isCritical: Boolean(rec.isCritical),
+          nombre:
+            rec.fields?.['Nombre Completo'] ||
+            rec.label ||
+            rec.nombre ||
+            'Colaborador',
+          documento:
+            rec.fields?.['Cédula / Documento'] ||
+            rec.documento ||
+            rec.identificacion ||
+            rec.cedula ||
+            '',
+          cargo:
+            rec.fields?.['Cargo / Antigüedad'] ||
+            rec.sublabel ||
+            rec.cargo ||
+            'Operativo',
+          eps: rec.fields?.['EPS'] || '',
+          arl: rec.fields?.['ARL'] || '',
+          nivelRiesgo: rec.badge || 'I',
+          placa: rec.fields?.['Placa'] || rec.placa || '',
+        }));
+        addLog(
+          'info',
+          `Cargados ${companyWorkers.length} trabajador(es) del padrón activo de "${companyName}"`,
+        );
+      }
+    } catch (err) {
+      console.warn('[Antigravity Scraper] Aviso en inspectNodeLiveData(extract_sst_workers):', err?.message);
+    }
   }
 
   if (companyWorkers.length === 0) {
@@ -1998,14 +2157,22 @@ async function executeRealAntigravityScraperVerification({
         const isOk = pRes.status === 'ok';
         if (isOk) verifiedWithCoursesCount++;
         else verifiedNoCoursesCount++;
+        const estadoStr = isOk ? '✅ VERIFICADO EN PORTAL' : `⚠️ ${pRes.error || 'ADVERTENCIA'}`;
+        const detalleStr = pRes.resumen || pRes.error || 'Verificación completada.';
+        const fuenteStr = pRes.fuente || 'Google Antigravity';
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
-          estado: isOk ? '✅ VERIFICADO EN PORTAL' : `⚠️ ${pRes.error || 'ADVERTENCIA'}`,
-          detalle: pRes.resumen || pRes.error || 'Verificación completada.',
-          fuente: pRes.fuente || 'Google Antigravity',
+          estado: estadoStr,
+          detalle: detalleStr,
+          fuente: fuenteStr,
         });
+        addLog(
+          isOk ? 'success' : pRes.status === 'error' ? 'error' : 'warn',
+          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}`,
+          `Fuente: ${fuenteStr} · ${detalleStr}`,
+        );
         continue;
       }
 
@@ -2017,18 +2184,26 @@ async function executeRealAntigravityScraperVerification({
         const hasProcs = Number(rjRes?.totalProcesos || 0) > 0;
         if (!rjRes?.error) verifiedWithCoursesCount++;
         else verifiedNoCoursesCount++;
+        const estadoStr = rjRes.error
+          ? `⚠️ ${rjRes.status || 'SIN CONEXIÓN'}`
+          : hasProcs
+            ? `⚠️ ${rjRes.totalProcesos} PROCESO(S) JUDICIAL(ES)`
+            : '✅ SIN PROCESOS ACTIVOS';
+        const detalleStr = rjRes.resumen || rjRes.error || 'Verificado en Rama Judicial API v2.';
+        const fuenteStr = rjRes.fuente || 'Rama Judicial';
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
-          estado: rjRes.error
-            ? `⚠️ ${rjRes.status || 'SIN CONEXIÓN'}`
-            : hasProcs
-              ? `⚠️ ${rjRes.totalProcesos} PROCESO(S) JUDICIAL(ES)`
-              : '✅ SIN PROCESOS ACTIVOS',
-          detalle: rjRes.resumen || rjRes.error || 'Verificado en Rama Judicial API v2.',
-          fuente: rjRes.fuente || 'Rama Judicial',
+          estado: estadoStr,
+          detalle: detalleStr,
+          fuente: fuenteStr,
         });
+        addLog(
+          rjRes.error ? 'error' : hasProcs ? 'warn' : 'success',
+          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}`,
+          `Fuente: ${fuenteStr} · ${detalleStr}`,
+        );
         continue;
       }
 
@@ -2045,14 +2220,20 @@ async function executeRealAntigravityScraperVerification({
             ? `⚠️ VENCIDO / REENTRENAMIENTO (${mtRes.diasDesdeUltimoCurso || '?'} días)`
             : '✅ CERTIFICADO VIGENTE';
         const detalle = `${latest.programa || latest.nivel || 'Alturas'} · Centro: ${latest.entrenador || 'Autorizado'} · Fecha: ${latest.fechaTerminacion || 'Registrada'} · Cert: #${latest.nroCertificado || 'S/N'}`;
+        const fuenteStr = mtRes.fuente || 'MinTrabajo';
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
           estado: badge,
           detalle: rjRes?.resumen ? `${detalle} | Judicial: ${rjRes.resumen}` : detalle,
-          fuente: mtRes.fuente || 'MinTrabajo',
+          fuente: fuenteStr,
         });
+        addLog(
+          mtRes.status === 'warning' ? 'warn' : 'success',
+          `CC ${target.cleanCedula} (${target.nombre}): ${badge}`,
+          `Fuente: ${fuenteStr} · ${detalle}`,
+        );
       } else {
         verifiedNoCoursesCount++;
         const estadoLabel =
@@ -2062,14 +2243,24 @@ async function executeRealAntigravityScraperVerification({
         const detalleMsg =
           mtRes?.resumen ||
           `No registra certificados de Trabajo Seguro en Alturas (Res. 4272/2021) ni Espacios Confinados (Res. 0491/2020) en la base oficial de MinTrabajo para la CC ${target.cleanCedula}.`;
+        const fuenteStr = mtRes?.fuente || 'MinTrabajo';
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
           estado: estadoLabel,
           detalle: rjRes?.resumen ? `${detalleMsg} | Judicial: ${rjRes.resumen}` : detalleMsg,
-          fuente: mtRes?.fuente || 'MinTrabajo',
+          fuente: fuenteStr,
         });
+        addLog(
+          mtRes?.status === 'ok'
+            ? 'success'
+            : mtRes?.status === 'blocked' || mtRes?.status === 'warning'
+              ? 'warn'
+              : 'error',
+          `CC ${target.cleanCedula} (${target.nombre}): ${estadoLabel}`,
+          `Fuente: ${fuenteStr} · ${detalleMsg}`,
+        );
       }
     }
   }
@@ -2083,9 +2274,22 @@ async function executeRealAntigravityScraperVerification({
       detalle: `El documento "${invalidTarget.rawDoc}" contiene letras o formato de prueba; el portal oficial exige número de cédula numérico (CC/CE/PPT).`,
       fuente: 'Validación Previa WAPPY',
     });
+    addLog(
+      'warn',
+      `Documento no numérico omitido: ${invalidTarget.rawDoc} (${invalidTarget.nombre})`,
+      'El portal oficial exige número de cédula numérico.',
+    );
   }
 
   const chatDispatchRes = await antigravityChatDispatchPromise;
+  if (chatDispatchRes?.dispatched) {
+    addLog(
+      'success',
+      `Hilo abierto en Google Antigravity IDE (Orden #${chatDispatchRes.ordenId})`,
+      chatDispatchRes.title,
+    );
+  }
+
   const durationMs = Math.max(1, Date.now() - t0);
   const engineUsedLabel =
     relayUsedCount > 0
@@ -2129,6 +2333,27 @@ async function executeRealAntigravityScraperVerification({
     `[Antigravity Scraper] ✅ Verificación completada en ${durationMs}ms (Relay Antigravity: ${relayUsedCount}/${validTargets.length}, OK: ${verifiedWithCoursesCount}, Otros: ${verifiedNoCoursesCount}).`,
   );
 
+  const outputItems = verificationRows.map((r, idx) => ({
+    index: idx + 1,
+    colaborador: r.nombre,
+    cedula: r.documento,
+    cargo: r.cargo,
+    estadoPortal: r.estado,
+    detalleOficial: r.detalle,
+    fuente: r.fuente,
+  }));
+
+  const resolvedInputItems =
+    hasUpstreamItems
+      ? upstreamInputItems
+      : validTargets.map((t, idx) => ({
+          index: idx + 1,
+          nombre: t.nombre,
+          cedula: t.cleanCedula,
+          cargo: t.cargo,
+          riesgo: t.riesgo,
+        }));
+
   return {
     durationMs,
     recordsCount: verificationRows.length,
@@ -2136,8 +2361,13 @@ async function executeRealAntigravityScraperVerification({
     verifiedWithCoursesCount,
     verifiedNoCoursesCount,
     antigravityMode,
+    portalLabel: nodeTitle || 'Alto Riesgo & SENA',
     inputSummary: `${engineUsedLabel} · ${validTargets.length} cédula(s) verificada(s)`,
     outputPreview,
+    inputItems: resolvedInputItems,
+    outputItems,
+    logs: stepLogs,
+    error: null,
   };
 }
 
@@ -2482,6 +2712,17 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     model: effectiveAiModel,
   };
 
+  // Estado real del pipeline entre nodos estilo n8n (inputItems -> nodo -> outputItems + logs)
+  let currentPipelineItems = [];
+  let lastProducerNode = { nodeKey: 'inicio', title: 'Inicio del Flujo' };
+  const stepOutputsByKey = new Map();
+
+  const validEmails = (
+    Array.isArray(emails) && emails.length > 0 ? emails : reqUser?.email ? [reqUser.email] : []
+  )
+    .map((e) => (typeof e === 'string' ? e.trim() : ''))
+    .filter((e) => e.includes('@'));
+
   // Helper para inspeccionar y filtrar quirúrgicamente un nodo conectado de datos/memoria/herramienta/hito
   const executeDataStep = async ({ nodeKey, nodeId, category, customTitle }) => {
     await emitProgress({
@@ -2491,6 +2732,25 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       category,
     });
     const t0 = Date.now();
+    const incomingItems = currentPipelineItems.slice(0, 50);
+    const incomingSource = { ...lastProducerNode };
+    const stepLogs = [];
+    const addStepLog = (level, message, detail = '') => {
+      stepLogs.push({
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        ...(detail ? { detail: String(detail) } : {}),
+      });
+    };
+
+    if (incomingItems.length > 0) {
+      addStepLog(
+        'info',
+        `Recibidos ${incomingItems.length} item(s) de entrada desde "${incomingSource.title}"`,
+      );
+    }
+
     const cfg = resolveNodeConfig(nodeKey, nodeId);
     const rawFields = Array.isArray(cfg.selectedFields)
       ? cfg.selectedFields
@@ -2502,13 +2762,17 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     const selectedRecordIds = Array.isArray(cfg.selectedRecordIds) ? cfg.selectedRecordIds : [];
 
     let liveData = null;
+    let stepError = null;
     try {
       liveData = await inspectNodeLiveData({
         userId: userIdStr,
         companyId: targetCompanyIdStr,
         nodeId,
       });
-    } catch (_) {}
+    } catch (inspectErr) {
+      stepError = inspectErr?.message || 'Error inspeccionando datos del nodo';
+      addStepLog('error', `Error al consultar datos de ${nodeId}: ${stepError}`);
+    }
     await pauseStep(240);
 
     const allRecords = Array.isArray(liveData?.records) ? liveData.records : [];
@@ -2562,6 +2826,58 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .replace(/[^a-z0-9\s]/g, ' ')
         .split(/\s+/)
         .filter((w) => w.length >= 3 && !['del', 'los', 'las', 'por', 'con', 'para', 'una', 'uno', 'que', 'sus'].includes(w));
+
+    // Proyectar cada registro de filteredRecords.slice(0, 50) en un objeto JSON limpio para stepOutputItems (estilo n8n)
+    let stepOutputItems = filteredRecords.slice(0, 50).map((rec, idx) => {
+      if (
+        surgicalFields.length > 0 &&
+        !isProceduralNode &&
+        rec.fields &&
+        typeof rec.fields === 'object'
+      ) {
+        const projectedObj = {
+          index: idx + 1,
+          id: rec.id,
+        };
+        const entries = Object.entries(rec.fields);
+        for (const sf of surgicalFields) {
+          const sfNorm = sf.toLowerCase().trim();
+          const sfTokens = normalizeFieldTokens(sf);
+          let match = entries.find(
+            ([fk]) =>
+              fk.toLowerCase().trim() === sfNorm ||
+              fk.toLowerCase().includes(sfNorm) ||
+              sfNorm.includes(fk.toLowerCase().trim()),
+          );
+          if (!match && sfTokens.length > 0) {
+            match = entries.find(([fk]) => {
+              const fkTokens = normalizeFieldTokens(fk);
+              return sfTokens.some((tok) => fkTokens.includes(tok));
+            });
+          }
+          if (match && match[1] !== undefined) {
+            projectedObj[match[0]] = match[1];
+          } else {
+            projectedObj[sf] = rec.fields[sf] ?? '';
+          }
+        }
+        const hasLabelOrName = Object.keys(projectedObj).some((k) =>
+          /nombre|label|colaborador|trabajador|titulo/i.test(k),
+        );
+        if (!hasLabelOrName && rec.label) {
+          projectedObj.label = rec.label;
+        }
+        return projectedObj;
+      }
+      return {
+        index: idx + 1,
+        id: rec.id,
+        nombre: rec.label,
+        detalle: rec.sublabel || '',
+        estado: rec.badge || 'Activo',
+        ...(rec.fields && typeof rec.fields === 'object' ? rec.fields : {}),
+      };
+    });
 
     const sampleRecords = filteredRecords.slice(0, 15);
     if (sampleRecords.length > 0) {
@@ -2619,6 +2935,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     let inputSummaryText = `${inputModeLabel}${surgicalFields.length > 0 ? ` · ${surgicalFields.length} campo(s) quirúrgico(s)` : ''}`;
     let finalRecordsCount = filteredRecords.length;
 
+    const resolvedTitle = customTitle || liveData?.moduleTitle || nodeId;
+
     if (isAntigravityScraperIdentifier(nodeKey, nodeId, null)) {
       try {
         const realScraperRes = await executeRealAntigravityScraperVerification({
@@ -2627,11 +2945,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           companyName,
           nodeKey,
           nodeId,
-          nodeTitle: customTitle || liveData?.moduleTitle || nodeId,
+          nodeTitle: resolvedTitle,
           nodeCfg: cfg,
           allNodeConfigs: nodeConfigs,
           mockTriggerInput,
           promptText: prompt,
+          upstreamInputItems: incomingItems,
+          upstreamSourceTitle: incomingSource.title,
         });
         if (realScraperRes?.outputPreview) {
           previewLines.unshift(realScraperRes.outputPreview);
@@ -2642,12 +2962,29 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
               : realScraperRes.inputSummary || inputSummaryText;
           finalRecordsCount = Math.max(finalRecordsCount, realScraperRes.recordsCount || 1);
         }
+        if (Array.isArray(realScraperRes?.outputItems) && realScraperRes.outputItems.length > 0) {
+          stepOutputItems = realScraperRes.outputItems;
+        }
+        if (Array.isArray(realScraperRes?.logs) && realScraperRes.logs.length > 0) {
+          stepLogs.push(...realScraperRes.logs);
+        }
       } catch (scErr) {
+        stepError = scErr?.message || 'Error en Scraper Antigravity';
+        addStepLog('error', `Fallo ejecutando Scraper Antigravity: ${stepError}`);
         console.warn('[Sandbox Play] Aviso ejecutando Scraper Antigravity en executeDataStep:', scErr?.message);
       }
-    } else if (category === 'tool') {
-      const agyMode = String(cfg?.antigravityMode || 'auto');
-      inputSummaryText = `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${agyMode.toUpperCase()}) y devolviendo respuesta al Agente IA`;
+    } else {
+      addStepLog(
+        filteredRecords.length > 0 ? 'success' : 'info',
+        `Extraídos ${filteredRecords.length} registro(s) en "${resolvedTitle}" (${critCount} crítico(s))`,
+        surgicalFields.length > 0
+          ? `Filtro quirúrgico (${surgicalFields.length}): ${surgicalFields.join(', ')}`
+          : inputModeLabel,
+      );
+      if (category === 'tool') {
+        const agyMode = String(cfg?.antigravityMode || 'auto');
+        inputSummaryText = `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${agyMode.toUpperCase()}) y devolviendo respuesta al Agente IA`;
+      }
     }
 
     const stepItem = {
@@ -2655,7 +2992,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       nodeKey,
       nodeId,
       category,
-      title: customTitle || liveData?.moduleTitle || nodeId,
+      title: resolvedTitle,
       status: 'completed',
       durationMs: Math.max(1, Date.now() - t0),
       recordsCount: finalRecordsCount,
@@ -2663,7 +3000,24 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       inputSummary: inputSummaryText,
       inputContext: inputSummaryText,
       outputPreview: previewLines.join('\n'),
+      sourceNodeKey: incomingSource.nodeKey,
+      sourceNodeTitle: incomingSource.title,
+      inputItems: incomingItems,
+      outputItems: stepOutputItems,
+      logs: stepLogs,
+      error: stepError,
     };
+
+    if (category === 'extractor' || currentPipelineItems.length <= 1) {
+      currentPipelineItems = stepOutputItems;
+      lastProducerNode = { nodeKey, title: stepItem.title };
+    }
+    stepOutputsByKey.set(nodeKey, {
+      title: stepItem.title,
+      category,
+      outputItems: stepOutputItems,
+    });
+
     nodeTrace.push(stepItem);
     console.log(`[Sandbox Play] ▶ Paso #${stepItem.stepIndex} completado (${stepItem.nodeKey}): ${stepItem.title}`);
     await emitProgress({
@@ -2733,14 +3087,37 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         ? `Caso simulado en Escenario de Desarrollo: "${String(mockTriggerInput).trim().slice(0, 180)}"`
         : `Disparo de prueba en Escenario de Desarrollo (${scheduleType}) para "${companyName}"`;
 
+      const trigDurationMs = Math.max(1, Date.now() - t0);
+      const trigTitle = stepCustomTitle || liveData?.moduleTitle || `⚡ Disparador (${nodeId})`;
+      const trigOutputItems = [
+        {
+          index: 1,
+          disparador: stepCustomTitle || nodeId,
+          nodeId,
+          empresa: companyName,
+          modoHorario: scheduleType,
+          entradaSimulada: mockTriggerInput || 'Disparo automático',
+          estado: 'activo',
+          timestamp: new Date().toISOString(),
+        },
+      ];
+      const trigLogs = [
+        {
+          timestamp: new Date().toISOString(),
+          level: 'success',
+          message: `Disparador "${stepCustomTitle || nodeId}" ejecutado correctamente (${trigDurationMs} ms)`,
+          detail: inputSummaryText,
+        },
+      ];
+
       const trigStep = {
         stepIndex: ++stepCounter,
         nodeKey,
         nodeId,
         category: 'trigger',
-        title: stepCustomTitle || liveData?.moduleTitle || `⚡ Disparador (${nodeId})`,
+        title: trigTitle,
         status: 'completed',
-        durationMs: Math.max(1, Date.now() - t0),
+        durationMs: trigDurationMs,
         recordsCount: Array.isArray(liveData?.records) ? liveData.records.length : 1,
         surgicalFields,
         inputSummary: inputSummaryText,
@@ -2753,7 +3130,23 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           ]
             .filter(Boolean)
             .join('\n') || `Disparador ${nodeId} activado en modo simulación.`,
+        sourceNodeKey: 'inicio',
+        sourceNodeTitle: 'Inicio del Flujo',
+        inputItems: [],
+        outputItems: trigOutputItems,
+        logs: trigLogs,
+        error: null,
       };
+      if (currentPipelineItems.length === 0) {
+        currentPipelineItems = trigStep.outputItems;
+        lastProducerNode = { nodeKey, title: trigStep.title };
+      }
+      stepOutputsByKey.set(nodeKey, {
+        title: trigStep.title,
+        category: 'trigger',
+        outputItems: trigStep.outputItems,
+      });
+
       nodeTrace.push(trigStep);
       console.log(`[Sandbox Play] ▶ Paso #${trigStep.stepIndex} completado (${nodeKey}): ${trigStep.title}`);
       await emitProgress({
@@ -2774,6 +3167,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'model',
       });
       await pauseStep(180);
+      const modelOutputItems = [
+        {
+          index: 1,
+          motorIA: selectedAiEngine,
+          modeloActivo: effectiveAiModel,
+          estado: 'listo',
+          rotacionClaves: true,
+        },
+      ];
       const modelStep = {
         stepIndex: ++stepCounter,
         nodeKey,
@@ -2787,7 +3189,24 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         inputSummary: `Motor: ${selectedAiEngine} · Modelo: ${effectiveAiModel}`,
         inputContext: `Motor: ${selectedAiEngine} · Modelo: ${effectiveAiModel}`,
         outputPreview: `Motor IA "${effectiveAiModel}" preparado con rotación de claves WAPPY.`,
+        sourceNodeKey: lastProducerNode.nodeKey,
+        sourceNodeTitle: lastProducerNode.title,
+        inputItems: currentPipelineItems.slice(0, 20),
+        outputItems: modelOutputItems,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            message: `Motor IA "${effectiveAiModel}" inicializado para el Agente IA`,
+          },
+        ],
+        error: null,
       };
+      stepOutputsByKey.set(nodeKey, {
+        title: modelStep.title,
+        category: 'model',
+        outputItems: modelOutputItems,
+      });
       nodeTrace.push(modelStep);
       console.log(`[Sandbox Play] ▶ Paso #${modelStep.stepIndex} completado (${nodeKey}): ${modelStep.title}`);
       await emitProgress({
@@ -2826,6 +3245,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       const cn =
         configuredCustomNodes.find((c, i) => (c.key || c.id || `custom_${i + 1}`) === nodeKey) || {};
       const cnCfg = resolveNodeConfig(nodeKey, nodeId);
+      const cnIncomingItems = currentPipelineItems.slice(0, 50);
+      const cnIncomingSource = { ...lastProducerNode };
 
       // Si es un Scraper / Verificador de Google Antigravity (Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, etc.),
       // ejecuta la consulta REAL en vivo a través del puente Google Antigravity Push Daemon (`wappy-push-daemon.js`) / OSINT
@@ -2842,6 +3263,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           allNodeConfigs: nodeConfigs,
           mockTriggerInput,
           promptText: prompt,
+          upstreamInputItems: cnIncomingItems,
+          upstreamSourceTitle: cnIncomingSource.title,
         });
 
         totalExtractedRecords += realScraper.recordsCount || 0;
@@ -2849,6 +3272,17 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           cnCfg?.antigravityMode || cn?.antigravityMode || realScraper?.antigravityMode || 'auto',
         );
         const reactToolInputSummary = `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()}) y devolviendo respuesta al Agente IA`;
+        const cnOutputItems =
+          Array.isArray(realScraper.outputItems) && realScraper.outputItems.length > 0
+            ? realScraper.outputItems
+            : [
+                {
+                  index: 1,
+                  nodo: stepCustomTitle || cn.title || nodeKey,
+                  registrosVerificados: realScraper.recordsCount || 0,
+                  modoAntigravity: antigravityMode,
+                },
+              ];
         const cnStep = {
           stepIndex: ++stepCounter,
           nodeKey,
@@ -2864,7 +3298,30 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           inputSummary: reactToolInputSummary,
           inputContext: reactToolInputSummary,
           outputPreview: realScraper.outputPreview,
+          sourceNodeKey: cnIncomingSource.nodeKey,
+          sourceNodeTitle: cnIncomingSource.title,
+          inputItems:
+            Array.isArray(realScraper.inputItems) && realScraper.inputItems.length > 0
+              ? realScraper.inputItems.slice(0, 50)
+              : cnIncomingItems,
+          outputItems: cnOutputItems,
+          logs:
+            Array.isArray(realScraper.logs) && realScraper.logs.length > 0
+              ? realScraper.logs
+              : [
+                  {
+                    timestamp: new Date().toISOString(),
+                    level: 'success',
+                    message: `Verificación Antigravity completada (${realScraper.recordsCount || 0} registro(s) en ${realScraper.durationMs || 0} ms)`,
+                  },
+                ],
+          error: realScraper.error || null,
         };
+        stepOutputsByKey.set(nodeKey, {
+          title: cnStep.title,
+          category,
+          outputItems: cnStep.outputItems,
+        });
         nodeTrace.push(cnStep);
         console.log(
           `[Sandbox Play] ▶ Paso #${cnStep.stepIndex} completado con Verificación Real Antigravity (${nodeKey}): ${cnStep.title} (${cnStep.durationMs}ms)`,
@@ -2927,6 +3384,16 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category === 'custom_node'
           ? `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()}) y devolviendo respuesta al Agente IA`
           : `Paso conectado en posición #${stepCounter + 1}`;
+      const cnFallbackOutput = [
+        {
+          index: 1,
+          nodo: stepCustomTitle || cn.title || nodeKey,
+          tipo: cn.nodeType || category,
+          modoAntigravity: antigravityMode,
+          ordenId: customChatDispatch?.ordenId || null,
+          detalle: details || `Ejecutado en posición #${stepCounter + 1}`,
+        },
+      ];
       const cnStep = {
         stepIndex: ++stepCounter,
         nodeKey,
@@ -2942,7 +3409,30 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         outputPreview:
           details ||
           `Paso "${stepCustomTitle || nodeKey}" ejecutado dentro de la secuencia conectada (${totalExtractedRecords} registros acumulados).`,
+        sourceNodeKey: cnIncomingSource.nodeKey,
+        sourceNodeTitle: cnIncomingSource.title,
+        inputItems: cnIncomingItems,
+        outputItems: cnFallbackOutput,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            message: `Recibidos ${cnIncomingItems.length} item(s) desde "${cnIncomingSource.title}"`,
+          },
+          {
+            timestamp: new Date().toISOString(),
+            level: 'success',
+            message: `Nodo "${stepCustomTitle || cn.title || nodeKey}" procesado exitosamente`,
+            ...(details ? { detail: details.slice(0, 300) } : {}),
+          },
+        ],
+        error: null,
       };
+      stepOutputsByKey.set(nodeKey, {
+        title: cnStep.title,
+        category,
+        outputItems: cnStep.outputItems,
+      });
       nodeTrace.push(cnStep);
       console.log(`[Sandbox Play] ▶ Paso #${cnStep.stepIndex} completado (${nodeKey}): ${cnStep.title}`);
       await emitProgress({
@@ -2993,6 +3483,18 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       }
 
       const ifCfg = resolveNodeConfig(nodeKey, 'if_condition');
+      const condIncomingItems = currentPipelineItems.slice(0, 50);
+      const condSource = { ...lastProducerNode };
+      const condOutputItems = [
+        {
+          index: 1,
+          condicion: stepCustomTitle || 'Condición Si/No',
+          branchTaken: ifEvaluation.branchTaken,
+          reason: ifEvaluation.reason,
+          registrosEvaluados: totalExtractedRecords,
+          registrosCriticos: totalCriticalRecords,
+        },
+      ];
       const condStep = {
         stepIndex: ++stepCounter,
         nodeKey,
@@ -3010,7 +3512,25 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           ifCfg.customInstruction ||
           `Evaluación en Paso #${stepCounter} sobre ${nodeTrace.length} paso(s) previos conectados`,
         outputPreview: `✅ Rama tomada: [${ifEvaluation.branchTaken}] — ${ifEvaluation.reason}`,
+        sourceNodeKey: condSource.nodeKey,
+        sourceNodeTitle: condSource.title,
+        inputItems: condIncomingItems,
+        outputItems: condOutputItems,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            level: ifEvaluation.branchTaken === 'SI' ? 'success' : 'warn',
+            message: `Condición Si/No evaluada -> Rama tomada: [${ifEvaluation.branchTaken}]`,
+            detail: ifEvaluation.reason,
+          },
+        ],
+        error: null,
       };
+      stepOutputsByKey.set(nodeKey, {
+        title: condStep.title,
+        category: 'condition',
+        outputItems: condOutputItems,
+      });
       nodeTrace.push(condStep);
       console.log(`[Sandbox Play] ▶ Paso #${condStep.stepIndex} completado (${nodeKey}): ${condStep.title}`);
       await emitProgress({
@@ -3126,6 +3646,46 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         effectiveUserPrompt = baseInstructionForAgent;
       }
 
+      // Construir agentInputItems combinando currentPipelineItems y enriqueciendo/adjuntando los outputItems de herramientas/scrapers (custom_node / tool)
+      const baseAgentInputs = Array.isArray(currentPipelineItems)
+        ? currentPipelineItems.map((it) => ({ ...it }))
+        : [];
+      const extraToolInputs = [];
+      for (const [, stepEntry] of stepOutputsByKey.entries()) {
+        if (
+          (stepEntry.category === 'custom_node' || stepEntry.category === 'tool') &&
+          Array.isArray(stepEntry.outputItems) &&
+          stepEntry.outputItems.length > 0 &&
+          stepEntry.outputItems !== currentPipelineItems
+        ) {
+          for (const tItem of stepEntry.outputItems) {
+            const tCed = String(
+              tItem.cedula || tItem['Cédula / Documento'] || tItem.documento || '',
+            ).replace(/\D/g, '');
+            const matchedBase =
+              tCed.length >= 5
+                ? baseAgentInputs.find((b) => {
+                    const bCed = String(
+                      b['Cédula / Documento'] || b.cedula || b.documento || b.identificacion || '',
+                    ).replace(/\D/g, '');
+                    return bCed === tCed;
+                  })
+                : null;
+            if (matchedBase && tItem.estadoPortal) {
+              matchedBase['Estado Portal (Antigravity)'] = tItem.estadoPortal;
+              matchedBase['Detalle Oficial'] = tItem.detalleOficial || '';
+              matchedBase['Fuente Verificación'] = tItem.fuente || stepEntry.title;
+            } else {
+              extraToolInputs.push({
+                origenNodo: stepEntry.title,
+                ...tItem,
+              });
+            }
+          }
+        }
+      }
+      const agentInputItems = [...baseAgentInputs, ...extraToolInputs].slice(0, 60);
+
       const agentExec = await executeSandboxAgentCall({
         reqUser,
         targetCompanyIdStr,
@@ -3171,6 +3731,43 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         durationMs: agentExec.durationMs,
       });
 
+      const agentOutputItems = [
+        {
+          index: 1,
+          agente: currentAgentName,
+          rol: currentAgentRole,
+          motor: selectedAiEngine,
+          modelo: currentAgentModel,
+          registrosAnalizados: agentInputItems.length,
+          respuestaMarkdown: agentResponseText,
+          duracionMs: agentExec.durationMs,
+        },
+      ];
+
+      const agentLogs = [
+        {
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: `Recibidos ${agentInputItems.length} item(s) de entrada desde los nodos conectados (${connectedDataTitles || lastProducerNode.title})`,
+        },
+        {
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: `Ejecutando análisis con ${currentAgentName} (${selectedAiEngine === 'wappy' ? currentAgentModel : 'Google Antigravity'})`,
+        },
+        agentExec.error
+          ? {
+              timestamp: new Date().toISOString(),
+              level: 'error',
+              message: `Error en llamada al modelo IA: ${agentExec.error}`,
+            }
+          : {
+              timestamp: new Date().toISOString(),
+              level: 'success',
+              message: `Respuesta generada exitosamente (${agentResponseText.length} caracteres en ${agentExec.durationMs} ms)`,
+            },
+      ];
+
       const reactCycleSummary = `1° Recibió datos de entrada (${totalExtractedRecords} reg.) y analizó el Prompt con ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'} ➔ 2° Consultó herramientas/Antigravity ➔ 3° Procesó la respuesta y envía el dictamen a las salidas`;
       const agentStepItem = {
         stepIndex: ++stepCounter,
@@ -3185,7 +3782,22 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         inputSummary: reactCycleSummary,
         inputContext: reactCycleSummary,
         outputPreview: agentResponseText.slice(0, 1200),
+        sourceNodeKey: lastProducerNode.nodeKey,
+        sourceNodeTitle: connectedDataTitles || lastProducerNode.title,
+        inputItems: agentInputItems,
+        outputItems: agentOutputItems,
+        logs: agentLogs,
+        error: agentExec.error || null,
       };
+
+      currentPipelineItems = agentOutputItems;
+      lastProducerNode = { nodeKey, title: agentStepItem.title };
+      stepOutputsByKey.set(nodeKey, {
+        title: agentStepItem.title,
+        category: 'agent',
+        outputItems: agentOutputItems,
+      });
+
       nodeTrace.push(agentStepItem);
       console.log(
         `[Sandbox Play] ▶ Paso #${agentStepItem.stepIndex} completado (${nodeKey}): ${agentStepItem.title} (${agentExec.durationMs}ms)`,
@@ -3220,6 +3832,24 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       });
       await pauseStep(200);
       const outCfg = resolveNodeConfig(nodeKey, nodeId);
+      const outIncomingItems = currentPipelineItems.slice(0, 50);
+      const outSource = { ...lastProducerNode };
+      const currentShortSummary = String(finalResponse || previousAgentResponse || '')
+        .replace(/[#*_`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 260);
+      const outSubject = `📊 [VISTA PREVIA DESARROLLO] Reporte Automático SGSST: ${flowName} - ${companyName}`;
+      const outOutputItems = [
+        {
+          index: 1,
+          canal: nodeId,
+          destinatarios: validEmails,
+          asunto: outSubject,
+          estado: 'bloqueado_modo_desarrollo',
+          resumen: currentShortSummary || 'Salida lista en Modo Desarrollo (dryRun: true)',
+        },
+      ];
       const outStep = {
         stepIndex: ++stepCounter,
         nodeKey,
@@ -3239,7 +3869,33 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         outputPreview:
           `🛑 [VISTA PREVIA EN ESCENARIO DE DESARROLLO — NO ENVIADO]: ` +
           `La salida "${stepCustomTitle || outputTitleMap[nodeId] || nodeId}" recibió el resultado del paso anterior correctamente, pero su envío externo fue bloqueado por estar en modo prueba (dryRun: true).`,
+        sourceNodeKey: outSource.nodeKey,
+        sourceNodeTitle: outSource.title,
+        inputItems: outIncomingItems,
+        outputItems: outOutputItems,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            message: `Recibidos ${outIncomingItems.length} item(s) desde "${outSource.title}"`,
+          },
+          {
+            timestamp: new Date().toISOString(),
+            level: 'warn',
+            message: `Salida "${stepCustomTitle || outputTitleMap[nodeId] || nodeId}" preparada y bloqueada por Modo Desarrollo (dryRun: true)`,
+            detail:
+              validEmails.length > 0
+                ? `Destinatarios configurados: ${validEmails.join(', ')}`
+                : 'Sin envío externo en escenario de pruebas.',
+          },
+        ],
+        error: null,
       };
+      stepOutputsByKey.set(nodeKey, {
+        title: outStep.title,
+        category: 'output',
+        outputItems: outOutputItems,
+      });
       nodeTrace.push(outStep);
       console.log(`[Sandbox Play] ▶ Paso #${outStep.stepIndex} simulado (${nodeKey}): ${outStep.title}`);
       await emitProgress({
@@ -3260,10 +3916,6 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .map((n) => `#### 🔹 Paso #${n.stepIndex}: ${n.title}\n${n.outputPreview}`)
         .join('\n\n');
   }
-
-  const validEmails = (Array.isArray(emails) && emails.length > 0 ? emails : reqUser?.email ? [reqUser.email] : [])
-    .map((e) => (typeof e === 'string' ? e.trim() : ''))
-    .filter((e) => e.includes('@'));
 
   const shortSummary = finalResponse
     .replace(/[#*_`]/g, '')

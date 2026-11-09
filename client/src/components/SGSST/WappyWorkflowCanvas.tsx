@@ -63,6 +63,16 @@ import {
   RefreshCw,
   Briefcase,
   Building2,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Code2,
+  Copy,
+  Layers,
+  Settings2,
+  Table2,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import WappyNodeCustomEditor from './WappyNodeCustomEditors';
@@ -679,10 +689,56 @@ export default function WappyWorkflowCanvas({
   >('all_tools');
   const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
 
-  // Nodo actualmente abierto en el Inspector de Configuración por Nodo (al hacer clic sobre cualquier nodo)
-  const [activeConfigNodeKey, setActiveConfigNodeKey] = useState<string | null>(
-    readOnly || compact ? null : 'trigger_root',
+  // Nodo actualmente abierto en el Inspector de Configuración por Nodo de 3 Columnas estilo n8n (al hacer clic sobre cualquier nodo)
+  const [activeConfigNodeKey, setActiveConfigNodeKey] = useState<string | null>(null);
+  const [ndvCenterTab, setNdvCenterTab] = useState<'parameters' | 'settings'>('parameters');
+  const [ndvInputView, setNdvInputView] = useState<'schema' | 'table' | 'json'>('table');
+  const [ndvOutputTab, setNdvOutputTab] = useState<'output' | 'logs'>('output');
+  const [ndvOutputView, setNdvOutputView] = useState<'table' | 'json' | 'schema' | 'markdown'>(
+    'table',
   );
+  const [ndvInputSearch, setNdvInputSearch] = useState<string>('');
+  const [ndvOutputSearch, setNdvOutputSearch] = useState<string>('');
+  const [ndvSelectedUpstreamKey, setNdvSelectedUpstreamKey] = useState<string>('auto');
+  const [ndvExpandedInputItems, setNdvExpandedInputItems] = useState<Record<number, boolean>>({
+    0: true,
+    1: true,
+    2: true,
+  });
+  const [ndvExpandedOutputItems, setNdvExpandedOutputItems] = useState<Record<number, boolean>>({
+    0: true,
+    1: true,
+    2: true,
+  });
+  const [ndvExpandedSchemaGroup, setNdvExpandedSchemaGroup] = useState<boolean>(true);
+  const [ndvExpandedOutputSchemaGroup, setNdvExpandedOutputSchemaGroup] = useState<boolean>(true);
+  const [ndvExpandedLogItems, setNdvExpandedLogItems] = useState<Record<number, boolean>>({
+    0: true,
+    1: true,
+    2: true,
+  });
+  const [ndvExpandedSettingsSections, setNdvExpandedSettingsSections] = useState<
+    Record<string, boolean>
+  >({
+    antigravity: true,
+    context: true,
+    instruction: true,
+    technical: false,
+  });
+  const [ndvCopiedExpr, setNdvCopiedExpr] = useState<string | null>(null);
+  const [upstreamLiveRecordsCache, setUpstreamLiveRecordsCache] = useState<
+    Record<
+      string,
+      {
+        loading: boolean;
+        nodeId: string;
+        companyName: string;
+        sourceCollection: string;
+        totalRecords: number;
+        records: Array<Record<string, any>>;
+      }
+    >
+  >({});
   const [customFieldInput, setCustomFieldInput] = useState<string>('');
   const [fieldSearchQuery, setFieldSearchQuery] = useState<string>('');
   const [nodeReportHistory, setNodeReportHistory] = useState<{
@@ -2285,6 +2341,9 @@ export default function WappyWorkflowCanvas({
   // Cargar automáticamente el Inspector de Datos y Resultados Reales en Vivo (/api/sgsst/automatizaciones/node-live-inspector)
   useEffect(() => {
     setLiveRecordSearch('');
+    setNdvSelectedUpstreamKey('auto');
+    setNdvInputSearch('');
+    setNdvOutputSearch('');
     if (!activeConfigNodeKey || readOnly) {
       setNodeLiveInspectorData({
         loading: false,
@@ -2334,75 +2393,135 @@ export default function WappyWorkflowCanvas({
         kpis: [],
         records: [],
       });
-      return;
+    } else {
+      setNodeLiveInspectorData((prev) => ({
+        ...prev,
+        loading: true,
+        supported: true,
+        nodeId: cleanId,
+      }));
     }
 
     let cancelled = false;
-    setNodeLiveInspectorData((prev) => ({
-      ...prev,
-      loading: true,
-      supported: true,
-      nodeId: cleanId,
-    }));
-
     const token =
       (typeof window !== 'undefined' && (window as any).platformUserToken) ||
       localStorage.getItem('token') ||
       '';
 
-    const inspectQueryNodeId =
-      activeNode.shape === 'custom_node'
-        ? rawId.startsWith('custom_')
-          ? rawId.replace(/^custom_/, '')
-          : activeNode.customNodeType || rawId
-        : rawId;
+    if (isLiveInspectable) {
+      const inspectQueryNodeId =
+        activeNode.shape === 'custom_node'
+          ? rawId.startsWith('custom_')
+            ? rawId.replace(/^custom_/, '')
+            : activeNode.customNodeType || rawId
+          : rawId;
 
-    axios
-      .get(
-        `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(inspectQueryNodeId)}`,
-        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
-      )
-      .then((res) => {
-        if (cancelled) return;
-        const data = res.data || {};
-        const recordsList = Array.isArray(data.records) ? data.records : [];
-        const kpisList = Array.isArray(data.kpis) ? data.kpis : [];
-        const computedCrit =
-          typeof data.criticalCount === 'number'
-            ? data.criticalCount
-            : recordsList.filter((r: any) => Boolean(r?.isCritical)).length;
-        setNodeLiveInspectorData({
-          loading: false,
-          supported: true,
-          nodeId: cleanId,
-          companyName: data.companyName || 'Empresa Activa',
-          sourceCollection: data.sourceCollection || '',
-          totalRecords:
-            typeof data.totalRecords === 'number' ? data.totalRecords : recordsList.length,
-          criticalCount: computedCrit,
-          kpis: kpisList,
-          records: recordsList,
+      axios
+        .get(
+          `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(inspectQueryNodeId)}`,
+          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+        )
+        .then((res) => {
+          if (cancelled) return;
+          const data = res.data || {};
+          const recordsList = Array.isArray(data.records) ? data.records : [];
+          const kpisList = Array.isArray(data.kpis) ? data.kpis : [];
+          const computedCrit =
+            typeof data.criticalCount === 'number'
+              ? data.criticalCount
+              : recordsList.filter((r: any) => Boolean(r?.isCritical)).length;
+          const totalRec =
+            typeof data.totalRecords === 'number' ? data.totalRecords : recordsList.length;
+          setNodeLiveInspectorData({
+            loading: false,
+            supported: true,
+            nodeId: cleanId,
+            companyName: data.companyName || 'Empresa Activa',
+            sourceCollection: data.sourceCollection || '',
+            totalRecords: totalRec,
+            criticalCount: computedCrit,
+            kpis: kpisList,
+            records: recordsList,
+          });
+          setUpstreamLiveRecordsCache((prev) => ({
+            ...prev,
+            [activeNode.key]: {
+              loading: false,
+              nodeId: cleanId,
+              companyName: data.companyName || 'Empresa Activa',
+              sourceCollection: data.sourceCollection || '',
+              totalRecords: totalRec,
+              records: recordsList,
+            },
+          }));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setNodeLiveInspectorData({
+            loading: false,
+            supported: true,
+            nodeId: cleanId,
+            companyName: 'Empresa Activa',
+            sourceCollection: '',
+            totalRecords: 0,
+            criticalCount: 0,
+            kpis: [],
+            records: [],
+          });
         });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setNodeLiveInspectorData({
-          loading: false,
-          supported: true,
-          nodeId: cleanId,
-          companyName: 'Empresa Activa',
-          sourceCollection: '',
-          totalRecords: 0,
-          criticalCount: 0,
-          kpis: [],
-          records: [],
-        });
-      });
+    }
+
+    // Pre-cargar datos en vivo de los nodos anteriores (Upstream) para nutrir la columna izquierda `📥 INPUT` estilo n8n
+    const activePlanIdx = connectedExecutionPlan.findIndex((p) => p.nodeKey === activeNode.key);
+    const upstreamKeys = new Set<string>();
+    wires.forEach((w) => {
+      if (!w.isSub && w.targetKey === activeNode.key) upstreamKeys.add(w.sourceKey);
+      if (w.isSub && w.sourceKey === activeNode.key) upstreamKeys.add(w.targetKey);
+    });
+    if (activePlanIdx > 0) {
+      connectedExecutionPlan.slice(0, activePlanIdx).forEach((st) => upstreamKeys.add(st.nodeKey));
+    }
+    upstreamKeys.forEach((uKey) => {
+      const uNode = visualNodes.find((n) => n.key === uKey);
+      if (!uNode || uNode.shape === 'trigger' || uNode.shape === 'if' || uNode.shape === 'logic') {
+        return;
+      }
+      const uRawId = (uNode.nodeId || '').trim();
+      if (!uRawId) return;
+      const uInspectId =
+        uNode.shape === 'custom_node'
+          ? uRawId.startsWith('custom_')
+            ? uRawId.replace(/^custom_/, '')
+            : uNode.customNodeType || uRawId
+          : uRawId;
+      axios
+        .get(
+          `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(uInspectId)}`,
+          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+        )
+        .then((res) => {
+          if (cancelled) return;
+          const d = res.data || {};
+          const recs = Array.isArray(d.records) ? d.records : [];
+          setUpstreamLiveRecordsCache((prev) => ({
+            ...prev,
+            [uNode.key]: {
+              loading: false,
+              nodeId: uInspectId,
+              companyName: d.companyName || 'Empresa Activa',
+              sourceCollection: d.sourceCollection || '',
+              totalRecords: typeof d.totalRecords === 'number' ? d.totalRecords : recs.length,
+              records: recs,
+            },
+          }));
+        })
+        .catch(() => {});
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [activeConfigNodeKey, readOnly, visualNodes]);
+  }, [activeConfigNodeKey, readOnly, visualNodes, connectedExecutionPlan, wires]);
 
   // Extrae los pares { field, value } reales de un registro de MongoDB para la Vista Previa Quirúrgica en Vivo
   const resolveRecordSurgicalPreview = useCallback(
@@ -2746,6 +2865,10 @@ export default function WappyWorkflowCanvas({
         tag === 'select' ||
         Boolean((ev.target as HTMLElement)?.isContentEditable);
 
+      if (ev.key === 'Escape' && activeConfigNodeKey) {
+        setActiveConfigNodeKey(null);
+        return;
+      }
       if (ev.key === 'Escape' && isCanvasFullscreen) {
         setIsCanvasFullscreen(false);
         return;
@@ -2759,7 +2882,7 @@ export default function WappyWorkflowCanvas({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCanvasFullscreen, readOnly, selectedNodeKeys, handleDeleteNodesByKeys]);
+  }, [activeConfigNodeKey, isCanvasFullscreen, readOnly, selectedNodeKeys, handleDeleteNodesByKeys]);
 
   // Movimiento del puntero sobre el lienzo
   const handleCanvasPointerMove = (e: React.PointerEvent) => {
@@ -3544,38 +3667,6 @@ export default function WappyWorkflowCanvas({
                     } else if (tab.id === 'scraping') {
                       setSelectedSkillFilter('web_scraper');
                       setNewCustomNodeForm((prev) => ({ ...prev, nodeType: 'web_scraper' }));
-                    }
-                    // Al cambiar de equipo en la barra superior, auto-seleccionar el primer nodo activo de ese equipo en el Inspector
-                    if (tab.id === 'triggers') {
-                      setActiveConfigNodeKey('trigger_root');
-                    } else if (tab.id === 'extractors' && activeExtractors.length > 0) {
-                      setActiveConfigNodeKey(`extractor_${activeExtractors[0]}`);
-                    } else if (tab.id === 'ai_engine') {
-                      setActiveConfigNodeKey('sub_model');
-                    } else if (tab.id === 'memories' && activeMemories.length > 0) {
-                      setActiveConfigNodeKey('sub_memory');
-                    } else if (tab.id === 'connectors' && (workflowNodes.inputs || []).length > 0) {
-                      setActiveConfigNodeKey(`tool_inputs_${workflowNodes.inputs![0]}`);
-                    } else if (tab.id === 'hitos' && (workflowNodes.hitos || []).length > 0) {
-                      setActiveConfigNodeKey(`tool_hitos_${workflowNodes.hitos![0]}`);
-                    } else if (tab.id === 'outputs') {
-                      const firstOut = (workflowNodes.outputs || [])[0] || 'email_report';
-                      setActiveConfigNodeKey(`out_${firstOut}`);
-                    } else if (
-                      (tab.id === 'skills_rules' || tab.id === 'subagents' || tab.id === 'scraping') &&
-                      (workflowNodes?.canvasLayout?.customNodes || []).length > 0
-                    ) {
-                      const matchingCustom = (workflowNodes.canvasLayout!.customNodes || []).find(
-                        (c) =>
-                          tab.id === 'subagents'
-                            ? c.nodeType === 'subagent'
-                            : tab.id === 'scraping'
-                              ? c.nodeType === 'web_scraper' || c.nodeType === 'web_search'
-                              : c.nodeType === 'skill' || c.nodeType === 'rule',
-                      );
-                      setActiveConfigNodeKey(
-                        matchingCustom?.key || workflowNodes.canvasLayout!.customNodes![0].key,
-                      );
                     }
                   }}
                 />
@@ -5919,16 +6010,25 @@ export default function WappyWorkflowCanvas({
         </div>
       )}
 
-      {/* ─── PANEL INTERACTIVO DE EDICIÓN DE CADA NODO AL HACER CLIC SOBRE ÉL (ESTILO INSPECTOR DE PROPIEDADES) ─── */}
+      {/* ─── INSPECTOR DE NODOS DE 3 COLUMNAS ESTILO n8n (INPUT | CONFIGURACIÓN DEL NODO | OUTPUT + LOGS) ─── */}
       {!readOnly && !compact && (() => {
         const activeNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
-        if (!activeNode) {
-          return (
-            <div className="rounded-xl border border-dashed border-purple-300 dark:border-purple-800/70 bg-purple-50/40 dark:bg-purple-950/20 px-3.5 py-2 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+
+        // Barra rápida inferior en el lienzo para abrir cualquier paso conectado en el Modal de 3 Columnas estilo n8n
+        const quickInspectorBar = (
+          <div
+            id="wappy-node-config-inspector"
+            className="rounded-2xl border border-dashed border-purple-300 dark:border-purple-800/70 bg-purple-50/40 dark:bg-purple-950/20 px-3.5 py-2.5 flex flex-col gap-2 text-[11px] text-slate-600 dark:text-slate-300"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-2">
                 <Sliders className="w-3.5 h-3.5 text-purple-600 dark:text-[#C7F303] shrink-0" />
                 <span>
-                  💡 <strong>Edición por Nodo:</strong> Haz clic sobre <strong>cualquier nodo del lienzo</strong> (ej. <em>Extraer Trabajadores</em>, <em>Web Scraping AGY</em>, <em>Skill</em>, <em>Sub-Agente</em>, <em>Regla</em>, <em>Agente IA #1/#2</em> o <em>Condición Si/No</em>) para elegir sus campos exactos (ej. solo <strong>Nombre, Cédula y Edad</strong>), su <strong>Script de Web Scraping</strong>, su <strong>Modelo de IA</strong>, su <strong>Segundo Prompt</strong> y su <strong>Contexto de Entrada y Salida</strong>.
+                  💡 <strong>Inspector de Nodos Estilo n8n (3 Columnas):</strong> Haz clic sobre{' '}
+                  <strong>cualquier nodo del lienzo</strong> o elige un paso aquí abajo para abrir el
+                  popup con <strong>📥 INPUT (Lo que entró)</strong> a la izquierda,{' '}
+                  <strong>⚙️ Configuración</strong> en el centro y{' '}
+                  <strong>📤 OUTPUT (Lo que envió) + 📜 Logs/Errores</strong> a la derecha.
                 </span>
               </span>
               <div className="shrink-0 py-0.5 px-1">
@@ -5937,17 +6037,57 @@ export default function WappyWorkflowCanvas({
                   size="sm"
                   variant="purple"
                   icon={<Sliders className="w-3.5 h-3.5" />}
-                  label="Configurar Nodo"
-                  title="Abrir configuración del nodo activo"
+                  label="Abrir Inspector n8n"
+                  title="Abrir Inspector de 3 Columnas del nodo principal"
                   onClick={() =>
                     setActiveConfigNodeKey(
-                      visualNodes.find((n) => n.shape === 'square_extractor')?.key || 'agent_root',
+                      visualNodes.find((n) => n.shape === 'square_extractor')?.key ||
+                        connectedExecutionPlan[0]?.nodeKey ||
+                        'agent_root',
                     )
                   }
                 />
               </div>
             </div>
-          );
+
+            {connectedExecutionPlan.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-purple-200/50 dark:border-purple-800/40">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 dark:text-[#C7F303] mr-1">
+                  Pasos del Flujo:
+                </span>
+                {connectedExecutionPlan.map((step) => (
+                  <ExpandableButton
+                    key={`quick_step_${step.nodeKey}`}
+                    type="button"
+                    size="sm"
+                    variant={
+                      step.category === 'trigger'
+                        ? 'amber'
+                        : step.category === 'extractor'
+                          ? 'blue'
+                          : step.category === 'agent'
+                            ? 'purple'
+                            : step.category === 'hito'
+                              ? 'teal'
+                              : step.category === 'output'
+                                ? 'emerald'
+                                : 'indigo'
+                    }
+                    isActive={activeConfigNodeKey === step.nodeKey}
+                    icon={renderOfficialNodeSvg(step.nodeId, 'w-3.5 h-3.5')}
+                    badge={`#${step.stepNumber}`}
+                    label={`Paso #${step.stepNumber}: ${step.title}`}
+                    title={`Abrir Inspector de 3 Columnas para Paso #${step.stepNumber}: ${step.title}`}
+                    onClick={() => setActiveConfigNodeKey(step.nodeKey)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+        if (!activeNode) {
+          return quickInspectorBar;
         }
 
         const currentCfg: CanvasNodeConfig =
@@ -5961,100 +6101,1867 @@ export default function WappyWorkflowCanvas({
             ? (workflowNodes?.canvasLayout?.customNodes || []).find((cn) => cn.key === activeNode.key)
             : null;
 
-        return (
-          <div
-            id="wappy-node-config-inspector"
-            className="rounded-2xl border-2 border-purple-500/80 dark:border-[#C7F303]/80 bg-white dark:bg-slate-900 p-4 shadow-lg transition-all"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-slate-800 border border-purple-200 dark:border-slate-700 flex items-center justify-center shrink-0">
-                  {renderOfficialNodeSvg(activeNode.nodeId, 'w-5 h-5')}
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-[#C7F303]">
-                      ⚙️ Configuración de: {activeNode.title}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                      {activeNode.subtitle}
-                    </span>
-                    {activeCompanyInfo?.companyName && (
-                      <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-[#C7F303] border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
-                        <Building2 className="w-3 h-3 shrink-0" />
-                        <span>
-                          Empresa Activa: {activeCompanyInfo.companyName}
-                          {activeCompanyInfo.nit ? ` (NIT: ${activeCompanyInfo.nit})` : ''}
-                          {activeCompanyInfo.arl ? ` · ${activeCompanyInfo.arl}` : ''}
-                          {activeCompanyInfo.riskLevel ? ` R.${activeCompanyInfo.riskLevel}` : ''}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Ajusta los parámetros específicos de este nodo dentro de tu flujo automatizado.
-                  </p>
-                </div>
-              </div>
+        const activeStepNum = stepNumberByNodeKey.get(activeNode.key);
+        const activePlanIdx = connectedExecutionPlan.findIndex(
+          (p) => p.nodeKey === activeNode.key,
+        );
 
-              <div className="flex items-center gap-2">
-                <ExpandableButton
-                  size="sm"
-                  variant="neutral"
-                  icon={<X className="w-3.5 h-3.5" />}
-                  label="Cerrar"
-                  title="Cerrar configuración del nodo"
-                  onClick={() => setActiveConfigNodeKey(null)}
-                />
-              </div>
-            </div>
+        // ─── Helper para proyectar registros de MongoDB con el filtro quirúrgico `fields` y `recordFilterMode` de cualquier nodo ───
+        const projectRecordsForNode = (
+          rawRecords: Array<any>,
+          nodeCfg?: CanvasNodeConfig,
+        ): Array<Record<string, any>> => {
+          const safeList = Array.isArray(rawRecords) ? rawRecords : [];
+          if (safeList.length === 0) return [];
 
-            <WappyNodeCustomEditor
-              activeNode={activeNode}
-              currentCfg={currentCfg}
-              onUpdateNodeConfig={handleUpdateNodeConfig}
-              activeCompanyInfo={activeCompanyInfo}
-              agentId={agentId}
-              onSelectAgent={onSelectAgent}
-              availableAgentsWithTenshiAvatar={availableAgentsWithTenshiAvatar}
-              aiEngine={aiEngine}
-              aiModel={aiModel}
-              onSelectAiEngineModel={handleSelectAiEngineModel}
-              prompt={prompt}
-              onChangePrompt={onChangePrompt}
-              onAutoBuildPrompt={onAutoBuildPrompt}
-              extraAgentObj={extraAgentObj}
-              onUpdateExtraAgent={handleUpdateExtraAgent}
-              customNodeObj={customNodeObj}
-              scheduleType={scheduleType}
-              onChangeScheduleType={onChangeScheduleType}
-              hour={hour}
-              onChangeHour={onChangeHour}
-              minute={minute}
-              onChangeMinute={onChangeMinute}
-              daysOfWeek={daysOfWeek}
-              onChangeDaysOfWeek={onChangeDaysOfWeek}
-              dayOfMonth={dayOfMonth}
-              onChangeDayOfMonth={onChangeDayOfMonth}
-              intervalHours={intervalHours}
-              onChangeIntervalHours={onChangeIntervalHours}
-              emailsStr={emailsStr}
-              onChangeEmailsStr={onChangeEmailsStr}
-              antigravityStatus={antigravityStatus}
-              nodeLiveInspectorData={nodeLiveInspectorData}
-              nodeReportHistory={nodeReportHistory}
-              onPreviewNodeReport={handlePreviewNodeReport}
-              onCloseReportPreview={() =>
-                setNodeReportHistory((prev) => ({
-                  ...prev,
-                  previewConvId: null,
-                  previewTitle: null,
-                  previewText: null,
-                }))
+          let filtered = safeList;
+          if (nodeCfg?.recordFilterMode === 'critical') {
+            filtered = safeList.filter((r) => Boolean(r?.isCritical));
+          } else if (
+            nodeCfg?.recordFilterMode === 'selected' &&
+            Array.isArray(nodeCfg?.selectedRecordIds) &&
+            nodeCfg.selectedRecordIds.length > 0
+          ) {
+            const idSet = new Set(nodeCfg.selectedRecordIds);
+            filtered = safeList.filter((r) => idSet.has(r?.id));
+          }
+
+          const limit =
+            typeof nodeCfg?.maxRecords === 'number' && nodeCfg.maxRecords > 0
+              ? nodeCfg.maxRecords
+              : 30;
+          const sliced = filtered.slice(0, limit);
+          const chosenFields = Array.isArray(nodeCfg?.fields)
+            ? nodeCfg!.fields.filter(Boolean)
+            : [];
+
+          return sliced.map((rec, idx) => {
+            if (chosenFields.length > 0) {
+              const pairs = resolveRecordSurgicalPreview(rec, chosenFields);
+              const row: Record<string, any> = {};
+              if (pairs.length > 0) {
+                pairs.forEach((p) => {
+                  row[p.field] = p.value;
+                });
               }
-              resolveRecordSurgicalPreview={resolveRecordSurgicalPreview}
-            />
-          </div>
+              chosenFields.forEach((f) => {
+                if (row[f] === undefined) {
+                  const fallbackVal =
+                    rec?.fields?.[f] ?? rec?.values?.[f] ?? rec?.data?.[f] ?? undefined;
+                  if (fallbackVal !== undefined && fallbackVal !== null && String(fallbackVal).trim() !== '') {
+                    row[f] = fallbackVal;
+                  }
+                }
+              });
+              if (Object.keys(row).length > 0) {
+                return row;
+              }
+            }
+
+            const bag: Record<string, any> = {
+              ...(rec?.data && typeof rec.data === 'object' ? rec.data : {}),
+              ...(rec?.values && typeof rec.values === 'object' ? rec.values : {}),
+              ...(rec?.fields && typeof rec.fields === 'object' ? rec.fields : {}),
+            };
+            const bagKeys = Object.keys(bag).filter(
+              (k) => bag[k] !== undefined && bag[k] !== null && String(bag[k]).trim() !== '',
+            );
+            if (bagKeys.length > 0) {
+              const cleanObj: Record<string, any> = {};
+              bagKeys.slice(0, 10).forEach((k) => {
+                cleanObj[k] = Array.isArray(bag[k]) ? bag[k].join(', ') : bag[k];
+              });
+              return cleanObj;
+            }
+
+            return {
+              '#': idx + 1,
+              Registro: rec?.label || rec?.id || `Item #${idx + 1}`,
+              Detalle: rec?.sublabel || '—',
+              Estado: rec?.badge || (rec?.isCritical ? 'Crítico' : 'Activo'),
+            };
+          });
+        };
+
+        // ─── 1. Buscar paso ejecutado en Sandbox (`traceStep`) ───
+        const allTraceSteps: SandboxNodeTraceStep[] =
+          Array.isArray(sandboxResult?.nodeTrace) && sandboxResult!.nodeTrace.length > 0
+            ? sandboxResult!.nodeTrace
+            : sandboxLiveSteps;
+
+        const findTraceForNode = (n: VisualNodeInstance): SandboxNodeTraceStep | undefined =>
+          allTraceSteps.find(
+            (s) =>
+              s.nodeKey === n.key ||
+              s.nodeId === n.nodeId ||
+              (n.key === 'if_router' &&
+                (s.nodeKey === 'if_condition' || s.nodeId === 'if_condition')) ||
+              (n.key === 'agent_root' &&
+                (s.nodeKey === 'agent_root' ||
+                  s.nodeId === 'ai_agent_root' ||
+                  s.nodeKey === 'agent_primary')),
+          );
+
+        const traceStep = findTraceForNode(activeNode);
+
+        // ─── 2. Nodos Upstream (qué nodos le entregan datos a `activeNode`) ───
+        const upstreamNodeMap = new Map<string, VisualNodeInstance>();
+        // A) Cables principales entrantes (`w.targetKey === activeNode.key`)
+        wires.forEach((w) => {
+          if (!w.isSub && w.targetKey === activeNode.key) {
+            const srcNode = visualNodes.find((vn) => vn.key === w.sourceKey);
+            if (srcNode) upstreamNodeMap.set(srcNode.key, srcNode);
+          }
+          // B) Sub-cables conectados al Agente IA
+          if (w.isSub && w.sourceKey === activeNode.key) {
+            const subNode = visualNodes.find((vn) => vn.key === w.targetKey);
+            if (subNode) upstreamNodeMap.set(subNode.key, subNode);
+          }
+        });
+        // C) Pasos anteriores en `connectedExecutionPlan`
+        if (activePlanIdx > 0) {
+          for (let i = activePlanIdx - 1; i >= 0; i--) {
+            const prevStep = connectedExecutionPlan[i];
+            const prevNode = visualNodes.find((vn) => vn.key === prevStep.nodeKey);
+            if (prevNode && !upstreamNodeMap.has(prevNode.key)) {
+              upstreamNodeMap.set(prevNode.key, prevNode);
+            }
+          }
+        }
+        const upstreamCandidates = Array.from(upstreamNodeMap.values());
+
+        // Elegir el nodo upstream activo (por defecto prioriza `sourceNodeKey` del trace, o un extractor/agente conectado por cable principal, o el paso inmediatamente anterior)
+        const defaultUpstreamNode: VisualNodeInstance | null = (() => {
+          if (traceStep?.sourceNodeKey) {
+            const byTrace = visualNodes.find((vn) => vn.key === traceStep.sourceNodeKey);
+            if (byTrace) return byTrace;
+          }
+          const mainIncomingExtractor = wires
+            .filter((w) => !w.isSub && w.targetKey === activeNode.key)
+            .map((w) => visualNodes.find((vn) => vn.key === w.sourceKey))
+            .find((vn) => vn && vn.shape !== 'trigger');
+          if (mainIncomingExtractor) return mainIncomingExtractor;
+
+          if (activePlanIdx > 0) {
+            // Si el nodo activo es el Agente o un Hito y antes hay un Extractor de datos, priorizar ese Extractor como fuente de tabla de entrada en modo automático
+            const priorExtractorStep = [...connectedExecutionPlan.slice(0, activePlanIdx)]
+              .reverse()
+              .find((st) => st.category === 'extractor' || st.category === 'hito' || st.category === 'agent');
+            if (priorExtractorStep) {
+              const found = visualNodes.find((vn) => vn.key === priorExtractorStep.nodeKey);
+              if (found) return found;
+            }
+            const prevStep = connectedExecutionPlan[activePlanIdx - 1];
+            const foundPrev = visualNodes.find((vn) => vn.key === prevStep.nodeKey);
+            if (foundPrev) return foundPrev;
+          }
+          return upstreamCandidates[0] || null;
+        })();
+
+        const selectedUpstreamNode: VisualNodeInstance | null =
+          ndvSelectedUpstreamKey !== 'auto'
+            ? visualNodes.find((vn) => vn.key === ndvSelectedUpstreamKey) || defaultUpstreamNode
+            : defaultUpstreamNode;
+
+        const isTriggerNode =
+          activeNode.shape === 'trigger' ||
+          (activeStepNum === 1 && upstreamCandidates.length === 0);
+
+        // ─── 3. Construir `resolvedInputItems` y `resolvedInputSourceTitle` ───
+        const buildNodeLiveOutputItems = (targetNode: VisualNodeInstance): Array<Record<string, any>> => {
+          const targetCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[targetNode.key] || {};
+          const targetTrace = findTraceForNode(targetNode);
+
+          // Si es el nodo actualmente abierto y tenemos `nodeLiveInspectorData.records`, proyectar en tiempo real con `targetCfg`
+          const liveRecs =
+            targetNode.key === activeNode.key && nodeLiveInspectorData.records.length > 0
+              ? nodeLiveInspectorData.records
+              : upstreamLiveRecordsCache[targetNode.key]?.records || [];
+
+          if (liveRecs.length > 0) {
+            const projected = projectRecordsForNode(liveRecs, targetCfg);
+            if (projected.length > 0) return projected;
+          }
+
+          if (targetTrace?.outputItems && targetTrace.outputItems.length > 0) {
+            return targetTrace.outputItems;
+          }
+
+          if (targetNode.shape === 'trigger') {
+            return [
+              {
+                Disparador: targetNode.title,
+                Modalidad:
+                  scheduleType === 'hourly'
+                    ? `Cada ${intervalHours} hora(s)`
+                    : scheduleType === 'daily'
+                      ? `Diario a las ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                      : scheduleType === 'weekly'
+                        ? `Semanal (${(daysOfWeek || []).join(', ')})`
+                        : `Mensual (Día ${dayOfMonth})`,
+                EmpresaActiva: activeCompanyInfo?.companyName || 'Empresa Activa',
+                NIT: activeCompanyInfo?.nit || '—',
+                ARL: activeCompanyInfo?.arl || '—',
+                NivelRiesgo: activeCompanyInfo?.riskLevel || '—',
+                PayloadPrueba: mockTriggerInput?.trim() || 'Disparo automático programado',
+              },
+            ];
+          }
+
+          if (targetNode.shape === 'agent') {
+            const agOut = (sandboxResult?.agentOutputs || []).find(
+              (ao) => ao.agentKey === targetNode.key || ao.agentId === targetNode.nodeId,
+            );
+            return [
+              {
+                AgenteIA: targetNode.title,
+                Rol: targetNode.subtitle,
+                MotorIA: targetCfg.aiEngine || aiEngine,
+                Modelo: targetCfg.aiModel || aiModel,
+                Estado: agOut ? 'Ejecutado en Sandbox' : 'Configurado y listo',
+                ResumenRespuesta: agOut?.responseMarkdown
+                  ? `${agOut.responseMarkdown.slice(0, 180)}...`
+                  : targetTrace?.outputPreview ||
+                    prompt?.slice(0, 160) ||
+                    'Procesa los registros recibidos del paso anterior y emite dictamen SST.',
+              },
+            ];
+          }
+
+          if (targetNode.shape === 'if' || targetNode.shape === 'logic') {
+            return [
+              {
+                NodoControl: targetNode.title,
+                Regla: targetCfg.customInstruction || targetNode.subtitle || 'Evaluación condicional Si/No',
+                RamaTomada: sandboxResult?.ifEvaluation?.branchTaken || 'SÍ (En espera de Play)',
+                Motivo:
+                  sandboxResult?.ifEvaluation?.reason ||
+                  'Evalúa si existen hallazgos o registros críticos en la entrada.',
+              },
+            ];
+          }
+
+          if (targetNode.shape === 'circle_model') {
+            return [
+              {
+                MotorIA:
+                  aiEngine === 'antigravity_cloud'
+                    ? 'Google Antigravity Cloud 24/7'
+                    : aiEngine === 'antigravity'
+                      ? 'Google Antigravity Local PC'
+                      : 'WAPPY Cloud (Rotación de Claves)',
+                ModeloActivo: aiModel,
+                ModoAntigravity: targetCfg.antigravityMode || 'auto',
+              },
+            ];
+          }
+
+          return [
+            {
+              Nodo: targetNode.title,
+              Tipo: targetNode.subtitle,
+              Empresa: activeCompanyInfo?.companyName || 'Empresa Activa',
+              CamposQuirurgicos:
+                Array.isArray(targetCfg.fields) && targetCfg.fields.length > 0
+                  ? targetCfg.fields.join(', ')
+                  : 'Todos los campos del módulo',
+              ContextoSalida:
+                targetCfg.outputContext ||
+                targetTrace?.outputPreview ||
+                'Listo para enviar datos al siguiente nodo conectado.',
+            },
+          ];
+        };
+
+        const resolvedInputSourceTitle: string = isTriggerNode
+          ? 'Inicio del Flujo (Disparador)'
+          : ndvSelectedUpstreamKey === 'auto' && traceStep?.sourceNodeTitle
+            ? traceStep.sourceNodeTitle
+            : selectedUpstreamNode
+              ? `${
+                  stepNumberByNodeKey.get(selectedUpstreamNode.key)
+                    ? `Paso #${stepNumberByNodeKey.get(selectedUpstreamNode.key)} · `
+                    : ''
+                }${selectedUpstreamNode.title}`
+              : 'Paso Anterior del Flujo';
+
+        const resolvedInputItems: Array<Record<string, any>> = (() => {
+          if (isTriggerNode) return [];
+          if (
+            ndvSelectedUpstreamKey === 'auto' &&
+            traceStep?.inputItems &&
+            traceStep.inputItems.length > 0
+          ) {
+            // Si el nodo upstream tiene filtro quirúrgico editado en vivo, proyectarlo si hay caché en vivo
+            if (
+              selectedUpstreamNode &&
+              upstreamLiveRecordsCache[selectedUpstreamNode.key]?.records?.length
+            ) {
+              const upCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[selectedUpstreamNode.key];
+              if (upCfg?.fields && upCfg.fields.length > 0) {
+                return projectRecordsForNode(
+                  upstreamLiveRecordsCache[selectedUpstreamNode.key].records,
+                  upCfg,
+                );
+              }
+            }
+            return traceStep.inputItems;
+          }
+          if (selectedUpstreamNode) {
+            return buildNodeLiveOutputItems(selectedUpstreamNode);
+          }
+          return [];
+        })();
+
+        // ─── 4. Construir `resolvedOutputItems` y `resolvedOutputPreview` (Reactivos en Tiempo Real) ───
+        const resolvedOutputItems: Array<Record<string, any>> = (() => {
+          // Si este nodo tiene registros reales en `nodeLiveInspectorData`, proyectarlos en vivo con `currentCfg.fields` y `currentCfg.recordFilterMode`
+          // para que cuando el usuario marque/desmarque campos en el panel central, vea cambiar la tabla derecha `OUTPUT` en tiempo real
+          if (nodeLiveInspectorData.records.length > 0) {
+            return projectRecordsForNode(nodeLiveInspectorData.records, currentCfg);
+          }
+          if (traceStep?.outputItems && traceStep.outputItems.length > 0) {
+            return traceStep.outputItems;
+          }
+          return buildNodeLiveOutputItems(activeNode);
+        })();
+
+        const resolvedOutputPreview: string = (() => {
+          if (traceStep?.outputPreview && traceStep.outputPreview.trim()) {
+            return traceStep.outputPreview;
+          }
+          if (activeNode.shape === 'agent' && sandboxResult?.finalResponseMarkdown) {
+            return sandboxResult.finalResponseMarkdown;
+          }
+          if (activeNode.shape === 'square_output' && sandboxResult?.interceptedOutputs?.emailPreview) {
+            const ep = sandboxResult.interceptedOutputs.emailPreview;
+            return `Asunto: ${ep.subject}\nPara: ${(ep.recipients || []).join(', ')}\n\n${ep.textBody || sandboxResult.finalResponseMarkdown || ''}`;
+          }
+          if (resolvedOutputItems.length > 0) {
+            const cols = Object.keys(resolvedOutputItems[0] || {});
+            const previewRows = resolvedOutputItems
+              .slice(0, 8)
+              .map(
+                (item, i) =>
+                  `${i + 1}. ` +
+                  cols.map((c) => `${c}: ${String(item[c] ?? '—')}`).join(' | '),
+              )
+              .join('\n');
+            return `📤 Vista Previa de Salida de «${activeNode.title}» (${resolvedOutputItems.length} registro(s), ${cols.length} campo(s)):\n\n${previewRows}`;
+          }
+          return 'Sin vista previa de salida todavía. Haz clic en «Probar paso» para ejecutar este nodo.';
+        })();
+
+        // ─── 5. Construir `resolvedNodeLogs` y `hasNodeErrors` ───
+        const resolvedNodeLogs: Array<{
+          timestamp?: string;
+          level: 'info' | 'success' | 'warn' | 'error';
+          message: string;
+          detail?: string;
+        }> = (() => {
+          const logsList: Array<{
+            timestamp?: string;
+            level: 'info' | 'success' | 'warn' | 'error';
+            message: string;
+            detail?: string;
+          }> = [];
+
+          const nowTime = new Date().toLocaleTimeString('es-CO', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+
+          if (traceStep?.error || sandboxError) {
+            logsList.push({
+              timestamp: nowTime,
+              level: 'error',
+              message: `Error detectado en «${activeNode.title}»`,
+              detail:
+                traceStep?.error ||
+                sandboxError ||
+                'Se produjo una excepción durante la ejecución del paso.',
+            });
+          }
+
+          if (traceStep?.logs && traceStep.logs.length > 0) {
+            traceStep.logs.forEach((lg) => {
+              logsList.push({
+                timestamp: lg.timestamp || nowTime,
+                level: lg.level || 'info',
+                message: lg.message,
+                detail: lg.detail,
+              });
+            });
+            return logsList;
+          }
+
+          if (traceStep) {
+            logsList.push({
+              timestamp: nowTime,
+              level: 'info',
+              message: `📥 Entrada recibida desde «${resolvedInputSourceTitle}»`,
+              detail:
+                traceStep.inputSummary ||
+                traceStep.inputContext ||
+                `${resolvedInputItems.length} registro(s) entregados al nodo.`,
+            });
+            if (Array.isArray(currentCfg.fields) && currentCfg.fields.length > 0) {
+              logsList.push({
+                timestamp: nowTime,
+                level: 'info',
+                message: `🎯 Filtro quirúrgico aplicado (${currentCfg.fields.length} campos)`,
+                detail: `Campos activos: ${currentCfg.fields.join(', ')}`,
+              });
+            }
+            logsList.push({
+              timestamp: nowTime,
+              level:
+                traceStep.status === 'error'
+                  ? 'error'
+                  : traceStep.status === 'simulated_blocked'
+                    ? 'warn'
+                    : 'success',
+              message:
+                traceStep.status === 'error'
+                  ? `❌ Falló la ejecución de «${activeNode.title}»`
+                  : traceStep.status === 'simulated_blocked'
+                    ? `🛡️ Salida interceptada en Modo Desarrollo (${traceStep.durationMs || 0} ms)`
+                    : `✅ Ejecución completada con éxito en ${traceStep.durationMs || 0} ms`,
+              detail:
+                traceStep.details ||
+                traceStep.outputPreview ||
+                `El nodo procesó y emitió ${resolvedOutputItems.length} registro(s) hacia el siguiente paso.`,
+            });
+            return logsList;
+          }
+
+          // Estado antes de ejecutar Play
+          logsList.push({
+            timestamp: nowTime,
+            level: 'info',
+            message: `⏳ Nodo «${activeNode.title}» listo para probar`,
+            detail: `Pulsa el botón «Probar paso» en la barra superior para ejecutar el flujo en Modo Sandbox y registrar las trazas de ejecución.`,
+          });
+          if (nodeLiveInspectorData.supported) {
+            logsList.push({
+              timestamp: nowTime,
+              level: nodeLiveInspectorData.totalRecords > 0 ? 'success' : 'warn',
+              message: `📊 Inspector en Vivo conectado: ${nodeLiveInspectorData.totalRecords} registro(s) en MongoDB`,
+              detail: `Fuente: ${nodeLiveInspectorData.sourceCollection || activeNode.nodeId} · Empresa: ${activeCompanyInfo?.companyName || nodeLiveInspectorData.companyName || 'Activa'} (${nodeLiveInspectorData.criticalCount} crítico(s)).`,
+            });
+          }
+          if (Array.isArray(currentCfg.fields) && currentCfg.fields.length > 0) {
+            logsList.push({
+              timestamp: nowTime,
+              level: 'success',
+              message: `🎯 Selección Quirúrgica configurada (${currentCfg.fields.length} campo(s))`,
+              detail: `Este nodo filtrará y enviará únicamente: ${currentCfg.fields.join(', ')}.`,
+            });
+          }
+          return logsList;
+        })();
+
+        const hasNodeErrors = Boolean(
+          traceStep?.error ||
+            sandboxError ||
+            traceStep?.status === 'error' ||
+            resolvedNodeLogs.some((l) => l.level === 'error'),
+        );
+
+        // ─── 6. Filtrado por buscador para `INPUT` y `OUTPUT` y construcción de `Schema` ───
+        const filterItemsByQuery = (
+          items: Array<Record<string, any>>,
+          query: string,
+        ): Array<Record<string, any>> => {
+          const q = (query || '').trim().toLowerCase();
+          if (!q) return items;
+          return items.filter((item) =>
+            Object.entries(item || {}).some(
+              ([k, v]) =>
+                k.toLowerCase().includes(q) ||
+                String(v ?? '')
+                  .toLowerCase()
+                  .includes(q),
+            ),
+          );
+        };
+
+        const filteredInputItems = filterItemsByQuery(resolvedInputItems, ndvInputSearch);
+        const filteredOutputItems = filterItemsByQuery(resolvedOutputItems, ndvOutputSearch);
+
+        const buildSchemaFromItems = (
+          items: Array<Record<string, any>>,
+          query: string,
+        ): Array<{
+          key: string;
+          typeLabel: string;
+          badgeClass: string;
+          sampleValue: string;
+          exprToken: string;
+        }> => {
+          const keyOrder: string[] = [];
+          const seen = new Set<string>();
+          items.forEach((it) => {
+            Object.keys(it || {}).forEach((k) => {
+              if (!seen.has(k)) {
+                seen.add(k);
+                keyOrder.push(k);
+              }
+            });
+          });
+          const q = (query || '').trim().toLowerCase();
+          return keyOrder
+            .filter((k) => {
+              if (!q) return true;
+              const sample = items.find((it) => it?.[k] !== undefined && it?.[k] !== null)?.[k];
+              return (
+                k.toLowerCase().includes(q) ||
+                String(sample ?? '')
+                  .toLowerCase()
+                  .includes(q)
+              );
+            })
+            .map((key) => {
+              const sampleRaw = items.find(
+                (it) => it?.[key] !== undefined && it?.[key] !== null && String(it[key]).trim() !== '',
+              )?.[key];
+              let typeLabel = 'TEXTO';
+              let badgeClass =
+                'bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-300';
+              if (typeof sampleRaw === 'number') {
+                typeLabel = 'NÚMERO';
+                badgeClass =
+                  'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300';
+              } else if (typeof sampleRaw === 'boolean') {
+                typeLabel = 'BOOLEANO';
+                badgeClass =
+                  'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
+              } else if (Array.isArray(sampleRaw)) {
+                typeLabel = 'LISTA';
+                badgeClass =
+                  'bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300';
+              } else if (sampleRaw && typeof sampleRaw === 'object') {
+                typeLabel = 'OBJETO';
+                badgeClass =
+                  'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300';
+              } else if (
+                typeof sampleRaw === 'string' &&
+                /^\d{4}-\d{2}-\d{2}/.test(sampleRaw.trim())
+              ) {
+                typeLabel = 'FECHA';
+                badgeClass =
+                  'bg-cyan-500/10 border-cyan-500/30 text-cyan-700 dark:text-cyan-300';
+              }
+              const sampleValue =
+                sampleRaw === undefined || sampleRaw === null
+                  ? '—'
+                  : typeof sampleRaw === 'object'
+                    ? JSON.stringify(sampleRaw)
+                    : String(sampleRaw);
+              const exprToken = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)
+                ? `{{ $json.${key} }}`
+                : `{{ $json["${key}"] }}`;
+              return { key, typeLabel, badgeClass, sampleValue, exprToken };
+            });
+        };
+
+        const inputSchemaFields = buildSchemaFromItems(resolvedInputItems, ndvInputSearch);
+        const outputSchemaFields = buildSchemaFromItems(resolvedOutputItems, ndvOutputSearch);
+
+        const handleCopyOrInsertExpression = (expr: string, fieldName: string) => {
+          try {
+            navigator.clipboard?.writeText(expr);
+          } catch (_) {}
+          setNdvCopiedExpr(expr);
+          setTimeout(() => {
+            setNdvCopiedExpr((prev) => (prev === expr ? null : prev));
+          }, 2000);
+
+          // Si es el Agente IA Principal o un Sub-Agente o tiene inputContext, permitir insertar el campo
+          if (activeNode.key === 'agent_root' && onChangePrompt) {
+            if (!prompt.includes(expr)) {
+              onChangePrompt(`${prompt ? `${prompt.trim()}\n` : ''}Analizar campo ${fieldName}: ${expr}`);
+            }
+          } else {
+            const prevInputCtx = currentCfg.inputContext || '';
+            if (!prevInputCtx.includes(expr)) {
+              handleUpdateNodeConfig(activeNode.key, {
+                inputContext: `${prevInputCtx ? `${prevInputCtx.trim()} · ` : ''}Usar ${fieldName} (${expr})`,
+              });
+            }
+          }
+        };
+
+        // ─── Modal Popup de 3 Columnas estilo n8n renderizado vía Portal ───
+        const ndvModalPortal =
+          typeof document !== 'undefined'
+            ? createPortal(
+                <div
+                  className="fixed inset-0 z-[10020] bg-slate-950/75 backdrop-blur-md flex flex-col p-2 sm:p-4 animate-in fade-in duration-150"
+                  onClick={() => setActiveConfigNodeKey(null)}
+                >
+                  <div
+                    className="flex flex-col flex-1 min-h-0 w-full max-w-[1920px] mx-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* ─── BARRA SUPERIOR DEL MODAL (`← Volver al Lienzo` + Breadcrumb de Pasos + `▶ Probar paso` + `✕ Cerrar`) ─── */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 shadow-lg shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="emerald"
+                          icon={<ArrowLeft className="w-3.5 h-3.5" />}
+                          label="Volver al Lienzo"
+                          title="Cerrar popup y volver al lienzo de flujo (Esc)"
+                          onClick={() => setActiveConfigNodeKey(null)}
+                        />
+
+                        <div className="h-5 w-[1px] bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+
+                        {/* Tira horizontal de pasos conectados estilo breadcrumb n8n con ExpandableButtons */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 px-1 max-w-[62vw]">
+                          {connectedExecutionPlan.map((step) => {
+                            const isCurrent = step.nodeKey === activeNode.key;
+                            const stepDone = sandboxCompletedNodeKeys.includes(step.nodeKey);
+                            return (
+                              <ExpandableButton
+                                key={`ndv_step_${step.nodeKey}`}
+                                type="button"
+                                size="sm"
+                                variant={
+                                  isCurrent
+                                    ? 'purple'
+                                    : stepDone
+                                      ? 'emerald'
+                                      : step.category === 'trigger'
+                                        ? 'amber'
+                                        : step.category === 'extractor'
+                                          ? 'blue'
+                                          : 'teal'
+                                }
+                                isActive={isCurrent}
+                                icon={renderOfficialNodeSvg(step.nodeId, 'w-3.5 h-3.5')}
+                                badge={`#${step.stepNumber}`}
+                                label={`Paso #${step.stepNumber}: ${step.title}`}
+                                title={`Saltar a Paso #${step.stepNumber}: ${step.title}`}
+                                onClick={() => setActiveConfigNodeKey(step.nodeKey)}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {activeCompanyInfo?.companyName && (
+                          <span className="hidden xl:inline-flex px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-emerald-500/10 text-emerald-700 dark:text-[#C7F303] border border-emerald-500/30 items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              {activeCompanyInfo.companyName}
+                              {activeCompanyInfo.nit ? ` · NIT ${activeCompanyInfo.nit}` : ''}
+                            </span>
+                          </span>
+                        )}
+
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="emerald"
+                          disabled={sandboxRunning}
+                          icon={
+                            sandboxRunning ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                            )
+                          }
+                          label={
+                            sandboxRunning ? 'Ejecutando...' : 'Probar paso (Test step)'
+                          }
+                          title="Ejecutar simulación y actualizar INPUT, OUTPUT y LOGS de este nodo en vivo"
+                          onClick={handleRunSandboxSimulation}
+                        />
+
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="rose"
+                          icon={<X className="w-3.5 h-3.5" />}
+                          label="Cerrar"
+                          title="Cerrar Inspector de Nodo (Esc)"
+                          onClick={() => setActiveConfigNodeKey(null)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* ─── CUERPO PRINCIPAL EN 3 COLUMNAS ESTILO n8n (`INPUT` | `CONFIGURACIÓN` | `OUTPUT / LOGS`) ─── */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 overflow-hidden mt-2.5">
+                      {/* ════════════════════════════════════════════════════════════════════════
+                          COLUMNA 1 (IZQUIERDA - lg:col-span-4): `📥 INPUT · LO QUE ENTRÓ AL NODO`
+                         ════════════════════════════════════════════════════════════════════════ */}
+                      <div className="lg:col-span-4 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-lg">
+                        {/* Cabecera INPUT */}
+                        <div className="px-3.5 py-2.5 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0" />
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 truncate">
+                              📥 INPUT (ENTRADA AL NODO)
+                            </span>
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30">
+                              {resolvedInputItems.length} ítems
+                            </span>
+                          </div>
+
+                          {/* Botonera WAPPY de vistas de Entrada (`Schema` | `Tabla` | `JSON`) */}
+                          <div className="flex items-center gap-1.5 py-0.5 px-0.5">
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="violet"
+                              isActive={ndvInputView === 'schema'}
+                              icon={<Layers className="w-3.5 h-3.5" />}
+                              badge={inputSchemaFields.length}
+                              label="Schema"
+                              title="Ver estructura de campos entrantes y variables {{ $json }}"
+                              onClick={() => setNdvInputView('schema')}
+                            />
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="sky"
+                              isActive={ndvInputView === 'table'}
+                              icon={<Table2 className="w-3.5 h-3.5" />}
+                              badge={resolvedInputItems.length}
+                              label="Tabla"
+                              title="Ver datos que entraron al nodo en formato Tabla"
+                              onClick={() => setNdvInputView('table')}
+                            />
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="amber"
+                              isActive={ndvInputView === 'json'}
+                              icon={<Code2 className="w-3.5 h-3.5" />}
+                              badge={resolvedInputItems.length}
+                              label="JSON"
+                              title="Ver payload JSON que entró al nodo"
+                              onClick={() => setNdvInputView('json')}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Sub-barra: Selector de Nodo Origen + Buscador */}
+                        {!isTriggerNode && (
+                          <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 space-y-1.5 shrink-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400 shrink-0">
+                                📥 Viene de:
+                              </span>
+                              <select
+                                value={ndvSelectedUpstreamKey}
+                                onChange={(e) => setNdvSelectedUpstreamKey(e.target.value)}
+                                className="flex-1 min-w-0 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500"
+                              >
+                                <option value="auto">
+                                  ⚡ Automático ({resolvedInputSourceTitle})
+                                </option>
+                                {upstreamCandidates.map((upNode) => {
+                                  const stNum = stepNumberByNodeKey.get(upNode.key);
+                                  return (
+                                    <option key={`up_opt_${upNode.key}`} value={upNode.key}>
+                                      {stNum ? `Paso #${stNum} · ` : ''}
+                                      {upNode.title} ({upNode.subtitle})
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+
+                            <div className="relative">
+                              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              <input
+                                type="text"
+                                value={ndvInputSearch}
+                                onChange={(e) => setNdvInputSearch(e.target.value)}
+                                placeholder="🔍 Filtrar campos o valores de entrada..."
+                                className="w-full pl-8 pr-7 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 text-[11px] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-sky-500"
+                              />
+                              {ndvInputSearch && (
+                                <button
+                                  type="button"
+                                  onClick={() => setNdvInputSearch('')}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Contenido con scroll de INPUT */}
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+                          {isTriggerNode ? (
+                            <div className="rounded-2xl border border-dashed border-amber-400/70 dark:border-amber-600/60 bg-amber-500/5 p-4 text-center space-y-3 my-2">
+                              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                                <Zap className="w-5 h-5 fill-current" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                  ⚡ Este nodo es un Disparador (inicio del flujo): no recibe datos de entrada previos.
+                                </p>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                  Al ejecutarse, este nodo inicia la cadena y entrega su contexto al{' '}
+                                  <strong>Paso #2</strong> en el panel derecho (<strong>OUTPUT</strong>).
+                                </p>
+                              </div>
+
+                              {/* Pestaña desplegable con el payload inicial del Disparador */}
+                              <div className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() => setNdvExpandedSchemaGroup((v) => !v)}
+                                  className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-extrabold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60"
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    {ndvExpandedSchemaGroup ? (
+                                      <ChevronDown className="w-3.5 h-3.5 text-amber-500" />
+                                    ) : (
+                                      <ChevronRight className="w-3.5 h-3.5 text-amber-500" />
+                                    )}
+                                    Contexto de Disparo Inicial
+                                  </span>
+                                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">
+                                    Paso #1
+                                  </span>
+                                </button>
+                                {ndvExpandedSchemaGroup && (
+                                  <div className="p-2.5 text-[11px] space-y-1 text-slate-600 dark:text-slate-300">
+                                    <div>
+                                      <strong>Disparador:</strong> {activeNode.title} ({activeNode.subtitle})
+                                    </div>
+                                    <div>
+                                      <strong>Empresa Activa:</strong>{' '}
+                                      {activeCompanyInfo?.companyName || 'Empresa Activa'}{' '}
+                                      {activeCompanyInfo?.nit ? `(NIT ${activeCompanyInfo.nit})` : ''}
+                                    </div>
+                                    <div>
+                                      <strong>Entrada simulada:</strong>{' '}
+                                      {mockTriggerInput?.trim() || 'Ejecución automática por programación'}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : filteredInputItems.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-5 text-center space-y-2.5 my-2">
+                              <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                                📭 Sin registros de entrada para mostrar
+                              </p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                Haz clic en <strong>«Probar paso»</strong> arriba a la derecha para ejecutar el flujo y ver exactamente qué datos entran desde{' '}
+                                <strong>{resolvedInputSourceTitle}</strong>.
+                              </p>
+                            </div>
+                          ) : ndvInputView === 'schema' ? (
+                            /* ─── VISTA 1 DE INPUT: SCHEMA (Pestaña desplegable estilo n8n con píldoras {{ $json.campo }}) ─── */
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setNdvExpandedSchemaGroup((v) => !v)}
+                                className="w-full px-3 py-2 flex items-center justify-between bg-slate-100/80 dark:bg-slate-800/80 text-left"
+                              >
+                                <span className="flex items-center gap-1.5 text-[11px] font-black text-slate-800 dark:text-slate-100">
+                                  {ndvExpandedSchemaGroup ? (
+                                    <ChevronDown className="w-3.5 h-3.5 text-purple-600 dark:text-[#C7F303]" />
+                                  ) : (
+                                    <ChevronRight className="w-3.5 h-3.5 text-purple-600 dark:text-[#C7F303]" />
+                                  )}
+                                  📥 {resolvedInputSourceTitle}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-purple-500/15 text-purple-700 dark:text-purple-300">
+                                  {inputSchemaFields.length} campos · {resolvedInputItems.length} ítems
+                                </span>
+                              </button>
+
+                              {ndvExpandedSchemaGroup && (
+                                <div className="divide-y divide-slate-200/70 dark:divide-slate-800/80 p-2 space-y-1.5">
+                                  {inputSchemaFields.map((field) => {
+                                    const isCopied = ndvCopiedExpr === field.exprToken;
+                                    return (
+                                      <div
+                                        key={`in_schema_${field.key}`}
+                                        className="pt-1.5 first:pt-0 flex flex-col gap-1 rounded-lg p-1.5 hover:bg-white dark:hover:bg-slate-900 transition-colors"
+                                      >
+                                        <div className="flex items-center justify-between gap-1.5">
+                                          <div className="flex items-center gap-1.5 min-w-0">
+                                            <span
+                                              className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase shrink-0 ${field.badgeClass}`}
+                                            >
+                                              {field.typeLabel}
+                                            </span>
+                                            <span className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 truncate">
+                                              {field.key}
+                                            </span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleCopyOrInsertExpression(field.exprToken, field.key)
+                                            }
+                                            title="Haz clic para copiar e insertar esta variable de entrada en el nodo"
+                                            className={`px-2 py-0.5 rounded-lg border text-[10px] font-mono font-bold transition-all shrink-0 flex items-center gap-1 ${
+                                              isCopied
+                                                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-700 dark:text-emerald-300'
+                                                : 'bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20'
+                                            }`}
+                                          >
+                                            <Copy className="w-2.5 h-2.5" />
+                                            {isCopied ? '¡Copiado!' : field.exprToken}
+                                          </button>
+                                        </div>
+                                        <div className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate pl-1">
+                                          Ej: <span className="font-semibold text-slate-700 dark:text-slate-300">{field.sampleValue}</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ) : ndvInputView === 'table' ? (
+                            /* ─── VISTA 2 DE INPUT: TABLA LIMPIA CON BORDES REDONDEADOS ─── */
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-[11px]">
+                                  <thead>
+                                    <tr className="bg-slate-100/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                                      <th className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider w-9">
+                                        #
+                                      </th>
+                                      {Object.keys(filteredInputItems[0] || {}).map((col) => (
+                                        <th
+                                          key={`in_th_${col}`}
+                                          className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider whitespace-nowrap"
+                                        >
+                                          {col}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                    {filteredInputItems.map((row, rIdx) => (
+                                      <tr
+                                        key={`in_tr_${rIdx}`}
+                                        className="hover:bg-sky-50/50 dark:hover:bg-sky-950/20 transition-colors"
+                                      >
+                                        <td className="py-1.5 px-2.5 font-black text-slate-400">
+                                          {rIdx + 1}
+                                        </td>
+                                        {Object.keys(filteredInputItems[0] || {}).map((col) => {
+                                          const cellVal = row?.[col];
+                                          const displayVal =
+                                            cellVal === undefined || cellVal === null
+                                              ? '—'
+                                              : typeof cellVal === 'object'
+                                                ? JSON.stringify(cellVal)
+                                                : String(cellVal);
+                                          return (
+                                            <td
+                                              key={`in_td_${rIdx}_${col}`}
+                                              className="py-1.5 px-2.5 text-slate-700 dark:text-slate-200 font-medium max-w-[220px] truncate"
+                                              title={displayVal}
+                                            >
+                                              {displayVal}
+                                            </td>
+                                          );
+                                        })}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : (
+                            /* ─── VISTA 3 DE INPUT: JSON CON PESTAÑAS DESPLEGABLES POR ITEM (`▼ Item #1`...) ─── */
+                            <div className="space-y-2">
+                              {filteredInputItems.map((item, idx) => {
+                                const isExpanded = Boolean(ndvExpandedInputItems[idx]);
+                                const itemTitle =
+                                  item['Nombre Completo'] ||
+                                  item['Registro'] ||
+                                  item['Disparador'] ||
+                                  item['AgenteIA'] ||
+                                  item['Nodo'] ||
+                                  Object.values(item)[0] ||
+                                  `Item #${idx + 1}`;
+                                return (
+                                  <div
+                                    key={`in_json_item_${idx}`}
+                                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/60 overflow-hidden"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setNdvExpandedInputItems((prev) => ({
+                                          ...prev,
+                                          [idx]: !prev[idx],
+                                        }))
+                                      }
+                                      className="w-full px-3 py-1.5 flex items-center justify-between text-left bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
+                                    >
+                                      <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-800 dark:text-slate-100 truncate">
+                                        {isExpanded ? (
+                                          <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                        ) : (
+                                          <ChevronRight className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                        )}
+                                        <span className="text-amber-600 dark:text-amber-400">
+                                          Item #{idx + 1}:
+                                        </span>
+                                        <span className="truncate">{String(itemTitle)}</span>
+                                      </span>
+                                      <span className="text-[9.5px] font-bold text-slate-400 shrink-0 ml-2">
+                                        {Object.keys(item || {}).length} claves
+                                      </span>
+                                    </button>
+                                    {isExpanded && (
+                                      <pre className="p-2.5 text-[10.5px] font-mono text-slate-700 dark:text-slate-200 overflow-x-auto leading-relaxed">
+                                        {JSON.stringify(item, null, 2)}
+                                      </pre>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ════════════════════════════════════════════════════════════════════════
+                          COLUMNA 2 (CENTRO ELEVADO - lg:col-span-4): `⚙️ CONFIGURACIÓN DEL NODO`
+                         ════════════════════════════════════════════════════════════════════════ */}
+                      <div className="lg:col-span-4 bg-white dark:bg-slate-900 border-2 border-purple-500 dark:border-[#C7F303] rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-2xl ring-4 ring-purple-500/10 dark:ring-[#C7F303]/10">
+                        {/* Cabecera del Nodo Activo estilo Popup Central n8n */}
+                        <div className="px-3.5 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-purple-500/10 via-transparent to-emerald-500/10 flex items-center justify-between gap-2 shrink-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-purple-300 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-xs">
+                              {renderOfficialNodeSvg(activeNode.nodeId, 'w-6 h-6')}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-[#C7F303] truncate">
+                                  {activeNode.title}
+                                </span>
+                                {activeStepNum !== undefined ? (
+                                  <span className="px-2 py-0.5 rounded-lg text-[9.5px] font-black bg-slate-900 dark:bg-[#C7F303] text-[#C7F303] dark:text-[#0E1300]">
+                                    Paso #{activeStepNum}
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-lg text-[9.5px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                    ⚪ Sin conectar
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                                {activeNode.subtitle}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 py-0.5 px-0.5">
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="orange"
+                              disabled={sandboxRunning}
+                              icon={
+                                sandboxRunning ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                )
+                              }
+                              label="Probar paso"
+                              title="Probar este paso y refrescar INPUT / OUTPUT / LOGS"
+                              onClick={handleRunSandboxSimulation}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Sub-barra de pestañas del Nodo Central (`Parámetros` | `Ajustes`) con ExpandableButtons */}
+                        <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 flex items-center justify-between gap-2 shrink-0">
+                          <div className="flex items-center gap-2 py-0.5 px-0.5">
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="purple"
+                              isActive={ndvCenterTab === 'parameters'}
+                              icon={<Sliders className="w-3.5 h-3.5" />}
+                              badge={
+                                Array.isArray(currentCfg.fields) && currentCfg.fields.length > 0
+                                  ? currentCfg.fields.length
+                                  : undefined
+                              }
+                              label="Parámetros"
+                              title="Editar campos quirúrgicos, prompts, filtros y parámetros operativos del nodo"
+                              onClick={() => setNdvCenterTab('parameters')}
+                            />
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="teal"
+                              isActive={ndvCenterTab === 'settings'}
+                              icon={<Settings2 className="w-3.5 h-3.5" />}
+                              label="Ajustes"
+                              title="Configurar Modo Antigravity, Contexto de Entrada/Salida e Instrucciones técnicas"
+                              onClick={() => setNdvCenterTab('settings')}
+                            />
+                          </div>
+
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
+                            {ndvCenterTab === 'parameters'
+                              ? 'Edición en vivo → actualiza OUTPUT'
+                              : 'Ajustes avanzados del nodo'}
+                          </span>
+                        </div>
+
+                        {/* Cuerpo con scroll de CONFIGURACIÓN DEL NODO */}
+                        <div className="flex-1 overflow-y-auto p-3.5">
+                          {ndvCenterTab === 'parameters' ? (
+                            <WappyNodeCustomEditor
+                              activeNode={activeNode}
+                              currentCfg={currentCfg}
+                              onUpdateNodeConfig={handleUpdateNodeConfig}
+                              activeCompanyInfo={activeCompanyInfo}
+                              agentId={agentId}
+                              onSelectAgent={onSelectAgent}
+                              availableAgentsWithTenshiAvatar={availableAgentsWithTenshiAvatar}
+                              aiEngine={aiEngine}
+                              aiModel={aiModel}
+                              onSelectAiEngineModel={handleSelectAiEngineModel}
+                              prompt={prompt}
+                              onChangePrompt={onChangePrompt}
+                              onAutoBuildPrompt={onAutoBuildPrompt}
+                              extraAgentObj={extraAgentObj}
+                              onUpdateExtraAgent={handleUpdateExtraAgent}
+                              customNodeObj={customNodeObj}
+                              scheduleType={scheduleType}
+                              onChangeScheduleType={onChangeScheduleType}
+                              hour={hour}
+                              onChangeHour={onChangeHour}
+                              minute={minute}
+                              onChangeMinute={onChangeMinute}
+                              daysOfWeek={daysOfWeek}
+                              onChangeDaysOfWeek={onChangeDaysOfWeek}
+                              dayOfMonth={dayOfMonth}
+                              onChangeDayOfMonth={onChangeDayOfMonth}
+                              intervalHours={intervalHours}
+                              onChangeIntervalHours={onChangeIntervalHours}
+                              emailsStr={emailsStr}
+                              onChangeEmailsStr={onChangeEmailsStr}
+                              antigravityStatus={antigravityStatus}
+                              nodeLiveInspectorData={nodeLiveInspectorData}
+                              nodeReportHistory={nodeReportHistory}
+                              onPreviewNodeReport={handlePreviewNodeReport}
+                              onCloseReportPreview={() =>
+                                setNodeReportHistory((prev) => ({
+                                  ...prev,
+                                  previewConvId: null,
+                                  previewTitle: null,
+                                  previewText: null,
+                                }))
+                              }
+                              resolveRecordSurgicalPreview={resolveRecordSurgicalPreview}
+                            />
+                          ) : (
+                            /* ─── PESTAÑA `AJUSTES` CON SECCIONES DESPLEGABLES (ACCORDIONS) ─── */
+                            <div className="space-y-3">
+                              {/* Accordion 1: Modo de Ejecución Google Antigravity */}
+                              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setNdvExpandedSettingsSections((prev) => ({
+                                      ...prev,
+                                      antigravity: !prev.antigravity,
+                                    }))
+                                  }
+                                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left bg-slate-100/80 dark:bg-slate-800/80"
+                                >
+                                  <span className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {ndvExpandedSettingsSections.antigravity ? (
+                                      <ChevronDown className="w-4 h-4 text-teal-500" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 text-teal-500" />
+                                    )}
+                                    🛰️ Modo de Ejecución Google Antigravity
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-teal-500/15 text-teal-700 dark:text-teal-300">
+                                    {currentCfg.antigravityMode || 'auto'}
+                                  </span>
+                                </button>
+                                {ndvExpandedSettingsSections.antigravity && (
+                                  <div className="p-3 space-y-2">
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                      Elige cómo debe ejecutarse este nodo cuando requiera herramientas de Google Antigravity:
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2 py-0.5">
+                                      {[
+                                        {
+                                          id: 'auto' as const,
+                                          label: 'Automático (Smart)',
+                                          variant: 'emerald' as const,
+                                        },
+                                        {
+                                          id: 'local' as const,
+                                          label: 'AGY Local (Mac/PC)',
+                                          variant: 'amber' as const,
+                                        },
+                                        {
+                                          id: 'cloud' as const,
+                                          label: 'AGY Cloud 24/7',
+                                          variant: 'cyan' as const,
+                                        },
+                                      ].map((modeOpt) => (
+                                        <ExpandableButton
+                                          key={`agy_mode_${modeOpt.id}`}
+                                          type="button"
+                                          size="sm"
+                                          variant={modeOpt.variant}
+                                          isActive={
+                                            (currentCfg.antigravityMode || 'auto') === modeOpt.id
+                                          }
+                                          icon={<Cpu className="w-3.5 h-3.5" />}
+                                          label={modeOpt.label}
+                                          onClick={() =>
+                                            handleUpdateNodeConfig(activeNode.key, {
+                                              antigravityMode: modeOpt.id,
+                                            })
+                                          }
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Accordion 2: Contexto de Entrada y Salida del Nodo */}
+                              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setNdvExpandedSettingsSections((prev) => ({
+                                      ...prev,
+                                      context: !prev.context,
+                                    }))
+                                  }
+                                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left bg-slate-100/80 dark:bg-slate-800/80"
+                                >
+                                  <span className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {ndvExpandedSettingsSections.context ? (
+                                      <ChevronDown className="w-4 h-4 text-purple-500" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 text-purple-500" />
+                                    )}
+                                    🔄 Contexto de Entrada y Salida entre Nodos
+                                  </span>
+                                </button>
+                                {ndvExpandedSettingsSections.context && (
+                                  <div className="p-3 space-y-2.5">
+                                    <div>
+                                      <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                                        📥 Contexto de Entrada (`inputContext`)
+                                      </label>
+                                      <textarea
+                                        rows={2}
+                                        value={currentCfg.inputContext || ''}
+                                        onChange={(e) =>
+                                          handleUpdateNodeConfig(activeNode.key, {
+                                            inputContext: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Describe cómo debe interpretar este nodo los datos que le entran del paso anterior..."
+                                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                                        📤 Contexto de Salida (`outputContext`)
+                                      </label>
+                                      <textarea
+                                        rows={2}
+                                        value={currentCfg.outputContext || ''}
+                                        onChange={(e) =>
+                                          handleUpdateNodeConfig(activeNode.key, {
+                                            outputContext: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Describe qué estructura o resumen debe entregar este nodo al siguiente paso..."
+                                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Accordion 3: Instrucción Personalizada */}
+                              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setNdvExpandedSettingsSections((prev) => ({
+                                      ...prev,
+                                      instruction: !prev.instruction,
+                                    }))
+                                  }
+                                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left bg-slate-100/80 dark:bg-slate-800/80"
+                                >
+                                  <span className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {ndvExpandedSettingsSections.instruction ? (
+                                      <ChevronDown className="w-4 h-4 text-amber-500" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 text-amber-500" />
+                                    )}
+                                    ⚡ Instrucción / Regla Específica del Nodo (`customInstruction`)
+                                  </span>
+                                </button>
+                                {ndvExpandedSettingsSections.instruction && (
+                                  <div className="p-3">
+                                    <textarea
+                                      rows={3}
+                                      value={currentCfg.customInstruction || ''}
+                                      onChange={(e) =>
+                                        handleUpdateNodeConfig(activeNode.key, {
+                                          customInstruction: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Instrucción adicional o guardrail exclusivo para este paso..."
+                                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Accordion 4: Identificadores Técnicos */}
+                              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setNdvExpandedSettingsSections((prev) => ({
+                                      ...prev,
+                                      technical: !prev.technical,
+                                    }))
+                                  }
+                                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left bg-slate-100/80 dark:bg-slate-800/80"
+                                >
+                                  <span className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {ndvExpandedSettingsSections.technical ? (
+                                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                                    )}
+                                    🔧 Metadatos Técnicos del Nodo
+                                  </span>
+                                </button>
+                                {ndvExpandedSettingsSections.technical && (
+                                  <div className="p-3 text-[11px] space-y-1 font-mono text-slate-600 dark:text-slate-300">
+                                    <div>nodeKey: {activeNode.key}</div>
+                                    <div>nodeId: {activeNode.nodeId}</div>
+                                    <div>shape: {activeNode.shape}</div>
+                                    <div>
+                                      stepNumber:{' '}
+                                      {activeStepNum !== undefined ? `#${activeStepNum}` : 'Desconectado'}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ════════════════════════════════════════════════════════════════════════
+                          COLUMNA 3 (DERECHA - lg:col-span-4): `📤 OUTPUT (LO QUE ENVIÓ)` + `📜 LOGS / ERRORES`
+                         ════════════════════════════════════════════════════════════════════════ */}
+                      <div className="lg:col-span-4 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-lg">
+                        {/* Cabecera Principal con las 2 Pestañas solicitadas por el usuario (`📤 Salida` | `📜 Logs / Errores`) */}
+                        <div className="px-3.5 py-2.5 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                          <div className="flex items-center gap-2 py-0.5 px-0.5">
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="emerald"
+                              isActive={ndvOutputTab === 'output'}
+                              icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                              badge={resolvedOutputItems.length}
+                              label="📤 Salida (Lo que envió)"
+                              title="Ver los registros y campos exactos que este nodo envía al siguiente paso"
+                              onClick={() => setNdvOutputTab('output')}
+                            />
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant={hasNodeErrors ? 'rose' : 'amber'}
+                              isActive={ndvOutputTab === 'logs'}
+                              icon={<AlertTriangle className="w-3.5 h-3.5" />}
+                              badge={resolvedNodeLogs.length}
+                              label="📜 Logs / Errores"
+                              title="Ver la bitácora técnica paso a paso y posibles errores del nodo"
+                              onClick={() => setNdvOutputTab('logs')}
+                            />
+                          </div>
+
+                          {/* Indicador de estado rápido */}
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
+                              hasNodeErrors
+                                ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                                : traceStep
+                                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                                  : 'bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300'
+                            }`}
+                          >
+                            {hasNodeErrors
+                              ? '❌ Error'
+                              : traceStep
+                                ? `✓ ${traceStep.durationMs || 0} ms`
+                                : '⚡ En Vivo'}
+                          </span>
+                        </div>
+
+                        {ndvOutputTab === 'output' ? (
+                          <>
+                            {/* Sub-barra de vista de Salida (`Tabla` | `JSON` | `Schema` | `Informe`) + Buscador */}
+                            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 space-y-1.5 shrink-0">
+                              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 py-0.5 px-0.5">
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="emerald"
+                                    isActive={ndvOutputView === 'table'}
+                                    icon={<Table2 className="w-3.5 h-3.5" />}
+                                    badge={resolvedOutputItems.length}
+                                    label="Tabla"
+                                    title="Ver salida enviada en formato Tabla"
+                                    onClick={() => setNdvOutputView('table')}
+                                  />
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="amber"
+                                    isActive={ndvOutputView === 'json'}
+                                    icon={<Code2 className="w-3.5 h-3.5" />}
+                                    badge={resolvedOutputItems.length}
+                                    label="JSON"
+                                    title="Ver salida enviada en formato JSON desplegable"
+                                    onClick={() => setNdvOutputView('json')}
+                                  />
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="violet"
+                                    isActive={ndvOutputView === 'schema'}
+                                    icon={<Layers className="w-3.5 h-3.5" />}
+                                    badge={outputSchemaFields.length}
+                                    label="Schema"
+                                    title="Ver esquema de campos enviados por este nodo"
+                                    onClick={() => setNdvOutputView('schema')}
+                                  />
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="cyan"
+                                    isActive={ndvOutputView === 'markdown'}
+                                    icon={<FileText className="w-3.5 h-3.5" />}
+                                    label="Informe"
+                                    title="Ver vista previa textual / Markdown de la salida"
+                                    onClick={() => setNdvOutputView('markdown')}
+                                  />
+                                </div>
+
+                                {Array.isArray(currentCfg.fields) && currentCfg.fields.length > 0 && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-[9.5px] font-extrabold text-purple-700 dark:text-[#C7F303]">
+                                    🎯 {currentCfg.fields.length} campo(s) quirúrgico(s)
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="relative">
+                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <input
+                                  type="text"
+                                  value={ndvOutputSearch}
+                                  onChange={(e) => setNdvOutputSearch(e.target.value)}
+                                  placeholder="🔍 Filtrar salida enviada..."
+                                  className="w-full pl-8 pr-7 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 text-[11px] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                                />
+                                {ndvOutputSearch && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setNdvOutputSearch('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Contenido con scroll de OUTPUT */}
+                            <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+                              {ndvOutputView === 'markdown' ? (
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-3 text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed font-medium">
+                                  {resolvedOutputPreview}
+                                </div>
+                              ) : filteredOutputItems.length === 0 ? (
+                                <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-5 text-center space-y-2 my-2">
+                                  <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                                    📭 Sin registros de salida con el filtro actual
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    Ajusta los campos seleccionados en el panel central o haz clic en{' '}
+                                    <strong>«Probar paso»</strong>.
+                                  </p>
+                                </div>
+                              ) : ndvOutputView === 'table' ? (
+                                /* ─── VISTA 1 DE OUTPUT: TABLA EN TIEMPO REAL ─── */
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse text-[11px]">
+                                      <thead>
+                                        <tr className="bg-emerald-500/10 dark:bg-emerald-950/40 border-b border-emerald-500/20 text-emerald-900 dark:text-emerald-200">
+                                          <th className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider w-9">
+                                            #
+                                          </th>
+                                          {Object.keys(filteredOutputItems[0] || {}).map((col) => (
+                                            <th
+                                              key={`out_th_${col}`}
+                                              className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider whitespace-nowrap"
+                                            >
+                                              {col}
+                                            </th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {filteredOutputItems.map((row, rIdx) => (
+                                          <tr
+                                            key={`out_tr_${rIdx}`}
+                                            className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors"
+                                          >
+                                            <td className="py-1.5 px-2.5 font-black text-slate-400">
+                                              {rIdx + 1}
+                                            </td>
+                                            {Object.keys(filteredOutputItems[0] || {}).map((col) => {
+                                              const cellVal = row?.[col];
+                                              const displayVal =
+                                                cellVal === undefined || cellVal === null
+                                                  ? '—'
+                                                  : typeof cellVal === 'object'
+                                                    ? JSON.stringify(cellVal)
+                                                    : String(cellVal);
+                                              return (
+                                                <td
+                                                  key={`out_td_${rIdx}_${col}`}
+                                                  className="py-1.5 px-2.5 text-slate-700 dark:text-slate-200 font-medium max-w-[220px] truncate"
+                                                  title={displayVal}
+                                                >
+                                                  {displayVal}
+                                                </td>
+                                              );
+                                            })}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              ) : ndvOutputView === 'schema' ? (
+                                /* ─── VISTA 2 DE OUTPUT: SCHEMA DESPLEGABLE ─── */
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => setNdvExpandedOutputSchemaGroup((v) => !v)}
+                                    className="w-full px-3 py-2 flex items-center justify-between bg-emerald-500/10 dark:bg-emerald-950/40 text-left"
+                                  >
+                                    <span className="flex items-center gap-1.5 text-[11px] font-black text-emerald-900 dark:text-emerald-200">
+                                      {ndvExpandedOutputSchemaGroup ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-emerald-600" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-emerald-600" />
+                                      )}
+                                      📤 Esquema Enviado por «{activeNode.title}»
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/20 text-emerald-800 dark:text-emerald-200">
+                                      {outputSchemaFields.length} campos
+                                    </span>
+                                  </button>
+
+                                  {ndvExpandedOutputSchemaGroup && (
+                                    <div className="divide-y divide-slate-200/70 dark:divide-slate-800/80 p-2 space-y-1.5">
+                                      {outputSchemaFields.map((field) => {
+                                        const isCopied = ndvCopiedExpr === field.exprToken;
+                                        return (
+                                          <div
+                                            key={`out_schema_${field.key}`}
+                                            className="pt-1.5 first:pt-0 flex flex-col gap-1 rounded-lg p-1.5 hover:bg-white dark:hover:bg-slate-900 transition-colors"
+                                          >
+                                            <div className="flex items-center justify-between gap-1.5">
+                                              <div className="flex items-center gap-1.5 min-w-0">
+                                                <span
+                                                  className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase shrink-0 ${field.badgeClass}`}
+                                                >
+                                                  {field.typeLabel}
+                                                </span>
+                                                <span className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 truncate">
+                                                  {field.key}
+                                                </span>
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  try {
+                                                    navigator.clipboard?.writeText(field.exprToken);
+                                                  } catch (_) {}
+                                                  setNdvCopiedExpr(field.exprToken);
+                                                  setTimeout(() => setNdvCopiedExpr(null), 2000);
+                                                }}
+                                                className="px-2 py-0.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono font-bold hover:bg-emerald-500/20 flex items-center gap-1"
+                                              >
+                                                <Copy className="w-2.5 h-2.5" />
+                                                {isCopied ? '¡Copiado!' : field.exprToken}
+                                              </button>
+                                            </div>
+                                            <div className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate pl-1">
+                                              Valor enviado:{' '}
+                                              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                                {field.sampleValue}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                /* ─── VISTA 3 DE OUTPUT: JSON CON PESTAÑAS DESPLEGABLES POR ITEM ─── */
+                                <div className="space-y-2">
+                                  {filteredOutputItems.map((item, idx) => {
+                                    const isExpanded = Boolean(ndvExpandedOutputItems[idx]);
+                                    const itemTitle =
+                                      item['Nombre Completo'] ||
+                                      item['Registro'] ||
+                                      item['Disparador'] ||
+                                      item['AgenteIA'] ||
+                                      item['Nodo'] ||
+                                      Object.values(item)[0] ||
+                                      `Item #${idx + 1}`;
+                                    return (
+                                      <div
+                                        key={`out_json_item_${idx}`}
+                                        className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/60 overflow-hidden"
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setNdvExpandedOutputItems((prev) => ({
+                                              ...prev,
+                                              [idx]: !prev[idx],
+                                            }))
+                                          }
+                                          className="w-full px-3 py-1.5 flex items-center justify-between text-left bg-emerald-500/10 dark:bg-emerald-950/30 hover:bg-emerald-500/20 transition-colors"
+                                        >
+                                          <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-800 dark:text-slate-100 truncate">
+                                            {isExpanded ? (
+                                              <ChevronDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                            ) : (
+                                              <ChevronRight className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                            )}
+                                            <span className="text-emerald-600 dark:text-emerald-400">
+                                              Salida #{idx + 1}:
+                                            </span>
+                                            <span className="truncate">{String(itemTitle)}</span>
+                                          </span>
+                                          <span className="text-[9.5px] font-bold text-slate-400 shrink-0 ml-2">
+                                            {Object.keys(item || {}).length} campos
+                                          </span>
+                                        </button>
+                                        {isExpanded && (
+                                          <pre className="p-2.5 text-[10.5px] font-mono text-slate-700 dark:text-slate-200 overflow-x-auto leading-relaxed">
+                                            {JSON.stringify(item, null, 2)}
+                                          </pre>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          /* ─── PESTAÑA 2 DE COLUMNA DERECHA: `📜 LOGS / ERRORES` (Con Pestañas Desplegables) ─── */
+                          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+                            {/* Tarjeta Resumen de Estado del Nodo */}
+                            <div
+                              className={`rounded-2xl border p-3 space-y-1.5 ${
+                                hasNodeErrors
+                                  ? 'bg-rose-500/10 border-rose-500/40 text-rose-800 dark:text-rose-200'
+                                  : traceStep
+                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
+                                    : 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                                  {hasNodeErrors ? (
+                                    <>
+                                      <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                                      ❌ Error Detectado en el Nodo
+                                    </>
+                                  ) : traceStep ? (
+                                    <>
+                                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                      ✅ Ejecución Exitosa del Nodo
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                                      ⏳ Listo para Ejecutar Prueba
+                                    </>
+                                  )}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-black/10 dark:bg-white/10">
+                                  {traceStep ? `${traceStep.durationMs || 0} ms` : 'Modo Inspector'}
+                                </span>
+                              </div>
+                              <div className="text-[11px] opacity-90 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span>
+                                  <strong>Motor:</strong>{' '}
+                                  {currentCfg.antigravityMode
+                                    ? `Antigravity (${currentCfg.antigravityMode})`
+                                    : aiEngine === 'antigravity_cloud'
+                                      ? 'AGY Cloud 24/7'
+                                      : aiEngine === 'antigravity'
+                                        ? 'AGY Local PC'
+                                        : `WAPPY (${aiModel})`}
+                                </span>
+                                <span>
+                                  <strong>Entrada:</strong> {resolvedInputItems.length} ítem(s)
+                                </span>
+                                <span>
+                                  <strong>Salida:</strong> {resolvedOutputItems.length} ítem(s)
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Lista de Pestañas Desplegables (Accordions) por cada evento de Log / Error */}
+                            <div className="space-y-2">
+                              {resolvedNodeLogs.map((logItem, lIdx) => {
+                                const isLogOpen =
+                                  ndvExpandedLogItems[lIdx] !== undefined
+                                    ? ndvExpandedLogItems[lIdx]
+                                    : true;
+                                const levelStyles =
+                                  logItem.level === 'error'
+                                    ? {
+                                        card: 'border-rose-500/40 bg-rose-500/5',
+                                        header:
+                                          'bg-rose-500/15 text-rose-800 dark:text-rose-200 hover:bg-rose-500/20',
+                                        badge:
+                                          'bg-rose-500/20 border-rose-500/40 text-rose-700 dark:text-rose-300',
+                                        label: 'ERROR',
+                                      }
+                                    : logItem.level === 'warn'
+                                      ? {
+                                          card: 'border-amber-500/40 bg-amber-500/5',
+                                          header:
+                                            'bg-amber-500/15 text-amber-800 dark:text-amber-200 hover:bg-amber-500/20',
+                                          badge:
+                                            'bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300',
+                                          label: 'AVISO',
+                                        }
+                                      : logItem.level === 'success'
+                                        ? {
+                                            card: 'border-emerald-500/30 bg-emerald-500/5',
+                                            header:
+                                              'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20',
+                                            badge:
+                                              'bg-emerald-500/20 border-emerald-500/40 text-emerald-700 dark:text-emerald-300',
+                                            label: 'OK',
+                                          }
+                                        : {
+                                            card: 'border-sky-500/30 bg-sky-500/5',
+                                            header:
+                                              'bg-sky-500/10 text-sky-800 dark:text-sky-200 hover:bg-sky-500/20',
+                                            badge:
+                                              'bg-sky-500/20 border-sky-500/40 text-sky-700 dark:text-sky-300',
+                                            label: 'INFO',
+                                          };
+
+                                return (
+                                  <div
+                                    key={`node_log_${lIdx}`}
+                                    className={`rounded-xl border overflow-hidden transition-colors ${levelStyles.card}`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setNdvExpandedLogItems((prev) => ({
+                                          ...prev,
+                                          [lIdx]: !isLogOpen,
+                                        }))
+                                      }
+                                      className={`w-full px-3 py-2 flex items-center justify-between gap-2 text-left transition-colors ${levelStyles.header}`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        {isLogOpen ? (
+                                          <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                                        ) : (
+                                          <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                                        )}
+                                        <span
+                                          className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase shrink-0 ${levelStyles.badge}`}
+                                        >
+                                          {levelStyles.label}
+                                        </span>
+                                        <span className="text-[11px] font-extrabold truncate">
+                                          {logItem.message}
+                                        </span>
+                                      </div>
+                                      {logItem.timestamp && (
+                                        <span className="text-[9.5px] font-mono opacity-75 shrink-0">
+                                          {logItem.timestamp}
+                                        </span>
+                                      )}
+                                    </button>
+                                    {isLogOpen && logItem.detail && (
+                                      <div className="p-2.5 text-[11px] text-slate-700 dark:text-slate-300 font-mono whitespace-pre-wrap leading-relaxed border-t border-slate-200/50 dark:border-slate-800/60">
+                                        {logItem.detail}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null;
+
+        return (
+          <>
+            {quickInspectorBar}
+            {ndvModalPortal}
+          </>
         );
       })()}
     </div>
