@@ -41,6 +41,9 @@
     html {
       scroll-behavior: smooth;
       scroll-padding-top: 110px;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
     }
 
     [id], section, .schedule-banner {
@@ -52,6 +55,8 @@
       background-color: var(--bg);
       color: var(--ink);
       line-height: 1.5;
+      width: 100%;
+      max-width: 100%;
       overflow-x: hidden;
     }
 
@@ -77,7 +82,7 @@
     }
 
     .nav-inner {
-      max-width: 1140px;
+      max-width: 1180px;
       margin: 0 auto;
       background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(16px);
@@ -89,7 +94,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 12px 0 20px;
+      gap: 10px;
+      padding: 0 12px 0 18px;
       transition: all 0.25s ease;
     }
 
@@ -140,24 +146,91 @@
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 26px;
+      gap: 16px;
     }
 
     .nav-links a {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 600;
       color: var(--slate-dark);
-      transition: color 0.15s ease;
+      transition: all 0.18s ease;
+      white-space: nowrap;
     }
 
     .nav-links a:hover {
       color: var(--teal);
     }
 
+    .nav-links a.nav-pill-aula {
+      background: rgba(13, 148, 136, 0.10);
+      border: 1px solid rgba(13, 148, 136, 0.30);
+      color: #0f766e;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 12px;
+    }
+
+    .nav-links a.nav-pill-aula:hover {
+      background: rgba(13, 148, 136, 0.18);
+      transform: translateY(-1px);
+    }
+
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Botón Regla 8 WAPPY Auth (#navCtaEnterWappy) */
+    .nav-cta-wappy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: rgba(13, 148, 136, 0.10);
+      border: 1.5px solid rgba(13, 148, 136, 0.32);
+      color: #0f766e;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 800;
+      padding: 8px 15px;
+      border-radius: 9999px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .nav-cta-wappy.logged-in {
+      background: #0e1300;
+      border-color: rgba(199, 243, 3, 0.55);
+      color: var(--lime);
+      padding: 5px 14px 5px 6px;
+    }
+
+    .nav-cta-wappy:hover {
+      background: rgba(13, 148, 136, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .nav-cta-wappy.logged-in:hover {
+      background: #1b2405;
+    }
+
+    .nav-cta-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid rgba(199, 243, 3, 0.55);
+      flex-shrink: 0;
+      background: #0d9488;
+    }
+
+    @media (max-width: 1140px) {
+      .nav-links {
+        display: none;
+      }
     }
 
     /* BUTTONS */
@@ -750,6 +823,160 @@
       color: #ffffff;
     }
 
+    /* ESTADOS DE CLASES GRABADAS (01-03) Y PRÓXIMA EN VIVO (04) */
+    .module-card.completed {
+      border-color: rgba(13, 148, 136, 0.35);
+      background: linear-gradient(180deg, #ffffff 0%, #f8fffe 100%);
+    }
+
+    .module-card.completed .module-num {
+      background: rgba(13, 148, 136, 0.10);
+      border-color: rgba(13, 148, 136, 0.32);
+    }
+
+    .module-card.completed .module-num span,
+    .module-card.completed .module-num strong {
+      color: #0f766e;
+    }
+
+    .module-card.completed .pill-status {
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #065f46;
+    }
+
+    .module-card.live-next {
+      background: linear-gradient(135deg, #fffafa 0%, #f0fdfa 100%);
+      border: 2px solid #dc2626;
+      box-shadow: 0 12px 32px rgba(220, 38, 38, 0.10);
+    }
+
+    .module-card.live-next .module-num {
+      background: rgba(239, 68, 68, 0.10);
+      border-color: rgba(239, 68, 68, 0.40);
+    }
+
+    .module-card.live-next .module-num span,
+    .module-card.live-next .module-num strong {
+      color: #b91c1c;
+    }
+
+    .module-card.live-next .pill-status {
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.40);
+      color: #991b1b;
+    }
+
+    .module-meta-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .module-meta-row .module-date-tag {
+      margin-bottom: 0;
+    }
+
+    .module-status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    .module-status-tag.done {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
+    }
+
+    .module-status-tag.live {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+    }
+
+    .meet-badge-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 11.5px;
+      padding: 5px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      box-shadow: 0 2px 6px rgba(13, 148, 136, 0.24);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      max-width: 100%;
+      word-break: break-word;
+    }
+
+    .meet-badge-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(13, 148, 136, 0.34);
+    }
+
+    .module-cta-row {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn-enter-class {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 800;
+      padding: 10px 18px;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.22s ease;
+      max-width: 100%;
+    }
+
+    .btn-enter-class.recorded {
+      background: rgba(13, 148, 136, 0.10);
+      border: 1.5px solid rgba(13, 148, 136, 0.35);
+      color: #0f766e;
+    }
+
+    .btn-enter-class.recorded:hover {
+      background: #0d9488;
+      border-color: #0d9488;
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(13, 148, 136, 0.25);
+    }
+
+    .btn-enter-class.live-cta {
+      background: var(--lime);
+      border: 1.5px solid rgba(14, 19, 0, 0.18);
+      color: var(--ink);
+      box-shadow: 0 6px 18px rgba(199, 243, 3, 0.45);
+    }
+
+    .btn-enter-class.live-cta:hover {
+      background: var(--lime-hover);
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 10px 26px rgba(199, 243, 3, 0.6);
+    }
+
+    .module-info {
+      min-width: 0;
+    }
+
     /* ==========================================================================
        PRICING & FINANCING SECTION
        ========================================================================== */
@@ -1258,17 +1485,64 @@
         gap: 10px;
         padding: 16px;
       }
+      .nav-container {
+        padding: 0 10px;
+      }
       .nav-inner {
-        padding: 0 10px 0 14px;
+        padding: 0 8px 0 12px;
         height: 56px;
+        gap: 6px;
+      }
+      .nav-logo {
+        gap: 8px;
+      }
+      .nav-logo-icon {
+        width: 32px;
+        height: 32px;
       }
       .logo-title {
-        font-size: 17px;
+        font-size: 15px;
       }
-      .btn-lime {
-        padding: 8px 16px;
-        font-size: 13.5px;
+      .logo-sub {
+        font-size: 7.5px;
       }
+      .nav-actions {
+        gap: 6px;
+      }
+      .nav-cta-wappy {
+        padding: 6px 10px;
+        font-size: 11.5px;
+        gap: 5px;
+      }
+      .nav-cta-wappy.logged-in {
+        padding: 4px 10px 4px 5px;
+      }
+      .nav-cta-avatar {
+        width: 19px;
+        height: 19px;
+      }
+      .nav-actions .btn-lime {
+        padding: 6px 11px;
+        font-size: 11.5px;
+      }
+      .btn-enter-class {
+        width: 100%;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.35;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .logo-sub {
+        display: none;
+      }
+      .nav-cta-wappy,
+      .nav-actions .btn-lime {
+        padding: 5px 8px;
+        font-size: 10.5px;
+      }
+    }
       .floating-wa-circle {
         bottom: 20px;
         right: 16px;
@@ -1298,6 +1572,7 @@
       <!-- ENLACES DE NAVEGACIÓN -->
       <div class="nav-links">
         <a href="#horario">Fechas y Horario</a>
+        <a href="#temario" class="nav-pill-aula">🎓 Aula Clases (1–4)</a>
         <a href="#temario">Temario</a>
         <a href="#requisitos">Requisitos & Costos</a>
         <a href="#pagos">Facilidades de Pago</a>
@@ -1305,6 +1580,9 @@
       </div>
 
       <div class="nav-actions">
+        <a id="navCtaEnterWappy" href="/login" class="nav-cta-wappy">
+          <span>Ir a WAPPY</span>
+        </a>
         <a href="https://wa.me/573102913651?text=Hola%20F%C3%A9lix,%20deseo%20separar%20mi%20cupo%20para%20el%20Curso%20Ecosistema%20Aut%C3%B3nomo%20SST%20($620.000%20COP)." class="btn btn-lime" target="_blank">Inscribirme</a>
       </div>
     </nav>
@@ -1484,94 +1762,128 @@
 
       <div class="syllabus-grid">
         <!-- Clase 1 -->
-        <div class="module-card">
+        <div class="module-card completed">
           <div class="module-num">
             <span>Clase</span>
             <strong>01</strong>
           </div>
           <div class="module-info">
-            <span class="module-date-tag">🗓️ Martes 20 de Octubre · 7:00 PM – 9:00 PM</span>
-            <div style="margin-top: 6px; margin-bottom: 6px;">
-              <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: #ffffff; font-weight: 700; font-size: 11px; padding: 4px 10px; border-radius: 7px; text-decoration: none; box-shadow: 0 2px 4px rgba(13,148,136,0.2);">
-                <span>📹</span> Sala Google Meet: meet.google.com/xvz-jmvv-iym
-              </a>
+            <div class="module-meta-row">
+              <span class="module-date-tag">🗓️ Martes 20 de Octubre · 7:00 PM – 9:00 PM</span>
+              <span class="module-status-tag done">✅ Grabación y Notas Disponibles</span>
             </div>
             <h3>El Poder Autónomo de Antigravity (Solo + Conexión a WAPPY)</h3>
-            <p>Descubre todo lo que Antigravity puede hacer por sí solo en tu computador: lectura masiva de PDFs de inspecciones, cruce de Excels y organización de evidencias sin programar. Luego, conéctalo a WAPPY para sincronizar los agentes de SST con tus archivos.</p>
+            <p>Fundamentos de IA desde cero (LLMs, Tokens, API Keys y MCP), instalación práctica de Google Antigravity en PC, creación de proyectos en carpetas locales, lectura masiva de archivos con la regla <em>«sin editar nada»</em> y conexión con WAPPY, Drive y NotebookLM.</p>
             <div class="module-tags">
               <span class="tag-badge special">¡Libras el curso aquí!</span>
               <span class="tag-badge">Instalación PC</span>
-              <span class="tag-badge">Capa Gratuita & $20K</span>
-              <span class="tag-badge">Manejo de Archivos</span>
+              <span class="tag-badge">Tokens &amp; MCP</span>
+              <span class="tag-badge">Proyectos en Carpetas</span>
+              <span class="tag-badge">Triggers &amp; Skills</span>
+            </div>
+            <div class="module-cta-row">
+              <a href="/clase1" class="btn-enter-class recorded">🎥 Entrar a Clase 1 (Slides, Video y Notas) →</a>
             </div>
           </div>
           <div class="module-badge-side">
-            <span class="pill-status">Semana 1</span>
+            <span class="pill-status">✅ Semana 1</span>
           </div>
         </div>
 
         <!-- Clase 2 -->
-        <div class="module-card">
+        <div class="module-card completed">
           <div class="module-num">
             <span>Clase</span>
             <strong>02</strong>
           </div>
           <div class="module-info">
-            <span class="module-date-tag">🗓️ Martes 27 de Octubre · 7:00 PM – 9:00 PM</span>
-            <h3>Tenshi en el Bolsillo: Instrucciones por Voz desde el Celular</h3>
-            <p>Convierte tu celular en un comando de voz manos libres en campo. Aprende a dictarle a Tenshi actos y condiciones inseguras mientras caminas por la obra, y cómo Tenshi le ordena a Antigravity trabajar en el computador de tu oficina en segundo plano.</p>
+            <div class="module-meta-row">
+              <span class="module-date-tag">🗓️ Martes 27 de Octubre · 7:00 PM – 9:00 PM</span>
+              <span class="module-status-tag done">✅ Grabación y Notas Disponibles</span>
+            </div>
+            <h3>Optimización Extrema de Tokens, Conexión MCP Única, Tenshi Voice &amp; Memoria Procedural</h3>
+            <p>Optimización de Tokens en <strong>Modo Turbo/Low</strong>, lectura quirúrgica de documentos pesados con scripts de <strong>Python</strong>, uso de <strong>WAPPY en Móvil</strong>, arquitectura de <strong>Conexión MCP Única</strong>, selección de <strong>Empresa Activa</strong>, comando por voz con <strong>Tenshi Voice</strong> y creación de <strong>Memoria Procedural</strong> evolutiva.</p>
             <div class="module-tags">
+              <span class="tag-badge special">Modo Turbo / Low</span>
+              <span class="tag-badge">Lectura con Python</span>
+              <span class="tag-badge">WAPPY en Móvil</span>
+              <span class="tag-badge">Conexión MCP Única</span>
+              <span class="tag-badge">Empresa Activa</span>
               <span class="tag-badge">Tenshi Voice</span>
-              <span class="tag-badge">Captura en Campo</span>
-              <span class="tag-badge">Despacho Multiturno</span>
+              <span class="tag-badge">Memoria Procedural</span>
+            </div>
+            <div class="module-cta-row">
+              <a href="/clase2" class="btn-enter-class recorded">🎥 Entrar a Clase 2 (Slides, Video y Notas) →</a>
             </div>
           </div>
           <div class="module-badge-side">
-            <span class="pill-status">Semana 2</span>
+            <span class="pill-status">✅ Semana 2</span>
           </div>
         </div>
 
         <!-- Clase 3 -->
-        <div class="module-card">
+        <div class="module-card completed">
           <div class="module-num">
             <span>Clase</span>
             <strong>03</strong>
           </div>
           <div class="module-info">
-            <span class="module-date-tag">🗓️ Martes 3 de Noviembre · 7:00 PM – 9:00 PM</span>
-            <h3>El Cerebro Normativo: NotebookLM (Citas Exactas, Podcasts y Videos)</h3>
-            <p>Indexa el SG-SST (Dec. 1072, Res. 0312, PESV) sin alucinaciones con citas exactas de artículos para auditorías. Aprende la magia de generar <strong>Podcasts en audio a dos voces</strong> para que los trabajadores se capaciten en pausas activas o antes del turno.</p>
+            <div class="module-meta-row">
+              <span class="module-date-tag">🗓️ Jueves 5 de Noviembre · Semana 3</span>
+              <span class="module-status-tag done">✅ Grabación y Notas Disponibles</span>
+            </div>
+            <h3>Subagentes en Paralelo, 40 Fichas LOTO, Control Móvil QR, Vibe-Coding &amp; APIs Públicas</h3>
+            <p>Generación masiva de <strong>40 Fichas LOTO con IA</strong> usando <strong>Subagentes en Paralelo</strong>, <strong>Control Remoto Móvil por QR</strong> hacia tu PC, <strong>Vibe-Coding HTML</strong> interactivo, regla de oro de separación <strong>1 Proyecto = 1 Empresa</strong>, consulta vía <strong>APIs/Scraping (RUES, Tránsito y Aportes en Línea)</strong> y el <strong>Puente de 3 Pasos con WAPPY</strong>.</p>
             <div class="module-tags">
-              <span class="tag-badge">NotebookLM</span>
-              <span class="tag-badge">Podcasts con IA</span>
-              <span class="tag-badge">Cero Alucinación</span>
-              <span class="tag-badge">Guiones Video</span>
+              <span class="tag-badge special">40 Fichas LOTO con IA</span>
+              <span class="tag-badge">Subagentes en Paralelo</span>
+              <span class="tag-badge">Control Remoto QR</span>
+              <span class="tag-badge">Vibe-Coding HTML</span>
+              <span class="tag-badge">1 Proyecto = 1 Empresa</span>
+              <span class="tag-badge">RUES · Tránsito · Aportes</span>
+              <span class="tag-badge">Puente 3 Pasos WAPPY</span>
+            </div>
+            <div class="module-cta-row">
+              <a href="/clase3" class="btn-enter-class recorded">🎥 Entrar a Clase 3 (Slides, Video y Notas) →</a>
             </div>
           </div>
           <div class="module-badge-side">
-            <span class="pill-status">Semana 3</span>
+            <span class="pill-status">✅ Semana 3</span>
           </div>
         </div>
 
         <!-- Clase 4 -->
-        <div class="module-card">
+        <div class="module-card live-next">
           <div class="module-num">
             <span>Clase</span>
             <strong>04</strong>
           </div>
           <div class="module-info">
-            <span class="module-date-tag">🗓️ Martes 10 de Noviembre · 7:00 PM – 9:00 PM</span>
-            <h3>La Tríada de Google: Drive (20 años) + Gmail + Google Calendar</h3>
-            <p>Automatiza el archivo de evidencias en Drive. Automatiza el envío de actas formales de COPASST por Gmail. Y agenda automáticamente en <strong>Google Calendar</strong> las inspecciones periódicas, vencimientos de exámenes médicos y comités del Plan Anual.</p>
+            <div class="module-meta-row">
+              <span class="module-date-tag">🗓️ Martes 10 de Noviembre · 7:00 PM – 8:00 PM</span>
+              <span class="module-status-tag live">🔴 Próxima Clase en Vivo</span>
+            </div>
+            <div style="margin-top: 4px; margin-bottom: 8px;">
+              <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="meet-badge-link">
+                <span>📹</span> Sala Google Meet: meet.google.com/yxv-gyhv-ron
+              </a>
+            </div>
+            <h3>NotebookLM (0% Alucinación &amp; Podcasts), Google Flow (Videos 3.5 Min), Planes de Emergencia &amp; Automatización</h3>
+            <p>Domina <strong>Google NotebookLM con 0% alucinación</strong>, generación de <strong>Podcasts a 2 voces</strong> y <strong>Mapas Mentales</strong> normativos, producción en <strong>Google Flow</strong> de imágenes y <strong>videos de capacitación de 3.5 min</strong>, diseño de <strong>Planes de Emergencia</strong> y <strong>Automatizaciones integradas con Drive, Gmail, Calendar y Tenshi</strong>.</p>
             <div class="module-tags">
-              <span class="tag-badge">Google Drive</span>
-              <span class="tag-badge">Gmail Automatizado</span>
-              <span class="tag-badge">Google Calendar</span>
-              <span class="tag-badge">Cronograma SST</span>
+              <span class="tag-badge special">NotebookLM 0% Alucinación</span>
+              <span class="tag-badge">Podcasts a 2 Voces</span>
+              <span class="tag-badge">Mapas Mentales</span>
+              <span class="tag-badge">Google Flow · Videos 3.5m</span>
+              <span class="tag-badge">Planes de Emergencia</span>
+              <span class="tag-badge">Drive + Gmail + Calendar + Tenshi</span>
+            </div>
+            <div class="module-cta-row">
+              <a href="/clase4" class="btn-enter-class live-cta">🚀 Entrar a Página Clase 4 →</a>
             </div>
           </div>
           <div class="module-badge-side">
-            <span class="pill-status">Semana 4</span>
+            <span class="pill-status">🔴 En Vivo · Mar 10</span>
           </div>
         </div>
 
@@ -1791,5 +2103,95 @@
     </svg>
   </a>
 
+  <!-- DETECCIÓN AUTOMÁTICA DE SESIÓN ACTIVA WAPPY (REGLA 8 AGENTS.md) -->
+  <script>
+    window.platformUser = null;
+    window.platformUserToken = '';
+    window.isPlatformLoggedIn = false;
+
+    function updateWappyAuthNav(user, token) {
+      const isLogged = Boolean(user);
+      window.platformUser = user || null;
+      window.platformUserToken = token || '';
+      window.isPlatformLoggedIn = isLogged;
+
+      const isLocalFile = window.location.protocol === 'file:';
+      const baseOrigin = isLocalFile ? 'https://wappy.club' : '';
+      const navCta = document.getElementById('navCtaEnterWappy');
+      const mobileCta = document.getElementById('mobileCtaEnterWappy');
+
+      if (isLogged && user) {
+        const rawName = String(user.name || user.username || user.email || 'Usuario').trim();
+        const firstName = rawName.split(' ')[0] || 'Usuario';
+        const avatarSrc = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(rawName)}&backgroundColor=0d9488`;
+
+        if (navCta) {
+          navCta.setAttribute('href', `${baseOrigin}/c/new`);
+          navCta.classList.add('logged-in');
+          navCta.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = avatarSrc;
+          img.alt = '';
+          img.className = 'nav-cta-avatar';
+          const span = document.createElement('span');
+          span.textContent = 'Entrar a WAPPY →';
+          navCta.appendChild(img);
+          navCta.appendChild(span);
+        }
+
+        if (mobileCta) {
+          mobileCta.setAttribute('href', `${baseOrigin}/c/new`);
+          mobileCta.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = avatarSrc;
+          img.alt = '';
+          img.className = 'nav-cta-avatar';
+          const span = document.createElement('span');
+          span.textContent = `Entrar a WAPPY como ${firstName} →`;
+          mobileCta.appendChild(img);
+          mobileCta.appendChild(span);
+        }
+      } else {
+        if (navCta) {
+          navCta.setAttribute('href', `${baseOrigin}/login`);
+          navCta.classList.remove('logged-in');
+          navCta.innerHTML = '<span>Ir a WAPPY</span>';
+        }
+        if (mobileCta) {
+          mobileCta.setAttribute('href', `${baseOrigin}/login`);
+          mobileCta.innerHTML = '<span>Ir a WAPPY</span>';
+        }
+      }
+
+      try {
+        window.dispatchEvent(new CustomEvent('wappy-auth-updated', {
+          detail: { user: window.platformUser, token: window.platformUserToken, isLoggedIn: isLogged }
+        }));
+      } catch (e) {}
+    }
+
+    async function detectWappySession() {
+      if (window.location.protocol === 'file:') {
+        updateWappyAuthNav(null, '');
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.user) {
+            updateWappyAuthNav(data.user, data.token || '');
+            return;
+          }
+        }
+      } catch (err) {}
+      updateWappyAuthNav(null, '');
+    }
+
+    document.addEventListener('DOMContentLoaded', detectWappySession);
+  </script>
 </body>
 </html>

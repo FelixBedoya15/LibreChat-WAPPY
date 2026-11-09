@@ -17,6 +17,7 @@ tenshi_img = get_base64_img('client/public/assets/tenshi.png')
 felix_avatar = get_base64_img('client/public/assets/felix_avatar_3d.png')
 wappy_horiz_logo = get_base64_img('client/public/assets/wappy_horizontal_black_logo.png')
 agy_logo = get_base64_img('client/public/assets/antigravity_logo.png')
+thumb_bg = get_base64_img('client/public/assets/thumb_bg_clase2.jpg')
 
 if not cat_logo:
     cat_logo = logo_wappy
@@ -26,8 +27,8 @@ html_content = f'''<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-  <title>WAPPY IA · Clase 2: Tenshi en el Bolsillo, Conexión MCP WAPPY & Skills en Vivo | SOMOS SST</title>
-  <meta name="description" content="Clase 2 Oficial WAPPY IA + Google Antigravity: Tenshi en el Bolsillo (instrucciones por voz desde el celular en campo), órdenes delegadas a Antigravity, conexión práctica MCP con WAPPY, ahorro del 80% de tokens con Markdown, y creación de Skills y Triggers sin código.">
+  <title>WAPPY IA · Clase 2: Optimización de Tokens, Conexión MCP Única, WAPPY Móvil &amp; Tenshi Voice | SOMOS SST</title>
+  <meta name="description" content="Clase 2 oficial grabada y memorias completas: Optimización de consumo de tokens en modo Turbo y Low, lectura universal de carpetas con Python, informes técnicos de ingeniería ($2.5M-$3M COP), WAPPY en celular, Google Workspace, conexión MCP única, Empresa Activa y Tenshi Voice con Memoria Procedural.">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png?v=wappy" />
   <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png?v=wappy" />
   <link rel="shortcut icon" href="/assets/favicon-32x32.png?v=wappy" />
@@ -272,6 +273,161 @@ html_content = f'''<!DOCTYPE html>
         height: 20px;
         font-size: 11px;
       }}
+      .nav-cta-wappy {{
+        padding: 6px 11px;
+        font-size: 11.5px;
+        gap: 6px;
+      }}
+      .nav-cta-wappy .nav-cta-avatar {{
+        width: 20px;
+        height: 20px;
+      }}
+    }}
+
+    /* Botón Dinámico Regla 8 WAPPY Auth (#navCtaEnterWappy) */
+    .nav-actions {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }}
+
+    .nav-cta-wappy {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--lime);
+      color: var(--ink);
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      box-shadow: 0 6px 18px -4px rgba(168, 207, 0, 0.55);
+      transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+      white-space: nowrap;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid rgba(14, 19, 0, 0.12);
+    }}
+
+    .nav-cta-wappy.logged-in {{
+      padding: 5px 15px 5px 7px;
+    }}
+
+    .nav-cta-wappy:hover {{
+      background: #b8e202;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px -5px rgba(168, 207, 0, 0.65);
+    }}
+
+    .nav-cta-wappy:active {{
+      transform: scale(0.96);
+    }}
+
+    .nav-cta-avatar {{
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid rgba(14, 19, 0, 0.22);
+      flex-shrink: 0;
+      background: #0d9488;
+    }}
+
+    /* ==========================================================================
+       1B. BARRA ORGANIZADORA DEL CURSO (NAVEGACIÓN ENTRE CLASES 1 A 4)
+       ========================================================================== */
+    .course-organizer-strip {{
+      position: relative;
+      z-index: 20;
+      background: linear-gradient(180deg, #091318 0%, #0d2126 100%);
+      border-bottom: 1.5px solid rgba(199, 243, 3, 0.35);
+      padding: 78px 12px 12px;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }}
+
+    .course-organizer-inner {{
+      max-width: 1060px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+
+    .course-org-pill {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 12px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #e2e8f0;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+      max-width: 100%;
+    }}
+
+    .course-org-pill:hover {{
+      transform: translateY(-2px) scale(1.03);
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(199, 243, 3, 0.55);
+      color: #ffffff;
+    }}
+
+    .course-org-pill.active {{
+      background: var(--lime);
+      color: var(--ink);
+      border-color: var(--lime);
+      box-shadow: 0 6px 20px rgba(199, 243, 3, 0.4);
+      font-weight: 900;
+    }}
+
+    .course-org-pill.done {{
+      background: rgba(13, 148, 136, 0.2);
+      border-color: rgba(45, 212, 191, 0.45);
+      color: #99f6e4;
+    }}
+
+    .course-org-pill.done:hover {{
+      background: rgba(13, 148, 136, 0.34);
+      color: #ecfdf5;
+    }}
+
+    .course-org-pill.live {{
+      background: rgba(239, 68, 68, 0.18);
+      border-color: rgba(248, 113, 113, 0.55);
+      color: #fecaca;
+    }}
+
+    .course-org-pill.live:hover {{
+      background: rgba(239, 68, 68, 0.3);
+      color: #ffffff;
+    }}
+
+    @media (max-width: 640px) {{
+      .course-organizer-strip {{
+        padding: 70px 10px 10px;
+      }}
+      .course-organizer-inner {{
+        gap: 6px;
+      }}
+      .course-org-pill {{
+        font-size: 11px;
+        padding: 6px 10px;
+        border-radius: 10px;
+      }}
     }}
 
     /* Evitar cualquier desbordamiento en celdas Grid/Flex */
@@ -369,7 +525,7 @@ html_content = f'''<!DOCTYPE html>
     .hero {{
       position: relative;
       background: var(--sky);
-      padding-top: clamp(98px, 10vw, 132px);
+      padding-top: clamp(28px, 4vw, 48px);
       padding-bottom: clamp(36px, 5vw, 60px);
       overflow: hidden;
       border-bottom: 1px solid rgba(14, 19, 0, 0.08);
@@ -1286,19 +1442,16 @@ html_content = f'''<!DOCTYPE html>
       border: 0;
     }}
 
-    /* Miniatura Personalizada (Poster Overlay) sobre el Reproductor */
+    /* Miniatura Personalizada HD 16:9 (Poster Overlay) sobre el Reproductor */
     .video-thumb-cover {{
       position: absolute;
       inset: 0;
       z-index: 10;
-      background:
-        radial-gradient(circle at 18% 55%, rgba(199, 243, 3, 0.22) 0%, transparent 45%),
-        radial-gradient(circle at 82% 55%, rgba(45, 212, 191, 0.26) 0%, transparent 48%),
-        linear-gradient(135deg, #06151a 0%, #0b262e 50%, #040d11 100%);
+      background: #040d11;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: clamp(16px, 3.5vw, 44px);
+      padding: clamp(12px, 2.8vw, 38px);
       cursor: pointer;
       transition: opacity 0.4s ease, visibility 0.4s ease;
       overflow: hidden;
@@ -1310,12 +1463,40 @@ html_content = f'''<!DOCTYPE html>
       pointer-events: none;
     }}
 
+    .video-thumb-bg-img {{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      z-index: 0;
+      pointer-events: none;
+      transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }}
+
+    .video-thumb-cover:hover .video-thumb-bg-img {{
+      transform: scale(1.04);
+    }}
+
+    .video-thumb-radial-overlay {{
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(3, 10, 15, 0.80) 0%, rgba(4, 15, 20, 0.58) 52%, rgba(2, 7, 11, 0.84) 100%),
+        radial-gradient(circle at 16% 58%, rgba(199, 243, 3, 0.16) 0%, transparent 44%),
+        radial-gradient(circle at 84% 58%, rgba(45, 212, 191, 0.20) 0%, transparent 46%);
+      pointer-events: none;
+    }}
+
     .video-thumb-grid-bg {{
       position: absolute;
       inset: 0;
+      z-index: 1;
       background-image:
-        linear-gradient(rgba(199, 243, 3, 0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(45, 212, 191, 0.06) 1px, transparent 1px);
+        linear-gradient(rgba(199, 243, 3, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45, 212, 191, 0.045) 1px, transparent 1px);
       background-size: 44px 44px;
       pointer-events: none;
     }}
@@ -1327,7 +1508,7 @@ html_content = f'''<!DOCTYPE html>
       flex-direction: column;
       align-items: center;
       justify-content: flex-end;
-      width: 26%;
+      width: 24%;
       height: 100%;
     }}
 
@@ -1336,12 +1517,12 @@ html_content = f'''<!DOCTYPE html>
       max-height: 88%;
       width: auto;
       object-fit: contain;
-      filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 24px rgba(199, 243, 3, 0.28));
+      filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.78)) drop-shadow(0 0 24px rgba(199, 243, 3, 0.28));
       transition: transform 0.35s ease;
     }}
 
     .thumb-halo-svg {{
-      width: clamp(64px, 8vw, 130px);
+      width: clamp(58px, 7.5vw, 124px);
       height: auto;
       margin-bottom: -14px;
       filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.95));
@@ -1354,129 +1535,201 @@ html_content = f'''<!DOCTYPE html>
 
     .thumb-char-tag {{
       margin-top: -10px;
-      background: rgba(6, 20, 25, 0.92);
+      background: rgba(6, 20, 25, 0.94);
       border: 1.5px solid var(--lime);
       color: var(--lime);
       font-family: var(--font-mono);
-      font-size: clamp(9px, 1.05vw, 13px);
+      font-size: clamp(9px, 1.02vw, 12.5px);
       font-weight: 800;
-      padding: 5px 14px;
+      padding: 5px 13px;
       border-radius: 999px;
       white-space: nowrap;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65);
     }}
 
     .thumb-center-col {{
       position: relative;
       z-index: 3;
-      width: 48%;
+      width: 52%;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      gap: clamp(8px, 1.5vw, 16px);
+      gap: clamp(5px, 1.15vw, 13px);
     }}
 
     .thumb-logos-pill {{
       display: inline-flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       background: rgba(255, 255, 255, 0.96);
-      padding: 8px 22px;
+      padding: clamp(5px, 0.7vw, 8px) clamp(14px, 1.8vw, 22px);
       border-radius: 999px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 24px rgba(45, 212, 191, 0.35);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 24px rgba(45, 212, 191, 0.35);
       border: 2px solid #2dd4bf;
     }}
 
     .thumb-logos-pill img.wappy-h {{
-      height: clamp(22px, 3vw, 40px);
+      height: clamp(18px, 2.6vw, 36px);
       width: auto;
       object-fit: contain;
     }}
 
     .thumb-logos-pill .plus-sep {{
       font-weight: 900;
-      font-size: clamp(14px, 1.8vw, 22px);
+      font-size: clamp(12px, 1.6vw, 20px);
       color: #0d9488;
     }}
 
     .thumb-logos-pill img.agy-i {{
-      height: clamp(22px, 3vw, 38px);
+      height: clamp(18px, 2.6vw, 34px);
       width: auto;
       object-fit: contain;
     }}
 
     .thumb-clase-giant {{
       font-family: var(--font-display);
-      font-size: clamp(32px, 5.8vw, 76px);
+      font-size: clamp(24px, 4.9vw, 68px);
       font-weight: 900;
       line-height: 0.98;
       letter-spacing: -0.04em;
       color: var(--ink);
       background: var(--lime);
-      padding: 6px 26px;
-      border-radius: 20px;
-      box-shadow: 0 12px 40px rgba(199, 243, 3, 0.45);
+      padding: clamp(4px, 0.6vw, 7px) clamp(16px, 2.2vw, 26px);
+      border-radius: 18px;
+      box-shadow: 0 12px 40px rgba(199, 243, 3, 0.5);
       text-transform: uppercase;
     }}
 
     .thumb-sub-title {{
       font-family: var(--font-display);
-      font-size: clamp(14px, 2.2vw, 28px);
+      font-size: clamp(11.5px, 1.9vw, 25px);
       font-weight: 900;
       color: #ffffff;
       line-height: 1.15;
-      text-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+      text-shadow: 0 6px 22px rgba(0, 0, 0, 0.85);
     }}
 
     .thumb-sub-title span {{
       color: #2dd4bf;
     }}
 
+    .thumb-topic-pills {{
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 0.65vw, 8px);
+      max-width: 100%;
+    }}
+
+    .thumb-topic-pill {{
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(5, 18, 24, 0.88);
+      border: 1px solid rgba(199, 243, 3, 0.48);
+      color: #ecfccb;
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.9vw, 11.5px);
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      padding: clamp(3px, 0.45vw, 5px) clamp(8px, 0.95vw, 12px);
+      border-radius: 999px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      white-space: nowrap;
+    }}
+
+    .thumb-topic-pill.highlight {{
+      background: rgba(13, 148, 136, 0.35);
+      border-color: #2dd4bf;
+      color: #99f6e4;
+    }}
+
     .thumb-play-cta {{
       display: inline-flex;
       align-items: center;
-      gap: 12px;
+      gap: clamp(7px, 1vw, 12px);
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       color: #ffffff;
       font-family: var(--font-display);
-      font-size: clamp(12px, 1.4vw, 17px);
+      font-size: clamp(10.5px, 1.3vw, 16px);
       font-weight: 900;
-      padding: clamp(9px, 1.2vw, 14px) clamp(18px, 2.4vw, 30px);
+      padding: clamp(7px, 1vw, 13px) clamp(14px, 2.2vw, 28px);
       border-radius: 999px;
-      border: 2px solid rgba(255, 255, 255, 0.35);
-      box-shadow: 0 14px 36px rgba(239, 68, 68, 0.55);
+      border: 2px solid rgba(255, 255, 255, 0.38);
+      box-shadow: 0 14px 36px rgba(239, 68, 68, 0.6);
       transition: transform 0.25s ease, box-shadow 0.25s ease;
+      white-space: nowrap;
     }}
 
     .video-thumb-cover:hover .thumb-play-cta {{
       transform: scale(1.06);
-      box-shadow: 0 18px 44px rgba(239, 68, 68, 0.75);
+      box-shadow: 0 18px 44px rgba(239, 68, 68, 0.8);
     }}
 
     .thumb-play-icon {{
-      width: 30px;
-      height: 30px;
+      width: clamp(22px, 2.4vw, 30px);
+      height: clamp(22px, 2.4vw, 30px);
       border-radius: 50%;
       background: #ffffff;
       color: #dc2626;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: clamp(10px, 1.1vw, 14px);
       padding-left: 2px;
+      flex-shrink: 0;
     }}
 
     @media (max-width: 680px) {{
+      .video-thumb-cover {{
+        padding: 8px 10px;
+      }}
       .thumb-char-col {{
-        width: 24%;
+        width: 21%;
       }}
       .thumb-center-col {{
-        width: 52%;
-        gap: 6px;
+        width: 58%;
+        gap: 4px;
       }}
       .thumb-char-tag {{
         display: none;
+      }}
+      .thumb-logos-pill {{
+        padding: 3px 10px;
+        gap: 6px;
+      }}
+      .thumb-logos-pill img.wappy-h,
+      .thumb-logos-pill img.agy-i {{
+        height: 15px;
+      }}
+      .thumb-clase-giant {{
+        font-size: 19px;
+        padding: 2px 12px;
+        border-radius: 10px;
+      }}
+      .thumb-sub-title {{
+        font-size: 10px;
+        line-height: 1.12;
+      }}
+      .thumb-topic-pills {{
+        gap: 3px;
+      }}
+      .thumb-topic-pill {{
+        font-size: 7px;
+        padding: 2px 6px;
+      }}
+      .thumb-play-cta {{
+        font-size: 9.5px;
+        padding: 5px 11px;
+        gap: 5px;
+      }}
+      .thumb-play-icon {{
+        width: 18px;
+        height: 18px;
+        font-size: 9px;
       }}
     }}
 
@@ -2139,24 +2392,38 @@ html_content = f'''<!DOCTYPE html>
       </a>
 
       <div class="nav-links">
-        <a href="#inicio" class="active-pill">🚀 Clase 2</a>
-        <a href="#presentacion">🎬 Presentación</a>
-        <a href="#grabacion">🎥 Grabación & Notas</a>
+        <a href="#presentacion" class="active-pill">🎬 Presentación</a>
+        <a href="#grabacion">🎥 Grabación</a>
         <a href="#prompts-chat">💬 Prompts Clase 2</a>
         <a href="#guia-paso-a-paso">📘 Guía Paso a Paso</a>
+        <a href="/clase3">Ir a Clase 3 ↗</a>
       </div>
 
-      <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-dark" style="flex-shrink: 0;">
-        Entrar a Meet
-        <span class="arrow-pip">↗</span>
-      </a>
+      <div class="nav-actions">
+        <a id="navCtaEnterWappy" href="/login" class="nav-cta-wappy">
+          <span>Ir a WAPPY</span>
+        </a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ========================================================================
+       1B. BARRA ORGANIZADORA DEL CURSO (CLASES 1 A 4 + TEMARIO)
+       ======================================================================== -->
+  <div class="course-organizer-strip" id="inicio">
+    <nav class="course-organizer-inner" aria-label="Navegación oficial del curso">
+      <a href="/cursowappy01" class="course-org-pill">🎓 Temario Curso</a>
+      <a href="/clase1" class="course-org-pill done">✅ Clase 1 · Grabada</a>
+      <a href="/clase2" class="course-org-pill active" aria-current="page">📍 Clase 2 · Estás aquí</a>
+      <a href="/clase3" class="course-org-pill done">✅ Clase 3 · Grabada</a>
+      <a href="/clase4" class="course-org-pill live">🔴 Clase 4 · Mar 10 Nov 7PM</a>
     </nav>
   </div>
 
   <!-- ========================================================================
        2. HERO OFICIAL ESTILO WAPPY.CLUB (SKY + NUBES + TENSHI)
        ======================================================================== -->
-  <header class="hero" id="inicio">
+  <header class="hero">
     <div class="hero-cloud c1"></div>
     <div class="hero-cloud c2"></div>
     <div class="hero-cloud c3"></div>
@@ -2165,47 +2432,47 @@ html_content = f'''<!DOCTYPE html>
       <div>
         <div class="eyebrow">
           <span class="dot"></span>
-          <span>CLASE 02 EN VIVO · HOY MARTES 27 DE OCTUBRE · 7:00 PM – 9:00 PM COL</span>
+          <span>✅ Clase 02 Grabada · Martes 27/28 de Octubre · ~02:04 HRS</span>
         </div>
 
         <h1>
-          <span class="highlight-lime">Tenshi en el Bolsillo</span>, Conexión MCP WAPPY y Skills en Vivo.
+          Optimización de Tokens, <span class="highlight-lime">Conexión MCP</span> &amp; Tenshi Voice en Móvil
         </h1>
 
         <p class="hero-sub">
-          Convierte tu celular en un comando de voz manos libres en campo con <strong>Tenshi Voice</strong>, conecta en vivo tu proyecto de <strong>Google Antigravity</strong> con <strong>WAPPY vía MCP</strong>, ahorra el <strong>80% de tokens</strong> convirtiendo PDFs a Markdown (<code>.md</code>) y crea tus primeros <strong>Skills, Triggers e Informes de Simulacro</strong> sin programar.
+          Domina cómo evitar bloqueos de cuota configurando tus modelos en modo <strong>Turbo / Low</strong>, leer carpetas completas con Excels antiguos y PDFs escaneados mediante <strong>Python</strong>, estructurar informes técnicos de ingeniería de <strong>$2.5M–$3M COP</strong>, instalar <strong>WAPPY en tu celular</strong> con <strong>Google Workspace</strong>, activar tu <strong>Servidor MCP una única vez</strong> respetando la <strong>Empresa Activa</strong> y operar a <strong>Tenshi por voz</strong> con Memoria Procedural.
         </p>
 
         <div class="hero-ctas">
-          <a href="#presentacion" class="btn btn-lime">
-            🎬 Presentación Clase 2 (15 Slides)
+          <a href="#grabacion" class="btn btn-dark">
+            🎥 Ver Grabación Clase 2
+            <span class="arrow-pip">▶</span>
+          </a>
+          <button type="button" onclick="openNotesModal()" class="btn btn-lime">
+            📋 Abrir Notas Oficiales (Popup)
+          </button>
+          <a href="#presentacion" class="btn btn-glass">
+            🎬 Presentación (10 Slides)
             <span class="arrow-pip">↓</span>
           </a>
-          <a href="#prompts-chat" class="btn btn-dark">
-            💬 6 Prompts Clase 2 (Sin Código)
-            <span class="arrow-pip">⚡</span>
-          </a>
-          <button type="button" onclick="openNotesModal()" class="btn btn-glass">
-            ⏳ Video y Notas (Muy Pronto)
-          </button>
         </div>
 
         <div class="hero-pills-bar">
           <div class="hero-pill-item">
-            <div class="hero-pill-label">🔌 Bloque 1 (30 Min)</div>
-            <div class="hero-pill-val">Conexión MCP WAPPY + .MD</div>
+            <div class="hero-pill-label">⚡ Optimización IA</div>
+            <div class="hero-pill-val">Modo Turbo · Low vs High</div>
           </div>
           <div class="hero-pill-item">
-            <div class="hero-pill-label">📱 Bloque 2 (30 Min)</div>
-            <div class="hero-pill-val">Tenshi Voice en el Celular</div>
+            <div class="hero-pill-label">🐍 Lectura Universal</div>
+            <div class="hero-pill-val">Carpetas, PDFs y Excels</div>
           </div>
           <div class="hero-pill-item">
-            <div class="hero-pill-label">📲 Bloque 3 (30 Min)</div>
-            <div class="hero-pill-val">Órdenes Delegadas al PC</div>
+            <div class="hero-pill-label">🔌 Servidor MCP Único</div>
+            <div class="hero-pill-val">WAPPY + Empresa Activa</div>
           </div>
           <div class="hero-pill-item">
-            <div class="hero-pill-label">⚙️ Bloque 4 (30 Min)</div>
-            <div class="hero-pill-val">Skills, Simulacro & Triggers</div>
+            <div class="hero-pill-label">🎙️ Móvil &amp; Memoria</div>
+            <div class="hero-pill-val">Tenshi Voice + CIE-10</div>
           </div>
         </div>
       </div>
@@ -2215,15 +2482,15 @@ html_content = f'''<!DOCTYPE html>
         <div class="hero-tenshi-glow"></div>
         <img src="{tenshi_img}" alt="Tenshi IA" class="tenshi-avatar-floating">
         <div class="tenshi-bubble">
-          «¡Hola! Soy <strong>Tenshi</strong>. En esta <strong>Clase 2</strong> me llevarás en tu bolsillo al recorrer la obra o planta: me dictarás actos y condiciones inseguras por voz desde el celular y yo le dejaré <strong>órdenes delegadas</strong> a Antigravity en tu PC para actualizar WAPPY.»
+          «¡Hola! Soy <strong>Tenshi</strong>. En esta <strong>Clase 2</strong> conectamos Antigravity con WAPPY <strong>una sola vez</strong>, instalamos WAPPY en tu celular y activamos mis comandos de voz y <strong>Memoria Procedural (CIE-10 y NotebookLM)</strong> para que delegues tareas reales sin estar frente al PC.»
         </div>
         <div class="meet-live-strip">
           <div style="text-align:left;">
-            <div style="font-size:10px; text-transform:uppercase; color:#99f6e4; font-weight:800;">Sala Google Meet Oficial</div>
-            <div style="font-weight:900; color:#fff;">meet.google.com/vid-ucyc-abt</div>
+            <div style="font-size:10px; text-transform:uppercase; color:#99f6e4; font-weight:800;">Siguiente Sesión del Curso</div>
+            <div style="font-weight:900; color:#fff;">Clase 3 Grabada Disponible</div>
           </div>
-          <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:8px 14px; font-size:12px;">
-            Unirme Ahora ↗
+          <a href="/clase3" class="btn btn-lime" style="padding:8px 14px; font-size:12px;">
+            Ir a Clase 3 ↗
           </a>
         </div>
       </div>
@@ -2231,14 +2498,14 @@ html_content = f'''<!DOCTYPE html>
   </header>
 
   <!-- ========================================================================
-       3. PRESENTACIÓN INTERACTIVA DE ALTO IMPACTO · CLASE 2 (15 DIAPOSITIVAS)
+       3. PRESENTACIÓN INTERACTIVA DE ALTO IMPACTO (10 DIAPOSITIVAS ANIMADAS · CLASE 2)
        ======================================================================== -->
   <section class="presentation-section" id="presentacion">
     <div class="container">
       <div class="sec-head-bar">
         <div>
-          <span class="sec-kicker">✨ Presentación Oficial en Vivo · Semana 2 (Martes 27 de Octubre)</span>
-          <h2 class="sec-big-title">Diapositivas Dinámicas de la Clase 2 (15 Slides)</h2>
+          <span class="sec-kicker">✨ Presentación Oficial · Síntesis Estructurada Clase 2</span>
+          <h2 class="sec-big-title">Diapositivas Dinámicas de la Clase 2 (10 Slides)</h2>
         </div>
         <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
           💡 Usa las flechas del teclado <code>←</code> <code>→</code>, desliza en el celular o activa <strong>Pantalla Completa</strong>
@@ -2246,656 +2513,440 @@ html_content = f'''<!DOCTYPE html>
       </div>
 
       <div class="deck-stage" id="deck-stage">
+        <!-- Fondo de Red Neuronal en Movimiento -->
         <canvas id="deck-canvas"></canvas>
 
+        <!-- HUD Brackets -->
         <div class="hud-corner tl"></div>
         <div class="hud-corner tr"></div>
         <div class="hud-corner bl"></div>
         <div class="hud-corner br"></div>
 
+        <!-- Barra Superior de Telemetría -->
         <div class="deck-topbar">
           <div class="deck-telemetry">
             <span class="telemetry-dot"></span>
-            <span>WAPPY.CLUB // CLASE_02 // TENSHI_VOICE_&_MCP_ACTIVO</span>
+            <span>WAPPY.CLUB // CLASE_02 // MCP_UNICO_Y_TENSHI_VOICE</span>
           </div>
           <div class="deck-controls-top">
-            <span class="deck-counter-badge" id="deck-counter">SLIDE 01 / 15</span>
+            <span class="deck-counter-badge" id="deck-counter">SLIDE 01 / 10</span>
             <button class="btn-fullscreen" onclick="toggleDeckFullscreen()">
               ⛶ Pantalla Completa
             </button>
           </div>
         </div>
 
+        <!-- Barra de progreso luminosa -->
         <div class="deck-progress-track">
           <div class="deck-progress-fill" id="slide-progress"></div>
         </div>
 
-        <!-- Selector rápido de las 15 diapositivas de la Clase 2 -->
+        <!-- Selector rápido de las 10 diapositivas -->
         <div class="slide-pills-strip" id="slide-pills-strip">
-          <button class="slide-num-pill active" onclick="showSlide(1)">01 Portada C2</button>
-          <button class="slide-num-pill" onclick="showSlide(2)">02 Reto #1 & Regla</button>
-          <button class="slide-num-pill" onclick="showSlide(3)">03 Ahorro 80% .MD</button>
-          <button class="slide-num-pill" onclick="showSlide(4)">04 Conectar MCP</button>
-          <button class="slide-num-pill" onclick="showSlide(5)">05 Las 55+ Tools</button>
-          <button class="slide-num-pill" onclick="showSlide(6)">06 Multi-Empresa</button>
-          <button class="slide-num-pill" onclick="showSlide(7)">07 Caso Simulacro</button>
-          <button class="slide-num-pill" onclick="showSlide(8)">08 Crear SKILL.md</button>
-          <button class="slide-num-pill" onclick="showSlide(9)">09 Tenshi Bolsillo</button>
-          <button class="slide-num-pill" onclick="showSlide(10)">10 Voz en Campo</button>
-          <button class="slide-num-pill" onclick="showSlide(11)">11 Órdenes Delegadas</button>
-          <button class="slide-num-pill" onclick="showSlide(12)">12 7 Especialistas</button>
-          <button class="slide-num-pill" onclick="showSlide(13)">13 Triggers & Cron</button>
-          <button class="slide-num-pill" onclick="showSlide(14)">14 Atajos /Slash</button>
-          <button class="slide-num-pill" onclick="showSlide(15)">15 Reto #2</button>
+          <button class="slide-num-pill active" onclick="showSlide(1)">01 Portada</button>
+          <button class="slide-num-pill" onclick="showSlide(2)">02 Diagnóstico Tokens</button>
+          <button class="slide-num-pill" onclick="showSlide(3)">03 Turbo: Low vs High</button>
+          <button class="slide-num-pill" onclick="showSlide(4)">04 Lectura Python</button>
+          <button class="slide-num-pill" onclick="showSlide(5)">05 Ingeniería $3M</button>
+          <button class="slide-num-pill" onclick="showSlide(6)">06 WAPPY Móvil + Google</button>
+          <button class="slide-num-pill" onclick="showSlide(7)">07 MCP Único 3.8 Low</button>
+          <button class="slide-num-pill" onclick="showSlide(8)">08 Empresa Activa</button>
+          <button class="slide-num-pill" onclick="showSlide(9)">09 Tenshi Voice + HTML</button>
+          <button class="slide-num-pill" onclick="showSlide(10)">10 Memoria CIE-10</button>
         </div>
 
-        <!-- VIEWPORT DE LAS 15 DIAPOSITIVAS DE LA CLASE 2 -->
+        <!-- VIEWPORT DE LAS 10 DIAPOSITIVAS -->
         <div class="slide-viewport" id="slide-viewport">
 
           <!-- ==================== SLIDE 1: PORTADA CLASE 2 ==================== -->
           <div class="slide active" id="slide-1">
             <div class="slide-header-row">
-              <span class="slide-badge lime">🚀 Clase 02 Oficial · Semana 2 (Martes 27 de Octubre)</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">7:00 PM – 9:00 PM COL</span>
+              <span class="slide-badge lime">🚀 Clase 2 Oficial · Martes 27/28 de Octubre</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">DURACIÓN REAL: ~02:04 HRS</span>
             </div>
-            <h2><span class="accent-lime">Tenshi en el Bolsillo</span>, Puente MCP en Vivo y Automatización con <span class="accent-teal">Skills</span></h2>
+            <h2>De las Dudas Iniciales al <span class="accent-lime">Dominio Operativo</span> de Antigravity + WAPPY</h2>
             <p class="slide-lead">
-              En la Clase 1 instalamos Antigravity, organizamos carpetas por proyecto y aprendimos la regla <em>"sin editar nada"</em>. Hoy damos el salto a la acción real: <strong>conectamos el MCP de WAPPY en vivo</strong>, creamos nuestros primeros <strong>Skills de informes</strong> y activamos a <strong>Tenshi Voice desde el celular en campo</strong>.
+              Pasamos de la instalación inicial a resolver bloqueos reales de tokens, leer cualquier formato de archivo con Python, conectar el <strong>Servidor MCP una sola vez</strong>, instalar <strong>WAPPY en el celular</strong> y comandar a <strong>Tenshi por voz</strong>.
             </p>
 
             <div class="s-grid-4" style="margin-bottom: 16px;">
               <div class="s-card glow-lime">
-                <div style="font-size:26px; font-weight:900; color:var(--lime);">-80%</div>
-                <h4>Ahorro con Markdown</h4>
-                <p>Convertimos PDFs pesados e informes a <code>.md</code> para multiplicar por 5 tus tokens.</p>
+                <div style="font-size:24px; font-weight:900; color:var(--lime);">Turbo · Low</div>
+                <h4>Cero Bloqueos de Cuota</h4>
+                <p>Cuándo usar modo <code>low</code> para tareas cotidianas y cuándo reservar <code>high</code> para auditorías.</p>
               </div>
               <div class="s-card glow-teal">
-                <div style="font-size:26px; font-weight:900; color:var(--teal-bright);">55+ Tools</div>
-                <h4>MCP WAPPY Activo</h4>
-                <p>Enchufamos Antigravity con tu cuenta de WAPPY para alimentar GTC 45, PESV y 0312.</p>
+                <div style="font-size:24px; font-weight:900; color:var(--teal-bright);">Python + Flow</div>
+                <h4>Archivos e Ingeniería</h4>
+                <p>Lectura universal de Excels/PDFs antiguos e informes Antes/Después valorados en $2.5M–$3M COP.</p>
               </div>
               <div class="s-card">
-                <div style="font-size:26px; font-weight:900; color:#fcd34d;">📱 Voz</div>
-                <h4>Tenshi en Campo</h4>
-                <p>Dictas hallazgos caminando por la planta desde tu celular sin escribir una sola letra.</p>
+                <div style="font-size:24px; font-weight:900; color:#fcd34d;">1 Sola Vez</div>
+                <h4>Conexión MCP + Google</h4>
+                <p>Enlace con Gmail, Drive, Calendar y API Key en modelo <code>3.8 (low)</code> respetando Empresa Activa.</p>
               </div>
               <div class="s-card">
-                <div style="font-size:26px; font-weight:900; color:#c084fc;">⚡ Auto</div>
-                <h4>Órdenes Delegadas</h4>
-                <p>Tenshi le deja la orden a Antigravity para que procese las evidencias en tu computador.</p>
+                <div style="font-size:24px; font-weight:900; color:#c084fc;">Voz + CIE-10</div>
+                <h4>Tenshi &amp; Memoria</h4>
+                <p>Delegación móvil por voz, reportes en HTML y validaciones estrictas CIE-10 y NotebookLM.</p>
               </div>
             </div>
 
             <div class="flow-diagram-box">
               <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--lime); margin-bottom:10px; letter-spacing:0.08em;">
-                🗺️ El Circuito Completo que Dejaremos Funcionando en la Clase 2
+                🗺️ Evolución Práctica Visto en la Sesión (00:02 → 02:03)
               </div>
               <div class="flow-nodes-row">
                 <div class="flow-node">
-                  <div class="f-icon">📱</div>
-                  <div class="f-title">1. Celular en Campo</div>
-                  <div class="f-sub">Le hablas a Tenshi Voice en la obra</div>
-                </div>
-                <div class="flow-arrow-anim">━━▶</div>
-                <div class="flow-node" style="border-color:var(--teal-bright);">
-                  <div class="f-icon">☁️</div>
-                  <div class="f-title">2. Orden Delegada</div>
-                  <div class="f-sub">WAPPY guarda el hallazgo y la orden</div>
-                </div>
-                <div class="flow-arrow-anim">━━🔌 MCP ━━▶</div>
-                <div class="flow-node" style="border-color:var(--lime);">
-                  <div class="f-icon">💻</div>
-                  <div class="f-title">3. Antigravity en PC</div>
-                  <div class="f-sub">Lee fotos/Drive y ejecuta el Skill</div>
+                  <div class="f-icon">🛡️</div>
+                  <div class="f-title">1. Optimizar Cuota</div>
+                  <div class="f-sub">Turbo + Low + Python</div>
                 </div>
                 <div class="flow-arrow-anim">━━▶</div>
                 <div class="flow-node">
-                  <div class="f-icon">📊</div>
-                  <div class="f-title">4. WAPPY al Día</div>
-                  <div class="f-sub">Matriz GTC 45, Acta e Informe listos</div>
+                  <div class="f-icon">📱</div>
+                  <div class="f-title">2. WAPPY Móvil</div>
+                  <div class="f-sub">PWA + Google Workspace</div>
+                </div>
+                <div class="flow-arrow-anim">━━▶</div>
+                <div class="flow-node">
+                  <div class="f-icon">🔌</div>
+                  <div class="f-title">3. MCP Único</div>
+                  <div class="f-sub">API Key 3.8 + Empresa Activa</div>
+                </div>
+                <div class="flow-arrow-anim">━━▶</div>
+                <div class="flow-node">
+                  <div class="f-icon">🎙️</div>
+                  <div class="f-title">4. Tenshi Voice</div>
+                  <div class="f-sub">Móvil + Memoria CIE-10</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- ==================== SLIDE 2: REVISIÓN DE COMPROMISOS DE LA CLASE 1 ==================== -->
+          <!-- ==================== SLIDE 2: DIAGNÓSTICO DE TOKENS Y BLOQUEOS ==================== -->
           <div class="slide" id="slide-2">
             <div class="slide-header-row">
-              <span class="slide-badge amber">✅ Repaso de los Compromisos (Clase 1 → Clase 2)</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">AUDITORÍA DE ARRANQUE</span>
+              <span class="slide-badge amber">⚠️ Casos Reales de Clase · 00:04 – 00:14 y 01:01</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">PROCESOS VS TOKENS INDIVIDUALES</span>
             </div>
-            <h2>Las 3 Reglas de Oro que Aprendimos en la <span class="accent-lime">Sesión Anterior</span></h2>
+            <h2>Diagnóstico de <span class="accent-lime">Tokens y Bloqueos</span>: Por Qué se Agota la Cuota</h2>
             <p class="slide-lead">
-              Antes de conectar el MCP y Tenshi Voice, verifiquemos que todos tengamos aplicados estos 3 pilares fundamentales vistos en la Clase 1:
+              Analizamos en vivo lo ocurrido a Gloria Amparo Quintero, Carolina Colorado y Alexander García al subir carpetas completas de sistemas de gestión o comparar múltiples Excels pesados de golpe:
             </p>
-            <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <h4>📁 1. Un Proyecto por Actividad Específica</h4>
-                <p>Nunca abras todo tu disco duro como un solo proyecto gigante. Crea carpetas puntuales (ej. <code>/Auditoria_Empresas</code> o <code>/Simulacro_2026</code>) para no desperdiciar tokens leyendo archivos innecesarios.</p>
-                <div class="chart-bar-wrap">
-                  <div class="chart-bar-label"><span>Ahorro de Contexto por Carpeta</span><span>85%</span></div>
-                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:85%"></div></div>
-                </div>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>🛡️ 2. El Comando «Sin Editar Nada»</h4>
-                <p>Cuando quieras que Antigravity solo <strong>investigue, lea o audite</strong> tus carpetas sin modificar tus archivos originales, agrégale siempre la frase mágica: <strong>"sin editar nada"</strong> y usa pensamiento <em>Low</em> en consultas simples.</p>
-                <div class="chart-bar-wrap">
-                  <div class="chart-bar-label"><span>Seguridad de tus Archivos Base</span><span>100%</span></div>
-                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:100%"></div></div>
-                </div>
-              </div>
+
+            <div class="s-grid-2" style="margin-bottom: 12px;">
               <div class="s-card">
-                <h4>☁️ 3. Drive, OneDrive, Mega o Local</h4>
-                <p>Recuerda que Antigravity puede leer cualquier nube (Google Drive, OneDrive corporativo o Dropbox) siempre que la carpeta esté <strong>sincronizada localmente</strong> en tu computador.</p>
-                <div class="chart-bar-wrap">
-                  <div class="chart-bar-label"><span>Compatibilidad con Nubes</span><span>100%</span></div>
-                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:100%"></div></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 3: ESTRATEGIA MARKDOWN (.MD) PARA AHORRAR 80% DE TOKENS ==================== -->
-          <div class="slide" id="slide-3">
-            <div class="slide-header-row">
-              <span class="slide-badge lime">🪙 Optimización Inteligente de Tokens</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:var(--lime);">DE PDF PESADO A MARKDOWN (.MD)</span>
-            </div>
-            <h2>Cómo Ahorrar el <span class="accent-lime">80% de Tokens</span> Convirtiendo Documentos a <span class="accent-teal">Markdown (.md)</span></h2>
-            <p class="slide-lead">
-              Como vimos en la Clase 1, un PDF pesado o una imagen en <code>base64</code> puede gastar más de 2,000 tokens por página. Si le pides a Antigravity que convierta una sola vez tus normas y manuales a <strong>Markdown (<code>.md</code>)</strong>, las futuras consultas gastarán una fracción mínima:
-            </p>
-
-            <div class="s-grid-2" style="margin-bottom: 14px;">
-              <div class="s-card" style="border-color:rgba(239,68,68,0.4);">
-                <h4 style="color:#fca5a5;">❌ Leer siempre el PDF / Word original o Fotos Crudas</h4>
+                <h4>❌ Error Frecuente: Auditoría Masiva de Golpe</h4>
                 <p>
-                  • Cada vez que abres un chat nuevo y le pasas un PDF de 100 páginas, la IA vuelve a cobrar miles de tokens por el formato oculto.<br>
-                  • Las imágenes sin comprimir se codifican en <code>base64</code> (~2,000 tokens cada una).
+                  • Subir el SG-SST entero de una empresa pidiendo una <em>"auditoría forense completa"</em> obliga al agente a abrir decenas de subcarpetas y agota la cuota en minutos.<br>
+                  • Genera advertencias de documentos omitidos o simulados por exceso de contexto.<br>
+                  • Las plataformas agénticas consumen cuota por <strong>procesos de razonamiento encadenados</strong>, no solo por palabras sueltas.
                 </p>
-                <div class="chart-bar-wrap">
-                  <div class="chart-bar-label"><span>Consumo de Tokens (Alto)</span><span>100% Gasto</span></div>
-                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:100%; background:#ef4444;"></div></div>
-                </div>
               </div>
-
               <div class="s-card glow-lime">
-                <h4>✅ Convertir a Markdown (.md) + Estructuras de WAPPY</h4>
+                <h4>✅ Solución Operativa: Trabajo Quirúrgico por Procesos</h4>
                 <p>
-                  • Le pides al chat de Antigravity que extraiga el texto limpio a un archivo <code>.md</code> o <code>.json</code>.<br>
-                  • Al enviar los datos estructurados a <strong>WAPPY vía MCP</strong>, ahorras entre el <strong>70% y 80% de tokens</strong>.
+                  • Dividir el trabajo por <strong>carpetas puntuales o entregables específicos</strong> (ej. solo exámenes médicos de ingreso o matriz de un área).<br>
+                  • Mantener la regla <strong>«sin editar nada»</strong> cuando solo se requiere diagnóstico o lectura.<br>
+                  • Estructurar primero en Antigravity y almacenar en las matrices nativas de <strong>WAPPY</strong>.
                 </p>
-                <div class="chart-bar-wrap">
-                  <div class="chart-bar-label"><span>Consumo de Tokens con .MD + WAPPY</span><span>Solo 20%</span></div>
-                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:20%;"></div></div>
-                </div>
               </div>
             </div>
 
-            <!-- SIMULADOR DE TOKENS APLICADO A CLASE 2 -->
             <div class="token-sim-box">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                 <span style="font-size:12px; font-weight:800; color:var(--lime); text-transform:uppercase;">
-                  🧪 Simulador de Prompt Eficiente (Prueba la regla "sin editar nada" + Markdown)
+                  🧪 Simulador Rápido: Compara una orden acotada vs una orden abierta
                 </span>
                 <span id="token-stats-badge" style="font-family:var(--font-mono); font-size:12px; color:#2dd4bf; font-weight:700;">
-                  Palabras: 12 | Tokens estimados: 18
+                  Palabras: 11 | Tokens estimados: 16
                 </span>
               </div>
               <div class="token-input-row">
-                <input type="text" id="token-live-input" class="token-input" value="Sin editar nada resume las actas en Markdown y actualiza WAPPY por MCP" oninput="updateTokenSimulator()">
+                <input type="text" id="token-live-input" class="token-input" value="Analiza con Python solo la carpeta examenes_ingreso en modo low sin editar nada" oninput="updateTokenSimulator()">
               </div>
               <div class="token-pills-output" id="token-pills-output"></div>
             </div>
           </div>
 
-          <!-- ==================== SLIDE 4: CONEXIÓN EN VIVO ANTIGRAVITY <-> WAPPY VÍA MCP ==================== -->
-          <div class="slide" id="slide-4">
+          <!-- ==================== SLIDE 3: MODO TURBO + NIVEL LOW VS HIGH ==================== -->
+          <div class="slide" id="slide-3">
             <div class="slide-header-row">
-              <span class="slide-badge lime">🔌 Práctica #1 de Hoy · Conexión en Vivo</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">EL PUENTE USB-C DE LA IA</span>
+              <span class="slide-badge lime">⚡ Optimización de Costos · 00:15 – 00:26 y 01:02</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:var(--lime);">CONFIGURACIÓN DEL PENSAMIENTO</span>
             </div>
-            <h2>Paso a Paso: Conectar <span class="accent-lime">Antigravity con WAPPY</span> vía Servidor <span class="accent-teal">MCP</span></h2>
+            <h2>Modo <span class="accent-lime">Turbo</span> + Nivel de Pensamiento <span class="accent-teal">Low vs High</span></h2>
             <p class="slide-lead">
-              Hoy dejamos conectado tu computador con tu cuenta de WAPPY para que nunca más tengas que digitar matrices ni cronogramas fila por fila:
+              El sobrepensamiento (<em>overthinking</em>) en tareas sencillas dispara el gasto de cuota. La clave acordada en clase es elegir el nivel según la complejidad real:
             </p>
 
             <div class="s-grid-3">
               <div class="s-card glow-lime">
-                <h4>1️⃣ Obtén tu Credencial en WAPPY</h4>
-                <p>Entras a <code>wappy.club</code>, abres el perfil de tu empresa activa y copias tu <strong>URL del Servidor MCP y tu Token / API Key personal</strong>.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>2️⃣ Pégala en el Prompt #1 del Chat</h4>
-                <p>No tienes que editar archivos JSON a mano si no quieres: le entregas el <strong>Prompt #1 de esta página</strong> al chat de Antigravity con tu clave y él configura el servidor MCP.</p>
-              </div>
-              <div class="s-card">
-                <h4>3️⃣ Prueba el Resumen 360°</h4>
-                <p>Le dices al chat: <em>"Consulta el resumen 360 de mi empresa en WAPPY"</em> y verás cómo te responde en vivo con los datos reales de tu SG-SST.</p>
-              </div>
-            </div>
-
-            <div class="chat-sim-window" style="margin-top:14px;">
-              <div class="chat-sim-header">
-                <div class="win-dots"><span style="background:#ef4444;"></span><span style="background:#f59e0b;"></span><span style="background:#22c55e;"></span></div>
-                <span>Verificación en Vivo · Servidor MCP WAPPY Conectado</span>
-              </div>
-              <div class="chat-sim-body">
-                <div class="c-bubble-user">
-                  "Antigravity, ya te conecté el MCP de WAPPY. Sin editar nada en mis archivos, dime qué empresa tengo activa en WAPPY y cuántos riesgos hay en mi Matriz GTC 45."
-                </div>
-                <div class="c-bubble-ai">
-                  <strong>🔌 Ejecutando <code>wappy_resumen_general_360</code> y <code>wappy_consultar_matriz_gtc45</code>...</strong><br>
-                  ¡Conexión exitosa! Tu empresa activa tiene 14 riesgos registrados en la Matriz GTC 45, 3 actividades pendientes en el Cronograma SST y 2 reportes de condiciones inseguras abiertos.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 5: LAS 55+ HERRAMIENTAS DE WAPPY EN ANTIGRAVITY ==================== -->
-          <div class="slide" id="slide-5">
-            <div class="slide-header-row">
-              <span class="slide-badge lime">🧰 Arsenal Completo del SG-SST</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#2dd4bf;">55+ TOOLS NATIVAS EN TU CHAT</span>
-            </div>
-            <h2>¿Qué Módulos de <span class="accent-lime">WAPPY</span> Puede Alimentar <span class="accent-teal">Antigravity</span> por Ti?</h2>
-            <p class="slide-lead">
-              Al conectar el MCP, tu chat de Antigravity desbloquea más de 55 herramientas directas sobre la base de datos de tu empresa en WAPPY:
-            </p>
-
-            <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <h4>⚠️ 1. Matriz GTC 45 y PESV</h4>
-                <p>Consulta, alimenta y actualiza peligros, controles existentes, evaluación de riesgo y riesgos viales (Res. 40595) desde tus carpetas de inspección.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>👷 2. Trabajadores, Cargos y EPP</h4>
-                <p>Lee un listado Excel de tu carpeta local y registra automáticamente trabajadores, perfiles de cargo y entregas de EPP en WAPPY.</p>
-              </div>
-              <div class="s-card">
-                <h4>📋 3. Diagnóstico 0312 y Matriz Legal</h4>
-                <p>Evalúa los 60 estándares mínimos de la Resolución 0312 con justificación técnica y alimenta los requisitos legales aplicables.</p>
-              </div>
-              <div class="s-card">
-                <h4>📅 4. Cronograma SST y Capacitaciones</h4>
-                <p>Crea actividades del Plan Anual de Trabajo, programa capacitaciones y actualiza el estado de cumplimiento de cada tarea.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>🧪 5. Inventario Químico y Alturas</h4>
-                <p>Lee hojas de seguridad (FDS/MSDS) en PDF de tu carpeta y registra los productos químicos, pictogramas SGA y compatibilidad en WAPPY.</p>
-              </div>
-              <div class="s-card glow-lime">
-                <h4>📲 6. Órdenes Delegadas de Tenshi</h4>
-                <p>Consulta las órdenes que dictaste por voz desde tu celular en campo y las marca como completadas cuando termina el informe.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 6: GESTIÓN MULTI-EMPRESA Y AUDITORÍAS DESDE CARPETAS ==================== -->
-          <div class="slide" id="slide-6">
-            <div class="slide-header-row">
-              <span class="slide-badge">🏢 Para Consultores y Auditores Independientes</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASOS DE MARÍA ELENA, CAROLINA Y JENNY</span>
-            </div>
-            <h2>Cómo Organizar <span class="accent-lime">Múltiples Empresas</span> y Cambiar de Cliente en WAPPY</h2>
-            <p class="slide-lead">
-              Si asesoras a 5, 10 o 20 empresas al mismo tiempo, así es como organizas tu carpeta de proyecto y le pides al chat que cambie de empresa activa en WAPPY:
-            </p>
-
-            <div class="s-grid-2">
-              <div class="s-card glow-teal" style="font-family:var(--font-mono); font-size:12.5px; line-height:1.7;">
-                <h4 style="font-family:var(--font-display); margin-bottom:10px;">🗂️ Estructura Multi-Empresa Recomendada</h4>
-                <div style="background:rgba(2,6,23,0.75); padding:12px; border-radius:12px; color:#e2e8f0;">
-                  📁 <strong style="color:var(--lime);">Consultoria_SST_2026/</strong><br>
-                  ├── 📄 <strong style="color:#2dd4bf;">AGENTS.md</strong> <em>(Reglas generales de auditoría)</em><br>
-                  ├── 📂 <strong>.agents/skills/</strong> <em>(Tus plantillas de informes)</em><br>
-                  ├── 📂 <strong style="color:#fcd34d;">Empresa_A_Constructora/</strong><br>
-                  │   ├── 📂 inspecciones_mes/<br>
-                  │   └── 📂 simulacro_evidencias/<br>
-                  └── 📂 <strong style="color:#c084fc;">Empresa_B_Logistica/</strong><br>
-                      ├── 📂 pesv_vehiculos/<br>
-                      └── 📂 actas_copasst/
-                </div>
-              </div>
-
-              <div class="s-card glow-lime">
-                <h4>🔄 Cambiar de Empresa desde el Chat (`wappy_activar_empresa`)</h4>
-                <p style="margin-bottom:10px;">
-                  El MCP de WAPPY incluye las herramientas <code>wappy_consultar_empresas</code> y <code>wappy_activar_empresa</code>.<br><br>
-                  Solo le dices al chat:<br>
-                  <em>"Activa en WAPPY mi cliente Constructora ABC, lee únicamente la subcarpeta /Empresa_A_Constructora y sube los hallazgos del mes."</em>
+                <h4>🟢 Modo Turbo + Nivel <code>Low</code></h4>
+                <p>
+                  <strong>Tu modo predeterminado del día a día:</strong> ideal para editar tablas de Excel, conectar claves API/MCP, resumir PDFs, cruzar listados de trabajadores y organizar carpetas con respuesta ultrarrápida.
                 </p>
                 <div class="chart-bar-wrap">
-                  <div class="chart-bar-label"><span>Cero Cruce de Datos entre Clientes</span><span>100% Seguro</span></div>
+                  <div class="chart-bar-label"><span>Ahorro de Cuota Operativa</span><span>85%</span></div>
+                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:85%"></div></div>
+                </div>
+              </div>
+
+              <div class="s-card glow-teal">
+                <h4>🟣 Nivel <code>High</code> (Razonamiento Profundo)</h4>
+                <p>
+                  <strong>Solo para misiones pesadas puntuales:</strong> auditorías forenses normativas complejas, investigación de accidentes graves ATEL o diseño de controles de ingeniería especializados.
+                </p>
+                <div class="chart-bar-wrap">
+                  <div class="chart-bar-label"><span>Profundidad Analítica</span><span>100%</span></div>
                   <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:100%"></div></div>
                 </div>
               </div>
+
+              <div class="s-card">
+                <h4>💳 Opciones de Capacidad y Planes</h4>
+                <p>
+                  • Cuentas empresariales anuales gestionadas con proveedor aliado (~<strong>$37.000 a $42.000 COP/año</strong>).<br>
+                  • Promo oficial Google (~<strong>$20.000 COP/mes</strong> por los primeros 3 meses frente a planes estándar de $100.000 COP/mes).
+                </p>
+              </div>
             </div>
           </div>
 
-          <!-- ==================== SLIDE 7: CASO REAL EN VIVO - INFORME DE SIMULACRO NACIONAL ==================== -->
-          <div class="slide" id="slide-7">
+          <!-- ==================== SLIDE 4: LECTURA UNIVERSAL DE ARCHIVOS CON PYTHON ==================== -->
+          <div class="slide" id="slide-4">
             <div class="slide-header-row">
-              <span class="slide-badge amber">🚨 Caso Real de la Cohorte · Simulacro Nacional</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">DE 20 INFORMES MANUALES A 1 SOLO SKILL</span>
+              <span class="slide-badge lime">🐍 Superpoder Técnico sin Programar · 00:08 – 00:23</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CUALQUIER FORMATO + WEB VIGENTE</span>
             </div>
-            <h2>Automatización de <span class="accent-lime">Informes de Simulacro</span> e Inspecciones con Fotos</h2>
+            <h2>Lectura Universal con <span class="accent-lime">Python</span>, Formatos de Salida y <span class="accent-teal">Web Vigente</span></h2>
             <p class="slide-lead">
-              En la Clase 1 vimos el dolor de cabeza de elaborar 20 informes de simulacro tras una jornada nacional. Mira cómo lo resolvemos combinando un <strong>Informe Ejemplo</strong> con un <strong>Skill en Antigravity</strong>:
+              Si subes suelto un Excel antiguo (<code>.xls</code>), un archivo muy pesado o un PDF escaneado con imágenes de exámenes médicos, el lector básico puede fallar. Así se resuelve al 100%:
             </p>
+
+            <div class="s-grid-3" style="margin-bottom: 14px;">
+              <div class="s-card glow-lime">
+                <h4>📂 1. Arrastrar la Carpeta + Python</h4>
+                <p>Al arrastrar o referenciar la carpeta completa desde cualquier ruta del PC, Antigravity usa internamente <strong>Python</strong> para abrir y extraer datos de cualquier formato sin discriminación.</p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>📄 2. Pedir el Formato de Salida</h4>
+                <p>Indica siempre cómo quieres recibir el entregable (<strong>HTML, Excel, Word, PDF o PowerPoint</strong>); de lo contrario, el agente puede devolverte bloques de código técnico por defecto.</p>
+              </div>
+              <div class="s-card">
+                <h4>🌐 3. Ordenar Búsqueda Web Legal</h4>
+                <p>Instruye explícitamente al agente que <strong>busque en la web</strong> para verificar resoluciones, circulares y decretos SST expedidos después de la fecha de corte del modelo.</p>
+              </div>
+            </div>
 
             <div class="flow-diagram-box">
               <div class="flow-nodes-row">
                 <div class="flow-node">
-                  <div class="f-icon">📄</div>
-                  <div class="f-title">1. Informe Muestra</div>
-                  <div class="f-sub">Pones 1 informe base bien hecho en tu carpeta</div>
+                  <div class="f-icon">🗂️</div>
+                  <div class="f-title">Carpeta en tu PC</div>
+                  <div class="f-sub">Excels viejos + PDFs médicos</div>
                 </div>
                 <div class="flow-arrow-anim">━━▶</div>
                 <div class="flow-node" style="border-color:var(--lime);">
-                  <div class="f-icon">🧠</div>
-                  <div class="f-title">2. Chat crea el Skill</div>
-                  <div class="f-sub">Aprende tu estructura, tablas y criterios</div>
+                  <div class="f-icon">🐍</div>
+                  <div class="f-title">Motor Python Interno</div>
+                  <div class="f-sub">Lee todo sin que tú programes</div>
                 </div>
                 <div class="flow-arrow-anim">━━▶</div>
                 <div class="flow-node" style="border-color:var(--teal-bright);">
-                  <div class="f-icon">📸</div>
-                  <div class="f-title">3. Fotos + Tiempos</div>
-                  <div class="f-sub">Metes las fotos y datos de las 20 empresas</div>
+                  <div class="f-icon">📊</div>
+                  <div class="f-title">Entregable + Norma</div>
+                  <div class="f-sub">HTML / Excel con ley vigente</div>
                 </div>
-                <div class="flow-arrow-anim">━━▶</div>
-                <div class="flow-node">
-                  <div class="f-icon">🚀</div>
-                  <div class="f-title">4. 20 Informes Listos</div>
-                  <div class="f-sub">Genera el documento y registra en WAPPY</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="s-grid-2" style="margin-top:12px;">
-              <div class="s-card glow-lime">
-                <h4>⏱️ Antes (Trabajo Manual Tradicional)</h4>
-                <p>2 a 3 horas por empresa pegando fotos en Word, cuadrando tablas, calculando tiempos de evacuación y redactando oportunidades de mejora.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>⚡ Hoy con WAPPY + Antigravity</h4>
-                <p>3 minutos por empresa: colocas las fotos y los datos básicos en la subcarpeta del cliente y ejecutas el Skill para obtener el informe completo y la tarea cerrada en WAPPY.</p>
               </div>
             </div>
           </div>
 
-          <!-- ==================== SLIDE 8: CREAR SKILLS (SKILL.MD) Y REGLAS (AGENTS.MD) EN VIVO ==================== -->
-          <div class="slide" id="slide-8">
+          <!-- ==================== SLIDE 5: INFORMES TÉCNICOS DE INGENIERÍA ($2.5M - $3M COP) ==================== -->
+          <div class="slide" id="slide-5">
             <div class="slide-header-row">
-              <span class="slide-badge lime">⚙️ Práctica #2 de Hoy · Habilidades Permanentes</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:var(--lime);">CERO CÓDIGO · 100% EN ESPAÑOL</span>
+              <span class="slide-badge amber">💰 Monetización Profesional SST · 00:32 – 00:35 y 01:44</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">CASO REAL MEDELLÍN · TRACTOMULAS</span>
             </div>
-            <h2>La Diferencia Práctica entre <span class="accent-lime">AGENTS.md</span> y un <span class="accent-teal">SKILL.md</span></h2>
+            <h2>Informes Técnicos de <span class="accent-lime">Ingeniería de Alto Valor</span> ($2.5M – $3M COP)</h2>
             <p class="slide-lead">
-              Ambos archivos los escribe el chat por ti, pero cumplen misiones distintas dentro de tu proyecto:
+              Caso real implementado en una empresa de transporte en Medellín para mantenimientos sobre tractomulas a más de <strong>1.5 metros de altura</strong>:
             </p>
 
             <div class="s-grid-2">
               <div class="s-card glow-lime">
-                <h4>📜 <code>AGENTS.md</code> = Tu Constitución permanente</h4>
+                <h4>🏗️ Fotos Antes / Después con Controles de Ingeniería</h4>
                 <p>
-                  • Vive en la raíz de tu carpeta proyecto.<br>
-                  • Se carga <strong>siempre</strong> en todos los chats de esa carpeta.<br>
-                  • Define quién es el agente (<em>"Eres mi Auditor Senior SST en Colombia"</em>), qué leyes respeta (Decreto 1072, Res. 0312, GTC 45) y sus reglas de seguridad (como no borrar archivos sin permiso).
+                  1. Se entregan las fotografías reales de las tractomulas a Antigravity.<br>
+                  2. La IA investiga controles de ingeniería normativos (líneas de vida, plataformas portátiles, barandas certificadas).<br>
+                  3. Con <strong>Google Flow</strong> genera las imágenes hiperrealistas del <strong>estado posterior ("Después")</strong> con el control ya instalado.<br>
+                  4. Respalda propuestas técnicas comerciales valoradas entre <strong>$2.500.000 y $3.000.000 COP</strong>.
                 </p>
               </div>
               <div class="s-card glow-teal">
-                <h4>🧰 <code>.agents/skills/</code> = Tus Manuales de Procedimiento</h4>
+                <h4>🎬 Micro-Videos de Capacitación (30 a 50 Segundos)</h4>
                 <p>
-                  • Puedes tener 5, 10 o 20 Skills distintos en un proyecto.<br>
-                  • Solo se abren cuando necesitas esa tarea específica (<strong>ahorrando miles de tokens</strong>).<br>
-                  • Ejemplos: <code>informe-simulacro</code>, <code>auditoria-0312</code>, <code>inspeccion-botiquines</code>, <code>cuenta-de-cobro-mensual</code>.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 9: TENSHI EN EL BOLSILLO (VOZ DESDE EL CELULAR) ==================== -->
-          <div class="slide" id="slide-9">
-            <div class="slide-header-row">
-              <span class="slide-badge lime">📱 Tema Estrella Clase 2 · Tenshi en el Bolsillo</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#2dd4bf;">GOOGLE MULTIMODAL LIVE API</span>
-            </div>
-            <h2><span class="accent-lime">Tenshi Voice</span>: Tu Comando de Voz Manos Libres desde el <span class="accent-teal">Celular</span></h2>
-            <p class="slide-lead">
-              Cuando estás caminando por una obra, una bodega o una mina con casco y guantes, es incómodo abrir un computador o teclear textos largos. Por eso <strong>WAPPY incluye a Tenshi Voice en tu celular</strong>:
-            </p>
-
-            <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <h4>🎙️ 1. Conversación Fluida en Tiempo Real</h4>
-                <p>Entras a <code>wappy.club</code> desde el navegador de tu celular, tocas el botón de llamada de <strong>Tenshi</strong> y hablas con él como si llamaras por teléfono a tu ingeniero de soporte.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>👁️ 2. Conoce Toda tu Empresa en Vivo</h4>
-                <p>Mientras caminas, puedes preguntarle a Tenshi: <em>"¿Cuántos trabajadores tenemos activos hoy?"</em> o <em>"¿Qué tareas del cronograma vencen esta semana?"</em> y te responde hablando al instante.</p>
-              </div>
-              <div class="s-card">
-                <h4>⚡ 3. Registra y Delega con tu Voz</h4>
-                <p>Con una sola frase hablada, Tenshi registra un acto o condición insegura en WAPPY o le deja una <strong>orden delegada</strong> a Antigravity para que prepare el informe en tu oficina.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 10: CAPTURA EN CAMPO DE ACTOS Y CONDICIONES INSEGURAS ==================== -->
-          <div class="slide" id="slide-10">
-            <div class="slide-header-row">
-              <span class="slide-badge amber">🦺 Recorrido de Inspección en Planta / Obra</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">DE TU VOZ DIRECTO A LA NUBE</span>
-            </div>
-            <h2>Cómo Dictarle <span class="accent-lime">Hallazgos en Campo</span> a Tenshi mientras Caminas</h2>
-            <p class="slide-lead">
-              Mira este ejemplo real de un recorrido de seguridad de 30 segundos usando únicamente tu voz desde el celular:
-            </p>
-
-            <div class="s-grid-2">
-              <div class="chat-sim-window">
-                <div class="chat-sim-header">
-                  <div class="win-dots"><span style="background:#ef4444;"></span><span style="background:#f59e0b;"></span><span style="background:#22c55e;"></span></div>
-                  <span>📱 Tenshi Voice en el Celular · Recorrido Planta Producción</span>
-                </div>
-                <div class="chat-sim-body">
-                  <div class="c-bubble-user">
-                    🎙️ "Hola Tenshi, estoy en el área de soldadura y veo a un operario puliendo sin careta facial y un extintor multipropósito con la carga vencida. Regístrame este reporte urgente y agrégale el peligro a la Matriz GTC 45."
-                  </div>
-                  <div class="c-bubble-ai">
-                    <strong>🔊 Tenshi responde por voz:</strong><br>
-                    "¡Recibido! Acabo de registrar el reporte de condición y acto subestándar en el área de soldadura con prioridad Alta, y agregué el peligro mecánico por proyección de partículas en tu Matriz GTC 45. ¿Deseas que le deje una orden delegada a Antigravity para redactar el acta de cierre?"
-                  </div>
-                </div>
-              </div>
-
-              <div class="s-card glow-lime">
-                <h4>🎯 Lo que ocurre por dentro en 2 segundos:</h4>
-                <p style="margin-bottom:10px;">
-                  1. Tenshi ejecuta <code>wappy_registrar_reporte_acto_condicion</code>.<br>
-                  2. Evalúa el riesgo y ejecuta <code>wappy_alimentar_matriz_gtc45</code>.<br>
-                  3. Si requiere seguimiento en el Plan Anual, ejecuta <code>wappy_crear_actividad_cronograma</code>.<br>
-                  4. ¡Cuando regresas a tu escritorio, el trabajo sucio ya está hecho!
+                  • Elaboración automatizada de cápsulas audiovisuales cortas (30–50s) enfocadas en prevención.<br>
+                  • Ejemplos mostrados en clase: videos sobre la matriz <strong>IPEVR (GTC 45)</strong> y <strong>Comités de Convivencia Laboral</strong>.<br>
+                  • Listos para comercializar como paquetes de inducción y reinducción empresarial.
                 </p>
                 <div class="chart-bar-wrap">
-                  <div class="chart-bar-label"><span>Tiempo Invertido en Campo</span><span>30 Segundos</span></div>
-                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:96%"></div></div>
+                  <div class="chart-bar-label"><span>Impacto Visual frente a Gerencia</span><span>99%</span></div>
+                  <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:99%"></div></div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- ==================== SLIDE 11: ÓRDENES DELEGADAS (TENSHI CELULAR -> ANTIGRAVITY PC) ==================== -->
-          <div class="slide" id="slide-11">
+          <!-- ==================== SLIDE 6: WAPPY EN CELULAR (PWA) + GOOGLE WORKSPACE ==================== -->
+          <div class="slide" id="slide-6">
             <div class="slide-header-row">
-              <span class="slide-badge lime">🔗 La Magia Exclusiva de WAPPY + Antigravity</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:var(--lime);">PUENTE CELULAR ↔ COMPUTADOR</span>
+              <span class="slide-badge lime">📱 Movilidad Total · 00:35 – 00:49</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">APP MÓVIL + CUENTAS GOOGLE</span>
             </div>
-            <h2>Cómo Funcionan las <span class="accent-lime">Órdenes Delegadas</span> de Tenshi hacia Antigravity</h2>
+            <h2><span class="accent-lime">WAPPY en tu Celular</span> + Integración con <span class="accent-teal">Google Workspace</span></h2>
             <p class="slide-lead">
-              ¿Cómo hace tu celular en la calle para ordenarle a tu computador de la oficina que procese carpetas pesadas? A través del buzón inteligente de <strong>Órdenes Delegadas de Tenshi</strong>:
-            </p>
-
-            <div class="flow-diagram-box">
-              <div class="flow-nodes-row">
-                <div class="flow-node" style="border-color:#fcd34d;">
-                  <div class="f-icon">🗣️📱</div>
-                  <div class="f-title">1. Dictas en la Calle</div>
-                  <div class="f-sub">"Tenshi, delégale a Antigravity hacer el informe de la visita de hoy"</div>
-                </div>
-                <div class="flow-arrow-anim">━━▶</div>
-                <div class="flow-node" style="border-color:var(--teal-bright);">
-                  <div class="f-icon">📥</div>
-                  <div class="f-title">2. Buzón en WAPPY</div>
-                  <div class="f-sub">Queda guardada la Orden Delegada con estado Pendiente</div>
-                </div>
-                <div class="flow-arrow-anim">━━🔌 MCP ━━▶</div>
-                <div class="flow-node" style="border-color:var(--lime);">
-                  <div class="f-icon">🤖💻</div>
-                  <div class="f-title">3. Antigravity la Lee</div>
-                  <div class="f-sub">Usa <code>wappy_consultar_ordenes_delegadas_tenshi</code></div>
-                </div>
-                <div class="flow-arrow-anim">━━▶</div>
-                <div class="flow-node">
-                  <div class="f-icon">✅</div>
-                  <div class="f-title">4. Ejecuta y Cierra</div>
-                  <div class="f-sub">Crea el informe en tu PC y marca <code>completar_orden</code></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="s-grid-2" style="margin-top:12px;">
-              <div class="s-card glow-teal">
-                <h4>🔍 Consultar Órdenes (<code>wappy_consultar_ordenes_delegadas_tenshi</code>)</h4>
-                <p>Cuando Antigravity despierta en tu PC (por un Trigger o cuando le das el comando), revisa todas las órdenes que le dejaste hablándole a Tenshi desde el celular.</p>
-              </div>
-              <div class="s-card glow-lime">
-                <h4>🏁 Completar Orden (<code>wappy_completar_orden_delegada_tenshi</code>)</h4>
-                <p>Una vez Antigravity genera el documento en tu carpeta y actualiza las matrices, cierra la orden en WAPPY dejando el resumen de lo que ejecutó.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 12: DESPACHO MULTITURNO CON LOS 7 ESPECIALISTAS ==================== -->
-          <div class="slide" id="slide-12">
-            <div class="slide-header-row">
-              <span class="slide-badge">🧠 Tu Junta Directiva de 7 Especialistas SST</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#2dd4bf;">CONTINUIDAD DE CHAT Y PROFUNDIDAD TÉCNICA</span>
-            </div>
-            <h2>Despacho por Voz hacia los <span class="accent-lime">7 Agentes Especialistas</span> de WAPPY</h2>
-            <p class="slide-lead">
-              Cuando necesitas un concepto jurídico o médico profundo desde el celular o el PC, Tenshi estructura una consulta profesional con fundamentación normativa colombiana y te conecta con el especialista indicado:
-            </p>
-
-            <div class="s-grid-4">
-              <div class="s-card glow-lime">
-                <h4>⚖️ Abogado SST</h4>
-                <p>Defensa jurídica, Decreto 1072, Resolución 0312, culpa patronal y descargos.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>🩺 Médico Laboral</h4>
-                <p>Profesiogramas, restricciones médicas, reubicación y vigilancia epidemiológica.</p>
-              </div>
-              <div class="s-card">
-                <h4>🕵️ Investigador ATEL</h4>
-                <p>Resolución 1401 de 2007, árbol de causas, 5 porqués y lecciones aprendidas.</p>
-              </div>
-              <div class="s-card">
-                <h4>🧪 Higienista / Ergonómo</h4>
-                <p>Mediciones ambientales, riesgo biomecánico, químico (SGA) y psicosocial.</p>
-              </div>
-            </div>
-
-            <div class="s-card glow-teal" style="margin-top:14px;">
-              <h4>💡 Tip Clave de Uso con Tenshi:</h4>
-              <p>Si quieres una respuesta rápida en voz, dile a Tenshi: <strong>"Respóndeme tú mismo"</strong>. Si quieres que redacte un documento extenso en el chat con tablas y artículos legales, dile: <strong>"Pásame al Abogado SST / Investigador ATEL"</strong> y él despachará el prompt técnico completo sin abrir chats innecesarios.</p>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 13: TRIGGERS, SCROLLS Y CRON EN ACCIÓN ==================== -->
-          <div class="slide" id="slide-13">
-            <div class="slide-header-row">
-              <span class="slide-badge amber">⏰ Automatización Programada (Triggers & Cron)</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">TU OFICINA EN PILOTO AUTOMÁTICO</span>
-            </div>
-            <h2>Uniendo <span class="accent-lime">Triggers + Google Drive + Órdenes de Tenshi</span></h2>
-            <p class="slide-lead">
-              En la Clase 1 explicamos qué es un Trigger y un Cron. Hoy lo dejamos operando con el ciclo completo entre tu celular, tu Google Drive y tu computador:
-            </p>
-
-            <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <h4>🌅 1. Trigger de Horario Fijo (ej. Lunes 8:00 AM)</h4>
-                <p>Programas tu agente para que cada mañana revise primero si dejaste <strong>Órdenes Delegadas desde Tenshi Voice</strong> y las ejecute antes de que te tomes el primer café.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4>🔄 2. Trigger de Vigilancia de Carpeta / Drive</h4>
-                <p>Cada vez que subas fotos del celular a tu carpeta sincronizada de Google Drive u OneDrive, Antigravity las detecta, las pasa por el Skill de inspección y alimenta WAPPY.</p>
-              </div>
-              <div class="s-card">
-                <h4>🛑 3. Control Inteligente de Recursos</h4>
-                <p>Configuramos los intervalos de revisión (ej. al abrir el proyecto o una vez al día) en lugar de cada 2 minutos sin necesidad, protegiendo tu cuota de tokens.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 14: WORKFLOWS Y COMANDOS RÁPIDOS (/SLASH) ==================== -->
-          <div class="slide" id="slide-14">
-            <div class="slide-header-row">
-              <span class="slide-badge lime">⚡ Atajos de 1 Segundo en el Chat</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:var(--lime);">WORKFLOWS CONVERSACIONALES</span>
-            </div>
-            <h2>Tus 3 Comandos Rápidos (<span class="accent-lime">/slash</span>) para el Día a Día</h2>
-            <p class="slide-lead">
-              En lugar de escribir un párrafo largo cada mañana, le pediremos al chat de Antigravity que nos deje creados estos 3 botones/comandos rápidos:
-            </p>
-
-            <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <h4 style="font-family:var(--font-mono); color:var(--lime);">/ordenes-tenshi</h4>
-                <p>Conecta por MCP a WAPPY, descarga todas las órdenes que dictaste por voz desde tu celular en campo, redacta los informes pendientes y las marca como completadas.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <h4 style="font-family:var(--font-mono); color:#2dd4bf;">/informe-simulacro</h4>
-                <p>Toma las fotos y datos de la carpeta del cliente, aplica la plantilla oficial del Simulacro Nacional, genera el informe listo en Markdown/PDF y registra la evidencia en WAPPY.</p>
-              </div>
-              <div class="s-card">
-                <h4 style="font-family:var(--font-mono); color:#fcd34d;">/auditoria-sin-editar</h4>
-                <p>Revisa toda la carpeta de una empresa <strong>sin editar nada</strong>, convierte lecturas pesadas a <code>.md</code> y actualiza el Diagnóstico 0312 y la Matriz GTC 45 en WAPPY.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- ==================== SLIDE 15: TALLER EN VIVO Y RETO #2 ==================== -->
-          <div class="slide" id="slide-15">
-            <div class="slide-header-row">
-              <span class="slide-badge amber">🏆 Laboratorio Práctico en Vivo · Clase 2</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">META DE LA SEMANA 2</span>
-            </div>
-            <h2>¡Manos a la Obra! Nuestro <span class="accent-lime">Reto Práctico de la Clase 2</span></h2>
-            <p class="slide-lead">
-              Baja a la sección de <strong>Prompts de la Clase 2</strong>, cópialos con un clic y pégalos en tu chat de Antigravity mientras hacemos el ejercicio en vivo:
+              Siguiendo la consulta práctica de Xiomara Ardila y Carolina Colorado, dejamos WAPPY instalado en el teléfono y conectado con todas tus herramientas de Google:
             </p>
 
             <div class="s-grid-2">
               <div class="s-card glow-lime">
-                <h4>✅ Lo que dejarás funcionando hoy mismo:</h4>
+                <h4>📲 1. Instalar WAPPY en Pantalla de Inicio</h4>
                 <p>
-                  1. Tu <strong>Servidor MCP de WAPPY conectado</strong> en Antigravity (Prompt #1).<br>
-                  2. Tus documentos normativos convertidos a <strong>Markdown (<code>.md</code>)</strong> ahorrando 80% de tokens (Prompt #2).<br>
-                  3. Tu <strong>Skill de Informe de Simulacro e Inspecciones</strong> creado (Prompt #3).<br>
-                  4. Una <strong>Orden Delegada dictada por voz a Tenshi desde tu celular</strong> y ejecutada automáticamente en tu computador (Prompts #4, #5 y #6).
+                  • Abre <code>wappy.club</code> desde el navegador de tu celular (<strong>Chrome en Android</strong> o <strong>Safari en iPhone</strong>).<br>
+                  • Entra al menú de <strong>Configuración General</strong> de tu usuario.<br>
+                  • Selecciona <strong>Descargar Aplicación / Añadir a la pantalla de inicio</strong> para abrir WAPPY como app nativa en planta o en calle.
                 </p>
               </div>
-              <div class="s-card glow-teal" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
-                <div style="font-size:40px; margin-bottom:8px;">📲</div>
-                <h4>¿Listo para probar los Prompts de la Clase 2?</h4>
-                <p style="margin-bottom:14px;">Baja a la sección de Prompts y usa el botón <strong>"Copiar Prompt para el Chat"</strong> en cada paso.</p>
-                <a href="#prompts-chat" class="btn btn-lime">
-                  Ir a los 6 Prompts de la Clase 2 ↓
-                </a>
+              <div class="s-card glow-teal">
+                <h4>🔗 2. Enlazar Google Workspace en Editar Cuenta</h4>
+                <p>
+                  • Dentro de WAPPY → <strong>Editar Cuenta / Integraciones</strong>, autoriza con un clic:<br>
+                  &nbsp;&nbsp;✓ <strong>Gmail</strong> (envío y lectura de reportes)<br>
+                  &nbsp;&nbsp;✓ <strong>Google Drive</strong> &amp; <strong>Google Calendar</strong><br>
+                  &nbsp;&nbsp;✓ <strong>Google Docs</strong> &amp; <strong>Google Sheets</strong><br>
+                  • Permite parametrizar correos individuales según las empresas administradas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== SLIDE 7: CONEXIÓN MCP DE ÚNICA VEZ + GEMINI 3.8 LOW ==================== -->
+          <div class="slide" id="slide-7">
+            <div class="slide-header-row">
+              <span class="slide-badge lime">🔌 Sincronización Definitiva · 00:27, 00:54 y 01:04 – 01:15</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:var(--lime);">UNA SOLA VEZ EN TODO TU PC</span>
+            </div>
+            <h2>Conexión <span class="accent-lime">MCP de Única Vez</span> + Clave API en <span class="accent-teal">Modelo 3.8 (Low)</span></h2>
+            <p class="slide-lead">
+              Ninguna IA aislada resuelve todo: el protocolo MCP e interfaces API permiten conectar plataformas empresariales (como Siigo Cloud, Bancolombia, Aleluya, Arus o Enlace Operativo) directamente con tu flujo de trabajo.
+            </p>
+
+            <div class="s-grid-3">
+              <div class="s-card">
+                <h4>1️⃣ Generar API Key en WAPPY</h4>
+                <p>Entra al apartado de <strong>Integraciones de WAPPY</strong>, genera tu clave API personal y copia el comando de vinculación MCP.</p>
+              </div>
+              <div class="s-card glow-lime">
+                <h4>2️⃣ Pegar usando Modelo <code>3.8 (Low)</code></h4>
+                <p>Pégalo en el chat de Antigravity seleccionando el modelo <strong>3.8 en nivel bajo (<code>low</code>)</strong> para conectar en segundos sin gastar procesos de más.</p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>3️⃣ ¡No se Repite por Proyecto!</h4>
+                <p>Aclaración clave a Gloria y Carolina: <strong>la conexión del servidor MCP se hace una única vez</strong> y queda activa globalmente para todo tu Antigravity.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== SLIDE 8: ALIMENTACIÓN MASIVA Y REGLA DE EMPRESA ACTIVA ==================== -->
+          <div class="slide" id="slide-8">
+            <div class="slide-header-row">
+              <span class="slide-badge amber">🏢 Consenso Operativo Crítico · 01:09 – 01:27</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">CERO CRUCE ENTRE CLIENTES</span>
+            </div>
+            <h2>Carga Masiva de Trabajadores y la Regla de Oro de <span class="accent-lime">Empresa Activa</span></h2>
+            <p class="slide-lead">
+              ¿Cómo subir bases de datos completas de trabajadores desde carpetas locales hacia WAPPY sin mezclar la información cuando asesoras a varias empresas?
+            </p>
+
+            <div class="s-grid-2">
+              <div class="s-card glow-teal">
+                <h4>👥 Alimentación Sociodemográfica Automatizada</h4>
+                <p>
+                  • Arrastras o referencias en Antigravity la carpeta local con listados de personal, fichas o exámenes.<br>
+                  • Antigravity actualiza registros existentes o <strong>crea nuevos trabajadores automáticamente</strong> en WAPPY.<br>
+                  • Completa perfiles sociodemográficos y condiciones de salud con trazabilidad total y cero digitación manual.
+                </p>
+              </div>
+
+              <div class="s-card glow-lime">
+                <h4>🎯 Regla de Oro: Seleccionar la Empresa Activa</h4>
+                <p>
+                  • Aunque tu llave MCP tiene permiso sobre toda tu cuenta de usuario, <strong>la IA procesa de forma predeterminada la empresa que tengas ACTIVA en WAPPY</strong>.<br>
+                  • <strong>Protocolo obligatorio antes de cargar datos:</strong> entra a WAPPY, verifica y activa manualmente la empresa exacta con la que vas a trabajar para evitar cruces de datos.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== SLIDE 9: TENSHI VOICE EN MÓVIL + HTML VS WORD + OCULTAR CÓDIGO ==================== -->
+          <div class="slide" id="slide-9">
+            <div class="slide-header-row">
+              <span class="slide-badge lime">🎙️ El Fin de Escribir Manualmente · 01:28 – 01:54</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#2dd4bf;">VOZ MÓVIL + CALIDAD VISUAL HTML</span>
+            </div>
+            <h2><span class="accent-lime">Tenshi Voice</span> desde el Celular, Informes <span class="accent-teal">HTML</span> e Interfaz Limpia</h2>
+            <p class="slide-lead">
+              El tercer paso de la conexión activa a <strong>Tenshi por voz</strong> para delegar tareas complejas hacia Antigravity desde tu teléfono móvil sin depender de un escritorio:
+            </p>
+
+            <div class="s-grid-3">
+              <div class="s-card glow-lime">
+                <h4>🎙️ 1. Comandos de Voz en Calle</h4>
+                <p>Hablas con Tenshi desde el celular durante una visita o recorrido; Tenshi consulta tu Calendar, revisa pendientes o envía la orden directa a Antigravity.</p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>🎨 2. Exportar en HTML vs Word</h4>
+                <p>Pide tus informes ejecutivos en <strong>HTML</strong>: ofrece diseño visual premium muy superior al Word plano y se integra perfecto con <strong>Canva</strong> y <strong>NotebookLM</strong>.</p>
+              </div>
+              <div class="s-card">
+                <h4>👁️ 3. Ocultar Panel de Código</h4>
+                <p>¿Ves cuadros extensos de código interno en Antigravity? Simplemente <strong>oculta ese panel lateral</strong> y quédate únicamente con la vista limpia de tu conversación.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== SLIDE 10: MEMORIA PROCEDURAL (CIE-10) Y TAREA CARPETA CURSO WAPPY ==================== -->
+          <div class="slide" id="slide-10">
+            <div class="slide-header-row">
+              <span class="slide-badge amber">🧠 Nivel Avanzado + Tarea Clase 3 · 01:55 – 02:03</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#fcd34d;">AUTOMATIZACIONES + RETO PRÁCTICO</span>
+            </div>
+            <h2>Centro de Automatizaciones, <span class="accent-lime">Memoria Procedural</span> y Reto <span class="accent-teal">«Curso Wappy»</span></h2>
+            <p class="slide-lead">
+              Cerramos la Clase 2 descubriendo cómo Tenshi recuerda reglas médicas/legales estrictas y preparando nuestra lluvia de ideas personalizada por profesión:
+            </p>
+
+            <div class="s-grid-2">
+              <div class="s-card glow-lime">
+                <h4>⚙️ Automatización + Memoria Procedural (CIE-10)</h4>
+                <p>
+                  • <strong>Centro de Automatizaciones:</strong> programa revisión periódica de actas del <strong>COPASST</strong>, envío de informes por correo y creación automática de pendientes en el Centro de Control (ej. exámenes médicos anuales al registrar un trabajador).<br>
+                  • <strong>Memoria Procedural:</strong> fija reglas inquebrantables como validar códigos <strong>CIE-10</strong> en medicina laboral o consultar guías de riesgo psicosocial en <strong>NotebookLM</strong> antes de responder.
+                </p>
+              </div>
+              <div class="s-card glow-teal" style="display:flex; flex-direction:column; justify-content:center;">
+                <h4>🚀 Tarea Oficial para la Siguiente Sesión</h4>
+                <p style="margin-bottom:12px;">
+                  1. Crea en tu PC una carpeta llamada <code>Curso Wappy</code> y abre un chat nuevo.<br>
+                  2. Haz una <strong>lluvia de ideas con Tenshi</strong> aplicada a tu rol (auditoría, minería, asesoría independiente) integrando <strong>Antigravity + Google Flow + WAPPY + Tenshi</strong>.
+                </p>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                  <a href="#prompts-chat" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+                    Copiar los 5 Prompts de Clase 2 ↓
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -2909,11 +2960,11 @@ html_content = f'''<!DOCTYPE html>
             <button class="btn-slide-ctrl primary-next" id="btn-next" onclick="nextSlide()">Siguiente Diapositiva →</button>
           </div>
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <a href="#prompts-chat" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
-              💬 Copiar Prompts Clase 2
+            <a href="#grabacion" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+              🎥 Ver Grabación Clase 2
             </a>
-            <a href="/clase1" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
-              ⏮️ Repasar Clase 1
+            <a href="#prompts-chat" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              💬 Ver Prompts Clase 2
             </a>
           </div>
         </div>
@@ -2922,33 +2973,35 @@ html_content = f'''<!DOCTYPE html>
   </section>
 
   <!-- ========================================================================
-       3B. REPRODUCTOR CLASE 2 (MUY PRONTO) + SALA MEET OFICIAL + POPUP NOTAS
+       3B. REPRODUCTOR DE LA GRABACIÓN OFICIAL CLASE 2 + POPUP DE NOTAS Y MEMORIAS
        ======================================================================== -->
   <section class="recording-section" id="grabacion">
     <div class="container">
       <div class="sec-head-bar">
         <div>
-          <span class="sec-kicker">⏳ Próxima Emisión en Vivo · Hoy Martes 27 de Octubre (7:00 PM – 9:00 PM)</span>
-          <h2 class="sec-big-title">Grabación de la Clase 2 &amp; Notas Oficiales (Muy Pronto)</h2>
+          <span class="sec-kicker">🎥 Repetición Oficial Completa · Clase 2 (27/28 de Octubre)</span>
+          <h2 class="sec-big-title">Grabación de la Clase 2 &amp; Memorias Oficiales</h2>
         </div>
         <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
-          📹 Sala Google Meet Oficial: <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" style="color:var(--teal); font-weight:800; text-decoration:underline;">meet.google.com/vid-ucyc-abt</a>
+          💡 Reproduce aquí mismo la clase completa o abre debajo el <strong>Popup de Notas Oficiales</strong>
         </div>
       </div>
 
+      <!-- Escenario del Reproductor con el mismo estilo HUD que las Diapositivas -->
       <div class="deck-stage" id="video-stage">
         <div class="hud-corner tl"></div>
         <div class="hud-corner tr"></div>
         <div class="hud-corner bl"></div>
         <div class="hud-corner br"></div>
 
+        <!-- Barra Superior de Telemetría del Reproductor -->
         <div class="deck-topbar">
           <div class="deck-telemetry">
-            <span class="telemetry-dot" style="background:#f59e0b; box-shadow:0 0 12px #f59e0b;"></span>
-            <span>WAPPY.CLUB // CLASE_02 // ESTADO: MUY_PRONTO_EN_VIVO (MARTES 27 OCT · 7:00 PM)</span>
+            <span class="telemetry-dot"></span>
+            <span>WAPPY.CLUB // GRABACIÓN_OFICIAL // CLASE_02_MCP_TENSHI</span>
           </div>
           <div class="deck-controls-top">
-            <span class="deck-counter-badge" style="border-color:rgba(245,158,11,0.5); color:#fcd34d; background:rgba(245,158,11,0.15);">⏳ GRABACIÓN DISPONIBLE TRAS LA CLASE</span>
+            <span class="deck-counter-badge">DURACIÓN: ~02:04 HRS · HD</span>
             <button type="button" class="btn-fullscreen" onclick="toggleVideoFullscreen()">
               ⛶ Pantalla Completa
             </button>
@@ -2956,23 +3009,30 @@ html_content = f'''<!DOCTYPE html>
         </div>
 
         <div class="deck-progress-track">
-          <div class="deck-progress-fill" style="width: 100%; background: linear-gradient(90deg, #f59e0b, #c7f303, #2dd4bf);"></div>
+          <div class="deck-progress-fill" style="width: 100%;"></div>
         </div>
 
-        <!-- Barra Informativa de la Sesión -->
+        <!-- Capítulos Rápidos de la Grabación -->
         <div class="recording-chapters-strip">
-          <span class="rec-chapter-pill"><strong>🗓️ Fecha:</strong> Martes 27 de Octubre de 2026</span>
-          <span class="rec-chapter-pill"><strong>⏰ Hora:</strong> 7:00 PM – 9:00 PM (Hora Colombia)</span>
-          <span class="rec-chapter-pill"><strong>📹 Google Meet:</strong> meet.google.com/vid-ucyc-abt</span>
-          <span class="rec-chapter-pill"><strong>🎬 Grabación:</strong> Se publicará aquí al terminar la sesión</span>
-          <span class="rec-chapter-pill"><strong>📝 Notas IA:</strong> Disponibles al finalizar la Clase 2</span>
+          <span class="rec-chapter-pill"><strong>00:04</strong> Auditoría y Tokens</span>
+          <span class="rec-chapter-pill"><strong>00:11</strong> Lectura con Python</span>
+          <span class="rec-chapter-pill"><strong>00:15</strong> Modo Turbo y Low</span>
+          <span class="rec-chapter-pill"><strong>00:32</strong> Informes Ingeniería $3M</span>
+          <span class="rec-chapter-pill"><strong>00:39</strong> WAPPY en Móvil</span>
+          <span class="rec-chapter-pill"><strong>00:43</strong> Google Workspace</span>
+          <span class="rec-chapter-pill"><strong>01:05</strong> Servidor MCP Único</span>
+          <span class="rec-chapter-pill"><strong>01:25</strong> Empresa Activa</span>
+          <span class="rec-chapter-pill"><strong>01:28</strong> Tenshi Voice Móvil</span>
+          <span class="rec-chapter-pill"><strong>01:55</strong> Memoria Procedural CIE-10</span>
         </div>
 
-        <!-- Contenedor 16:9 con Miniatura Oficial "CLASE 2 · MUY PRONTO" -->
+        <!-- Reproductor Embebido 16:9 de Google Drive con Miniatura Oficial -->
         <div class="video-viewport-wrap">
           <div class="video-aspect-box">
-            <!-- Miniatura Oficial Personalizada CLASE 2 · MUY PRONTO -->
-            <div class="video-thumb-cover" id="video-thumb-cover" style="cursor:default;">
+            <!-- Miniatura Oficial Personalizada HD 16:9 (Fondo Cinemático + Félix + WAPPY + Tenshi + CLASE 2) -->
+            <div class="video-thumb-cover" id="video-thumb-cover" onclick="playRecordingVideo()">
+              <img src="{thumb_bg}" alt="" class="video-thumb-bg-img" aria-hidden="true">
+              <div class="video-thumb-radial-overlay"></div>
               <div class="video-thumb-grid-bg"></div>
 
               <!-- Columna Izquierda: Avatar 3D de Félix Bedoya -->
@@ -2981,7 +3041,7 @@ html_content = f'''<!DOCTYPE html>
                 <span class="thumb-char-tag">👨‍🏫 Ing. Félix Bedoya</span>
               </div>
 
-              <!-- Columna Central: Logos WAPPY + Antigravity + CLASE 2 + MUY PRONTO -->
+              <!-- Columna Central: Logos WAPPY + Antigravity + CLASE 2 + Píldoras + Botón Play -->
               <div class="thumb-center-col">
                 <div class="thumb-logos-pill">
                   <img src="{wappy_horiz_logo}" alt="WAPPY Logo" class="wappy-h">
@@ -2989,26 +3049,23 @@ html_content = f'''<!DOCTYPE html>
                   <img src="{agy_logo}" alt="Google Antigravity" class="agy-i">
                 </div>
 
-                <!-- Insignia Destacada MUY PRONTO -->
-                <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(245,158,11,0.2); border:2px solid #fbbf24; color:#fde047; font-family:var(--font-mono); font-size:clamp(11px, 1.3vw, 15px); font-weight:800; padding:6px 18px; border-radius:999px; text-transform:uppercase; letter-spacing:0.06em; box-shadow:0 0 24px rgba(245,158,11,0.35);">
-                  ⏳ MUY PRONTO · GRABACIÓN EN PROCESO
-                </div>
-
                 <div class="thumb-clase-giant">CLASE 2</div>
 
                 <div class="thumb-sub-title">
-                  <span>Tenshi en el Bolsillo</span>, Conexión MCP WAPPY &amp; <span>Skills en Vivo</span>
+                  Optimización de Tokens, <span>MCP Único</span> &amp; <span>Tenshi Voice</span>
                 </div>
 
-                <div style="font-size:clamp(11.5px, 1.25vw, 15px); color:#cbd5e1; font-weight:700; max-width:520px; line-height:1.4;">
-                  🗓️ En vivo hoy <strong style="color:var(--lime);">Martes 27 de Octubre a las 7:00 PM</strong>.<br>
-                  Al terminar la clase, el video grabado quedará disponible en este reproductor.
+                <div class="thumb-topic-pills">
+                  <span class="thumb-topic-pill">⚡ MODO TURBO · LOW</span>
+                  <span class="thumb-topic-pill">🐍 LECTURA PYTHON</span>
+                  <span class="thumb-topic-pill">🎙️ TENSHI VOICE MÓVIL</span>
+                  <span class="thumb-topic-pill highlight">⏱️ 02:04 HRS · HD</span>
                 </div>
 
-                <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="thumb-play-cta" style="background:linear-gradient(135deg, #c7f303 0%, #a3e635 100%); color:#0e1300; border-color:#ffffff; box-shadow:0 14px 36px rgba(199,243,3,0.45); text-decoration:none;">
-                  <span class="thumb-play-icon" style="background:#0e1300; color:#c7f303;">📹</span>
-                  <span>ENTRAR A SALA MEET (meet.google.com/vid-ucyc-abt)</span>
-                </a>
+                <div class="thumb-play-cta">
+                  <span class="thumb-play-icon">▶</span>
+                  <span>VER GRABACIÓN COMPLETA CLASE 2</span>
+                </div>
               </div>
 
               <!-- Columna Derecha: Avatar 3D de Tenshi / WAPPY con Aureola -->
@@ -3021,25 +3078,45 @@ html_content = f'''<!DOCTYPE html>
                 <span class="thumb-char-tag" style="border-color:#2dd4bf; color:#2dd4bf;">✨ Tenshi IA · WAPPY</span>
               </div>
             </div>
+
+            <iframe
+              id="drive-video-iframe"
+              src="https://drive.google.com/file/d/1PhDT7YMtg6wUn-sh9oc0mhJZKON73uNj/preview"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowfullscreen
+              loading="lazy"
+              title="Grabación Oficial Clase 2 - Optimización de Tokens, MCP Único y Tenshi Voice">
+            </iframe>
           </div>
         </div>
 
-        <!-- BARRA DEBAJO DEL VIDEO CON EL BOTÓN PARA EL POPUP DE NOTAS (MUY PRONTO) -->
+        <!-- BARRA DEBAJO DEL VIDEO CON EL BOTÓN PARA ABRIR EL POPUP DE NOTAS -->
         <div class="notes-trigger-bar">
           <div class="notes-trigger-info">
-            <h3>⏳ Notas de la Clase 2 y Minuto a Minuto (Muy Pronto)</h3>
-            <p>Las notas tomadas por IA y la transcripción de la Clase 2 se subirán apenas finalice la sesión de mañana Martes 27 de Octubre (7:00 PM – 9:00 PM).</p>
+            <h3>📝 Bitácora, Resumen Ejecutivo, 10 Compromisos y Minuto a Minuto de la Clase 2</h3>
+            <p>Consulta las notas oficiales completas de la sesión (27/28 de Octubre), las 10 tareas acordadas por el grupo y los 19 bloques cronológicos (00:02 – 02:03).</p>
           </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <button type="button" class="btn-open-notes-modal" onclick="openNotesModal()">
-              📝 Ver Estado de Notas y Sala Meet (Popup)
-              <span class="badge-count">MUY PRONTO</span>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn-open-notes" onclick="openNotesModal()">
+              📋 Abrir Notas Oficiales (Popup)
             </button>
-            <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:11px 16px; font-size:12.5px;">
-              📹 Unirme a Google Meet ↗
+          </div>
+        </div>
+
+        <!-- Footer del Reproductor -->
+        <div class="deck-footer">
+          <div class="deck-telemetry">
+            <span>🔗 Accesos directos a los registros oficiales de la Clase 2 en Google Docs y Google Drive:</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <a href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?tab=t.o2f1ilte0q65" target="_blank" rel="noopener noreferrer" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              📑 Documento de Notas
             </a>
-            <a href="/clase1#grabacion" class="btn btn-glass" style="padding:11px 16px; font-size:12.5px;">
-              ⏮️ Ver Grabación y Notas Clase 1
+            <a href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank" rel="noopener noreferrer" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              📄 Ver Transcripción Completa
+            </a>
+            <a href="https://drive.google.com/file/d/1PhDT7YMtg6wUn-sh9oc0mhJZKON73uNj/view" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+              ▶️ Abrir Video en Google Drive ↗
             </a>
           </div>
         </div>
@@ -3048,275 +3125,535 @@ html_content = f'''<!DOCTYPE html>
   </section>
 
   <!-- ========================================================================
-       3C. MODAL POPUP INTERACTIVO DE NOTAS CLASE 2 (ESTADO: MUY PRONTO + LINK MEET)
+       MODAL / POPUP INTERACTIVO CON TODAS LAS NOTAS OFICIALES DE LA CLASE 2 (OCT 27/28, 2026)
        ======================================================================== -->
   <div class="notes-modal-backdrop" id="notes-modal" onclick="handleBackdropClick(event)">
     <div class="notes-modal-window" role="dialog" aria-modal="true" aria-labelledby="notes-modal-title">
-
       <div class="notes-modal-header">
-        <div class="notes-modal-title-group">
-          <div class="kicker">⏳ Próxima Sesión en Vivo · Martes 27 de Octubre de 2026 · 7:00 PM – 9:00 PM</div>
-          <h3 id="notes-modal-title">Notas y Memorias de la Clase 2 — Muy Pronto</h3>
+        <div class="notes-modal-title-wrap">
+          <h3 id="notes-modal-title">📝 Notas Oficiales y Memorias · Clase II: WAPPY IA + Antigravity (MCP &amp; Tenshi)</h3>
+          <p>Fecha: Martes 27/28 de Octubre de 2026 · Docente: Ing. Félix Bedoya · Duración: ~02:04 HRS · Registros Oficiales</p>
         </div>
-        <button type="button" class="btn-close-modal" onclick="closeNotesModal()">
-          ✕ Cerrar Ventana
-        </button>
+        <button type="button" class="btn-close-modal" onclick="closeNotesModal()">✕ Cerrar Ventana</button>
       </div>
 
-      <div class="notes-attachments-strip">
-        <span style="font-size:11.5px; font-weight:800; color:#94a3b8; text-transform:uppercase;">📎 Enlaces Oficiales:</span>
-        <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="note-attach-pill" style="border-color:var(--lime); color:var(--lime);">
-          📹 Sala Google Meet Clase 2: meet.google.com/vid-ucyc-abt ↗
-        </a>
-        <a href="/clase1#grabacion" class="note-attach-pill">
-          ⏮️ Ver Grabación y Notas de la Clase 1 ↗
-        </a>
+      <!-- Barra de Pestañas del Popup -->
+      <div class="notes-tabs-bar">
+        <div class="notes-tab-group">
+          <button type="button" class="notes-tab-btn active" id="ntab-all" onclick="switchNotesTab('all')">🌟 Ver Todo</button>
+          <button type="button" class="notes-tab-btn" id="ntab-resumen" onclick="switchNotesTab('resumen')">📌 Resumen Ejecutivo</button>
+          <button type="button" class="notes-tab-btn" id="ntab-pasos" onclick="switchNotesTab('pasos')">✅ Próximos Pasos (10 Tareas)</button>
+          <button type="button" class="notes-tab-btn" id="ntab-detalles" onclick="switchNotesTab('detalles')">⏱️ Minuto a Minuto (00:02 – 02:03)</button>
+        </div>
       </div>
 
-      <div class="notes-modal-body" style="text-align:center; padding:clamp(28px, 5vw, 56px) clamp(18px, 4vw, 40px);">
-        <div style="max-width:680px; margin:0 auto; background:rgba(15,23,42,0.85); border:2px dashed rgba(199,243,3,0.45); border-radius:26px; padding:clamp(24px, 4vw, 40px); box-shadow:0 20px 50px rgba(0,0,0,0.45);">
-          <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(245,158,11,0.18); border:1.5px solid #fbbf24; color:#fde047; font-family:var(--font-mono); font-size:12px; font-weight:800; padding:6px 16px; border-radius:999px; margin-bottom:16px;">
-            ⏳ MUY PRONTO · PENDIENTE DE EMISIÓN EN VIVO
+      <!-- Cuerpo Scrolleable del Popup -->
+      <div class="notes-modal-body">
+
+        <!-- Enlaces Oficiales Adjuntos -->
+        <div class="n-links-strip">
+          <div style="font-size:12.5px; font-weight:800; color:#5eead4;">
+            📎 Archivos Adjuntos y Registros Oficiales de la Reunión:
           </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="https://calendar.google.com/calendar/event?eid=NWExOHRia2tnc3RvMGV2ZHNlZzViYzJobnEgZ3J1cG93YXBweUBt" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📅 Evento Calendar</a>
+            <a href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?tab=t.o2f1ilte0q65" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📑 Documento de Notas</a>
+            <a href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📄 Transcripción Oficial</a>
+            <a href="https://drive.google.com/file/d/1PhDT7YMtg6wUn-sh9oc0mhJZKON73uNj/view?usp=drive_web" target="_blank" rel="noopener noreferrer" class="n-doc-btn">🎥 Grabación en Drive</a>
+          </div>
+        </div>
 
-          <h3 style="font-family:var(--font-display); font-size:clamp(22px, 3vw, 32px); font-weight:900; color:#ffffff; margin-bottom:12px;">
-            Las Notas y la Grabación de la Clase 2 se publicarán mañana al finalizar la sesión
-          </h3>
-
-          <p style="font-size:15px; color:#cbd5e1; line-height:1.65; margin-bottom:24px;">
-            Recuerda que nuestra <strong>Clase 2 (Tenshi en el Bolsillo, Conexión MCP WAPPY y Skills en Vivo)</strong> se realizará en vivo hoy <strong style="color:var(--lime);">Martes 27 de Octubre de 7:00 PM a 9:00 PM (Hora Colombia)</strong>.<br><br>
-            Tan pronto terminemos la clase, aquí mismo encontrarás el <strong>video completo de la grabación</strong>, la <strong>transcripción oficial</strong>, el <strong>resumen ejecutivo</strong> y los <strong>nuevos compromisos del grupo</strong>.
-          </p>
-
-          <!-- Tarjeta Destacada con el Link Oficial de Google Meet -->
-          <div style="background:rgba(13,148,136,0.18); border:1.5px solid #2dd4bf; border-radius:18px; padding:18px 22px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; text-align:left;">
-            <div>
-              <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#5eead4; letter-spacing:0.06em;">
-                📹 Enlace Oficial de Google Meet · Clase 2 (Martes 27 Oct · 7:00 PM)
-              </div>
-              <div style="font-family:var(--font-mono); font-size:16px; font-weight:900; color:#ffffff; margin-top:4px;">
-                https://meet.google.com/vid-ucyc-abt
-              </div>
+        <!-- SECCIÓN 1: RESUMEN EJECUTIVO -->
+        <div class="notes-pane active" data-npane="resumen">
+          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
+            📌 1. Resumen Ejecutivo de la Sesión
+          </div>
+          <div class="s-grid-2">
+            <div class="s-card glow-lime n-section-card">
+              <h4>⚡ Optimización y Uso de Tokens</h4>
+              <p>Configurar los modelos en modo <strong>Turbo</strong> y en nivel bajo (<code>low</code>) para tareas cotidianas y edición de archivos con el fin de reducir el sobrepensamiento, evitar bloqueos de cuota y reservar <code>high</code> exclusivamente para auditorías profundas, apoyándose en lectura universal de carpetas con Python.</p>
             </div>
-            <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime">
-              Entrar a Google Meet ↗
-            </a>
-          </div>
-
-          <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-            <a href="/clase1#grabacion" class="btn btn-glass">
-              ⏮️ Repasar Grabación y Notas de la Clase 1
-            </a>
-            <button type="button" class="btn btn-dark" onclick="closeNotesModal()">
-              Entendido, Volver a la Clase 2
-            </button>
+            <div class="s-card glow-teal n-section-card">
+              <h4>🔌 Integración con WAPPY, MCP Único y Empresa Activa</h4>
+              <p>Instalación de <code>wappy.club</code> en dispositivos móviles, enlace con cuentas de Google (Gmail, Drive, Calendar, Docs y Sheets), vinculación del servidor MCP <strong>una única vez</strong> con clave API en modelo <code>3.8 (low)</code> y selección manual obligatoria de la <strong>Empresa Activa</strong> para alimentar trabajadores sin cruces.</p>
+            </div>
+            <div class="s-card n-section-card">
+              <h4>🏗️ Ingeniería de Alto Valor ($2.5M–$3M), HTML y Flow</h4>
+              <p>Caso real de controles de ingeniería en tractomulas (&gt;1.5m) generando imágenes Antes/Después con Google Flow, micro-videos preventivos de 30–50s (IPEVR GTC 45 y convivencia) y preferencia por informes en <strong>HTML</strong> frente a Word por su impacto visual e integración con Canva y NotebookLM.</p>
+            </div>
+            <div class="s-card n-section-card">
+              <h4>🎙️ Tenshi Voice, Memoria Procedural y Planificación</h4>
+              <p>Operación por comandos de voz desde el celular con Tenshi, automatización de actas COPASST y exámenes periódicos, reglas de <strong>Memoria Procedural</strong> (validación CIE-10 y guías psicosociales en NotebookLM) y acuerdo de crear la carpeta <code>Curso Wappy</code> para lluvia de ideas por profesión.</p>
+            </div>
           </div>
         </div>
+
+        <!-- SECCIÓN 2: PRÓXIMOS PASOS Y TAREAS (10 COMPROMISOS OFICIALES) -->
+        <div class="notes-pane active" data-npane="pasos">
+          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
+            ✅ 2. Próximos Pasos y Compromisos de la Clase 2 (10 Tareas Oficiales)
+          </div>
+
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>1. Compartir contacto plan anual:</strong> Proporcionar los datos de contacto para la adquisición del plan anual de Antigravity a los estudiantes interesados en ampliar su capacidad de procesamiento tras finalizar la sesión.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>2. Revisar consumo de tokens:</strong> Investigar las causas del alto consumo de tokens reportado por Carolina Colorado durante la edición de sus archivos de Excel y analizar el procedimiento seguido en la configuración del modelo.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>3. Conectar Gmail a WAPPY:</strong> Conectar el correo electrónico de Gmail (y Google Workspace) a la empresa activa en WAPPY para garantizar la sincronización directa de los sistemas de gestión.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>4. Integrar Antigravity con WAPPY (MCP):</strong> Realizar la integración entre WAPPY y Antigravity siguiendo los pasos de configuración del servidor MCP (única vez), incluyendo la generación de la clave API y la prueba de conexión.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>5. Activar voz de Tenshi:</strong> Ejecutar el tercer paso de la configuración para activar la voz de Tenshi mediante el comando específico enviado al chat de Antigravity.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">Félix Bedoya &amp; Carolina Colorado</span>
+            <div><strong>6. Verificar conexión de correos multi-empresa:</strong> Verificar la conexión y parametrización de los correos electrónicos individuales para cada empresa administrada en WAPPY durante sesión de soporte técnico.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>7. Asistir con parametrización individual:</strong> Proporcionar soporte técnico y asistencia personalizada para parametrizar las conexiones en WAPPY a cada miembro del equipo.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">Gloria Amparo Quintero Giraldo</span>
+            <div><strong>8. Revisar estados de conexiones:</strong> Revisar los estados de las conexiones de Antigravity y solucionar posibles errores de configuración en los informes generados.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>9. Activar correos Antigravity:</strong> Habilitar cuentas de correo electrónico para que los estudiantes accedan y trabajen en Antigravity con continuidad antes de la próxima sesión.</div>
+          </div>
+          <div class="n-task-item n-step-item">
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>10. Crear proyecto «Curso Wappy» y lluvia de ideas:</strong> Crear una carpeta denominada <code>Curso Wappy</code> y un nuevo chat solicitando sugerencias de automatización por profesión con Tenshi para presentar en la siguiente reunión.</div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: DETALLES MINUTO A MINUTO CON MARCAS DE TIEMPO OFICIALES -->
+        <div class="notes-pane active" data-npane="detalles">
+          <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
+            ⏱️ 3. Bitácora Detallada Minuto a Minuto (00:02:48 – 02:03:19)
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>1. Dificultades iniciales y consumo de tokens en Antigravity</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:02:48</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:04:29</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:07:23</a>
+              </span>
+            </h4>
+            <p>Félix Bedoya inicia la sesión resolviendo dudas prácticas sobre Antigravity. Gloria Amparo Quintero Giraldo expone que al subir la carpeta completa de un sistema de gestión empresarial y pedir una auditoría forense sin editar, el sistema se bloqueó por agotamiento de tokens y emitió advertencias de documentos omitidos o simulados. Félix explica que el bloqueo ocurrió por procesar de golpe una cantidad masiva de archivos y subcarpetas en una sola tarea pesada.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>2. Carga de archivos externos y lectura universal con Python</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:05:43</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:08:40</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:10:42</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:11:57</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:14:05</a>
+              </span>
+            </h4>
+            <p>Gloria Amparo consulta cómo resumir múltiples PDFs y exámenes médicos de ingreso. Félix aclara que pueden incorporarse documentos desde cualquier ubicación del PC, advirtiendo que formatos antiguos de Excel, archivos muy pesados o PDFs con imágenes incrustadas fallan en lectura directa; en cambio, al arrastrar la carpeta completa, herramientas internas como <strong>Python</strong> leen cualquier formato sin discriminación. Carolina Colorado comparte también el consumo total de tokens al comparar un Excel original y su versión modificada.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>3. Configuración de modelos (Modo Turbo / Low), formatos de salida y búsqueda web</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:15:13</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:17:13</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:20:22</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:23:46</a>
+              </span>
+            </h4>
+            <p>Félix recomienda activar el modo <strong>Turbo</strong> y el nivel bajo (<code>low</code>) para tareas básicas con el fin de evitar el sobrepensamiento. Menciona cuentas empresariales anuales de ~$37.000 COP/año o promociones de Google de $20.000 COP/mes por tres meses. Además, enfatiza indicar siempre el formato de salida requerido (Word, PDF, Excel, PowerPoint o HTML) para que no entregue código por defecto, e instruir búsqueda en la web para consultar normatividad vigente posterior a la fecha de corte del modelo.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>4. Experiencias prácticas de los participantes con Antigravity</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:24:48</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:26:13</a>
+              </span>
+            </h4>
+            <p>Xiomara Ardila comenta sus compromisos laborales en un nuevo convenio con gobernación y fundación (exámenes de ingreso y afiliaciones). Juvenal Nicolás Arrieta Rodríguez y Alexander García relatan sus primeras pruebas; Alexander probó un PDF pero agotó tokens por configuración inicial alta. Félix reitera las alternativas de membresía anual para auditorías intensivas.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>5. Conectividad externa mediante APIs y protocolo MCP</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:27:20</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:31:08</a>
+              </span>
+            </h4>
+            <p>Ninguna IA aislada resuelve todas las necesidades empresariales: mediante APIs y MCP se integran sistemas externos, como el caso real de Félix conectando Siigo Cloud para procesar facturación por voz desde el celular. Asimismo, explica que el análisis de condiciones de salud planteado por Gloria se estructura con máxima eficiencia alimentando WAPPY desde Antigravity.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>6. Imágenes Antes/Después y videos para informes técnicos de ingeniería ($2.5M–$3M COP)</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:32:08</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:33:32</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:34:27</a>
+              </span>
+            </h4>
+            <p>Félix presenta un caso real para una empresa de transporte en Medellín usando fotografías de tractomulas para que Antigravity investigara controles de ingeniería en mantenimientos sobre 1.5 metros de altura y generara imágenes del estado posterior con los controles aplicados, respaldando informes técnicos valorados entre <strong>$2.500.000 y $3.000.000 COP</strong>, además de videos cortos de capacitación de 30 a 50 segundos.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>7. Acceso e instalación de WAPPY en dispositivos móviles</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:35:52</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:37:10</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:39:29</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:42:20</a>
+              </span>
+            </h4>
+            <p>Guía de ingreso a <code>wappy.club</code>. Ante la consulta de Xiomara Ardila sobre cómo usar WAPPY en el celular, Félix enseña a abrir el sitio en Chrome o Safari móvil, ir a configuración general del usuario y elegir descargar aplicación o <strong>añadir a la pantalla de inicio</strong>. Juvenal Nicolás Arrieta resuelve en vivo su acceso desde el computador.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>8. Integración de cuentas de Google Workspace dentro de WAPPY</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:43:43</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:47:10</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:48:14</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:49:19</a>
+              </span>
+            </h4>
+            <p>Procedimiento en vivo desde Editar Cuenta para enlazar Gmail, Google Drive, Google Calendar, Docs y Sheets. Carolina Colorado consulta sobre la gestión de varias empresas bajo un mismo correo y se acuerda revisar la parametrización individual por empresa.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>9. Demostración de Tenshi y generación de clave API en modelo 3.8 (Low)</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:50:04</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:54:24</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">00:56:39</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:01:06</a>
+              </span>
+            </h4>
+            <p>Demostración de Tenshi consultando eventos en Google Calendar y pendientes del Centro de Control. Explicación paso a paso para generar la clave API en las integraciones de WAPPY y pegarla en Antigravity usando el modelo <strong>3.8 en nivel bajo (<code>low</code>)</strong>, aclarando que el consumo en agentes se mide por procesos ejecutados.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>10. Acuerdo sobre niveles de pensamiento Low vs High en Antigravity</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:02:05</a>
+              </span>
+            </h4>
+            <p>Se establece como regla práctica usar modo bajo (<code>low</code>) en tareas cotidianas y edición rápida de archivos, reservando nivel alto (<code>high</code>) para auditorías complejas, adelantando el uso de reglas específicas mediante agentes y <em>skills</em>.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>11. Conexión del servidor MCP de única vez para todo Antigravity</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:04:01</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:05:04</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:07:17</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:15:55</a>
+              </span>
+            </h4>
+            <p>Ejemplos de conectores corporativos (Bancolombia, Siigo, Aleluya, Arus, Enlace Operativo) y práctica guiada en vivo. Ante la duda de Gloria y Carolina, Félix confirma que <strong>la sincronización del servidor MCP se realiza una única vez para todo Antigravity</strong>, verificando la conexión exitosa con WAPPY.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>12. Alimentación masiva de trabajadores desde carpetas locales hacia WAPPY</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:09:13</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:10:56</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:12:23</a>
+              </span>
+            </h4>
+            <p>Demostración de cómo arrastrar o referenciar una carpeta local con bases de datos de personal permite que Antigravity actualice registros existentes o cree nuevos trabajadores automáticamente en WAPPY para completar el perfil sociodemográfico con trazabilidad completa.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>13. Gestión de agotamiento de cuota y alternativas de cuentas anuales</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:19:32</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:20:40</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:21:53</a>
+              </span>
+            </h4>
+            <p>Ante el agotamiento imprevisto de tokens de Carolina Colorado durante la práctica, Félix ofrece habilitar correos alternativos y explica los planes anuales económicos ($37.000–$42.000 COP) frente a planes mensuales individuales de $100.000 COP.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>14. Alcance del MCP y selección obligatoria de la Empresa Activa en WAPPY</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:24:57</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:25:59</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:27:14</a>
+              </span>
+            </h4>
+            <p>Gloria Amparo pregunta si Antigravity toma datos de todas las empresas registradas o solo de una. Félix aclara que aunque el servidor MCP tiene permisos sobre todo el usuario, procesa de forma predeterminada la <strong>empresa activa en WAPPY</strong>, recomendándose activar manualmente la empresa exacta antes de alimentar datos.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>15. Automatización y comandos de voz desde el celular con Tenshi</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:28:13</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:32:21</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:35:20</a>
+              </span>
+            </h4>
+            <p>Félix Bedoya y Mauricio Posada presentan a Tenshi como asistente operado por voz desde el celular para interactuar con Antigravity sin escribir manualmente, realizando una demostración en vivo de delegación por voz sin depender de un computador de escritorio.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>16. Informes visuales en HTML vs Word y generación multimedia con Google Flow</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:37:18</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:42:17</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:44:03</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:46:45</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:49:03</a>
+              </span>
+            </h4>
+            <p>Ante la consulta de Carolina sobre formatos de entrega, Félix destaca exportar en <strong>HTML</strong> por su calidad visual frente a Word y su integración con Canva y NotebookLM. Junto a Mauricio Posada muestran el uso de Google Flow para imágenes y videos SST (matriz IPEVR GTC 45 y comités de convivencia) como productos comerciales de capacitación.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>17. Cómo ocultar el panel lateral de código interno en Antigravity</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:51:55</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:52:59</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:54:51</a>
+              </span>
+            </h4>
+            <p>Gloria Amparo consulta por los bloques extensos de código técnico que aparecen en Antigravity; Félix aclara que son instrucciones internas generadas por la plataforma y aconseja ocultar ese panel lateral para operar cómodamente sin distracciones.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>18. Centro de Automatizaciones y Memoria Procedural (CIE-10 y NotebookLM)</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:55:58</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:57:58</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">01:59:58</a>
+              </span>
+            </h4>
+            <p>Explicación del Centro de Automatización de Tenshi para programar revisión de actas del COPASST, envío de informes por correo y creación automática de pendientes de exámenes médicos periódicos anuales. Presentación de la <strong>Memoria Procedural</strong> para fijar validaciones obligatorias como verificar códigos <strong>CIE-10</strong> en medicina laboral o consultar guías de riesgo psicosocial en NotebookLM antes de responder.</p>
+          </div>
+
+          <div class="n-detail-card n-section-card n-timeline-item">
+            <h4>
+              <span>19. Tarea carpeta «Curso Wappy», lluvia de ideas profesional y cierre</span>
+              <span>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">02:01:10</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">02:02:15</a>
+                <a class="ts-link" href="https://docs.google.com/document/d/1jmB08B__3Tpv8IeU1pBSci6-RHOsaQh1wVH1VfZus48/edit?usp=drive_web&tab=t.t31n84ozfvdg" target="_blank">02:03:19</a>
+              </span>
+            </h4>
+            <p>Félix propone crear la carpeta de proyecto <code>Curso Wappy</code> con un nuevo chat para realizar una lluvia de ideas según la profesión de cada participante (auditoría, minería, asesoría independiente) integrando Antigravity, Google Flow, WAPPY y Tenshi, cerrando la sesión con el compromiso de habilitar cuentas y soporte mediante capturas de pantalla.</p>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
 
   <!-- ========================================================================
-       4. SECCIÓN ESTRELLA CLASE 2: LOS 6 PROMPTS CONVERSACIONALES (SIN CÓDIGO)
+       4. SECCIÓN ESTRELLA: LOS 5 PROMPTS REALES DE CLASE 2 (COPIAR Y PEGAR)
        ======================================================================== -->
   <section class="prompts-section" id="prompts-chat">
     <div class="container">
       <div class="sec-head-bar">
         <div>
-          <span class="sec-kicker">💬 Laboratorio Práctico Clase 2 · Copiar y Pegar en Español</span>
-          <h2 class="sec-big-title">6 Prompts Listos para la Clase 2 (MCP, Markdown, Skills y Tenshi Voice)</h2>
+          <span class="sec-kicker">💬 Práctica Oficial Clase 2 · Copiar y Pegar</span>
+          <h2 class="sec-big-title">5 Prompts Estratégicos Vistos en la Clase 2</h2>
         </div>
       </div>
 
-      <!-- Banner Explicativo Cero Código -->
+      <!-- Banner Explicativo Cero Bloqueos -->
       <div class="zero-code-banner">
         <div>
-          <h3>✨ En la Clase 2 tampoco programamos: Tu Voz y el Chat hacen el Trabajo</h3>
+          <h3>⚡ Trabaja en Modo Turbo / Low, Oculta el Panel de Código y Cuida tu Cuota</h3>
           <p>
-            Hoy unimos tu <strong>celular en campo (Tenshi Voice)</strong> con tu <strong>computador en la oficina (Antigravity)</strong> y tu <strong>nube SST (WAPPY)</strong>. Copia estos 6 prompts en orden y pégalos en tu chat de Antigravity para que él configure la conexión MCP, convierta tus archivos a Markdown, cree tu Skill de informes y procese las órdenes de voz de Tenshi:
+            Antes de pegar estos prompts en Antigravity, recuerda las 3 reglas de oro acordadas en la Clase 2: selecciona <strong>Modo Turbo + Nivel <code>Low</code></strong> para tareas operativas, verifica cuál es tu <strong>Empresa Activa</strong> dentro de WAPPY y oculta el panel lateral de código para trabajar enfocado en tus entregables visuales:
           </p>
         </div>
         <div class="zero-code-compare">
-          <div style="color:#fca5a5; font-weight:800; margin-bottom:6px;">❌ Sin el Ecosistema WAPPY:</div>
-          <div style="color:#cbd5e1; margin-bottom:10px; font-size:12px;">Tomar notas en papel en la obra y llegar a digitar 3 horas en Word y Excel por cada empresa.</div>
-          <div style="color:var(--lime); font-weight:800; margin-bottom:6px;">✅ En la Clase 2 con Tenshi + Antigravity:</div>
-          <div style="color:#ffffff; font-size:12px;">Dictas el hallazgo por voz desde el celular y <strong>Antigravity + WAPPY generan el informe y actualizan la matriz solos</strong>.</div>
+          <div style="color:#fca5a5; font-weight:800; margin-bottom:6px;">❌ Antes (Agotaba Tokens):</div>
+          <div style="color:#cbd5e1; margin-bottom:10px; font-size:12px;">Subir todo el SG-SST en modo High sin formato de salida definido.</div>
+          <div style="color:var(--lime); font-weight:800; margin-bottom:6px;">✅ Método Clase 2 (Óptimo):</div>
+          <div style="color:#ffffff; font-size:12px;">Carpeta puntual + lectura con <strong>Python en modo Low</strong> + salida en <strong>HTML/Excel</strong>.</div>
         </div>
       </div>
 
-      <!-- Grid de los 6 Prompts Conversacionales de la Clase 2 -->
+      <!-- Grid de los 5 Prompts Conversacionales de Clase 2 -->
       <div class="prompt-cards-grid">
 
-        <!-- PROMPT 1: CONECTAR MCP WAPPY Y VERIFICAR EMPRESA ACTIVA -->
+        <!-- PROMPT 1: LECTURA CON PYTHON EN MODO LOW + SALIDA HTML/EXCEL + WEB -->
         <div class="prompt-chat-card">
           <div class="p-card-top">
-            <span class="p-step-tag">Paso 1 · Conexión MCP WAPPY en Vivo</span>
-            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Activa las 55+ Tools SST</span>
+            <span class="p-step-tag">Prompt 1 · Python + Modo Low</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Cero Bloqueo de Cuota</span>
           </div>
           <div class="p-card-body">
-            <h3 class="p-card-title">1. Conectar el Servidor MCP de WAPPY y Consultar el Diagnóstico 360° sin Editar Nada</h3>
+            <h3 class="p-card-title">1. Leer Carpeta con Excels Antiguos y PDFs Escaneados usando Python + Búsqueda Web</h3>
             <p class="p-card-explain">
-              Pega este prompt con tus datos MCP de WAPPY para que Antigravity configure el puente y haga una primera consulta segura usando la regla <em>"sin editar nada"</em>.
+              Úsalo en modo <code>Low</code> arrastrando una carpeta puntual (ej. exámenes médicos de ingreso o matrices en <code>.xls</code>) para que Python extraiga todo sin agotar tokens y te entregue un HTML visual o Excel limpio.
             </p>
             <div class="chat-prompt-box">
-              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity:</div>
-              <div class="chat-prompt-text" id="prompt-1">Hola Antigravity. Estamos en la Clase 2 de WAPPY IA y necesito dejar conectada mi cuenta oficial de WAPPY vía MCP (Model Context Protocol).
+              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity (Modo Low):</div>
+              <div class="chat-prompt-text" id="prompt-1">Trabaja de forma optimizada y SIN EDITAR NADA de mis archivos originales. Usa tus herramientas internas de Python para leer todos los archivos dentro de la carpeta que te acabo de referenciar (incluyendo formatos antiguos de Excel, tablas pesadas y PDFs de exámenes médicos o soportes escaneados).
 
-Por favor realiza estos pasos sin editar nada de mis documentos locales:
-1. Configura la conexión al servidor MCP de WAPPY usando mis credenciales: [PEGA AQUÍ TU URL / API KEY MCP DE WAPPY].
-2. Consulta mis empresas disponibles con la herramienta "wappy_consultar_empresas" y asegúrate de activar mi empresa principal con "wappy_activar_empresa".
-3. Ejecuta "wappy_resumen_general_360" y "wappy_consultar_matriz_gtc45" y muéstrame en español sencillo un resumen del estado actual de mi empresa en WAPPY.</div>
+Realiza exactamente estos 3 pasos:
+1. Extrae y consolida los datos reales sin omitir ni simular ningún registro.
+2. Busca en la web la normatividad colombiana de SST vigente a la fecha de hoy aplicable a estos hallazgos o evaluaciones médicas para asegurar que no cites normas derogadas.
+3. Entrégame el resultado final en un informe visual ejecutivo en formato HTML listo para presentar a gerencia (y genera también una tabla resumen en Excel), sin mostrarme bloques de código en la respuesta.</div>
             </div>
           </div>
           <div class="p-card-footer">
-            <span class="p-result-note">⚡ Resultado: Conecta el MCP y verifica tu empresa activa en vivo.</span>
+            <span class="p-result-note">⚡ Resultado: Lee cualquier formato con Python y exporta en HTML + Excel.</span>
             <button class="btn-copy-prompt" onclick="copyPromptText('prompt-1', this)">
               📋 Copiar Prompt para el Chat
             </button>
           </div>
         </div>
 
-        <!-- PROMPT 2: CONVERTIR PDFS/WORD A MARKDOWN (.MD) PARA AHORRAR 80% DE TOKENS -->
+        <!-- PROMPT 2: INFORME TÉCNICO DE CONTROLES DE INGENIERÍA ANTES/DESPUÉS ($2.5M-$3M) -->
         <div class="prompt-chat-card">
           <div class="p-card-top">
-            <span class="p-step-tag">Paso 2 · Ahorro del 80% de Tokens</span>
-            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Conversión limpia a Markdown (.md)</span>
+            <span class="p-step-tag">Prompt 2 · Ingeniería $2.5M–$3M</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Antes/Después + Micro-Video</span>
           </div>
           <div class="p-card-body">
-            <h3 class="p-card-title">2. Convertir Manuales, Actas y Normas Pesadas a Markdown (.md) sin Alterar los Originales</h3>
+            <h3 class="p-card-title">2. Informe Técnico de Controles de Ingeniería con Fotos Antes/Después y Guion de 40s</h3>
             <p class="p-card-explain">
-              Aplica el truco maestro visto en clase: convierte tus documentos pesados una sola vez a formato <code>.md</code> para que todas tus futuras consultas consuman hasta un 80% menos de tokens.
+              Inspirado en el caso real de tractomulas en Medellín (&gt;1.5m de altura): analiza fotos de riesgo crítico, diseña controles de ingeniería reales, prepara el estado "Después" para Google Flow y redacta una cápsula de 40 segundos.
             </p>
             <div class="chat-prompt-box">
-              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity:</div>
-              <div class="chat-prompt-text" id="prompt-2">Quiero optimizar al máximo mi consumo de tokens siguiendo la regla del curso de WAPPY.
+              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity / WAPPY:</div>
+              <div class="chat-prompt-text" id="prompt-2">Analiza las fotografías operativas que puse en esta carpeta (trabajos en alturas superiores a 1.5 metros / operación crítica en planta o vehículos pesados) e investiga en la web soluciones reales de controles de ingeniería certificados según la Resolución 4272 de 2021, Decreto 1072 de 2015 y jerarquía de controles GTC 45.
 
-Sin editar ni borrar ninguno de mis archivos originales en PDF, Word o Excel:
-1. Crea dentro de mi proyecto una carpeta llamada "base_markdown_optimizada".
-2. Lee los documentos normativos, manuales o informes base que tengo en mi carpeta y conviértelos a archivos limpios en formato Markdown (.md) bien estructurados con títulos, tablas y listas dentro de "base_markdown_optimizada".
-3. Actualiza mi archivo AGENTS.md para que de ahora en adelante, cada vez que necesites consultar esa información, leas siempre las versiones ligeras en Markdown (.md) ahorrando el 80% de tokens.</div>
+Estructúrame un entregable técnico de alto valor comercial en formato HTML ejecutivo que incluya:
+1. Diagnóstico fotográfico del estado actual ("Antes") y valoración del riesgo.
+2. Propuesta detallada de Controles de Ingeniería específicos (plataformas, líneas de vida, guardas o sistemas colectivos) con especificaciones técnicas.
+3. Los prompts visuales exactos para generar en Google Flow las imágenes hiperrealistas del estado posterior ("Después") sobre mis mismas fotografías.
+4. Guion técnico escena por escena para un micro-video de capacitación de 40 segundos dirigido a los trabajadores.</div>
             </div>
           </div>
           <div class="p-card-footer">
-            <span class="p-result-note">⚡ Resultado: Crea tu biblioteca ligera en .md y protege tus tokens.</span>
+            <span class="p-result-note">⚡ Resultado: Informe de ingeniería comercial + prompts Antes/Después Flow.</span>
             <button class="btn-copy-prompt" onclick="copyPromptText('prompt-2', this)">
               📋 Copiar Prompt para el Chat
             </button>
           </div>
         </div>
 
-        <!-- PROMPT 3: CREAR EL SKILL DE INFORME DE SIMULACRO Y AUDITORÍAS MULTI-EMPRESA -->
+        <!-- PROMPT 3: CONEXIÓN MCP ÚNICA EN GEMINI 3.8 LOW + EMPRESA ACTIVA + TRABAJADORES -->
         <div class="prompt-chat-card">
           <div class="p-card-top">
-            <span class="p-step-tag">Paso 3 · Skill de Informes y Simulacro</span>
-            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Basado en tu Informe Ejemplo</span>
+            <span class="p-step-tag">Prompt 3 · MCP Único + Empresa Activa</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Modelo 3.8 (Low)</span>
           </div>
           <div class="p-card-body">
-            <h3 class="p-card-title">3. Crear el Skill para Automatizar Informes de Simulacro e Inspecciones de Múltiples Empresas</h3>
+            <h3 class="p-card-title">3. Vincular Servidor MCP (Única Vez) y Cargar Trabajadores a la Empresa Activa</h3>
             <p class="p-card-explain">
-              Ideal para el caso de Jenny, María Elena y Carolina: el agente toma tu informe de muestra y crea un <code>SKILL.md</code> reutilizable para sacar los informes de 1 o 20 empresas en minutos.
+              Pégalo usando el modelo <code>3.8</code> en nivel <code>Low</code>. Conecta tu clave API una sola vez para todo Antigravity, verifica primero cuál es la <strong>Empresa Activa</strong> en WAPPY y sube perfiles sociodemográficos sin cruces.
             </p>
             <div class="chat-prompt-box">
-              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity:</div>
-              <div class="chat-prompt-text" id="prompt-3">Necesito que crees por mí un Skill (habilidad reutilizable) llamado "generador-informes-simulacro-e-inspecciones" dentro de la carpeta ".agents/skills/".
+              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity (Modelo 3.8 Low):</div>
+              <div class="chat-prompt-text" id="prompt-3">Configura de forma global y por única vez en mi Antigravity la conexión al servidor MCP de WAPPY usando mi clave API personal: [PEGA AQUÍ TU API KEY DE WAPPY].
 
-Toma como referencia el informe de muestra que puse en mi carpeta y configura el archivo SKILL.md para que cada vez que yo te pida generar el informe de una empresa:
-1. Leas únicamente la subcarpeta correspondiente a esa empresa (fotos de evidencia, tiempos de evacuación, lista de participantes y hallazgos).
-2. Redactes automáticamente el informe técnico completo en Markdown y HTML/PDF conservando exactamente el estilo profesional de mi plantilla, con análisis normativo (Decreto 1072 / Res. 0312).
-3. Te conectes por MCP a WAPPY, actives esa empresa y registres los compromisos y oportunidades de mejora directamente en el Cronograma SST y en Actos/Condiciones Inseguras.</div>
+Una vez conectado, sigue estrictamente este protocolo de seguridad antes de cargar información:
+1. Consulta en WAPPY y confírmame en pantalla el nombre y NIT de la EMPRESA ACTIVA actualmente seleccionada para garantizar que no crucemos datos con otros clientes.
+2. Lee con Python la base de datos y soportes de mi carpeta local de trabajadores, y alimenta o actualiza automáticamente sus registros y perfil sociodemográfico dentro de esa Empresa Activa en WAPPY.
+3. Crea en el Centro de Control / Cronograma de WAPPY el recordatorio anual de seguimiento de exámenes médicos periódicos para los trabajadores registrados.</div>
             </div>
           </div>
           <div class="p-card-footer">
-            <span class="p-result-note">⚡ Resultado: Crea tu fábrica automática de informes por empresa.</span>
+            <span class="p-result-note">⚡ Resultado: MCP global listo + carga sociodemográfica segura.</span>
             <button class="btn-copy-prompt" onclick="copyPromptText('prompt-3', this)">
               📋 Copiar Prompt para el Chat
             </button>
           </div>
         </div>
 
-        <!-- PROMPT 4: ALIMENTAR MATRIZ GTC 45, TRABAJADORES Y CRONOGRAMA EN WAPPY -->
+        <!-- PROMPT 4: REGLA DE MEMORIA PROCEDURAL CIE-10 + PSICOSOCIAL EN NOTEBOOKLM -->
         <div class="prompt-chat-card">
           <div class="p-card-top">
-            <span class="p-step-tag">Paso 4 · Alimentar WAPPY desde Carpetas</span>
-            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">GTC 45 + PESV + Cronograma</span>
+            <span class="p-step-tag">Prompt 4 · Memoria Procedural</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">CIE-10 + NotebookLM + COPASST</span>
           </div>
           <div class="p-card-body">
-            <h3 class="p-card-title">4. Subir Hallazgos Fotográficos y Archivos Locales a la Matriz GTC 45 de WAPPY</h3>
+            <h3 class="p-card-title">4. Configurar Memoria Procedural Estricta (CIE-10, Riesgo Psicosocial y Automatizaciones)</h3>
             <p class="p-card-explain">
-              Haz que Antigravity analice las fotos de campo o tablas de tu carpeta local y alimente automáticamente los módulos de tu empresa en WAPPY sin digitar nada a mano.
+              Establece las validaciones obligatorias que explicó Félix Bedoya al cierre de la clase para que Tenshi y tu agente nunca emitan diagnósticos ni recomendaciones sin validar CIE-10 y NotebookLM.
             </p>
             <div class="chat-prompt-box">
-              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity:</div>
-              <div class="chat-prompt-text" id="prompt-4">Por favor analiza los archivos y fotografías de hallazgos que acabo de guardar en mi carpeta de inspecciones (sin editar los archivos originales) y alimenta mi empresa en WAPPY vía MCP:
+              <div class="chat-prompt-label">💬 Mensaje para pegar en Tenshi (WAPPY) o en Antigravity:</div>
+              <div class="chat-prompt-text" id="prompt-4">Guarda en tu Memoria Procedural las siguientes reglas obligatorias e inquebrantables para todas mis consultas y automatizaciones de SST:
 
-1. Para cada hallazgo detectado, clasifica el peligro y evalúa el riesgo según la metodología GTC 45 colombiana.
-2. Usa la herramienta "wappy_alimentar_matriz_gtc45" para agregar cada peligro con sus controles recomendados (Fuente, Medio e Individuo).
-3. Usa "wappy_registrar_reporte_acto_condicion" para dejar trazabilidad del hallazgo y "wappy_crear_actividad_cronograma" para agendar la acción correctiva en mi Plan Anual de Trabajo.
-4. Entrégame una tabla resumen con los IDs o registros creados en WAPPY.</div>
+1. Validación Médica Laboral (CIE-10): Cada vez que analicemos ausentismo, recomendaciones médicas o condiciones de salud, verifica siempre el código oficial de la Clasificación Internacional de Enfermedades (CIE-10) antes de clasificar o registrar el caso en WAPPY.
+2. Validación Psicosocial en NotebookLM: Antes de emitir cualquier concepto, plan de intervención o informe de riesgo psicosocial (Resolución 2764 / Batería del Ministerio), consulta primero mis guías oficiales cargadas en NotebookLM y cita la fuente exacta.
+3. Automatización Periódica: Deja programada la revisión mensual de actas y compromisos pendientes del COPASST para enviarme el resumen ejecutivo al correo Gmail conectado en WAPPY.</div>
             </div>
           </div>
           <div class="p-card-footer">
-            <span class="p-result-note">⚡ Resultado: Alimenta GTC 45, Reportes y Cronograma en WAPPY.</span>
+            <span class="p-result-note">⚡ Resultado: Activa blindaje normativo CIE-10 y psicosocial permanente.</span>
             <button class="btn-copy-prompt" onclick="copyPromptText('prompt-4', this)">
               📋 Copiar Prompt para el Chat
             </button>
           </div>
         </div>
 
-        <!-- PROMPT 5: PROCESAR ÓRDENES DELEGADAS DE TENSHI VOICE (CELULAR -> PC) -->
+        <!-- PROMPT 5: TAREA OFICIAL CARPETA "CURSO WAPPY" - LLUVIA DE IDEAS CON TENSHI -->
         <div class="prompt-chat-card">
           <div class="p-card-top">
-            <span class="p-step-tag">Paso 5 · Tenshi en el Bolsillo (Celular → PC)</span>
-            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Ejecuta Órdenes de Voz de Tenshi</span>
+            <span class="p-step-tag">Prompt 5 · Tarea Oficial «Curso Wappy»</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Lluvia de Ideas por Profesión</span>
           </div>
           <div class="p-card-body">
-            <h3 class="p-card-title">5. Consultar y Ejecutar las Órdenes Delegadas que le Dictaste por Voz a Tenshi en el Celular</h3>
+            <h3 class="p-card-title">5. Lluvia de Ideas en la Carpeta «Curso Wappy» según tu Profesión con Tenshi</h3>
             <p class="p-card-explain">
-              Después de hablar con Tenshi desde tu celular en campo y pedirle que delegue una tarea, pegas este prompt en tu PC para que Antigravity descargue la orden, haga el trabajo y la cierre.
+              Crea en tu computador la carpeta <code>Curso Wappy</code>, abre un chat nuevo y usa este prompt (por texto o por voz con Tenshi) para llevar tu caso práctico listo a la siguiente sesión.
             </p>
             <div class="chat-prompt-box">
-              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity:</div>
-              <div class="chat-prompt-text" id="prompt-5">Acabo de regresar de mi recorrido de campo donde le dicté instrucciones por voz a Tenshi desde mi celular.
+              <div class="chat-prompt-label">💬 Mensaje para usar en tu nueva carpeta «Curso Wappy» con Tenshi:</div>
+              <div class="chat-prompt-text" id="prompt-5">Hola Tenshi. Acabo de crear mi carpeta de proyecto "Curso Wappy" para preparar mi caso aplicado de automatización profesional.
 
-Por favor ejecuta este flujo completo vía MCP con WAPPY:
-1. Llama a la herramienta "wappy_consultar_ordenes_delegadas_tenshi" (con estado "pendiente") para ver todas las órdenes de voz que te dejé desde mi celular.
-2. Por cada orden encontrada, analiza lo solicitado, cruza la información con mis carpetas locales (fotos, actas o listas) y genera los informes o actualizaciones correspondientes en mi carpeta "informes_generados" y en los módulos de WAPPY.
-3. Cuando termines cada tarea, llama a "wappy_completar_orden_delegada_tenshi" enviando el resumen detallado del resultado para que en mi celular aparezca como completada.</div>
+Mi perfil y sector principal es: [ESCRIBE AQUÍ TU ROL: ej. Auditora SG-SST independiente / Ingeniero de Minas / Asesora de múltiples PYMES / Especialista en Salud Ocupacional].
+
+Hagamos una lluvia de ideas práctica con 5 flujos de trabajo de alto impacto (y potencial comercial) hechos a la medida de mi profesión donde combinemos en equipo:
+1. Google Antigravity (lectura de carpetas con Python en modo Low).
+2. Google Flow y NotebookLM (imágenes Antes/Después, micro-videos de 40s y soporte legal).
+3. WAPPY Cloud (matrices, trabajadores, Centro de Control y correo Gmail en mi Empresa Activa).
+4. Tenshi Voice desde mi celular para operarlo cuando estoy en campo o visita.</div>
             </div>
           </div>
           <div class="p-card-footer">
-            <span class="p-result-note">⚡ Resultado: Une la voz de tu celular con el poder de tu PC.</span>
+            <span class="p-result-note">⚡ Resultado: Genera tus 5 propuestas prácticas listas para la Clase 3.</span>
             <button class="btn-copy-prompt" onclick="copyPromptText('prompt-5', this)">
-              📋 Copiar Prompt para el Chat
-            </button>
-          </div>
-        </div>
-
-        <!-- PROMPT 6: CREAR WORKFLOW /SINCRONIZAR-CAMPO Y TRIGGER AUTOMÁTICO -->
-        <div class="prompt-chat-card">
-          <div class="p-card-top">
-            <span class="p-step-tag">Paso 6 · Trigger &amp; Atajo /sincronizar-campo</span>
-            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Drive + Tenshi Voice + WAPPY</span>
-          </div>
-          <div class="p-card-body">
-            <h3 class="p-card-title">6. Crear el Comando Rápido <code>/sincronizar-campo</code> y Trigger Matutino</h3>
-            <p class="p-card-explain">
-              Deja configurado un atajo de una sola palabra y un Trigger programado para que tu proyecto revise todos los días Google Drive y las órdenes de Tenshi sin que tengas que volver a redactar estas instrucciones.
-            </p>
-            <div class="chat-prompt-box">
-              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat de Antigravity:</div>
-              <div class="chat-prompt-text" id="prompt-6">Quiero dejar automatizado todo lo que aprendimos en la Clase 2 mediante un Workflow llamado "/sincronizar-campo" y un Trigger matutino (8:00 AM de lunes a viernes):
-
-Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active el Trigger de la mañana, ejecutes en orden:
-1. Consulta en WAPPY vía MCP si tengo "órdenes delegadas de Tenshi" pendientes dictadas desde mi celular.
-2. Revisa mi carpeta sincronizada de Google Drive / OneDrive buscando fotos de inspecciones o documentos nuevos del día.
-3. Convierte cualquier documento pesado nuevo a Markdown (.md) sin editar el original para ahorrar tokens.
-4. Ejecuta mis Skills para generar los informes técnicos, alimenta las matrices y el cronograma en WAPPY, y cierra las órdenes delegadas mostrándome el reporte ejecutivo final en pantalla.</div>
-            </div>
-          </div>
-          <div class="p-card-footer">
-            <span class="p-result-note">⚡ Resultado: Crea el comando /sincronizar-campo y tu rutina automática.</span>
-            <button class="btn-copy-prompt" onclick="copyPromptText('prompt-6', this)">
               📋 Copiar Prompt para el Chat
             </button>
           </div>
@@ -3333,7 +3670,7 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
     <div class="container">
       <div class="sec-head-bar">
         <div>
-          <span class="sec-kicker">📘 Resumen Pedagógico Completo · Semana 2</span>
+          <span class="sec-kicker">📘 Resumen Pedagógico Completo · Clase 2</span>
           <h2 class="sec-big-title">Guía de Estudio Paso a Paso · Clase 2</h2>
         </div>
       </div>
@@ -3343,29 +3680,26 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
         <!-- BLOQUE 1 -->
         <div class="g-block-card">
           <div class="g-block-header">
-            <span class="g-badge">Bloque 1 · Optimización de Tokens y Seguridad</span>
-            <span class="g-time">⏱️ Duración: 30 Minutos</span>
+            <span class="g-badge">Bloque 1 · Cuota, Turbo/Low y Python</span>
+            <span class="g-time">⏱️ Minutos 00:02 – 00:26</span>
           </div>
-          <h3>Regla «Sin Editar Nada», Subcarpetas por Cliente y Conversión a Markdown (.md)</h3>
-          <p style="font-size:14px; color:var(--ink-soft);">
-            Consolidamos las mejores prácticas descubiertas en la primera sesión para trabajar como expertos sin agotar nuestra cuota de IA:
-          </p>
+          <h3>Cómo Evitar el Agotamiento de Tokens y Leer Cualquier Formato con Python</h3>
           <ul class="g-list">
             <li>
-              <strong>1. Comando de Seguridad «Sin Editar Nada»:</strong>
-              Siempre que quieras hacer una auditoría exploratoria, un resumen o una consulta sobre tus carpetas sin que el agente modifique tus archivos originales, inicia tu mensaje con <em>"Sin editar nada..."</em>.
+              <strong>1. Por qué ocurren los bloqueos de tokens:</strong>
+              Subir de una sola vez la carpeta entera de un SG-SST pidiendo una auditoría forense completa satura los procesos encadenados del modelo. Trabaja siempre por subcarpetas puntuales y con la instrucción <em>"sin editar nada"</em> cuando solo necesites diagnóstico.
             </li>
             <li>
-              <strong>2. Conversión de PDFs a Markdown (.md) (80% Ahorro):</strong>
-              Los archivos PDF extensos y las imágenes crudas en <code>base64</code> consumen miles de tokens. Al pedirle al chat (con el <em>Prompt #2</em>) que cree una copia ligera en formato <code>.md</code>, multiplicas por 5 el rendimiento de tu cuenta.
+              <strong>2. Cuándo usar Modo Turbo / <code>Low</code> vs <code>High</code>:</strong>
+              Configura <strong>Turbo + Low</strong> para el 90% de tus tareas diarias (editar Excels, resumir PDFs, conectar claves API). Reserva <strong>High</strong> únicamente para auditorías normativas profundas o investigaciones complejas.
             </li>
             <li>
-              <strong>3. Un Proyecto por Actividad o Subcarpetas por Empresa:</strong>
-              Si eres consultor SST de varias empresas, organiza una subcarpeta por cliente y pídele a Antigravity que lea únicamente la subcarpeta de la empresa que estás auditando en ese momento.
+              <strong>3. Lectura universal con Python sin saber programar:</strong>
+              Los archivos Excel antiguos, libros pesados o PDFs médicos con imágenes fallan si se suben sueltos; al arrastrar la carpeta completa, Antigravity usa Python internamente y lee todos los formatos sin discriminación.
             </li>
             <li>
-              <strong>4. Sincronización con Google Drive, OneDrive o Dropbox:</strong>
-              Antigravity lee al instante cualquier carpeta de nube que tengas sincronizada en el explorador de archivos de tu Windows o Mac.
+              <strong>4. Formato de salida explícito + Búsqueda Web:</strong>
+              Pide siempre el formato final deseado (<strong>HTML, Excel, Word, PDF o PowerPoint</strong>) para evitar respuestas en código, e instruye buscar en la web legislación colombiana reciente.
             </li>
           </ul>
         </div>
@@ -3373,26 +3707,22 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
         <!-- BLOQUE 2 -->
         <div class="g-block-card">
           <div class="g-block-header">
-            <span class="g-badge">Bloque 2 · Conexión MCP WAPPY en Vivo</span>
-            <span class="g-time">⏱️ Duración: 30 Minutos</span>
+            <span class="g-badge">Bloque 2 · Ingeniería $3M, Móvil y Google</span>
+            <span class="g-time">⏱️ Minutos 00:27 – 00:49</span>
           </div>
-          <h3>Enchufar Antigravity con las 55+ Herramientas de WAPPY y Crear tu Primer Skill</h3>
+          <h3>Informes de Ingeniería Antes/Después, WAPPY en Celular y Google Workspace</h3>
           <ul class="g-list">
             <li>
-              <strong>Conexión del Servidor MCP de WAPPY:</strong>
-              Copiamos la credencial MCP de nuestra cuenta en <code>wappy.club</code> y usamos el <em>Prompt #1</em> para que el chat active el acceso directo a todos los módulos del SG-SST.
+              <strong>1. Informes técnicos valorados en $2.5M – $3M COP:</strong>
+              Con fotos reales de campo (como el caso de tractomulas &gt;1.5m en Medellín), Antigravity investiga controles de ingeniería y con <strong>Google Flow</strong> genera las imágenes del estado posterior ("Después") junto con micro-videos preventivos de 30 a 50 segundos.
             </li>
             <li>
-              <strong>Cambio de Empresa Activa desde el Chat:</strong>
-              Con las herramientas <code>wappy_consultar_empresas</code> y <code>wappy_activar_empresa</code>, puedes indicarle a Antigravity para cuál de tus clientes deseas subir la información.
+              <strong>2. Instalar WAPPY en tu celular (Android / iPhone):</strong>
+              Ingresa a <code>wappy.club</code> desde Chrome o Safari móvil, abre el menú de configuración general del usuario y pulsa <strong>Descargar aplicación / Añadir a pantalla de inicio</strong>.
             </li>
             <li>
-              <strong>Creación del Skill de Simulacro e Inspecciones:</strong>
-              Colocamos un informe de muestra bien estructurado en nuestra carpeta y usamos el <em>Prompt #3</em> para que el chat construya su archivo <code>SKILL.md</code> reutilizable.
-            </li>
-            <li>
-              <strong>Alimentación Automática de GTC 45 y Cronograma:</strong>
-              A partir de las fotos de recorrido y evidencias locales, Antigravity alimenta la Matriz de Peligros GTC 45, registra los actos/condiciones inseguras y programa las tareas en el Cronograma de WAPPY.
+              <strong>3. Conectar Gmail, Drive, Calendar, Docs y Sheets:</strong>
+              Desde <em>Editar Cuenta → Integraciones</em> en WAPPY, vincula tus servicios de Google Workspace para sincronizar agendas, correos y documentos por empresa.
             </li>
           </ul>
         </div>
@@ -3400,26 +3730,22 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
         <!-- BLOQUE 3 -->
         <div class="g-block-card">
           <div class="g-block-header">
-            <span class="g-badge">Bloque 3 · Tenshi en el Bolsillo (Voz desde el Celular)</span>
-            <span class="g-time">⏱️ Duración: 35 Minutos</span>
+            <span class="g-badge">Bloque 3 · Servidor MCP Único y Empresa Activa</span>
+            <span class="g-time">⏱️ Minutos 00:50 – 01:27</span>
           </div>
-          <h3>Instrucciones por Voz en Campo y Órdenes Delegadas del Celular al Computador</h3>
+          <h3>Clave API en Modelo 3.8 (Low), Conexión Única y Carga Masiva de Trabajadores</h3>
           <ul class="g-list">
             <li>
-              <strong>Hablar con Tenshi Voice en Campo:</strong>
-              Abres <code>wappy.club</code> en tu celular durante una inspección de planta u obra y conversas manos libres con Tenshi para consultar datos de la empresa o reportar hallazgos en tiempo real.
+              <strong>1. Vincular la API Key en modelo <code>3.8 (Low)</code>:</strong>
+              Copia tu clave API en las integraciones de WAPPY y pégala en el chat de Antigravity usando el modelo 3.8 en nivel bajo para completar el enlace sin gastar procesos innecesarios.
             </li>
             <li>
-              <strong>Registro Instantáneo por Voz:</strong>
-              Mientras caminas, le dictas a Tenshi un acto o condición subestándar y él lo guarda de inmediato en la nube de WAPPY sin que tengas que escribir en pantalla.
+              <strong>2. La conexión MCP se hace UNA SOLA VEZ:</strong>
+              No tienes que repetir la configuración MCP cada vez que abras un proyecto nuevo: queda guardada para todo tu Antigravity.
             </li>
             <li>
-              <strong>Buzón de Órdenes Delegadas (`Tenshi → Antigravity`):</strong>
-              Si estás en la calle y necesitas que tu computador prepare un informe pesado con los archivos de tu disco duro, le dices a Tenshi: <em>"Delégale esta orden a Antigravity"</em>.
-            </li>
-            <li>
-              <strong>Ejecución y Cierre desde el PC (Prompt #5):</strong>
-              Al llegar a tu escritorio, Antigravity consulta <code>wappy_consultar_ordenes_delegadas_tenshi</code>, elabora el informe con tus carpetas locales y marca la orden como completada con <code>wappy_completar_orden_delegada_tenshi</code>.
+              <strong>3. Regla de oro de la «Empresa Activa»:</strong>
+              Aunque el MCP tiene acceso global a tu usuario, procesa por defecto la empresa activa en WAPPY. Verifica y selecciona manualmente la empresa cliente exacta antes de arrastrar carpetas de trabajadores y perfiles sociodemográficos.
             </li>
           </ul>
         </div>
@@ -3427,51 +3753,51 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
         <!-- BLOQUE 4 -->
         <div class="g-block-card">
           <div class="g-block-header">
-            <span class="g-badge">Bloque 4 · Despacho Multiturno, Triggers y Workflows</span>
-            <span class="g-time">⏱️ Duración: 25 Minutos</span>
+            <span class="g-badge">Bloque 4 · Tenshi Voice, HTML y Memoria CIE-10</span>
+            <span class="g-time">⏱️ Minutos 01:28 – 02:03</span>
           </div>
-          <h3>Los 7 Especialistas de WAPPY y el Comando Rápido <code>/sincronizar-campo</code></h3>
+          <h3>Comandos de Voz desde el Móvil, Reportes HTML, Memoria Procedural y Tarea</h3>
           <ul class="g-list">
             <li>
-              <strong>Consulta Directa vs. Delegación a los 7 Especialistas:</strong>
-              Aprende cuándo pedirle a Tenshi que te responda él mismo al instante y cuándo pedirle que estructure un prompt técnico normativo para el Abogado SST, Médico Laboral o Investigador ATEL.
+              <strong>1. Operar con Tenshi por voz desde cualquier lugar:</strong>
+              Al completar el tercer paso de conexión, delegas tareas complejas hablándole a Tenshi desde el celular sin escribir manualmente ni estar sentado frente al computador.
             </li>
             <li>
-              <strong>Continuidad de Conversación:</strong>
-              Cómo seguir profundizando sobre un mismo caso ocupacional o investigación de accidente en el mismo hilo sin perder el contexto.
+              <strong>2. Informes en HTML vs Word y panel de código oculto:</strong>
+              Solicita tus informes en formato <strong>HTML</strong> para obtener presentaciones ejecutivas impecables integrables con Canva y NotebookLM, y oculta el panel lateral de código en Antigravity para trabajar con interfaz limpia.
             </li>
             <li>
-              <strong>Creación del Workflow <code>/sincronizar-campo</code>:</strong>
-              Con el <em>Prompt #6</em> dejamos creado un atajo de una sola palabra que revisa órdenes de voz de Tenshi, lee novedades de Google Drive y actualiza WAPPY.
+              <strong>3. Centro de Automatizaciones y Memoria Procedural:</strong>
+              Programa revisiones periódicas de actas COPASST y exámenes médicos anuales, y fija reglas estrictas como verificar códigos <strong>CIE-10</strong> y guías psicosociales en NotebookLM.
             </li>
             <li>
-              <strong>Preparación para la Clase 3 (NotebookLM Profundo):</strong>
-              Dejamos listo nuestro entorno para que en la Clase 3 conectemos los cuadernos normativos sin alucinación y generemos podcasts de capacitación a dos voces.
+              <strong>4. Tarea oficial en carpeta <code>Curso Wappy</code>:</strong>
+              Crea la carpeta <code>Curso Wappy</code> y un chat nuevo para hacer tu lluvia de ideas profesional integrando Antigravity, Flow, WAPPY y Tenshi.
             </li>
           </ul>
         </div>
 
       </div>
 
-      <!-- CTA Final de Acceso a Sala Meet y Navegación entre Clases -->
+      <!-- CTA Final hacia Clase 3 y Notas Oficiales -->
       <div class="final-cta-card">
         <div style="max-width: 640px;">
           <span style="color:var(--lime); font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;">
-            🎓 Todo Listo para Nuestra Clase 2 · Martes 27 de Octubre
+            🎓 ¿Ya completaste tu Servidor MCP Único y la carpeta Curso Wappy?
           </span>
           <h3 style="font-family:var(--font-display); font-size:clamp(20px, 2.6vw, 30px); font-weight:900; margin:6px 0 8px;">
-            Ten Abierto Antigravity en tu PC y WAPPY en tu Celular a las 6:50 PM
+            Avanza Ahora Mismo a la Clase 3 Grabada
           </h3>
           <p style="font-size:14px; color:#cbd5e1;">
-            Hoy haremos la prueba en vivo hablando con Tenshi desde el celular y viendo cómo Antigravity recibe la orden en el computador y alimenta tu empresa en WAPPY.
+            Repasa las 10 tareas oficiales de esta sesión en el popup interactivo o continúa directamente con la siguiente clase del programa intensivo WAPPY IA + Antigravity.
           </p>
         </div>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <a href="/clase1" class="btn btn-glass">
-            ⏮️ Ver Página de la Clase 1
-          </a>
-          <a href="https://meet.google.com/vid-ucyc-abt" target="_blank" rel="noopener noreferrer" class="btn btn-lime">
-            📹 Entrar a Google Meet (7:00 PM)
+          <button type="button" onclick="openNotesModal()" class="btn btn-glass">
+            📋 Repasar Notas y 10 Tareas
+          </button>
+          <a href="/clase3" class="btn btn-lime">
+            ⏭️ Ir a la Clase 3 Grabada
             <span class="arrow-pip">↗</span>
           </a>
         </div>
@@ -3479,7 +3805,7 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
 
       <footer>
         <p><strong>WAPPY IA · SOMOS SST</strong> · Especialización Práctica en Agentes Autónomos para Seguridad y Salud en el Trabajo</p>
-        <p style="margin-top:4px;">wappy.club/clase2 · Docente Líder: Ing. Félix Bedoya · Grupo Exclusivo de Participantes</p>
+        <p style="margin-top:4px;">wappy.club/clase2 · Docente Líder: Ing. Félix Bedoya · Memorias Oficiales Clase 2 (Optimización, MCP Único &amp; Tenshi Voice)</p>
       </footer>
     </div>
   </section>
@@ -3490,7 +3816,7 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
   <script>
     // 1. Controlador de las 15 Diapositivas
     let currentSlide = 1;
-    const totalSlides = 15;
+    const totalSlides = document.querySelectorAll(".slide").length || 12;
 
     function showSlide(index) {{
       if (index < 1 || index > totalSlides) return;
@@ -3756,17 +4082,105 @@ Configúralo para que cada vez que yo escriba "/sincronizar-campo" o se active e
       draw();
     }}
 
+    // 5. Detección Automática de Sesión Activa en WAPPY (Regla 8 AGENTS.md)
+    window.platformUser = null;
+    window.platformUserToken = '';
+    window.isPlatformLoggedIn = false;
+
+    function updateWappyAuthNav(user, token) {{
+      const isLogged = Boolean(user);
+      window.platformUser = user || null;
+      window.platformUserToken = token || '';
+      window.isPlatformLoggedIn = isLogged;
+
+      const isLocalFile = window.location.protocol === 'file:';
+      const baseOrigin = isLocalFile ? 'https://wappy.club' : '';
+      const navCta = document.getElementById('navCtaEnterWappy');
+      const mobileCta = document.getElementById('mobileCtaEnterWappy');
+
+      if (isLogged && user) {{
+        const rawName = String(user.name || user.username || user.email || 'Usuario').trim();
+        const firstName = rawName.split(' ')[0] || 'Usuario';
+        const avatarSrc = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${{encodeURIComponent(rawName)}}&backgroundColor=0d9488`;
+
+        if (navCta) {{
+          navCta.setAttribute('href', `${{baseOrigin}}/c/new`);
+          navCta.classList.add('logged-in');
+          navCta.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = avatarSrc;
+          img.alt = '';
+          img.className = 'nav-cta-avatar';
+          const span = document.createElement('span');
+          span.textContent = 'Entrar a WAPPY →';
+          navCta.appendChild(img);
+          navCta.appendChild(span);
+        }}
+
+        if (mobileCta) {{
+          mobileCta.setAttribute('href', `${{baseOrigin}}/c/new`);
+          mobileCta.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = avatarSrc;
+          img.alt = '';
+          img.className = 'nav-cta-avatar';
+          const span = document.createElement('span');
+          span.textContent = `Entrar a WAPPY como ${{firstName}} →`;
+          mobileCta.appendChild(img);
+          mobileCta.appendChild(span);
+        }}
+      }} else {{
+        if (navCta) {{
+          navCta.setAttribute('href', `${{baseOrigin}}/login`);
+          navCta.classList.remove('logged-in');
+          navCta.innerHTML = '<span>Ir a WAPPY</span>';
+        }}
+        if (mobileCta) {{
+          mobileCta.setAttribute('href', `${{baseOrigin}}/login`);
+          mobileCta.innerHTML = '<span>Ir a WAPPY</span>';
+        }}
+      }}
+
+      try {{
+        window.dispatchEvent(new CustomEvent('wappy-auth-updated', {{
+          detail: {{ user: window.platformUser, token: window.platformUserToken, isLoggedIn: isLogged }}
+        }}));
+      }} catch (e) {{}}
+    }}
+
+    async function detectWappySession() {{
+      if (window.location.protocol === 'file:') {{
+        updateWappyAuthNav(null, '');
+        return;
+      }}
+      try {{
+        const res = await fetch('/api/auth/refresh', {{
+          method: 'POST',
+          credentials: 'include'
+        }});
+        if (res.ok) {{
+          const data = await res.json();
+          if (data && data.user) {{
+            updateWappyAuthNav(data.user, data.token || '');
+            return;
+          }}
+        }}
+      }} catch (err) {{}}
+      updateWappyAuthNav(null, '');
+    }}
+
     document.addEventListener('DOMContentLoaded', () => {{
       showSlide(1);
       updateTokenSimulator();
       initDeckCanvas();
+      detectWappySession();
     }});
   </script>
 </body>
 </html>
 '''
 
-# Write to client/public/clase1.html
+# Write to client/public/clase2.html
 pub_path = '/Users/venta/Documents/GitHub/LibreChat-WAPPY/client/public/clase2.html'
 with open(pub_path, 'w', encoding='utf-8') as f:
     f.write(html_content)
