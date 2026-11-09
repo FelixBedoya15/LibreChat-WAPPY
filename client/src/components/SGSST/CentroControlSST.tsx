@@ -10,6 +10,7 @@ import {
 import KanbanDashboard from '~/components/Kanban/KanbanDashboard';
 import MemoriaProceduralPanel from '~/components/SGSST/MemoriaProceduralPanel';
 import SubUserManagerModal from '~/components/SGSST/SubUserManagerModal';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 import { useAuthContext } from '~/hooks';
 import { isVitalUser } from '~/utils/planAccess';
 
@@ -80,44 +81,36 @@ export default function CentroControlSST() {
             </h1>
           </div>
 
-          {/* Master Tabs Selector */}
-          <div className="flex items-center bg-gray-100 dark:bg-gray-800/80 p-1.5 rounded-2xl border border-border-medium/30 shrink-0 w-full md:w-auto">
-            <button
+          {/* Master Tabs Selector con Botones Estilo WAPPY (ExpandableButton) */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <ExpandableButton
               onClick={() => handleTabChange('acpm')}
-              className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                activeTab === 'acpm'
-                  ? 'bg-white dark:bg-gray-900 text-teal-600 dark:text-teal-400 shadow-sm border border-border-medium/40'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/40 dark:hover:bg-gray-700/40'
-              }`}
-            >
-              <Trello className="w-4 h-4 text-teal-500" />
-              <span>Acciones ACPM</span>
-            </button>
+              variant="teal"
+              isActive={activeTab === 'acpm'}
+              icon={<Trello className="w-4 h-4" />}
+              label="Acciones ACPM"
+              title="Acciones ACPM"
+            />
 
             {!isVital && (
-              <>
-                <button
-                  onClick={() => handleTabChange('memoria')}
-                  className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                    activeTab === 'memoria'
-                      ? 'bg-white dark:bg-gray-900 text-amber-600 dark:text-amber-400 shadow-sm border border-border-medium/40'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/40 dark:hover:bg-gray-700/40'
-                  }`}
-                >
-                  <Brain className="w-4 h-4 text-amber-500" />
-                  <span>Memoria Procedural</span>
-                </button>
-              </>
+              <ExpandableButton
+                onClick={() => handleTabChange('memoria')}
+                variant="amber"
+                isActive={activeTab === 'memoria'}
+                icon={<Brain className="w-4 h-4" />}
+                label="Memoria Procedural"
+                title="Memoria Procedural"
+              />
             )}
 
             {!user?.isSubUser && (
-              <button
+              <ExpandableButton
                 onClick={() => setShowSubUsersModal(true)}
-                className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 border border-teal-200 dark:border-teal-800"
-              >
-                <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                <span>Sub-Usuarios</span>
-              </button>
+                variant="cyan"
+                icon={<Users className="w-4 h-4" />}
+                label="Sub-Usuarios"
+                title="Gestionar Sub-Usuarios"
+              />
             )}
           </div>
         </div>

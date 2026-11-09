@@ -460,12 +460,14 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   // Tab 2: Observations states
   const [newObsText, setNewObsText] = useState<string>('');
   const [newObsAuthor, setNewObsAuthor] = useState<string>('');
+  const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [isSubmittingObs, setIsSubmittingObs] = useState<boolean>(false);
 
   // Tab 3: Reschedule states
   const [rescheduleNewDate, setRescheduleNewDate] = useState<string>('');
   const [rescheduleReason, setRescheduleReason] = useState<string>('');
   const [rescheduleAuthor, setRescheduleAuthor] = useState<string>('');
+  const [editingRescheduleId, setEditingRescheduleId] = useState<string | null>(null);
   const [isSubmittingReschedule, setIsSubmittingReschedule] = useState<boolean>(false);
 
   // Tab 4: Closure & Effectiveness states
@@ -663,9 +665,11 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     setRenewalDate('');
     setNewObsText('');
     setNewObsAuthor(user?.name || 'Coordinador SST');
+    setEditingObsId(null);
     setRescheduleNewDate('');
     setRescheduleReason('');
     setRescheduleAuthor(user?.name || 'Coordinador SST');
+    setEditingRescheduleId(null);
     setClosureHow('');
     setClosureEvidence('');
     setClosureEffectiveness('eficaz');
@@ -695,10 +699,12 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     const defaultAuthor = user?.name || task.assignedTo || 'Coordinador SST';
     setNewObsText('');
     setNewObsAuthor(defaultAuthor);
+    setEditingObsId(null);
 
     setRescheduleNewDate(dateStr);
     setRescheduleReason('');
     setRescheduleAuthor(defaultAuthor);
+    setEditingRescheduleId(null);
 
     setClosureHow(task.closureDetails?.howItWasClosed || '');
     setClosureEvidence(task.closureDetails?.evidenceRef || '');
@@ -712,7 +718,49 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     setIsModalOpen(true);
   };
 
-  // Add Observation in real time without closing modal
+  // Start editing an existing observation
+  const handleStartEditObservation = (obs: { id: string; text: string; author?: string }) => {
+    setEditingObsId(obs.id);
+    setNewObsText(obs.text);
+    setNewObsAuthor(obs.author || user?.name || 'Coordinador SST');
+  };
+
+  const handleCancelEditObservation = () => {
+    setEditingObsId(null);
+    setNewObsText('');
+    setNewObsAuthor(user?.name || editingTask?.assignedTo || 'Coordinador SST');
+  };
+
+  // Delete an observation from bitácora
+  const handleDeleteObservation = async (obsId: string) => {
+    if (!editingTask) return;
+    const updatedObs = (editingTask.observations || []).filter((o) => o.id !== obsId);
+    setIsSubmittingObs(true);
+    try {
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: editingTask._id,
+        title: editingTask.title,
+        status: editingTask.status,
+        observations: updatedObs,
+      });
+      const nextTask: KanbanTask = res.data?._id
+        ? res.data
+        : { ...editingTask, observations: updatedObs };
+      setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? nextTask : t)));
+      setEditingTask(nextTask);
+      if (editingObsId === obsId) {
+        handleCancelEditObservation();
+      }
+      showToast({ message: 'Observación eliminada correctamente.', status: 'success' });
+    } catch (err) {
+      console.error('Error deleting observation:', err);
+      showToast({ message: 'No se pudo eliminar la observación.', status: 'error' });
+    } finally {
+      setIsSubmittingObs(false);
+    }
+  };
+
+  // Add or Edit Observation in real time without closing modal
   const handleAddObservation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTask) return;
@@ -723,46 +771,125 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
     setIsSubmittingObs(true);
     try {
-      const res = await axios.post('/api/sgsst/kanban/save', {
-        _id: editingTask._id,
-        title: editingTask.title,
-        status: editingTask.status,
-        newObservation: {
-          text: newObsText.trim(),
-          author: newObsAuthor.trim() || 'Coordinador SST',
-          type: 'note',
-        },
-      });
-      if (res.data && res.data._id) {
-        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? res.data : t)));
-        setEditingTask(res.data);
+      if (editingObsId) {
+        const updatedObs = (editingTask.observations || []).map((o) =>
+          o.id === editingObsId
+            ? {
+                ...o,
+                text: newObsText.trim(),
+                author: newObsAuthor.trim() || 'Coordinador SST',
+              }
+            : o,
+        );
+        const res = await axios.post('/api/sgsst/kanban/save', {
+          _id: editingTask._id,
+          title: editingTask.title,
+          status: editingTask.status,
+          observations: updatedObs,
+        });
+        const nextTask: KanbanTask = res.data?._id
+          ? res.data
+          : { ...editingTask, observations: updatedObs };
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? nextTask : t)));
+        setEditingTask(nextTask);
+        setEditingObsId(null);
+        setNewObsText('');
+        showToast({ message: 'Observación actualizada correctamente.', status: 'success' });
       } else {
-        // Optimistic fallback if backend returns partial
-        const fallbackObs = {
-          id: `obs_${Date.now()}`,
-          text: newObsText.trim(),
-          author: newObsAuthor.trim() || 'Coordinador SST',
-          type: 'note' as const,
-          createdAt: new Date().toISOString(),
-        };
-        const updatedTask: KanbanTask = {
-          ...editingTask,
-          observations: [...(editingTask.observations || []), fallbackObs],
-        };
-        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? updatedTask : t)));
-        setEditingTask(updatedTask);
+        const res = await axios.post('/api/sgsst/kanban/save', {
+          _id: editingTask._id,
+          title: editingTask.title,
+          status: editingTask.status,
+          newObservation: {
+            text: newObsText.trim(),
+            author: newObsAuthor.trim() || 'Coordinador SST',
+            type: 'note',
+          },
+        });
+        if (res.data && res.data._id) {
+          setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? res.data : t)));
+          setEditingTask(res.data);
+        } else {
+          const fallbackObs = {
+            id: `obs_${Date.now()}`,
+            text: newObsText.trim(),
+            author: newObsAuthor.trim() || 'Coordinador SST',
+            type: 'note' as const,
+            createdAt: new Date().toISOString(),
+          };
+          const updatedTask: KanbanTask = {
+            ...editingTask,
+            observations: [...(editingTask.observations || []), fallbackObs],
+          };
+          setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? updatedTask : t)));
+          setEditingTask(updatedTask);
+        }
+        setNewObsText('');
+        showToast({ message: 'Observación registrada en la bitácora de la actividad.', status: 'success' });
       }
-      setNewObsText('');
-      showToast({ message: 'Observación registrada en la bitácora de la actividad.', status: 'success' });
     } catch (err) {
-      console.error('Error adding observation:', err);
+      console.error('Error adding/editing observation:', err);
       showToast({ message: 'No se pudo guardar la observación.', status: 'error' });
     } finally {
       setIsSubmittingObs(false);
     }
   };
 
-  // Apply Reschedule with justification & history log
+  // Start editing a reschedule entry
+  const handleStartEditReschedule = (item: {
+    id: string;
+    newDate: string;
+    reason: string;
+    changedBy?: string;
+  }) => {
+    setEditingRescheduleId(item.id);
+    setRescheduleNewDate(item.newDate ? item.newDate.split('T')[0] : '');
+    setRescheduleReason(item.reason || '');
+    setRescheduleAuthor(item.changedBy || user?.name || 'Coordinador SST');
+  };
+
+  const handleCancelEditReschedule = () => {
+    setEditingRescheduleId(null);
+    setRescheduleReason('');
+    const dateStr = editingTask?.dueDate ? editingTask.dueDate.split('T')[0] : '';
+    setRescheduleNewDate(dateStr);
+    setRescheduleAuthor(user?.name || editingTask?.assignedTo || 'Coordinador SST');
+  };
+
+  // Delete a reschedule entry from history
+  const handleDeleteReschedule = async (resId: string) => {
+    if (!editingTask) return;
+    const updatedHistory = (editingTask.rescheduleHistory || []).filter((r) => r.id !== resId);
+    setIsSubmittingReschedule(true);
+    try {
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: editingTask._id,
+        title: editingTask.title,
+        status: editingTask.status,
+        rescheduleHistory: updatedHistory,
+      });
+      const nextTask: KanbanTask = res.data?._id
+        ? res.data
+        : {
+            ...editingTask,
+            rescheduleHistory: updatedHistory,
+            isRescheduled: updatedHistory.length > 0,
+          };
+      setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? nextTask : t)));
+      setEditingTask(nextTask);
+      if (editingRescheduleId === resId) {
+        handleCancelEditReschedule();
+      }
+      showToast({ message: 'Registro de reprogramación eliminado.', status: 'success' });
+    } catch (err) {
+      console.error('Error deleting reschedule:', err);
+      showToast({ message: 'No se pudo eliminar la reprogramación.', status: 'error' });
+    } finally {
+      setIsSubmittingReschedule(false);
+    }
+  };
+
+  // Apply or Edit Reschedule with justification & history log
   const handleApplyReschedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTask) return;
@@ -776,48 +903,118 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
     setIsSubmittingReschedule(true);
     try {
-      const res = await axios.post('/api/sgsst/kanban/save', {
-        _id: editingTask._id,
-        title: editingTask.title,
-        reschedule: {
-          newDate: rescheduleNewDate,
-          reason: rescheduleReason.trim(),
-          changedBy: rescheduleAuthor.trim() || 'Coordinador SST',
-        },
-      });
-      if (res.data && res.data._id) {
-        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? res.data : t)));
-        setEditingTask(res.data);
-        setNewDueDate(rescheduleNewDate);
+      if (editingRescheduleId) {
+        const currentList = editingTask.rescheduleHistory || [];
+        const isLastEntry =
+          currentList.length > 0 && currentList[currentList.length - 1].id === editingRescheduleId;
+        const updatedHistory = currentList.map((r) =>
+          r.id === editingRescheduleId
+            ? {
+                ...r,
+                newDate: rescheduleNewDate,
+                reason: rescheduleReason.trim(),
+                changedBy: rescheduleAuthor.trim() || 'Coordinador SST',
+              }
+            : r,
+        );
+        const res = await axios.post('/api/sgsst/kanban/save', {
+          _id: editingTask._id,
+          title: editingTask.title,
+          status: editingTask.status,
+          dueDate: isLastEntry ? rescheduleNewDate : editingTask.dueDate,
+          rescheduleHistory: updatedHistory,
+        });
+        const nextTask: KanbanTask = res.data?._id
+          ? res.data
+          : {
+              ...editingTask,
+              dueDate: isLastEntry ? rescheduleNewDate : editingTask.dueDate,
+              rescheduleHistory: updatedHistory,
+            };
+        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? nextTask : t)));
+        setEditingTask(nextTask);
+        if (isLastEntry) setNewDueDate(rescheduleNewDate);
+        setEditingRescheduleId(null);
+        setRescheduleReason('');
+        showToast({
+          message: 'Registro de reprogramación actualizado correctamente.',
+          status: 'success',
+        });
       } else {
-        const entry = {
-          id: `resch_${Date.now()}`,
-          previousDate: editingTask.dueDate,
-          newDate: rescheduleNewDate,
-          reason: rescheduleReason.trim(),
-          changedBy: rescheduleAuthor.trim() || 'Coordinador SST',
-          changedAt: new Date().toISOString(),
-        };
-        const updatedTask: KanbanTask = {
-          ...editingTask,
-          dueDate: rescheduleNewDate,
-          isRescheduled: true,
-          rescheduleHistory: [...(editingTask.rescheduleHistory || []), entry],
-        };
-        setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? updatedTask : t)));
-        setEditingTask(updatedTask);
-        setNewDueDate(rescheduleNewDate);
+        const res = await axios.post('/api/sgsst/kanban/save', {
+          _id: editingTask._id,
+          title: editingTask.title,
+          reschedule: {
+            newDate: rescheduleNewDate,
+            reason: rescheduleReason.trim(),
+            changedBy: rescheduleAuthor.trim() || 'Coordinador SST',
+          },
+        });
+        if (res.data && res.data._id) {
+          setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? res.data : t)));
+          setEditingTask(res.data);
+          setNewDueDate(rescheduleNewDate);
+        } else {
+          const entry = {
+            id: `resch_${Date.now()}`,
+            previousDate: editingTask.dueDate,
+            newDate: rescheduleNewDate,
+            reason: rescheduleReason.trim(),
+            changedBy: rescheduleAuthor.trim() || 'Coordinador SST',
+            changedAt: new Date().toISOString(),
+          };
+          const updatedTask: KanbanTask = {
+            ...editingTask,
+            dueDate: rescheduleNewDate,
+            isRescheduled: true,
+            rescheduleHistory: [...(editingTask.rescheduleHistory || []), entry],
+          };
+          setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? updatedTask : t)));
+          setEditingTask(updatedTask);
+          setNewDueDate(rescheduleNewDate);
+        }
+        setRescheduleReason('');
+        showToast({
+          message: 'Actividad reprogramada con éxito y registrada en el historial.',
+          status: 'success',
+        });
       }
-      setRescheduleReason('');
-      showToast({
-        message: 'Actividad reprogramada con éxito y registrada en el historial.',
-        status: 'success',
-      });
     } catch (err) {
       console.error('Error rescheduling task:', err);
       showToast({ message: 'No se pudo reprogramar la actividad.', status: 'error' });
     } finally {
       setIsSubmittingReschedule(false);
+    }
+  };
+
+  // Delete / Clear ACPM Closure record
+  const handleDeleteClosure = async () => {
+    if (!editingTask) return;
+    setIsSubmittingClosure(true);
+    try {
+      const res = await axios.post('/api/sgsst/kanban/save', {
+        _id: editingTask._id,
+        title: editingTask.title,
+        status: 'todo',
+        clearClosure: true,
+      });
+      const nextTask: KanbanTask = res.data?._id
+        ? res.data
+        : { ...editingTask, status: 'todo', closureDetails: undefined };
+      setTasks((prev) => prev.map((t) => (t._id === editingTask._id ? nextTask : t)));
+      setEditingTask(nextTask);
+      setClosureHow('');
+      setClosureEvidence('');
+      setClosureEffectiveness('eficaz');
+      showToast({
+        message: 'Acta de cierre eliminada y actividad reabierta en estado Pendiente.',
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Error deleting closure:', err);
+      showToast({ message: 'No se pudo eliminar el registro de cierre.', status: 'error' });
+    } finally {
+      setIsSubmittingClosure(false);
     }
   };
 
@@ -1678,60 +1875,44 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       </div>
 
-      {/* View Mode Tabs (4 Vistas Dinámicas estilo Notion + Estética WAPPY) */}
+      {/* View Mode Tabs (4 Vistas Dinámicas con ExpandableButton Oficial WAPPY) */}
       <div className="px-6 pt-3 pb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border-medium/30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md">
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full">
-          <button
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full">
+          <ExpandableButton
             type="button"
             onClick={() => handleTabChange('calendar')}
-            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
-              activeTab === 'calendar'
-                ? 'bg-teal-500/15 border-teal-500/50 text-teal-700 dark:text-teal-300 ring-1 ring-teal-500/30 shadow-xs'
-                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-teal-500/10 hover:border-teal-500/30'
-            }`}
-          >
-            <Calendar className="w-4 h-4 text-teal-500 shrink-0" />
-            <span>Calendario SST</span>
-          </button>
+            variant="teal"
+            isActive={activeTab === 'calendar'}
+            icon={<Calendar className="w-4 h-4 text-current" />}
+            label="Calendario SST"
+          />
 
-          <button
+          <ExpandableButton
             type="button"
             onClick={() => handleTabChange('kanban')}
-            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
-              activeTab === 'kanban'
-                ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-500/30 shadow-xs'
-                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-cyan-500/10 hover:border-cyan-500/30'
-            }`}
-          >
-            <Trello className="w-4 h-4 text-cyan-500 shrink-0" />
-            <span>Tablero Kanban</span>
-          </button>
+            variant="cyan"
+            isActive={activeTab === 'kanban'}
+            icon={<Trello className="w-4 h-4 text-current" />}
+            label="Tablero Kanban"
+          />
 
-          <button
+          <ExpandableButton
             type="button"
             onClick={() => handleTabChange('table')}
-            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
-              activeTab === 'table'
-                ? 'bg-purple-500/15 border-purple-500/50 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500/30 shadow-xs'
-                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-purple-500/10 hover:border-purple-500/30'
-            }`}
-          >
-            <Table2 className="w-4 h-4 text-purple-500 shrink-0" />
-            <span>Tabla Dinámica</span>
-          </button>
+            variant="purple"
+            isActive={activeTab === 'table'}
+            icon={<Table2 className="w-4 h-4 text-current" />}
+            label="Tabla Dinámica"
+          />
 
-          <button
+          <ExpandableButton
             type="button"
             onClick={() => handleTabChange('timeline')}
-            className={`px-3.5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 sm:hover:-rotate-2 sm:hover:scale-[1.03] active:scale-95 cursor-pointer shrink-0 ${
-              activeTab === 'timeline'
-                ? 'bg-amber-500/15 border-amber-500/50 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 shadow-xs'
-                : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary hover:bg-amber-500/10 hover:border-amber-500/30'
-            }`}
-          >
-            <BarChart2 className="w-4 h-4 text-amber-500 shrink-0" />
-            <span>Cronograma Gantt</span>
-          </button>
+            variant="amber"
+            isActive={activeTab === 'timeline'}
+            icon={<BarChart2 className="w-4 h-4 text-current" />}
+            label="Cronograma Gantt"
+          />
         </div>
 
         <div className="text-[11px] font-semibold text-text-tertiary hidden xl:flex items-center gap-1.5">
@@ -2108,78 +2289,66 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                     : 'Registra la actividad con fecha, horario y citación por correo electrónico.'}
                 </p>
               </div>
-              <button
+              <ExpandableButton
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary dark:hover:bg-zinc-800 cursor-pointer shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                variant="neutral"
+                size="sm"
+                icon={<X className="w-4 h-4" />}
+                label="Cerrar"
+                title="Cerrar ventana"
+              />
             </div>
 
-            {/* Barra de 4 Pestañas 360° (Solo al gestionar una actividad existente) */}
+            {/* Barra de 4 Pestañas 360° con Botones Estilo WAPPY (ExpandableButton) */}
             {editingTask && (
-              <div className="px-4 sm:px-5 pt-2.5 pb-2 border-b border-border-medium/30 bg-surface-primary/80 dark:bg-gray-900/80 flex items-center gap-1.5 overflow-x-auto shrink-0">
-                <button
+              <div className="px-4 sm:px-5 pt-2.5 pb-2 border-b border-border-medium/30 bg-surface-primary/80 dark:bg-gray-900/80 flex items-center gap-2 overflow-x-auto shrink-0">
+                <ExpandableButton
                   type="button"
                   onClick={() => setModalTab('details')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
-                    modalTab === 'details'
-                      ? 'bg-teal-500/15 border-teal-500/50 text-teal-700 dark:text-teal-300 shadow-2xs'
-                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  <ClipboardCheck className="w-3.5 h-3.5 text-teal-500" />
-                  <span>Hallazgo y Detalles</span>
-                </button>
+                  variant="teal"
+                  size="sm"
+                  isActive={modalTab === 'details'}
+                  icon={<ClipboardCheck className="w-4 h-4" />}
+                  label="Hallazgo y Detalles"
+                  title="Hallazgo y Detalles"
+                />
 
-                <button
+                <ExpandableButton
                   type="button"
                   onClick={() => setModalTab('observations')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
-                    modalTab === 'observations'
-                      ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-700 dark:text-cyan-300 shadow-2xs'
-                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-cyan-500" />
-                  <span>Observaciones</span>
-                  <span className="px-1.5 py-0.2 rounded-md bg-cyan-500/15 text-[10px] font-black">
-                    {editingTask.observations?.length || 0}
-                  </span>
-                </button>
+                  variant="cyan"
+                  size="sm"
+                  isActive={modalTab === 'observations'}
+                  icon={<MessageSquare className="w-4 h-4" />}
+                  label="Observaciones"
+                  badge={editingTask.observations?.length || 0}
+                  title="Observaciones y Bitácora"
+                />
 
-                <button
+                <ExpandableButton
                   type="button"
                   onClick={() => setModalTab('reschedule')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
-                    modalTab === 'reschedule'
-                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-700 dark:text-amber-300 shadow-2xs'
-                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Reprogramar</span>
-                  <span className="px-1.5 py-0.2 rounded-md bg-amber-500/15 text-[10px] font-black">
-                    {editingTask.rescheduleHistory?.length || 0}
-                  </span>
-                </button>
+                  variant="amber"
+                  size="sm"
+                  isActive={modalTab === 'reschedule'}
+                  icon={<CalendarClock className="w-4 h-4" />}
+                  label="Reprogramar"
+                  badge={editingTask.rescheduleHistory?.length || 0}
+                  title="Reprogramar Fecha Límite"
+                />
 
-                <button
+                <ExpandableButton
                   type="button"
                   onClick={() => setModalTab('closure')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border transition-all cursor-pointer shrink-0 ${
-                    modalTab === 'closure'
-                      ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-700 dark:text-emerald-300 shadow-2xs'
-                      : 'bg-surface-secondary/40 border-border-medium/30 text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  <FileCheck2 className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Cierre y Evidencia ACPM</span>
-                  {editingTask.closureDetails?.howItWasClosed && (
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  )}
-                </button>
+                  variant="emerald"
+                  size="sm"
+                  isActive={modalTab === 'closure'}
+                  icon={<FileCheck2 className="w-4 h-4" />}
+                  label="Cierre y Evidencia ACPM"
+                  badge={editingTask.closureDetails?.howItWasClosed ? '✓' : undefined}
+                  title="Cierre y Evidencia ACPM"
+                />
               </div>
             )}
 
@@ -2211,17 +2380,18 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <label className="text-xs font-bold text-text-secondary">Fecha Límite *</label>
                         {editingTask && (
-                          <button
+                          <ExpandableButton
                             type="button"
                             onClick={() => setModalTab('reschedule')}
-                            className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <CalendarClock className="w-3 h-3" />
-                            Reprogramar con bitácora
-                          </button>
+                            variant="orange"
+                            size="sm"
+                            icon={<CalendarClock className="w-3.5 h-3.5" />}
+                            label="Reprogramar con bitácora"
+                            title="Reprogramar con bitácora"
+                          />
                         )}
                       </div>
                       <input 
@@ -2359,39 +2529,40 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                   </div>
                 </form>
 
-                {/* Action Buttons fijos abajo (Pestaña Detalles) */}
+                {/* Action Buttons fijos abajo (Pestaña Detalles) con ExpandableButton */}
                 <div className="p-4 border-t border-border-medium/30 bg-surface-secondary/20 dark:bg-zinc-950/40 flex items-center justify-between gap-3 shrink-0">
                   {editingTask ? (
-                    <button
+                    <ExpandableButton
                       type="button"
                       onClick={() => {
                         setIsModalOpen(false);
                         handleDeleteTask(editingTask._id);
                       }}
-                      className="py-2.5 px-4 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                      variant="danger"
+                      icon={<Trash2 className="w-4 h-4" />}
+                      label="Eliminar Actividad"
                       title="Eliminar esta actividad del tablero"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Eliminar</span>
-                    </button>
+                    />
                   ) : <div />}
 
                   <div className="flex items-center gap-2">
-                    <button
+                    <ExpandableButton
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="py-2.5 px-4 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                    <button
+                      variant="neutral"
+                      icon={<X className="w-4 h-4" />}
+                      label="Cancelar"
+                      title="Cancelar"
+                    />
+                    <ExpandableButton
                       type="button"
                       onClick={handleSaveTask}
                       disabled={isSaving}
-                      className="py-2.5 px-5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-95 transition disabled:opacity-50 cursor-pointer"
-                    >
-                      {isSaving ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Programar Actividad'}
-                    </button>
+                      variant="teal"
+                      icon={<Check className="w-4 h-4" />}
+                      label={isSaving ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Programar Actividad'}
+                      title={editingTask ? 'Guardar Cambios' : 'Programar Actividad'}
+                    />
                   </div>
                 </div>
               </>
@@ -2406,8 +2577,14 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
-                      <MessageSquare className="w-4 h-4 text-cyan-500" />
-                      Registrar Nueva Observación o Avance de Gestión
+                      {editingObsId ? (
+                        <Pencil className="w-4 h-4 text-orange-500" />
+                      ) : (
+                        <MessageSquare className="w-4 h-4 text-cyan-500" />
+                      )}
+                      {editingObsId
+                        ? 'Editar Observación Seleccionada'
+                        : 'Registrar Nueva Observación o Avance de Gestión'}
                     </h3>
                     <span className="text-[10px] font-bold text-text-tertiary">
                       Trazabilidad PHVA
@@ -2434,14 +2611,34 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                       />
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSubmittingObs}
-                      className="py-2 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm hover:brightness-105 active:scale-95 transition disabled:opacity-50 cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{isSubmittingObs ? 'Registrando...' : 'Agregar Observación'}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {editingObsId && (
+                        <ExpandableButton
+                          type="button"
+                          onClick={handleCancelEditObservation}
+                          variant="neutral"
+                          size="sm"
+                          icon={<X className="w-3.5 h-3.5" />}
+                          label="Cancelar Edición"
+                          title="Cancelar edición"
+                        />
+                      )}
+                      <ExpandableButton
+                        type="submit"
+                        disabled={isSubmittingObs}
+                        variant={editingObsId ? 'teal' : 'cyan'}
+                        size="sm"
+                        icon={editingObsId ? <Check className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                        label={
+                          isSubmittingObs
+                            ? 'Guardando...'
+                            : editingObsId
+                              ? 'Guardar Cambios'
+                              : 'Agregar Observación'
+                        }
+                        title={editingObsId ? 'Guardar cambios de observación' : 'Agregar Observación'}
+                      />
+                    </div>
                   </div>
                 </form>
 
@@ -2467,18 +2664,21 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                       {[...editingTask.observations].reverse().map((obs) => {
                         const isResch = obs.type === 'reschedule';
                         const isClos = obs.type === 'closure';
+                        const isBeingEdited = editingObsId === obs.id;
                         return (
                           <div
                             key={obs.id}
-                            className={`p-3.5 rounded-2xl border flex flex-col gap-1.5 ${
-                              isClos
-                                ? 'bg-emerald-500/5 border-emerald-500/30'
-                                : isResch
-                                  ? 'bg-amber-500/5 border-amber-500/30'
-                                  : 'bg-surface-secondary/30 dark:bg-gray-950 border-border-medium/30'
+                            className={`p-3.5 rounded-2xl border flex flex-col gap-1.5 transition-all ${
+                              isBeingEdited
+                                ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30'
+                                : isClos
+                                  ? 'bg-emerald-500/5 border-emerald-500/30'
+                                  : isResch
+                                    ? 'bg-amber-500/5 border-amber-500/30'
+                                    : 'bg-surface-secondary/30 dark:bg-gray-950 border-border-medium/30'
                             }`}
                           >
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
                               <span className="inline-flex items-center gap-1.5 font-extrabold text-xs text-text-primary">
                                 <span
                                   className={`w-2 h-2 rounded-full ${
@@ -2491,9 +2691,30 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                                 />
                                 {obs.author || 'Coordinador SST'}
                               </span>
-                              <span className="text-[10px] font-bold text-text-tertiary">
-                                {formatDate(obs.createdAt)}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-text-tertiary mr-1">
+                                  {formatDate(obs.createdAt)}
+                                </span>
+                                <ExpandableButton
+                                  type="button"
+                                  onClick={() => handleStartEditObservation(obs)}
+                                  variant="orange"
+                                  size="sm"
+                                  icon={<Pencil className="w-3.5 h-3.5" />}
+                                  label="Editar"
+                                  title="Editar esta observación"
+                                />
+                                <ExpandableButton
+                                  type="button"
+                                  onClick={() => handleDeleteObservation(obs.id)}
+                                  disabled={isSubmittingObs}
+                                  variant="danger"
+                                  size="sm"
+                                  icon={<Trash2 className="w-3.5 h-3.5" />}
+                                  label="Eliminar"
+                                  title="Eliminar esta observación"
+                                />
+                              </div>
                             </div>
                             <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">
                               {obs.text}
@@ -2530,8 +2751,14 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                   className="p-4 rounded-2xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/30 flex flex-col gap-3.5"
                 >
                   <h3 className="text-xs font-extrabold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                    <CalendarClock className="w-4 h-4 text-amber-500" />
-                    Solicitar / Aplicar Nueva Fecha de Compromiso
+                    {editingRescheduleId ? (
+                      <Pencil className="w-4 h-4 text-orange-500" />
+                    ) : (
+                      <CalendarClock className="w-4 h-4 text-amber-500" />
+                    )}
+                    {editingRescheduleId
+                      ? 'Editar Registro de Reprogramación'
+                      : 'Solicitar / Aplicar Nueva Fecha de Compromiso'}
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -2575,17 +2802,41 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                     />
                   </div>
 
-                  <div className="flex justify-end">
-                    <button
+                  <div className="flex justify-end items-center gap-2">
+                    {editingRescheduleId && (
+                      <ExpandableButton
+                        type="button"
+                        onClick={handleCancelEditReschedule}
+                        variant="neutral"
+                        size="sm"
+                        icon={<X className="w-3.5 h-3.5" />}
+                        label="Cancelar Edición"
+                        title="Cancelar edición"
+                      />
+                    )}
+                    <ExpandableButton
                       type="submit"
                       disabled={isSubmittingReschedule}
-                      className="py-2 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm hover:brightness-105 active:scale-95 transition disabled:opacity-50 cursor-pointer"
-                    >
-                      <CalendarClock className="w-3.5 h-3.5" />
-                      <span>
-                        {isSubmittingReschedule ? 'Reprogramando...' : 'Aplicar Reprogramación'}
-                      </span>
-                    </button>
+                      variant={editingRescheduleId ? 'teal' : 'orange'}
+                      size="sm"
+                      icon={
+                        editingRescheduleId ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <CalendarClock className="w-3.5 h-3.5" />
+                        )
+                      }
+                      label={
+                        isSubmittingReschedule
+                          ? 'Guardando...'
+                          : editingRescheduleId
+                            ? 'Guardar Cambios'
+                            : 'Aplicar Reprogramación'
+                      }
+                      title={
+                        editingRescheduleId ? 'Guardar cambios de reprogramación' : 'Aplicar Reprogramación'
+                      }
+                    />
                   </div>
                 </form>
 
@@ -2604,24 +2855,52 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {[...editingTask.rescheduleHistory].reverse().map((item) => (
-                        <div
-                          key={item.id}
-                          className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/30 flex flex-col gap-1"
-                        >
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <span className="font-extrabold text-xs text-amber-800 dark:text-amber-300">
-                              📅 {formatDate(item.previousDate)} ➔ {formatDate(item.newDate)}
-                            </span>
-                            <span className="text-[10px] font-bold text-text-tertiary">
-                              Por {item.changedBy} · {formatDate(item.changedAt)}
-                            </span>
+                      {[...editingTask.rescheduleHistory].reverse().map((item) => {
+                        const isBeingEdited = editingRescheduleId === item.id;
+                        return (
+                          <div
+                            key={item.id}
+                            className={`p-3.5 rounded-2xl border flex flex-col gap-1 transition-all ${
+                              isBeingEdited
+                                ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30'
+                                : 'bg-amber-500/5 border-amber-500/30'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <span className="font-extrabold text-xs text-amber-800 dark:text-amber-300">
+                                📅 {formatDate(item.previousDate)} ➔ {formatDate(item.newDate)}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-text-tertiary mr-1">
+                                  Por {item.changedBy} · {formatDate(item.changedAt)}
+                                </span>
+                                <ExpandableButton
+                                  type="button"
+                                  onClick={() => handleStartEditReschedule(item)}
+                                  variant="orange"
+                                  size="sm"
+                                  icon={<Pencil className="w-3.5 h-3.5" />}
+                                  label="Editar"
+                                  title="Editar esta reprogramación"
+                                />
+                                <ExpandableButton
+                                  type="button"
+                                  onClick={() => handleDeleteReschedule(item.id)}
+                                  disabled={isSubmittingReschedule}
+                                  variant="danger"
+                                  size="sm"
+                                  icon={<Trash2 className="w-3.5 h-3.5" />}
+                                  label="Eliminar"
+                                  title="Eliminar esta reprogramación"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-xs text-text-secondary mt-0.5">
+                              <strong>Motivo:</strong> {item.reason}
+                            </p>
                           </div>
-                          <p className="text-xs text-text-secondary mt-0.5">
-                            <strong>Motivo:</strong> {item.reason}
-                          </p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2743,26 +3022,45 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-border-medium/30 flex items-center justify-end gap-2 mt-auto">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-4 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingClosure}
-                    className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-emerald-500/15 hover:brightness-105 active:scale-95 transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>
-                      {isSubmittingClosure
-                        ? 'Registrando Cierre...'
-                        : 'Registrar Cierre y Marcar Completada'}
-                    </span>
-                  </button>
+                <div className="pt-3 border-t border-border-medium/30 flex items-center justify-between gap-2 mt-auto">
+                  {editingTask.closureDetails?.howItWasClosed ? (
+                    <ExpandableButton
+                      type="button"
+                      onClick={handleDeleteClosure}
+                      disabled={isSubmittingClosure}
+                      variant="danger"
+                      icon={<Trash2 className="w-4 h-4" />}
+                      label="Eliminar Cierre"
+                      title="Eliminar registro de cierre y reabrir actividad"
+                    />
+                  ) : (
+                    <div />
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <ExpandableButton
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      variant="neutral"
+                      icon={<X className="w-4 h-4" />}
+                      label="Cancelar"
+                      title="Cancelar"
+                    />
+                    <ExpandableButton
+                      type="submit"
+                      disabled={isSubmittingClosure}
+                      variant="teal"
+                      icon={<CheckCircle2 className="w-4 h-4" />}
+                      label={
+                        isSubmittingClosure
+                          ? 'Registrando Cierre...'
+                          : editingTask.closureDetails?.howItWasClosed
+                            ? 'Actualizar Cierre ACPM'
+                            : 'Registrar Cierre y Marcar Completada'
+                      }
+                      title="Guardar acta de cierre ACPM"
+                    />
+                  </div>
                 </div>
               </form>
             )}
@@ -2829,23 +3127,23 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
             </div>
 
             {/* Action Buttons */}
-            <div className="p-6 border-t border-border-medium/30 flex gap-3 bg-surface-primary dark:bg-gray-900/40">
-              <button
+            <div className="p-6 border-t border-border-medium/30 flex justify-end gap-3 bg-surface-primary dark:bg-gray-900/40">
+              <ExpandableButton
                 type="button"
                 onClick={() => setImportPreview(null)}
                 disabled={isImporting}
-                className="flex-1 py-2.5 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
+                variant="neutral"
+                icon={<X className="w-4 h-4" />}
+                label="Cancelar"
+              />
+              <ExpandableButton
                 type="button"
                 onClick={handleConfirmImport}
                 disabled={isImporting}
-                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-              >
-                {isImporting ? 'Importando...' : 'Confirmar e Importar'}
-              </button>
+                variant="teal"
+                icon={<Check className="w-4 h-4" />}
+                label={isImporting ? 'Importando...' : 'Confirmar e Importar'}
+              />
             </div>
           </div>
         </div>
@@ -2885,24 +3183,24 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
             </div>
 
             {/* Action Buttons */}
-            <div className="p-6 border-t border-border-medium/30 flex gap-3 bg-surface-primary dark:bg-gray-900/40">
-              <button
+            <div className="p-6 border-t border-border-medium/30 flex justify-end gap-3 bg-surface-primary dark:bg-gray-900/40">
+              <ExpandableButton
                 type="button"
                 onClick={() => {
                   setIsConfirmAiModalOpen(false);
                   setPendingFileData(null);
                 }}
-                className="flex-1 py-2.5 border border-border-medium text-text-secondary hover:bg-surface-hover rounded-xl text-xs font-bold transition"
-              >
-                Cancelar
-              </button>
-              <button
+                variant="neutral"
+                icon={<X className="w-4 h-4" />}
+                label="Cancelar"
+              />
+              <ExpandableButton
                 type="button"
                 onClick={handleConfirmAiImport}
-                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition flex items-center justify-center gap-1.5"
-              >
-                Comenzar Análisis IA
-              </button>
+                variant="purple"
+                icon={<Upload className="w-4 h-4" />}
+                label="Comenzar Análisis IA"
+              />
             </div>
           </div>
         </div>

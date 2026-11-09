@@ -1338,9 +1338,25 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 
       if (observationsModified) {
         updateData.observations = observations;
+      } else if (Array.isArray(req.body.observations)) {
+        updateData.observations = req.body.observations;
       }
+
       if (rescheduleHistoryModified) {
         updateData.rescheduleHistory = rescheduleHistory;
+      } else if (Array.isArray(req.body.rescheduleHistory)) {
+        updateData.rescheduleHistory = req.body.rescheduleHistory;
+        updateData.isRescheduled = req.body.rescheduleHistory.length > 0;
+      }
+
+      if (req.body.clearClosure === true) {
+        updateData.closureDetails = {
+          howItWasClosed: '',
+          evidenceRef: '',
+          effectiveness: 'eficaz',
+          closedBy: '',
+          closedAt: null,
+        };
       }
 
       const updatedTask = await KanbanTask.findOneAndUpdate(
