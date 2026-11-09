@@ -500,68 +500,117 @@ function parseMinTrabajoListaHtml(htmlLista = '', fallbackDoc = '') {
   return { titular, historialCompleto };
 }
 
-/**
- * Ejecuta la sesión inicial GET -> POST consulta_ext.aspx -> GET consulta_lista.aspx en MinTrabajo.
- */
-async function executeMinTrabajoSession({ tipoDoc = 'CC', cedula = '' }) {
-  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
-  const cleanCedula = String(cedula || '').trim();
+const MAX_CONCURRENT_MINTRABAJO = 5;
+let activeMinTrabajoSlots = 0;
+const minTrabajoWaitQueue = [];
 
-  // 1. GET consulta_ext.aspx (timeout rápido de 2.5s para detectar geo-bloqueo en VPS y saltar al relay colombiano)
-  const getRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_ext.aspx`, {
-    headers: DEFAULT_HEADERS,
-    signal: AbortSignal.timeout(2500),
+function acquireMinTrabajoSlot() {
+  if (activeMinTrabajoSlots < MAX_CONCURRENT_MINTRABAJO) {
+    activeMinTrabajoSlots += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    minTrabajoWaitQueue.push(resolve);
   });
-  let cookieHeader = mergeCookies(getRes);
-  const htmlExt = await getRes.text();
+}
 
-  const viewState = extractHiddenInput(htmlExt, '__VIEWSTATE');
-  const viewStateGenerator = extractHiddenInput(htmlExt, '__VIEWSTATEGENERATOR');
-  const eventValidation = extractHiddenInput(htmlExt, '__EVENTVALIDATION');
+function releaseMinTrabajoSlot() {
+  const next = minTrabajoWaitQueue.shift();
+  if (next) {
+    next();
+  } else {
+    activeMinTrabajoSlots = Math.max(0, activeMinTrabajoSlots - 1);
+  }
+}
 
-  // 2. POST consulta_ext.aspx (redirect: 'manual')
-  const form = new URLSearchParams({
-    __EVENTTARGET: '',
-    __EVENTARGUMENT: '',
-    __VIEWSTATE: viewState,
-    __VIEWSTATEGENERATOR: viewStateGenerator,
-    __EVENTVALIDATION: eventValidation,
-    'ctl00$contenido$tipo_documentoTextBox': cleanTipoDoc,
-    'ctl00$contenido$valor_consulta': cleanCedula,
-    'ctl00$contenido$consultar': 'Consultar',
-  });
+async function runWithMinTrabajoSlot(fn) {
+  await acquireMinTrabajoSlot();
+  try {
+    return await fn();
+  } finally {
+    releaseMinTrabajoSlot();
+  }
+}
 
-  const postRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_ext.aspx`, {
-    method: 'POST',
-    headers: {
-      ...DEFAULT_HEADERS,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Cookie: cookieHeader,
-      Referer: `${MINTRABAJO_BASE_URL}/consulta_ext.aspx`,
-    },
-    body: form.toString(),
-    redirect: 'manual',
-    signal: AbortSignal.timeout(15000),
-  });
-  cookieHeader = mergeCookies(postRes, cookieHeader);
-
-  // 3. GET consulta_lista.aspx
-  const listaRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_lista.aspx`, {
-    headers: {
-      ...DEFAULT_HEADERS,
-      Cookie: cookieHeader,
-      Referer: `${MINTRABAJO_BASE_URL}/consulta_ext.aspx`,
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-  cookieHeader = mergeCookies(listaRes, cookieHeader);
-  const htmlLista = await listaRes.text();
-
-  return { cookieHeader, htmlLista, cleanTipoDoc, cleanCedula };
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Descarga el binario PDF de una fila específica de consulta_lista.aspx.
+ * Ejecuta la sesión inicial GET -> POST consulta_ext.aspx -> GET consulta_lista.aspx en MinTrabajo.
+ */
+async function executeMinTrabajoSession({ tipoDoc = 'CC', cedula = '', isLocalDaemon = false } = {}) {
+  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
+  const cleanCedula = String(cedula || '').trim();
+  const initialGetTimeoutMs = isLocalDaemon === true ? 15000 : 2500;
+  const maxAttempts = isLocalDaemon === true ? 2 : 1;
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // 1. GET consulta_ext.aspx (15s en daemon local IP Colombia; 2.5s en VPS para detectar geo-bloqueo rápido)
+      const getRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_ext.aspx`, {
+        headers: DEFAULT_HEADERS,
+        signal: AbortSignal.timeout(initialGetTimeoutMs),
+      });
+      let cookieHeader = mergeCookies(getRes);
+      const htmlExt = await getRes.text();
+
+      const viewState = extractHiddenInput(htmlExt, '__VIEWSTATE');
+      const viewStateGenerator = extractHiddenInput(htmlExt, '__VIEWSTATEGENERATOR');
+      const eventValidation = extractHiddenInput(htmlExt, '__EVENTVALIDATION');
+
+      // 2. POST consulta_ext.aspx (redirect: 'manual')
+      const form = new URLSearchParams({
+        __EVENTTARGET: '',
+        __EVENTARGUMENT: '',
+        __VIEWSTATE: viewState,
+        __VIEWSTATEGENERATOR: viewStateGenerator,
+        __EVENTVALIDATION: eventValidation,
+        'ctl00$contenido$tipo_documentoTextBox': cleanTipoDoc,
+        'ctl00$contenido$valor_consulta': cleanCedula,
+        'ctl00$contenido$consultar': 'Consultar',
+      });
+
+      const postRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_ext.aspx`, {
+        method: 'POST',
+        headers: {
+          ...DEFAULT_HEADERS,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Cookie: cookieHeader,
+          Referer: `${MINTRABAJO_BASE_URL}/consulta_ext.aspx`,
+        },
+        body: form.toString(),
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15000),
+      });
+      cookieHeader = mergeCookies(postRes, cookieHeader);
+
+      // 3. GET consulta_lista.aspx
+      const listaRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_lista.aspx`, {
+        headers: {
+          ...DEFAULT_HEADERS,
+          Cookie: cookieHeader,
+          Referer: `${MINTRABAJO_BASE_URL}/consulta_ext.aspx`,
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+      cookieHeader = mergeCookies(listaRes, cookieHeader);
+      const htmlLista = await listaRes.text();
+
+      return { cookieHeader, htmlLista, cleanTipoDoc, cleanCedula };
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxAttempts) {
+        await sleepMs(600);
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Descarga el binario PDF de una fila específica de consulta_lista.aspx (con 1 reintento rápido).
  */
 async function postDownloadPdfFromLista({ cookieHeader, htmlLista, eventTarget }) {
   const formPayload = {
@@ -575,27 +624,37 @@ async function postDownloadPdfFromLista({ cookieHeader, htmlLista, eventTarget }
     formPayload.__EVENTVALIDATION = eventValidation;
   }
 
-  const pdfForm = new URLSearchParams(formPayload);
-  const pdfRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_lista.aspx`, {
-    method: 'POST',
-    headers: {
-      ...DEFAULT_HEADERS,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Cookie: cookieHeader,
-      Referer: `${MINTRABAJO_BASE_URL}/consulta_lista.aspx`,
-    },
-    body: pdfForm.toString(),
-    redirect: 'follow',
-    signal: AbortSignal.timeout(20000),
-  });
+  const pdfFormBody = new URLSearchParams(formPayload).toString();
 
-  const arrayBuffer = await pdfRes.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const headerStr = buffer.subarray(0, 5).toString('ascii');
-  if (!headerStr.startsWith('%PDF')) {
-    return null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const pdfRes = await fetch(`${MINTRABAJO_BASE_URL}/consulta_lista.aspx`, {
+        method: 'POST',
+        headers: {
+          ...DEFAULT_HEADERS,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Cookie: cookieHeader,
+          Referer: `${MINTRABAJO_BASE_URL}/consulta_lista.aspx`,
+        },
+        body: pdfFormBody,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(20000),
+      });
+
+      const arrayBuffer = await pdfRes.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const headerStr = buffer.subarray(0, 5).toString('ascii');
+      if (headerStr.startsWith('%PDF')) {
+        return buffer.toString('base64');
+      }
+    } catch (err) {
+      if (attempt >= 2) throw err;
+    }
+    if (attempt < 2) {
+      await sleepMs(500);
+    }
   }
-  return buffer.toString('base64');
+  return null;
 }
 
 function enrichMinTrabajoResult(baseObj = {}, viaDaemon = false) {
@@ -690,7 +749,7 @@ async function consultarAlturasMinTrabajo({
         cedula: cleanCedula,
         includePdf,
         antigravityMode,
-        timeoutMs: includePdf ? 22000 : 14000,
+        timeoutMs: includePdf ? 35000 : 18000,
       });
       if (relayedFirst && typeof relayedFirst === 'object') {
         if (relayedFirst.status === 'offline_local' || relayedFirst.status === 'offline_cloud') {
@@ -736,15 +795,70 @@ async function consultarAlturasMinTrabajo({
   }
 
   try {
-    const { cookieHeader, htmlLista } = await executeMinTrabajoSession({
-      tipoDoc: cleanTipoDoc,
-      cedula: cleanCedula,
+    const isLocalExecution = !preferAntigravityDaemon;
+    const sessionAndPdf = await runWithMinTrabajoSlot(async () => {
+      const { cookieHeader, htmlLista } = await executeMinTrabajoSession({
+        tipoDoc: cleanTipoDoc,
+        cedula: cleanCedula,
+        isLocalDaemon: isLocalExecution,
+      });
+
+      if (
+        !htmlLista ||
+        htmlLista.includes('No se encontraron resultados para la consulta realizada')
+      ) {
+        return { empty: true };
+      }
+
+      const { titular, historialCompleto } = parseMinTrabajoListaHtml(htmlLista, cleanCedula);
+      if (historialCompleto.length === 0 && !titular) {
+        return { empty: true };
+      }
+
+      const ultimoCertificadoAlturas =
+        historialCompleto.find((c) => c.programa.toUpperCase().includes('ALTURAS')) || null;
+      const ultimoCertificadoConfinados =
+        historialCompleto.find((c) => c.programa.toUpperCase().includes('CONFINADOS')) || null;
+      const certParaPdf =
+        ultimoCertificadoAlturas || ultimoCertificadoConfinados || historialCompleto[0] || null;
+
+      let downloadedPdfBase64 = null;
+      let baseStem = null;
+      if (includePdf && historialCompleto.length > 0 && certParaPdf?.eventTarget) {
+        try {
+          downloadedPdfBase64 = await postDownloadPdfFromLista({
+            cookieHeader,
+            htmlLista,
+            eventTarget: certParaPdf.eventTarget,
+          });
+          if (downloadedPdfBase64) {
+            const progUpper = String(certParaPdf.programa || '').toUpperCase();
+            const tipoTag = progUpper.includes('CONFINADOS')
+              ? 'Confinados'
+              : progUpper.includes('ALTURAS')
+                ? 'Alturas'
+                : 'MinTrabajo';
+            baseStem = `Constancia_${tipoTag}_${cleanCedula}_${certParaPdf.fechaFinISO || 'oficial'}`;
+          }
+        } catch (pdfErr) {
+          logger.warn(
+            `[OSINT MinTrabajo] No se pudo descargar el PDF automático para ${cleanCedula}: ${pdfErr.message}`,
+          );
+        }
+      }
+
+      return {
+        empty: false,
+        titular,
+        historialCompleto,
+        ultimoCertificadoAlturas,
+        ultimoCertificadoConfinados,
+        downloadedPdfBase64,
+        baseStem,
+      };
     });
 
-    if (
-      !htmlLista ||
-      htmlLista.includes('No se encontraron resultados para la consulta realizada')
-    ) {
+    if (sessionAndPdf.empty) {
       return enrichMinTrabajoResult({
         encontrado: false,
         activoEnAlturas: false,
@@ -762,63 +876,24 @@ async function consultarAlturasMinTrabajo({
       });
     }
 
-    const { titular, historialCompleto } = parseMinTrabajoListaHtml(htmlLista, cleanCedula);
+    const {
+      titular,
+      historialCompleto,
+      ultimoCertificadoAlturas,
+      ultimoCertificadoConfinados,
+      downloadedPdfBase64,
+      baseStem,
+    } = sessionAndPdf;
 
-    if (historialCompleto.length === 0 && !titular) {
-      return enrichMinTrabajoResult({
-        encontrado: false,
-        activoEnAlturas: false,
-        activoEnConfinados: false,
-        documento: cleanCedula,
-        tipoDoc: cleanTipoDoc,
-        titular: null,
-        ultimoCertificadoAlturas: null,
-        ultimoCertificadoConfinados: null,
-        pdfBase64: null,
-        pdfFileName: null,
-        imageBase64: null,
-        imageFileName: null,
-        historialCompleto: [],
-      });
-    }
-
-    const ultimoCertificadoAlturas =
-      historialCompleto.find((c) => c.programa.toUpperCase().includes('ALTURAS')) || null;
-    const ultimoCertificadoConfinados =
-      historialCompleto.find((c) => c.programa.toUpperCase().includes('CONFINADOS')) || null;
-    const certParaPdf =
-      ultimoCertificadoAlturas || ultimoCertificadoConfinados || historialCompleto[0] || null;
-
-    let pdfBase64 = null;
-    let pdfFileName = null;
+    let pdfBase64 = downloadedPdfBase64 || null;
+    let pdfFileName = pdfBase64 && baseStem ? `${baseStem}.pdf` : null;
     let imageBase64 = null;
     let imageFileName = null;
 
-    if (includePdf && historialCompleto.length > 0 && certParaPdf?.eventTarget) {
-      try {
-        pdfBase64 = await postDownloadPdfFromLista({
-          cookieHeader,
-          htmlLista,
-          eventTarget: certParaPdf.eventTarget,
-        });
-        if (pdfBase64) {
-          const progUpper = String(certParaPdf.programa || '').toUpperCase();
-          const tipoTag = progUpper.includes('CONFINADOS')
-            ? 'Confinados'
-            : progUpper.includes('ALTURAS')
-              ? 'Alturas'
-              : 'MinTrabajo';
-          const baseStem = `Constancia_${tipoTag}_${cleanCedula}_${certParaPdf.fechaFinISO || 'oficial'}`;
-          pdfFileName = `${baseStem}.pdf`;
-          imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
-          if (imageBase64) {
-            imageFileName = `${baseStem}.png`;
-          }
-        }
-      } catch (pdfErr) {
-        logger.warn(
-          `[OSINT MinTrabajo] No se pudo descargar el PDF automático para ${cleanCedula}: ${pdfErr.message}`,
-        );
+    if (pdfBase64 && baseStem) {
+      imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+      if (imageBase64) {
+        imageFileName = `${baseStem}.png`;
       }
     }
 
@@ -848,6 +923,7 @@ async function consultarAlturasMinTrabajo({
           cedula: cleanCedula,
           includePdf,
           antigravityMode,
+          timeoutMs: includePdf ? 35000 : 18000,
         });
         if (relayed && typeof relayed === 'object') {
           if (relayed.pdfBase64 && !relayed.imageBase64) {
@@ -905,62 +981,61 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
   }
 
   try {
-    const { cookieHeader, htmlLista } = await executeMinTrabajoSession({
-      tipoDoc: cleanTipoDoc,
-      cedula: cleanCedula,
+    const slotResult = await runWithMinTrabajoSlot(async () => {
+      const { cookieHeader, htmlLista } = await executeMinTrabajoSession({
+        tipoDoc: cleanTipoDoc,
+        cedula: cleanCedula,
+        isLocalDaemon: true,
+      });
+
+      if (
+        !htmlLista ||
+        htmlLista.includes('No se encontraron resultados para la consulta realizada')
+      ) {
+        return {
+          ok: false,
+          error: 'No se encontraron certificados registrados en MinTrabajo para este documento.',
+        };
+      }
+
+      const { historialCompleto } = parseMinTrabajoListaHtml(htmlLista, cleanCedula);
+      if (historialCompleto.length === 0) {
+        return {
+          ok: false,
+          error: 'No se encontraron filas de certificados disponibles para descargar.',
+        };
+      }
+
+      const targetCert = eventTarget
+        ? historialCompleto.find((c) => c.eventTarget === eventTarget) || {
+            eventTarget,
+            fechaFinISO: new Date().toISOString().split('T')[0],
+            programa: 'ALTURAS',
+          }
+        : historialCompleto[0];
+
+      const pdfBase64 = await postDownloadPdfFromLista({
+        cookieHeader,
+        htmlLista,
+        eventTarget: targetCert.eventTarget,
+      });
+
+      return { ok: Boolean(pdfBase64), pdfBase64, targetCert };
     });
 
-    if (
-      !htmlLista ||
-      htmlLista.includes('No se encontraron resultados para la consulta realizada')
-    ) {
+    if (!slotResult.ok || !slotResult.pdfBase64) {
       return {
         ok: false,
         pdfBase64: null,
         pdfFileName: null,
         imageBase64: null,
         imageFileName: null,
-        error: 'No se encontraron certificados registrados en MinTrabajo para este documento.',
+        error:
+          slotResult.error || 'El portal de MinTrabajo no devolvió un archivo PDF válido.',
       };
     }
 
-    const { historialCompleto } = parseMinTrabajoListaHtml(htmlLista, cleanCedula);
-    if (historialCompleto.length === 0) {
-      return {
-        ok: false,
-        pdfBase64: null,
-        pdfFileName: null,
-        imageBase64: null,
-        imageFileName: null,
-        error: 'No se encontraron filas de certificados disponibles para descargar.',
-      };
-    }
-
-    const targetCert = eventTarget
-      ? historialCompleto.find((c) => c.eventTarget === eventTarget) || {
-          eventTarget,
-          fechaFinISO: new Date().toISOString().split('T')[0],
-          programa: 'ALTURAS',
-        }
-      : historialCompleto[0];
-
-    const pdfBase64 = await postDownloadPdfFromLista({
-      cookieHeader,
-      htmlLista,
-      eventTarget: targetCert.eventTarget,
-    });
-
-    if (!pdfBase64) {
-      return {
-        ok: false,
-        pdfBase64: null,
-        pdfFileName: null,
-        imageBase64: null,
-        imageFileName: null,
-        error: 'El portal de MinTrabajo no devolvió un archivo PDF válido.',
-      };
-    }
-
+    const { pdfBase64, targetCert } = slotResult;
     const progUpper = String(targetCert.programa || '').toUpperCase();
     const tipoTag = progUpper.includes('CONFINADOS')
       ? 'Confinados'
@@ -990,6 +1065,7 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
           tipoDoc: cleanTipoDoc,
           cedula: cleanCedula,
           eventTarget,
+          timeoutMs: 35000,
         });
         if (relayed && typeof relayed === 'object' && relayed.ok) {
           if (relayed.pdfBase64 && !relayed.imageBase64) {

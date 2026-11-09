@@ -4747,12 +4747,32 @@ function startSseWorker(cliArgs) {
                               }
                             } catch (_) {}
 
+                            if (!global.__wappyOsintModuleCache) {
+                              global.__wappyOsintModuleCache = {
+                                mod: null,
+                                mtimeMs: 0,
+                                resolvedPath: '',
+                              };
+                            }
+
                             let osintSvc = null;
                             for (const candPath of candidateOsintPaths) {
                               try {
                                 if (fs.existsSync(candPath)) {
-                                  delete require.cache[require.resolve(candPath)];
-                                  osintSvc = require(candPath);
+                                  const resolved = require.resolve(candPath);
+                                  const mtimeMs = Number(fs.statSync(resolved).mtimeMs || 0);
+                                  const cacheObj = global.__wappyOsintModuleCache;
+                                  if (
+                                    !cacheObj.mod ||
+                                    cacheObj.resolvedPath !== resolved ||
+                                    cacheObj.mtimeMs !== mtimeMs
+                                  ) {
+                                    delete require.cache[resolved];
+                                    cacheObj.mod = require(resolved);
+                                    cacheObj.resolvedPath = resolved;
+                                    cacheObj.mtimeMs = mtimeMs;
+                                  }
+                                  osintSvc = cacheObj.mod;
                                   break;
                                 }
                               } catch (_) {}
@@ -4968,12 +4988,31 @@ function startSseWorker(cliArgs) {
                                   .map(([k, v]) => `${k}=${v}`)
                                   .join('; ');
                               };
+                              if (!global.__wappyInlineMtSem) {
+                                global.__wappyInlineMtSem = { active: 0, queue: [] };
+                              }
+                              const inlineSem = global.__wappyInlineMtSem;
+                              if (inlineSem.active < 5) {
+                                inlineSem.active += 1;
+                              } else {
+                                await new Promise((r) => inlineSem.queue.push(r));
+                              }
+                              try {
                               const cleanTipoDoc = String(parsedData.tipoDoc || 'CC').trim().toUpperCase();
                               const cleanCedula = String(parsedData.cedula || '').trim();
-                              const gRes = await fetch(`${mtBase}/consulta_ext.aspx`, {
-                                headers: mtHeaders,
-                                signal: AbortSignal.timeout(8000),
-                              });
+                              let gRes = null;
+                              for (let att = 1; att <= 2; att++) {
+                                try {
+                                  gRes = await fetch(`${mtBase}/consulta_ext.aspx`, {
+                                    headers: mtHeaders,
+                                    signal: AbortSignal.timeout(15000),
+                                  });
+                                  break;
+                                } catch (ge) {
+                                  if (att >= 2) throw ge;
+                                  await new Promise((r) => setTimeout(r, 600));
+                                }
+                              }
                               let ck = mergeCk(gRes);
                               const htmlExt = await gRes.text();
                               const form = new URLSearchParams({
@@ -5117,6 +5156,11 @@ function startSseWorker(cliArgs) {
                                 imageFileName,
                                 historialCompleto,
                               };
+                              } finally {
+                                const nxt = inlineSem.queue.shift();
+                                if (nxt) nxt();
+                                else inlineSem.active = Math.max(0, inlineSem.active - 1);
+                              }
                             }
 
                             if (result && typeof result === 'object') {

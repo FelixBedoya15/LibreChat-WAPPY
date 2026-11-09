@@ -2416,7 +2416,7 @@ async function executeRealAntigravityScraperVerification({
           companyId: new mongoose.Types.ObjectId(String(companyId)),
         })
           .sort({ createdAt: -1 })
-          .limit(60)
+          .limit(100)
           .lean();
       }
     } catch (err) {
@@ -2487,7 +2487,7 @@ async function executeRealAntigravityScraperVerification({
   }
 
   const allTargets = Array.from(targetsMap.values());
-  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 60);
+  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 100);
   const nonNumericTargets = allTargets.filter((t) => !t.isNumericValid);
 
   const specificPortalAction = isArlDirecto
@@ -2624,7 +2624,7 @@ async function executeRealAntigravityScraperVerification({
     };
   };
 
-  const batchSize = 10;
+  const batchSize = 6;
   for (let i = 0; i < validTargets.length; i += batchSize) {
     const batch = validTargets.slice(i, i + batchSize);
     const batchResults = await Promise.all(
@@ -3460,7 +3460,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       category,
     });
     const t0 = Date.now();
-    const incomingItems = currentPipelineItems.slice(0, 50);
+    const incomingItems = currentPipelineItems.slice(0, 100);
     const incomingSource = { ...lastProducerNode };
     const stepLogs = [];
     const addStepLog = (level, message, detail = '') => {
@@ -3555,8 +3555,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .split(/\s+/)
         .filter((w) => w.length >= 3 && !['del', 'los', 'las', 'por', 'con', 'para', 'una', 'uno', 'que', 'sus'].includes(w));
 
-    // Proyectar cada registro de filteredRecords.slice(0, 50) en un objeto JSON limpio para stepOutputItems (estilo n8n)
-    let stepOutputItems = filteredRecords.slice(0, 50).map((rec, idx) => {
+    // Proyectar cada registro de filteredRecords.slice(0, 100) en un objeto JSON limpio para stepOutputItems (estilo n8n)
+    let stepOutputItems = filteredRecords.slice(0, 100).map((rec, idx) => {
       if (
         surgicalFields.length > 0 &&
         !isProceduralNode &&
@@ -4024,7 +4024,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       const cn =
         configuredCustomNodes.find((c, i) => (c.key || c.id || `custom_${i + 1}`) === nodeKey) || {};
       const cnCfg = resolveNodeConfig(nodeKey, nodeId);
-      const cnIncomingItems = currentPipelineItems.slice(0, 50);
+      const cnIncomingItems = currentPipelineItems.slice(0, 100);
       const cnIncomingSource = { ...lastProducerNode };
 
       // Si es un Scraper / Verificador de Google Antigravity (Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, etc.),
@@ -4081,7 +4081,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           sourceNodeTitle: cnIncomingSource.title,
           inputItems:
             Array.isArray(realScraper.inputItems) && realScraper.inputItems.length > 0
-              ? realScraper.inputItems.slice(0, 50)
+              ? realScraper.inputItems.slice(0, 100)
               : cnIncomingItems,
           outputItems: cnOutputItems,
           evidences: Array.isArray(realScraper.evidences) ? realScraper.evidences : [],
@@ -4533,7 +4533,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           }
         }
       }
-      const agentInputItems = [...baseAgentInputs, ...extraToolInputs].slice(0, 60);
+      const agentInputItems = [...baseAgentInputs, ...extraToolInputs].slice(0, 100);
 
       const agentExec = await executeSandboxAgentCall({
         reqUser,

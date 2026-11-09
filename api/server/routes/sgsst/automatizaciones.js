@@ -834,6 +834,7 @@ router.get('/node-live-inspector', async (req, res) => {
  */
 router.post('/test-sandbox', async (req, res) => {
   const isStreaming = req.query.stream === '1' || req.body?.stream === true;
+  let keepAliveTimer = null;
   try {
     const {
       automationId,
@@ -863,16 +864,6 @@ router.post('/test-sandbox', async (req, res) => {
       } catch (_) {}
     }
 
-    if (isStreaming) {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-cache, no-transform');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      if (typeof res.flushHeaders === 'function') {
-        res.flushHeaders();
-      }
-    }
-
     const writeStreamEvent = (evt) => {
       if (!isStreaming || res.writableEnded) return;
       try {
@@ -882,6 +873,25 @@ router.post('/test-sandbox', async (req, res) => {
         }
       } catch (_) {}
     };
+
+    if (isStreaming) {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+      keepAliveTimer = setInterval(() => {
+        writeStreamEvent({ type: 'ping', ts: Date.now() });
+      }, 15000);
+      res.on('close', () => {
+        if (keepAliveTimer) {
+          clearInterval(keepAliveTimer);
+          keepAliveTimer = null;
+        }
+      });
+    }
 
     const simulationResult = await runWorkflowSandboxSimulation(
       {
@@ -908,6 +918,10 @@ router.post('/test-sandbox', async (req, res) => {
     );
 
     if (isStreaming) {
+      if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+      }
       writeStreamEvent({ type: 'complete', result: simulationResult });
       return res.end();
     }
@@ -916,6 +930,10 @@ router.post('/test-sandbox', async (req, res) => {
   } catch (error) {
     console.error('[API Automatizaciones] Error en test-sandbox:', error);
     if (isStreaming && !res.writableEnded) {
+      if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+      }
       try {
         res.write(
           `${JSON.stringify({
@@ -929,6 +947,11 @@ router.post('/test-sandbox', async (req, res) => {
     return res.status(500).json({
       error: error?.message || 'Error al ejecutar la simulación en el Escenario de Desarrollo.',
     });
+  } finally {
+    if (keepAliveTimer) {
+      clearInterval(keepAliveTimer);
+      keepAliveTimer = null;
+    }
   }
 });
 
