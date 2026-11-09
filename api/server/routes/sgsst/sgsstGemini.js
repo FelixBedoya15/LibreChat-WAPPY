@@ -361,7 +361,36 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           contentPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
         }
 
-        const result = await model.generateContent(contentPayload);
+        const perAttemptTimeoutMs =
+          Number(safeOpts.timeoutMs) > 0 ? Number(safeOpts.timeoutMs) : 35000;
+        const abortCtrl = new AbortController();
+        let attemptTimer = null;
+        let result;
+        try {
+          const genPromise = model.generateContent(contentPayload, {
+            timeout: perAttemptTimeoutMs,
+            signal: abortCtrl.signal,
+          });
+          genPromise.catch(() => {});
+          const timeoutPromise = new Promise((_, reject) => {
+            attemptTimer = setTimeout(() => {
+              try {
+                abortCtrl.abort();
+              } catch (_) {}
+              reject(
+                new Error(
+                  `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${currentModel}"`,
+                ),
+              );
+            }, perAttemptTimeoutMs);
+          });
+          result = await Promise.race([genPromise, timeoutPromise]);
+        } finally {
+          if (attemptTimer) {
+            clearTimeout(attemptTimer);
+            attemptTimer = null;
+          }
+        }
         geminiPoolManager.reportKeySuccess(apiKey, currentModel);
         return result; // ✅ success
 
@@ -397,7 +426,9 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           msg.includes('etimedout') ||
           msg.includes('econnreset') ||
           msg.includes('socket hang up') ||
-          msg.includes('und_err');
+          msg.includes('und_err') ||
+          msg.includes('timeout') ||
+          msg.includes('aborted');
 
         const isDaily = msg.includes('generaterequestsperday') || msg.includes('limit: 20');
 

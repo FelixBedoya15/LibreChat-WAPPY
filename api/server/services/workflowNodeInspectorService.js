@@ -97,7 +97,7 @@ async function findSingleCompanyDoc(Model, userId, company) {
 /**
  * Busca múltiples documentos de un aplicativo para la empresa activa (con fallback a búsqueda por user).
  */
-async function findManyCompanyDocs(Model, userId, company, sortObj = { updatedAt: -1 }, limit = 200) {
+async function findManyCompanyDocs(Model, userId, company, sortObj = { updatedAt: -1 }, limit = 300) {
   if (!Model) return [];
   try {
     const companyFilter = buildCompanyScopeFilter(userId, company);
@@ -3631,7 +3631,7 @@ async function inspectNodeLiveData({ userId, companyId, nodeId }) {
     totalRecords: records.length,
     criticalCount,
     kpis: Array.isArray(result.kpis) ? result.kpis : [],
-    records: records.slice(0, 250),
+    records: records.slice(0, 300),
   };
 }
 
@@ -3717,7 +3717,7 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
       }
 
       const kpiText = (liveData.kpis || []).map((k) => `${k.label}: ${k.value}`).join(' | ');
-      const recordLines = filteredRecords.slice(0, 80).map((rec, idx) => {
+      const recordLines = filteredRecords.slice(0, 300).map((rec, idx) => {
         if (strictFilter) {
           const projected = [];
           const fieldEntries = Object.entries(rec.fields || {});
