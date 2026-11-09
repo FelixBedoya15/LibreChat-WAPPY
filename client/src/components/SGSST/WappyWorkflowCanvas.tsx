@@ -1246,7 +1246,8 @@ export default function WappyWorkflowCanvas({
     // NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
     const customNodesList = workflowNodes?.canvasLayout?.customNodes || [];
     customNodesList.forEach((cn, idx) => {
-      const pos = customPositions[cn.key] || { x: 274 + idx * 116, y: 332 };
+      const defaultCustomX = Math.max(380, memoryRightEdge) + (toolInputs.length + idx) * 106;
+      const pos = customPositions[cn.key] || { x: defaultCustomX, y: 228 };
       list.push({
         key: cn.key,
         nodeId: cn.key,
@@ -1256,8 +1257,8 @@ export default function WappyWorkflowCanvas({
         subtitle: cn.subtitle,
         x: pos.x,
         y: pos.y,
-        width: 74,
-        height: 74,
+        width: 62,
+        height: 62,
         removable: true,
       });
     });
@@ -1517,8 +1518,12 @@ export default function WappyWorkflowCanvas({
       const toNode = map.get(edge.to);
       if (!fromNode || !toNode) return;
 
-      const isFromSubCircle = fromNode.shape.startsWith('circle_');
-      const isToSubCircle = toNode.shape.startsWith('circle_');
+      const isFromSubCircle =
+        fromNode.shape.startsWith('circle_') ||
+        (fromNode.shape === 'custom_node' && edge.kind === 'sub');
+      const isToSubCircle =
+        toNode.shape.startsWith('circle_') ||
+        (toNode.shape === 'custom_node' && edge.kind === 'sub');
 
       if (isFromSubCircle || isToSubCircle) {
         const agNode = fromNode.shape === 'agent' ? fromNode : toNode.shape === 'agent' ? toNode : null;
@@ -1949,8 +1954,8 @@ export default function WappyWorkflowCanvas({
     const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
     if (dropPos) {
       nextPositions[baseKey] = {
-        x: Math.max(20, Math.round(dropPos.x - 37)),
-        y: Math.max(20, Math.round(dropPos.y - 37)),
+        x: Math.max(20, Math.round(dropPos.x - 31)),
+        y: Math.max(20, Math.round(dropPos.y - 31)),
       };
     }
     const prevConfigs = workflowNodes?.canvasLayout?.nodeConfigs || {};
@@ -2873,7 +2878,9 @@ export default function WappyWorkflowCanvas({
         const sourceNode = visualNodes.find((n) => n.key === wiringFrom.sourceKey);
         const targetNode = visualNodes.find((n) => n.key === targetNodeKey);
         const isDiamondWire = wiringFrom.portType.startsWith('diamond');
-        const isTargetSubCircle = Boolean(targetNode?.shape.startsWith('circle_'));
+        const isTargetSubCircle = Boolean(
+          targetNode?.shape.startsWith('circle_') || targetNode?.shape === 'custom_node',
+        );
         const isSourceSubCircle = Boolean(sourceNode?.shape.startsWith('circle_'));
 
         const isValidConnection = isDiamondWire
@@ -3522,8 +3529,9 @@ export default function WappyWorkflowCanvas({
                   variant={tab.variant}
                   isActive={paletteTab === tab.id}
                   icon={tab.icon}
-                  label={`${tab.label} (${tab.badge.split('·')[1]?.trim() || tab.badge})`}
-                  title={`Etapa ${tab.label}`}
+                  badge={tab.badge.split('·')[1]?.trim() || tab.badge}
+                  label={tab.label}
+                  title={`Etapa ${tab.label} (${tab.badge.split('·')[1]?.trim() || tab.badge})`}
                   onClick={() => {
                     setPaletteTab(tab.id as any);
                     setConstructionNotice(null);
@@ -3630,28 +3638,42 @@ export default function WappyWorkflowCanvas({
                     ? [
                         {
                           id: 'all',
-                          badge: 'Todos',
+                          count:
+                            SKILL_RULE_SUBAGENT_NODES.filter(
+                              (n) => n.id.startsWith('skill_') || n.id.startsWith('rule_'),
+                            ).length +
+                            savedUserLibraryNodes.filter(
+                              (n) => n.nodeType === 'skill' || n.nodeType === 'rule',
+                            ).length,
                           label: 'Skills y Reglas (Todos)',
                           variant: 'violet' as const,
                           icon: <Puzzle className="w-3.5 h-3.5" />,
                         },
                         {
                           id: 'skill',
-                          badge: 'Skills (SKILL.md)',
+                          count:
+                            SKILL_RULE_SUBAGENT_NODES.filter((n) => n.id.startsWith('skill_'))
+                              .length +
+                            savedUserLibraryNodes.filter((n) => n.nodeType === 'skill').length,
                           label: 'Skills Procedurales (SKILL.md)',
                           variant: 'purple' as const,
                           icon: <Puzzle className="w-3.5 h-3.5" />,
                         },
                         {
                           id: 'rule',
-                          badge: 'Reglas (Rules)',
+                          count:
+                            SKILL_RULE_SUBAGENT_NODES.filter((n) => n.id.startsWith('rule_'))
+                              .length +
+                            savedUserLibraryNodes.filter((n) => n.nodeType === 'rule').length,
                           label: 'Reglas Obligatorias (Guardrails)',
                           variant: 'emerald' as const,
                           icon: <Scale className="w-3.5 h-3.5" />,
                         },
                         {
                           id: 'my_created',
-                          badge: `Mis Nodos (${savedUserLibraryNodes.length})`,
+                          count: savedUserLibraryNodes.filter(
+                            (n) => n.nodeType === 'skill' || n.nodeType === 'rule',
+                          ).length,
                           label: 'Mis Nodos Personalizados',
                           variant: 'teal' as const,
                           icon: <Sparkles className="w-3.5 h-3.5" />,
@@ -3661,16 +3683,15 @@ export default function WappyWorkflowCanvas({
                       ? [
                           {
                             id: 'subagent',
-                            badge: 'Todos los Sub-Agentes (30)',
-                            label: 'Todos los Sub-Agentes de Chat y Especialistas (30)',
+                            count: 30,
+                            label: 'Todos los Sub-Agentes de Chat y Especialistas',
                             variant: 'indigo' as const,
                             icon: <Bot className="w-3.5 h-3.5" />,
                           },
                           {
                             id: 'my_created',
-                            badge: `Mis Sub-Agentes (${
-                              savedUserLibraryNodes.filter((n) => n.nodeType === 'subagent').length
-                            })`,
+                            count: savedUserLibraryNodes.filter((n) => n.nodeType === 'subagent')
+                              .length,
                             label: 'Mis Sub-Agentes Creados',
                             variant: 'teal' as const,
                             icon: <Sparkles className="w-3.5 h-3.5" />,
@@ -3679,21 +3700,21 @@ export default function WappyWorkflowCanvas({
                       : [
                           {
                             id: 'all',
-                            badge: 'Scraping + Web (8)',
+                            count: 8,
                             label: 'Todos los Scrapers AGY y Búsqueda Web',
                             variant: 'amber' as const,
                             icon: <Terminal className="w-3.5 h-3.5" />,
                           },
                           {
                             id: 'web_scraper',
-                            badge: 'Scrapers AGY (7)',
+                            count: 7,
                             label: 'Web Scraping AGY con Script Real',
                             variant: 'orange' as const,
                             icon: <Terminal className="w-3.5 h-3.5" />,
                           },
                           {
                             id: 'web_search',
-                            badge: 'Búsqueda Web Viva',
+                            count: 1,
                             label: 'Búsqueda Web Oficial en Tiempo Real',
                             variant: 'cyan' as const,
                             icon: <Search className="w-3.5 h-3.5" />,
@@ -3707,6 +3728,7 @@ export default function WappyWorkflowCanvas({
                       variant={fTab.variant}
                       isActive={selectedSkillFilter === fTab.id}
                       icon={fTab.icon}
+                      badge={fTab.count}
                       label={fTab.label}
                       onClick={() => setSelectedSkillFilter(fTab.id as any)}
                     />
@@ -4329,7 +4351,12 @@ export default function WappyWorkflowCanvas({
                           variant={variantMap[tTab.id] || 'cyan'}
                           isActive={isActive}
                           icon={iconMap[tTab.id]}
-                          label={`${tTab.label} (${toolsInSubgroup.length})${activeCountInSubgroup > 0 ? ` · ✓${activeCountInSubgroup}` : ''}`}
+                          badge={
+                            activeCountInSubgroup > 0
+                              ? `${toolsInSubgroup.length} · ✓${activeCountInSubgroup}`
+                              : toolsInSubgroup.length
+                          }
+                          label={tTab.label}
                           title={`${tTab.label} — ${toolsInSubgroup.length} herramientas disponibles · ${activeCountInSubgroup} conectada(s)`}
                           onClick={() => {
                             setSelectedToolSubgroup(tTab.id as any);
@@ -4353,7 +4380,8 @@ export default function WappyWorkflowCanvas({
                         variant="teal"
                         isActive={selectedHitoFilter === 'external'}
                         icon={<Globe className="w-3.5 h-3.5" />}
-                        label={`Conectores / Fuentes (${EXTRACTOR_NODES.length})`}
+                        badge={EXTRACTOR_NODES.length}
+                        label="Conectores / Fuentes"
                         onClick={() => {
                           setSelectedHitoFilter('external');
                           setConstructionNotice(null);
@@ -4397,7 +4425,12 @@ export default function WappyWorkflowCanvas({
                           variant={hitoVariants[hIdx % hitoVariants.length]}
                           isActive={isActive}
                           icon={<ShieldCheck className="w-3.5 h-3.5" />}
-                          label={`${hTab.label}${activeInTabCount > 0 ? ` (✓${activeInTabCount})` : ''}`}
+                          badge={
+                            activeInTabCount > 0
+                              ? `${hitoNodesForTab.length} · ✓${activeInTabCount}`
+                              : hitoNodesForTab.length
+                          }
+                          label={hTab.label.replace(/\s*\(\d+\)\s*$/, '')}
                           title={`${hTab.label} — ${activeInTabCount} activo(s) en el flujo · ${constructionInTabCount} en Construcción`}
                           onClick={() => {
                             setSelectedHitoFilter(hTab.id);
@@ -4646,11 +4679,8 @@ export default function WappyWorkflowCanvas({
                     selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
                   }
                   icon={<Move className="w-3.5 h-3.5" />}
-                  label={
-                    selectedNodeKeys.length > 0
-                      ? `Seleccionar Todo el Flujo (${selectedNodeKeys.length})`
-                      : 'Seleccionar Todo el Flujo'
-                  }
+                  badge={selectedNodeKeys.length > 0 ? selectedNodeKeys.length : visualNodes.length}
+                  label="Seleccionar Todo el Flujo"
                   title="Seleccionar todo el flujo para moverlo junto"
                   onClick={handleSelectAllNodes}
                 />
@@ -4933,10 +4963,10 @@ export default function WappyWorkflowCanvas({
                     : 'auto');
               const agyModeBadgeLabel =
                 resolvedAgyMode === 'local'
-                  ? '💻 AGY Local'
+                  ? 'AGY Local'
                   : resolvedAgyMode === 'cloud'
-                    ? '☁️ AGY Cloud'
-                    : '⚡ AGY Auto';
+                    ? 'AGY Cloud'
+                    : 'AGY Auto';
               const agyModePillClass =
                 resolvedAgyMode === 'local'
                   ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300'
@@ -5013,8 +5043,17 @@ export default function WappyWorkflowCanvas({
                         {node.title}
                       </div>
                       <div className="text-[9.5px] font-medium text-slate-400">
-                        {showAntigravityBadge ? `${agyModeBadgeLabel} · ${node.subtitle}` : node.subtitle}
+                        {node.subtitle}
                       </div>
+                      {showAntigravityBadge && (
+                        <div className="mt-0.5 flex justify-center">
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full border text-[8px] font-extrabold uppercase tracking-tight ${agyModePillClass}`}
+                          >
+                            {agyModeBadgeLabel}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -5034,10 +5073,6 @@ export default function WappyWorkflowCanvas({
                     }`}
                   >
                     {renderSandboxNodeOverlay(node)}
-
-                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-sky-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                      {showAntigravityBadge ? agyModeBadgeLabel : 'Extraer'}
-                    </span>
 
                     <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-500 border-2 border-white dark:border-slate-900" />
 
@@ -5079,11 +5114,17 @@ export default function WappyWorkflowCanvas({
                         {node.title}
                       </div>
                       <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
-                        {buildNodeConfigSummary(nodeCfg) ||
-                          (showAntigravityBadge
-                            ? `${agyModeBadgeLabel} · ${node.subtitle}`
-                            : node.subtitle)}
+                        {buildNodeConfigSummary(nodeCfg) || node.subtitle}
                       </div>
+                      {showAntigravityBadge && (
+                        <div className="mt-0.5 flex justify-center">
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full border text-[8px] font-extrabold uppercase tracking-tight ${agyModePillClass}`}
+                          >
+                            {agyModeBadgeLabel}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -5360,10 +5401,6 @@ export default function WappyWorkflowCanvas({
                   >
                     {renderSandboxNodeOverlay(node)}
 
-                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                      Control
-                    </span>
-
                     <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-amber-500 border-2 border-white dark:border-slate-900" />
 
                     <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-amber-400 dark:border-amber-600 group-hover/node:border-amber-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
@@ -5434,10 +5471,6 @@ export default function WappyWorkflowCanvas({
                   >
                     {renderSandboxNodeOverlay(node)}
 
-                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-teal-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                      Hito / App
-                    </span>
-
                     <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-teal-500 border-2 border-white dark:border-slate-900" />
 
                     <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-teal-400 dark:border-teal-600 group-hover/node:border-teal-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
@@ -5500,10 +5533,6 @@ export default function WappyWorkflowCanvas({
                   >
                     {renderSandboxNodeOverlay(node)}
 
-                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-purple-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                      Bitácora
-                    </span>
-
                     <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
 
                     <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-purple-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
@@ -5558,49 +5587,39 @@ export default function WappyWorkflowCanvas({
                         {node.title}
                       </div>
                       <div className="text-[9px] text-slate-400 truncate">
-                        {showAntigravityBadge
-                          ? `${agyModeBadgeLabel} · ${node.subtitle}`
-                          : node.subtitle}
+                        {node.subtitle}
                       </div>
+                      {showAntigravityBadge && (
+                        <div className="mt-0.5 flex justify-center">
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full border text-[8px] font-extrabold uppercase tracking-tight ${agyModePillClass}`}
+                          >
+                            {agyModeBadgeLabel}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
               }
 
               // 4-BIS. FIGURA NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
+              // Siempre que estén conectados debajo del Agente IA (como sub-nodos del rombo inferior), se transforman en CÍRCULOS con rombo superior (◆)
               if (node.shape === 'custom_node') {
-                const badgeText =
-                  node.customNodeType === 'skill'
-                    ? '🧩 Skill'
-                    : node.customNodeType === 'subagent'
-                      ? showAntigravityBadge
-                        ? `🤖 ${agyModeBadgeLabel}`
-                        : '🤖 Sub-Agente'
-                      : node.customNodeType === 'rule'
-                        ? '📏 Regla'
-                        : node.customNodeType === 'web_scraper'
-                          ? `🕷️ ${agyModeBadgeLabel}`
-                          : '🌐 Búsqueda Web';
-                const badgeColor =
-                  node.customNodeType === 'skill'
-                    ? 'bg-violet-600'
-                    : node.customNodeType === 'subagent'
-                      ? 'bg-indigo-600'
-                      : node.customNodeType === 'rule'
-                        ? 'bg-emerald-600'
-                        : node.customNodeType === 'web_scraper'
-                          ? 'bg-orange-600'
-                          : 'bg-sky-600';
+                const isMainWired = wires.some(
+                  (w) => !w.isSub && (w.sourceKey === node.key || w.targetKey === node.key),
+                );
+                const renderAsSubCircle = !isMainWired;
                 const borderColor =
                   node.customNodeType === 'skill'
-                    ? 'border-violet-400 dark:border-violet-600 group-hover/node:border-violet-500'
+                    ? 'border-violet-400 dark:border-violet-600 hover:border-violet-500'
                     : node.customNodeType === 'subagent'
-                      ? 'border-indigo-400 dark:border-indigo-600 group-hover/node:border-indigo-500'
+                      ? 'border-indigo-400 dark:border-indigo-600 hover:border-indigo-500'
                       : node.customNodeType === 'rule'
-                        ? 'border-emerald-400 dark:border-emerald-600 group-hover/node:border-emerald-500'
+                        ? 'border-emerald-400 dark:border-emerald-600 hover:border-emerald-500'
                         : node.customNodeType === 'web_scraper'
-                          ? 'border-orange-400 dark:border-orange-600 group-hover/node:border-orange-500'
-                          : 'border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500';
+                          ? 'border-orange-400 dark:border-orange-600 hover:border-orange-500'
+                          : 'border-sky-400 dark:border-sky-600 hover:border-sky-500';
                 const iconId = node.nodeId.includes('scraper_agy_')
                   ? node.nodeId
                   : node.customNodeType === 'web_scraper'
@@ -5619,32 +5638,33 @@ export default function WappyWorkflowCanvas({
                     onPointerDown={(e) => handleNodePointerDown(e, node)}
                     onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                     style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                    title="Haz clic sobre este nodo para configurar su Skill, Prompt de Sub-Agente, Regla o Script de Web Scraping en Antigravity"
+                    title="Haz clic sobre este sub-nodo para configurar su Skill, Prompt de Sub-Agente, Regla o Script de Web Scraping en Antigravity"
                     className={`absolute z-20 group/node select-none ${
                       readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                     }`}
                   >
                     {renderSandboxNodeOverlay(node)}
 
-                    <span
-                      className={`absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full ${badgeColor} text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap`}
-                    >
-                      {badgeText}
-                    </span>
-
-                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-purple-500 border-2 border-white dark:border-slate-900" />
+                    {renderAsSubCircle ? (
+                      /* Puerto superior en forma de Rombo (◆) igual que los demás sub-nodos debajo del Agente IA */
+                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-purple-500 border-2 border-white dark:border-slate-900 shadow-xs" />
+                    ) : (
+                      <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-purple-500 border-2 border-white dark:border-slate-900" />
+                    )}
 
                     <div
-                      className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 ${borderColor} shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}
+                      className={`w-full h-full ${
+                        renderAsSubCircle ? 'rounded-full group-hover/node:scale-105' : 'rounded-2xl'
+                      } bg-white dark:bg-slate-800 border-2 ${borderColor} shadow-md flex items-center justify-center relative transition-transform ${selectedRingClass}`}
                     >
                       {node.customNodeType === 'subagent' && nodeCfg?.avatarSrc ? (
                         <img
                           src={nodeCfg.avatarSrc}
                           alt={node.title}
-                          className="w-9 h-9 object-contain drop-shadow-sm select-none pointer-events-none scale-115"
+                          className="w-8 h-8 object-contain drop-shadow-sm select-none pointer-events-none scale-115"
                         />
                       ) : (
-                        renderOfficialNodeSvg(iconId, 'w-8 h-8')
+                        renderOfficialNodeSvg(iconId, 'w-7 h-7')
                       )}
 
                       {!readOnly && (
@@ -5655,7 +5675,7 @@ export default function WappyWorkflowCanvas({
                             e.stopPropagation();
                             handleRemoveCustomNode(node.key);
                           }}
-                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
                           title="Quitar este nodo del lienzo"
                         >
                           <X className="w-2.5 h-2.5" />
@@ -5663,29 +5683,38 @@ export default function WappyWorkflowCanvas({
                       )}
                     </div>
 
-                    <div
-                      onPointerDown={(e) =>
-                        handlePortPointerDown(
-                          e,
-                          node.key,
-                          'main_out',
-                          node.x + node.width,
-                          node.y + node.height / 2,
-                        )
-                      }
-                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
-                      title="Arrastra desde este puerto para conectarlo con el Agente IA o cualquier otro módulo del flujo"
-                    />
+                    {!renderAsSubCircle && (
+                      <div
+                        onPointerDown={(e) =>
+                          handlePortPointerDown(
+                            e,
+                            node.key,
+                            'main_out',
+                            node.x + node.width,
+                            node.y + node.height / 2,
+                          )
+                        }
+                        className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-purple-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                        title="Arrastra desde este puerto para conectarlo con el Agente IA o cualquier otro módulo del flujo"
+                      />
+                    )}
 
-                    <div className="mt-1.5 w-[118px] -ml-[22px] text-center pointer-events-none">
-                      <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                    <div className="mt-1.5 w-[108px] -ml-[23px] text-center pointer-events-none">
+                      <div className="text-[10px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
                         {node.title}
                       </div>
-                      <div className="text-[9px] text-purple-600 dark:text-purple-400 font-semibold truncate">
-                        {showAntigravityBadge
-                          ? `${agyModeBadgeLabel} · ${node.subtitle}`
-                          : node.subtitle}
+                      <div className="text-[8.5px] text-purple-600 dark:text-purple-400 font-semibold truncate">
+                        {node.subtitle}
                       </div>
+                      {showAntigravityBadge && (
+                        <div className="mt-0.5 flex justify-center">
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full border text-[8px] font-extrabold uppercase tracking-tight ${agyModePillClass}`}
+                          >
+                            {agyModeBadgeLabel}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -5763,10 +5792,17 @@ export default function WappyWorkflowCanvas({
                       {node.title}
                     </div>
                     <div className="text-[8.5px] font-semibold text-slate-400 truncate">
-                      {showAntigravityBadge
-                        ? `${agyModeBadgeLabel} · ${buildNodeConfigSummary(nodeCfg) || node.subtitle}`
-                        : buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
+                    {showAntigravityBadge && (
+                      <div className="mt-0.5 flex justify-center">
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full border text-[8px] font-extrabold uppercase tracking-tight ${agyModePillClass}`}
+                        >
+                          {agyModeBadgeLabel}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -5962,16 +5998,6 @@ export default function WappyWorkflowCanvas({
               </div>
 
               <div className="flex items-center gap-2">
-                {onAutoBuildPrompt && (
-                  <ExpandableButton
-                    size="sm"
-                    variant="purple"
-                    icon={<Wand2 className="w-3.5 h-3.5" />}
-                    label="Reflejar en el Prompt"
-                    title="Actualizar el prompt general con la configuración de este nodo"
-                    onClick={onAutoBuildPrompt}
-                  />
-                )}
                 <ExpandableButton
                   size="sm"
                   variant="neutral"

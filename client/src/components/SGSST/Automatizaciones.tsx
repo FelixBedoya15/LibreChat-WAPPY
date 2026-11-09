@@ -1577,6 +1577,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   'fuchsia',
                   'blue',
                 ] as const;
+                const countInCat =
+                  cat.id === 'all'
+                    ? presets.length
+                    : presets.filter((p) => p.presetCategory === cat.id).length;
                 return (
                   <ExpandableButton
                     key={cat.id}
@@ -1585,6 +1589,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     variant={catVariants[cIdx % catVariants.length]}
                     isActive={selectedPresetCategory === cat.id}
                     icon={<span className="text-xs leading-none">{cat.icon}</span>}
+                    badge={countInCat}
                     label={cat.label}
                     onClick={() => setSelectedPresetCategory(cat.id)}
                   />

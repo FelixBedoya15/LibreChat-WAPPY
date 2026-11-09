@@ -502,6 +502,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               size="sm"
               variant="teal"
               icon={<Check className="w-3.5 h-3.5" />}
+              badge={presetFields.length}
               label="Seleccionar Todos los Parámetros"
               onClick={() =>
                 onUpdateNodeConfig(activeNode.key, {
@@ -516,7 +517,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 size="sm"
                 variant="danger"
                 icon={<Trash2 className="w-3.5 h-3.5" />}
-                label={`Limpiar Selección (${selectedFields.length})`}
+                badge={selectedFields.length}
+                label="Limpiar Selección"
                 onClick={() =>
                   onUpdateNodeConfig(activeNode.key, {
                     fields: [],
@@ -651,7 +653,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               variant="teal"
               isActive={recordFilterMode === 'all'}
               icon={<Database className="w-3.5 h-3.5" />}
-              label={`Todos los Registros (${nodeLiveInspectorData.totalRecords})`}
+              badge={nodeLiveInspectorData.totalRecords}
+              label="Todos los Registros"
               onClick={() => handleSetRecordFilterMode('all')}
             />
             <ExpandableButton
@@ -659,7 +662,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               variant="danger"
               isActive={recordFilterMode === 'critical_only'}
               icon={<AlertTriangle className="w-3.5 h-3.5" />}
-              label={`Solo Críticos / En Brecha (${nodeLiveInspectorData.criticalCount})`}
+              badge={nodeLiveInspectorData.criticalCount}
+              label="Solo Críticos / En Brecha"
               onClick={() => handleSetRecordFilterMode('critical_only')}
             />
             <ExpandableButton
@@ -667,7 +671,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               variant="purple"
               isActive={recordFilterMode === 'selected'}
               icon={<Check className="w-3.5 h-3.5" />}
-              label={`Elegidos (${selectedRecordIds.length})`}
+              badge={selectedRecordIds.length}
+              label="Elegidos"
               onClick={() => handleSetRecordFilterMode('selected')}
             />
           </div>
@@ -689,7 +694,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   size="sm"
                   variant="danger"
                   icon={<Trash2 className="w-3.5 h-3.5" />}
-                  label={`Limpiar (${selectedRecordIds.length})`}
+                  badge={selectedRecordIds.length}
+                  label="Limpiar Selección"
                   onClick={() =>
                     onUpdateNodeConfig(activeNode.key, {
                       recordFilterMode: 'all',
@@ -1042,7 +1048,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             variant="emerald"
             isActive={currentAntigravityMode === 'auto'}
             icon={<Zap className="w-3.5 h-3.5" />}
-            label="⚡ Automático (1° Local ➔ 2° Cloud)"
+            label="Automático"
             onClick={() => handleSelectNodeAntigravityMode('auto')}
           />
           <ExpandableButton
@@ -1051,7 +1057,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             variant="amber"
             isActive={currentAntigravityMode === 'local'}
             icon={<Laptop className="w-3.5 h-3.5" />}
-            label="💻 Solo Local (Mi PC / Mac)"
+            label="Local"
             onClick={() => handleSelectNodeAntigravityMode('local')}
           />
           <ExpandableButton
@@ -1060,7 +1066,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             variant="cyan"
             isActive={currentAntigravityMode === 'cloud'}
             icon={<Cloud className="w-3.5 h-3.5" />}
-            label="☁️ Solo Cloud 24/7"
+            label="Cloud"
             onClick={() => handleSelectNodeAntigravityMode('cloud')}
           />
         </div>
@@ -1107,10 +1113,10 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             {/* Atajos rápidos de horario con ExpandableButton */}
             <div className="flex flex-wrap items-center gap-1.5">
               {[
-                { label: '06:00 AM — Apertura', h: 6, m: 0, variant: 'amber' as const },
-                { label: '07:30 AM — Inicio Turno', h: 7, m: 30, variant: 'teal' as const },
-                { label: '12:00 PM — Mediodía', h: 12, m: 0, variant: 'cyan' as const },
-                { label: '05:00 PM — Cierre Jornada', h: 17, m: 0, variant: 'purple' as const },
+                { badge: '06:00', label: '06:00 AM — Apertura', h: 6, m: 0, variant: 'amber' as const },
+                { badge: '07:30', label: '07:30 AM — Inicio Turno', h: 7, m: 30, variant: 'teal' as const },
+                { badge: '12:00', label: '12:00 PM — Mediodía', h: 12, m: 0, variant: 'cyan' as const },
+                { badge: '17:00', label: '05:00 PM — Cierre Jornada', h: 17, m: 0, variant: 'purple' as const },
               ].map((preset) => (
                 <ExpandableButton
                   key={preset.label}
@@ -1118,6 +1124,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   variant={preset.variant}
                   isActive={scheduleType !== 'hourly' && hour === preset.h && minute === preset.m}
                   icon={<Clock className="w-3.5 h-3.5" />}
+                  badge={preset.badge}
                   label={preset.label}
                   onClick={() => {
                     if (onChangeHour) onChangeHour(preset.h);
@@ -1252,6 +1259,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                       variant={variant}
                       isActive={intervalHours === hVal}
                       icon={<Clock className="w-3.5 h-3.5" />}
+                      badge={`${hVal}h`}
                       label={`Cada ${hVal} hora${hVal > 1 ? 's' : ''}`}
                       onClick={() => onChangeIntervalHours && onChangeIntervalHours(hVal)}
                     />
@@ -1274,6 +1282,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                         size="sm"
                         variant="teal"
                         icon={<Calendar className="w-3.5 h-3.5" />}
+                        badge="L-V"
                         label="Lunes a Viernes (Días Hábiles)"
                         onClick={() => onChangeDaysOfWeek && onChangeDaysOfWeek([1, 2, 3, 4, 5])}
                       />
@@ -1282,6 +1291,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                         size="sm"
                         variant="purple"
                         icon={<Calendar className="w-3.5 h-3.5" />}
+                        badge="L-S"
                         label="Lunes a Sábado"
                         onClick={() =>
                           onChangeDaysOfWeek && onChangeDaysOfWeek([1, 2, 3, 4, 5, 6])
@@ -1309,6 +1319,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                           variant={isSel ? dayVariants[dIdx % dayVariants.length] : 'neutral'}
                           isActive={isSel}
                           icon={<Calendar className="w-3.5 h-3.5" />}
+                          badge={day.short}
                           label={day.name}
                           title={day.name}
                           onClick={() => {
@@ -1358,6 +1369,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                           variant={dayOfMonth === dVal ? variant : 'neutral'}
                           isActive={dayOfMonth === dVal}
                           icon={<Calendar className="w-3.5 h-3.5" />}
+                          badge={dVal}
                           label={`Activar el Día ${dVal} del Mes`}
                           onClick={() => onChangeDayOfMonth && onChangeDayOfMonth(dVal)}
                         />
@@ -2466,7 +2478,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                       variant={isAct ? catVariants[catIdx % catVariants.length] : 'neutral'}
                       isActive={isAct}
                       icon={<Scale className="w-3.5 h-3.5" />}
-                      label={`${shortTitle} (${countInCat})`}
+                      badge={countInCat}
+                      label={shortTitle}
                       onClick={() => setNormativeCategoryFilter(cat.id)}
                     />
                   );
@@ -2901,7 +2914,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               📋 1. Elige en qué Etapa del Centro de Control se creará la Actividad
             </label>
             <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
-              {controlStages.map((st) => (
+              {controlStages.map((st, stIdx) => (
                 <ExpandableButton
                   key={st.id}
                   type="button"
@@ -2909,6 +2922,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   variant={st.variant}
                   isActive={activeStage === st.id}
                   icon={st.icon}
+                  badge={stIdx + 1}
                   label={st.label}
                   title={st.label}
                   onClick={() => onUpdateNodeConfig(activeNode.key, { kanbanStatus: st.id })}
@@ -4504,6 +4518,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               size="sm"
               variant="teal"
               icon={<Check className="w-3.5 h-3.5" />}
+              badge={presetFields.length}
               label="Marcar Todas"
               onClick={() =>
                 onUpdateNodeConfig(activeNode.key, {
@@ -4518,7 +4533,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 size="sm"
                 variant="danger"
                 icon={<Trash2 className="w-3.5 h-3.5" />}
-                label={`Limpiar (${selectedFields.length})`}
+                badge={selectedFields.length}
+                label="Limpiar Selección"
                 onClick={() =>
                   onUpdateNodeConfig(activeNode.key, {
                     fields: [],

@@ -8741,9 +8741,9 @@ export function buildPromptFromWorkflowNodes(
     }
     if (cfg.antigravityMode) {
       const modeMap: Record<string, string> = {
-        auto: '⚡ Automático (1° Local PC ➔ 2° Cloud 24/7)',
-        local: '💻 Solo Local (Mi PC / Mac)',
-        cloud: '☁️ Solo Cloud 24/7 (Antigravity Cloud)',
+        auto: 'Automático',
+        local: 'Local',
+        cloud: 'Cloud',
       };
       parts.push(`Modo de Conexión Google Antigravity: ${modeMap[cfg.antigravityMode] || cfg.antigravityMode}`);
     }
