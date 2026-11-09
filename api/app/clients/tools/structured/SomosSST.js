@@ -1,6 +1,11 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const mongoose = require('mongoose');
+const {
+  normalizeBirthDateYmd,
+  toUtcNoonDateOrNull,
+  calculateAgeFromBirthDate,
+} = require('~/server/routes/sgsst/birthDateHelper');
 
 /**
  * SomosSST Tool
@@ -84,6 +89,14 @@ class SomosSST extends Tool {
         .string()
         .optional()
         .describe('Cargo del trabajador al crearlo con crear_trabajador (ej: "Analista de Operaciones").'),
+      fecha_nacimiento: z
+        .string()
+        .optional()
+        .describe('Fecha de nacimiento del trabajador (ej: "1988-07-21" o "21/07/1988") para crear_trabajador o actualizar_trabajador.'),
+      fechaNacimiento: z
+        .string()
+        .optional()
+        .describe('Alias de fecha_nacimiento en formato YYYY-MM-DD.'),
       nombre_aplicativo: z
         .string()
         .optional()
@@ -425,10 +438,33 @@ class SomosSST extends Tool {
           console.warn('[SomosSST Tool] Error checking pending EPT for worker creation:', eptErr.message);
         }
 
+        let parsedExtraJson = {};
+        if (input.datos_json) {
+          try {
+            parsedExtraJson = typeof input.datos_json === 'string' ? JSON.parse(input.datos_json) : input.datos_json;
+          } catch (_) {}
+        }
+        const rawBirthInput =
+          input.fechaNacimiento ??
+          input.fecha_nacimiento ??
+          parsedExtraJson?.fechaNacimiento ??
+          parsedExtraJson?.fecha_nacimiento;
+        const normBirthYmd =
+          rawBirthInput !== undefined ? normalizeBirthDateYmd(rawBirthInput) : '';
+        const derivedAge = normBirthYmd
+          ? calculateAgeFromBirthDate(normBirthYmd)
+          : calculateAgeFromBirthDate('', parsedExtraJson?.edad);
+
         let workerResult;
         if (existingWorker) {
           existingWorker.nombre = cleanName;
           if (cleanCargo) existingWorker.cargo = cleanCargo;
+          if (normBirthYmd) {
+            existingWorker.fechaNacimiento = normBirthYmd;
+            if (derivedAge !== undefined) existingWorker.edad = String(derivedAge);
+          } else if (derivedAge !== undefined && !existingWorker.edad) {
+            existingWorker.edad = String(derivedAge);
+          }
           if (integratedEpt && (!existingWorker.diagnosticoMedico || !existingWorker.diagnosticoMedico.includes('EPT Ergonómico'))) {
             existingWorker.diagnosticoMedico = existingWorker.diagnosticoMedico
               ? `${existingWorker.diagnosticoMedico} | ${eptSummary}`
@@ -441,6 +477,8 @@ class SomosSST extends Tool {
             nombre: cleanName,
             identificacion: cleanDoc,
             cargo: cleanCargo,
+            ...(normBirthYmd ? { fechaNacimiento: normBirthYmd } : {}),
+            ...(derivedAge !== undefined ? { edad: String(derivedAge) } : {}),
             diagnosticoMedico: integratedEpt ? eptSummary : '',
             recomendacionesMedicas: integratedEpt ? 'Seguimiento biomecánico e higiene postural según EPT previo.' : '',
             completedByAI: true,
@@ -466,18 +504,23 @@ class SomosSST extends Tool {
 
         // 3. Sincronizar en SgsstWorker
         if (SgsstWorkerModel) {
+          const workerSetFields = {
+            user: userId,
+            companyId,
+            documento: cleanDoc,
+            nombre: cleanName,
+            cargo: cleanCargo,
+            perfilId: cleanDoc,
+            condicionesSalud: integratedEpt ? eptSummary : '',
+            updatedAt: new Date(),
+          };
+          if (workerResult.fechaNacimiento) {
+            workerSetFields.fechaNacimiento = toUtcNoonDateOrNull(workerResult.fechaNacimiento, true);
+          }
           await SgsstWorkerModel.findOneAndUpdate(
             { companyId, documento: cleanDoc },
             {
-              $set: {
-                user: userId,
-                companyId,
-                documento: cleanDoc,
-                nombre: cleanName,
-                perfilId: cleanDoc,
-                condicionesSalud: integratedEpt ? eptSummary : '',
-                updatedAt: new Date(),
-              },
+              $set: workerSetFields,
             },
             { upsert: true, new: true }
           ).catch((e) => console.warn('[SomosSST] SgsstWorker upsert err:', e.message));
@@ -492,6 +535,8 @@ class SomosSST extends Tool {
             nombre: cleanName,
             identificacion: cleanDoc,
             cargo: cleanCargo,
+            fechaNacimiento: workerResult.fechaNacimiento || '',
+            edad: workerResult.edad || '',
             eptIntegrado: integratedEpt,
             diagnosticoMedico: workerResult.diagnosticoMedico || '',
           },
@@ -596,6 +641,13 @@ class SomosSST extends Tool {
           perfil = await PerfilSocioModel.findOne({ user: userId });
         }
 
+        let parsedUpdateJson = {};
+        if (input.datos_json) {
+          try {
+            parsedUpdateJson = typeof input.datos_json === 'string' ? JSON.parse(input.datos_json) : input.datos_json;
+          } catch (_) {}
+        }
+
         let workerFound = null;
         if (perfil && Array.isArray(perfil.trabajadores)) {
           for (const w of perfil.trabajadores) {
@@ -605,9 +657,46 @@ class SomosSST extends Tool {
               (w.nombre && w.nombre.toLowerCase().includes(cleanTarget.toLowerCase()));
             if (match) {
               if (input.cargo_trabajador) w.cargo = input.cargo_trabajador;
-              if (input.campo_a_modificar && input.nuevo_valor) {
-                w[input.campo_a_modificar] = input.nuevo_valor;
+              const rawFieldKey = String(input.campo_a_modificar || '').trim();
+              const normFieldKey = rawFieldKey
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+              const isBirthFieldMod =
+                normFieldKey === 'fechanacimiento' ||
+                normFieldKey === 'fechadenacimiento' ||
+                normFieldKey === 'nacimiento' ||
+                normFieldKey === 'birthdate';
+
+              if (rawFieldKey && input.nuevo_valor !== undefined) {
+                if (isBirthFieldMod) {
+                  w.fechaNacimiento = normalizeBirthDateYmd(input.nuevo_valor);
+                } else {
+                  w[rawFieldKey] = input.nuevo_valor;
+                }
               }
+
+              const explicitBirthUpdate =
+                input.fechaNacimiento ??
+                input.fecha_nacimiento ??
+                parsedUpdateJson?.fechaNacimiento ??
+                parsedUpdateJson?.fecha_nacimiento;
+              if (explicitBirthUpdate !== undefined) {
+                w.fechaNacimiento = normalizeBirthDateYmd(explicitBirthUpdate);
+              }
+
+              if (w.fechaNacimiento) {
+                const normBirth = normalizeBirthDateYmd(w.fechaNacimiento);
+                w.fechaNacimiento = normBirth;
+                if (normBirth) {
+                  const calcAge = calculateAgeFromBirthDate(normBirth);
+                  if (calcAge !== undefined) {
+                    w.edad = String(calcAge);
+                  }
+                }
+              }
+
               workerFound = w;
               break;
             }
@@ -627,6 +716,32 @@ class SomosSST extends Tool {
                 await CompanyInfo.updateOne({ _id: companyId }, { $set: { workerCount: activeCount } }).catch(() => {});
               }
             } catch (_) {}
+
+            // Sincronizar también en SgsstWorker
+            if (SgsstWorkerModel) {
+              const swSet = {
+                updatedAt: new Date(),
+              };
+              if (workerFound.nombre) swSet.nombre = workerFound.nombre;
+              if (workerFound.cargo) swSet.cargo = workerFound.cargo;
+              if (workerFound.genero) swSet.genero = workerFound.genero;
+              if (workerFound.eps !== undefined) swSet.eps = workerFound.eps;
+              if (workerFound.afp !== undefined) swSet.afp = workerFound.afp;
+              if (workerFound.fechaNacimiento !== undefined) {
+                swSet.fechaNacimiento = toUtcNoonDateOrNull(workerFound.fechaNacimiento, true);
+              }
+              await SgsstWorkerModel.updateMany(
+                {
+                  user: userId,
+                  ...(companyId ? { companyId } : {}),
+                  $or: [
+                    { perfilId: workerFound.identificacion || cleanTarget },
+                    { documento: workerFound.identificacion || cleanTarget },
+                  ],
+                },
+                { $set: swSet }
+              ).catch((e) => console.warn('[SomosSST] SgsstWorker update sync err:', e.message));
+            }
           }
         }
 

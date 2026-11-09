@@ -12,7 +12,99 @@ const {
     descargarPdfConstanciaMinTrabajo,
     obtenerCatalogoPortales360,
 } = require('../../services/osintWorkerService');
+const {
+    normalizeBirthDateYmd,
+    toUtcNoonDateOrNull,
+    calculateAgeFromBirthDate,
+} = require('./birthDateHelper');
 const mongoose = require('mongoose');
+
+async function syncWorkerBirthDateToSocioProfile({
+    userId,
+    companyId,
+    documento,
+    prevDocumento = '',
+    nombre,
+    cargo,
+    genero,
+    eps,
+    afp,
+    estadoPila,
+    fechaNacimientoProvided = false,
+    fechaNacimientoVal = null,
+    createIfMissing = false,
+}) {
+    try {
+        const PerfilSocioModel = getPerfilSociodemograficoDataModel();
+        if (!PerfilSocioModel || !userId || !documento) return;
+        const cleanDoc = String(documento).trim();
+        const cleanPrevDoc = prevDocumento ? String(prevDocumento).trim() : '';
+        if (!cleanDoc) return;
+
+        const socioFilter = companyId
+            ? { user: userId, companyId }
+            : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+
+        let socioDoc = await PerfilSocioModel.findOne(socioFilter);
+        if (!socioDoc && createIfMissing && companyId) {
+            socioDoc = new PerfilSocioModel({
+                user: userId,
+                companyId,
+                trabajadores: [],
+            });
+        }
+        if (!socioDoc || !Array.isArray(socioDoc.trabajadores)) return;
+
+        const idx = socioDoc.trabajadores.findIndex((t) => {
+            const tDoc = String(t.identificacion || t.documento || '').trim();
+            return tDoc && (tDoc === cleanDoc || (cleanPrevDoc && tDoc === cleanPrevDoc));
+        });
+
+        const normBirthYmd = fechaNacimientoProvided ? normalizeBirthDateYmd(fechaNacimientoVal) : '';
+        const derivedAge = normBirthYmd ? calculateAgeFromBirthDate(normBirthYmd) : undefined;
+
+        if (idx !== -1) {
+            const cur = socioDoc.trabajadores[idx]._doc || socioDoc.trabajadores[idx];
+            const nextEntry = { ...cur };
+            if (cleanDoc) nextEntry.identificacion = cleanDoc;
+            if (nombre && String(nombre).trim()) nextEntry.nombre = String(nombre).trim();
+            if (cargo && String(cargo).trim()) nextEntry.cargo = String(cargo).trim();
+            if (genero && String(genero).trim() && genero !== 'No especificado') nextEntry.genero = String(genero).trim();
+            if (eps !== undefined && String(eps).trim()) nextEntry.eps = String(eps).trim();
+            if (afp !== undefined && String(afp).trim()) nextEntry.afp = String(afp).trim();
+            if (estadoPila !== undefined && String(estadoPila).trim()) nextEntry.estadoPila = String(estadoPila).trim();
+            if (fechaNacimientoProvided) {
+                nextEntry.fechaNacimiento = normBirthYmd;
+                if (derivedAge !== undefined) {
+                    nextEntry.edad = String(derivedAge);
+                }
+            }
+            socioDoc.trabajadores[idx] = nextEntry;
+            socioDoc.markModified('trabajadores');
+            socioDoc.updatedAt = new Date();
+            await socioDoc.save();
+        } else if (createIfMissing) {
+            socioDoc.trabajadores.push({
+                id: new mongoose.Types.ObjectId().toString(),
+                nombre: nombre || 'Colaborador',
+                identificacion: cleanDoc,
+                cargo: cargo || '',
+                genero: genero || '',
+                fechaNacimiento: normBirthYmd,
+                edad: derivedAge !== undefined ? String(derivedAge) : '',
+                eps: eps || '',
+                afp: afp || '',
+                estadoPila: estadoPila || 'Pendiente de soporte PILA',
+                estadoLaboral: 'Activo',
+            });
+            socioDoc.markModified('trabajadores');
+            socioDoc.updatedAt = new Date();
+            await socioDoc.save();
+        }
+    } catch (syncErr) {
+        logger.warn('[SGSST Workers] syncWorkerBirthDateToSocioProfile warning:', syncErr.message);
+    }
+}
 
 // We need to access PerfilSociodemograficoData. It's currently defined dynamically in its own route file,
 // so we'll access it through mongoose.models to avoid duplicating the schema if it's already registered.
@@ -447,6 +539,11 @@ async function syncWorkerWithOraculoH1(worker, userId) {
                         worker.genero = liveSocioWorker.genero;
                         updated = true;
                     }
+                    const socioBirthYmd = normalizeBirthDateYmd(liveSocioWorker.fechaNacimiento);
+                    if (socioBirthYmd && socioBirthYmd !== normalizeBirthDateYmd(worker.fechaNacimiento)) {
+                        worker.fechaNacimiento = toUtcNoonDateOrNull(socioBirthYmd, true);
+                        updated = true;
+                    }
 
                     if (updated) {
                         worker.updatedAt = Date.now();
@@ -470,7 +567,40 @@ async function syncWorkerWithOraculoH1(worker, userId) {
 // POST: Investigación 360° de Trabajador y Conductor en Fuentes Oficiales (MinTrabajo PDF + Rama Judicial + 26 Portales)
 router.post('/osint-360', requireJwtAuth, async (req, res) => {
     try {
-        const result = await investigarTrabajador360(req.body || {});
+        const payload = { ...(req.body || {}) };
+        if (payload.fechaNacimiento !== undefined && payload.fechaNacimiento !== null && String(payload.fechaNacimiento).trim() !== '') {
+            payload.fechaNacimiento = normalizeBirthDateYmd(payload.fechaNacimiento) || String(payload.fechaNacimiento).trim();
+        } else {
+            const targetCed = String(payload.cedula || payload.documento || '').replace(/\D/g, '');
+            if (targetCed && req.user?.id) {
+                try {
+                    const companyId = await getActiveCompanyId(req.user.id);
+                    const PerfilSocioModel = getPerfilSociodemograficoDataModel();
+                    if (PerfilSocioModel) {
+                        const socioDoc = await PerfilSocioModel.findOne(
+                            companyId ? { user: req.user.id, companyId } : { user: req.user.id }
+                        ).lean();
+                        const matchedSocio = (socioDoc?.trabajadores || []).find(
+                            (t) => String(t.identificacion || t.documento || '').replace(/\D/g, '') === targetCed
+                        );
+                        const socioBirth = normalizeBirthDateYmd(matchedSocio?.fechaNacimiento);
+                        if (socioBirth) {
+                            payload.fechaNacimiento = socioBirth;
+                        }
+                    }
+                    if (!payload.fechaNacimiento) {
+                        const sw = await SgsstWorker.findOne(
+                            companyId ? { user: req.user.id, companyId, documento: targetCed } : { user: req.user.id, documento: targetCed }
+                        ).lean();
+                        const swBirth = normalizeBirthDateYmd(sw?.fechaNacimiento);
+                        if (swBirth) {
+                            payload.fechaNacimiento = swBirth;
+                        }
+                    }
+                } catch (_) {}
+            }
+        }
+        const result = await investigarTrabajador360(payload);
         return res.json(result);
     } catch (error) {
         logger.error('[SGSST Workers] POST /osint-360 error:', error);
@@ -576,13 +706,7 @@ router.get('/hub-data', requireJwtAuth, async (req, res) => {
                     .filter(Boolean)
                     .join('; ');
 
-                let parsedNacimiento = null;
-                if (t.fechaNacimiento && typeof t.fechaNacimiento === 'string' && t.fechaNacimiento.trim()) {
-                    const d = new Date(t.fechaNacimiento.trim());
-                    if (!isNaN(d.getTime())) parsedNacimiento = d;
-                } else if (t.fechaNacimiento instanceof Date && !isNaN(t.fechaNacimiento.getTime())) {
-                    parsedNacimiento = t.fechaNacimiento;
-                }
+                const parsedNacimiento = toUtcNoonDateOrNull(t.fechaNacimiento, true);
 
                 toInsert.push({
                     user: req.user.id,
@@ -688,11 +812,7 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
                         .filter(Boolean)
                         .join('; ');
                     
-                    let parsedNacimiento = null;
-                    if (matchedSocio.fechaNacimiento && typeof matchedSocio.fechaNacimiento === 'string' && matchedSocio.fechaNacimiento.trim()) {
-                        const d = new Date(matchedSocio.fechaNacimiento.trim());
-                        if (!isNaN(d.getTime())) parsedNacimiento = d;
-                    }
+                    const parsedNacimiento = toUtcNoonDateOrNull(matchedSocio.fechaNacimiento, true);
 
                     worker = new SgsstWorker({
                         user: req.user.id,
@@ -747,12 +867,16 @@ router.get('/worker/:id', requireJwtAuth, async (req, res) => {
 router.post('/', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const { perfilId, nombre, documento, fechaNacimiento, genero, fechaIngreso, condicionesSalud, observaciones } = req.body;
+        const { perfilId, nombre, documento, cargo, fechaNacimiento, genero, fechaIngreso, condicionesSalud, observaciones, eps, afp, estadoPila } = req.body;
 
         const cleanDoc = String(documento || '').trim();
         if (!cleanDoc || !nombre || !perfilId) {
             return res.status(400).json({ error: 'Faltan campos requeridos: nombre, documento, perfilId' });
         }
+
+        const hasBirthInBody = req.body.fechaNacimiento !== undefined;
+        const parsedBirthDate = hasBirthInBody ? toUtcNoonDateOrNull(fechaNacimiento, true) : null;
+        const parsedIngresoDate = fechaIngreso ? (toUtcNoonDateOrNull(fechaIngreso, false) || new Date(fechaIngreso)) : undefined;
 
         // Find-or-create: buscar por documento del usuario para evitar duplicados
         let worker = await SgsstWorker.findOne({ user: req.user.id, companyId, documento: cleanDoc });
@@ -764,11 +888,15 @@ router.post('/', requireJwtAuth, async (req, res) => {
                 perfilId,
                 nombre,
                 documento: cleanDoc,
-                fechaNacimiento,
+                ...(cargo !== undefined ? { cargo } : {}),
+                fechaNacimiento: parsedBirthDate,
                 genero,
-                fechaIngreso,
+                ...(parsedIngresoDate ? { fechaIngreso: parsedIngresoDate } : {}),
                 condicionesSalud,
                 observaciones,
+                ...(eps !== undefined ? { eps } : {}),
+                ...(afp !== undefined ? { afp } : {}),
+                ...(estadoPila !== undefined ? { estadoPila } : {}),
                 riesgosIpevar: []
             });
             await worker.save();
@@ -776,13 +904,32 @@ router.post('/', requireJwtAuth, async (req, res) => {
             // Si ya existe en esta empresa, actualizar sus datos
             worker.perfilId = perfilId;
             if (nombre) worker.nombre = nombre;
-            if (fechaNacimiento) worker.fechaNacimiento = fechaNacimiento;
+            if (cargo !== undefined) worker.cargo = cargo;
+            if (hasBirthInBody) worker.fechaNacimiento = parsedBirthDate;
             if (genero) worker.genero = genero;
-            if (fechaIngreso) worker.fechaIngreso = fechaIngreso;
+            if (parsedIngresoDate) worker.fechaIngreso = parsedIngresoDate;
             if (condicionesSalud !== undefined) worker.condicionesSalud = condicionesSalud;
             if (observaciones !== undefined) worker.observaciones = observaciones;
+            if (eps !== undefined) worker.eps = eps;
+            if (afp !== undefined) worker.afp = afp;
+            if (estadoPila !== undefined) worker.estadoPila = estadoPila;
             await worker.save();
         }
+
+        await syncWorkerBirthDateToSocioProfile({
+            userId: req.user.id,
+            companyId,
+            documento: cleanDoc,
+            nombre: worker.nombre,
+            cargo: worker.cargo,
+            genero: worker.genero,
+            eps: worker.eps,
+            afp: worker.afp,
+            estadoPila: worker.estadoPila,
+            fechaNacimientoProvided: hasBirthInBody,
+            fechaNacimientoVal: fechaNacimiento,
+            createIfMissing: true,
+        });
 
         res.json({ success: true, worker });
     } catch (error) {
@@ -829,8 +976,12 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
                                 perfilId: req.params.perfilId,
                                 nombre: w.nombre,
                                 documento: cleanDoc,
-                                fechaNacimiento: null,
+                                cargo: w.cargo || '',
+                                fechaNacimiento: toUtcNoonDateOrNull(w.fechaNacimiento, true),
                                 genero: w.genero,
+                                eps: w.eps || '',
+                                afp: w.afp || '',
+                                estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
                                 fechaIngreso: new Date(),
                                 condicionesSalud: (w.enfermedades || w.diagnosticoMedico || w.limitacionesBiomecanicas) ? 
                                     [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') : '',
@@ -839,10 +990,19 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
                             });
                             await newWorker.save();
                         } else {
-                            // Si existe, asegurar que el perfilId esté asignado
+                            // Si existe, asegurar que el perfilId y fechaNacimiento estén sincronizados
+                            let shouldSaveExisting = false;
                             if (!existing.perfilId || existing.perfilId !== req.params.perfilId) {
                                 existing.perfilId = req.params.perfilId;
-                                logger.debug(`[SGSST Workers] Updating existing bio-individual (perfilId) for: ${w.nombre}`);
+                                shouldSaveExisting = true;
+                            }
+                            const socioBirthDate = toUtcNoonDateOrNull(w.fechaNacimiento, true);
+                            if (!existing.fechaNacimiento && socioBirthDate) {
+                                existing.fechaNacimiento = socioBirthDate;
+                                shouldSaveExisting = true;
+                            }
+                            if (shouldSaveExisting) {
+                                logger.debug(`[SGSST Workers] Updating existing bio-individual (perfilId/fechaNacimiento) for: ${w.nombre}`);
                                 await existing.save();
                             }
                         }
@@ -880,11 +1040,25 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
 router.put('/:id', requireJwtAuth, async (req, res) => {
     try {
         const { nombre, documento, cargo, fechaNacimiento, genero, fechaIngreso, condicionesSalud, observaciones, eps, afp, estadoPila } = req.body;
-        
-        const updateFields = { 
-            nombre, documento, fechaNacimiento, genero, fechaIngreso, 
-            condicionesSalud, observaciones, updatedAt: Date.now() 
-        };
+        const prevWorker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id }).lean();
+        if (!prevWorker) {
+            return res.status(404).json({ error: 'Trabajador no encontrado' });
+        }
+
+        const updateFields = { updatedAt: Date.now() };
+        if (nombre !== undefined) updateFields.nombre = nombre;
+        if (documento !== undefined) updateFields.documento = String(documento).trim();
+        if (fechaNacimiento !== undefined) {
+            updateFields.fechaNacimiento = toUtcNoonDateOrNull(fechaNacimiento, true);
+        }
+        if (genero !== undefined) updateFields.genero = genero;
+        if (fechaIngreso !== undefined) {
+            updateFields.fechaIngreso = fechaIngreso
+                ? (toUtcNoonDateOrNull(fechaIngreso, false) || new Date(fechaIngreso))
+                : null;
+        }
+        if (condicionesSalud !== undefined) updateFields.condicionesSalud = condicionesSalud;
+        if (observaciones !== undefined) updateFields.observaciones = observaciones;
         if (cargo !== undefined) updateFields.cargo = cargo;
         if (eps !== undefined) updateFields.eps = eps;
         if (afp !== undefined) updateFields.afp = afp;
@@ -895,11 +1069,27 @@ router.put('/:id', requireJwtAuth, async (req, res) => {
             { $set: updateFields },
             { new: true }
         );
-        
+
         if (!worker) {
             return res.status(404).json({ error: 'Trabajador no encontrado' });
         }
-        
+
+        await syncWorkerBirthDateToSocioProfile({
+            userId: req.user.id,
+            companyId: worker.companyId,
+            documento: worker.documento,
+            prevDocumento: prevWorker.documento,
+            nombre: worker.nombre,
+            cargo: worker.cargo,
+            genero: worker.genero,
+            eps: worker.eps,
+            afp: worker.afp,
+            estadoPila: worker.estadoPila,
+            fechaNacimientoProvided: fechaNacimiento !== undefined,
+            fechaNacimientoVal: fechaNacimiento,
+            createIfMissing: false,
+        });
+
         res.json({ success: true, worker });
     } catch (error) {
         logger.error('[SGSST Workers] Update error:', error);

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const CompanyInfo = require('../../../models/CompanyInfo');
+const { toUtcNoonDateOrNull } = require('./birthDateHelper');
 
 async function resolveEffectiveCompanyId(userId, explicitCompanyId = null) {
     if (explicitCompanyId) {
@@ -132,6 +133,13 @@ async function feedWorkerEvent(userId, documento, tipo_modulo, descripcion, punt
                     nombre: perfilWorker?.nombre || metadata.nombre || 'Colaborador',
                     documento: cleanDoc,
                     cargo: perfilWorker?.cargo || metadata.cargo || 'Trabajador',
+                    genero: perfilWorker?.genero || metadata.genero || 'No especificado',
+                    fechaNacimiento: toUtcNoonDateOrNull(
+                        perfilWorker?.fechaNacimiento || metadata.fechaNacimiento,
+                        true
+                    ),
+                    eps: perfilWorker?.eps || metadata.eps || '',
+                    afp: perfilWorker?.afp || metadata.afp || '',
                     fitScore: Number(perfilWorker?.biocentricScore || 95),
                     fitScoreDynamicPenalty: 0,
                     fitAlerts: perfilWorker?.biocentricAlerts || [],

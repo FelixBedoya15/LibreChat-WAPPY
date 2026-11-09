@@ -8,7 +8,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { excelSerialToDate } from './excelWorkerMapper';
+import { excelSerialToDate, computeAgeFromBirthDate } from './excelWorkerMapper';
 
 export interface TargetFieldDef {
   key: string;
@@ -131,6 +131,18 @@ export function calculateMatchScore(candidate: any, targetKey: string, targetLab
   }
 
   // Reglas de desambiguación para Perfil Sociodemográfico y Condiciones de Salud (60 casillas)
+  if (
+    targetKey === 'fechaNacimiento' &&
+    /(lugar|ciudad|municipio|departamento|pais|expedicion|ingreso|retiro|examen|emo|seguimiento|venc)/.test(normCandidate)
+  ) {
+    return 0;
+  }
+  if (
+    targetKey === 'lugarNacimiento' &&
+    (/(fecha|cumple|natalicio|birth)/.test(normCandidate) || /^(fec|fnac)/.test(normCandidate))
+  ) {
+    return 0;
+  }
   if (targetKey === 'talla' && (normCandidate.includes('altura') && normCandidate.includes('curso'))) {
     return 0;
   }
@@ -730,13 +742,20 @@ export function parseWorkbookSheets(data: ArrayBuffer): { workbook: XLSX.WorkBoo
 
     sheets.unshift(consolidatedSheet);
   } else if (sheets.length > 1) {
-    // Priorizar hojas de matriz GTC-45 reales por encima de hojas de INSTRUCCIONES o LISTAS (Hoja1/Hoja2)
+    // Priorizar hojas reales de Matriz GTC-45 o de Trabajadores por encima de hojas de INSTRUCCIONES o LISTAS (Hoja1/Hoja2)
     const scoreSheet = (s: SheetInfo): number => {
-      const isAux = AUXILIARY_SHEET_NAME_REGEX.test(s.name) ? 0.05 : 1;
+      const isAux = AUXILIARY_SHEET_NAME_REGEX.test(s.name) ? 0.005 : 1;
       const isGenericHoja = /^(hoja\s*\d+|sheet\s*\d+)$/i.test(s.name) ? 0.5 : 1;
-      const isRealMatrix = isRealGtc45MatrixSheet(s) ? 10 : 0.2;
-      const hasRowsFactor = s.totalRows > 0 ? Math.min(s.totalRows, 100) : 0.1;
-      return s.headers.length * isAux * isGenericHoja * isRealMatrix * hasRowsFactor;
+      const hasWorkerHeaders =
+        s.headers.some(h => /(nombre|colaborador|trabajador|empleado)/i.test(h)) &&
+        s.headers.some(h => /(identificaci[oó]n|c[eé]dula|documento|\bcc\b)/i.test(h));
+      const isRealWorkers =
+        (!AUXILIARY_SHEET_NAME_REGEX.test(s.name) &&
+          /(trabajador|colaborador|personal|empleado|n[oó]mina|sociodemograf|salud)/i.test(s.name)) ||
+        hasWorkerHeaders;
+      const domainBoost = isRealGtc45MatrixSheet(s) || isRealWorkers ? 10 : 0.2;
+      const hasRowsFactor = s.totalRows > 0 ? Math.min(s.totalRows, 100) : 0.2;
+      return s.headers.length * isAux * isGenericHoja * domainBoost * hasRowsFactor;
     };
 
     const bestSheetIdx = sheets.reduce((bestIdx, curr, idx, arr) => {
@@ -837,13 +856,24 @@ export function autoMatchColumns(
 /**
  * Normaliza y formatea el valor de una celda según su tipo destino.
  */
-export function formatCellValue(rawValue: any, type?: 'string' | 'number' | 'date' | 'boolean' | 'select'): any {
+export function formatCellValue(
+  rawValue: any,
+  type?: 'string' | 'number' | 'date' | 'boolean' | 'select',
+  fieldKey?: string,
+): any {
   if (rawValue === undefined || rawValue === null) return '';
 
   if (type === 'date') {
     const strVal = String(rawValue).trim();
     if (!strVal || /^(no\s*aplica|n\/?a|ningun[oa]?|no|sin\s*fecha|-+)$/i.test(strVal)) {
       return '';
+    }
+    if (fieldKey === 'fechaNacimiento') {
+      const parsedBirth = excelSerialToDate(rawValue);
+      if (!parsedBirth || !/^\d{4}-\d{2}-\d{2}$/.test(parsedBirth)) return '';
+      const yr = Number(parsedBirth.slice(0, 4));
+      const currYr = new Date().getFullYear();
+      return yr >= 1920 && yr <= currYr ? parsedBirth : '';
     }
     if (/^(vigente|s[ií]|aplica|certificado)$/i.test(strVal)) {
       return '2026-01-15';
@@ -906,13 +936,24 @@ export function transformRowsWithMapping(
       const mappedHeader = mapping[field.key];
       if (mappedHeader && raw[mappedHeader] !== undefined && raw[mappedHeader] !== null) {
         const rawVal = raw[mappedHeader];
-        const formatted = formatCellValue(rawVal, field.type);
+        const formatted = formatCellValue(rawVal, field.type, field.key);
         if (formatted !== '' && formatted !== undefined) {
           hasAnyData = true;
         }
         newRecord[field.key] = formatted;
       } else if (field.defaultValue !== undefined) {
         newRecord[field.key] = field.defaultValue;
+      }
+    }
+
+    if (
+      newRecord.fechaNacimiento &&
+      targetFields.some(f => f.key === 'edad') &&
+      (newRecord.edad === undefined || newRecord.edad === null || String(newRecord.edad).trim() === '')
+    ) {
+      const calcAge = computeAgeFromBirthDate(String(newRecord.fechaNacimiento));
+      if (calcAge !== '') {
+        newRecord.edad = Number(calcAge);
       }
     }
 

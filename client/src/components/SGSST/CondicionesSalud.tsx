@@ -53,7 +53,8 @@ import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import BioFitAuditModal from './BioFitAuditModal';
-import { smartMapExcelToWorkers, toTitleCase, formatWorkerName, normalizeWorkerRecord } from './excelWorkerMapper';
+import { smartMapExcelToWorkers, toTitleCase, formatWorkerName, normalizeWorkerRecord, computeAgeFromBirthDate } from './excelWorkerMapper';
+import { parseWorkbookSheets } from './columnMapperEngine';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { CONDICIONES_SALUD_FIELDS } from './moduleFieldDefinitions';
@@ -545,6 +546,14 @@ const CondicionesSalud = () => {
         setTrabajadores(prev => prev.map(w => {
             if (w.id !== workerId) return w;
             const updated = { ...w, [field]: value };
+
+            // Autocalcular Edad exacta si se actualiza Fecha de Nacimiento
+            if (field === 'fechaNacimiento') {
+                const calcAge = computeAgeFromBirthDate(String(value || ''));
+                if (calcAge !== '') {
+                    updated.edad = Number(calcAge);
+                }
+            }
             
             // Auto calculate IMC if peso or talla is updated
             if (field === 'peso' || field === 'talla') {
@@ -752,10 +761,15 @@ const CondicionesSalud = () => {
             let rows: any[] = [];
             if (['xlsx', 'xls', 'csv'].includes(extension)) {
                 try {
-                    const wb = XLSX.read(buffer, { type: 'array' });
-                    const firstSheetName = wb.SheetNames[0];
-                    const sheet = wb.Sheets[firstSheetName];
-                    rows = XLSX.utils.sheet_to_json(sheet) as any[];
+                    const parsedWb = parseWorkbookSheets(buffer);
+                    if (parsedWb.sheets.length > 0 && parsedWb.sheets[0].allRows.length > 0) {
+                        rows = parsedWb.sheets[0].allRows;
+                    } else {
+                        const wb = XLSX.read(buffer, { type: 'array' });
+                        const firstSheetName = wb.SheetNames[0];
+                        const sheet = wb.Sheets[firstSheetName];
+                        rows = XLSX.utils.sheet_to_json(sheet) as any[];
+                    }
                 } catch (err) {
                     console.warn('[CondicionesSalud] Excel parsing error:', err);
                 }
@@ -812,34 +826,108 @@ const CondicionesSalud = () => {
             }
 
             const data = await res.json();
-            if (data.success && data.trabajadores) {
-                // Validar límites de versión Pro
-                let dataToProcess = data.trabajadores;
-                if (!isPro) {
-                    const remainingSlots = Math.max(0, 3 - trabajadores.length);
-                    if (remainingSlots === 0) {
-                        setShowUpgradeModal(true);
-                        return;
+            if (data.success && Array.isArray(data.trabajadores)) {
+                let actualizados = 0;
+                let nuevos = 0;
+                let hitProLimit = false;
+
+                const updatedList = (() => {
+                    const list = [...trabajadores];
+                    for (const t of data.trabajadores) {
+                        const normalizedIncoming = normalizeWorkerRecord({
+                            ...EMPTY_WORKER,
+                            ...t,
+                            completedByAI: true,
+                            formacion: Array.isArray(t?.formacion) ? t.formacion : [],
+                            licenciasConduccion: Array.isArray(t?.licenciasConduccion) ? t.licenciasConduccion : [],
+                        });
+                        const incomingId = String(normalizedIncoming.identificacion || '').replace(/\./g, '').trim();
+                        const incomingNombre = String(normalizedIncoming.nombre || '').trim().toLowerCase();
+
+                        const existingIdx = list.findIndex((w) => {
+                            const wId = String(w.identificacion || '').replace(/\./g, '').trim();
+                            const wNombre = String(w.nombre || '').trim().toLowerCase();
+                            if (incomingId && wId && incomingId === wId) return true;
+                            if (!incomingId && incomingNombre && wNombre && incomingNombre === wNombre) return true;
+                            return false;
+                        });
+
+                        if (existingIdx >= 0) {
+                            const existing = list[existingIdx];
+                            const merged: any = { ...existing, completedByAI: true };
+                            Object.keys(t || {}).forEach((k) => {
+                                const val = normalizedIncoming[k] !== undefined ? normalizedIncoming[k] : t[k];
+                                if (val !== undefined && val !== null && String(val).trim() !== '') {
+                                    if (Array.isArray(val) && val.length === 0) return;
+                                    merged[k] = val;
+                                }
+                            });
+                            list[existingIdx] = normalizeWorkerRecord(merged);
+                            actualizados++;
+                        } else {
+                            if (!isPro && list.length >= 3) {
+                                hitProLimit = true;
+                                continue;
+                            }
+                            list.push(
+                                normalizeWorkerRecord({
+                                    ...normalizedIncoming,
+                                    id: t?.id || crypto.randomUUID(),
+                                    firmaDigital: null,
+                                }),
+                            );
+                            nuevos++;
+                        }
                     }
-                    if (dataToProcess.length > remainingSlots) {
-                        dataToProcess = dataToProcess.slice(0, remainingSlots);
-                        setTimeout(() => setShowUpgradeModal(true), 500);
-                    }
+                    return list.sort((a, b) =>
+                        (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }),
+                    );
+                })();
+
+                if (hitProLimit) {
+                    setTimeout(() => setShowUpgradeModal(true), 400);
+                }
+                if (actualizados === 0 && nuevos === 0 && hitProLimit) {
+                    setShowUpgradeModal(true);
+                    return;
                 }
 
-                const nuevosTrabajadores = dataToProcess.map((t: any) => ({
-                    ...EMPTY_WORKER,
-                    ...t,
-                    id: crypto.randomUUID(),
-                    firmaDigital: null,
-                    completedByAI: true
-                }));
+                setTrabajadores(updatedList);
 
-                setTrabajadores(prev => [...prev, ...nuevosTrabajadores]);
+                if (token) {
+                    const trabajadoresConBio = updatedList.map((w) => {
+                        const bio = calculateBiocentricFit(w);
+                        return {
+                            ...w,
+                            biocentricScore:
+                                w.biocentricScore !== undefined && w.biocentricScore !== null
+                                    ? w.biocentricScore
+                                    : bio.score,
+                            biocentricAlerts: w.biocentricAlerts || bio.alerts,
+                            biocentricIsLethal:
+                                w.biocentricIsLethal !== undefined ? w.biocentricIsLethal : bio.isLethal,
+                        };
+                    });
+                    fetch('/api/sgsst/perfil-sociodemografico/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            trabajadores: trabajadoresConBio,
+                            mode: 'health_patch',
+                        }),
+                    })
+                        .then(() => {
+                            window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+                        })
+                        .catch((err) => console.error('Error auto-guardando importación IA en salud:', err));
+                }
 
                 showToast({
-                    message: `Se han extraído ${nuevosTrabajadores.length} trabajadores con IA exitosamente.`,
-                    severity: NotificationSeverity.SUCCESS
+                    message: `IA procesó ${actualizados + nuevos} trabajadores (${actualizados} actualizados, ${nuevos} nuevos).`,
+                    severity: NotificationSeverity.SUCCESS,
                 });
             }
         } catch (err: any) {
@@ -1218,8 +1306,12 @@ const CondicionesSalud = () => {
         }
 
         // 5. Cruce vs. Exigencias del Cargo
+        const effectiveAge =
+            w.edad !== undefined && w.edad !== '' && Number(w.edad) > 0
+                ? Number(w.edad)
+                : Number(computeAgeFromBirthDate(w.fechaNacimiento) || 0);
         if (cargo.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) addAudit('Preventivo', 'Alerta Ergonómica por Edad', 'La edad avanzada requiere monitoreo preventivo ante altas exigencias físicas.', 0, 'info');
+            if (effectiveAge > 55) addAudit('Preventivo', 'Alerta Ergonómica por Edad', 'La edad avanzada requiere monitoreo preventivo ante altas exigencias físicas.', 0, 'info');
             if (hasEnfermedad || hasDiagnostico) addAudit('Operativo', 'Patología en Rol Exigente', 'La carga física intensa puede agravar la patología base.', 10, 'critical');
             if (hasBiomecanica) addAudit('Operativo', 'Restricción Biomecánica Crítica', 'Peligro inminente de lesión osteomuscular por incompatibilidad con el esfuerzo.', 20, 'critical');
         }
@@ -1683,7 +1775,19 @@ const CondicionesSalud = () => {
                                                 <span className="hidden sm:inline">•</span>
                                                 <span className="hidden sm:inline">{w.genero || '—'}</span>
                                                 <span className="hidden sm:inline">•</span>
-                                                <span className="hidden sm:inline">{w.edad ? `${w.edad} años` : '—'}</span>
+                                                <span className="hidden sm:inline">
+                                                    {w.edad || computeAgeFromBirthDate(w.fechaNacimiento)
+                                                        ? `${w.edad || computeAgeFromBirthDate(w.fechaNacimiento)} años`
+                                                        : '—'}
+                                                </span>
+                                                {w.fechaNacimiento && (
+                                                    <>
+                                                        <span className="hidden sm:inline">•</span>
+                                                        <span className="hidden sm:inline px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/25">
+                                                            Nac: {w.fechaNacimiento}
+                                                        </span>
+                                                    </>
+                                                )}
                                                 {isRetirado && w.motivoRetiro && (
                                                     <>
                                                         <span>•</span>
@@ -1873,6 +1977,117 @@ const CondicionesSalud = () => {
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* Identificación, Cargo y Fecha de Nacimiento */}
+                                        <div className="p-5 md:p-7 border-b border-border-light bg-surface-secondary/35">
+                                            <div className="flex items-center justify-between flex-wrap gap-2 pb-3 mb-4 border-b border-border-light">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="p-2 bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 rounded-lg shrink-0">
+                                                        <User className="w-4 h-4" />
+                                                    </div>
+                                                    <h4 className="font-black text-xs text-text-primary uppercase tracking-wider truncate">
+                                                        Identificación, Cargo y Fecha de Nacimiento
+                                                    </h4>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-500/10 border border-teal-500/25 px-2.5 py-0.5 rounded-lg">
+                                                    Edad autocalculada desde Fecha de Nacimiento
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                <div className="space-y-1 min-w-0">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                                                        Nombre Completo
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={w.nombre || ''}
+                                                        onChange={e => updateWorkerField(w.id, 'nombre', e.target.value)}
+                                                        onBlur={e => updateWorkerField(w.id, 'nombre', toTitleCase(e.target.value))}
+                                                        placeholder="Nombres y apellidos del colaborador"
+                                                        className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-semibold shadow-inner focus:ring-2 focus:ring-teal-400 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-1 min-w-0">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                                                        Identificación (CC / Documento)
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={w.identificacion || ''}
+                                                        onChange={e => updateWorkerField(w.id, 'identificacion', e.target.value)}
+                                                        placeholder="Ej: 1037589726"
+                                                        className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-semibold shadow-inner focus:ring-2 focus:ring-teal-400 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-1 min-w-0">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                                                        Cargo / Rol Asignado
+                                                    </label>
+                                                    <SingleSelect
+                                                        allowCustomInput
+                                                        value={w.cargo || ''}
+                                                        onChange={val => updateWorkerField(w.id, 'cargo', val)}
+                                                        placeholder="Seleccione o escriba el cargo..."
+                                                        options={Array.from(
+                                                            new Set([
+                                                                ...cargosDisponibles
+                                                                    .map((c: any) => String(c?.nombreCargo || '').trim())
+                                                                    .filter(Boolean),
+                                                                ...trabajadores
+                                                                    .map(t => String(t?.cargo || '').trim())
+                                                                    .filter(Boolean),
+                                                            ]),
+                                                        ).sort((a, b) => a.localeCompare(b, 'es'))}
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-1 min-w-0">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                                                        Fecha de Nacimiento
+                                                    </label>
+                                                    <input
+                                                        type="date"
+                                                        value={w.fechaNacimiento || ''}
+                                                        onChange={e => updateWorkerField(w.id, 'fechaNacimiento', e.target.value)}
+                                                        className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-semibold shadow-inner focus:ring-2 focus:ring-teal-400 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-1 min-w-0">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                                                        Edad (Años Cumplidos)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={14}
+                                                        max={100}
+                                                        value={
+                                                            w.edad !== '' && w.edad !== undefined && w.edad !== null
+                                                                ? w.edad
+                                                                : computeAgeFromBirthDate(w.fechaNacimiento)
+                                                        }
+                                                        onChange={e => updateWorkerField(w.id, 'edad', e.target.value)}
+                                                        placeholder="Automática al elegir fecha"
+                                                        className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-bold shadow-inner focus:ring-2 focus:ring-teal-400 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-1 min-w-0">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block">
+                                                        Género
+                                                    </label>
+                                                    <SingleSelect
+                                                        value={w.genero || ''}
+                                                        onChange={val => updateWorkerField(w.id, 'genero', val)}
+                                                        placeholder="Seleccione..."
+                                                        options={['Masculino', 'Femenino', 'Otro']}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         {/* Split Clinical Grid */}
                                         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border-light border-b border-border-light">

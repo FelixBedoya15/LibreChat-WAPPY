@@ -58,11 +58,89 @@ function normalizeSiNo(val, defaultVal = 'No') {
   return String(val).trim();
 }
 
+const SPANISH_MONTHS_MAP = {
+  enero: 1,
+  ene: 1,
+  january: 1,
+  jan: 1,
+  febrero: 2,
+  feb: 2,
+  february: 2,
+  marzo: 3,
+  mar: 3,
+  march: 3,
+  abril: 4,
+  abr: 4,
+  april: 4,
+  apr: 4,
+  mayo: 5,
+  may: 5,
+  junio: 6,
+  jun: 6,
+  june: 6,
+  julio: 7,
+  jul: 7,
+  july: 7,
+  agosto: 8,
+  ago: 8,
+  august: 8,
+  aug: 8,
+  septiembre: 9,
+  setiembre: 9,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  octubre: 10,
+  oct: 10,
+  october: 10,
+  noviembre: 11,
+  nov: 11,
+  november: 11,
+  diciembre: 12,
+  dic: 12,
+  december: 12,
+  dec: 12,
+};
+
+function buildValidIsoDate(yearRaw, monthRaw, dayRaw) {
+  const y = Number(yearRaw);
+  const m = Number(monthRaw);
+  const d = Number(dayRaw);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return '';
+  if (y < 1900 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return '';
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+    return '';
+  }
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
 /**
- * Convierte fechas de Excel (serial numérico o string DD/MM/YYYY) a YYYY-MM-DD
+ * Convierte fechas de Excel (Date, ISO, serial numérico, DD/MM/YYYY, 2 dígitos o español) a YYYY-MM-DD.
+ * Si el valor no es una fecha válida reconocible (ej. "Bogotá", "N/A", "Sí"), retorna ''.
  */
 function normalizeDateStr(val) {
   if (val === undefined || val === null || val === '') return '';
+
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return '';
+    return buildValidIsoDate(val.getUTCFullYear(), val.getUTCMonth() + 1, val.getUTCDate());
+  }
+
+  if (typeof val === 'number') {
+    if (isFinite(val) && val > 10000 && val < 80000) {
+      const dateInfo = new Date(Math.round((val - 25569) * 86400 * 1000));
+      if (!isNaN(dateInfo.getTime())) {
+        return buildValidIsoDate(
+          dateInfo.getUTCFullYear(),
+          dateInfo.getUTCMonth() + 1,
+          dateInfo.getUTCDate(),
+        );
+      }
+    }
+    return '';
+  }
+
   const s = String(val).trim();
   if (!s) return '';
   const lower = s.toLowerCase();
@@ -73,51 +151,114 @@ function normalizeDateStr(val) {
     lower === 'ninguno' ||
     lower === 'ninguna' ||
     lower === '-' ||
-    lower === 'sin fecha'
+    lower === 'sin fecha' ||
+    lower === 'si' ||
+    lower === 'sí' ||
+    lower === 'no'
   ) {
     return '';
   }
+
+  // Serial numérico de Excel en string (ej. "29221", "32345.0")
   const num = Number(s);
   if (!isNaN(num) && /^\d+(\.\d+)?$/.test(s) && num > 10000 && num < 80000) {
-    // Fecha serial de Excel (número o string numérico ej. 29221, 46266)
-    const utcDays = Math.round(num - 25569);
-    const dateInfo = new Date(utcDays * 86400 * 1000);
+    const dateInfo = new Date(Math.round((num - 25569) * 86400 * 1000));
     if (!isNaN(dateInfo.getTime())) {
-      return dateInfo.toISOString().split('T')[0];
+      return buildValidIsoDate(
+        dateInfo.getUTCFullYear(),
+        dateInfo.getUTCMonth() + 1,
+        dateInfo.getUTCDate(),
+      );
     }
   }
-  // Si viene DD/MM/YYYY o DD-MM-YYYY
-  const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (dmyMatch) {
-    const [, d, m, y] = dmyMatch;
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  }
-  // Si viene YYYY/MM/DD
-  const ymdMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+
+  // YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD o cadena ISO completa (1988-07-21T00:00:00.000Z)
+  const ymdMatch = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})(?:[T\s].*)?$/);
   if (ymdMatch) {
-    const [, y, m, d] = ymdMatch;
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    return buildValidIsoDate(ymdMatch[1], ymdMatch[2], ymdMatch[3]);
   }
-  return s;
+
+  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (con fallback automático MM/DD/YYYY si el segundo > 12)
+  const dmyMatch = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:[T\s].*)?$/);
+  if (dmyMatch) {
+    const p1 = Number(dmyMatch[1]);
+    const p2 = Number(dmyMatch[2]);
+    const y = Number(dmyMatch[3]);
+    if (p2 > 12 && p1 <= 12) {
+      return buildValidIsoDate(y, p1, p2);
+    }
+    return buildValidIsoDate(y, p2, p1);
+  }
+
+  // DD/MM/YY, DD-MM-YY, DD.MM.YY (año de 2 dígitos: yy > 30 -> 19yy, sino 20yy)
+  const dmy2Match = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+  if (dmy2Match) {
+    const p1 = Number(dmy2Match[1]);
+    const p2 = Number(dmy2Match[2]);
+    const yy = Number(dmy2Match[3]);
+    const fullY = yy > 30 ? 1900 + yy : 2000 + yy;
+    if (p2 > 12 && p1 <= 12) {
+      return buildValidIsoDate(fullY, p1, p2);
+    }
+    return buildValidIsoDate(fullY, p2, p1);
+  }
+
+  // Fechas textuales en español/inglés ("21 de julio de 1988", "21 jul 1988", "julio 21 de 1988")
+  const normText = s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[,]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const resolveYear = (yrStr) => {
+    const yr = Number(yrStr);
+    if (String(yrStr).length === 2) return yr > 30 ? 1900 + yr : 2000 + yr;
+    return yr;
+  };
+
+  const textDmy = normText.match(
+    /^(\d{1,2})[\s\-\/\.]+(?:de\s+)?([a-z]+)[\s\-\/\.]+(?:de(?:l)?\s+)?(\d{2}|\d{4})$/,
+  );
+  if (textDmy && SPANISH_MONTHS_MAP[textDmy[2]]) {
+    return buildValidIsoDate(resolveYear(textDmy[3]), SPANISH_MONTHS_MAP[textDmy[2]], textDmy[1]);
+  }
+
+  const textMdy = normText.match(
+    /^([a-z]+)[\s\-\/\.]+(\d{1,2})[\s\-\/\.]+(?:de(?:l)?\s+)?(\d{2}|\d{4})$/,
+  );
+  if (textMdy && SPANISH_MONTHS_MAP[textMdy[1]]) {
+    return buildValidIsoDate(resolveYear(textMdy[3]), SPANISH_MONTHS_MAP[textMdy[1]], textMdy[2]);
+  }
+
+  return '';
 }
 
 /**
- * Calcula la edad a partir de fechaNacimiento si no viene explícita
+ * Calcula la edad exacta por componentes numéricos a partir de fechaNacimiento (prioritario sobre edadRaw vieja)
  */
 function computeAge(edadRaw, fechaNacimientoRaw) {
+  const normFecha = normalizeDateStr(fechaNacimientoRaw);
+  if (normFecha) {
+    const [y, m, d] = normFecha.split('-').map(Number);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentDay = now.getDate();
+    if (y >= 1920 && y <= currentYear && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      let calculated = currentYear - y;
+      if (currentMonth < m || (currentMonth === m && currentDay < d)) {
+        calculated -= 1;
+      }
+      if (calculated >= 14 && calculated <= 100) {
+        return calculated;
+      }
+    }
+  }
   if (edadRaw !== undefined && edadRaw !== null && String(edadRaw).trim() !== '') {
     const num = parseInt(String(edadRaw).replace(/[^\d]/g, ''), 10);
     if (!isNaN(num) && num >= 14 && num <= 100) return num;
-  }
-  const normDate = normalizeDateStr(fechaNacimientoRaw);
-  if (normDate) {
-    const d = new Date(normDate);
-    if (!isNaN(d.getTime())) {
-      const diff = Date.now() - d.getTime();
-      const ageDate = new Date(diff);
-      const calculated = Math.abs(ageDate.getUTCFullYear() - 1970);
-      if (calculated >= 14 && calculated <= 100) return calculated;
-    }
   }
   return undefined;
 }
@@ -149,14 +290,30 @@ function mapSpreadsheetRowsDeterministically(rows) {
     const entries = Object.entries(row);
     if (entries.length === 0) continue;
 
+    const normKey = (str) =>
+      normalizeText(str)
+        .replace(/[._\-\/:]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
     const getByKeywords = (keywords, excludeKeywords = []) => {
       for (const [k, v] of entries) {
-        if (v === undefined || v === null || String(v).trim() === '') continue;
-        const nk = normalizeText(k);
-        if (excludeKeywords.some((ex) => nk.includes(normalizeText(ex)))) continue;
+        if (v === undefined || v === null) continue;
+        const formattedVal = v instanceof Date ? normalizeDateStr(v) : String(v).trim();
+        if (!formattedVal) continue;
+        const nk = normKey(k);
+        if (
+          Array.isArray(excludeKeywords) &&
+          excludeKeywords.some((ex) => {
+            const nex = normKey(ex);
+            return nex && nk.includes(nex);
+          })
+        ) {
+          continue;
+        }
         if (
           keywords.some((kw) => {
-            const nkw = normalizeText(kw);
+            const nkw = normKey(kw);
             if (!nkw) return false;
             if (nk === nkw) return true;
             if (nkw.length <= 2) {
@@ -166,7 +323,7 @@ function mapSpreadsheetRowsDeterministically(rows) {
             return nk.includes(nkw);
           })
         ) {
-          return String(v).trim();
+          return formattedVal;
         }
       }
       return '';
@@ -196,12 +353,51 @@ function mapSpreadsheetRowsDeterministically(rows) {
     const rawSangre = getByKeywords(['tipo de sangre', 'grupo sanguineo', 'sangre', 'rh']);
     const rawRh = getByKeywords(['rh', 'factor rh', 'grupo sanguineo']) || rawSangre;
 
+    const normFechaNacimiento = normalizeDateStr(
+      getByKeywords(
+        [
+          'fecha de nacimiento',
+          'fecha nacimiento',
+          'fecha nac',
+          'fec de nacimiento',
+          'fec nacimiento',
+          'fec nac',
+          'f de nacimiento',
+          'f nacimiento',
+          'f nac',
+          'fnac',
+          'birthdate',
+          'natalicio',
+          'cumpleanos',
+          'nacimiento',
+        ],
+        [
+          'lugar',
+          'ciudad',
+          'municipio',
+          'departamento',
+          'pais',
+          'expedicion',
+          'ingreso',
+          'retiro',
+          'examen',
+          'emo',
+          'vencimiento',
+        ],
+      ),
+    );
+    const rawEdadStr = getByKeywords(['edad', 'anos cumplidos'], ['gestacional']);
+    const resolvedEdad = computeAge(rawEdadStr, normFechaNacimiento);
+
     const worker = {
       nombre: fullNombre || 'Colaborador',
       identificacion: identificacion || '',
-      edad: getByKeywords(['edad', 'anos cumplidos']),
-      fechaNacimiento: normalizeDateStr(getByKeywords(['fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'fec nac'])),
-      lugarNacimiento: getByKeywords(['lugar de nacimiento', 'lugar nacimiento', 'ciudad nacimiento']),
+      edad: resolvedEdad !== undefined ? resolvedEdad : rawEdadStr,
+      fechaNacimiento: normFechaNacimiento,
+      lugarNacimiento: getByKeywords(
+        ['lugar de nacimiento', 'lugar nacimiento', 'ciudad de nacimiento', 'ciudad nacimiento', 'municipio nacimiento'],
+        ['fecha', 'fec', 'dia', 'mes', 'ano'],
+      ),
       genero: getByKeywords(['genero', 'sexo']),
       estadoCivil: getByKeywords(['estado civil']),
       nivelEscolaridad: getByKeywords(['escolaridad', 'nivel educativo', 'estudios', 'nivel de escolaridad'], ['curso', 'alturas']),
@@ -289,6 +485,67 @@ function mapSpreadsheetRowsDeterministically(rows) {
 }
 
 /**
+ * Detecta dinámicamente la fila real de encabezado (ej. formatos SG-SST con membrete arriba)
+ * y devuelve el arreglo de objetos de la hoja (exponiendo también .headerRowIndex y .rows).
+ */
+function parseSheetWithSmartHeader(sheet) {
+  if (!sheet) {
+    const empty = [];
+    Object.defineProperties(empty, {
+      headerRowIndex: { value: 0, enumerable: false },
+      rows: { value: empty, enumerable: false },
+    });
+    return empty;
+  }
+  const rawMatrix = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  let headerRowIndex = 0;
+  let bestScore = 0;
+
+  for (let r = 0; r < Math.min(rawMatrix.length, 20); r++) {
+    const rowCells = Array.isArray(rawMatrix[r]) ? rawMatrix[r] : [];
+    const joinedRow = normalizeText(rowCells.join(' '));
+    let score = 0;
+    if (joinedRow.includes('nombre')) score += 3;
+    if (
+      joinedRow.includes('cedula') ||
+      joinedRow.includes('identificacion') ||
+      joinedRow.includes('documento')
+    ) {
+      score += 3;
+    }
+    if (joinedRow.includes('cargo')) score += 2;
+    if (
+      joinedRow.includes('edad') ||
+      joinedRow.includes('nacimiento') ||
+      joinedRow.includes('genero') ||
+      joinedRow.includes('sexo') ||
+      joinedRow.includes('eps')
+    ) {
+      score += 2;
+    }
+    if (
+      joinedRow.includes('salud') ||
+      joinedRow.includes('examen') ||
+      joinedRow.includes('diagnostico') ||
+      joinedRow.includes('enfermedad')
+    ) {
+      score += 2;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      headerRowIndex = r;
+    }
+  }
+
+  const jsonRows = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
+  Object.defineProperties(jsonRows, {
+    headerRowIndex: { value: headerRowIndex, enumerable: false },
+    rows: { value: jsonRows, enumerable: false },
+  });
+  return jsonRows;
+}
+
+/**
  * Descarga y extrae tanto texto como filas tabulares de un archivo de Google Drive
  */
 async function extractDriveFileData(drive, fileMeta) {
@@ -327,27 +584,7 @@ async function extractDriveFileData(drive, fileMeta) {
 
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
-      // Detectar si el encabezado real no está en la fila 1 (muy común en formatos SG-SST de Colombia con membrete arriba)
-      const rawMatrix = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      let headerRowIndex = 0;
-      let bestScore = 0;
-
-      for (let r = 0; r < Math.min(rawMatrix.length, 20); r++) {
-        const rowCells = Array.isArray(rawMatrix[r]) ? rawMatrix[r] : [];
-        const joinedRow = normalizeText(rowCells.join(' '));
-        let score = 0;
-        if (joinedRow.includes('nombre')) score += 3;
-        if (joinedRow.includes('cedula') || joinedRow.includes('identificacion') || joinedRow.includes('documento')) score += 3;
-        if (joinedRow.includes('cargo')) score += 2;
-        if (joinedRow.includes('edad') || joinedRow.includes('genero') || joinedRow.includes('sexo') || joinedRow.includes('eps')) score += 2;
-        if (joinedRow.includes('salud') || joinedRow.includes('examen') || joinedRow.includes('diagnostico') || joinedRow.includes('enfermedad')) score += 2;
-        if (score > bestScore) {
-          bestScore = score;
-          headerRowIndex = r;
-        }
-      }
-
-      const jsonRows = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
+      const jsonRows = parseSheetWithSmartHeader(sheet);
       const csvText = xlsx.utils.sheet_to_csv(sheet, { blankrows: false });
 
       if (csvText && csvText.trim()) {
@@ -713,6 +950,13 @@ function mergeWorkerRecords(rawWorkersList) {
       const combined = { ...existing };
       for (const [field, val] of Object.entries(w)) {
         if (val !== undefined && val !== null && String(val).trim() !== '') {
+          if (field === 'fechaNacimiento' || field === 'fecha_nacimiento') {
+            const normVal = normalizeDateStr(val);
+            if (normVal && !normalizeDateStr(combined[field])) {
+              combined[field] = normVal;
+            }
+            continue;
+          }
           // Si existing no tenía valor, o el nuevo valor es más informativo, lo tomamos
           if (!combined[field] || String(combined[field]).trim() === '' || combined[field] === 'No especificado') {
             combined[field] = val;
@@ -942,7 +1186,9 @@ async function importAndSyncSociodemografico({
       return fallback;
     };
 
-    const fechaNacimiento = normalizeDateStr(pick(rawW.fechaNacimiento || rawW.fecha_nacimiento, existingW.fechaNacimiento));
+    const incomingFechaNac = normalizeDateStr(rawW.fechaNacimiento || rawW.fecha_nacimiento);
+    const prevFechaNac = normalizeDateStr(existingW.fechaNacimiento);
+    const fechaNacimiento = incomingFechaNac || prevFechaNac;
     const edad = computeAge(rawW.edad ?? existingW.edad, fechaNacimiento);
     const peso = pick(rawW.peso, existingW.peso);
     const talla = pick(rawW.talla, existingW.talla);
@@ -1101,6 +1347,7 @@ async function importAndSyncSociodemografico({
   for (const w of trabajadoresList) {
     const cleanDoc = String(w.identificacion || '').trim();
     if (!cleanDoc) continue;
+    const normDob = normalizeDateStr(w.fechaNacimiento);
     extraBulkOps.push({
       updateOne: {
         filter: { user: userId, ...(companyId ? { companyId } : {}), documento: cleanDoc },
@@ -1108,6 +1355,8 @@ async function importAndSyncSociodemografico({
           $set: {
             eps: w.eps || '',
             afp: w.afp || '',
+            ...(normDob ? { fechaNacimiento: new Date(`${normDob}T12:00:00Z`) } : {}),
+            ...(w.genero && w.genero !== 'No especificado' ? { genero: w.genero } : {}),
             estadoLaboral: w.estadoLaboral || 'Activo',
             estado: (w.estadoLaboral || 'Activo') === 'Retirado' ? 'Inactivo' : 'Activo',
           },
@@ -1242,6 +1491,7 @@ module.exports = {
   importAndSyncSociodemografico,
   findSociodemograficoFilesInDrive,
   extractDriveFileData,
+  parseSheetWithSmartHeader,
   mapSpreadsheetRowsDeterministically,
   normalizeDateStr,
   computeAge,

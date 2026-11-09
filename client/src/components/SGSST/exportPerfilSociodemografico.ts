@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { excelSerialToDate, computeAgeFromBirthDate } from './excelWorkerMapper';
 
 export interface LicenciaConduccionItem {
   id?: string;
@@ -281,6 +282,7 @@ export const exportPerfilSociodemograficoToExcel = async (
   ws.columns = [
     { header: 'Nombre', key: 'nombre', width: 28 },
     { header: 'Identificación', key: 'identificacion', width: 18 },
+    { header: 'Fecha de Nacimiento', key: 'fechaNacimiento', width: 22 },
     { header: 'Edad', key: 'edad', width: 10 },
     { header: 'Género', key: 'genero', width: 16 },
     { header: 'Estado Civil', key: 'estadoCivil', width: 18 },
@@ -289,7 +291,6 @@ export const exportPerfilSociodemograficoToExcel = async (
     { header: 'Teléfono', key: 'telefono', width: 18 },
     { header: 'Cargo', key: 'cargo', width: 32 },
     { header: 'Salario Base / IBC ($)', key: 'salario', width: 22 },
-    { header: 'Fecha de Nacimiento', key: 'fechaNacimiento', width: 20 },
     { header: 'Lugar de Nacimiento', key: 'lugarNacimiento', width: 22 },
     { header: 'Barrio', key: 'barrio', width: 20 },
     { header: 'Municipio', key: 'municipioDomicilio', width: 20 },
@@ -341,6 +342,57 @@ export const exportPerfilSociodemograficoToExcel = async (
     { header: 'Motivo de Retiro', key: 'motivoRetiro', width: 28 }
   ];
 
+  ws.getColumn('fechaNacimiento').numFmt = 'yyyy-mm-dd';
+
+  // Notas explicativas en cabecera para Fecha de Nacimiento y Edad autocalculada
+  ws.getCell('C1').note =
+    'Ingrese la Fecha de Nacimiento en formato AAAA-MM-DD (ej. 1988-07-21) o DD/MM/AAAA (ej. 21/07/1988). Al importar a WAPPY IA, la Edad se calcula automáticamente.';
+  ws.getCell('D1').note =
+    'Opcional: Si diligencia la Fecha de Nacimiento y deja Edad en blanco, el sistema calcula automáticamente la edad exacta en años cumplidos.';
+
+  // ============================================================================
+  // HOJA 3: INSTRUCCIONES DE DILIGENCIAMIENTO E IMPORTACIÓN
+  // ============================================================================
+  const wsInstrucciones = wb.addWorksheet('Instrucciones', {
+    views: [{ showGridLines: true }]
+  });
+  wsInstrucciones.columns = [
+    { header: 'Campo / Regla', key: 'campo', width: 34 },
+    { header: 'Instrucción de Diligenciamiento en WAPPY IA', key: 'detalle', width: 88 }
+  ];
+  const instHeaderRow = wsInstrucciones.getRow(1);
+  instHeaderRow.height = 30;
+  instHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10, name: 'Segoe UI' };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+  });
+  [
+    {
+      campo: '1. Hoja Principal ("Trabajadores")',
+      detalle: 'Diligencie los datos de cada colaborador a partir de la fila 2 en la pestaña "Trabajadores". No elimine los encabezados.'
+    },
+    {
+      campo: '2. Fecha de Nacimiento (Columna C)',
+      detalle: 'Acepta formato AAAA-MM-DD (ej. 1988-07-21) o DD/MM/AAAA (ej. 21/07/1988), además de fechas nativas de Excel o en español (ej. "21 de julio de 1988").'
+    },
+    {
+      campo: '3. Cálculo Automático de Edad (Columna D)',
+      detalle: 'La Edad se calcula automáticamente a partir de la Fecha de Nacimiento si se deja en blanco (o se actualiza al importar la fecha real).'
+    },
+    {
+      campo: '4. Listas Desplegables',
+      detalle: 'Utilice los menús desplegables integrados en Género, Estado Civil, Escolaridad, Cargo, EPS, AFP, RH y Estado Laboral (catálogo en "Listas de Opciones").'
+    }
+  ].forEach((inst) => {
+    const r = wsInstrucciones.addRow(inst);
+    r.height = 24;
+    r.eachCell((cell) => {
+      cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF1E293B' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    });
+  });
+
   const totalRows = trabajadores.length > 0 ? trabajadores.length + 1 : 2;
   ws.autoFilter = {
     from: { row: 1, column: 1 },
@@ -377,15 +429,55 @@ export const exportPerfilSociodemograficoToExcel = async (
     };
   };
 
+  const CENTERED_COLUMN_KEYS = new Set([
+    'identificacion',
+    'fechaNacimiento',
+    'edad',
+    'genero',
+    'tipoSangre',
+    'grupoSanguineo',
+    'personasCargo',
+    'estrato',
+    'fechaExamenMedico',
+    'fechaCursoAlturasAutorizado',
+    'fechaCursoAlturasCoordinador',
+    'fuma',
+    'alcohol',
+    'terapiaPsicologica',
+    'fechaSeguimiento',
+    'soatVencimiento',
+    'tecnicomecanicaVencimiento',
+    'licenciaVencimiento',
+    'curso50h',
+    'curso20h',
+    'esCopasst',
+    'esComiteConvivencia',
+    'esBrigadista',
+    'esComiteSeguridadVial',
+    'peso',
+    'talla',
+    'imc',
+    'presionArterial',
+    'frecuenciaCardiaca',
+    'consentimientoFirmaDigital',
+    'estadoLaboral',
+    'fechaRetiro',
+  ]);
+
   // Agregar filas con datos de trabajadores
   trabajadores.forEach((w, index) => {
     const rowNumber = index + 2;
     const { licenciaStr, vencimientoStr } = formatLicensesText(w);
+    const normFechaNacimiento = excelSerialToDate(w.fechaNacimiento || '');
+    const rawEdadStr = w.edad !== undefined && w.edad !== null ? String(w.edad).trim() : '';
+    const autoEdadStr = normFechaNacimiento ? computeAgeFromBirthDate(normFechaNacimiento) : '';
+    const resolvedEdad = rawEdadStr !== '' ? w.edad : autoEdadStr ? Number(autoEdadStr) : '';
 
     const addedRow = ws.addRow({
       nombre: w.nombre || '',
       identificacion: w.identificacion || '',
-      edad: w.edad ?? '',
+      fechaNacimiento: normFechaNacimiento,
+      edad: resolvedEdad,
       genero: w.genero || '',
       estadoCivil: w.estadoCivil || '',
       nivelEscolaridad: w.nivelEscolaridad || '',
@@ -393,7 +485,6 @@ export const exportPerfilSociodemograficoToExcel = async (
       telefono: w.telefono || '',
       cargo: w.cargo || '',
       salario: w.salario || '',
-      fechaNacimiento: w.fechaNacimiento || '',
       lugarNacimiento: w.lugarNacimiento || '',
       barrio: w.barrio || '',
       municipioDomicilio: w.municipioDomicilio || '',
@@ -459,7 +550,8 @@ export const exportPerfilSociodemograficoToExcel = async (
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
       };
 
-      if ([2, 3, 4, 19, 20, 21, 23, 24, 25, 30, 31, 33, 34, 35, 37, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53].includes(colNumber)) {
+      const colKey = ws.getColumn(colNumber).key || '';
+      if (CENTERED_COLUMN_KEYS.has(colKey)) {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };

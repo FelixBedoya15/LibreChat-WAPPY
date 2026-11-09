@@ -7,43 +7,166 @@ export interface RawRow {
   [key: string]: any;
 }
 
+const SPANISH_AND_SHORT_MONTHS: Record<string, number> = {
+  enero: 1, ene: 1, jan: 1, january: 1,
+  febrero: 2, feb: 2, february: 2,
+  marzo: 3, mar: 3, march: 3,
+  abril: 4, abr: 4, apr: 4, april: 4,
+  mayo: 5, may: 5,
+  junio: 6, jun: 6, june: 6,
+  julio: 7, jul: 7, july: 7,
+  agosto: 8, ago: 8, aug: 8, august: 8,
+  septiembre: 9, setiembre: 9, sept: 9, sep: 9, set: 9, september: 9,
+  octubre: 10, oct: 10, october: 10,
+  noviembre: 11, nov: 11, november: 11,
+  diciembre: 12, dic: 12, dec: 12, december: 12,
+};
+
+function isValidCalendarYmd(year: number, month: number, day: number): boolean {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+  if (year < 1900 || year > 2100) return false;
+  if (month < 1 || month > 12) return false;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day >= 1 && day <= daysInMonth;
+}
+
+function formatValidatedYmd(year: number, month: number, day: number): string {
+  if (!isValidCalendarYmd(year, month, day)) return '';
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function expandTwoDigitYear(yy: number): number {
+  const currentYY = new Date().getFullYear() % 100;
+  return yy > currentYY + 10 ? 1900 + yy : 2000 + yy;
+}
+
 /**
- * Convierte fechas numéricas seriales de Excel (ej: 34768) o cadenas de texto a YYYY-MM-DD
+ * Convierte fechas numéricas seriales de Excel (ej: 32345), objetos Date, ISO o cadenas de texto
+ * (YYYY-MM-DD, DD/MM/YYYY, DD.MM.YYYY, años de 2 dígitos y fechas en español) a YYYY-MM-DD.
+ * Si el texto NO es una fecha válida (ej. "Bogotá", "Sí", "No aplica"), retorna '' para no romper <input type="date">.
  */
 export function excelSerialToDate(val: any): string {
-  if (val === undefined || val === null || val === '') return '';
+  if (val === undefined || val === null || val === '' || typeof val === 'boolean') return '';
 
-  // Si ya es formato YYYY-MM-DD
-  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
-    return val.trim();
+  // 1. Instancia nativa Date (usar UTC para evitar desfase horario UTC-5)
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return '';
+    return formatValidatedYmd(val.getUTCFullYear(), val.getUTCMonth() + 1, val.getUTCDate());
   }
 
-  // Si es DD/MM/YYYY o DD-MM-YYYY
-  if (typeof val === 'string') {
-    const dmyMatch = val.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if (dmyMatch) {
-      const day = dmyMatch[1].padStart(2, '0');
-      const month = dmyMatch[2].padStart(2, '0');
-      const year = dmyMatch[3];
-      return `${year}-${month}-${day}`;
+  // 2. Número serial de Excel (o cadena estrictamente numérica) en UTC con Math.round
+  if (typeof val === 'number' || (typeof val === 'string' && /^\d+(\.\d+)?$/.test(val.trim()))) {
+    const num = typeof val === 'number' ? val : parseFloat(val.trim());
+    if (!isNaN(num) && num > 1000 && num < 100000) {
+      const utcMs = Math.round((num - 25569) * 86400 * 1000);
+      const dateInfo = new Date(utcMs);
+      return formatValidatedYmd(
+        dateInfo.getUTCFullYear(),
+        dateInfo.getUTCMonth() + 1,
+        dateInfo.getUTCDate(),
+      );
+    }
+    return '';
+  }
+
+  if (typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+
+  // 3. Formato YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD o ISO con T / hora ("1988-07-21T00:00:00.000Z")
+  const ymdMatch = trimmed.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})(?:[T\s].*)?$/);
+  if (ymdMatch) {
+    return formatValidatedYmd(Number(ymdMatch[1]), Number(ymdMatch[2]), Number(ymdMatch[3]));
+  }
+
+  // 4. Formato DD/MM/YYYY, DD-MM-YYYY o DD.MM.YYYY (con soporte inteligente si viene MM/DD/YYYY con día > 12)
+  const dmy4Match = trimmed.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:[T\s].*)?$/);
+  if (dmy4Match) {
+    const p1 = Number(dmy4Match[1]);
+    const p2 = Number(dmy4Match[2]);
+    const year = Number(dmy4Match[3]);
+    if (p2 > 12 && p1 >= 1 && p1 <= 12) {
+      return formatValidatedYmd(year, p1, p2);
+    }
+    return formatValidatedYmd(year, p2, p1);
+  }
+
+  // 5. Formato con año de 2 dígitos: DD/MM/YY, DD-MM-YY, DD.MM.YY (ej. "21/07/88" -> "1988-07-21")
+  const dmy2Match = trimmed.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+  if (dmy2Match) {
+    const p1 = Number(dmy2Match[1]);
+    const p2 = Number(dmy2Match[2]);
+    const year = expandTwoDigitYear(Number(dmy2Match[3]));
+    if (p2 > 12 && p1 >= 1 && p1 <= 12) {
+      return formatValidatedYmd(year, p1, p2);
+    }
+    return formatValidatedYmd(year, p2, p1);
+  }
+
+  // 6. Fechas textuales en español/inglés ("21 de julio de 1988", "21 jul 1988", "21-jul-88", "julio 21 de 1988")
+  const normText = trimmed
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\./g, '')
+    .trim();
+
+  const esDmyMatch = normText.match(
+    /^(\d{1,2})(?:\s+de\s+|[\s\/\-]+)([a-z]+)(?:\s+del?\s+|[\s\/\-]+)(\d{2,4})$/,
+  );
+  if (esDmyMatch) {
+    const day = Number(esDmyMatch[1]);
+    const month = SPANISH_AND_SHORT_MONTHS[esDmyMatch[2]];
+    const rawYear = Number(esDmyMatch[3]);
+    const year = esDmyMatch[3].length === 2 ? expandTwoDigitYear(rawYear) : rawYear;
+    if (month) {
+      return formatValidatedYmd(year, month, day);
     }
   }
 
-  // Si es un número o número en string (serial Excel)
-  const num = typeof val === 'number' ? val : parseFloat(String(val).trim());
-  if (!isNaN(num) && num > 1000 && num < 100000) {
-    const utcDays = Math.floor(num - 25569);
-    const utcValue = utcDays * 86400;
-    const dateInfo = new Date(utcValue * 1000);
-    const year = dateInfo.getUTCFullYear();
-    const month = String(dateInfo.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(dateInfo.getUTCDate()).padStart(2, '0');
-    if (year >= 1920 && year <= 2100) {
-      return `${year}-${month}-${day}`;
+  const esMdyMatch = normText.match(
+    /^([a-z]+)\s+(\d{1,2})(?:,?\s+del?\s+|,?\s+|[\-\/])(\d{2,4})$/,
+  );
+  if (esMdyMatch) {
+    const month = SPANISH_AND_SHORT_MONTHS[esMdyMatch[1]];
+    const day = Number(esMdyMatch[2]);
+    const rawYear = Number(esMdyMatch[3]);
+    const year = esMdyMatch[3].length === 2 ? expandTwoDigitYear(rawYear) : rawYear;
+    if (month) {
+      return formatValidatedYmd(year, month, day);
     }
   }
 
-  return String(val).trim();
+  return '';
+}
+
+/**
+ * Calcula la edad exacta en años cumplidos a partir de una fecha de nacimiento (YYYY-MM-DD u otro formato soportado),
+ * parseando [y, m, d] directamente sin usar new Date('YYYY-MM-DD') para evitar desfases de zona horaria (UTC-5).
+ */
+export function computeAgeFromBirthDate(fechaStr?: string | null): string {
+  if (!fechaStr) return '';
+  const raw = String(fechaStr).trim();
+  if (!raw) return '';
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : excelSerialToDate(raw);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return '';
+
+  const [y, m, d] = normalized.split('-').map(Number);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  if (!y || !m || !d || y < 1920 || y > currentYear) return '';
+
+  const currM = now.getMonth() + 1;
+  const currD = now.getDate();
+  if (y === currentYear && (m > currM || (m === currM && d > currD))) {
+    return '';
+  }
+
+  let age = currentYear - y;
+  if (currM < m || (currM === m && currD < d)) {
+    age--;
+  }
+  return age >= 0 && age <= 120 ? String(age) : '';
 }
 
 /**
@@ -306,9 +429,8 @@ export function normalizeWorkerRecord(raw: any): any {
     }
   }
 
-  // Fechas normalizadas
+  // Fechas normalizadas (excepto fechaNacimiento que tiene validación estricta de natalicio)
   const dateKeys = [
-    'fechaNacimiento',
     'fechaExamenMedico',
     'fechaSeguimiento',
     'soatVencimiento',
@@ -327,15 +449,19 @@ export function normalizeWorkerRecord(raw: any): any {
     }
   }
 
-  // Edad autocalculada si falta
-  if ((!w.edad || String(w.edad).trim() === '') && w.fechaNacimiento && /^\d{4}-\d{2}-\d{2}$/.test(w.fechaNacimiento)) {
-    const nacDate = new Date(w.fechaNacimiento);
-    const hoy = new Date();
-    if (!isNaN(nacDate.getTime())) {
-      let diffYears = hoy.getFullYear() - nacDate.getFullYear();
-      const m = hoy.getMonth() - nacDate.getMonth();
-      if (m < 0 || (m === 0 && hoy.getDate() < nacDate.getDate())) diffYears--;
-      if (diffYears > 0 && diffYears < 120) w.edad = diffYears;
+  // Fecha de Nacimiento estricta + Edad autocalculada
+  if (w.fechaNacimiento !== undefined && w.fechaNacimiento !== null) {
+    const normBirth = excelSerialToDate(w.fechaNacimiento);
+    if (normBirth && /^\d{4}-\d{2}-\d{2}$/.test(normBirth)) {
+      const calcAge = computeAgeFromBirthDate(normBirth);
+      if (calcAge !== '') {
+        w.fechaNacimiento = normBirth;
+        w.edad = Number(calcAge);
+      } else {
+        w.fechaNacimiento = '';
+      }
+    } else {
+      w.fechaNacimiento = '';
     }
   }
 
@@ -521,8 +647,44 @@ export function smartMapExcelToWorkers(importedRows: RawRow[], emptyWorkerTempla
     const genero = findRowValue(row, ['genero', 'sexo']);
 
     // 5. Fecha de Nacimiento, Lugar de Nacimiento & Edad
-    const fechaNacimiento = cleanDateField(findRowValue(row, ['fechadenacimiento', 'fechanacimiento', 'fnacimiento', 'natalicio']));
-    const lugarNacimiento = findRowValue(row, ['lugardenacimiento', 'lugarnacimiento', 'ciudadorigen']);
+    const fechaNacimiento = excelSerialToDate(
+      findRowValue(
+        row,
+        [
+          'fechadenacimiento',
+          'fechanacimiento',
+          'fnacimiento',
+          'fechanac',
+          'fecdenacimiento',
+          'fecnacimiento',
+          'fecnac',
+          'fdenacimiento',
+          'fnac',
+          'birthdate',
+          'cumpleanos',
+          'natalicio',
+          'nacimiento',
+        ],
+        [
+          'lugar',
+          'ciudad',
+          'municipio',
+          'departamento',
+          'pais',
+          'expedicion',
+          'ingreso',
+          'retiro',
+          'examen',
+          'emo',
+          'venc',
+        ],
+      ),
+    );
+    const lugarNacimiento = findRowValue(
+      row,
+      ['lugardenacimiento', 'lugarnacimiento', 'ciudadnacimiento', 'municipionacimiento', 'dondenacio', 'ciudadorigen'],
+      ['fecha', 'cumple', 'natalicio', 'birth'],
+    );
     const edad = findRowValue(row, ['edadencumplidos', 'edadenanios', 'anioscumplidos', 'edad']);
 
     // 6. Contacto & Domicilio

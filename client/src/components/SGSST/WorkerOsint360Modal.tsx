@@ -34,6 +34,7 @@ export interface WorkerOsint360ModalProps {
   initialTipoDoc?: string;
   initialNombre?: string;
   initialPlaca?: string;
+  initialFechaNacimiento?: string;
 }
 
 export interface MinTrabajoCursoRow {
@@ -396,6 +397,7 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
   initialTipoDoc = 'CC',
   initialNombre = '',
   initialPlaca = '',
+  initialFechaNacimiento = '',
 }) => {
   const { token } = useAuthContext();
   const { showToast } = useToastContext();
@@ -404,6 +406,7 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
   const [cedula, setCedula] = useState<string>(initialCedula || '');
   const [nombre, setNombre] = useState<string>(initialNombre || '');
   const [placa, setPlaca] = useState<string>(initialPlaca || '');
+  const [fechaNacimiento, setFechaNacimiento] = useState<string>(initialFechaNacimiento || '');
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [downloadingTarget, setDownloadingTarget] = useState<string | null>(null);
@@ -421,8 +424,9 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
       setCedula(initialCedula?.trim() || '');
       setNombre(initialNombre?.trim() || '');
       setPlaca(initialPlaca?.trim().toUpperCase() || '');
+      setFechaNacimiento(initialFechaNacimiento?.trim() || '');
     }
-  }, [isOpen, initialCedula, initialTipoDoc, initialNombre, initialPlaca]);
+  }, [isOpen, initialCedula, initialTipoDoc, initialNombre, initialPlaca, initialFechaNacimiento]);
 
   const handleOpenOrDownloadPdfBase64 = useCallback(
     (base64Data: string, customFileName?: string | null) => {
@@ -469,11 +473,20 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
   );
 
   const ejecutarInvestigacion360 = useCallback(
-    async (overrideCedula?: string, overrideTipoDoc?: string, overrideNombre?: string, overridePlaca?: string) => {
+    async (
+      overrideCedula?: string,
+      overrideTipoDoc?: string,
+      overrideNombre?: string,
+      overridePlaca?: string,
+      overrideFechaNacimiento?: string,
+    ) => {
       const targetCedula = (overrideCedula !== undefined ? overrideCedula : cedula).trim();
       const targetTipoDoc = (overrideTipoDoc !== undefined ? overrideTipoDoc : tipoDoc).trim() || 'CC';
       const targetNombre = (overrideNombre !== undefined ? overrideNombre : nombre).trim();
       const targetPlaca = (overridePlaca !== undefined ? overridePlaca : placa).trim().toUpperCase();
+      const targetFechaNacimiento = (
+        overrideFechaNacimiento !== undefined ? overrideFechaNacimiento : fechaNacimiento
+      ).trim();
 
       if (!targetCedula) {
         showToast({
@@ -497,6 +510,7 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
             cedula: targetCedula,
             nombre: targetNombre,
             placa: targetPlaca,
+            fechaNacimiento: targetFechaNacimiento || undefined,
           }),
         });
 
@@ -590,7 +604,7 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
         setIsLoading(false);
       }
     },
-    [cedula, tipoDoc, nombre, placa, token, showToast],
+    [cedula, tipoDoc, nombre, placa, fechaNacimiento, token, showToast],
   );
 
   // Si se abre el modal con una cédula inicial pre-cargada, lanzar la consulta automáticamente
@@ -601,6 +615,7 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
         initialTipoDoc?.trim() || 'CC',
         initialNombre?.trim() || '',
         initialPlaca?.trim() || '',
+        initialFechaNacimiento?.trim() || '',
       );
     } else if (!isOpen) {
       setHasSearched(false);
@@ -823,23 +838,36 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
               </div>
 
               {/* Input Opcional Nombre Completo */}
-              <div className="lg:col-span-4 space-y-1 min-w-0">
+              <div className="lg:col-span-3 space-y-1 min-w-0">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                  Nombre Completo (Se autocompleta con MinTrabajo)
+                  Nombre Completo (Autocompletable)
                 </label>
                 <input
                   type="text"
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Opcional para Rama Judicial (autocompletable)"
+                  placeholder="Opcional para Rama Judicial"
                   className="w-full h-10 px-3 rounded-xl border border-border-medium bg-surface-primary text-text-primary text-sm font-medium placeholder:text-text-secondary/60 focus:ring-2 focus:ring-teal-500/40 outline-none"
                 />
               </div>
 
-              {/* Input Opcional Placa Vehículo */}
-              <div className="lg:col-span-3 space-y-1 min-w-0">
+              {/* Input Opcional Fecha de Nacimiento */}
+              <div className="lg:col-span-2 space-y-1 min-w-0">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                  Placa Vehículo (SIMIT / RUNT PESV)
+                  Fecha Nac.
+                </label>
+                <input
+                  type="date"
+                  value={fechaNacimiento}
+                  onChange={(e) => setFechaNacimiento(e.target.value)}
+                  className="w-full h-10 px-2.5 rounded-xl border border-border-medium bg-surface-primary text-text-primary text-xs font-semibold focus:ring-2 focus:ring-teal-500/40 outline-none"
+                />
+              </div>
+
+              {/* Input Opcional Placa Vehículo */}
+              <div className="lg:col-span-2 space-y-1 min-w-0">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                  Placa (PESV)
                 </label>
                 <div className="flex items-center gap-2">
                   <input

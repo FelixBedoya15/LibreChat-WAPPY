@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '~/utils';
 import ExpandingButton from '~/components/SGSST/ExpandingButton';
+import { computeAgeFromBirthDate } from './excelWorkerMapper';
 
 // This component reads workers DIRECTLY from Perfil Sociodemográfico,
 // filtered by cargo name — with direct assignment capabilities to link or create workers.
@@ -27,7 +28,8 @@ interface SocioDemoWorker {
     identificacion: string;
     cargo: string;
     genero?: string;
-    edad?: number;
+    edad?: number | string;
+    fechaNacimiento?: string;
     enfermedades?: string;
     diagnosticoMedico?: string;
     limitacionesBiomecanicas?: string;
@@ -54,6 +56,7 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
     const [addMode, setAddMode] = useState<'new' | 'existing'>('new');
     const [newWorkerNombre, setNewWorkerNombre] = useState('');
     const [newWorkerDoc, setNewWorkerDoc] = useState('');
+    const [newWorkerFechaNacimiento, setNewWorkerFechaNacimiento] = useState('');
     const [selectedExistingId, setSelectedExistingId] = useState('');
     const [isSavingWorker, setIsSavingWorker] = useState(false);
 
@@ -126,6 +129,13 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
             ].filter(v => v && !isNullLike(v)).join('; ');
 
             // POST is now idempotent (find-or-create) — safe to call always
+            const resolvedEdad =
+                socioWorker.edad !== undefined && socioWorker.edad !== ''
+                    ? Number(socioWorker.edad)
+                    : socioWorker.fechaNacimiento
+                        ? Number(computeAgeFromBirthDate(socioWorker.fechaNacimiento)) || undefined
+                        : undefined;
+
             const createRes = await fetch('/api/sgsst/workers', {
                 method: 'POST',
                 headers: {
@@ -138,6 +148,8 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                     nombre: socioWorker.nombre,
                     documento: String(socioWorker.identificacion).trim(),
                     genero: socioWorker.genero || '',
+                    fechaNacimiento: socioWorker.fechaNacimiento || '',
+                    edad: resolvedEdad,
                     fechaIngreso: new Date().toISOString().split('T')[0],
                     condicionesSalud,
                     observaciones: `Perfil del Cargo: ${perfilNombre}`
@@ -184,6 +196,8 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
             let updatedList = [...allCompanyWorkers];
             let targetWorkerName = '';
             let targetWorkerDoc = '';
+            let targetWorkerBirth = '';
+            let targetWorkerAge: number | undefined;
 
             if (addMode === 'new') {
                 if (!newWorkerNombre.trim() || !newWorkerDoc.trim()) {
@@ -193,6 +207,9 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                 }
                 targetWorkerName = newWorkerNombre.trim();
                 targetWorkerDoc = newWorkerDoc.trim();
+                targetWorkerBirth = newWorkerFechaNacimiento.trim();
+                const computedAgeStr = targetWorkerBirth ? computeAgeFromBirthDate(targetWorkerBirth) : '';
+                targetWorkerAge = computedAgeStr ? Number(computedAgeStr) : undefined;
 
                 const existingIndex = updatedList.findIndex(w => 
                     String(w.identificacion).trim() === targetWorkerDoc
@@ -201,14 +218,19 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                     updatedList[existingIndex] = {
                         ...updatedList[existingIndex],
                         nombre: targetWorkerName,
-                        cargo: perfilNombre
+                        cargo: perfilNombre,
+                        ...(targetWorkerBirth ? { fechaNacimiento: targetWorkerBirth } : {}),
+                        ...(targetWorkerAge !== undefined ? { edad: targetWorkerAge } : {}),
                     };
+                    targetWorkerBirth = updatedList[existingIndex].fechaNacimiento || targetWorkerBirth;
                 } else {
                     updatedList.push({
                         id: crypto.randomUUID(),
                         nombre: targetWorkerName,
                         identificacion: targetWorkerDoc,
                         cargo: perfilNombre,
+                        ...(targetWorkerBirth ? { fechaNacimiento: targetWorkerBirth } : {}),
+                        ...(targetWorkerAge !== undefined ? { edad: targetWorkerAge } : {}),
                     });
                 }
             } else {
@@ -221,6 +243,14 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                 if (existingIndex >= 0) {
                     targetWorkerName = updatedList[existingIndex].nombre;
                     targetWorkerDoc = updatedList[existingIndex].identificacion;
+                    targetWorkerBirth = updatedList[existingIndex].fechaNacimiento || '';
+                    const existingAge = updatedList[existingIndex].edad;
+                    targetWorkerAge =
+                        existingAge !== undefined && existingAge !== ''
+                            ? Number(existingAge)
+                            : targetWorkerBirth
+                                ? Number(computeAgeFromBirthDate(targetWorkerBirth)) || undefined
+                                : undefined;
                     updatedList[existingIndex] = {
                         ...updatedList[existingIndex],
                         cargo: perfilNombre
@@ -249,6 +279,8 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                         nombre: targetWorkerName,
                         documento: targetWorkerDoc,
                         cargo: perfilNombre,
+                        fechaNacimiento: targetWorkerBirth || '',
+                        edad: targetWorkerAge,
                         fechaIngreso: new Date().toISOString().split('T')[0],
                         observaciones: `Asignado al cargo ${perfilNombre} desde Perfiles del Cargo`
                     })
@@ -266,6 +298,7 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
             setIsAddModalOpen(false);
             setNewWorkerNombre('');
             setNewWorkerDoc('');
+            setNewWorkerFechaNacimiento('');
             setSelectedExistingId('');
             await fetchWorkers();
         } catch (err: any) {
@@ -406,8 +439,19 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                                                 </h4>
                                                 <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 flex-wrap">
                                                     <span className="font-semibold">CC: {w.identificacion}</span>
-                                                    {w.genero && <span>•</span>}
-                                                    {w.genero && <span>{w.genero}{w.edad ? ` · ${w.edad} años` : ''}</span>}
+                                                    {(w.genero || w.edad || w.fechaNacimiento) && <span>•</span>}
+                                                    {w.genero && <span>{w.genero}</span>}
+                                                    {(w.edad || computeAgeFromBirthDate(w.fechaNacimiento)) && (
+                                                        <span>
+                                                            {w.genero ? ' · ' : ''}
+                                                            {w.edad || computeAgeFromBirthDate(w.fechaNacimiento)} años
+                                                        </span>
+                                                    )}
+                                                    {w.fechaNacimiento && (
+                                                        <span className="text-[10px] font-semibold text-teal-700 dark:text-teal-300 bg-teal-500/10 border border-teal-500/20 px-1.5 py-0.5 rounded-md">
+                                                            Nac: {w.fechaNacimiento}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -546,6 +590,17 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                                             value={newWorkerDoc}
                                             onChange={e => setNewWorkerDoc(e.target.value)}
                                             placeholder="Ej. 1020304050"
+                                            className="w-full px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-text-primary text-sm focus:outline-none focus:border-teal-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-text-secondary mb-1">
+                                            Fecha de Nacimiento (Opcional · Calcula Edad)
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={newWorkerFechaNacimiento}
+                                            onChange={e => setNewWorkerFechaNacimiento(e.target.value)}
                                             className="w-full px-3.5 py-2.5 rounded-xl border border-border-medium bg-surface-secondary text-text-primary text-sm focus:outline-none focus:border-teal-500"
                                         />
                                     </div>

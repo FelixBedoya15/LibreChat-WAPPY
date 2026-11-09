@@ -440,6 +440,10 @@ server.tool(
   {
     idOrCedula: z.string().describe('Cédula, ID de MongoDB o nombre del trabajador a editar/actualizar'),
     nombre_completo: z.string().optional().describe('Nuevo nombre y apellidos'),
+    fecha_nacimiento: z.string().optional().describe('Fecha de nacimiento (AAAA-MM-DD o DD/MM/AAAA)'),
+    edad: z.number().optional().describe('Edad en años cumplidos'),
+    genero: z.string().optional().describe('Género del trabajador (Masculino, Femenino, Otro)'),
+    lugar_nacimiento: z.string().optional().describe('Ciudad o municipio de nacimiento'),
     cargo: z.string().optional().describe('Nuevo cargo u ocupación'),
     area: z.string().optional().describe('Nueva área o departamento'),
     sede: z.string().optional().describe('Nueva sede o centro de trabajo'),
@@ -2789,6 +2793,9 @@ server.tool(
   'wappy_importar_trabajadores_drive',
   {
     spreadsheetUrl: z.string().optional().describe('URL o ID de la hoja de Google Sheets de trabajadores (opcional si ya está vinculada)'),
+    fileId: z.string().optional().describe('ID directo del archivo en Google Drive (opcional)'),
+    carpeta: z.string().optional().describe('Nombre de la carpeta en Google Drive donde buscar el archivo (opcional)'),
+    archivo: z.string().optional().describe('Nombre del archivo de trabajadores en Google Drive (opcional)'),
   },
   async (params) => {
     try {

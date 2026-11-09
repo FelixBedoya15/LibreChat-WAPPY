@@ -10,6 +10,7 @@ import type { LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import PublicWorkerHeader from './PublicWorkerHeader';
 import { useWorkerSession } from '../../hooks/useWorkerSession';
 import WorkerSessionBadge from './WorkerSessionBadge';
+import { computeAgeFromBirthDate } from './excelWorkerMapper';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerData {
@@ -182,11 +183,15 @@ export default function PublicPerfilUpdate() {
             setCedula(w.identificacion);
 
             const initialImc = w.imc || calculateIMC(w.peso, w.talla);
+            const initialEdad =
+                w.edad !== undefined && w.edad !== null && String(w.edad).trim() !== ''
+                    ? String(w.edad)
+                    : computeAgeFromBirthDate(w.fechaNacimiento);
 
             setWorkerData(w);
             setFormData({
                 id: w.id, // Store real ID
-                edad: w.edad, genero: w.genero, estadoCivil: w.estadoCivil, nivelEscolaridad: w.nivelEscolaridad, direccion: w.direccion,
+                edad: initialEdad, genero: w.genero, estadoCivil: w.estadoCivil, nivelEscolaridad: w.nivelEscolaridad, direccion: w.direccion,
                 telefono: w.telefono, emergenciaContacto: w.emergenciaContacto,
                 tipoSangre: w.tipoSangre, enfermedades: w.enfermedades,
                 medicamentos: w.medicamentos, fuma: w.fuma, alcohol: w.alcohol,
@@ -280,6 +285,12 @@ export default function PublicPerfilUpdate() {
     const upd = (field: keyof WorkerData, value: string) => {
         setFormData(prev => {
             const next = { ...prev, [field]: value };
+            if (field === 'fechaNacimiento') {
+                const calcAge = computeAgeFromBirthDate(value);
+                if (calcAge !== '') {
+                    next.edad = calcAge;
+                }
+            }
             if (field === 'peso' || field === 'talla') {
                 const pesoVal = field === 'peso' ? value : String(next.peso || '');
                 const tallaVal = field === 'talla' ? value : String(next.talla || '');

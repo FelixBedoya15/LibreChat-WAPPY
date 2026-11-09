@@ -30,16 +30,18 @@ const {
   computeAge,
   computeImc,
 } = require('./sociodemograficoDriveService');
+const {
+  normalizeAnyDateYmd,
+  normalizeBirthDateYmd,
+  toUtcNoonDateOrNull,
+  calculateAgeFromBirthDate,
+  extractBirthDateFromRawRow,
+  extractBirthPlaceFromRawRow,
+  extractSpreadsheetRowsSmart,
+} = require('./birthDateHelper');
 
-function toValidDateOrNull(val) {
-  if (!val) return null;
-  const norm = normalizeDateStr(val);
-  if (!norm) return null;
-  const d = new Date(norm);
-  if (isNaN(d.getTime())) return null;
-  const yr = d.getUTCFullYear();
-  if (yr < 1900 || yr > 2100) return null;
-  return d;
+function toValidDateOrNull(val, isBirthDate = false) {
+  return toUtcNoonDateOrNull(val, isBirthDate);
 }
 
 // ─── Helper: Get API Key ─────────────────────────────────────────────
@@ -99,6 +101,8 @@ router.get('/profile/:workerId', async (req, res) => {
         }
         const sw = await SgsstWorker.findOne({ $or: sgsstFilter }).lean();
         if (sw) {
+          const swBirthYmd = normalizeBirthDateYmd(sw.fechaNacimiento);
+          const swCalcAge = calculateAgeFromBirthDate(swBirthYmd, sw.edad);
           worker = {
             id: sw.perfilId || sw._id?.toString() || cleanWId,
             identificacion: sw.documento,
@@ -107,7 +111,9 @@ router.get('/profile/:workerId', async (req, res) => {
             area: sw.area,
             sede: sw.sede,
             genero: sw.genero,
-            edad: sw.edad,
+            fechaNacimiento: swBirthYmd,
+            lugarNacimiento: sw.lugarNacimiento || '',
+            edad: swCalcAge !== undefined ? String(swCalcAge) : (sw.edad || ''),
             tipoSangre: sw.tipoSangre,
             rh: sw.rh,
             eps: sw.eps,
@@ -138,6 +144,14 @@ router.get('/profile/:workerId', async (req, res) => {
     if (!worker) {
       return res.status(404).send('<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:40px;"><h2>Perfil no encontrado</h2><p>El trabajador con ID o Cédula <strong>' + workerId + '</strong> no existe o fue eliminado.</p></body></html>');
     }
+
+    const normWorkerBirth = normalizeBirthDateYmd(worker.fechaNacimiento);
+    const derivedWorkerAge = calculateAgeFromBirthDate(normWorkerBirth, worker.edad);
+    worker = {
+      ...worker,
+      fechaNacimiento: normWorkerBirth,
+      edad: derivedWorkerAge !== undefined ? String(derivedWorkerAge) : (worker.edad || ''),
+    };
 
     // Get company info
     let companyName = '';
@@ -846,6 +860,24 @@ router.get('/profile/:workerId', async (req, res) => {
         </div>
         <div class="info-row">
           <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Fecha de Nacimiento</div>
+            <div class="info-value">${worker.fechaNacimiento || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <div class="info-content">
+            <div class="info-label">Lugar de Nacimiento</div>
+            <div class="info-value">${worker.lugarNacimiento || '—'}</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="icon-wrapper icon-blue">
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           </div>
           <div class="info-content">
@@ -1061,15 +1093,23 @@ function sanitizeSocioWorker(raw, idx = 0) {
         }
       }
     }
+    const explicitBirth = extractBirthDateFromRawRow(raw);
+    if (explicitBirth) {
+      w.fechaNacimiento = explicitBirth;
+    }
+    const explicitBirthPlace = extractBirthPlaceFromRawRow(raw);
+    if (explicitBirthPlace && (!w.lugarNacimiento || !String(w.lugarNacimiento).trim())) {
+      w.lugarNacimiento = explicitBirthPlace;
+    }
   }
 
   if (!w.id) {
     w.id = w._id ? String(w._id) : `worker_${Date.now()}_${idx}`;
   }
 
-  // Normalizar campos de fecha (convierte seriales de Excel como 29221/46266 a YYYY-MM-DD y limpia "No aplica")
-  const dateFields = [
-    'fechaNacimiento',
+  // Normalizar campos de fecha (convierte seriales de Excel, DD/MM/YYYY y fechas en español a YYYY-MM-DD y limpia valores no válidos)
+  w.fechaNacimiento = normalizeBirthDateYmd(w.fechaNacimiento);
+  const otherDateFields = [
     'fechaExamenMedico',
     'fechaSeguimiento',
     'soatVencimiento',
@@ -1083,9 +1123,9 @@ function sanitizeSocioWorker(raw, idx = 0) {
     'fechaRetiro',
     'fechaIngreso',
   ];
-  for (const df of dateFields) {
+  for (const df of otherDateFields) {
     if (w[df] !== undefined && w[df] !== null && w[df] !== '') {
-      w[df] = normalizeDateStr(w[df]);
+      w[df] = normalizeAnyDateYmd(w[df]) || normalizeDateStr(w[df]);
     } else {
       w[df] = '';
     }
@@ -1116,10 +1156,15 @@ function sanitizeSocioWorker(raw, idx = 0) {
     w.licenciaSST = '';
   }
 
-  // Calcular edad o IMC automáticamente si faltan
-  if ((w.edad === undefined || w.edad === null || String(w.edad).trim() === '') && w.fechaNacimiento) {
-    const calcAge = computeAge(w.edad, w.fechaNacimiento);
-    if (calcAge !== undefined) w.edad = String(calcAge);
+  // Si fechaNacimiento es válida (1920 <= y <= año actual), recalcular edad SIEMPRE para evitar desfases
+  if (w.fechaNacimiento) {
+    const exactAge = calculateAgeFromBirthDate(w.fechaNacimiento);
+    if (exactAge !== undefined) {
+      w.edad = String(exactAge);
+    }
+  } else if (w.edad !== undefined && w.edad !== null && String(w.edad).trim() !== '') {
+    const parsedAge = computeAge(w.edad, '');
+    if (parsedAge !== undefined) w.edad = String(parsedAge);
   }
   if ((!w.imc || String(w.imc).trim() === '') && w.peso && w.talla) {
     const calcImc = computeImc(w.imc, w.peso, w.talla);
@@ -1232,6 +1277,9 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           (w.id && sw._id && String(w.id) === String(sw._id))
         );
 
+        const swBirthYmd = normalizeBirthDateYmd(sw.fechaNacimiento);
+        const swAge = calculateAgeFromBirthDate(swBirthYmd, sw.edad);
+
         if (existingIdx === -1) {
           finalWorkers.push({
             id: sw._id ? sw._id.toString() : new mongoose.Types.ObjectId().toString(),
@@ -1239,10 +1287,14 @@ router.get('/data', requireJwtAuth, async (req, res) => {
             identificacion: swDoc,
             cargo: resolvedCargo,
             genero: sw.genero || '',
-            fechaNacimiento: sw.fechaNacimiento ? new Date(sw.fechaNacimiento).toISOString().split('T')[0] : '',
+            fechaNacimiento: swBirthYmd,
+            edad: swAge !== undefined ? String(swAge) : '',
+            eps: sw.eps || '',
+            afp: sw.afp || '',
+            arl: sw.arl || '',
             enfermedades: sw.condicionesSalud || '',
             observaciones: sw.observaciones || '',
-            estadoLaboral: 'Activo',
+            estadoLaboral: sw.estadoLaboral || 'Activo',
             biocentricScore: sw.fitScore || 100,
             biocentricAlerts: sw.fitAlerts || [],
             biocentricIsLethal: false,
@@ -1258,6 +1310,13 @@ router.get('/data', requireJwtAuth, async (req, res) => {
           }
           if ((!finalWorkers[existingIdx].nombre || finalWorkers[existingIdx].nombre === 'Colaborador') && sw.nombre) {
             finalWorkers[existingIdx].nombre = sw.nombre;
+            selfHealModified = true;
+          }
+          if ((!finalWorkers[existingIdx].fechaNacimiento || !String(finalWorkers[existingIdx].fechaNacimiento).trim()) && swBirthYmd) {
+            finalWorkers[existingIdx].fechaNacimiento = swBirthYmd;
+            if (swAge !== undefined) {
+              finalWorkers[existingIdx].edad = String(swAge);
+            }
             selfHealModified = true;
           }
         }
@@ -1588,12 +1647,21 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
         const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
         let allDeterministicWorkers = [];
         for (const sheetName of workbook.SheetNames) {
-          if (/lista|opcion|instruccion|catalogo/i.test(sheetName)) continue;
+          if (/lista|opcion|instruccion|catalogo|paramet|ayuda|guia|validacion/i.test(sheetName)) continue;
           const sheet = workbook.Sheets[sheetName];
-          const jsonRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-          const mapped = mapSpreadsheetRowsDeterministically(jsonRows);
-          if (mapped.length > 0) {
-            allDeterministicWorkers.push(...mapped);
+          const jsonRows = extractSpreadsheetRowsSmart(sheet, XLSX);
+          for (const rawRow of jsonRows) {
+            const mappedArr = mapSpreadsheetRowsDeterministically([rawRow]);
+            if (mappedArr.length > 0) {
+              const mapped = { ...mappedArr[0] };
+              const explicitBirth = extractBirthDateFromRawRow(rawRow);
+              mapped.fechaNacimiento = explicitBirth || normalizeBirthDateYmd(mapped.fechaNacimiento);
+              const explicitPlace = extractBirthPlaceFromRawRow(rawRow);
+              if (explicitPlace && (!mapped.lugarNacimiento || !String(mapped.lugarNacimiento).trim())) {
+                mapped.lugarNacimiento = explicitPlace;
+              }
+              allDeterministicWorkers.push(mapped);
+            }
           }
         }
         if (allDeterministicWorkers.length > 0) {
@@ -1708,6 +1776,7 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
     
     Asegúrate de:
     - Retornar un array JSON conteniendo cada trabajador como un objeto.
+    - Extraer 'fechaNacimiento' estrictamente en formato 'YYYY-MM-DD' (ej. si dice "21 de julio de 1988" o "21/07/1988" retorna "1988-07-21", sin confundirla jamás con lugar de nacimiento ni fecha de expedición de cédula) y calcular 'edad' exacta en años cumplidos.
     - Si encuentras peso y talla, calcula el IMC si no viene explícito.
     - Campos como 'diagnosticoMedico', 'recomendacionesMedicas', 'enfermedades', 'limitacionesBiomecanicas' deben ser extraídos fielmente del concepto médico o reporte para estructurar el perfil epidemiológico del trabajador.
     
@@ -2004,11 +2073,13 @@ router.post('/dictamen/generate', express.json({ limit: '10mb' }), requireJwtAut
 
     // 5. Preparar Contexto Detallado del Colaborador y Demandas del Cargo
     const companyContextStr = buildCompanyContextString(loadedCompanyInfo);
+    const dictamenBirthYmd = normalizeBirthDateYmd(currentWorker.fechaNacimiento);
+    const dictamenEdad = calculateAgeFromBirthDate(dictamenBirthYmd, currentWorker.edad);
     const workerContext = `DATOS BIOMÉDRICOS Y CLÍNICOS DEL COLABORADOR:
 - Nombre Completo: ${workerName}
 - Identificación: ${currentWorker.identificacion || 'N/A'}
 - Cargo: ${cargoName}
-- Edad: ${currentWorker.edad || 'N/A'} años | Género: ${currentWorker.genero || 'N/A'}
+- Fecha de Nacimiento: ${dictamenBirthYmd || 'No registrada'} | Edad: ${dictamenEdad !== undefined ? dictamenEdad : (currentWorker.edad || 'N/A')} años | Género: ${currentWorker.genero || 'N/A'}
 - Estado Civil: ${currentWorker.estadoCivil || 'N/A'} | Nivel Escolaridad: ${currentWorker.nivelEscolaridad || 'N/A'}
 - Examen Médico Ocupacional: Último realizado el ${currentWorker.fechaExamenMedico || 'No registrado'}
 - Concepto / Diagnóstico Médico: ${currentWorker.diagnosticoMedico || 'Apto / Sin Hallazgos'}
@@ -2260,7 +2331,8 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
       : await PerfilSociodemograficoData.findOne({ user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] }).lean();
     const existingWorkers = (existingDoc?.trabajadores || []).map((w, idx) => sanitizeSocioWorker(w, idx));
 
-    const incomingWorkers = (Array.isArray(trabajadores) ? trabajadores : []).map((w, idx) =>
+    const rawIncomingList = Array.isArray(trabajadores) ? trabajadores : [];
+    const incomingWorkers = rawIncomingList.map((w, idx) =>
       sanitizeSocioWorker(w, idx)
     );
 
@@ -2268,13 +2340,9 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
 
     if (mode === 'health_patch') {
       // ─── HEALTH PATCH MODE (Condiciones de Salud) ───
-      // Master roster is PRESERVED. Clinical, PILA, and any non-empty sociodemographic fields are patched!
+      // Master roster is PRESERVED. Clinical, PILA, and sociodemographic fields (nombre, identificacion, cargo, genero, fechaNacimiento) are patched!
       // NEVER drop any existing worker from Perfiles del Cargo / Perfil Sociodemográfico!
-      const existingMap = new Map();
-      existingWorkers.forEach(w => {
-        const key = String(w.identificacion || w.id || '').trim();
-        if (key) existingMap.set(key, { ...w });
-      });
+      const existingList = existingWorkers.map(w => ({ ...w }));
 
       const pickNonEmpty = (incVal, curVal) => {
         if (incVal !== undefined && incVal !== null && String(incVal).trim() !== '') {
@@ -2283,24 +2351,47 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
         return curVal;
       };
 
-      for (const inc of incomingWorkers) {
-        const key = String(inc.identificacion || inc.id || '').trim();
-        if (!key) continue;
+      for (let i = 0; i < incomingWorkers.length; i++) {
+        const inc = incomingWorkers[i];
+        const rawInc = rawIncomingList[i] || {};
+        const incId = String(inc.id || '').trim();
+        const incCedula = String(inc.identificacion || '').trim();
+        if (!incId && !incCedula) continue;
 
-        if (existingMap.has(key)) {
-          const cur = existingMap.get(key);
+        let matchIdx = -1;
+        if (incId) {
+          matchIdx = existingList.findIndex(ew => String(ew.id || '').trim() === incId);
+        }
+        if (matchIdx === -1 && incCedula) {
+          matchIdx = existingList.findIndex(ew => String(ew.identificacion || '').trim() === incCedula);
+        }
+
+        if (matchIdx !== -1) {
+          const cur = existingList[matchIdx];
           const mergedSangre = inc.tipoSangre !== undefined && inc.tipoSangre !== '' ? inc.tipoSangre : (inc.rh !== undefined && inc.rh !== '' ? inc.rh : (cur.tipoSangre || cur.rh || ''));
-          existingMap.set(key, {
+          const hasExplicitBirthProp = Object.prototype.hasOwnProperty.call(rawInc, 'fechaNacimiento');
+          const nextFechaNacimiento = hasExplicitBirthProp
+            ? normalizeBirthDateYmd(rawInc.fechaNacimiento)
+            : cur.fechaNacimiento;
+          const derivedAgeFromBirth = nextFechaNacimiento
+            ? calculateAgeFromBirthDate(nextFechaNacimiento)
+            : undefined;
+          const nextEdad = derivedAgeFromBirth !== undefined
+            ? String(derivedAgeFromBirth)
+            : pickNonEmpty(inc.edad, cur.edad);
+
+          existingList[matchIdx] = {
             ...cur,
             nombre: pickNonEmpty(inc.nombre, cur.nombre),
-            edad: pickNonEmpty(inc.edad, cur.edad),
+            identificacion: pickNonEmpty(inc.identificacion, cur.identificacion),
+            edad: nextEdad,
             genero: pickNonEmpty(inc.genero, cur.genero),
             estadoCivil: pickNonEmpty(inc.estadoCivil, cur.estadoCivil),
             nivelEscolaridad: pickNonEmpty(inc.nivelEscolaridad, cur.nivelEscolaridad),
             direccion: pickNonEmpty(inc.direccion, cur.direccion),
             telefono: pickNonEmpty(inc.telefono, cur.telefono),
             salario: pickNonEmpty(inc.salario, cur.salario),
-            fechaNacimiento: pickNonEmpty(inc.fechaNacimiento, cur.fechaNacimiento),
+            fechaNacimiento: nextFechaNacimiento,
             lugarNacimiento: pickNonEmpty(inc.lugarNacimiento, cur.lugarNacimiento),
             barrio: pickNonEmpty(inc.barrio, cur.barrio),
             municipioDomicilio: pickNonEmpty(inc.municipioDomicilio, cur.municipioDomicilio),
@@ -2366,12 +2457,12 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
             motivoRetiro: inc.motivoRetiro !== undefined ? inc.motivoRetiro : cur.motivoRetiro,
             // Cargo is conditioned to Perfiles del Cargo: only update if incoming explicitly set a non-empty cargo
             cargo: (inc.cargo && String(inc.cargo).trim()) ? String(inc.cargo).trim() : cur.cargo,
-          });
+          };
         } else {
-          existingMap.set(key, inc);
+          existingList.push(inc);
         }
       }
-      workersToSave = Array.from(existingMap.values());
+      workersToSave = existingList;
     } else {
       // ─── MASTER SAVE MODE (Perfil Sociodemográfico) ───
       // Protect against accidental loss of cargos
@@ -2525,7 +2616,7 @@ router.post('/save', express.json({ limit: '100mb' }), requireJwtAuth, async (re
           afp: w.afp || '',
           estadoPila: w.estadoPila || 'Pendiente de soporte PILA',
           condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
-          fechaNacimiento: toValidDateOrNull(w.fechaNacimiento),
+          fechaNacimiento: toValidDateOrNull(w.fechaNacimiento, true),
           genero: w.genero || 'No especificado',
           estadoLaboral: w.estadoLaboral || 'Activo',
           fechaRetiro: toValidDateOrNull(w.fechaRetiro),
@@ -2752,9 +2843,9 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
       (w.identificacion && String(w.identificacion).trim() === String(workerId).trim())
     );
     if (workerIndex !== -1) {
-      // Merge changes into the existing worker object
+      // Merge changes into the existing worker object and sanitize fechaNacimiento + edad
       const currentWorker = doc.trabajadores[workerIndex]._doc || doc.trabajadores[workerIndex];
-      doc.trabajadores[workerIndex] = { ...currentWorker, ...changes };
+      doc.trabajadores[workerIndex] = sanitizeSocioWorker({ ...currentWorker, ...changes }, workerIndex);
     }
 
     // Remover la petición de la bandeja correspondiente
@@ -2846,6 +2937,7 @@ Genera un arreglo JSON de exactamente 5 a 10 trabajadores colombianos ficticios 
 Campos para cada trabajador (asegúrate de incluir datos coherentes y de usar direcciones tipo 'Calle 45 # 12-34, Bogotá', o 'Carrera 15 #20-10, Medellín'):
   "nombre": Nombre completo ficticio,
   "identificacion": Cédula ficticia de 8-10 dígitos,
+  "fechaNacimiento": Fecha de nacimiento coherente con la edad en formato "YYYY-MM-DD",
   "edad": Número entre 18 y 60,
   "genero": "Masculino", "Femenino", o "Otro",
   "estadoCivil": "Soltero/a", "Casado/a", "Unión Libre", "Divorciado/a", "Viudo/a",
@@ -2870,11 +2962,16 @@ Esquema JSON Requerido (DEBES responder solo json, sin markdown):
 
     const parsed = JSON.parse(text);
 
-    const finalWorkers = (parsed.trabajadores || []).map(w => ({
-      ...w,
-      id: w.id || require('crypto').randomUUID(),
-      completedByAI: true
-    }));
+    const finalWorkers = (parsed.trabajadores || []).map((w, idx) =>
+      sanitizeSocioWorker(
+        {
+          ...w,
+          id: w.id || require('crypto').randomUUID(),
+          completedByAI: true,
+        },
+        idx,
+      ),
+    );
 
     res.json({ trabajadores: finalWorkers });
   } catch (error) {
@@ -2925,6 +3022,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
     let numWomen = 0;
     let edadPromedio = 0;
     let totalEdades = 0;
+    let totalConEdad = 0;
     let escolaridades = {};
 
     let currentDateTrunc = new Date();
@@ -2937,7 +3035,11 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
       if (w.genero === 'Masculino') numMen++;
       else if (w.genero === 'Femenino') numWomen++;
 
-      if (w.edad) totalEdades += Number(w.edad);
+      const resolvedAge = calculateAgeFromBirthDate(w.fechaNacimiento, w.edad);
+      if (resolvedAge !== undefined && !isNaN(Number(resolvedAge))) {
+        totalEdades += Number(resolvedAge);
+        totalConEdad++;
+      }
       if (w.nivelEscolaridad) {
         if (!escolaridades[w.nivelEscolaridad]) escolaridades[w.nivelEscolaridad] = 0;
         escolaridades[w.nivelEscolaridad]++;
@@ -2962,7 +3064,9 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
       }
     });
 
-    if (trabajadores.length > 0) {
+    if (totalConEdad > 0) {
+      edadPromedio = Math.round(totalEdades / totalConEdad);
+    } else if (trabajadores.length > 0) {
       edadPromedio = Math.round(totalEdades / trabajadores.length);
     }
 
@@ -3248,8 +3352,9 @@ function calculateBiocentricFitBackend(w, perfilesList) {
   }
 
   // 5. CRUCE CON EXIGENCIAS CRÍTICAS DEL CARGO
+  const effectiveBioAge = calculateAgeFromBirthDate(w.fechaNacimiento, w.edad);
   if (cargo.exigenciaFisica === 'Alta') {
-    if (w.edad && Number(w.edad) > 55) {
+    if (effectiveBioAge && Number(effectiveBioAge) > 55) {
       addAudit('Preventivo', 'Alerta de Carga Fisiológica por Edad', 'Colaborador mayor de 55 años en rol de alta exigencia física. Monitoreo ergonómico preventivo.', 0, 'info');
     }
   }
@@ -3330,7 +3435,9 @@ async function recalculateAndSyncAllWorkers(userId, companyId, trabajadoresList)
               nombre: w.nombre,
               cargo: w.cargo || '',
               genero: w.genero || 'No especificado',
-              fechaNacimiento: toValidDateOrNull(w.fechaNacimiento),
+              fechaNacimiento: toValidDateOrNull(w.fechaNacimiento, true),
+              eps: w.eps || '',
+              afp: w.afp || '',
               condicionesSalud: conditionsStr,
               fitScore: w.biocentricScore,
               fitAlerts: w.biocentricAlerts,

@@ -54,7 +54,8 @@ import SGSSTLegalBadge from './SGSSTLegalBadge';
 import cn from '~/utils/cn';
 import { exportPerfilSociodemograficoToExcel, type LicenciaConduccionItem } from './exportPerfilSociodemografico';
 import CollapsibleReportBox from './CollapsibleReportBox';
-import { smartMapExcelToWorkers, toTitleCase, formatWorkerName, normalizeWorkerRecord } from './excelWorkerMapper';
+import { smartMapExcelToWorkers, toTitleCase, formatWorkerName, normalizeWorkerRecord, computeAgeFromBirthDate } from './excelWorkerMapper';
+import { parseWorkbookSheets } from './columnMapperEngine';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
 import ImportMethodModal from './ImportMethodModal';
 import { SOCIODEMOGRAFICO_FIELDS } from './moduleFieldDefinitions';
@@ -300,7 +301,8 @@ const PerfilSociodemografico = () => {
         isOpen: boolean;
         cedula?: string;
         nombre?: string;
-    }>({ isOpen: false, cedula: '', nombre: '' });
+        fechaNacimiento?: string;
+    }>({ isOpen: false, cedula: '', nombre: '', fechaNacimiento: '' });
 
     // Estado Laboral Filter & Search State (Activo vs Retirado)
     const [statusFilter, setStatusFilter] = useState<'all' | 'activo' | 'retirado'>('all');
@@ -582,6 +584,14 @@ const PerfilSociodemografico = () => {
         setTrabajadores(prev => prev.map(w => {
             if (w.id !== workerId) return w;
             const updated = { ...w, [field]: value };
+
+            // Autocalcular Edad exacta si se actualiza Fecha de Nacimiento
+            if (field === 'fechaNacimiento') {
+                const calcAge = computeAgeFromBirthDate(String(value || ''));
+                if (calcAge !== '') {
+                    updated.edad = Number(calcAge);
+                }
+            }
             
             // Auto calculate IMC if peso or talla is updated
             if (field === 'peso' || field === 'talla') {
@@ -802,10 +812,15 @@ const PerfilSociodemografico = () => {
             let rows: any[] = [];
             if (['xlsx', 'xls', 'csv'].includes(extension)) {
                 try {
-                    const wb = XLSX.read(buffer, { type: 'array' });
-                    const firstSheetName = wb.SheetNames[0];
-                    const sheet = wb.Sheets[firstSheetName];
-                    rows = XLSX.utils.sheet_to_json(sheet) as any[];
+                    const parsedWb = parseWorkbookSheets(buffer);
+                    if (parsedWb.sheets.length > 0 && parsedWb.sheets[0].allRows.length > 0) {
+                        rows = parsedWb.sheets[0].allRows;
+                    } else {
+                        const wb = XLSX.read(buffer, { type: 'array' });
+                        const firstSheetName = wb.SheetNames[0];
+                        const sheet = wb.Sheets[firstSheetName];
+                        rows = XLSX.utils.sheet_to_json(sheet) as any[];
+                    }
                 } catch (err) {
                     console.warn('[PerfilSociodemografico] Excel parsing error:', err);
                 }
@@ -863,17 +878,53 @@ const PerfilSociodemografico = () => {
 
             const data = await res.json();
             if (data.success && Array.isArray(data.trabajadores)) {
-                const nuevosTrabajadores = data.trabajadores.map((t: any) => ({
-                    ...EMPTY_WORKER,
-                    ...t,
-                    id: crypto.randomUUID(),
-                    firmaDigital: null,
-                    completedByAI: true,
-                    formacion: Array.isArray(t.formacion) ? t.formacion : [],
-                    licenciasConduccion: Array.isArray(t.licenciasConduccion) ? t.licenciasConduccion : [],
-                }));
+                const updatedList = (() => {
+                    const list = [...trabajadores];
+                    data.trabajadores.forEach((t: any) => {
+                        const normalizedIncoming = normalizeWorkerRecord({
+                            ...EMPTY_WORKER,
+                            ...t,
+                            completedByAI: true,
+                            formacion: Array.isArray(t.formacion) ? t.formacion : [],
+                            licenciasConduccion: Array.isArray(t.licenciasConduccion) ? t.licenciasConduccion : [],
+                        });
+                        const incomingId = String(normalizedIncoming.identificacion || '').replace(/\./g, '').trim();
+                        const incomingNombre = String(normalizedIncoming.nombre || '').trim().toLowerCase();
 
-                const updatedList = [...trabajadores, ...nuevosTrabajadores];
+                        const existingIdx = list.findIndex((w) => {
+                            const wId = String(w.identificacion || '').replace(/\./g, '').trim();
+                            const wNombre = String(w.nombre || '').trim().toLowerCase();
+                            if (incomingId && wId && incomingId === wId) return true;
+                            if (!incomingId && incomingNombre && wNombre && incomingNombre === wNombre) return true;
+                            return false;
+                        });
+
+                        if (existingIdx >= 0) {
+                            const existing = list[existingIdx];
+                            const merged: any = { ...existing, completedByAI: true };
+                            Object.keys(t || {}).forEach((k) => {
+                                const val = normalizedIncoming[k] !== undefined ? normalizedIncoming[k] : t[k];
+                                if (val !== undefined && val !== null && String(val).trim() !== '') {
+                                    if (Array.isArray(val) && val.length === 0) return;
+                                    merged[k] = val;
+                                }
+                            });
+                            list[existingIdx] = normalizeWorkerRecord(merged);
+                        } else {
+                            list.push(
+                                normalizeWorkerRecord({
+                                    ...normalizedIncoming,
+                                    id: t.id || crypto.randomUUID(),
+                                    firmaDigital: null,
+                                }),
+                            );
+                        }
+                    });
+                    return list.sort((a, b) =>
+                        (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }),
+                    );
+                })();
+
                 setTrabajadores(updatedList);
 
                 if (token) {
@@ -1133,9 +1184,14 @@ const PerfilSociodemografico = () => {
         const cargo = cargosDisponibles.find(c => c.nombreCargo === w.cargo);
         if (!cargo) return { score: 0, alerts: ['No hay rol asignado'], isLethal: false };
 
+        const effectiveAge =
+            w.edad !== undefined && w.edad !== '' && Number(w.edad) > 0
+                ? Number(w.edad)
+                : Number(computeAgeFromBirthDate(w.fechaNacimiento) || 0);
+
         // Física
         if (cargo.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) {
+            if (effectiveAge > 55) {
                 score -= 15;
                 alerts.push('Edad avanzada para Alta Exigencia Física');
             }
@@ -1347,6 +1403,7 @@ const PerfilSociodemografico = () => {
                                     isOpen: true,
                                     cedula: '',
                                     nombre: '',
+                                    fechaNacimiento: '',
                                 })
                             }
                         />
@@ -1603,9 +1660,17 @@ const PerfilSociodemografico = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-xs text-text-secondary hidden md:flex items-center gap-1.5 mt-0.5">
+                                            <p className="text-xs text-text-secondary hidden md:flex flex-wrap items-center gap-1.5 mt-0.5">
                                                 <Briefcase className={isRetirado ? "w-3.5 h-3.5 shrink-0 text-rose-500" : "w-3.5 h-3.5 shrink-0 text-teal-500"} />
-                                                {toTitleCase(w.cargo) || 'Sin cargo asignado'} · CC: {w.identificacion || 'N/A'}
+                                                <span>{toTitleCase(w.cargo) || 'Sin cargo asignado'} · CC: {w.identificacion || 'N/A'}</span>
+                                                {(w.edad || computeAgeFromBirthDate(w.fechaNacimiento)) && (
+                                                    <span>· {w.edad || computeAgeFromBirthDate(w.fechaNacimiento)} años</span>
+                                                )}
+                                                {w.fechaNacimiento && (
+                                                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/25">
+                                                        Nac: {w.fechaNacimiento}
+                                                    </span>
+                                                )}
                                                 {isRetirado && w.motivoRetiro && (
                                                     <span className="text-rose-600 dark:text-rose-400 font-medium">· Motivo: {w.motivoRetiro}</span>
                                                 )}
@@ -1631,6 +1696,7 @@ const PerfilSociodemografico = () => {
                                                     isOpen: true,
                                                     cedula: w.identificacion || '',
                                                     nombre: w.nombre || '',
+                                                    fechaNacimiento: w.fechaNacimiento || '',
                                                 });
                                             }}
                                         />
@@ -2759,6 +2825,7 @@ const PerfilSociodemografico = () => {
                 onClose={() => setOsintModalState((prev) => ({ ...prev, isOpen: false }))}
                 initialCedula={osintModalState.cedula}
                 initialNombre={osintModalState.nombre}
+                initialFechaNacimiento={osintModalState.fechaNacimiento}
             />
         </div>
     );

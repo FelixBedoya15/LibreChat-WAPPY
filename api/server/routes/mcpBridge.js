@@ -1582,17 +1582,24 @@ router.post('/workers/import-drive', requireApiKeyOrJwt, async (req, res) => {
       archivo,
       fileName,
       fileId,
+      spreadsheetUrl,
       texto_extraido,
       datos_json,
       trabajadores,
     } = req.body || {};
+
+    let resolvedFileId = String(fileId || '').trim();
+    if (!resolvedFileId && spreadsheetUrl) {
+      const mId = String(spreadsheetUrl).trim().match(/[-\w]{25,}/);
+      if (mId) resolvedFileId = mId[0];
+    }
 
     const { importAndSyncSociodemografico } = require('./sgsst/sociodemograficoDriveService');
     const result = await importAndSyncSociodemografico({
       userId,
       carpeta: carpeta || folder || '',
       archivo: archivo || fileName || '',
-      fileId: fileId || '',
+      fileId: resolvedFileId,
       texto_extraido: texto_extraido || '',
       datos_json: datos_json || null,
       trabajadores: Array.isArray(trabajadores) ? trabajadores : null,
@@ -1721,7 +1728,24 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
     const userId = req.user.id;
     const rawTarget = req.params.idOrCedula || req.body?.idOrCedula || req.body?.cedula || req.body?.identificacion || req.body?.nombre || req.body?.target || '';
     const target = decodeURIComponent(String(rawTarget).trim());
-    const updates = req.body || {};
+    const updates = { ...(req.body || {}) };
+    const { normalizeDateStr, computeAge } = require('./sgsst/sociodemograficoDriveService');
+
+    if (updates.fecha_nacimiento !== undefined) {
+      if (updates.fechaNacimiento === undefined) {
+        updates.fechaNacimiento = updates.fecha_nacimiento;
+      }
+      delete updates.fecha_nacimiento;
+    }
+    if (updates.lugar_nacimiento !== undefined) {
+      if (updates.lugarNacimiento === undefined) {
+        updates.lugarNacimiento = updates.lugar_nacimiento;
+      }
+      delete updates.lugar_nacimiento;
+    }
+    if (updates.fechaNacimiento !== undefined) {
+      updates.fechaNacimiento = normalizeDateStr(updates.fechaNacimiento);
+    }
 
     if (!target) {
       return res.status(400).json({ error: 'Se requiere cédula, ID o nombre del trabajador a actualizar.' });
@@ -1768,6 +1792,18 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
         const cleanEstadoLaboral = updates.estadoLaboral || updates.estado_laboral || current.estadoLaboral;
         const cleanFechaRetiro = updates.fechaRetiro || updates.fecha_retiro || current.fechaRetiro;
         const cleanMotivoRetiro = updates.motivoRetiro || updates.motivo_retiro || current.motivoRetiro;
+        const cleanFechaNacimiento =
+          updates.fechaNacimiento !== undefined
+            ? updates.fechaNacimiento
+            : normalizeDateStr(current.fechaNacimiento);
+        const cleanEdad =
+          updates.fechaNacimiento !== undefined || updates.edad !== undefined
+            ? computeAge(updates.edad ?? current.edad, cleanFechaNacimiento) ??
+              (updates.edad !== undefined ? updates.edad : current.edad)
+            : current.edad;
+        const cleanGenero = updates.genero !== undefined ? updates.genero : current.genero;
+        const cleanLugarNacimiento =
+          updates.lugarNacimiento !== undefined ? updates.lugarNacimiento : current.lugarNacimiento;
 
         // Recalcular IMC si se actualizaron peso o talla
         const pesoVal = updates.peso !== undefined ? updates.peso : current.peso;
@@ -1790,6 +1826,10 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
           identificacion: cleanCedula,
           cedula: cleanCedula,
           documento: cleanCedula,
+          fechaNacimiento: cleanFechaNacimiento,
+          edad: cleanEdad,
+          genero: cleanGenero,
+          lugarNacimiento: cleanLugarNacimiento,
           cargo: cleanCargo,
           areaTrabajo: cleanArea,
           sede: cleanSede,
@@ -1828,6 +1868,9 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
 
     // Actualizar en SgsstWorker
     const cleanDoc = updatedWorker?.identificacion || target;
+    const normFechaForSgsst = normalizeDateStr(
+      updates.fechaNacimiento !== undefined ? updates.fechaNacimiento : updatedWorker?.fechaNacimiento,
+    );
     await SgsstWorker.updateMany(
       {
         ...companyScope(userId, companyId),
@@ -1839,13 +1882,15 @@ router.put('/workers/:idOrCedula', requireApiKeyOrJwt, async (req, res) => {
       },
       {
         $set: {
-          ...(updates.nombre ? { nombre: updates.nombre } : {}),
+          ...(updates.nombre_completo || updates.nombre ? { nombre: updates.nombre_completo || updates.nombre } : {}),
           ...(updates.cargo ? { cargo: updates.cargo } : {}),
           ...(updates.area || updates.areaTrabajo ? { area: updates.area || updates.areaTrabajo } : {}),
           ...(updates.tipo_contrato || updates.tipoContrato ? { tipo_contrato: updates.tipo_contrato || updates.tipoContrato } : {}),
           ...(updates.salario !== undefined ? { salario: updates.salario } : {}),
           ...(updates.eps !== undefined ? { eps: updates.eps } : {}),
           ...(updates.afp !== undefined ? { afp: updates.afp } : {}),
+          ...(updates.genero ? { genero: updates.genero } : {}),
+          ...(normFechaForSgsst ? { fechaNacimiento: new Date(`${normFechaForSgsst}T12:00:00Z`) } : {}),
           ...(updates.estadoLaboral || updates.estado_laboral ? { estadoLaboral: updates.estadoLaboral || updates.estado_laboral } : {}),
           updatedAt: new Date(),
         },

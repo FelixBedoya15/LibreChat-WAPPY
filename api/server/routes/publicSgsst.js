@@ -3,6 +3,10 @@ const mongoose = require('mongoose');
 const { logger } = require('~/config');
 const CompanyInfo = require('~/models/CompanyInfo');
 const Notification = require('~/models/Notification');
+const {
+  normalizeBirthDateYmd,
+  calculateAgeFromBirthDate,
+} = require('./sgsst/birthDateHelper');
 
 const router = express.Router();
 
@@ -137,6 +141,8 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
           $and: [{ $or: swFilter }],
         }).lean();
         if (sw) {
+          const swBirthYmd = normalizeBirthDateYmd(sw.fechaNacimiento);
+          const swCalcAge = calculateAgeFromBirthDate(swBirthYmd, sw.edad);
           worker = {
             id: sw.perfilId || sw._id?.toString() || targetQuery,
             identificacion: sw.documento,
@@ -145,7 +151,8 @@ async function resolveCompanyAndWorker(companyId, { cedula, workerId } = {}) {
             area: sw.area,
             sede: sw.sede,
             genero: sw.genero,
-            edad: sw.edad,
+            fechaNacimiento: swBirthYmd,
+            edad: swCalcAge !== undefined ? String(swCalcAge) : (sw.edad || ''),
             tipoSangre: sw.tipoSangre,
             rh: sw.rh,
             eps: sw.eps,
@@ -946,7 +953,10 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
         afp: worker.afp || '',
         estadoPila: worker.estadoPila || 'Pendiente de soporte PILA',
         arl: company.arl || worker.arl || '',
-        edad: worker.edad || '',
+        edad: (() => {
+          const calc = calculateAgeFromBirthDate(worker.fechaNacimiento, worker.edad);
+          return calc !== undefined ? String(calc) : (worker.edad || '');
+        })(),
         genero: worker.genero || '',
         estadoCivil: worker.estadoCivil || '',
         nivelEscolaridad: worker.nivelEscolaridad || '',
@@ -969,7 +979,7 @@ router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
         licenciaVencimiento: worker.licenciaVencimiento || '',
         curso50h: worker.curso50h || '',
         curso20h: worker.curso20h || '',
-        fechaNacimiento: worker.fechaNacimiento || '',
+        fechaNacimiento: normalizeBirthDateYmd(worker.fechaNacimiento),
         lugarNacimiento: worker.lugarNacimiento || '',
         barrio: worker.barrio || '',
         municipioDomicilio: worker.municipioDomicilio || '',
@@ -1092,6 +1102,16 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
     for (const [key, value] of Object.entries(updates || {})) {
       if (socialKeys.includes(key)) socialUpdates[key] = value;
       if (healthKeys.includes(key)) healthUpdates[key] = value;
+    }
+
+    if (socialUpdates.fechaNacimiento !== undefined) {
+      socialUpdates.fechaNacimiento = normalizeBirthDateYmd(socialUpdates.fechaNacimiento);
+      if (socialUpdates.fechaNacimiento) {
+        const calcAge = calculateAgeFromBirthDate(socialUpdates.fechaNacimiento);
+        if (calcAge !== undefined) {
+          socialUpdates.edad = String(calcAge);
+        }
+      }
     }
 
     // Atomic push to pending inboxes via updateOne to prevent heavy validation and hanging
@@ -2645,8 +2665,15 @@ router.get('/colaborador-info/:companyId/:cedula', async (req, res) => {
         area: perfilWorker?.area || perfilWorker?.proceso || worker?.area || 'Operaciones / Planta',
         sede: perfilWorker?.sede || worker?.sede || 'Principal',
         genero: perfilWorker?.genero || worker?.genero || '',
-        edad: perfilWorker?.edad || worker?.edad || '',
-        fechaNacimiento: perfilWorker?.fechaNacimiento || worker?.fechaNacimiento || null,
+        edad: (() => {
+          const calc = calculateAgeFromBirthDate(
+            perfilWorker?.fechaNacimiento || worker?.fechaNacimiento,
+            perfilWorker?.edad || worker?.edad
+          );
+          return calc !== undefined ? String(calc) : (perfilWorker?.edad || worker?.edad || '');
+        })(),
+        fechaNacimiento:
+          normalizeBirthDateYmd(perfilWorker?.fechaNacimiento || worker?.fechaNacimiento) || null,
         fechaIngreso: perfilWorker?.fechaIngreso || worker?.fechaIngreso || null,
         eps: perfilWorker?.eps || worker?.eps || '',
         afp: perfilWorker?.afp || worker?.afp || '',

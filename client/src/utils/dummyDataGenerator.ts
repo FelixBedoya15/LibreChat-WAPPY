@@ -6,11 +6,21 @@ export const generateDummyData = {
     perfilSociodemografico: () => {
         const now = new Date();
         const past = (months: number) => { const d = new Date(now); d.setMonth(d.getMonth() - months); return d.toISOString().split('T')[0]; };
+        const birthDateForAge = (age: number, month: number, day: number) => {
+            const currY = now.getFullYear();
+            const currM = now.getMonth() + 1;
+            const currD = now.getDate();
+            const hadBirthdayThisYear = month < currM || (month === currM && day <= currD);
+            const birthY = hadBirthdayThisYear ? currY - age : currY - age - 1;
+            return `${birthY}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        };
         return [
             {
                 id: crypto.randomUUID(),
                 nombre: 'Carlos Alberto Ramírez Torres',
                 identificacion: '79845123',
+                fechaNacimiento: birthDateForAge(48, 3, 14),
+                lugarNacimiento: 'Bogotá D.C.',
                 edad: 48,
                 genero: 'Masculino',
                 estadoCivil: 'Casado/a',
@@ -1027,7 +1037,13 @@ export const generateDummyData = {
                 curso20h: '',
                 dictamenPredictivoH1: "<h3>Informe Maestro de Aptitud y Riesgo: Oráculo Predictivo H1 - WAPPY</h3><p><strong>Identificación del Sujeto:</strong> Luz Marina Vargas Peñaloza, Auxiliar de Aseo, Campamento y Servicios Generales (46 años). El presente análisis, ejecutado por el Oráculo Predictivo H1 bajo la metodología de Factores Operativos y Bioindividuales SG-SST, establece una radiografía de la salud ocupacional con un <strong>Score Biocéntrico del 85%</strong>, situando al colaborador en una zona de <strong>Alta Aptitud con Controles Preventivos</strong>.</p><h4>1. Análisis Exhaustivo de Aptitud y Vulnerabilidad Biocéntrica</h4><p>La evaluación multidimensional contrasta las exigencias operativas del puesto con los antecedentes clínicos y biológicos del colaborador:</p><ul><li><strong>Dimensión Biomecánica:</strong> Exigencia física MEDIA con alternancia entre inspección de campo y trabajo de escritorio. Condición articular estable (Apto / Sin Hallazgos), demandando pausas activas para evitar sobrecarga en miembros inferiores y espalda.</li><li><strong>Dimensión Cardiovascular y Fisiológica:</strong> Tensión arterial 120/78 mmHg y FC 74 lpm. Hábitos de salud: Fuma: No, Alcohol: No. Se indica mantener hidratación continua en frentes de obra y hábitos de vida activa.</li><li><strong>Dimensión Psicoemocional y Cognitiva:</strong> Responsabilidad clasificada como Auxiliar / Asistencial con exigencia mental Baja. Carga familiar declarada: 2 dependientes en vivienda Propia (estrato 3). Requiere equilibrio entre jornadas operativas y descanso reparador.</li><li><strong>Blindaje Normativo y Formativo:</strong> Curso de SG-SST: Pendiente. Trabajo Seguro en Alturas: No Registra Certificado.</li></ul><h4>2. Riesgos de Incompatibilidad Inminentes y Crónicos</h4><p>La interacción entre el perfil clínico (Apto / Sin Hallazgos) y los factores del entorno de obra civil demanda control de fatiga y vigilancia ergonómica.</p><h4>3. Plan de Intervención y Vigilancia Epidemiológica a 1 Año</h4><ul><li><strong>Control en Origen e Ingeniería:</strong> Dispensadores automáticos de jabón y desinfectantes; Carros porta-baldes con exprimidor ergonómico.</li><li><strong>Control Administrativo y Procedimental:</strong> Capacitación en autocuidado, pausas activas de 10 minutos por cada jornada de 4 horas y cumplimiento de ATS previo a tareas de alto riesgo.</li><li><strong>Monitoreo y Vigilancia Ocupacional:</strong> Seguimiento en programa de Medicina Preventiva con énfasis ergonómico y visual. Próxima valoración médica programada para seguimiento.</li></ul>"
             },
-        ];
+        ].map((w, idx) => ({
+            lugarNacimiento: 'Bogotá D.C.',
+            ...w,
+            fechaNacimiento:
+                (w as any).fechaNacimiento ||
+                birthDateForAge(w.edad, ((idx * 5 + 2) % 12) + 1, ((idx * 7 + 10) % 27) + 1),
+        }));
     },
 
     // 0b. Perfiles de Cargo (20 Perfiles Recreados con Fotos Reales Base64 Autónomas - Sin Video)
