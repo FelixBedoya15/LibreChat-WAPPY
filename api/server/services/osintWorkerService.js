@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const { promisify } = require('util');
 const { pathToFileURL } = require('url');
 
@@ -250,49 +250,58 @@ async function captureWebOrHtmlEvidence({
             '--no-default-browser-check',
             `--print-to-pdf=${pdfPath}`,
             '--no-pdf-header-footer',
-            `--screenshot=${pngPath}`,
-            target,
           ];
+          if (!hasHtml) {
+            chromeArgs.push('--virtual-time-budget=3500');
+          }
+          chromeArgs.push(target);
 
-          await execFileAsync(chromeBin, chromeArgs, { timeout: timeoutMs });
+          const hardLimitMs = Math.min(Number(timeoutMs) || 12000, hasHtml ? 6000 : 7500);
+          await new Promise((resolve) => {
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(killTimer);
+              resolve();
+            };
+            let child;
+            try {
+              child = spawn(chromeBin, chromeArgs, {
+                stdio: 'ignore',
+                detached: process.platform !== 'win32',
+                windowsHide: true,
+              });
+            } catch (_) {
+              settled = true;
+              resolve();
+              return;
+            }
+            const killTimer = setTimeout(() => {
+              try {
+                if (child.pid && process.platform !== 'win32') {
+                  process.kill(-child.pid, 'SIGKILL');
+                }
+              } catch (_) {}
+              try {
+                child.kill('SIGKILL');
+              } catch (_) {}
+              finish();
+            }, hardLimitMs);
+            child.on('exit', finish);
+            child.on('close', finish);
+            child.on('error', finish);
+          });
 
           if (fs.existsSync(pdfPath)) {
             const pBuf = await fs.promises.readFile(pdfPath);
             if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
               pdfBase64 = pBuf.toString('base64');
-            }
-          }
-          if (fs.existsSync(pngPath)) {
-            const iBuf = await fs.promises.readFile(pngPath);
-            if (
-              iBuf.length > 500 &&
-              iBuf[0] === 0x89 &&
-              iBuf[1] === 0x50 &&
-              iBuf[2] === 0x4e &&
-              iBuf[3] === 0x47
-            ) {
-              imageBase64 = iBuf.toString('base64');
+              imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
             }
           }
         } catch (chromeErr) {
-          // Incluso si Chrome retorna código != 0 por subrecursos lentos, verificar si ya escribió los archivos
-          try {
-            if (!pdfBase64 && fs.existsSync(pdfPath)) {
-              const pBuf = await fs.promises.readFile(pdfPath);
-              if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
-                pdfBase64 = pBuf.toString('base64');
-              }
-            }
-            if (!imageBase64 && fs.existsSync(pngPath)) {
-              const iBuf = await fs.promises.readFile(pngPath);
-              if (iBuf.length > 500 && iBuf[0] === 0x89 && iBuf[1] === 0x50) {
-                imageBase64 = iBuf.toString('base64');
-              }
-            }
-          } catch (_) {}
-          if (!pdfBase64 && !imageBase64) {
-            logger.warn(`[OSINT Chrome Evidence] Aviso capturando ${safePrefix}: ${chromeErr.message}`);
-          }
+          logger.warn(`[OSINT Chrome Evidence] Aviso capturando ${safePrefix}: ${chromeErr.message}`);
         }
       }
 
@@ -2142,43 +2151,6 @@ async function consultarPortalEspecíficoAntigravity({
   if (includeEvidence === true && okPortals.length > 0) {
     try {
       const primary = okPortals[0];
-      const now = Date.now();
-      let cachedSnap = portalLiveScreenshotCache.get(primary.url);
-      if (!cachedSnap || now > cachedSnap.expiresAt) {
-        if (portalLiveScreenshotInFlight.has(primary.url)) {
-          cachedSnap = await portalLiveScreenshotInFlight.get(primary.url);
-        } else {
-          const snapPromise = (async () => {
-            const liveSnap = await captureWebOrHtmlEvidence({
-              url: primary.url,
-              filePrefix: 'Snap_Portal',
-              timeoutMs: 12000,
-            });
-            const snapEntry = {
-              imageBase64: liveSnap.imageBase64 || null,
-              pdfBase64: liveSnap.pdfBase64 || null,
-              expiresAt: Date.now() + 60000,
-            };
-            if (portalLiveScreenshotCache.size > 30) {
-              const tNow = Date.now();
-              for (const [k, v] of portalLiveScreenshotCache.entries()) {
-                if (tNow > v.expiresAt) portalLiveScreenshotCache.delete(k);
-              }
-            }
-            if (snapEntry.imageBase64 || snapEntry.pdfBase64) {
-              portalLiveScreenshotCache.set(primary.url, snapEntry);
-            }
-            return snapEntry;
-          })();
-          portalLiveScreenshotInFlight.set(primary.url, snapPromise);
-          try {
-            cachedSnap = await snapPromise;
-          } finally {
-            portalLiveScreenshotInFlight.delete(primary.url);
-          }
-        }
-      }
-
       const todayISO = new Date().toISOString().split('T')[0];
       const actionTagMap = {
         arl: 'ARL',
@@ -2202,7 +2174,7 @@ async function consultarPortalEspecíficoAntigravity({
         afp: cleanAfp,
         detalles,
         okCount: okPortals.length,
-        primaryPortalScreenshotBase64: cachedSnap?.imageBase64 || '',
+        primaryPortalScreenshotBase64: '',
         primaryPortalName: primary.entidad,
         primaryPortalUrl: primary.url,
       });
@@ -2210,12 +2182,12 @@ async function consultarPortalEspecíficoAntigravity({
       const evid = await captureWebOrHtmlEvidence({
         htmlContent,
         filePrefix: prefix,
-        timeoutMs: 12000,
+        timeoutMs: 6000,
       });
 
-      pdfBase64 = evid.pdfBase64 || cachedSnap?.pdfBase64 || null;
+      pdfBase64 = evid.pdfBase64 || null;
       pdfFileName = pdfBase64 ? `${prefix}.pdf` : null;
-      imageBase64 = evid.imageBase64 || cachedSnap?.imageBase64 || null;
+      imageBase64 = evid.imageBase64 || null;
       imageFileName = imageBase64 ? `${prefix}.png` : null;
     } catch (evErr) {
       logger.warn(`[OSINT Portal ${cleanAction}] Aviso capturando evidencia PDF/PNG: ${evErr.message}`);

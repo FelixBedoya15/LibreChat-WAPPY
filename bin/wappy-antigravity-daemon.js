@@ -4328,46 +4328,57 @@ async function captureWebOrHtmlEvidence({
           '--no-default-browser-check',
           `--print-to-pdf=${pdfPath}`,
           '--no-pdf-header-footer',
-          `--screenshot=${pngPath}`,
-          target,
         ];
+        if (!hasHtml) {
+          chromeArgs.push('--virtual-time-budget=3500');
+        }
+        chromeArgs.push(target);
 
-        await execFileAsync(chromeBin, chromeArgs, { timeout: timeoutMs });
+        const hardLimitMs = Math.min(Number(timeoutMs) || 12000, hasHtml ? 6000 : 7500);
+        await new Promise((resolve) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(killTimer);
+            resolve();
+          };
+          let child;
+          try {
+            child = spawn(chromeBin, chromeArgs, {
+              stdio: 'ignore',
+              detached: process.platform !== 'win32',
+              windowsHide: true,
+            });
+          } catch (_) {
+            settled = true;
+            resolve();
+            return;
+          }
+          const killTimer = setTimeout(() => {
+            try {
+              if (child.pid && process.platform !== 'win32') {
+                process.kill(-child.pid, 'SIGKILL');
+              }
+            } catch (_) {}
+            try {
+              child.kill('SIGKILL');
+            } catch (_) {}
+            finish();
+          }, hardLimitMs);
+          child.on('exit', finish);
+          child.on('close', finish);
+          child.on('error', finish);
+        });
 
         if (fs.existsSync(pdfPath)) {
           const pBuf = await fs.promises.readFile(pdfPath);
           if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
             pdfBase64 = pBuf.toString('base64');
+            imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
           }
         }
-        if (fs.existsSync(pngPath)) {
-          const iBuf = await fs.promises.readFile(pngPath);
-          if (
-            iBuf.length > 500 &&
-            iBuf[0] === 0x89 &&
-            iBuf[1] === 0x50 &&
-            iBuf[2] === 0x4e &&
-            iBuf[3] === 0x47
-          ) {
-            imageBase64 = iBuf.toString('base64');
-          }
-        }
-      } catch (_) {
-        try {
-          if (!pdfBase64 && fs.existsSync(pdfPath)) {
-            const pBuf = await fs.promises.readFile(pdfPath);
-            if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
-              pdfBase64 = pBuf.toString('base64');
-            }
-          }
-          if (!imageBase64 && fs.existsSync(pngPath)) {
-            const iBuf = await fs.promises.readFile(pngPath);
-            if (iBuf.length > 500 && iBuf[0] === 0x89 && iBuf[1] === 0x50) {
-              imageBase64 = iBuf.toString('base64');
-            }
-          }
-        } catch (__) {}
-      }
+      } catch (_) {}
     }
 
     if (!pdfBase64 && !imageBase64) {
