@@ -16,6 +16,9 @@ import {
   CalendarClock,
   MessageSquare,
   FileCheck2,
+  Download,
+  Upload,
+  FileSpreadsheet,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import type { ACPMModalTab } from './KanbanTableView';
@@ -66,6 +69,9 @@ interface KanbanTimelineViewProps {
   onOpenEditModal: (task: TimelineKanbanTask, initialTab?: ACPMModalTab) => void;
   onOpenCreateModal: (defaultDate?: string) => void;
   onMarkComplete: (id: string) => void;
+  onDownloadTemplate?: () => void;
+  onImportExcel?: () => void;
+  onExportExcel?: () => void;
   categoryInfo: Record<string, { label: string; color: string; bg: string }>;
   formatDate: (dateStr: string) => string;
   getDaysDiffText: (task: any) => string;
@@ -108,6 +114,9 @@ export default function KanbanTimelineView({
   tasks,
   onOpenEditModal,
   onOpenCreateModal,
+  onDownloadTemplate,
+  onImportExcel,
+  onExportExcel,
   categoryInfo,
   formatDate,
   getDaysDiffText,
@@ -441,6 +450,41 @@ export default function KanbanTimelineView({
             label="Vista Anual"
             title="Escala Anual (12 meses)"
           />
+
+          <span className="h-5 w-[1px] bg-border-medium/40 mx-1 hidden sm:inline-block" />
+
+          {onDownloadTemplate && (
+            <ExpandableButton
+              onClick={onDownloadTemplate}
+              variant="blue"
+              size="sm"
+              icon={<Download className="w-3.5 h-3.5" />}
+              label="Descargar Formato"
+              title="Descargar Formato / Plantilla Oficial Plan de Trabajo SG-SST (.xlsx)"
+            />
+          )}
+
+          {onImportExcel && (
+            <ExpandableButton
+              onClick={onImportExcel}
+              variant="blue"
+              size="sm"
+              icon={<Upload className="w-3.5 h-3.5" />}
+              label="Importar Cronograma"
+              title="Importar Plan de Trabajo / Cronograma (Homologador, IA o Carga Directa)"
+            />
+          )}
+
+          {onExportExcel && (
+            <ExpandableButton
+              onClick={onExportExcel}
+              variant="green"
+              size="sm"
+              icon={<FileSpreadsheet className="w-3.5 h-3.5" />}
+              label="Exportar Excel"
+              title="Exportar Cronograma / Plan de Trabajo SG-SST a Excel (.xlsx)"
+            />
+          )}
 
           <ExpandableButton
             onClick={() => onOpenCreateModal()}

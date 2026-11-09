@@ -45,8 +45,14 @@ import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import UniversalColumnMapperModal from '~/components/SGSST/UniversalColumnMapperModal';
+import ImportMethodModal from '~/components/SGSST/ImportMethodModal';
 import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
-import { exportModuleDataToExcel } from '~/components/SGSST/columnMapperEngine';
+import {
+  exportCronogramaPlanTrabajoToExcel,
+  smartMapExcelToKanbanTasks,
+  resolveTaskTypeFromModuleString,
+  normalizeTaskDate,
+} from './exportCronogramaPlanTrabajo';
 import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
 import SGSSTHeroHeader from '~/components/SGSST/SGSSTHeroHeader';
 import ExpandableButton, {
@@ -215,7 +221,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     });
   };
 
-  // Excel & AI File Import states
+  // Excel & AI File Import states (3 Herramientas de Importación como Perfil Sociodemográfico)
   const [importPreview, setImportPreview] = useState<any[] | null>(null);
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
@@ -225,13 +231,15 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     type: string;
   } | null>(null);
   const [isConfirmAiModalOpen, setIsConfirmAiModalOpen] = useState<boolean>(false);
+  const [isImportMethodModalOpen, setIsImportMethodModalOpen] = useState<boolean>(false);
+  const [pendingDirectRows, setPendingDirectRows] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
-  // Homologador Visual de Casillas (Paralelo de Excel)
+  // Homologador Visual de Casillas (Paralelo de Excel - Opción 1)
   const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
   const [columnMapperBuffer, setColumnMapperBuffer] = useState<ArrayBuffer | null>(null);
 
@@ -247,55 +255,75 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       if (!title) return;
 
       const description = row.description ? String(row.description).trim() : '';
-      let dueDate = row.dueDate ? String(row.dueDate).trim() : '';
-
-      if (!dueDate) {
-        const defaultDate = new Date();
-        defaultDate.setDate(defaultDate.getDate() + 7);
-        dueDate = defaultDate.toISOString().split('T')[0];
-      }
+      const dueDate = normalizeTaskDate(row.dueDate);
 
       let status: 'todo' | 'due_soon' | 'overdue' | 'done' = 'todo';
       if (row.status) {
         const statusStr = String(row.status).toLowerCase().trim();
-        if (statusStr.includes('complet') || statusStr.includes('hecha') || statusStr.includes('done') || statusStr.includes('terminada') || statusStr.includes('cerrad')) {
+        if (
+          statusStr.includes('complet') ||
+          statusStr.includes('hecha') ||
+          statusStr.includes('done') ||
+          statusStr.includes('terminada') ||
+          statusStr.includes('cerrad') ||
+          statusStr.includes('ejecutad')
+        ) {
           status = 'done';
-        } else if (statusStr.includes('vencid') || statusStr.includes('overdue') || statusStr.includes('alerta') || statusStr.includes('retrasad')) {
+        } else if (
+          statusStr.includes('vencid') ||
+          statusStr.includes('overdue') ||
+          statusStr.includes('alerta') ||
+          statusStr.includes('retrasad')
+        ) {
           status = 'overdue';
-        } else if (statusStr.includes('proxim') || statusStr.includes('próxim') || statusStr.includes('due_soon')) {
+        } else if (
+          statusStr.includes('proxim') ||
+          statusStr.includes('próxim') ||
+          statusStr.includes('due_soon') ||
+          statusStr.includes('curso')
+        ) {
           status = 'due_soon';
         }
       }
 
-      let actionType: 'correctiva' | 'preventiva' | 'mejora' = 'correctiva';
+      let actionType: 'correctiva' | 'preventiva' | 'mejora' = 'preventiva';
       if (row.actionType) {
         const atStr = String(row.actionType).toLowerCase().trim();
-        if (atStr.includes('prev')) actionType = 'preventiva';
+        if (atStr.includes('corr')) actionType = 'correctiva';
         else if (atStr.includes('mej')) actionType = 'mejora';
+        else if (atStr.includes('prev')) actionType = 'preventiva';
       }
 
       let priority: 'alta' | 'media' | 'baja' = 'media';
       if (row.priority) {
         const pStr = String(row.priority).toLowerCase().trim();
-        if (pStr.includes('alt')) priority = 'alta';
+        if (pStr.includes('alt') || pStr.includes('crit') || pStr.includes('crít')) priority = 'alta';
         else if (pStr.includes('baj')) priority = 'baja';
       }
+
+      const resolvedModule = resolveTaskTypeFromModuleString(row.sourceModule || row.type);
 
       parsedTasks.push({
         title,
         description,
         dueDate,
+        startTime: row.startTime ? String(row.startTime).trim() : '09:00',
+        endTime: row.endTime ? String(row.endTime).trim() : '10:00',
         status,
         actionType,
         priority,
         assignedTo: row.assignedTo ? String(row.assignedTo).trim() : undefined,
-        sourceModule: row.sourceModule ? String(row.sourceModule).trim() : 'Plan ACPM Excel',
-        type: 'manual'
+        location: row.location ? String(row.location).trim() : undefined,
+        sourceModule: resolvedModule.sourceModule,
+        type: resolvedModule.type,
       });
     });
 
     if (parsedTasks.length === 0) {
-      showToast({ message: 'No se encontraron actividades válidas en el Excel. Asegúrate de mapear el Título o Actividad.', status: 'warning' });
+      showToast({
+        message: 'No se encontraron actividades válidas en el Excel. Asegúrate de mapear el Título o Actividad.',
+        status: 'warning',
+      });
       return;
     }
 
@@ -304,43 +332,91 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     setImportPreview(parsedTasks);
   };
 
+  // Opción 3: Carga Directa e Inmediata (1 a 1 sin límites de IA)
+  const handleDirectImport = () => {
+    setIsImportMethodModalOpen(false);
+    if (!pendingDirectRows || pendingDirectRows.length === 0) {
+      showToast({
+        message: 'No se detectaron filas tabulares para carga directa. Usa la opción de IA para documentos de texto o PDF.',
+        status: 'warning',
+      });
+      return;
+    }
+    const mapped = smartMapExcelToKanbanTasks(pendingDirectRows);
+    if (mapped.length === 0) {
+      showToast({
+        message: 'No se pudieron identificar actividades en las columnas del archivo. Prueba con el Homologador Visual (Opción 1).',
+        status: 'warning',
+      });
+      return;
+    }
+    setPendingDirectRows([]);
+    setImportPreview(mapped);
+    showToast({
+      message: `Carga directa 1 a 1 lista: ${mapped.length} actividades preparadas para importar al Cronograma / Plan de Trabajo.`,
+      status: 'success',
+    });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const extension = file.name.split('.').pop()?.toLowerCase();
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
 
-    const requestAiImport = () => {
-      const base64Reader = new FileReader();
-      base64Reader.onload = (base64Event) => {
-        setPendingFileData({
-          dataUrl: base64Event.target?.result as string,
-          name: file.name,
-          type: file.type || 'application/octet-stream'
-        });
-        setIsConfirmAiModalOpen(true);
-      };
-      base64Reader.readAsDataURL(file);
+    // Always read base64 DataURL so Opción 2 (Reconstrucción Inteligente con IA) works for any file
+    const base64Reader = new FileReader();
+    base64Reader.onload = (base64Event) => {
+      setPendingFileData({
+        dataUrl: base64Event.target?.result as string,
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+      });
     };
+    base64Reader.readAsDataURL(file);
 
-    // If PDF, Word, or plain text, go straight to AI
-    if (['pdf', 'docx', 'doc', 'txt'].includes(extension || '')) {
-      requestAiImport();
+    // If Excel, CSV, or JSON: read ArrayBuffer + parse rows and open the 3-Option ImportMethodModal (like Perfil Sociodemográfico)
+    if (['xlsx', 'xls', 'csv', 'json'].includes(extension)) {
+      const reader = new FileReader();
+      reader.onload = (eEvent) => {
+        try {
+          const buffer = eEvent.target?.result as ArrayBuffer;
+          if (!buffer) return;
+          setColumnMapperBuffer(buffer);
+
+          let jsonData: any[] = [];
+          if (extension === 'json') {
+            const text = new TextDecoder('utf-8').decode(new Uint8Array(buffer));
+            const parsed = JSON.parse(text);
+            jsonData = Array.isArray(parsed) ? parsed : [parsed];
+          } else {
+            const data = new Uint8Array(buffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as any[];
+          }
+
+          setPendingDirectRows(jsonData);
+          setIsImportMethodModalOpen(true);
+        } catch (err) {
+          console.error('Error leyendo archivo de cronograma:', err);
+          showToast({
+            message: 'Error al leer el archivo. Verifica que sea un Excel o CSV válido.',
+            status: 'error',
+          });
+        }
+      };
+      reader.readAsArrayBuffer(file);
       if (e.target) e.target.value = '';
       return;
     }
 
-    // If Excel or CSV, open UniversalColumnMapperModal
-    if (['xlsx', 'xls', 'csv'].includes(extension || '')) {
-      const reader = new FileReader();
-      reader.onload = (eEvent) => {
-        const buffer = eEvent.target?.result as ArrayBuffer;
-        if (buffer) {
-          setColumnMapperBuffer(buffer);
-          setIsColumnMapperOpen(true);
-        }
-      };
-      reader.readAsArrayBuffer(file);
+    // If PDF, Word, or plain text, open ImportMethodModal with AI option ready
+    if (['pdf', 'docx', 'doc', 'txt'].includes(extension)) {
+      setColumnMapperBuffer(null);
+      setPendingDirectRows([]);
+      setIsConfirmAiModalOpen(true);
       if (e.target) e.target.value = '';
       return;
     }
@@ -349,22 +425,29 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
   const handleConfirmAiImport = async () => {
     if (!pendingFileData) return;
     setIsConfirmAiModalOpen(false);
+    setIsImportMethodModalOpen(false);
     setIsAiLoading(true);
     try {
       const res = await axios.post('/api/sgsst/kanban/import-file', {
         fileData: pendingFileData.dataUrl,
         fileName: pendingFileData.name,
-        mimeType: pendingFileData.type
+        mimeType: pendingFileData.type,
       });
       if (res.data && res.data.tasks) {
         setImportPreview(res.data.tasks);
-        showToast({ message: `IA procesó el archivo con éxito. Detectó ${res.data.tasks.length} actividades.`, status: 'success' });
+        showToast({
+          message: `IA procesó el archivo con éxito. Detectó ${res.data.tasks.length} actividades para el Plan de Trabajo.`,
+          status: 'success',
+        });
       } else {
         showToast({ message: 'No se pudieron extraer actividades con IA.', status: 'warning' });
       }
     } catch (err: any) {
       console.error('Error in AI import:', err);
-      showToast({ message: err.response?.data?.error || 'Error al procesar el archivo con IA', status: 'error' });
+      showToast({
+        message: err.response?.data?.error || 'Error al procesar el archivo con IA',
+        status: 'error',
+      });
     } finally {
       setIsAiLoading(false);
       setPendingFileData(null);
@@ -376,9 +459,12 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     setIsImporting(true);
     try {
       await axios.post('/api/sgsst/kanban/bulk-save', { tasks: importPreview });
-      showToast({ message: `¡Se importaron ${importPreview.length} actividades correctamente!`, status: 'success' });
+      showToast({
+        message: `¡Se importaron ${importPreview.length} actividades al Cronograma / Plan de Trabajo SG-SST!`,
+        status: 'success',
+      });
       setImportPreview(null);
-      fetchTasks();
+      fetchTasks(true);
     } catch (err) {
       console.error('Error saving imported tasks:', err);
       showToast({ message: 'No se pudieron guardar las actividades importadas.', status: 'error' });
@@ -387,72 +473,44 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     }
   };
 
-  const handleExportExcel = () => {
-    const mappedTasks = tasks.map((t) => {
-      const obsSummary =
-        Array.isArray(t.observations) && t.observations.length > 0
-          ? ` | Observaciones (${t.observations.length}): ${t.observations
-              .map((o) => `[${o.author}: ${o.text}]`)
-              .join(' ; ')}`
-          : '';
-      const reschedSummary =
-        Array.isArray(t.rescheduleHistory) && t.rescheduleHistory.length > 0
-          ? ` | Reprogramaciones (${t.rescheduleHistory.length}): ${t.rescheduleHistory
-              .map((r) => `${r.previousDate} -> ${r.newDate} (${r.reason})`)
-              .join(' ; ')}`
-          : '';
-      const closureSummary = t.closureDetails?.howItWasClosed
-        ? ` | Cierre ACPM: ${t.closureDetails.howItWasClosed} (Evidencia: ${
-            t.closureDetails.evidenceRef || 'N/A'
-          }, Eficacia: ${t.closureDetails.effectiveness || 'eficaz'})`
-        : '';
-
-      return {
-        title: t.title || '',
-        description: `${t.description || ''}${obsSummary}${reschedSummary}${closureSummary}`.trim(),
-        dueDate: t.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : '',
-        status:
-          t.status === 'done'
-            ? 'Completada (done)'
-            : t.status === 'overdue'
-              ? 'Vencida (overdue)'
-              : t.status === 'due_soon'
-                ? 'Próxima a vencer (due_soon)'
-                : 'Pendiente (todo)',
-        actionType:
-          t.actionType === 'preventiva'
-            ? 'Preventiva'
-            : t.actionType === 'mejora'
-              ? 'Mejora'
-              : 'Correctiva',
-        priority: t.priority === 'alta' ? 'Alta' : t.priority === 'baja' ? 'Baja' : 'Media',
-        assignedTo: t.assignedTo || '',
-        sourceModule: categoryInfo[t.type]?.label || t.sourceModule || 'ACPM SG-SST',
-      };
-    });
-    exportModuleDataToExcel({
-      targetFields: KANBAN_ACPM_FIELDS,
-      data: mappedTasks,
-      fileName: `Tablero_Kanban_ACPM_${new Date().toISOString().split('T')[0]}.xlsx`,
-      isTemplate: false,
-    });
-    showToast({
-      message: 'Actividades del tablero exportadas a Excel exitosamente',
-      status: 'success',
-    });
+  const handleExportExcel = async () => {
+    try {
+      await exportCronogramaPlanTrabajoToExcel(
+        tasks,
+        `Plan_Trabajo_Cronograma_SGSST_${new Date().toISOString().split('T')[0]}.xlsx`,
+        false,
+      );
+      showToast({
+        message: 'Cronograma / Plan de Trabajo SG-SST exportado a Excel exitosamente',
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Error exporting Cronograma Excel:', err);
+      showToast({
+        message: 'Error al exportar el Cronograma a Excel',
+        status: 'error',
+      });
+    }
   };
 
-  const handleDownloadTemplate = () => {
-    exportModuleDataToExcel({
-      targetFields: KANBAN_ACPM_FIELDS,
-      data: [],
-      fileName: 'Plantilla_Kanban_ACPM.xlsx',
-      isTemplate: true,
-    });
-    showToast({
-      message: 'Plantilla de Actividades ACPM descargada exitosamente',
-      status: 'success',
-    });
+  const handleDownloadTemplate = async () => {
+    try {
+      await exportCronogramaPlanTrabajoToExcel(
+        [],
+        'Formato_Plan_Trabajo_Cronograma_SGSST.xlsx',
+        true,
+      );
+      showToast({
+        message: 'Formato oficial en Excel para importar Cronograma / Plan de Trabajo SG-SST descargado exitosamente',
+        status: 'success',
+      });
+    } catch (err) {
+      console.error('Error downloading Cronograma template:', err);
+      showToast({
+        message: 'Error al descargar el formato de Cronograma en Excel',
+        status: 'error',
+      });
+    }
   };
   
   // Modal states (360° ACPM Management: Details, Observations, Reschedule, Closure)
@@ -1651,7 +1709,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 className="hidden"
-                accept=".xlsx, .xls, .pdf, .docx, .doc, .txt"
+                accept=".xlsx, .xls, .csv, .json, .pdf, .docx, .doc, .txt"
               />
 
               <ExpandableButton
@@ -1953,9 +2011,47 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           })}
         </div>
 
-        <div className="text-[11px] font-semibold text-text-tertiary hidden xl:flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Sincronización multi-vista en tiempo real</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-[11px] font-semibold text-text-tertiary hidden 2xl:flex items-center gap-1.5 mr-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Sincronización multi-vista en tiempo real</span>
+          </div>
+
+          <ExpandableButton
+            onClick={handleDownloadTemplate}
+            variant="blue"
+            size="sm"
+            icon={<Download className="w-3.5 h-3.5 text-current" />}
+            label="Descargar Formato"
+            title="Descargar Formato / Plantilla Excel Plan de Trabajo y Cronograma SG-SST (.xlsx)"
+          />
+
+          <ExpandableButton
+            onClick={triggerFileInput}
+            variant="blue"
+            size="sm"
+            icon={<Upload className="w-3.5 h-3.5 text-current" />}
+            label="Importar Cronograma"
+            title="Importar Cronograma / Plan de Trabajo SG-SST (3 Herramientas: Homologador, IA o Carga Directa)"
+          />
+
+          <ExpandableButton
+            onClick={handleExportExcel}
+            variant="green"
+            size="sm"
+            icon={<FileSpreadsheet className="w-3.5 h-3.5 text-current" />}
+            label="Exportar Excel"
+            title="Exportar Cronograma / Plan de Trabajo SG-SST a Excel (.xlsx)"
+          />
+
+          <ExpandableButton
+            onClick={() => openCreateModal()}
+            variant="emerald"
+            size="sm"
+            icon={<Plus className="w-3.5 h-3.5 text-current" />}
+            label="Nueva Actividad"
+            title="Programar nueva actividad en el Plan de Trabajo SG-SST"
+          />
         </div>
       </div>
 
@@ -2111,6 +2207,9 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           onOpenEditModal={(task, tab) => openEditModal(task as any, tab)}
           onOpenCreateModal={(date) => openCreateModal(date)}
           onMarkComplete={(id) => handleMarkComplete(id)}
+          onDownloadTemplate={handleDownloadTemplate}
+          onImportExcel={triggerFileInput}
+          onExportExcel={handleExportExcel}
           categoryInfo={categoryInfo}
           formatDate={formatDate}
           getDaysDiffText={getDaysDiffText}
@@ -3264,6 +3363,28 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       )}
 
+      {/* Modal de Selección de Método de Importación (3 Herramientas igual que Perfil Sociodemográfico) */}
+      <ImportMethodModal
+        isOpen={isImportMethodModalOpen}
+        onClose={() => {
+          setIsImportMethodModalOpen(false);
+          setPendingDirectRows([]);
+        }}
+        rowsCount={pendingDirectRows.length}
+        moduleTitle="Cronograma y Plan de Trabajo Anual SG-SST"
+        hasColumnMapper={!!columnMapperBuffer}
+        onSelectColumnMapper={() => {
+          setIsImportMethodModalOpen(false);
+          setIsColumnMapperOpen(true);
+        }}
+        hasAi={true}
+        onSelectAi={handleConfirmAiImport}
+        onSelectDirect={handleDirectImport}
+        columnMapperDescription="Compara las columnas de tu archivo Excel frente al formato técnico oficial del Plan de Trabajo y Cronograma SG-SST en tiempo real. Previsualiza las filas, guarda plantillas y procesa los datos al instante sin límites de IA."
+        aiDescription="Analiza automáticamente tu cronograma o plan de trabajo, desglosa actividades, infiere prioridades, tipos de acción ACPM, módulos SG-SST y fechas programadas con Inteligencia Artificial."
+        directDescription="Mapea las columnas del archivo Excel del Cronograma / Plan de Trabajo 1 a 1 de forma directa e instantánea, sin límites de cantidad ni intervención de IA."
+      />
+
       {/* Modal Homologador Universal de Casillas (Paralelo de Excel) */}
       <UniversalColumnMapperModal
         isOpen={isColumnMapperOpen}
@@ -3272,7 +3393,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
           setColumnMapperBuffer(null);
         }}
         moduleKey="kanban-acpm"
-        moduleTitle="Tablero Kanban ACPM"
+        moduleTitle="Plan de Trabajo Anual y Cronograma SG-SST"
         targetFields={KANBAN_ACPM_FIELDS}
         fileData={columnMapperBuffer}
         onConfirmImport={handleConfirmColumnMapping}

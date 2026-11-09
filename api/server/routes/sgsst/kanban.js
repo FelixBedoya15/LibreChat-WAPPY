@@ -1503,6 +1503,9 @@ router.post('/bulk-save', requireJwtAuth, async (req, res) => {
         if (t.actionType) existing.actionType = t.actionType;
         if (t.sourceModule) existing.sourceModule = t.sourceModule;
         if (t.assignedTo) existing.assignedTo = t.assignedTo;
+        if (t.startTime) existing.startTime = t.startTime;
+        if (t.endTime) existing.endTime = t.endTime;
+        if (t.location) existing.location = t.location;
         await existing.save();
         processedTasks.push(existing);
       } else {
@@ -1515,9 +1518,12 @@ router.post('/bulk-save', requireJwtAuth, async (req, res) => {
           status: t.status || 'todo',
           type: t.type || 'manual',
           priority: t.priority || 'media',
-          actionType: t.actionType || 'correctiva',
-          sourceModule: t.sourceModule || 'Plan ACPM Excel',
+          actionType: t.actionType || 'preventiva',
+          sourceModule: t.sourceModule || 'Plan de Trabajo Anual SG-SST',
           assignedTo: t.assignedTo || '',
+          startTime: t.startTime || '09:00',
+          endTime: t.endTime || '10:00',
+          location: t.location || '',
         });
         processedTasks.push(created);
       }
@@ -1568,7 +1574,33 @@ router.post('/import-file', requireJwtAuth, express.json({ limit: '50mb' }), asy
               description: { type: 'string' },
               dueDate: { type: 'string' },
               status: { type: 'string', enum: ['todo', 'due_soon', 'overdue', 'done'] },
-              type: { type: 'string', enum: ['manual', 'training', 'medical_exam', 'soat', 'rtm', 'driver_license', 'other'] }
+              type: {
+                type: 'string',
+                enum: [
+                  'manual',
+                  'training',
+                  'medical_exam',
+                  'soat',
+                  'rtm',
+                  'driver_license',
+                  'audit_finding',
+                  'diagnostico_finding',
+                  'alta_direccion_finding',
+                  'unsafe_act_finding',
+                  'ipevar_finding',
+                  'atel_finding',
+                  'copasst_finding',
+                  'convivencia_finding',
+                  'other',
+                ],
+              },
+              priority: { type: 'string', enum: ['alta', 'media', 'baja'] },
+              actionType: { type: 'string', enum: ['correctiva', 'preventiva', 'mejora'] },
+              sourceModule: { type: 'string' },
+              assignedTo: { type: 'string' },
+              startTime: { type: 'string' },
+              endTime: { type: 'string' },
+              location: { type: 'string' },
             },
             required: ['title', 'dueDate', 'status', 'type'],
           },
