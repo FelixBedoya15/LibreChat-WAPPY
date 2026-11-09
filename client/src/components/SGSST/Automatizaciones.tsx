@@ -1271,14 +1271,17 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           Historial de Ejecuciones
         </button>
 
-        <button 
-          onClick={activeTab === 'list' ? fetchAutomations : activeTab === 'presets' ? fetchPresets : fetchLogs}
-          disabled={loading || logsLoading || presetsLoading}
-          className="ml-auto p-2 text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition duration-200"
-          title="Actualizar"
-        >
-          <RefreshCw className={`w-4 h-4 ${(loading || logsLoading || presetsLoading) ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="ml-auto py-1 px-1">
+          <ExpandableButton
+            type="button"
+            size="sm"
+            variant="purple"
+            disabled={loading || logsLoading || presetsLoading}
+            icon={<RefreshCw className={`w-3.5 h-3.5 ${(loading || logsLoading || presetsLoading) ? 'animate-spin' : ''}`} />}
+            label="Actualizar"
+            onClick={activeTab === 'list' ? fetchAutomations : activeTab === 'presets' ? fetchPresets : fetchLogs}
+          />
+        </div>
       </div>
 
       {/* Content Area */}
@@ -1298,20 +1301,21 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6">
                 Activa con 1 clic cualquiera de los <strong>Flujos Preestablecidos del Sistema</strong> o diseña tu propio flujo con conectores de Google, APIs, MCP y los 7 Hitos de Somos SST.
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <button
+              <div className="flex flex-wrap items-center justify-center gap-3 py-1 px-2">
+                <ExpandableButton
+                  type="button"
+                  variant="teal"
+                  icon={<Workflow className="w-4 h-4" />}
+                  label="Explorar Flujos Preestablecidos"
                   onClick={() => setActiveTab('presets')}
-                  className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-xl shadow-md transition duration-200 text-xs uppercase tracking-wider flex items-center gap-2"
-                >
-                  <Workflow className="w-4 h-4" />
-                  Explorar Flujos Preestablecidos
-                </button>
-                <button
+                />
+                <ExpandableButton
+                  type="button"
+                  variant="purple"
+                  icon={<Plus className="w-4 h-4" />}
+                  label="Crear Tarea desde Cero"
                   onClick={handleCreateOpen}
-                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition duration-200 text-xs uppercase tracking-wider"
-                >
-                  Crear tarea desde cero
-                </button>
+                />
               </div>
             </div>
           ) : (
@@ -1562,19 +1566,30 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
             {/* Filtro de categorías */}
             <div className="flex flex-wrap items-center gap-2.5 mb-5 py-1 px-1">
-              {PRESET_CATEGORIES.map((cat) => (
-                <ExpandableButton
-                  key={cat.id}
-                  type="button"
-                  size="sm"
-                  variant="teal"
-                  isActive={selectedPresetCategory === cat.id}
-                  icon={<span className="text-xs leading-none">{cat.icon}</span>}
-                  badge={cat.label.split(' ')[0]}
-                  label={cat.label}
-                  onClick={() => setSelectedPresetCategory(cat.id)}
-                />
-              ))}
+              {PRESET_CATEGORIES.map((cat, cIdx) => {
+                const catVariants = [
+                  'teal',
+                  'purple',
+                  'amber',
+                  'cyan',
+                  'emerald',
+                  'indigo',
+                  'fuchsia',
+                  'blue',
+                ] as const;
+                return (
+                  <ExpandableButton
+                    key={cat.id}
+                    type="button"
+                    size="sm"
+                    variant={catVariants[cIdx % catVariants.length]}
+                    isActive={selectedPresetCategory === cat.id}
+                    icon={<span className="text-xs leading-none">{cat.icon}</span>}
+                    label={cat.label}
+                    onClick={() => setSelectedPresetCategory(cat.id)}
+                  />
+                );
+              })}
             </div>
 
             {presetsLoading ? (
@@ -1768,19 +1783,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                               <p className="line-clamp-2 italic leading-relaxed text-gray-800 dark:text-gray-200">
                                 "{log.result}"
                               </p>
-                              <button
-                                type="button"
-                                onClick={() => setViewResultModal({
-                                  title: log.prompt,
-                                  agentName: log.agentName,
-                                  date: log.runAt,
-                                  content: log.result || '',
-                                  conversationId: log.conversationId
-                                })}
-                                className="text-[11px] font-bold text-purple-600 hover:text-purple-700 dark:text-purple-400 mt-1 inline-flex items-center gap-1 hover:underline"
-                              >
-                                <Eye className="w-3 h-3" /> Ver informe completo
-                              </button>
+                              <div className="mt-1.5">
+                                <ExpandableButton
+                                  type="button"
+                                  size="sm"
+                                  variant="purple"
+                                  icon={<Eye className="w-3.5 h-3.5" />}
+                                  label="Ver Informe Completo"
+                                  onClick={() =>
+                                    setViewResultModal({
+                                      title: log.prompt,
+                                      agentName: log.agentName,
+                                      date: log.runAt,
+                                      content: log.result || '',
+                                      conversationId: log.conversationId,
+                                    })
+                                  }
+                                />
+                              </div>
                             </div>
                           ) : log.status === 'failed' ? (
                             <p className="text-red-500 font-semibold leading-relaxed">{log.error}</p>
@@ -1903,7 +1923,6 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                       type="button"
                       variant={formSaveAsSystemPreset ? 'compliance-ok' : 'teal'}
                       isActive={formSaveAsSystemPreset}
-                      badge={formSaveAsSystemPreset ? '✓ Activo' : undefined}
                       icon={<Globe className="w-4 h-4" />}
                       label={
                         formSaveAsSystemPreset
@@ -2031,13 +2050,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   </p>
                 </div>
               </div>
-              <button
+              <ExpandableButton
                 type="button"
+                size="sm"
+                variant="slate"
+                icon={<XCircle className="w-4 h-4" />}
+                label="Cerrar"
                 onClick={() => setViewResultModal(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
+              />
             </div>
 
             {/* Modal Content / Report Body */}
@@ -2061,13 +2081,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   </a>
                 )}
               </div>
-              <button
+              <ExpandableButton
                 type="button"
+                size="sm"
+                variant="slate"
+                icon={<XCircle className="w-4 h-4" />}
+                label="Cerrar"
                 onClick={() => setViewResultModal(null)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold rounded-xl text-xs uppercase tracking-wider transition"
-              >
-                Cerrar
-              </button>
+              />
             </div>
           </div>
         </div>

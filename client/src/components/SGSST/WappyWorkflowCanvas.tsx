@@ -3516,8 +3516,7 @@ export default function WappyWorkflowCanvas({
                   variant={tab.variant}
                   isActive={paletteTab === tab.id}
                   icon={tab.icon}
-                  badge={tab.badge}
-                  label={tab.label}
+                  label={`${tab.label} (${tab.badge.split('·')[1]?.trim() || tab.badge})`}
                   title={`Etapa ${tab.label}`}
                   onClick={() => {
                     setPaletteTab(tab.id as any);
@@ -3702,7 +3701,6 @@ export default function WappyWorkflowCanvas({
                       variant={fTab.variant}
                       isActive={selectedSkillFilter === fTab.id}
                       icon={fTab.icon}
-                      badge={fTab.badge}
                       label={fTab.label}
                       onClick={() => setSelectedSkillFilter(fTab.id as any)}
                     />
@@ -3737,15 +3735,6 @@ export default function WappyWorkflowCanvas({
                     variant="primary"
                     isActive={showCustomNodeBuilder}
                     icon={<Plus className="w-3.5 h-3.5" />}
-                    badge={
-                      showCustomNodeBuilder
-                        ? 'Cerrar'
-                        : paletteTab === 'subagents'
-                          ? '+ Crear Sub-Agente'
-                          : paletteTab === 'scraping'
-                            ? '+ Crear Scraper'
-                            : '+ Crear Skill / Regla'
-                    }
                     label={
                       showCustomNodeBuilder
                         ? 'Cerrar Creador de Nodos'
@@ -3913,7 +3902,6 @@ export default function WappyWorkflowCanvas({
                           size="sm"
                           variant="purple"
                           icon={<Wand2 className="w-3.5 h-3.5" />}
-                          badge="Autogenerar"
                           label="⚡ Autogenerar Script Base de Scraping"
                           onClick={() => {
                             const urlSample =
@@ -3970,7 +3958,6 @@ export default function WappyWorkflowCanvas({
                       variant="purple"
                       disabled={!newCustomNodeForm.title.trim()}
                       icon={<Plus className="w-3.5 h-3.5" />}
-                      badge="+ Crear"
                       label="Crear Nodo y Agregar al Lienzo"
                       onClick={handleCreateAndSaveCustomNode}
                     />
@@ -4336,19 +4323,7 @@ export default function WappyWorkflowCanvas({
                           variant={variantMap[tTab.id] || 'cyan'}
                           isActive={isActive}
                           icon={iconMap[tTab.id]}
-                          badge={
-                            <span className="inline-flex items-center gap-1">
-                              <span>
-                                {tTab.shortLabel} ({toolsInSubgroup.length})
-                              </span>
-                              {activeCountInSubgroup > 0 && (
-                                <span className="text-emerald-600 dark:text-[#C7F303]">
-                                  ✓{activeCountInSubgroup}
-                                </span>
-                              )}
-                            </span>
-                          }
-                          label={`${tTab.label} (${toolsInSubgroup.length})`}
+                          label={`${tTab.label} (${toolsInSubgroup.length})${activeCountInSubgroup > 0 ? ` · ✓${activeCountInSubgroup}` : ''}`}
                           title={`${tTab.label} — ${toolsInSubgroup.length} herramientas disponibles · ${activeCountInSubgroup} conectada(s)`}
                           onClick={() => {
                             setSelectedToolSubgroup(tTab.id as any);
@@ -4372,7 +4347,6 @@ export default function WappyWorkflowCanvas({
                         variant="teal"
                         isActive={selectedHitoFilter === 'external'}
                         icon={<Globe className="w-3.5 h-3.5" />}
-                        badge={`Fuentes (${EXTRACTOR_NODES.length})`}
                         label={`Conectores / Fuentes (${EXTRACTOR_NODES.length})`}
                         onClick={() => {
                           setSelectedHitoFilter('external');
@@ -4380,7 +4354,7 @@ export default function WappyWorkflowCanvas({
                         }}
                       />
                     )}
-                    {HITOS_8_FILTER_TABS.map((hTab) => {
+                    {HITOS_8_FILTER_TABS.map((hTab, hIdx) => {
                       const isActive =
                         selectedHitoFilter === hTab.id ||
                         (paletteTab === 'hitos' && selectedHitoFilter === 'external' && hTab.id === 'all');
@@ -4398,25 +4372,26 @@ export default function WappyWorkflowCanvas({
                       const constructionInTabCount = hitoNodesForTab.filter((n) =>
                         isWorkflowNodeUnderConstruction(n, disabledSgsstApps),
                       ).length;
+                      const hitoVariants = [
+                        'purple',
+                        'teal',
+                        'cyan',
+                        'amber',
+                        'emerald',
+                        'indigo',
+                        'fuchsia',
+                        'blue',
+                        'orange',
+                      ] as const;
                       return (
                         <ExpandableButton
                           key={hTab.id}
                           type="button"
                           size="sm"
-                          variant="purple"
+                          variant={hitoVariants[hIdx % hitoVariants.length]}
                           isActive={isActive}
                           icon={<ShieldCheck className="w-3.5 h-3.5" />}
-                          badge={
-                            <span className="inline-flex items-center gap-1">
-                              <span>{hTab.shortLabel}</span>
-                              {activeInTabCount > 0 && (
-                                <span className="text-emerald-600 dark:text-[#C7F303]">
-                                  ✓{activeInTabCount}
-                                </span>
-                              )}
-                            </span>
-                          }
-                          label={hTab.label}
+                          label={`${hTab.label}${activeInTabCount > 0 ? ` (✓${activeInTabCount})` : ''}`}
                           title={`${hTab.label} — ${activeInTabCount} activo(s) en el flujo · ${constructionInTabCount} en Construcción`}
                           onClick={() => {
                             setSelectedHitoFilter(hTab.id);
@@ -4665,8 +4640,11 @@ export default function WappyWorkflowCanvas({
                     selectedNodeKeys.length === visualNodes.length && visualNodes.length > 0
                   }
                   icon={<Move className="w-3.5 h-3.5" />}
-                  badge={selectedNodeKeys.length > 0 ? `${selectedNodeKeys.length}` : undefined}
-                  label="Seleccionar Todo el Flujo"
+                  label={
+                    selectedNodeKeys.length > 0
+                      ? `Seleccionar Todo el Flujo (${selectedNodeKeys.length})`
+                      : 'Seleccionar Todo el Flujo'
+                  }
                   title="Seleccionar todo el flujo para moverlo junto"
                   onClick={handleSelectAllNodes}
                 />
