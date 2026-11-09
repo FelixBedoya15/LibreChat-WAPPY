@@ -9859,6 +9859,168 @@ async function tryGenerateImageViaAntigravity({
 }
 
 /**
+ * Mapa en memoria de promesas pendientes para nodos de Flujos Autónomos que delegan en el Chat de Google Antigravity.
+ * Clave: String(ordenId) -> { resolve, timer }
+ */
+const pendingAntigravityWorkflowResolvers = new Map();
+
+/**
+ * Despacha una orden real (`event: nueva_orden`) al daemon de Google Antigravity (`wappy-push-daemon.js`)
+ * para que abra/active el hilo de chat en Google Antigravity IDE (`agentapi new-conversation` / `send-message`)
+ * cuando un nodo de un flujo autónomo (Scraper, Skill, Sub-Agente, Carpeta PC o Motor Antigravity) se ejecuta.
+ */
+async function dispatchWorkflowOrderToAntigravityChat({
+  userId,
+  companyId = null,
+  companyName = '',
+  title = 'Tarea de Flujo Autónomo WAPPY',
+  instruction = '',
+  recursoObjetivo = 'Google Antigravity IDE (Ejecución de Nodo de Flujo)',
+  antigravityMode = 'auto',
+  waitTimeoutMs = 18000,
+} = {}) {
+  let targetUserId = String(userId || '').trim();
+  const mode = String(antigravityMode || 'auto').toLowerCase().trim();
+  const explicitTargetEnv = mode === 'local' ? 'local' : mode === 'cloud' ? 'cloud' : null;
+
+  // Buscar si el usuario tiene daemons conectados; si en el mismo equipo el daemon está bajo otra cuenta activa, respaldar a ese stream
+  let daemonCount = targetUserId
+    ? countAntigravityDaemons(targetUserId, explicitTargetEnv)
+    : 0;
+  if (daemonCount <= 0 && !explicitTargetEnv && targetUserId) {
+    daemonCount = countAntigravityDaemons(targetUserId);
+  }
+  if (daemonCount <= 0) {
+    for (const [candidateUserId, clients] of antigravityStreamClients.entries()) {
+      if (!clients || clients.size === 0) continue;
+      const cCount = countAntigravityDaemons(candidateUserId, explicitTargetEnv);
+      if (cCount > 0) {
+        targetUserId = String(candidateUserId);
+        daemonCount = cCount;
+        break;
+      }
+    }
+  }
+
+  if (!targetUserId || daemonCount <= 0) {
+    return {
+      ok: false,
+      dispatched: false,
+      reason:
+        explicitTargetEnv === 'local'
+          ? 'No hay puente Google Antigravity Local (PC/Mac) conectado en este momento.'
+          : explicitTargetEnv === 'cloud'
+            ? 'No hay instancia Google Antigravity Cloud 24/7 conectada en este momento.'
+            : 'No hay ningún daemon de Google Antigravity conectado en este momento.',
+    };
+  }
+
+  try {
+    const company =
+      (companyId && mongoose.Types.ObjectId.isValid(String(companyId))
+        ? await CompanyInfo.findById(String(companyId)).lean().catch(() => null)
+        : null) || (await getActiveCompany(targetUserId).catch(() => null));
+    const resolvedCompanyName = companyName || company?.companyName || 'Empresa Activa';
+    const finalTitle = String(title || 'Ejecución de Nodo en Google Antigravity').trim().slice(0, 140);
+    const cleanInstruction = String(instruction || finalTitle).trim();
+
+    const kanbanTask = await KanbanTask.create({
+      user: targetUserId,
+      companyId: company?._id ? String(company._id) : companyId ? String(companyId) : null,
+      title: finalTitle,
+      description:
+        `[ORDEN DE FLUJO AUTÓNOMO WAPPY -> GOOGLE ANTIGRAVITY (${mode.toUpperCase()})]\n` +
+        `Empresa: ${resolvedCompanyName} (NIT: ${company?.nit || 'N/A'})\n` +
+        `Instrucción: ${cleanInstruction}\n` +
+        `Recurso Objetivo: ${recursoObjetivo}\n` +
+        `Formato Esperado: respuesta`,
+      status: 'todo',
+      dueDate: new Date(Date.now() + 60 * 60 * 1000),
+      type: 'antigravity_delegation',
+      priority: 'alta',
+      sourceModule: 'sgsst_workflow_antigravity',
+    });
+
+    const ordenId = kanbanTask._id.toString();
+
+    const waitPromise =
+      waitTimeoutMs > 0
+        ? new Promise((resolve) => {
+            let settled = false;
+            const finish = (result) => {
+              if (settled) return;
+              settled = true;
+              const entry = pendingAntigravityWorkflowResolvers.get(ordenId);
+              if (entry && entry.timer) {
+                clearTimeout(entry.timer);
+              }
+              pendingAntigravityWorkflowResolvers.delete(ordenId);
+              resolve(result);
+            };
+            const timer = setTimeout(() => {
+              finish({
+                ok: true,
+                dispatched: true,
+                completedSync: false,
+                ordenId,
+                title: finalTitle,
+              });
+            }, waitTimeoutMs);
+            pendingAntigravityWorkflowResolvers.set(ordenId, { resolve: finish, timer });
+          })
+        : Promise.resolve({
+            ok: true,
+            dispatched: true,
+            completedSync: false,
+            ordenId,
+            title: finalTitle,
+          });
+
+    const pushedCount = broadcastAntigravityEvent(
+      targetUserId,
+      'nueva_orden',
+      {
+        id: ordenId,
+        ordenId,
+        titulo: finalTitle,
+        instruccion: cleanInstruction,
+        descripcion: kanbanTask.description,
+        recursoObjetivo,
+        formatoEntregable: 'respuesta',
+        estado: 'todo',
+        prioridad: 'alta',
+        sourceModule: 'sgsst_workflow_antigravity',
+        companyId: company?._id ? String(company._id) : companyId ? String(companyId) : '',
+        companyName: resolvedCompanyName,
+        companyNit: company?.nit || '',
+        companyWorkspace: company?.antigravityWorkspace || '',
+        empresa: resolvedCompanyName,
+        targetProject: 'sgsst',
+        fechaCreacion: kanbanTask.createdAt || new Date().toISOString(),
+      },
+      { targetEnv: explicitTargetEnv, strictMode: Boolean(explicitTargetEnv) },
+    );
+
+    logger.info(
+      `[MCP Bridge] 🚀 Orden de flujo autónomo "${finalTitle}" (${ordenId}) emitida como 'nueva_orden' al Chat de Google Antigravity (${pushedCount} cliente(s) SSE, modo: ${mode}).`,
+    );
+
+    const waitRes = await waitPromise;
+    return {
+      ...waitRes,
+      pushedCount,
+      ordenId,
+      title: finalTitle,
+    };
+  } catch (err) {
+    logger.warn(`[MCP Bridge] Error en dispatchWorkflowOrderToAntigravityChat: ${err.message}`);
+    return { ok: false, dispatched: false, reason: err.message };
+  }
+}
+
+global.dispatchWorkflowOrderToAntigravityChat = dispatchWorkflowOrderToAntigravityChat;
+
+/**
  * Versión oficial del daemon leída directamente del archivo servido (bin/wappy-antigravity-daemon.js),
  * para que el servidor y el daemon nunca queden desincronizados por un olvido manual.
  */
@@ -11560,6 +11722,19 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         exito: true,
         mensaje: `Imagen prioritaria de Antigravity entregada al flujo solicitante (${resolvedUrl || 'sin URL'}).`,
         orden: { id: task._id.toString(), titulo: task.title, status: task.status },
+      });
+    }
+
+    const pendingWorkflowResolver = pendingAntigravityWorkflowResolvers.get(task._id.toString());
+    if (pendingWorkflowResolver && typeof pendingWorkflowResolver.resolve === 'function') {
+      pendingWorkflowResolver.resolve({
+        ok: true,
+        dispatched: true,
+        completedSync: true,
+        ordenId: task._id.toString(),
+        title: task.title,
+        summary: finalSummary,
+        content: finalContentStr || finalSummary,
       });
     }
 

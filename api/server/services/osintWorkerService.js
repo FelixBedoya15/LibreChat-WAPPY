@@ -492,6 +492,7 @@ async function consultarAlturasMinTrabajo({
       try {
         logger.info(`[OSINT MinTrabajo] Reenviando consulta de cédula ${cleanCedula} por túnel IP Colombia (wappy-push-daemon)...`);
         const relayed = await global.dispatchOsintViaAntigravityDaemon({
+          userId: String(userId || ''),
           action: 'query',
           tipoDoc: cleanTipoDoc,
           cedula: cleanCedula,

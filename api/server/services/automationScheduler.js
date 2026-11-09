@@ -1725,24 +1725,62 @@ async function executeRealAntigravityScraperVerification({
     ),
   );
 
-  // 2. Cargar trabajadores de la empresa activa desde MongoDB (`SgsstWorker`)
+  // 2. Cargar trabajadores de la empresa activa desde el mismo inspector en vivo que usa el nodo "Extraer Trabajadores"
+  // (`PerfilSociodemograficoData.trabajadores` + `SgsstWorker`) para que el orden y las cédulas coincidan 100% con el Paso #2.
   let companyWorkers = [];
   try {
-    const WorkerModel =
-      mongoose.models.SgsstWorker ||
-      (mongoose.modelNames().includes('SgsstWorker')
-        ? mongoose.model('SgsstWorker')
-        : require('~/models/SgsstWorker'));
-    if (WorkerModel && companyId && mongoose.Types.ObjectId.isValid(String(companyId))) {
-      companyWorkers = await WorkerModel.find({
-        companyId: new mongoose.Types.ObjectId(String(companyId)),
-      })
-        .sort({ createdAt: -1 })
-        .limit(60)
-        .lean();
+    const liveWorkersData = await inspectNodeLiveData({
+      userId: userIdStr,
+      companyId: companyId ? String(companyId) : '',
+      nodeId: 'extract_sst_workers',
+    });
+    if (Array.isArray(liveWorkersData?.records) && liveWorkersData.records.length > 0) {
+      companyWorkers = liveWorkersData.records.map((rec) => ({
+        _id: rec.id,
+        id: rec.id,
+        isCritical: Boolean(rec.isCritical),
+        nombre:
+          rec.fields?.['Nombre Completo'] ||
+          rec.label ||
+          rec.nombre ||
+          'Colaborador',
+        documento:
+          rec.fields?.['Cédula / Documento'] ||
+          rec.documento ||
+          rec.identificacion ||
+          rec.cedula ||
+          '',
+        cargo:
+          rec.fields?.['Cargo / Antigüedad'] ||
+          rec.sublabel ||
+          rec.cargo ||
+          'Operativo',
+        eps: rec.fields?.['EPS'] || '',
+        arl: rec.fields?.['ARL'] || '',
+        nivelRiesgo: rec.badge || 'I',
+        placa: rec.fields?.['Placa'] || rec.placa || '',
+      }));
     }
   } catch (err) {
-    console.warn('[Antigravity Scraper] Aviso leyendo SgsstWorker:', err?.message);
+    console.warn('[Antigravity Scraper] Aviso en inspectNodeLiveData(extract_sst_workers):', err?.message);
+  }
+
+  if (companyWorkers.length === 0) {
+    try {
+      const WorkerModel =
+        mongoose.models.SgsstWorker ||
+        (mongoose.modelNames().includes('SgsstWorker') ? mongoose.model('SgsstWorker') : null);
+      if (WorkerModel && companyId && mongoose.Types.ObjectId.isValid(String(companyId))) {
+        companyWorkers = await WorkerModel.find({
+          companyId: new mongoose.Types.ObjectId(String(companyId)),
+        })
+          .sort({ createdAt: -1 })
+          .limit(60)
+          .lean();
+      }
+    } catch (err) {
+      console.warn('[Antigravity Scraper] Aviso leyendo SgsstWorker:', err?.message);
+    }
   }
 
   // Respetar filtro quirúrgico si el nodo extractor de trabajadores filtró registros específicos
@@ -1758,9 +1796,14 @@ async function executeRealAntigravityScraperVerification({
       ? workerExtCfg.selectedRecordIds.map(String)
       : [];
 
-  if (filterMode === 'selected' && selectedIds.length > 0) {
+  if (filterMode === 'critical_only') {
+    const critFiltered = companyWorkers.filter((w) => w.isCritical);
+    if (critFiltered.length > 0) {
+      companyWorkers = critFiltered;
+    }
+  } else if (filterMode === 'selected' && selectedIds.length > 0) {
     const idSet = new Set(selectedIds);
-    const filtered = companyWorkers.filter((w) => idSet.has(String(w._id)));
+    const filtered = companyWorkers.filter((w) => idSet.has(String(w._id || w.id)));
     if (filtered.length > 0) {
       companyWorkers = filtered;
     }
@@ -1771,7 +1814,7 @@ async function executeRealAntigravityScraperVerification({
 
   for (const ced of explicitCedulas) {
     const matchedWorker = companyWorkers.find(
-      (w) => String(w.documento || w.cedula || w.documentNumber || '').replace(/\D/g, '') === ced,
+      (w) => String(w.documento || w.identificacion || w.cedula || w.documentNumber || '').replace(/\D/g, '') === ced,
     );
     targetsMap.set(ced, {
       rawDoc: ced,
@@ -1785,10 +1828,10 @@ async function executeRealAntigravityScraperVerification({
   }
 
   for (const w of companyWorkers) {
-    const rawDoc = String(w.documento || w.cedula || w.documentNumber || '').trim();
+    const rawDoc = String(w.documento || w.identificacion || w.cedula || w.documentNumber || '').trim();
     const cleanCedula = rawDoc.replace(/\D/g, '');
     const isNumericValid = /^\d{5,12}$/.test(cleanCedula);
-    const key = isNumericValid ? cleanCedula : rawDoc || String(w._id);
+    const key = isNumericValid ? cleanCedula : rawDoc || String(w._id || w.id);
     if (!targetsMap.has(key)) {
       targetsMap.set(key, {
         rawDoc: rawDoc || 'S/D',
@@ -1803,7 +1846,7 @@ async function executeRealAntigravityScraperVerification({
   }
 
   const allTargets = Array.from(targetsMap.values());
-  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 12);
+  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 15);
   const nonNumericTargets = allTargets.filter((t) => !t.isNumericValid);
 
   const specificPortalAction = isArlDirecto
@@ -1820,13 +1863,49 @@ async function executeRealAntigravityScraperVerification({
     `[Antigravity Scraper] 🚀 Iniciando verificación REAL (${specificPortalAction || (isAntecedentes ? 'antecedentes' : 'alto_riesgo')}, mode=${antigravityMode}) para "${companyName}" (${validTargets.length} cédulas numéricas válidas)...`,
   );
 
-  // 4. Ejecutar consultas reales en lotes de 4 en paralelo
+  // 3.5. Despachar también la orden real (`event: nueva_orden`) al Chat de Google Antigravity IDE (`wappy-push-daemon.js`)
+  // para que abra/active la conversación de Antigravity en el PC/Mac o Cloud con las cédulas, URLs y script configurados.
+  const targetUrlsStr =
+    nodeCfg?.targetUrl ||
+    customNodeObj?.targetUrl ||
+    'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx, https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer';
+  const scriptEngineStr = nodeCfg?.scriptEngine || customNodeObj?.scriptEngine || 'chrome_mcp';
+  const scriptCodeStr = nodeCfg?.scriptCode || customNodeObj?.scriptCode || '';
+  const workersBulletList = validTargets
+    .map((t, idx) => `${idx + 1}. CC ${t.cleanCedula} — ${t.nombre} (${t.cargo})`)
+    .join('\n');
+
+  let antigravityChatDispatchPromise = Promise.resolve(null);
+  if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' && validTargets.length > 0) {
+    const orderInstruction =
+      `Ejecuta la verificación en vivo del nodo "${nodeTitle || 'Alto Riesgo & SENA'}" para la empresa "${companyName}".\n` +
+      `- Motor configurado: ${scriptEngineStr}\n` +
+      `- URL(s) objetivo: ${targetUrlsStr}\n` +
+      (promptText ? `- Solicitud del flujo: ${promptText.trim()}\n` : '') +
+      (scriptCodeStr ? `- Script / Pasos:\n${scriptCodeStr}\n` : '') +
+      `\nTrabajadores y Cédulas a verificar (${validTargets.length}):\n${workersBulletList}`;
+
+    antigravityChatDispatchPromise = global
+      .dispatchWorkflowOrderToAntigravityChat({
+        userId: userIdStr,
+        companyId,
+        companyName,
+        title: `[Flujo WAPPY] ${nodeTitle || 'Alto Riesgo & SENA'} — ${companyName}`,
+        instruction: orderInstruction,
+        recursoObjetivo: `Google Antigravity (${scriptEngineStr}) · ${targetUrlsStr.slice(0, 90)}`,
+        antigravityMode,
+        waitTimeoutMs: 2500,
+      })
+      .catch(() => null);
+  }
+
+  // 4. Ejecutar consultas reales en lotes de 3 en paralelo a través del daemon Antigravity
   const verificationRows = [];
   let relayUsedCount = 0;
   let verifiedWithCoursesCount = 0;
   let verifiedNoCoursesCount = 0;
 
-  const batchSize = 4;
+  const batchSize = 3;
   for (let i = 0; i < validTargets.length; i += batchSize) {
     const batch = validTargets.slice(i, i + batchSize);
     const batchResults = await Promise.all(
@@ -2006,22 +2085,28 @@ async function executeRealAntigravityScraperVerification({
     });
   }
 
+  const chatDispatchRes = await antigravityChatDispatchPromise;
   const durationMs = Math.max(1, Date.now() - t0);
   const engineUsedLabel =
     relayUsedCount > 0
       ? `🛰️ Puente Google Antigravity Push Daemon Activo (${relayUsedCount}/${validTargets.length} consultas ejecutadas vía Antigravity)`
       : `🌐 Consulta en Vivo Directa a Portal Oficial (${validTargets.length} cédulas verificadas)`;
 
+  const chatLine = chatDispatchRes?.dispatched
+    ? `- **Hilo en Chat Google Antigravity IDE:** 🟢 Orden \`#${chatDispatchRes.ordenId}\` enviada y abierta en Google Antigravity (${chatDispatchRes.title})`
+    : null;
+
   const tableLines = [
     `🛰️ **VERIFICACIÓN OFICIAL EN TIEMPO REAL — GOOGLE ANTIGRAVITY (${nodeTitle || 'Alto Riesgo & SENA'})**`,
     modeHeaderLine,
     `- **Canal de Ejecución:** ${engineUsedLabel}`,
+    chatLine,
     `- **Tiempo Real de Consulta HTTP:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
-    `- **Resumen de Hallazgos:** ${validTargets.length} cédula(s) numérica(s) consultada(s) · **${verifiedWithCoursesCount}** verificada(s) con hallazgo/registro · **${verifiedNoCoursesCount}** sin registro o alerta${nonNumericTargets.length > 0 ? ` · **${nonNumericTargets.length}** documento(s) de prueba no numérico(s)` : ''}.`,
+    `- **Resumen de Hallazgos:** ${validTargets.length} cédula(s) numérica(s) consultada(s) (mismos colaboradores extraídos en Paso #2) · **${verifiedWithCoursesCount}** verificada(s) con hallazgo/registro · **${verifiedNoCoursesCount}** sin registro o alerta${nonNumericTargets.length > 0 ? ` · **${nonNumericTargets.length}** documento(s) de prueba no numérico(s)` : ''}.`,
     '',
     '| # | Colaborador | Cédula / Doc. | Cargo | Estado en Portal Oficial (En Vivo) | Detalle Oficial Extraído |',
     '| :--- | :--- | :--- | :--- | :--- | :--- |',
-  ];
+  ].filter((l) => l !== null);
 
   verificationRows.forEach((row, idx) => {
     tableLines.push(
@@ -2033,6 +2118,10 @@ async function executeRealAntigravityScraperVerification({
     tableLines.push(
       '| 1 | *(Sin cédulas)* | `N/A` | — | ⚠️ Sin registros | No se encontraron trabajadores con cédula en la empresa ni cédulas en la instrucción. |',
     );
+  }
+
+  if (chatDispatchRes?.completedSync && chatDispatchRes?.content) {
+    tableLines.push('', '### 💬 Respuesta Directa del Hilo en Google Antigravity IDE:', String(chatDispatchRes.content).slice(0, 1800));
   }
 
   const outputPreview = tableLines.join('\n');
@@ -2790,7 +2879,35 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       }
 
       await pauseStep(200);
+      const antigravityMode = String(cnCfg?.antigravityMode || cn?.antigravityMode || 'auto');
+      let customChatDispatch = null;
+      if (category === 'custom_node' && typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
+        const cnInstruction = [
+          cn.content || cn.subtitle || cnCfg.customInstruction || prompt || '',
+          cn.targetUrl || cnCfg.targetUrl ? `URL(s): ${cn.targetUrl || cnCfg.targetUrl}` : '',
+          cn.scriptCode || cnCfg.scriptCode ? `Script:\n${cn.scriptCode || cnCfg.scriptCode}` : '',
+          cnCfg.skillContent ? `Skill:\n${cnCfg.skillContent}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        customChatDispatch = await global
+          .dispatchWorkflowOrderToAntigravityChat({
+            userId: userIdStr,
+            companyId: targetCompanyIdStr,
+            companyName,
+            title: `[Flujo WAPPY] ${cn.title || stepCustomTitle || nodeKey} — ${companyName}`,
+            instruction: cnInstruction || `Ejecuta el nodo "${cn.title || nodeKey}" para "${companyName}".`,
+            recursoObjetivo: `Google Antigravity (${cn.nodeType || 'custom_node'})`,
+            antigravityMode,
+            waitTimeoutMs: 2500,
+          })
+          .catch(() => null);
+      }
+
       const details = [
+        customChatDispatch?.dispatched
+          ? `🟢 Hilo abierto en Google Antigravity IDE: Orden #${customChatDispatch.ordenId} (${customChatDispatch.title})`
+          : '',
         cn.content || cn.subtitle || cnCfg.customInstruction || '',
         cn.targetUrl || cnCfg.targetUrl ? `🌐 URL: ${cn.targetUrl || cnCfg.targetUrl}` : '',
         cn.scriptEngine || cnCfg.scriptEngine ? `⚙️ Motor: ${cn.scriptEngine || cnCfg.scriptEngine}` : '',
@@ -2799,11 +2916,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           : '',
         cnCfg.skillContent ? `📘 Skill: ${String(cnCfg.skillContent).slice(0, 260)}` : '',
         cnCfg.ruleText ? `🛡️ Regla: ${String(cnCfg.ruleText).slice(0, 260)}` : '',
+        customChatDispatch?.completedSync && customChatDispatch?.content
+          ? `💬 Respuesta de Antigravity:\n${String(customChatDispatch.content).slice(0, 1200)}`
+          : '',
       ]
         .filter(Boolean)
         .join('\n');
 
-      const antigravityMode = String(cnCfg?.antigravityMode || cn?.antigravityMode || 'auto');
       const cnInputSummary =
         category === 'custom_node'
           ? `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()}) y devolviendo respuesta al Agente IA`
