@@ -41,6 +41,9 @@
     html {
       scroll-behavior: smooth;
       scroll-padding-top: 110px;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
     }
 
     [id], section, .schedule-banner {
@@ -52,6 +55,8 @@
       background-color: var(--bg);
       color: var(--ink);
       line-height: 1.5;
+      width: 100%;
+      max-width: 100%;
       overflow-x: hidden;
     }
 
@@ -77,7 +82,7 @@
     }
 
     .nav-inner {
-      max-width: 1140px;
+      max-width: 1180px;
       margin: 0 auto;
       background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(16px);
@@ -89,7 +94,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 12px 0 20px;
+      gap: 10px;
+      padding: 0 12px 0 18px;
       transition: all 0.25s ease;
     }
 
@@ -140,24 +146,91 @@
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 26px;
+      gap: 16px;
     }
 
     .nav-links a {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 600;
       color: var(--slate-dark);
-      transition: color 0.15s ease;
+      transition: all 0.18s ease;
+      white-space: nowrap;
     }
 
     .nav-links a:hover {
       color: var(--teal);
     }
 
+    .nav-links a.nav-pill-aula {
+      background: rgba(13, 148, 136, 0.10);
+      border: 1px solid rgba(13, 148, 136, 0.30);
+      color: #0f766e;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 12px;
+    }
+
+    .nav-links a.nav-pill-aula:hover {
+      background: rgba(13, 148, 136, 0.18);
+      transform: translateY(-1px);
+    }
+
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Botón Regla 8 WAPPY Auth (#navCtaEnterWappy) */
+    .nav-cta-wappy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: rgba(13, 148, 136, 0.10);
+      border: 1.5px solid rgba(13, 148, 136, 0.32);
+      color: #0f766e;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 800;
+      padding: 8px 15px;
+      border-radius: 9999px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .nav-cta-wappy.logged-in {
+      background: #0e1300;
+      border-color: rgba(199, 243, 3, 0.55);
+      color: var(--lime);
+      padding: 5px 14px 5px 6px;
+    }
+
+    .nav-cta-wappy:hover {
+      background: rgba(13, 148, 136, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .nav-cta-wappy.logged-in:hover {
+      background: #1b2405;
+    }
+
+    .nav-cta-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid rgba(199, 243, 3, 0.55);
+      flex-shrink: 0;
+      background: #0d9488;
+    }
+
+    @media (max-width: 1140px) {
+      .nav-links {
+        display: none;
+      }
     }
 
     /* BUTTONS */

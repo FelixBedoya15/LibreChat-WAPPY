@@ -17,6 +17,7 @@ tenshi_img = get_base64_img('client/public/assets/tenshi.png')
 felix_avatar = get_base64_img('client/public/assets/felix_avatar_3d.png')
 wappy_horiz_logo = get_base64_img('client/public/assets/wappy_horizontal_black_logo.png')
 agy_logo = get_base64_img('client/public/assets/antigravity_logo.png')
+thumb_bg = get_base64_img('client/public/assets/thumb_bg_clase1.jpg')
 
 if not cat_logo:
     cat_logo = logo_wappy
@@ -272,6 +273,161 @@ html_content = f'''<!DOCTYPE html>
         height: 20px;
         font-size: 11px;
       }}
+      .nav-cta-wappy {{
+        padding: 6px 11px;
+        font-size: 11.5px;
+        gap: 6px;
+      }}
+      .nav-cta-wappy .nav-cta-avatar {{
+        width: 20px;
+        height: 20px;
+      }}
+    }}
+
+    /* Botón Dinámico Regla 8 WAPPY Auth (#navCtaEnterWappy) */
+    .nav-actions {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }}
+
+    .nav-cta-wappy {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--lime);
+      color: var(--ink);
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      box-shadow: 0 6px 18px -4px rgba(168, 207, 0, 0.55);
+      transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+      white-space: nowrap;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid rgba(14, 19, 0, 0.12);
+    }}
+
+    .nav-cta-wappy.logged-in {{
+      padding: 5px 15px 5px 7px;
+    }}
+
+    .nav-cta-wappy:hover {{
+      background: #b8e202;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px -5px rgba(168, 207, 0, 0.65);
+    }}
+
+    .nav-cta-wappy:active {{
+      transform: scale(0.96);
+    }}
+
+    .nav-cta-avatar {{
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid rgba(14, 19, 0, 0.22);
+      flex-shrink: 0;
+      background: #0d9488;
+    }}
+
+    /* ==========================================================================
+       1B. BARRA ORGANIZADORA DEL CURSO (NAVEGACIÓN ENTRE CLASES 1 A 4)
+       ========================================================================== */
+    .course-organizer-strip {{
+      position: relative;
+      z-index: 20;
+      background: linear-gradient(180deg, #091318 0%, #0d2126 100%);
+      border-bottom: 1.5px solid rgba(199, 243, 3, 0.35);
+      padding: 78px 12px 12px;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }}
+
+    .course-organizer-inner {{
+      max-width: 1060px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+
+    .course-org-pill {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 12px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #e2e8f0;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+      max-width: 100%;
+    }}
+
+    .course-org-pill:hover {{
+      transform: translateY(-2px) scale(1.03);
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(199, 243, 3, 0.55);
+      color: #ffffff;
+    }}
+
+    .course-org-pill.active {{
+      background: var(--lime);
+      color: var(--ink);
+      border-color: var(--lime);
+      box-shadow: 0 6px 20px rgba(199, 243, 3, 0.4);
+      font-weight: 900;
+    }}
+
+    .course-org-pill.done {{
+      background: rgba(13, 148, 136, 0.2);
+      border-color: rgba(45, 212, 191, 0.45);
+      color: #99f6e4;
+    }}
+
+    .course-org-pill.done:hover {{
+      background: rgba(13, 148, 136, 0.34);
+      color: #ecfdf5;
+    }}
+
+    .course-org-pill.live {{
+      background: rgba(239, 68, 68, 0.18);
+      border-color: rgba(248, 113, 113, 0.55);
+      color: #fecaca;
+    }}
+
+    .course-org-pill.live:hover {{
+      background: rgba(239, 68, 68, 0.3);
+      color: #ffffff;
+    }}
+
+    @media (max-width: 640px) {{
+      .course-organizer-strip {{
+        padding: 70px 10px 10px;
+      }}
+      .course-organizer-inner {{
+        gap: 6px;
+      }}
+      .course-org-pill {{
+        font-size: 11px;
+        padding: 6px 10px;
+        border-radius: 10px;
+      }}
     }}
 
     /* Evitar cualquier desbordamiento en celdas Grid/Flex */
@@ -369,7 +525,7 @@ html_content = f'''<!DOCTYPE html>
     .hero {{
       position: relative;
       background: var(--sky);
-      padding-top: clamp(98px, 10vw, 132px);
+      padding-top: clamp(28px, 4vw, 48px);
       padding-bottom: clamp(36px, 5vw, 60px);
       overflow: hidden;
       border-bottom: 1px solid rgba(14, 19, 0, 0.08);
@@ -1286,19 +1442,16 @@ html_content = f'''<!DOCTYPE html>
       border: 0;
     }}
 
-    /* Miniatura Personalizada (Poster Overlay) sobre el Reproductor */
+    /* Miniatura Personalizada HD 16:9 (Poster Overlay) sobre el Reproductor */
     .video-thumb-cover {{
       position: absolute;
       inset: 0;
       z-index: 10;
-      background:
-        radial-gradient(circle at 18% 55%, rgba(199, 243, 3, 0.22) 0%, transparent 45%),
-        radial-gradient(circle at 82% 55%, rgba(45, 212, 191, 0.26) 0%, transparent 48%),
-        linear-gradient(135deg, #06151a 0%, #0b262e 50%, #040d11 100%);
+      background: #040d11;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: clamp(16px, 3.5vw, 44px);
+      padding: clamp(12px, 2.8vw, 38px);
       cursor: pointer;
       transition: opacity 0.4s ease, visibility 0.4s ease;
       overflow: hidden;
@@ -1310,12 +1463,40 @@ html_content = f'''<!DOCTYPE html>
       pointer-events: none;
     }}
 
+    .video-thumb-bg-img {{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      z-index: 0;
+      pointer-events: none;
+      transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }}
+
+    .video-thumb-cover:hover .video-thumb-bg-img {{
+      transform: scale(1.04);
+    }}
+
+    .video-thumb-radial-overlay {{
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(3, 10, 15, 0.80) 0%, rgba(4, 15, 20, 0.58) 52%, rgba(2, 7, 11, 0.84) 100%),
+        radial-gradient(circle at 16% 58%, rgba(199, 243, 3, 0.16) 0%, transparent 44%),
+        radial-gradient(circle at 84% 58%, rgba(45, 212, 191, 0.20) 0%, transparent 46%);
+      pointer-events: none;
+    }}
+
     .video-thumb-grid-bg {{
       position: absolute;
       inset: 0;
+      z-index: 1;
       background-image:
-        linear-gradient(rgba(199, 243, 3, 0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(45, 212, 191, 0.06) 1px, transparent 1px);
+        linear-gradient(rgba(199, 243, 3, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45, 212, 191, 0.045) 1px, transparent 1px);
       background-size: 44px 44px;
       pointer-events: none;
     }}
@@ -1327,7 +1508,7 @@ html_content = f'''<!DOCTYPE html>
       flex-direction: column;
       align-items: center;
       justify-content: flex-end;
-      width: 26%;
+      width: 24%;
       height: 100%;
     }}
 
@@ -1336,12 +1517,12 @@ html_content = f'''<!DOCTYPE html>
       max-height: 88%;
       width: auto;
       object-fit: contain;
-      filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 24px rgba(199, 243, 3, 0.28));
+      filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.78)) drop-shadow(0 0 24px rgba(199, 243, 3, 0.28));
       transition: transform 0.35s ease;
     }}
 
     .thumb-halo-svg {{
-      width: clamp(64px, 8vw, 130px);
+      width: clamp(58px, 7.5vw, 124px);
       height: auto;
       margin-bottom: -14px;
       filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.95));
@@ -1354,129 +1535,201 @@ html_content = f'''<!DOCTYPE html>
 
     .thumb-char-tag {{
       margin-top: -10px;
-      background: rgba(6, 20, 25, 0.92);
+      background: rgba(6, 20, 25, 0.94);
       border: 1.5px solid var(--lime);
       color: var(--lime);
       font-family: var(--font-mono);
-      font-size: clamp(9px, 1.05vw, 13px);
+      font-size: clamp(9px, 1.02vw, 12.5px);
       font-weight: 800;
-      padding: 5px 14px;
+      padding: 5px 13px;
       border-radius: 999px;
       white-space: nowrap;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65);
     }}
 
     .thumb-center-col {{
       position: relative;
       z-index: 3;
-      width: 48%;
+      width: 52%;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      gap: clamp(8px, 1.5vw, 16px);
+      gap: clamp(5px, 1.15vw, 13px);
     }}
 
     .thumb-logos-pill {{
       display: inline-flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       background: rgba(255, 255, 255, 0.96);
-      padding: 8px 22px;
+      padding: clamp(5px, 0.7vw, 8px) clamp(14px, 1.8vw, 22px);
       border-radius: 999px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 24px rgba(45, 212, 191, 0.35);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 24px rgba(45, 212, 191, 0.35);
       border: 2px solid #2dd4bf;
     }}
 
     .thumb-logos-pill img.wappy-h {{
-      height: clamp(22px, 3vw, 40px);
+      height: clamp(18px, 2.6vw, 36px);
       width: auto;
       object-fit: contain;
     }}
 
     .thumb-logos-pill .plus-sep {{
       font-weight: 900;
-      font-size: clamp(14px, 1.8vw, 22px);
+      font-size: clamp(12px, 1.6vw, 20px);
       color: #0d9488;
     }}
 
     .thumb-logos-pill img.agy-i {{
-      height: clamp(22px, 3vw, 38px);
+      height: clamp(18px, 2.6vw, 34px);
       width: auto;
       object-fit: contain;
     }}
 
     .thumb-clase-giant {{
       font-family: var(--font-display);
-      font-size: clamp(32px, 5.8vw, 76px);
+      font-size: clamp(24px, 4.9vw, 68px);
       font-weight: 900;
       line-height: 0.98;
       letter-spacing: -0.04em;
       color: var(--ink);
       background: var(--lime);
-      padding: 6px 26px;
-      border-radius: 20px;
-      box-shadow: 0 12px 40px rgba(199, 243, 3, 0.45);
+      padding: clamp(4px, 0.6vw, 7px) clamp(16px, 2.2vw, 26px);
+      border-radius: 18px;
+      box-shadow: 0 12px 40px rgba(199, 243, 3, 0.5);
       text-transform: uppercase;
     }}
 
     .thumb-sub-title {{
       font-family: var(--font-display);
-      font-size: clamp(14px, 2.2vw, 28px);
+      font-size: clamp(11.5px, 1.9vw, 25px);
       font-weight: 900;
       color: #ffffff;
       line-height: 1.15;
-      text-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+      text-shadow: 0 6px 22px rgba(0, 0, 0, 0.85);
     }}
 
     .thumb-sub-title span {{
       color: #2dd4bf;
     }}
 
+    .thumb-topic-pills {{
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 0.65vw, 8px);
+      max-width: 100%;
+    }}
+
+    .thumb-topic-pill {{
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(5, 18, 24, 0.88);
+      border: 1px solid rgba(199, 243, 3, 0.48);
+      color: #ecfccb;
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.9vw, 11.5px);
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      padding: clamp(3px, 0.45vw, 5px) clamp(8px, 0.95vw, 12px);
+      border-radius: 999px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      white-space: nowrap;
+    }}
+
+    .thumb-topic-pill.highlight {{
+      background: rgba(13, 148, 136, 0.35);
+      border-color: #2dd4bf;
+      color: #99f6e4;
+    }}
+
     .thumb-play-cta {{
       display: inline-flex;
       align-items: center;
-      gap: 12px;
+      gap: clamp(7px, 1vw, 12px);
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       color: #ffffff;
       font-family: var(--font-display);
-      font-size: clamp(12px, 1.4vw, 17px);
+      font-size: clamp(10.5px, 1.3vw, 16px);
       font-weight: 900;
-      padding: clamp(9px, 1.2vw, 14px) clamp(18px, 2.4vw, 30px);
+      padding: clamp(7px, 1vw, 13px) clamp(14px, 2.2vw, 28px);
       border-radius: 999px;
-      border: 2px solid rgba(255, 255, 255, 0.35);
-      box-shadow: 0 14px 36px rgba(239, 68, 68, 0.55);
+      border: 2px solid rgba(255, 255, 255, 0.38);
+      box-shadow: 0 14px 36px rgba(239, 68, 68, 0.6);
       transition: transform 0.25s ease, box-shadow 0.25s ease;
+      white-space: nowrap;
     }}
 
     .video-thumb-cover:hover .thumb-play-cta {{
       transform: scale(1.06);
-      box-shadow: 0 18px 44px rgba(239, 68, 68, 0.75);
+      box-shadow: 0 18px 44px rgba(239, 68, 68, 0.8);
     }}
 
     .thumb-play-icon {{
-      width: 30px;
-      height: 30px;
+      width: clamp(22px, 2.4vw, 30px);
+      height: clamp(22px, 2.4vw, 30px);
       border-radius: 50%;
       background: #ffffff;
       color: #dc2626;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: clamp(10px, 1.1vw, 14px);
       padding-left: 2px;
+      flex-shrink: 0;
     }}
 
     @media (max-width: 680px) {{
+      .video-thumb-cover {{
+        padding: 8px 10px;
+      }}
       .thumb-char-col {{
-        width: 24%;
+        width: 21%;
       }}
       .thumb-center-col {{
-        width: 52%;
-        gap: 6px;
+        width: 58%;
+        gap: 4px;
       }}
       .thumb-char-tag {{
         display: none;
+      }}
+      .thumb-logos-pill {{
+        padding: 3px 10px;
+        gap: 6px;
+      }}
+      .thumb-logos-pill img.wappy-h,
+      .thumb-logos-pill img.agy-i {{
+        height: 15px;
+      }}
+      .thumb-clase-giant {{
+        font-size: 19px;
+        padding: 2px 12px;
+        border-radius: 10px;
+      }}
+      .thumb-sub-title {{
+        font-size: 10px;
+        line-height: 1.12;
+      }}
+      .thumb-topic-pills {{
+        gap: 3px;
+      }}
+      .thumb-topic-pill {{
+        font-size: 7px;
+        padding: 2px 6px;
+      }}
+      .thumb-play-cta {{
+        font-size: 9.5px;
+        padding: 5px 11px;
+        gap: 5px;
+      }}
+      .thumb-play-icon {{
+        width: 18px;
+        height: 18px;
+        font-size: 9px;
       }}
     }}
 
@@ -2146,17 +2399,31 @@ html_content = f'''<!DOCTYPE html>
         <a href="/clase2">⏭️ Clase 2</a>
       </div>
 
-      <a href="https://meet.google.com/xvz-jmvv-iym" target="_blank" rel="noopener noreferrer" class="btn btn-dark" style="flex-shrink: 0;">
-        Entrar a Meet
-        <span class="arrow-pip">↗</span>
-      </a>
+      <div class="nav-actions">
+        <a id="navCtaEnterWappy" href="/login" class="nav-cta-wappy">
+          <span>Ir a WAPPY</span>
+        </a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ========================================================================
+       1B. BARRA ORGANIZADORA DEL CURSO (CLASES 1 A 4 + TEMARIO)
+       ======================================================================== -->
+  <div class="course-organizer-strip" id="inicio">
+    <nav class="course-organizer-inner" aria-label="Navegación oficial del curso">
+      <a href="/cursowappy01" class="course-org-pill">🎓 Temario Curso</a>
+      <a href="/clase1" class="course-org-pill active" aria-current="page">📍 Clase 1 · Estás aquí</a>
+      <a href="/clase2" class="course-org-pill done">✅ Clase 2 · Grabada</a>
+      <a href="/clase3" class="course-org-pill done">✅ Clase 3 · Grabada</a>
+      <a href="/clase4" class="course-org-pill live">🔴 Clase 4 · Mar 10 Nov 7PM</a>
     </nav>
   </div>
 
   <!-- ========================================================================
        2. HERO OFICIAL ESTILO WAPPY.CLUB (SKY + NUBES + TENSHI)
        ======================================================================== -->
-  <header class="hero" id="inicio">
+  <header class="hero">
     <div class="hero-cloud c1"></div>
     <div class="hero-cloud c2"></div>
     <div class="hero-cloud c3"></div>
@@ -3048,8 +3315,10 @@ html_content = f'''<!DOCTYPE html>
         <!-- Reproductor Embebido 16:9 de Google Drive con Miniatura Oficial -->
         <div class="video-viewport-wrap">
           <div class="video-aspect-box">
-            <!-- Miniatura Oficial Personalizada (Félix Avatar + WAPPY + Tenshi + CLASE 1) -->
+            <!-- Miniatura Oficial Personalizada HD 16:9 (Fondo Cinemático + Félix + WAPPY + Tenshi + CLASE 1) -->
             <div class="video-thumb-cover" id="video-thumb-cover" onclick="playRecordingVideo()">
+              <img src="{thumb_bg}" alt="" class="video-thumb-bg-img" aria-hidden="true">
+              <div class="video-thumb-radial-overlay"></div>
               <div class="video-thumb-grid-bg"></div>
 
               <!-- Columna Izquierda: Avatar 3D de Félix Bedoya -->
@@ -3058,7 +3327,7 @@ html_content = f'''<!DOCTYPE html>
                 <span class="thumb-char-tag">👨‍🏫 Ing. Félix Bedoya</span>
               </div>
 
-              <!-- Columna Central: Logos WAPPY + Antigravity + CLASE 1 + Botón Play -->
+              <!-- Columna Central: Logos WAPPY + Antigravity + CLASE 1 + Píldoras + Botón Play -->
               <div class="thumb-center-col">
                 <div class="thumb-logos-pill">
                   <img src="{wappy_horiz_logo}" alt="WAPPY Logo" class="wappy-h">
@@ -3072,9 +3341,16 @@ html_content = f'''<!DOCTYPE html>
                   Fundamentos de IA, <span>WAPPY</span> &amp; <span>Google Antigravity</span>
                 </div>
 
+                <div class="thumb-topic-pills">
+                  <span class="thumb-topic-pill">🤖 FUNDAMENTOS IA</span>
+                  <span class="thumb-topic-pill">⚡ ANTIGRAVITY PC</span>
+                  <span class="thumb-topic-pill">🔌 PUENTE WAPPY</span>
+                  <span class="thumb-topic-pill highlight">⏱️ 02:48 HRS · HD</span>
+                </div>
+
                 <div class="thumb-play-cta">
                   <span class="thumb-play-icon">▶</span>
-                  <span>VER GRABACIÓN COMPLETA</span>
+                  <span>VER GRABACIÓN COMPLETA CLASE 1</span>
                 </div>
               </div>
 
@@ -4035,10 +4311,98 @@ Configúralo para que cada mañana cuando yo llegue a la oficina, prenda mi comp
       draw();
     }}
 
+    // 5. Detección Automática de Sesión Activa en WAPPY (Regla 8 AGENTS.md)
+    window.platformUser = null;
+    window.platformUserToken = '';
+    window.isPlatformLoggedIn = false;
+
+    function updateWappyAuthNav(user, token) {{
+      const isLogged = Boolean(user);
+      window.platformUser = user || null;
+      window.platformUserToken = token || '';
+      window.isPlatformLoggedIn = isLogged;
+
+      const isLocalFile = window.location.protocol === 'file:';
+      const baseOrigin = isLocalFile ? 'https://wappy.club' : '';
+      const navCta = document.getElementById('navCtaEnterWappy');
+      const mobileCta = document.getElementById('mobileCtaEnterWappy');
+
+      if (isLogged && user) {{
+        const rawName = String(user.name || user.username || user.email || 'Usuario').trim();
+        const firstName = rawName.split(' ')[0] || 'Usuario';
+        const avatarSrc = user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${{encodeURIComponent(rawName)}}&backgroundColor=0d9488`;
+
+        if (navCta) {{
+          navCta.setAttribute('href', `${{baseOrigin}}/c/new`);
+          navCta.classList.add('logged-in');
+          navCta.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = avatarSrc;
+          img.alt = '';
+          img.className = 'nav-cta-avatar';
+          const span = document.createElement('span');
+          span.textContent = 'Entrar a WAPPY →';
+          navCta.appendChild(img);
+          navCta.appendChild(span);
+        }}
+
+        if (mobileCta) {{
+          mobileCta.setAttribute('href', `${{baseOrigin}}/c/new`);
+          mobileCta.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = avatarSrc;
+          img.alt = '';
+          img.className = 'nav-cta-avatar';
+          const span = document.createElement('span');
+          span.textContent = `Entrar a WAPPY como ${{firstName}} →`;
+          mobileCta.appendChild(img);
+          mobileCta.appendChild(span);
+        }}
+      }} else {{
+        if (navCta) {{
+          navCta.setAttribute('href', `${{baseOrigin}}/login`);
+          navCta.classList.remove('logged-in');
+          navCta.innerHTML = '<span>Ir a WAPPY</span>';
+        }}
+        if (mobileCta) {{
+          mobileCta.setAttribute('href', `${{baseOrigin}}/login`);
+          mobileCta.innerHTML = '<span>Ir a WAPPY</span>';
+        }}
+      }}
+
+      try {{
+        window.dispatchEvent(new CustomEvent('wappy-auth-updated', {{
+          detail: {{ user: window.platformUser, token: window.platformUserToken, isLoggedIn: isLogged }}
+        }}));
+      }} catch (e) {{}}
+    }}
+
+    async function detectWappySession() {{
+      if (window.location.protocol === 'file:') {{
+        updateWappyAuthNav(null, '');
+        return;
+      }}
+      try {{
+        const res = await fetch('/api/auth/refresh', {{
+          method: 'POST',
+          credentials: 'include'
+        }});
+        if (res.ok) {{
+          const data = await res.json();
+          if (data && data.user) {{
+            updateWappyAuthNav(data.user, data.token || '');
+            return;
+          }}
+        }}
+      }} catch (err) {{}}
+      updateWappyAuthNav(null, '');
+    }}
+
     document.addEventListener('DOMContentLoaded', () => {{
       showSlide(1);
       updateTokenSimulator();
       initDeckCanvas();
+      detectWappySession();
     }});
   </script>
 </body>
