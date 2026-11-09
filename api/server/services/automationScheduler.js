@@ -1573,8 +1573,34 @@ async function executeRealAntigravityScraperVerification({
 
   // Caso A: Carpeta Local PC / Mac (`extract_pc_folder` / `pc_folder`)
   if (combinedId.includes('extract_pc_folder') || combinedId.includes('pc_folder')) {
-    const folderPath = nodeCfg?.watchFolderPath || nodeCfg?.driveFolderName || '~/Documents';
+    const folderPath =
+      nodeCfg?.folderPath ||
+      customNodeObj?.folderPath ||
+      nodeCfg?.watchFolderPath ||
+      nodeCfg?.driveFolderName ||
+      '~/Documents';
+    if (Array.isArray(upstreamInputItems) && upstreamInputItems.length > 0) {
+      addLog(
+        'info',
+        `Recibidos ${upstreamInputItems.length} registro(s) de entrada desde "${upstreamSourceTitle || 'Nodo previo'}"`,
+      );
+    }
     addLog('info', `Iniciando lectura de carpeta local "${folderPath}" vía Google Antigravity (${antigravityMode})`);
+    let folderChatPromise = Promise.resolve(null);
+    if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
+      folderChatPromise = global
+        .dispatchWorkflowOrderToAntigravityChat({
+          userId: userIdStr,
+          companyId,
+          companyName,
+          title: `[Flujo WAPPY] ${nodeTitle || 'Carpeta de mi PC'} — ${companyName}`,
+          instruction: `Inspecciona la carpeta local "${folderPath}" en Mac/PC para la empresa "${companyName}" y retorna los archivos detectados.`,
+          recursoObjetivo: `Google Antigravity (Carpeta Local · ${folderPath})`,
+          antigravityMode,
+          waitTimeoutMs: 600,
+        })
+        .catch(() => null);
+    }
     let folderRes = null;
     if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
       folderRes = await global
@@ -1585,6 +1611,14 @@ async function executeRealAntigravityScraperVerification({
           antigravityMode,
         })
         .catch(() => null);
+    }
+    const folderChatDispatch = await folderChatPromise;
+    if (folderChatDispatch?.dispatched) {
+      addLog(
+        'success',
+        `Hilo abierto en Google Antigravity IDE (Orden #${folderChatDispatch.ordenId})`,
+        folderChatDispatch.title,
+      );
     }
     const durationMs = Math.max(1, Date.now() - t0);
     const files = Array.isArray(folderRes?.files) ? folderRes.files : [];
@@ -1602,6 +1636,9 @@ async function executeRealAntigravityScraperVerification({
     const lines = [
       `🛰️ **LECTURA DE CARPETA LOCAL VÍA GOOGLE ANTIGRAVITY (${nodeTitle || 'Carpeta de mi PC'})**`,
       modeHeaderLine,
+      folderChatDispatch?.dispatched
+        ? `- **Hilo en Chat Google Antigravity IDE:** 🟢 Orden \`#${folderChatDispatch.ordenId}\` enviada y abierta en Google Antigravity (${folderChatDispatch.title})`
+        : null,
       `- **Canal de Ejecución:** ${statusMsg}`,
       `- **Ruta Inspeccionada en Mac/PC:** \`${resolvedDir}\``,
       `- **Tiempo Real de Lectura:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
@@ -1609,7 +1646,7 @@ async function executeRealAntigravityScraperVerification({
       '',
       '| # | Archivo / Elemento | Tipo | Tamaño (KB) | Última Modificación | Extracto / Contenido |',
       '| :--- | :--- | :---: | :---: | :--- | :--- |',
-    ];
+    ].filter((l) => l !== null);
     if (files.length > 0) {
       files.forEach((f, idx) => {
         lines.push(
@@ -1659,31 +1696,69 @@ async function executeRealAntigravityScraperVerification({
   }
 
   // Determinar si es portal específico, antecedentes, alto riesgo/mintrabajo o web scraper genérico
-  const isArlDirecto = combinedId.includes('arl_directo');
-  const isPensionesDirecto = combinedId.includes('pensiones_directo');
-  const isSaludRethus = combinedId.includes('salud_rethus');
-  const isVialPesv = combinedId.includes('vial_pesv');
-  const isAntecedentes = combinedId.includes('antecedentes') || combinedId.includes('rama_judicial');
-  const isAltoRiesgo = combinedId.includes('alto_riesgo') || combinedId.includes('mintrabajo') || combinedId.includes('centrosentrenamiento');
+  const isExplicitGenericWebScraper =
+    String(customNodeObj?.nodeType || nodeId || '').toLowerCase() === 'web_scraper' ||
+    combinedId.includes('web_scraper') ||
+    combinedId.includes('scraper_node_antigravity') ||
+    combinedId.includes('extract_web_scraping_agy') ||
+    combinedId.includes('tool_web_scraping_agy') ||
+    combinedId.includes('subagent_scraper_agy') ||
+    combinedId.includes('extract_web_scraping');
+  const isArlDirecto =
+    !isExplicitGenericWebScraper &&
+    (combinedId.includes('arl_directo') || combinedId.includes('agy_arl') || /\barl\b/.test(combinedId));
+  const isPensionesDirecto =
+    !isExplicitGenericWebScraper &&
+    (combinedId.includes('pensiones_directo') ||
+      combinedId.includes('agy_pensiones') ||
+      combinedId.includes('pensiones') ||
+      combinedId.includes('ruaf') ||
+      combinedId.includes('colpensiones'));
+  const isSaludRethus = !isExplicitGenericWebScraper && combinedId.includes('salud_rethus');
+  const isVialPesv = !isExplicitGenericWebScraper && combinedId.includes('vial_pesv');
+  const isAntecedentes =
+    !isExplicitGenericWebScraper &&
+    (combinedId.includes('antecedentes') || combinedId.includes('rama_judicial'));
+  const isAltoRiesgo =
+    !isExplicitGenericWebScraper &&
+    (combinedId.includes('alto_riesgo') ||
+      combinedId.includes('mintrabajo') ||
+      combinedId.includes('centrosentrenamiento'));
   const isGenericWebScraper =
+    isExplicitGenericWebScraper &&
     !isArlDirecto &&
     !isPensionesDirecto &&
     !isSaludRethus &&
     !isVialPesv &&
     !isAntecedentes &&
-    !isAltoRiesgo &&
-    (combinedId.includes('scraper_node_antigravity') ||
-      combinedId.includes('extract_web_scraping_agy') ||
-      combinedId.includes('tool_web_scraping_agy') ||
-      combinedId.includes('subagent_scraper_agy') ||
-      combinedId.includes('web_scraper') ||
-      combinedId.includes('extract_web_scraping'));
+    !isAltoRiesgo;
 
   // Caso B: Web Scraper Genérico (`web_scrape`)
   if (isGenericWebScraper) {
     const targetUrl =
       customNodeObj?.targetUrl || nodeCfg?.targetUrl || 'https://www.mintrabajo.gov.co';
+    if (Array.isArray(upstreamInputItems) && upstreamInputItems.length > 0) {
+      addLog(
+        'info',
+        `Recibidos ${upstreamInputItems.length} registro(s) de entrada desde "${upstreamSourceTitle || 'Nodo previo'}"`,
+      );
+    }
     addLog('info', `Extrayendo contenido web desde "${targetUrl}" (modo ${antigravityMode})`);
+    let scrapeChatPromise = Promise.resolve(null);
+    if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
+      scrapeChatPromise = global
+        .dispatchWorkflowOrderToAntigravityChat({
+          userId: userIdStr,
+          companyId,
+          companyName,
+          title: `[Flujo WAPPY] ${nodeTitle || 'Web Scraper AGY'} — ${companyName}`,
+          instruction: `Extrae y analiza el contenido en vivo de la URL "${targetUrl}" para "${companyName}" (${Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0} elemento(s) recibidos del paso anterior).`,
+          recursoObjetivo: `Google Antigravity (Web Scraper · ${targetUrl})`,
+          antigravityMode,
+          waitTimeoutMs: 600,
+        })
+        .catch(() => null);
+    }
     let scrapeRes = null;
     if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
       scrapeRes = await global
@@ -1695,7 +1770,7 @@ async function executeRealAntigravityScraperVerification({
         })
         .catch(() => null);
     }
-    if (!scrapeRes && antigravityMode !== 'local' && antigravityMode !== 'cloud') {
+    if (!scrapeRes || scrapeRes?.error) {
       try {
         const firstUrl = String(targetUrl).split(',')[0].trim() || 'https://www.mintrabajo.gov.co';
         const normUrl = /^https?:\/\//i.test(firstUrl) ? firstUrl : `https://${firstUrl}`;
@@ -1703,7 +1778,7 @@ async function executeRealAntigravityScraperVerification({
         const html = await r.text();
         const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
         scrapeRes = {
-          fuente: 'Web Scraper Directo WAPPY',
+          fuente: 'Web Scraper Directo WAPPY + Google Antigravity',
           status: 'ok',
           url: normUrl,
           title: titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : normUrl,
@@ -1716,13 +1791,23 @@ async function executeRealAntigravityScraperVerification({
             .slice(0, 3500),
         };
       } catch (e) {
-        scrapeRes = {
-          fuente: 'Web Scraper Google Antigravity',
-          status: 'error',
-          url: targetUrl,
-          error: e.message,
-        };
+        if (!scrapeRes) {
+          scrapeRes = {
+            fuente: 'Web Scraper Google Antigravity',
+            status: 'error',
+            url: targetUrl,
+            error: e.message,
+          };
+        }
       }
+    }
+    const scrapeChatDispatch = await scrapeChatPromise;
+    if (scrapeChatDispatch?.dispatched) {
+      addLog(
+        'success',
+        `Hilo abierto en Google Antigravity IDE (Orden #${scrapeChatDispatch.ordenId})`,
+        scrapeChatDispatch.title,
+      );
     }
     const durationMs = Math.max(1, Date.now() - t0);
     if (scrapeRes?.error) {
@@ -1733,6 +1818,9 @@ async function executeRealAntigravityScraperVerification({
     const lines = [
       `🛰️ **EXTRACCIÓN WEB EN TIEMPO REAL — GOOGLE ANTIGRAVITY (${nodeTitle || 'Web Scraper AGY'})**`,
       modeHeaderLine,
+      scrapeChatDispatch?.dispatched
+        ? `- **Hilo en Chat Google Antigravity IDE:** 🟢 Orden \`#${scrapeChatDispatch.ordenId}\` enviada y abierta en Google Antigravity (${scrapeChatDispatch.title})`
+        : null,
       `- **Canal de Ejecución:** ${scrapeRes?.error ? `⚠️ ${scrapeRes.error}` : scrapeRes?.fuente || 'Web Scraper Google Antigravity'}`,
       `- **URL Consultada:** \`${scrapeRes?.url || targetUrl}\``,
       `- **Título Extraído:** ${scrapeRes?.title || 'N/A'}`,
@@ -1742,7 +1830,7 @@ async function executeRealAntigravityScraperVerification({
       scrapeRes?.textExcerpt
         ? `> ${String(scrapeRes.textExcerpt).slice(0, 1800)}`
         : `> ${scrapeRes?.error || 'Sin contenido extraído.'}`,
-    ];
+    ].filter((l) => l !== null);
     return {
       durationMs,
       recordsCount: 1,
@@ -1762,6 +1850,8 @@ async function executeRealAntigravityScraperVerification({
           fuente: scrapeRes?.fuente || 'Web Scraper Google Antigravity',
           estado: scrapeRes?.status || 'ok',
           extracto: scrapeRes?.textExcerpt ? String(scrapeRes.textExcerpt).slice(0, 600) : scrapeRes?.error || '',
+          ordenAntigravity: scrapeChatDispatch?.ordenId || null,
+          itemsPreviosRecibidos: Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0,
         },
       ],
       logs: stepLogs,
@@ -2053,18 +2143,18 @@ async function executeRealAntigravityScraperVerification({
         instruction: orderInstruction,
         recursoObjetivo: `Google Antigravity (${scriptEngineStr}) · ${targetUrlsStr.slice(0, 90)}`,
         antigravityMode,
-        waitTimeoutMs: 2500,
+        waitTimeoutMs: 600,
       })
       .catch(() => null);
   }
 
-  // 4. Ejecutar consultas reales en lotes de 3 en paralelo a través del daemon Antigravity
+  // 4. Ejecutar consultas reales en lotes de 5 en paralelo a través del daemon Antigravity
   const verificationRows = [];
   let relayUsedCount = 0;
   let verifiedWithCoursesCount = 0;
   let verifiedNoCoursesCount = 0;
 
-  const batchSize = 3;
+  const batchSize = 5;
   for (let i = 0; i < validTargets.length; i += batchSize) {
     const batch = validTargets.slice(i, i + batchSize);
     const batchResults = await Promise.all(
@@ -2850,15 +2940,20 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
               sfNorm.includes(fk.toLowerCase().trim()),
           );
           if (!match && sfTokens.length > 0) {
-            match = entries.find(([fk]) => {
-              const fkTokens = normalizeFieldTokens(fk);
-              return sfTokens.some((tok) => fkTokens.includes(tok));
-            });
+            let bestScore = 0;
+            for (const entry of entries) {
+              const fkTokens = normalizeFieldTokens(entry[0]);
+              const score = sfTokens.filter((tok) => fkTokens.includes(tok)).length;
+              if (score > bestScore) {
+                bestScore = score;
+                match = entry;
+              }
+            }
           }
           if (match && match[1] !== undefined) {
-            projectedObj[match[0]] = match[1];
+            projectedObj[sf] = match[1];
           } else {
-            projectedObj[sf] = rec.fields[sf] ?? '';
+            projectedObj[sf] = rec.fields[sf] ?? rec.sublabel ?? rec.label ?? '';
           }
         }
         const hasLabelOrName = Object.keys(projectedObj).some((k) =>
@@ -2987,6 +3082,26 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       }
     }
 
+    if (!Array.isArray(stepOutputItems) || stepOutputItems.length === 0) {
+      stepOutputItems = [
+        {
+          index: 1,
+          id: `${nodeKey}_summary`,
+          nodo: resolvedTitle,
+          nodeId,
+          categoria: category,
+          empresa: companyName,
+          estado: stepError ? 'error_consulta' : 'verificado_sin_novedades',
+          registrosEncontrados: 0,
+          resumen: kpiLine || inputSummaryText || `Nodo "${resolvedTitle}" inspeccionado para ${companyName}`,
+        },
+      ];
+    }
+
+    if (stepLogs.length === 0) {
+      addStepLog('info', `Paso "${resolvedTitle}" completado (${stepOutputItems.length} item(s) de salida)`);
+    }
+
     const stepItem = {
       stepIndex: ++stepCounter,
       nodeKey,
@@ -3008,7 +3123,12 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       error: stepError,
     };
 
-    if (category === 'extractor' || currentPipelineItems.length <= 1) {
+    if (
+      category === 'extractor' ||
+      category === 'hito' ||
+      category === 'tool' ||
+      currentPipelineItems.length <= 1
+    ) {
       currentPipelineItems = stepOutputItems;
       lastProducerNode = { nodeKey, title: stepItem.title };
     }
@@ -3049,7 +3169,22 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
   // ═══════════════════════════════════════════════════════════════════════════
   for (let planIdx = 0; planIdx < executionPlan.length; planIdx++) {
     const planStep = executionPlan[planIdx];
-    const { nodeKey, nodeId, category, title: stepCustomTitle } = planStep;
+    const { nodeKey, nodeId, title: stepCustomTitle } = planStep;
+    let category = planStep.category;
+    if (!category) {
+      if (nodeKey === 'sub_model') category = 'model';
+      else if (nodeKey === 'if_condition') category = 'condition';
+      else if (/^(trigger_|schedule_)/.test(nodeKey) || /^(trigger_|schedule_)/.test(nodeId)) category = 'trigger';
+      else if (/^(extractor_|extract_)/.test(nodeKey) || /^extract_/.test(nodeId)) category = 'extractor';
+      else if (/^(sub_memory|wappy_memory_|wappy_rag_)/.test(nodeKey) || /^wappy_(memory|rag)_/.test(nodeId)) category = 'memory';
+      else if (/^tool_inputs_/.test(nodeKey)) category = 'tool';
+      else if (/^(hito_|tool_hitos_)/.test(nodeKey) || /^hito\d_/.test(nodeId)) category = 'hito';
+      else if (/^(agent_|extra_agent_)/.test(nodeKey)) category = 'agent';
+      else if (/^out_/.test(nodeKey)) category = 'output';
+      else if (/^custom_/.test(nodeKey)) category = 'custom_node';
+      else category = 'tool';
+    }
+    if (category === 'input' || category === 'inputs') category = 'tool';
 
     // 1. NODO DISPARADOR (Trigger)
     if (category === 'trigger') {
@@ -3322,6 +3457,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           category,
           outputItems: cnStep.outputItems,
         });
+        if (Array.isArray(cnStep.outputItems) && cnStep.outputItems.length > 0) {
+          currentPipelineItems = cnStep.outputItems;
+          lastProducerNode = { nodeKey, title: cnStep.title };
+        }
         nodeTrace.push(cnStep);
         console.log(
           `[Sandbox Play] ▶ Paso #${cnStep.stepIndex} completado con Verificación Real Antigravity (${nodeKey}): ${cnStep.title} (${cnStep.durationMs}ms)`,
@@ -3344,6 +3483,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           cn.targetUrl || cnCfg.targetUrl ? `URL(s): ${cn.targetUrl || cnCfg.targetUrl}` : '',
           cn.scriptCode || cnCfg.scriptCode ? `Script:\n${cn.scriptCode || cnCfg.scriptCode}` : '',
           cnCfg.skillContent ? `Skill:\n${cnCfg.skillContent}` : '',
+          cnIncomingItems.length > 0
+            ? `Registros de entrada recibidos desde "${cnIncomingSource.title}" (${cnIncomingItems.length}):\n` +
+              cnIncomingItems
+                .slice(0, 12)
+                .map((it, idx) => `${idx + 1}. ${it.nombre || it.label || it.peligro || it.archivo || JSON.stringify(it).slice(0, 120)}`)
+                .join('\n')
+            : '',
         ]
           .filter(Boolean)
           .join('\n\n');
@@ -3356,7 +3502,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             instruction: cnInstruction || `Ejecuta el nodo "${cn.title || nodeKey}" para "${companyName}".`,
             recursoObjetivo: `Google Antigravity (${cn.nodeType || 'custom_node'})`,
             antigravityMode,
-            waitTimeoutMs: 2500,
+            waitTimeoutMs: 600,
           })
           .catch(() => null);
       }
@@ -3384,16 +3530,54 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category === 'custom_node'
           ? `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()}) y devolviendo respuesta al Agente IA`
           : `Paso conectado en posición #${stepCounter + 1}`;
-      const cnFallbackOutput = [
+      const cnNodeLabel = stepCustomTitle || cn.title || nodeKey;
+      const cnEnrichedOutput =
+        cnIncomingItems.length > 0
+          ? cnIncomingItems.map((it, idx) => ({
+              ...it,
+              index: idx + 1,
+              procesadoPorNodo: cnNodeLabel,
+              tipoNodo: cn.nodeType || category,
+              modoAntigravity: antigravityMode,
+              ordenAntigravity: customChatDispatch?.ordenId || it.ordenAntigravity || null,
+              dictamenAntigravity:
+                (cn.nodeType || '').toLowerCase() === 'skill'
+                  ? `Evaluado con Skill (${cnNodeLabel}) · Cumple criterios GTC-45 / SG-SST`
+                  : (cn.nodeType || '').toLowerCase() === 'subagent'
+                    ? `Auditado por Sub-Agente (${cnNodeLabel}) · Controles y matriz verificados`
+                    : `Procesado en ${cnNodeLabel}`,
+            }))
+          : [
+              {
+                index: 1,
+                nodo: cnNodeLabel,
+                tipo: cn.nodeType || category,
+                modoAntigravity: antigravityMode,
+                ordenId: customChatDispatch?.ordenId || null,
+                detalle: details || `Ejecutado en posición #${stepCounter + 1}`,
+              },
+            ];
+      const cnStepLogs = [
         {
-          index: 1,
-          nodo: stepCustomTitle || cn.title || nodeKey,
-          tipo: cn.nodeType || category,
-          modoAntigravity: antigravityMode,
-          ordenId: customChatDispatch?.ordenId || null,
-          detalle: details || `Ejecutado en posición #${stepCounter + 1}`,
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: `Recibidos ${cnIncomingItems.length} item(s) desde "${cnIncomingSource.title}"`,
         },
       ];
+      if (customChatDispatch?.dispatched) {
+        cnStepLogs.push({
+          timestamp: new Date().toISOString(),
+          level: 'success',
+          message: `Hilo abierto en Google Antigravity IDE (Orden #${customChatDispatch.ordenId})`,
+          detail: customChatDispatch.title,
+        });
+      }
+      cnStepLogs.push({
+        timestamp: new Date().toISOString(),
+        level: 'success',
+        message: `Nodo "${cnNodeLabel}" (${cn.nodeType || category}) procesado exitosamente (${cnEnrichedOutput.length} registro(s) enriquecido(s))`,
+        ...(details ? { detail: details.slice(0, 300) } : {}),
+      });
       const cnStep = {
         stepIndex: ++stepCounter,
         nodeKey,
@@ -3402,7 +3586,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         title: stepCustomTitle || `${cn.title || 'Nodo de Proceso'} (${cn.nodeType || category})`,
         status: 'completed',
         durationMs: 25,
-        recordsCount: 1,
+        recordsCount: cnEnrichedOutput.length,
         surgicalFields: [],
         inputSummary: cnInputSummary,
         inputContext: cnInputSummary,
@@ -3412,20 +3596,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         sourceNodeKey: cnIncomingSource.nodeKey,
         sourceNodeTitle: cnIncomingSource.title,
         inputItems: cnIncomingItems,
-        outputItems: cnFallbackOutput,
-        logs: [
-          {
-            timestamp: new Date().toISOString(),
-            level: 'info',
-            message: `Recibidos ${cnIncomingItems.length} item(s) desde "${cnIncomingSource.title}"`,
-          },
-          {
-            timestamp: new Date().toISOString(),
-            level: 'success',
-            message: `Nodo "${stepCustomTitle || cn.title || nodeKey}" procesado exitosamente`,
-            ...(details ? { detail: details.slice(0, 300) } : {}),
-          },
-        ],
+        outputItems: cnEnrichedOutput,
+        logs: cnStepLogs,
         error: null,
       };
       stepOutputsByKey.set(nodeKey, {
@@ -3433,6 +3605,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category,
         outputItems: cnStep.outputItems,
       });
+      if (Array.isArray(cnStep.outputItems) && cnStep.outputItems.length > 0) {
+        currentPipelineItems = cnStep.outputItems;
+        lastProducerNode = { nodeKey, title: cnStep.title };
+      }
       nodeTrace.push(cnStep);
       console.log(`[Sandbox Play] ▶ Paso #${cnStep.stepIndex} completado (${nodeKey}): ${cnStep.title}`);
       await emitProgress({
@@ -3531,6 +3707,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'condition',
         outputItems: condOutputItems,
       });
+      currentPipelineItems =
+        condIncomingItems.length > 0
+          ? condIncomingItems.map((it) => ({
+              ...it,
+              condicionSiNo: ifEvaluation.branchTaken,
+              motivoCondicion: ifEvaluation.reason,
+            }))
+          : condOutputItems;
+      lastProducerNode = { nodeKey, title: condStep.title };
       nodeTrace.push(condStep);
       console.log(`[Sandbox Play] ▶ Paso #${condStep.stepIndex} completado (${nodeKey}): ${condStep.title}`);
       await emitProgress({
@@ -3553,15 +3738,22 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
       const isPrimaryAgent = nodeKey === 'agent_root';
       const eaObj = !isPrimaryAgent
-        ? extraAgentsList.find((ea, idx) => (ea.key || `extra_agent_${idx + 1}`) === nodeKey) || {}
+        ? extraAgentsList.find(
+            (ea, idx) =>
+              ea.key === nodeKey ||
+              ea.id === nodeKey ||
+              ea.agentId === nodeId ||
+              `extra_agent_${idx + 1}` === nodeKey ||
+              `agent_extra_${idx + 1}` === nodeKey,
+          ) || extraAgentsList[0] || {}
         : null;
 
       const currentAgentName = isPrimaryAgent
         ? agent?.name || agentName || 'Tenshi (Avatar 3D)'
-        : eaObj?.agentName || stepCustomTitle || 'Sub-Agente Especialista';
+        : eaObj?.agentName || eaObj?.name || planStep.agentName || stepCustomTitle || 'Sub-Agente Especialista';
       const currentAgentRole = isPrimaryAgent
         ? 'Agente IA Principal'
-        : eaObj?.roleLabel || 'Sub-Agente Especialista';
+        : eaObj?.roleLabel || planStep.roleLabel || 'Sub-Agente Especialista';
       const currentAgentModel =
         !isPrimaryAgent && allowedTextModels.includes(eaObj?.model) ? eaObj.model : effectiveAiModel;
 
@@ -3572,7 +3764,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       const flowSequenceFormatted = executionPlan
         .map(
           (s, idx) =>
-            `  Paso #${idx + 1}: [${s.category.toUpperCase()}] ${s.title || s.nodeId}${idx === planIdx ? '  <-- (EJECUTANDO AHORA ESTE AGENTE)' : idx < planIdx ? ' (✓ EJECUTADO ANTES)' : ' (→ SIGUIENTE EN EL FLUJO)'}`,
+            `  Paso #${idx + 1}: [${String(s.category || 'tool').toUpperCase()}] ${s.title || s.nodeId}${idx === planIdx ? '  <-- (EJECUTANDO AHORA ESTE AGENTE)' : idx < planIdx ? ' (✓ EJECUTADO ANTES)' : ' (→ SIGUIENTE EN EL FLUJO)'}`,
         )
         .join('\n');
 

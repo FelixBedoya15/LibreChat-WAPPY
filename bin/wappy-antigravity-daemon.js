@@ -4150,6 +4150,149 @@ function startSseWorker(cliArgs) {
                           true,
                           wappyUrl
                         ).catch((err) => log(`Error en launch_connector: ${err.message}`));
+                      } else if (evtName === 'osint_mintrabajo_request' && parsedData?.requestId) {
+                        (async () => {
+                          try {
+                            const reqAction = String(parsedData.action || 'query').toLowerCase().trim();
+                            log(`🔍 [Antigravity Relay] Ejecutando acción "${reqAction}" desde IP Local (${parsedData.cedula || parsedData.folderPath || parsedData.targetUrl || parsedData.nombre || 'N/A'})...`);
+                            const osintPath = '/Users/venta/Documents/GitHub/LibreChat-WAPPY/api/server/services/osintWorkerService.js';
+                            let osintSvc = null;
+                            try {
+                              delete require.cache[require.resolve(osintPath)];
+                              osintSvc = require(osintPath);
+                            } catch (_) {}
+
+                            let result = null;
+                            if (reqAction === 'pdf' && osintSvc) {
+                              result = await osintSvc.descargarPdfConstanciaMinTrabajo({
+                                tipoDoc: parsedData.tipoDoc || 'CC',
+                                cedula: parsedData.cedula,
+                                eventTarget: parsedData.eventTarget,
+                              });
+                            } else if (reqAction === 'antecedentes' && osintSvc) {
+                              result = await osintSvc.consultarRamaJudicial({
+                                nombreCompleto: parsedData.nombre || '',
+                              });
+                            } else if (
+                              ['arl', 'pensiones', 'salud_rethus', 'vial_pesv'].includes(reqAction) &&
+                              osintSvc
+                            ) {
+                              result = await osintSvc.consultarPortalEspecíficoAntigravity({
+                                action: reqAction,
+                                tipoDoc: parsedData.tipoDoc || 'CC',
+                                cedula: parsedData.cedula,
+                                nombre: parsedData.nombre,
+                                placa: parsedData.placa,
+                              });
+                            } else if (reqAction === 'pc_folder') {
+                              const rawFolder = String(parsedData.folderPath || '~/Documents').trim() || '~/Documents';
+                              const resolvedDir = rawFolder.startsWith('~')
+                                ? path.join(os.homedir(), rawFolder.slice(1))
+                                : path.resolve(rawFolder);
+                              const files = [];
+                              if (fs.existsSync(resolvedDir) && fs.statSync(resolvedDir).isDirectory()) {
+                                const entries = fs.readdirSync(resolvedDir, { withFileTypes: true });
+                                for (const entry of entries) {
+                                  if (entry.name.startsWith('.')) continue;
+                                  if (files.length >= 20) break;
+                                  const fullPath = path.join(resolvedDir, entry.name);
+                                  try {
+                                    const st = fs.statSync(fullPath);
+                                    const ext = path.extname(entry.name).toLowerCase();
+                                    let excerpt = '';
+                                    if (
+                                      st.isFile() &&
+                                      st.size <= 512 * 1024 &&
+                                      ['.txt', '.md', '.csv', '.json'].includes(ext)
+                                    ) {
+                                      const rawTxt = fs.readFileSync(fullPath, 'utf8');
+                                      excerpt = rawTxt
+                                        .split(/\r?\n/)
+                                        .slice(0, 6)
+                                        .join(' | ')
+                                        .slice(0, 320);
+                                    }
+                                    files.push({
+                                      name: entry.name,
+                                      isDirectory: st.isDirectory(),
+                                      sizeKB: Number((st.size / 1024).toFixed(1)),
+                                      modifiedAt: st.mtime.toISOString(),
+                                      excerpt,
+                                    });
+                                  } catch (_) {}
+                                }
+                              }
+                              result = {
+                                fuente: 'Disco Local vía Google Antigravity (Mac/PC)',
+                                status: 'ok',
+                                folderPath: resolvedDir,
+                                files,
+                              };
+                            } else if (reqAction === 'web_scrape') {
+                              const rawUrls = String(parsedData.targetUrl || 'https://www.mintrabajo.gov.co')
+                                .split(',')
+                                .map((u) => u.trim())
+                                .filter(Boolean);
+                              const firstUrl = rawUrls[0] || 'https://www.mintrabajo.gov.co';
+                              const targetUrl = /^https?:\/\//i.test(firstUrl) ? firstUrl : `https://${firstUrl}`;
+                              const scrapeRes = await fetch(targetUrl, {
+                                headers: {
+                                  'User-Agent':
+                                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                                  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                                },
+                                signal: AbortSignal.timeout(12000),
+                              });
+                              const html = await scrapeRes.text();
+                              const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+                              const title = titleMatch
+                                ? titleMatch[1].replace(/\s+/g, ' ').trim()
+                                : targetUrl;
+                              const headings = Array.from(
+                                html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi),
+                              )
+                                .slice(0, 10)
+                                .map((m) => m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+                                .filter(Boolean);
+                              const cleanBody = html
+                                .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                                .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                                .replace(/<[^>]+>/g, ' ')
+                                .replace(/\s+/g, ' ')
+                                .trim()
+                                .slice(0, 3500);
+                              result = {
+                                fuente: 'Web Scraper Google Antigravity (IP Local)',
+                                status: 'ok',
+                                url: targetUrl,
+                                httpStatus: scrapeRes.status,
+                                title,
+                                headings,
+                                textExcerpt: cleanBody,
+                              };
+                            } else if (osintSvc) {
+                              result = await osintSvc.consultarAlturasMinTrabajo({
+                                tipoDoc: parsedData.tipoDoc || 'CC',
+                                cedula: parsedData.cedula,
+                                includePdf: parsedData.includePdf === true,
+                                preferAntigravityDaemon: false,
+                              });
+                            }
+                            const cbUrl = `${wappyUrl.replace(/\/+$/, '')}/api/mcp-bridge/antigravity/osint-callback`;
+                            await fetch(cbUrl, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'x-wappy-api-key': apiKey,
+                                Authorization: `Bearer ${apiKey}`,
+                              },
+                              body: JSON.stringify({ requestId: parsedData.requestId, result }),
+                            });
+                            log(`✅ [Antigravity Relay] Respuesta "${reqAction}" enviada a ${wappyUrl} (${parsedData.requestId})`);
+                          } catch (osintErr) {
+                            log(`❌ [Antigravity Relay] Error en acción Antigravity: ${osintErr.message}`);
+                          }
+                        })();
                       }
                     } catch (_) {}
                   }

@@ -9887,13 +9887,19 @@ async function dispatchWorkflowOrderToAntigravityChat({
   let daemonCount = targetUserId
     ? countAntigravityDaemons(targetUserId, explicitTargetEnv)
     : 0;
-  if (daemonCount <= 0 && !explicitTargetEnv && targetUserId) {
+  let effectiveStrictMode = Boolean(explicitTargetEnv);
+  if (daemonCount <= 0 && targetUserId) {
     daemonCount = countAntigravityDaemons(targetUserId);
+    if (daemonCount > 0) effectiveStrictMode = false;
   }
   if (daemonCount <= 0) {
     for (const [candidateUserId, clients] of antigravityStreamClients.entries()) {
       if (!clients || clients.size === 0) continue;
-      const cCount = countAntigravityDaemons(candidateUserId, explicitTargetEnv);
+      let cCount = countAntigravityDaemons(candidateUserId, explicitTargetEnv);
+      if (cCount <= 0) {
+        cCount = countAntigravityDaemons(candidateUserId);
+        if (cCount > 0) effectiveStrictMode = false;
+      }
       if (cCount > 0) {
         targetUserId = String(candidateUserId);
         daemonCount = cCount;
@@ -9998,7 +10004,7 @@ async function dispatchWorkflowOrderToAntigravityChat({
         targetProject: 'sgsst',
         fechaCreacion: kanbanTask.createdAt || new Date().toISOString(),
       },
-      { targetEnv: explicitTargetEnv, strictMode: Boolean(explicitTargetEnv) },
+      { targetEnv: explicitTargetEnv, strictMode: effectiveStrictMode },
     );
 
     logger.info(
@@ -12634,7 +12640,7 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
 
   let targetClient = null;
   if (mode === 'local') {
-    targetClient = findDaemonByEnv('local');
+    targetClient = findDaemonByEnv('local') || findDaemonByEnv('cloud');
     if (!targetClient) {
       return {
         error: 'No hay puente Google Antigravity Local (PC/Mac) en línea para este modo.',
@@ -12643,7 +12649,7 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
       };
     }
   } else if (mode === 'cloud') {
-    targetClient = findDaemonByEnv('cloud');
+    targetClient = findDaemonByEnv('cloud') || findDaemonByEnv('local');
     if (!targetClient) {
       return {
         error: 'No hay instancia Google Antigravity Cloud 24/7 en línea para este modo.',

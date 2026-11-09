@@ -122,7 +122,7 @@ function normalizeInspectorNodeId(rawId) {
   let clean = String(rawId || '').trim();
   if (/^trigger_trigger_/.test(clean)) {
     clean = clean.replace(/^trigger_/, '');
-  } else if (!/^trigger_(tenshi|antigravity|antigravity_cloud|email|agent|qr_worker|webhook|whatsapp)$/.test(clean)) {
+  } else if (!/^trigger_(tenshi|antigravity|antigravity_local|antigravity_cloud|email|agent|qr_worker|qr_report|webhook|whatsapp)$/.test(clean)) {
     clean = clean.replace(/^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
   }
 
@@ -139,22 +139,34 @@ function normalizeInspectorNodeId(rawId) {
     webhook_event: 'trigger_webhook',
     tenshi: 'trigger_tenshi',
     antigravity: 'trigger_antigravity',
+    antigravity_local: 'trigger_antigravity',
+    trigger_antigravity_local: 'trigger_antigravity',
     antigravity_cloud: 'trigger_antigravity_cloud',
     email: 'trigger_email',
+    email_inbound: 'trigger_email',
+    trigger_email_inbound: 'trigger_email',
     agent: 'trigger_agent',
+    ai_agent: 'trigger_agent',
+    trigger_ai_agent: 'trigger_agent',
     qr_worker: 'trigger_qr_worker',
+    qr_report: 'trigger_qr_worker',
+    trigger_qr_report: 'trigger_qr_worker',
     webhook: 'trigger_webhook',
     whatsapp: 'trigger_whatsapp',
 
     // Los 8 Hitos — 50 Apps SST (Equipo 6 + Aliases Canónicos)
     contexto_organizacion: 'hito1_dofa',
     diagnostico: 'hito1_diagnostico_0312',
+    extract_0312_gaps: 'hito1_diagnostico_0312',
+    '0312_gaps': 'hito1_diagnostico_0312',
     responsable: 'hito1_responsable',
     politica: 'hito1_politica_objetivos',
     hito1_politica: 'hito1_politica_objetivos',
     objetivos: 'hito1_objetivos',
     legal: 'hito1_matriz_legal',
     matriz_legal: 'hito1_matriz_legal',
+    wappy_memory_legal: 'hito1_matriz_legal',
+    memory_legal: 'hito1_matriz_legal',
     rhs: 'hito1_rhs',
     hito1_reglamento_higiene: 'hito1_rhs',
     rit: 'hito1_rit',
@@ -162,6 +174,10 @@ function normalizeInspectorNodeId(rawId) {
     hito4_participacion_ipevar: 'hito1_participacion_ipevar',
     matriz_ipevar_oficial: 'hito2_matriz_ipevar',
     matriz_ipevar: 'hito2_matriz_ipevar',
+    hito3_gtc45_ipvr: 'hito2_matriz_ipevar',
+    gtc45_ipvr: 'hito2_matriz_ipevar',
+    extract_gtc45_risks: 'hito2_matriz_ipevar',
+    gtc45_risks: 'hito2_matriz_ipevar',
     matriz_pesv_oficial: 'hito3_matriz_pesv',
     matriz_pesv: 'hito3_matriz_pesv',
     matriz_compatibilidad_oficial: 'hito3_quimicos_sga',
@@ -177,6 +193,8 @@ function normalizeInspectorNodeId(rawId) {
     somos_sst_perfiles_cargo: 'hito2_perfiles_cargo',
     perfil_socio: 'hito2_perfil_socio',
     perfil_sociodemografico: 'hito2_perfil_socio',
+    hito2_sociodemografico: 'hito2_perfil_socio',
+    sociodemografico: 'hito2_perfil_socio',
     extract_sst_workers: 'hito2_perfil_socio',
     somos_sst_trabajadores: 'hito2_perfil_socio',
     condiciones_salud: 'hito2_condiciones_salud',
@@ -206,17 +224,33 @@ function normalizeInspectorNodeId(rawId) {
     heights_lifecycle: 'hito5_equipos_alturas',
     epp_delivery: 'hito3_epp',
     somos_sst_epp: 'hito3_epp',
+    hito6_inspecciones_epp: 'hito3_epp',
+    inspecciones_epp: 'hito3_epp',
     chemical_registry: 'hito5_registro_quimico',
     hito3_quimicos: 'hito5_registro_quimico',
+    extract_chemical_inventory: 'hito5_registro_quimico',
+    chemical_inventory: 'hito5_registro_quimico',
     vehicles_pesv: 'hito3_vehiculos',
+    extract_pesv_vehicles: 'hito3_vehiculos',
+    pesv_vehicles: 'hito3_vehiculos',
+    custom_scraper_agy_alto_riesgo: 'scraper_agy_alto_riesgo',
+    custom_scraper_agy_antecedentes: 'scraper_agy_antecedentes',
+    custom_scraper_agy_arl: 'scraper_agy_arl_directo',
+    custom_scraper_agy_pensiones: 'scraper_agy_pensiones_directo',
+    custom_scraper_agy_salud_rethus: 'scraper_agy_salud_rethus',
+    custom_scraper_agy_vial_pesv: 'scraper_agy_vial_pesv',
     equipos_emergencia: 'hito5_equipos_emergencia',
     hito5_inspecciones: 'hito5_equipos_emergencia',
     comunicaciones_sst: 'hito6_comunicaciones_sst',
     capacitaciones: 'hito5_capacitaciones',
     hito6_capacitaciones: 'hito5_capacitaciones',
+    hito5_capacitacion_lms: 'hito5_capacitaciones',
+    capacitacion_lms: 'hito5_capacitaciones',
     ruta_aprendizaje: 'hito6_ruta_aprendizaje',
     cursos_lms: 'hito6_ruta_aprendizaje',
     reporte_actos: 'hito4_actos_condiciones',
+    extract_inspections_findings: 'hito4_actos_condiciones',
+    inspections_findings: 'hito4_actos_condiciones',
     consultar_analitica_actos_condiciones: 'hito4_actos_condiciones',
     simulacros_emergencia: 'hito6_simulacros_emergencia',
     app_builder: 'hito6_app_builder',
@@ -225,12 +259,20 @@ function normalizeInspectorNodeId(rawId) {
     hito6_indicadores_atel: 'hito7_estadisticas_atel',
     investigacion_atel: 'hito7_investigacion_atel',
     hito5_investigacion_atel: 'hito7_investigacion_atel',
+    extract_atel_cases: 'hito7_investigacion_atel',
+    atel_cases: 'hito7_investigacion_atel',
     control_acpm: 'hito7_acpm',
     acpm: 'hito7_acpm',
     acpm_task: 'hito7_acpm',
     hito2_cronograma: 'hito7_acpm',
+    hito4_plan_anual: 'hito7_acpm',
+    plan_anual: 'hito7_acpm',
+    extract_annual_tasks: 'hito7_acpm',
+    annual_tasks: 'hito7_acpm',
     auditoria: 'hito7_auditoria',
     hito6_auditoria_anual: 'hito7_auditoria',
+    hito7_atel_auditoria: 'hito7_auditoria',
+    atel_auditoria: 'hito7_auditoria',
     alta_direccion: 'hito7_alta_direccion',
     hito6_revision_direccion: 'hito7_alta_direccion',
     investigacion_profunda: 'hito7_investigacion_profunda',
@@ -239,6 +281,10 @@ function normalizeInspectorNodeId(rawId) {
     memory_company_profile: 'tool_sst_company',
     wappy_memory_company: 'tool_sst_company',
     sub_memory: 'tool_sst_company',
+    wappy_memory_history: 'wappy_memory_antiduplicate',
+    memory_history: 'wappy_memory_antiduplicate',
+    wappy_memory_rag: 'wappy_rag_documental',
+    memory_rag: 'wappy_rag_documental',
   };
 
   return aliasMap[clean] || clean;
@@ -3520,53 +3566,57 @@ async function inspectNodeLiveData({ userId, companyId, nodeId }) {
       } catch (_) {}
     }
 
-    records = [
-      {
-        id: `baseline_${canonicalId}_${String(company._id || 'active')}`,
-        label: `📌 [Línea Base Activa · ${cName}] ${modTitle}`,
-        sublabel: `NIT: ${cNit} • ARL: ${cArl} (Riesgo ${cRisk}) • CIIU: ${cCiiu} (${cAct}) • Resp. SST: ${cResp}`,
-        badge: 'LÍNEA BASE EMPRESA',
-        badgeTone: 'teal',
-        isCritical: true,
+    const mappedSocioFallback = socioFallbackRecords.map((w, idx) => {
+      const wf = w.fields || {};
+      const ced = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id;
+      const nom = wf['Nombre Completo'] || w.label;
+      const car = wf['Cargo'] || 'Colaborador';
+      return {
+        id: `baseline_worker_${canonicalId}_${ced || idx}`,
+        label: `👤 [Trabajador Vinculado · CC ${ced}] ${nom} — ${car}`,
+        sublabel: `Módulo: ${modTitle} • ARL: ${wf['ARL'] || cArl} • EPS: ${wf['EPS'] || 'Activa'} • AFP: ${wf['Fondo de Pensión (AFP)'] || 'Activa'}`,
+        badge: wf['Estado de Exámenes Médicos (Vigente / Vencido)'] || 'VINCULADO',
+        badgeTone: w.isCritical ? 'amber' : 'indigo',
+        isCritical: Boolean(w.isCritical),
         fields: {
-          'Empresa Activa': `${cName} (NIT ${cNit})`,
-          'Razón Social': cName,
-          'NIT': cNit,
-          'ARL y Clase de Riesgo': `${cArl} · Riesgo ${cRisk}`,
-          'Actividad Económica y CIIU': `${cAct} (CIIU ${cCiiu})`,
-          'Responsable SG-SST': `${cResp} (Lic. ${company.licenseNumber || 'Vigente'})`,
-          'Módulo / Aplicativo SG-SST': modTitle,
-          'Norma / Ley / Decreto / Resolución y Año': 'Decreto 1072 de 2015 / Resolución 0312 de 2019 / GTC-45',
-          'Evaluación de Cumplimiento (Cumple / En Proceso / No Cumple)': 'EN PROCESO DE VERIFICACIÓN',
-          'Estado': 'Línea Base Activa para Cruce en el Flujo',
-          'Plan de Acción y Responsable de Cumplimiento Legal': `Verificar y actualizar registros de «${modTitle}» con ${cResp}`,
+          ...wf,
+          'Cédula / Documento de Identidad': String(ced),
+          'Cédula / Documento': String(ced),
+          'Nombre Completo del Trabajador': String(nom),
+          'Nombre Completo': String(nom),
+          'Cargo': String(car),
+          'Módulo Evaluado': modTitle,
+          'Empresa Activa': cName,
         },
+      };
+    });
+
+    const baselineCompanyRow = {
+      id: `baseline_${canonicalId}_${String(company._id || 'active')}`,
+      label: `📌 [Línea Base Activa · ${cName}] ${modTitle}`,
+      sublabel: `NIT: ${cNit} • ARL: ${cArl} (Riesgo ${cRisk}) • CIIU: ${cCiiu} (${cAct}) • Resp. SST: ${cResp}`,
+      badge: 'LÍNEA BASE EMPRESA',
+      badgeTone: 'teal',
+      isCritical: true,
+      fields: {
+        'Empresa Activa': `${cName} (NIT ${cNit})`,
+        'Razón Social': cName,
+        'NIT': cNit,
+        'ARL y Clase de Riesgo': `${cArl} · Riesgo ${cRisk}`,
+        'Actividad Económica y CIIU': `${cAct} (CIIU ${cCiiu})`,
+        'Responsable SG-SST': `${cResp} (Lic. ${company.licenseNumber || 'Vigente'})`,
+        'Módulo / Aplicativo SG-SST': modTitle,
+        'Norma / Ley / Decreto / Resolución y Año': 'Decreto 1072 de 2015 / Resolución 0312 de 2019 / GTC-45',
+        'Evaluación de Cumplimiento (Cumple / En Proceso / No Cumple)': 'EN PROCESO DE VERIFICACIÓN',
+        'Estado': 'Línea Base Activa para Cruce en el Flujo',
+        'Plan de Acción y Responsable de Cumplimiento Legal': `Verificar y actualizar registros de «${modTitle}» con ${cResp}`,
       },
-      ...socioFallbackRecords.map((w, idx) => {
-        const wf = w.fields || {};
-        const ced = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id;
-        const nom = wf['Nombre Completo'] || w.label;
-        const car = wf['Cargo'] || 'Colaborador';
-        return {
-          id: `baseline_worker_${canonicalId}_${ced || idx}`,
-          label: `👤 [Trabajador Vinculado · CC ${ced}] ${nom} — ${car}`,
-          sublabel: `Módulo: ${modTitle} • ARL: ${wf['ARL'] || cArl} • EPS: ${wf['EPS'] || 'Activa'} • AFP: ${wf['Fondo de Pensión (AFP)'] || 'Activa'}`,
-          badge: wf['Estado de Exámenes Médicos (Vigente / Vencido)'] || 'VINCULADO',
-          badgeTone: w.isCritical ? 'amber' : 'indigo',
-          isCritical: Boolean(w.isCritical),
-          fields: {
-            ...wf,
-            'Cédula / Documento de Identidad': String(ced),
-            'Cédula / Documento': String(ced),
-            'Nombre Completo del Trabajador': String(nom),
-            'Nombre Completo': String(nom),
-            'Cargo': String(car),
-            'Módulo Evaluado': modTitle,
-            'Empresa Activa': cName,
-          },
-        };
-      }),
-    ];
+    };
+
+    records =
+      canonicalId === 'hito3_vehiculos' && mappedSocioFallback.length > 0
+        ? mappedSocioFallback
+        : [baselineCompanyRow, ...mappedSocioFallback];
   }
 
   const criticalCount = records.filter((r) => r.isCritical).length;

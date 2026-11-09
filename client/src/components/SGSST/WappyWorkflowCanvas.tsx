@@ -2477,9 +2477,22 @@ export default function WappyWorkflowCanvas({
     wires.forEach((w) => {
       if (!w.isSub && w.targetKey === activeNode.key) upstreamKeys.add(w.sourceKey);
       if (w.isSub && w.sourceKey === activeNode.key) upstreamKeys.add(w.targetKey);
+      if (w.isSub && w.targetKey === activeNode.key) {
+        upstreamKeys.add(w.sourceKey);
+        wires.forEach((mw) => {
+          if (!mw.isSub && mw.targetKey === w.sourceKey) {
+            upstreamKeys.add(mw.sourceKey);
+          }
+        });
+      }
     });
     if (activePlanIdx > 0) {
       connectedExecutionPlan.slice(0, activePlanIdx).forEach((st) => upstreamKeys.add(st.nodeKey));
+    }
+    if (activeNode.shape !== 'trigger') {
+      visualNodes
+        .filter((vn) => vn.shape === 'square_extractor')
+        .forEach((extNode) => upstreamKeys.add(extNode.key));
     }
     upstreamKeys.forEach((uKey) => {
       const uNode = visualNodes.find((n) => n.key === uKey);
@@ -6115,7 +6128,10 @@ export default function WappyWorkflowCanvas({
           if (safeList.length === 0) return [];
 
           let filtered = safeList;
-          if (nodeCfg?.recordFilterMode === 'critical') {
+          if (
+            nodeCfg?.recordFilterMode === 'critical' ||
+            nodeCfg?.recordFilterMode === 'critical_only'
+          ) {
             filtered = safeList.filter((r) => Boolean(r?.isCritical));
           } else if (
             nodeCfg?.recordFilterMode === 'selected' &&
@@ -6212,13 +6228,27 @@ export default function WappyWorkflowCanvas({
             const srcNode = visualNodes.find((vn) => vn.key === w.sourceKey);
             if (srcNode) upstreamNodeMap.set(srcNode.key, srcNode);
           }
-          // B) Sub-cables conectados al Agente IA
+          // B) Si `activeNode` es el Agente IA, añadir sus sub-nodos conectados por debajo (`w.isSub && w.sourceKey === activeNode.key`)
           if (w.isSub && w.sourceKey === activeNode.key) {
             const subNode = visualNodes.find((vn) => vn.key === w.targetKey);
             if (subNode) upstreamNodeMap.set(subNode.key, subNode);
           }
+          // C) Si `activeNode` es un Sub-Nodo (`circle_tool`, `custom_node`, `circle_memory`, `circle_model`) conectado debajo de un Agente IA:
+          // incluir automáticamente los Extractores (y nodos entrantes) conectados a su Agente IA padre, además del propio Agente IA
+          if (w.isSub && w.targetKey === activeNode.key) {
+            const parentAgent = visualNodes.find((vn) => vn.key === w.sourceKey);
+            if (parentAgent) {
+              wires.forEach((aw) => {
+                if (!aw.isSub && aw.targetKey === parentAgent.key) {
+                  const extNode = visualNodes.find((vn) => vn.key === aw.sourceKey);
+                  if (extNode) upstreamNodeMap.set(extNode.key, extNode);
+                }
+              });
+              upstreamNodeMap.set(parentAgent.key, parentAgent);
+            }
+          }
         });
-        // C) Pasos anteriores en `connectedExecutionPlan`
+        // D) Pasos anteriores en `connectedExecutionPlan`
         if (activePlanIdx > 0) {
           for (let i = activePlanIdx - 1; i >= 0; i--) {
             const prevStep = connectedExecutionPlan[i];
@@ -6228,14 +6258,54 @@ export default function WappyWorkflowCanvas({
             }
           }
         }
+        // E) Si es un Sub-Nodo o Agente IA y existen Extractores en el lienzo que aún no están en el mapa, incluirlos primero
+        if (
+          activeNode.shape === 'custom_node' ||
+          activeNode.shape === 'circle_tool' ||
+          activeNode.shape === 'circle_memory' ||
+          activeNode.shape === 'circle_model' ||
+          activeNode.shape === 'agent'
+        ) {
+          visualNodes
+            .filter((vn) => vn.shape === 'square_extractor' && vn.key !== activeNode.key)
+            .forEach((ext) => {
+              if (!upstreamNodeMap.has(ext.key)) {
+                upstreamNodeMap.set(ext.key, ext);
+              }
+            });
+        }
         const upstreamCandidates = Array.from(upstreamNodeMap.values());
 
-        // Elegir el nodo upstream activo (por defecto prioriza `sourceNodeKey` del trace, o un extractor/agente conectado por cable principal, o el paso inmediatamente anterior)
+        // Elegir el nodo upstream activo por defecto (`auto`):
+        // Para Sub-Nodos (`Alto Riesgo & SENA`, `circle_tool`, `custom_node`, `circle_memory`) y para el `Agente IA`,
+        // priorizar siempre el Extractor de datos (`square_extractor`, ej. `Extraer Trabajadores`) conectado al Agente IA
+        // por encima de `circle_model` (`sub_model`) para que en `📥 INPUT` aparezca la tabla real de trabajadores con su filtro quirúrgico
         const defaultUpstreamNode: VisualNodeInstance | null = (() => {
+          const isSubOrAgent =
+            activeNode.shape === 'custom_node' ||
+            activeNode.shape === 'circle_tool' ||
+            activeNode.shape === 'circle_memory' ||
+            activeNode.shape === 'circle_model' ||
+            activeNode.shape === 'agent';
+
           if (traceStep?.sourceNodeKey) {
             const byTrace = visualNodes.find((vn) => vn.key === traceStep.sourceNodeKey);
-            if (byTrace) return byTrace;
+            // Si es un sub-nodo y `byTrace` cayó en `circle_model` (`Gemini 3.6 Flash`), preferir el Extractor conectado si existe
+            if (byTrace && !(isSubOrAgent && byTrace.shape === 'circle_model')) {
+              return byTrace;
+            }
           }
+
+          // Si es un sub-nodo conectado a un Agente IA, buscar el Extractor conectado al Agente IA padre
+          const parentSubWire = wires.find((w) => w.isSub && w.targetKey === activeNode.key);
+          if (parentSubWire) {
+            const agentIncomingExtractor = wires
+              .filter((w) => !w.isSub && w.targetKey === parentSubWire.sourceKey)
+              .map((w) => visualNodes.find((vn) => vn.key === w.sourceKey))
+              .find((vn) => vn && vn.shape === 'square_extractor');
+            if (agentIncomingExtractor) return agentIncomingExtractor;
+          }
+
           const mainIncomingExtractor = wires
             .filter((w) => !w.isSub && w.targetKey === activeNode.key)
             .map((w) => visualNodes.find((vn) => vn.key === w.sourceKey))
@@ -6243,10 +6313,15 @@ export default function WappyWorkflowCanvas({
           if (mainIncomingExtractor) return mainIncomingExtractor;
 
           if (activePlanIdx > 0) {
-            // Si el nodo activo es el Agente o un Hito y antes hay un Extractor de datos, priorizar ese Extractor como fuente de tabla de entrada en modo automático
+            // Priorizar cualquier Extractor (`square_extractor`), Hito o Agente previo sobre un `circle_model`
             const priorExtractorStep = [...connectedExecutionPlan.slice(0, activePlanIdx)]
               .reverse()
-              .find((st) => st.category === 'extractor' || st.category === 'hito' || st.category === 'agent');
+              .find(
+                (st) =>
+                  st.category === 'extractor' ||
+                  st.category === 'hito' ||
+                  st.category === 'agent',
+              );
             if (priorExtractorStep) {
               const found = visualNodes.find((vn) => vn.key === priorExtractorStep.nodeKey);
               if (found) return found;
@@ -6255,11 +6330,17 @@ export default function WappyWorkflowCanvas({
             const foundPrev = visualNodes.find((vn) => vn.key === prevStep.nodeKey);
             if (foundPrev) return foundPrev;
           }
+
+          const anyExtractorCandidate = upstreamCandidates.find(
+            (vn) => vn.shape === 'square_extractor',
+          );
+          if (anyExtractorCandidate) return anyExtractorCandidate;
+
           return upstreamCandidates[0] || null;
         })();
 
         const selectedUpstreamNode: VisualNodeInstance | null =
-          ndvSelectedUpstreamKey !== 'auto'
+          ndvSelectedUpstreamKey !== 'auto' && ndvSelectedUpstreamKey !== 'all_connected'
             ? visualNodes.find((vn) => vn.key === ndvSelectedUpstreamKey) || defaultUpstreamNode
             : defaultUpstreamNode;
 
@@ -6272,19 +6353,80 @@ export default function WappyWorkflowCanvas({
           const targetCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[targetNode.key] || {};
           const targetTrace = findTraceForNode(targetNode);
 
-          // Si es el nodo actualmente abierto y tenemos `nodeLiveInspectorData.records`, proyectar en tiempo real con `targetCfg`
-          const liveRecs =
-            targetNode.key === activeNode.key && nodeLiveInspectorData.records.length > 0
-              ? nodeLiveInspectorData.records
-              : upstreamLiveRecordsCache[targetNode.key]?.records || [];
+          // 1) Para nodos de tabla de datos de MongoDB (`square_extractor`, `square_hito`, `circle_memory` y `circle_tool` de datos SST),
+          // proyectar sus registros reales en vivo con el filtro quirúrgico `targetCfg.fields` y `targetCfg.recordFilterMode`
+          const isDataInspectorShape =
+            targetNode.shape === 'square_extractor' ||
+            targetNode.shape === 'square_hito' ||
+            targetNode.shape === 'circle_memory' ||
+            targetNode.shape === 'circle_tool';
 
-          if (liveRecs.length > 0) {
-            const projected = projectRecordsForNode(liveRecs, targetCfg);
-            if (projected.length > 0) return projected;
+          if (isDataInspectorShape) {
+            const liveRecs =
+              targetNode.key === activeNode.key && nodeLiveInspectorData.records.length > 0
+                ? nodeLiveInspectorData.records
+                : upstreamLiveRecordsCache[targetNode.key]?.records || [];
+
+            if (liveRecs.length > 0) {
+              const projected = projectRecordsForNode(liveRecs, targetCfg);
+              if (projected.length > 0) return projected;
+            }
           }
 
+          // 2) Si el nodo ya se ejecutó en Sandbox (`Play`) y tiene `outputItems` trazados, usarlos
           if (targetTrace?.outputItems && targetTrace.outputItems.length > 0) {
             return targetTrace.outputItems;
+          }
+
+          // 3) Si es un Sub-Nodo (`custom_node` como `Alto Riesgo & SENA`, `Antigravity Scraper`, `Skill`, `Sub-Agente`, `Regla`)
+          // o `circle_tool` sin registros propios de MongoDB: construir vista previa enriquecida cruzando los registros del Extractor entrante
+          if (targetNode.shape === 'custom_node' || targetNode.shape === 'circle_tool') {
+            const chosenCols = Array.isArray(targetCfg.fields)
+              ? targetCfg.fields.filter(Boolean)
+              : [];
+            // Buscar registros del Extractor conectado al Agente IA
+            const extNode =
+              visualNodes.find((vn) => vn.shape === 'square_extractor') || defaultUpstreamNode;
+            const extRecs =
+              extNode && upstreamLiveRecordsCache[extNode.key]?.records?.length
+                ? projectRecordsForNode(
+                    upstreamLiveRecordsCache[extNode.key].records,
+                    workflowNodes?.canvasLayout?.nodeConfigs?.[extNode.key],
+                  )
+                : [];
+
+            if (extRecs.length > 0) {
+              return extRecs.slice(0, 15).map((row, idx) => {
+                const enriched: Record<string, any> = {
+                  '#': idx + 1,
+                  ...row,
+                  SubNodo: targetNode.title,
+                  ColumnasConsultadas:
+                    chosenCols.length > 0
+                      ? chosenCols.join(' · ')
+                      : targetNode.subtitle || 'Verificación automática',
+                  EstadoCruces: '⚡ Listo para consultar al dar Play',
+                };
+                return enriched;
+              });
+            }
+
+            return [
+              {
+                SubNodo: targetNode.title,
+                Categoria: targetNode.subtitle,
+                PortalObjetivo: targetCfg.targetUrl || 'Portales Oficiales / Motor WAPPY',
+                ModoEjecucion:
+                  targetCfg.executionMode === 'local_pc'
+                    ? 'PC Local (Antigravity Daemon)'
+                    : 'Servidor Cloud 24/7 (Headless)',
+                ColumnasSeleccionadas:
+                  chosenCols.length > 0
+                    ? chosenCols.join(', ')
+                    : 'Todas las columnas del módulo',
+                Estado: 'Listo para entregar hallazgos al Agente IA',
+              },
+            ];
           }
 
           if (targetNode.shape === 'trigger') {
@@ -6318,12 +6460,15 @@ export default function WappyWorkflowCanvas({
                 Rol: targetNode.subtitle,
                 MotorIA: targetCfg.aiEngine || aiEngine,
                 Modelo: targetCfg.aiModel || aiModel,
+                SubNodosConectados: wires.filter(
+                  (w) => w.isSub && w.sourceKey === targetNode.key,
+                ).length,
                 Estado: agOut ? 'Ejecutado en Sandbox' : 'Configurado y listo',
                 ResumenRespuesta: agOut?.responseMarkdown
                   ? `${agOut.responseMarkdown.slice(0, 180)}...`
                   : targetTrace?.outputPreview ||
                     prompt?.slice(0, 160) ||
-                    'Procesa los registros recibidos del paso anterior y emite dictamen SST.',
+                    'Procesa los registros recibidos del Extractor y los Sub-Nodos para emitir dictamen SST.',
               },
             ];
           }
@@ -6356,6 +6501,32 @@ export default function WappyWorkflowCanvas({
             ];
           }
 
+          if (targetNode.shape === 'square_output') {
+            const ep = sandboxResult?.interceptedOutputs?.emailPreview;
+            return [
+              {
+                CanalSalida: targetNode.title,
+                TipoEntrega: targetNode.subtitle,
+                Destinatarios:
+                  (ep?.recipients && ep.recipients.join(', ')) ||
+                  (Array.isArray(emailRecipients) && emailRecipients.length > 0
+                    ? emailRecipients.join(', ')
+                    : 'Destinatarios configurados en el nodo'),
+                Asunto:
+                  ep?.subject ||
+                  emailSubjectTemplate ||
+                  `Reporte Automático SG-SST · ${activeCompanyInfo?.companyName || 'Empresa'}`,
+                FormatosAdjuntos:
+                  Array.isArray(targetCfg.fields) && targetCfg.fields.length > 0
+                    ? targetCfg.fields.join(', ')
+                    : 'Cuerpo HTML + Resumen Ejecutivo',
+                Estado: ep
+                  ? '🛡️ Interceptado en Sandbox (Listo para envío real)'
+                  : 'Listo para despachar salida del Agente IA',
+              },
+            ];
+          }
+
           return [
             {
               Nodo: targetNode.title,
@@ -6375,38 +6546,62 @@ export default function WappyWorkflowCanvas({
 
         const resolvedInputSourceTitle: string = isTriggerNode
           ? 'Inicio del Flujo (Disparador)'
-          : ndvSelectedUpstreamKey === 'auto' && traceStep?.sourceNodeTitle
-            ? traceStep.sourceNodeTitle
+          : ndvSelectedUpstreamKey === 'all_connected'
+            ? `Todos los nodos conectados (${upstreamCandidates.length})`
             : selectedUpstreamNode
               ? `${
                   stepNumberByNodeKey.get(selectedUpstreamNode.key)
                     ? `Paso #${stepNumberByNodeKey.get(selectedUpstreamNode.key)} · `
                     : ''
                 }${selectedUpstreamNode.title}`
-              : 'Paso Anterior del Flujo';
+              : traceStep?.sourceNodeTitle || 'Paso Anterior del Flujo';
 
         const resolvedInputItems: Array<Record<string, any>> = (() => {
           if (isTriggerNode) return [];
+
+          // Opción "Todos los nodos conectados": combina los ítems de todos los `upstreamCandidates` (Extractores + Sub-Nodos)
+          if (ndvSelectedUpstreamKey === 'all_connected') {
+            const combined: Array<Record<string, any>> = [];
+            upstreamCandidates.forEach((upNode) => {
+              const stepNum = stepNumberByNodeKey.get(upNode.key);
+              const sourceLabel = `${stepNum ? `#${stepNum} ` : ''}${upNode.title}`;
+              const items = buildNodeLiveOutputItems(upNode);
+              items.forEach((it) => {
+                combined.push({
+                  _NodoOrigen: sourceLabel,
+                  ...it,
+                });
+              });
+            });
+            return combined;
+          }
+
+          // Si el usuario o el modo automático seleccionó un nodo upstream (ej. `Extraer Trabajadores` con su filtro quirúrgico),
+          // proyectar primero desde `upstreamLiveRecordsCache` con la configuración actual de ese nodo para que siempre refleje sus campos quirúrgicos
+          if (
+            selectedUpstreamNode &&
+            upstreamLiveRecordsCache[selectedUpstreamNode.key]?.records?.length &&
+            (selectedUpstreamNode.shape === 'square_extractor' ||
+              selectedUpstreamNode.shape === 'square_hito' ||
+              selectedUpstreamNode.shape === 'circle_memory' ||
+              selectedUpstreamNode.shape === 'circle_tool')
+          ) {
+            const upCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[selectedUpstreamNode.key];
+            const projected = projectRecordsForNode(
+              upstreamLiveRecordsCache[selectedUpstreamNode.key].records,
+              upCfg,
+            );
+            if (projected.length > 0) return projected;
+          }
+
           if (
             ndvSelectedUpstreamKey === 'auto' &&
             traceStep?.inputItems &&
             traceStep.inputItems.length > 0
           ) {
-            // Si el nodo upstream tiene filtro quirúrgico editado en vivo, proyectarlo si hay caché en vivo
-            if (
-              selectedUpstreamNode &&
-              upstreamLiveRecordsCache[selectedUpstreamNode.key]?.records?.length
-            ) {
-              const upCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[selectedUpstreamNode.key];
-              if (upCfg?.fields && upCfg.fields.length > 0) {
-                return projectRecordsForNode(
-                  upstreamLiveRecordsCache[selectedUpstreamNode.key].records,
-                  upCfg,
-                );
-              }
-            }
             return traceStep.inputItems;
           }
+
           if (selectedUpstreamNode) {
             return buildNodeLiveOutputItems(selectedUpstreamNode);
           }
@@ -6415,14 +6610,52 @@ export default function WappyWorkflowCanvas({
 
         // ─── 4. Construir `resolvedOutputItems` y `resolvedOutputPreview` (Reactivos en Tiempo Real) ───
         const resolvedOutputItems: Array<Record<string, any>> = (() => {
-          // Si este nodo tiene registros reales en `nodeLiveInspectorData`, proyectarlos en vivo con `currentCfg.fields` y `currentCfg.recordFilterMode`
-          // para que cuando el usuario marque/desmarque campos en el panel central, vea cambiar la tabla derecha `OUTPUT` en tiempo real
-          if (nodeLiveInspectorData.records.length > 0) {
+          const isDataInspectorShape =
+            activeNode.shape === 'square_extractor' ||
+            activeNode.shape === 'square_hito' ||
+            activeNode.shape === 'circle_memory' ||
+            activeNode.shape === 'circle_tool';
+
+          // 1) Para Extractores, Hitos, Memorias y Herramientas de datos SST: proyectar en vivo con `currentCfg.fields` y `currentCfg.recordFilterMode`
+          // para que cuando el usuario marque/desmarque campos o cambie el filtro en el panel central, la tabla derecha `OUTPUT` reaccione al instante
+          if (isDataInspectorShape && nodeLiveInspectorData.records.length > 0) {
             return projectRecordsForNode(nodeLiveInspectorData.records, currentCfg);
           }
+
+          // 2) Si ya corrió Play y existe `traceStep.outputItems`, mostrar los ítems reales generados en la ejecución
           if (traceStep?.outputItems && traceStep.outputItems.length > 0) {
+            // Si es un sub-nodo con columnas quirúrgicas seleccionadas, asegurar que se reflejen también al conmutar checkboxes en vivo
+            if (
+              activeNode.shape === 'custom_node' &&
+              Array.isArray(currentCfg.fields) &&
+              currentCfg.fields.length > 0
+            ) {
+              return traceStep.outputItems.map((it) => ({
+                ...it,
+                ColumnasActivas: currentCfg.fields!.join(' · '),
+              }));
+            }
             return traceStep.outputItems;
           }
+
+          // 3) Si es un Sub-Nodo (`custom_node` como `Alto Riesgo & SENA`) antes de dar Play:
+          // cruzar en vivo los trabajadores entrantes (`resolvedInputItems`) con las columnas marcadas en el panel central (`currentCfg.fields`)
+          if (activeNode.shape === 'custom_node' && resolvedInputItems.length > 0) {
+            const chosenCols = Array.isArray(currentCfg.fields)
+              ? currentCfg.fields.filter(Boolean)
+              : [];
+            return resolvedInputItems.slice(0, 20).map((inRow, idx) => ({
+              '#': idx + 1,
+              ...inRow,
+              SubNodo: activeNode.title,
+              ColumnasExtraer:
+                chosenCols.length > 0
+                  ? chosenCols.join(' · ')
+                  : activeNode.subtitle || 'Todas las columnas del scraper',
+              Estado: '⚡ Vista previa (Pulsa Probar paso para consultar en vivo)',
+            }));
+          }
+
           return buildNodeLiveOutputItems(activeNode);
         })();
 
@@ -6864,8 +7097,21 @@ export default function WappyWorkflowCanvas({
                                 className="flex-1 min-w-0 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-sky-500"
                               >
                                 <option value="auto">
-                                  ⚡ Automático ({resolvedInputSourceTitle})
+                                  ⚡ Automático (
+                                  {defaultUpstreamNode
+                                    ? `${
+                                        stepNumberByNodeKey.get(defaultUpstreamNode.key)
+                                          ? `Paso #${stepNumberByNodeKey.get(defaultUpstreamNode.key)} · `
+                                          : ''
+                                      }${defaultUpstreamNode.title}`
+                                    : resolvedInputSourceTitle}
+                                  )
                                 </option>
+                                {upstreamCandidates.length > 1 && (
+                                  <option value="all_connected">
+                                    🔗 Todos los nodos conectados ({upstreamCandidates.length} nodos)
+                                  </option>
+                                )}
                                 {upstreamCandidates.map((upNode) => {
                                   const stNum = stepNumberByNodeKey.get(upNode.key);
                                   return (
