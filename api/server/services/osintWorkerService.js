@@ -22,6 +22,41 @@ const DEFAULT_HEADERS = {
 };
 
 const portalLiveScreenshotCache = new Map();
+const portalLiveScreenshotInFlight = new Map();
+const portalProbeCache = new Map();
+const portalProbeInFlight = new Map();
+
+const MAX_CONCURRENT_CHROME = 2;
+let activeChromeSlots = 0;
+const chromeWaitQueue = [];
+
+function acquireChromeSlot() {
+  if (activeChromeSlots < MAX_CONCURRENT_CHROME) {
+    activeChromeSlots += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    chromeWaitQueue.push(resolve);
+  });
+}
+
+function releaseChromeSlot() {
+  const next = chromeWaitQueue.shift();
+  if (next) {
+    next();
+  } else {
+    activeChromeSlots = Math.max(0, activeChromeSlots - 1);
+  }
+}
+
+async function runWithChromeSlot(fn) {
+  await acquireChromeSlot();
+  try {
+    return await fn();
+  } finally {
+    releaseChromeSlot();
+  }
+}
 
 function escapeHtmlText(val = '') {
   return String(val ?? '')
@@ -180,148 +215,150 @@ async function captureWebOrHtmlEvidence({
     return { pdfBase64: null, pdfFileName: null, imageBase64: null, imageFileName: null };
   }
 
-  let tmpDir = '';
-  let pdfBase64 = null;
-  let imageBase64 = null;
+  return runWithChromeSlot(async () => {
+    let tmpDir = '';
+    let pdfBase64 = null;
+    let imageBase64 = null;
 
-  try {
-    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'wappy_evid_'));
-    const profileDir = path.join(tmpDir, 'chrome_prof');
-    const htmlPath = path.join(tmpDir, 'constancia.html');
-    const pdfPath = path.join(tmpDir, 'out.pdf');
-    const pngPath = path.join(tmpDir, 'out.png');
+    try {
+      tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'wappy_evid_'));
+      const profileDir = path.join(tmpDir, 'chrome_prof');
+      const htmlPath = path.join(tmpDir, 'constancia.html');
+      const pdfPath = path.join(tmpDir, 'out.pdf');
+      const pngPath = path.join(tmpDir, 'out.png');
 
-    let target = cleanUrl;
-    if (hasHtml) {
-      await fs.promises.writeFile(htmlPath, String(htmlContent), 'utf8');
-      target = pathToFileURL(htmlPath).href;
-    }
+      let target = cleanUrl;
+      if (hasHtml) {
+        await fs.promises.writeFile(htmlPath, String(htmlContent), 'utf8');
+        target = pathToFileURL(htmlPath).href;
+      }
 
-    const chromeBin = resolveChromeBinaryPath();
-    if (chromeBin) {
-      try {
-        const chromeArgs = [
-          '--headless=new',
-          '--disable-gpu',
-          '--no-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-extensions',
-          '--ignore-certificate-errors',
-          '--hide-scrollbars',
-          '--window-size=1280,960',
-          `--user-data-dir=${profileDir}`,
-          '--no-first-run',
-          '--no-default-browser-check',
-          `--print-to-pdf=${pdfPath}`,
-          '--no-pdf-header-footer',
-          `--screenshot=${pngPath}`,
-          target,
-        ];
-
-        await execFileAsync(chromeBin, chromeArgs, { timeout: timeoutMs });
-
-        if (fs.existsSync(pdfPath)) {
-          const pBuf = await fs.promises.readFile(pdfPath);
-          if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
-            pdfBase64 = pBuf.toString('base64');
-          }
-        }
-        if (fs.existsSync(pngPath)) {
-          const iBuf = await fs.promises.readFile(pngPath);
-          if (
-            iBuf.length > 500 &&
-            iBuf[0] === 0x89 &&
-            iBuf[1] === 0x50 &&
-            iBuf[2] === 0x4e &&
-            iBuf[3] === 0x47
-          ) {
-            imageBase64 = iBuf.toString('base64');
-          }
-        }
-      } catch (chromeErr) {
-        // Incluso si Chrome retorna código != 0 por subrecursos lentos, verificar si ya escribió los archivos
+      const chromeBin = resolveChromeBinaryPath();
+      if (chromeBin) {
         try {
-          if (!pdfBase64 && fs.existsSync(pdfPath)) {
+          const chromeArgs = [
+            '--headless=new',
+            '--disable-gpu',
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-extensions',
+            '--ignore-certificate-errors',
+            '--hide-scrollbars',
+            '--window-size=1280,960',
+            `--user-data-dir=${profileDir}`,
+            '--no-first-run',
+            '--no-default-browser-check',
+            `--print-to-pdf=${pdfPath}`,
+            '--no-pdf-header-footer',
+            `--screenshot=${pngPath}`,
+            target,
+          ];
+
+          await execFileAsync(chromeBin, chromeArgs, { timeout: timeoutMs });
+
+          if (fs.existsSync(pdfPath)) {
             const pBuf = await fs.promises.readFile(pdfPath);
             if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
               pdfBase64 = pBuf.toString('base64');
             }
           }
-          if (!imageBase64 && fs.existsSync(pngPath)) {
+          if (fs.existsSync(pngPath)) {
             const iBuf = await fs.promises.readFile(pngPath);
-            if (iBuf.length > 500 && iBuf[0] === 0x89 && iBuf[1] === 0x50) {
+            if (
+              iBuf.length > 500 &&
+              iBuf[0] === 0x89 &&
+              iBuf[1] === 0x50 &&
+              iBuf[2] === 0x4e &&
+              iBuf[3] === 0x47
+            ) {
               imageBase64 = iBuf.toString('base64');
             }
           }
-        } catch (_) {}
-        if (!pdfBase64 && !imageBase64) {
-          logger.warn(`[OSINT Chrome Evidence] Aviso capturando ${safePrefix}: ${chromeErr.message}`);
+        } catch (chromeErr) {
+          // Incluso si Chrome retorna código != 0 por subrecursos lentos, verificar si ya escribió los archivos
+          try {
+            if (!pdfBase64 && fs.existsSync(pdfPath)) {
+              const pBuf = await fs.promises.readFile(pdfPath);
+              if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
+                pdfBase64 = pBuf.toString('base64');
+              }
+            }
+            if (!imageBase64 && fs.existsSync(pngPath)) {
+              const iBuf = await fs.promises.readFile(pngPath);
+              if (iBuf.length > 500 && iBuf[0] === 0x89 && iBuf[1] === 0x50) {
+                imageBase64 = iBuf.toString('base64');
+              }
+            }
+          } catch (_) {}
+          if (!pdfBase64 && !imageBase64) {
+            logger.warn(`[OSINT Chrome Evidence] Aviso capturando ${safePrefix}: ${chromeErr.message}`);
+          }
         }
       }
-    }
 
-    // Respaldo con Puppeteer en contenedor Linux o entornos sin binario Chrome estándar
-    if (!pdfBase64 && !imageBase64) {
-      let puppeteerMod = null;
-      try {
-        puppeteerMod = require('puppeteer');
-      } catch (_) {
+      // Respaldo con Puppeteer en contenedor Linux o entornos sin binario Chrome estándar
+      if (!pdfBase64 && !imageBase64) {
+        let puppeteerMod = null;
         try {
-          puppeteerMod = require('puppeteer-core');
-        } catch (__) {}
-      }
-      if (puppeteerMod && typeof puppeteerMod.launch === 'function') {
-        let browser = null;
-        try {
-          const launchOpts = {
-            headless: 'new',
-            args: [
-              '--no-sandbox',
-              '--disable-setuid-sandbox',
-              '--disable-dev-shm-usage',
-              '--ignore-certificate-errors',
-            ],
-          };
-          if (chromeBin) launchOpts.executablePath = chromeBin;
-          browser = await puppeteerMod.launch(launchOpts);
-          const page = await browser.newPage();
-          await page.setViewport({ width: 1280, height: 960 });
-          if (hasHtml) {
-            await page.setContent(String(htmlContent), { waitUntil: 'load', timeout: timeoutMs });
-          } else {
-            await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+          puppeteerMod = require('puppeteer');
+        } catch (_) {
+          try {
+            puppeteerMod = require('puppeteer-core');
+          } catch (__) {}
+        }
+        if (puppeteerMod && typeof puppeteerMod.launch === 'function') {
+          let browser = null;
+          try {
+            const launchOpts = {
+              headless: 'new',
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--ignore-certificate-errors',
+              ],
+            };
+            if (chromeBin) launchOpts.executablePath = chromeBin;
+            browser = await puppeteerMod.launch(launchOpts);
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1280, height: 960 });
+            if (hasHtml) {
+              await page.setContent(String(htmlContent), { waitUntil: 'load', timeout: timeoutMs });
+            } else {
+              await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+            }
+            const iBuf = Buffer.from(await page.screenshot({ type: 'png' }));
+            if (iBuf.length > 500) imageBase64 = iBuf.toString('base64');
+            const pBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
+            if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
+              pdfBase64 = pBuf.toString('base64');
+            }
+          } catch (pupErr) {
+            logger.warn(`[OSINT Puppeteer Evidence] Aviso capturando ${safePrefix}: ${pupErr.message}`);
+          } finally {
+            if (browser) await browser.close().catch(() => {});
           }
-          const iBuf = Buffer.from(await page.screenshot({ type: 'png' }));
-          if (iBuf.length > 500) imageBase64 = iBuf.toString('base64');
-          const pBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
-          if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
-            pdfBase64 = pBuf.toString('base64');
-          }
-        } catch (pupErr) {
-          logger.warn(`[OSINT Puppeteer Evidence] Aviso capturando ${safePrefix}: ${pupErr.message}`);
-        } finally {
-          if (browser) await browser.close().catch(() => {});
         }
       }
+
+      if (pdfBase64 && !imageBase64) {
+        imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+      }
+    } catch (err) {
+      logger.warn(`[OSINT Capture Evidence] Error general en ${safePrefix}: ${err.message}`);
+    } finally {
+      if (tmpDir) {
+        await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+      }
     }
 
-    if (pdfBase64 && !imageBase64) {
-      imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
-    }
-  } catch (err) {
-    logger.warn(`[OSINT Capture Evidence] Error general en ${safePrefix}: ${err.message}`);
-  } finally {
-    if (tmpDir) {
-      await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
-    }
-  }
-
-  return {
-    pdfBase64: pdfBase64 || null,
-    pdfFileName: pdfBase64 ? `${safePrefix}.pdf` : null,
-    imageBase64: imageBase64 || null,
-    imageFileName: imageBase64 ? `${safePrefix}.png` : null,
-  };
+    return {
+      pdfBase64: pdfBase64 || null,
+      pdfFileName: pdfBase64 ? `${safePrefix}.pdf` : null,
+      imageBase64: imageBase64 || null,
+      imageFileName: imageBase64 ? `${safePrefix}.png` : null,
+    };
+  });
 }
 
 /**
@@ -1272,7 +1309,7 @@ function obtenerCatalogoPortales360({ tipoDoc = 'CC', cedula = '', placa = '', n
       titulo: 'Certificados de Afiliación ARL AXA Colpatria',
       descripcion:
         'Generación en línea de certificado individual de afiliación a riesgos laborales en AXA Colpatria.',
-      url: 'https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/',
+      url: 'https://arl.axacolpatria.co/',
       requiere: `${cleanTipoDoc} ${cleanCedula || '[Cédula]'}`,
       tieneCaptcha: false,
       tipoMotor: 'B',
@@ -1624,6 +1661,9 @@ function buildPortalVerificationEvidenceHtml({
   cedula = '',
   nombre = '',
   placa = '',
+  arl = '',
+  eps = '',
+  afp = '',
   detalles = [],
   okCount = 0,
   primaryPortalScreenshotBase64 = '',
@@ -1631,6 +1671,17 @@ function buildPortalVerificationEvidenceHtml({
   primaryPortalUrl = '',
 } = {}) {
   const isoNow = new Date().toISOString();
+  const nominaItems = [
+    arl ? `ARL Registrada en Nómina: ${arl}` : '',
+    eps ? `EPS Registrada en Nómina: ${eps}` : '',
+    afp ? `AFP Registrada en Nómina: ${afp}` : '',
+  ].filter(Boolean);
+  const nominaBannerHtml =
+    nominaItems.length > 0
+      ? `<div style="margin-bottom:12px;padding:9px 13px;border-radius:8px;background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;font-size:12px;font-weight:700;">
+           Registro Sociodemográfico / Nómina (Somos SST): ${escapeHtmlText(nominaItems.join(' · '))}
+         </div>`
+      : '';
   const rowsHtml = detalles
     .map(
       (d) => `
@@ -1709,6 +1760,7 @@ function buildPortalVerificationEvidenceHtml({
       </div>
     </div>
     <div class="content">
+      ${nominaBannerHtml}
       <table>
         <thead>
           <tr>
@@ -1888,6 +1940,54 @@ async function consultarRamaJudicial(params = '') {
   };
 }
 
+async function probeSinglePortalTarget(p) {
+  let lastErrorMsg = '';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const tStart = Date.now();
+    try {
+      const res = await fetch(p.url, {
+        method: 'GET',
+        headers: DEFAULT_HEADERS,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10000),
+      });
+      const latencyMs = Date.now() - tStart;
+      await res.body?.cancel?.().catch(() => {});
+      const reachable = res.ok || (res.status >= 200 && res.status < 400);
+      if (reachable || attempt >= 2) {
+        return {
+          entidad: p.nombre,
+          url: p.url,
+          reachable,
+          httpStatus: res.status,
+          latencyMs,
+        };
+      }
+    } catch (err) {
+      lastErrorMsg = err.message;
+      if (attempt >= 2) {
+        return {
+          entidad: p.nombre,
+          url: p.url,
+          reachable: false,
+          httpStatus: 0,
+          latencyMs: Date.now() - tStart,
+          error: lastErrorMsg,
+        };
+      }
+    }
+    await sleepMs(400);
+  }
+  return {
+    entidad: p.nombre,
+    url: p.url,
+    reachable: false,
+    httpStatus: 0,
+    latencyMs: 0,
+    error: lastErrorMsg || 'Timeout',
+  };
+}
+
 /**
  * Verificación HTTP en tiempo real desde IP Colombia contra portales oficiales específicos:
  * - 'arl': 5 ARL (SURA, Positiva, Colmena, AXA Colpatria, Bolívar) + RUAF SISPRO
@@ -1901,6 +2001,9 @@ async function consultarPortalEspecíficoAntigravity({
   cedula = '',
   nombre = '',
   placa = '',
+  arl = '',
+  eps = '',
+  afp = '',
   includeEvidence = false,
 } = {}) {
   const cleanAction = String(action || 'arl').toLowerCase().trim();
@@ -1908,13 +2011,16 @@ async function consultarPortalEspecíficoAntigravity({
   const cleanCedula = String(cedula || '').trim();
   const cleanNombre = String(nombre || '').trim();
   const cleanPlaca = String(placa || '').trim().toUpperCase();
+  const cleanArl = String(arl || '').trim();
+  const cleanEps = String(eps || '').trim();
+  const cleanAfp = String(afp || '').trim();
 
   const portalMap = {
     arl: [
       { nombre: 'ARL SURA', url: 'https://www.arlsura.com/afiliacion/verificar.php' },
       { nombre: 'ARL Positiva', url: 'https://www.positivaenlinea.gov.co/nuevo/' },
       { nombre: 'ARL Colmena', url: 'https://afiliacionarl.colmenaseguros.com/' },
-      { nombre: 'ARL AXA Colpatria', url: 'https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/' },
+      { nombre: 'ARL AXA Colpatria', url: 'https://arl.axacolpatria.co/' },
       { nombre: 'ARL Seguros Bolívar', url: 'https://www.segurosbolivar.com/arl' },
     ],
     pensiones: [
@@ -1940,36 +2046,31 @@ async function consultarPortalEspecíficoAntigravity({
   };
 
   const targets = portalMap[cleanAction] || portalMap.arl;
-  const detalles = await Promise.all(
-    targets.map(async (p) => {
-      const tStart = Date.now();
-      try {
-        const res = await fetch(p.url, {
-          method: 'GET',
-          headers: DEFAULT_HEADERS,
-          redirect: 'follow',
-          signal: AbortSignal.timeout(4500),
+  const nowProbe = Date.now();
+  const cachedProbe = portalProbeCache.get(cleanAction);
+  let baseDetalles = null;
+
+  if (cachedProbe && nowProbe < cachedProbe.expiresAt) {
+    baseDetalles = cachedProbe.detalles;
+  } else if (portalProbeInFlight.has(cleanAction)) {
+    baseDetalles = await portalProbeInFlight.get(cleanAction);
+  } else {
+    const probePromise = Promise.all(targets.map((p) => probeSinglePortalTarget(p)));
+    portalProbeInFlight.set(cleanAction, probePromise);
+    try {
+      baseDetalles = await probePromise;
+      if (Array.isArray(baseDetalles) && baseDetalles.some((d) => d.reachable)) {
+        portalProbeCache.set(cleanAction, {
+          detalles: baseDetalles,
+          expiresAt: Date.now() + 45000,
         });
-        const latencyMs = Date.now() - tStart;
-        return {
-          entidad: p.nombre,
-          url: p.url,
-          reachable: res.ok || (res.status >= 200 && res.status < 400),
-          httpStatus: res.status,
-          latencyMs,
-        };
-      } catch (err) {
-        return {
-          entidad: p.nombre,
-          url: p.url,
-          reachable: false,
-          httpStatus: 0,
-          latencyMs: Date.now() - tStart,
-          error: err.message,
-        };
       }
-    }),
-  );
+    } finally {
+      portalProbeInFlight.delete(cleanAction);
+    }
+  }
+
+  const detalles = (baseDetalles || []).map((d) => ({ ...d }));
 
   const okPortals = detalles.filter((d) => d.reachable);
   const labelMap = {
@@ -1984,7 +2085,24 @@ async function consultarPortalEspecíficoAntigravity({
     .map((d) => `${d.entidad}: ${d.reachable ? `HTTP ${d.httpStatus} (${d.latencyMs}ms)` : 'Timeout/Captcha'}`)
     .join(' · ');
 
-  const resumen = `Verificación desde IP Local para ${docTag}${cleanNombre ? ` (${cleanNombre})` : ''} en ${labelMap[cleanAction] || cleanAction} -> ${okPortals.length}/${detalles.length} portales en línea [${portalsSummary}]`;
+  let nominaPrefix = '';
+  if (cleanAction === 'arl' && cleanArl) {
+    nominaPrefix = `ARL registrada en nómina: ${cleanArl} · `;
+  } else if (cleanAction === 'salud_rethus' && cleanEps) {
+    nominaPrefix = `EPS registrada en nómina: ${cleanEps} · `;
+  } else if (cleanAction === 'pensiones' && cleanAfp) {
+    nominaPrefix = `AFP registrada en nómina: ${cleanAfp} · `;
+  } else if (cleanArl || cleanEps || cleanAfp) {
+    nominaPrefix = `${[
+      cleanArl ? `ARL nómina: ${cleanArl}` : '',
+      cleanEps ? `EPS nómina: ${cleanEps}` : '',
+      cleanAfp ? `AFP nómina: ${cleanAfp}` : '',
+    ]
+      .filter(Boolean)
+      .join(' / ')} · `;
+  }
+
+  const resumen = `${nominaPrefix}Verificación desde IP Local para ${docTag}${cleanNombre ? ` (${cleanNombre})` : ''} en ${labelMap[cleanAction] || cleanAction} -> ${okPortals.length}/${detalles.length} portales en línea [${portalsSummary}]`;
 
   let pdfBase64 = null;
   let pdfFileName = null;
@@ -1997,22 +2115,38 @@ async function consultarPortalEspecíficoAntigravity({
       const now = Date.now();
       let cachedSnap = portalLiveScreenshotCache.get(primary.url);
       if (!cachedSnap || now > cachedSnap.expiresAt) {
-        const liveSnap = await captureWebOrHtmlEvidence({
-          url: primary.url,
-          filePrefix: 'Snap_Portal',
-          timeoutMs: 10000,
-        });
-        cachedSnap = {
-          imageBase64: liveSnap.imageBase64 || null,
-          pdfBase64: liveSnap.pdfBase64 || null,
-          expiresAt: now + 60000,
-        };
-        if (portalLiveScreenshotCache.size > 30) {
-          for (const [k, v] of portalLiveScreenshotCache.entries()) {
-            if (now > v.expiresAt) portalLiveScreenshotCache.delete(k);
+        if (portalLiveScreenshotInFlight.has(primary.url)) {
+          cachedSnap = await portalLiveScreenshotInFlight.get(primary.url);
+        } else {
+          const snapPromise = (async () => {
+            const liveSnap = await captureWebOrHtmlEvidence({
+              url: primary.url,
+              filePrefix: 'Snap_Portal',
+              timeoutMs: 12000,
+            });
+            const snapEntry = {
+              imageBase64: liveSnap.imageBase64 || null,
+              pdfBase64: liveSnap.pdfBase64 || null,
+              expiresAt: Date.now() + 60000,
+            };
+            if (portalLiveScreenshotCache.size > 30) {
+              const tNow = Date.now();
+              for (const [k, v] of portalLiveScreenshotCache.entries()) {
+                if (tNow > v.expiresAt) portalLiveScreenshotCache.delete(k);
+              }
+            }
+            if (snapEntry.imageBase64 || snapEntry.pdfBase64) {
+              portalLiveScreenshotCache.set(primary.url, snapEntry);
+            }
+            return snapEntry;
+          })();
+          portalLiveScreenshotInFlight.set(primary.url, snapPromise);
+          try {
+            cachedSnap = await snapPromise;
+          } finally {
+            portalLiveScreenshotInFlight.delete(primary.url);
           }
         }
-        portalLiveScreenshotCache.set(primary.url, cachedSnap);
       }
 
       const todayISO = new Date().toISOString().split('T')[0];
@@ -2032,6 +2166,9 @@ async function consultarPortalEspecíficoAntigravity({
         cedula: cleanCedula,
         nombre: cleanNombre,
         placa: cleanPlaca,
+        arl: cleanArl,
+        eps: cleanEps,
+        afp: cleanAfp,
         detalles,
         okCount: okPortals.length,
         primaryPortalScreenshotBase64: cachedSnap?.imageBase64 || '',
@@ -2042,7 +2179,7 @@ async function consultarPortalEspecíficoAntigravity({
       const evid = await captureWebOrHtmlEvidence({
         htmlContent,
         filePrefix: prefix,
-        timeoutMs: 10000,
+        timeoutMs: 12000,
       });
 
       pdfBase64 = evid.pdfBase64 || cachedSnap?.pdfBase64 || null;
@@ -2062,6 +2199,9 @@ async function consultarPortalEspecíficoAntigravity({
     documento: cleanCedula,
     nombre: cleanNombre,
     placa: cleanPlaca,
+    arl: cleanArl || undefined,
+    eps: cleanEps || undefined,
+    afp: cleanAfp || undefined,
     pdfBase64,
     pdfFileName,
     imageBase64,

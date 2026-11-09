@@ -2325,8 +2325,18 @@ async function executeRealAntigravityScraperVerification({
           nombre: nameVal || (docVal ? `Colaborador (${docVal})` : ''),
           documento: docVal,
           cargo: cargoVal,
-          eps: item['EPS'] || item.eps || '',
-          arl: item['ARL'] || item.arl || '',
+          eps:
+            item['EPS'] ||
+            item['EPS (Entidad Promotora de Salud)'] ||
+            item.eps ||
+            item.epsName ||
+            '',
+          arl:
+            item['ARL'] ||
+            item['ARL (Administradora de Riesgos Laborales)'] ||
+            item.arl ||
+            item.arlName ||
+            '',
           nivelRiesgo: item.estado || item.badge || item.nivelRiesgo || 'I',
           placa: item['Placa'] || item.placa || '',
         };
@@ -2465,6 +2475,8 @@ async function executeRealAntigravityScraperVerification({
       cargo: matchedWorker?.cargo || matchedWorker?.position || 'Consulta directa',
       riesgo: matchedWorker?.nivelRiesgo || matchedWorker?.riskLevel || 'N/A',
       placa: matchedWorker?.placa || '',
+      arl: matchedWorker?.arl || matchedWorker?.arlName || '',
+      eps: matchedWorker?.eps || matchedWorker?.epsName || '',
     });
   }
 
@@ -2482,6 +2494,8 @@ async function executeRealAntigravityScraperVerification({
         cargo: w.cargo || w.position || 'Operativo',
         riesgo: w.nivelRiesgo || w.riskLevel || 'I',
         placa: w.placa || '',
+        arl: w.arl || w.arlName || '',
+        eps: w.eps || w.epsName || '',
       });
     }
   }
@@ -2632,6 +2646,7 @@ async function executeRealAntigravityScraperVerification({
         try {
           if (specificPortalAction) {
             const shouldIncludePortalEvidence = i === 0 && batchIdx < 3;
+            const portalTimeoutMs = shouldIncludePortalEvidence ? 35000 : 20000;
             let portalRes = null;
             if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
               portalRes = await global
@@ -2642,7 +2657,10 @@ async function executeRealAntigravityScraperVerification({
                   cedula: target.cleanCedula,
                   nombre: target.nombre,
                   placa: target.placa || '',
+                  arl: target.arl || '',
+                  eps: target.eps || '',
                   includeEvidence: shouldIncludePortalEvidence,
+                  timeoutMs: portalTimeoutMs,
                   antigravityMode,
                 })
                 .catch(() => null);
@@ -2654,7 +2672,10 @@ async function executeRealAntigravityScraperVerification({
                 cedula: target.cleanCedula,
                 nombre: target.nombre,
                 placa: target.placa || '',
+                arl: target.arl || '',
+                eps: target.eps || '',
                 includeEvidence: shouldIncludePortalEvidence,
+                timeoutMs: portalTimeoutMs,
               });
             }
             return { target, portalRes };
@@ -2747,6 +2768,9 @@ async function executeRealAntigravityScraperVerification({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
+          arl: target.arl || '',
+          eps: target.eps || '',
+          placa: target.placa || '',
           estado: estadoStr,
           detalle: detalleStr,
           fuente: fuenteStr,
@@ -2786,6 +2810,9 @@ async function executeRealAntigravityScraperVerification({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
+          arl: target.arl || '',
+          eps: target.eps || '',
+          placa: target.placa || '',
           estado: estadoStr,
           detalle: detalleStr,
           fuente: fuenteStr,
@@ -2828,6 +2855,9 @@ async function executeRealAntigravityScraperVerification({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
+          arl: target.arl || '',
+          eps: target.eps || '',
+          placa: target.placa || '',
           estado: badge,
           detalle: rjRes?.resumen ? `${detalle} | Judicial: ${rjRes.resumen}` : detalle,
           fuente: fuenteStr,
@@ -2859,6 +2889,9 @@ async function executeRealAntigravityScraperVerification({
           nombre: target.nombre,
           documento: target.cleanCedula,
           cargo: target.cargo,
+          arl: target.arl || '',
+          eps: target.eps || '',
+          placa: target.placa || '',
           estado: estadoLabel,
           detalle: rjRes?.resumen ? `${detalleMsg} | Judicial: ${rjRes.resumen}` : detalleMsg,
           fuente: fuenteStr,
@@ -3058,6 +3091,9 @@ async function executeRealAntigravityScraperVerification({
     colaborador: r.nombre,
     cedula: r.documento,
     cargo: r.cargo,
+    arl: r.arl || '',
+    eps: r.eps || '',
+    placa: r.placa || '',
     estadoPortal: r.estado,
     detalleOficial: r.detalle,
     certificado: r.certificado || 'Sin soporte',
