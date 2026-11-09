@@ -49,7 +49,10 @@ import { KANBAN_ACPM_FIELDS } from '~/components/SGSST/moduleFieldDefinitions';
 import { exportModuleDataToExcel } from '~/components/SGSST/columnMapperEngine';
 import SGSSTLegalBadge from '~/components/SGSST/SGSSTLegalBadge';
 import SGSSTHeroHeader from '~/components/SGSST/SGSSTHeroHeader';
-import ExpandableButton from '~/components/Common/ExpandableButton';
+import ExpandableButton, {
+  WAPPY_SEMANTIC_BUTTON_STYLES,
+  ExpandableButtonVariant,
+} from '~/components/Common/ExpandableButton';
 import KanbanCalendarView, { CalendarTask } from './KanbanCalendarView';
 import KanbanTableView, { ACPMModalTab } from './KanbanTableView';
 import KanbanTimelineView from './KanbanTimelineView';
@@ -150,8 +153,22 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
     return 'calendar';
   });
 
-  const handleTabChange = (tab: ACPMViewMode) => {
+  // Estado de contracción al hacer clic solo para los 4 botones de vistas principales (por defecto siempre expandidos)
+  const [collapsedViewTabs, setCollapsedViewTabs] = useState<Record<ACPMViewMode, boolean>>({
+    calendar: false,
+    kanban: false,
+    table: false,
+    timeline: false,
+  });
+
+  const handleTabChange = (tab: ACPMViewMode, toggleCollapse: boolean = false) => {
     setActiveTab(tab);
+    if (toggleCollapse) {
+      setCollapsedViewTabs((prev) => ({
+        ...prev,
+        [tab]: !prev[tab],
+      }));
+    }
     if (typeof window !== 'undefined') {
       localStorage.setItem('acpm_active_tab', tab);
     }
@@ -1875,44 +1892,65 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
         </div>
       </div>
 
-      {/* View Mode Tabs (4 Vistas Dinámicas con ExpandableButton Oficial WAPPY) */}
-      <div className="px-6 pt-3 pb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border-medium/30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full">
-          <ExpandableButton
-            type="button"
-            onClick={() => handleTabChange('calendar')}
-            variant="teal"
-            isActive={activeTab === 'calendar'}
-            icon={<Calendar className="w-4 h-4 text-current" />}
-            label="Calendario SST"
-          />
-
-          <ExpandableButton
-            type="button"
-            onClick={() => handleTabChange('kanban')}
-            variant="cyan"
-            isActive={activeTab === 'kanban'}
-            icon={<Trello className="w-4 h-4 text-current" />}
-            label="Tablero Kanban"
-          />
-
-          <ExpandableButton
-            type="button"
-            onClick={() => handleTabChange('table')}
-            variant="purple"
-            isActive={activeTab === 'table'}
-            icon={<Table2 className="w-4 h-4 text-current" />}
-            label="Tabla Dinámica"
-          />
-
-          <ExpandableButton
-            type="button"
-            onClick={() => handleTabChange('timeline')}
-            variant="amber"
-            isActive={activeTab === 'timeline'}
-            icon={<BarChart2 className="w-4 h-4 text-current" />}
-            label="Cronograma Gantt"
-          />
+      {/* View Mode Tabs (4 Vistas Dinámicas: siempre expandidas por defecto, se contraen/expanden al hacer clic, sin casilla desplazable) */}
+      <div className="px-6 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-border-medium/30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {(
+            [
+              {
+                id: 'calendar' as ACPMViewMode,
+                label: 'Calendario SST',
+                variant: 'teal' as ExpandableButtonVariant,
+                icon: <Calendar className="w-4 h-4 text-current" />,
+              },
+              {
+                id: 'kanban' as ACPMViewMode,
+                label: 'Tablero Kanban',
+                variant: 'cyan' as ExpandableButtonVariant,
+                icon: <Trello className="w-4 h-4 text-current" />,
+              },
+              {
+                id: 'table' as ACPMViewMode,
+                label: 'Tabla Dinámica',
+                variant: 'purple' as ExpandableButtonVariant,
+                icon: <Table2 className="w-4 h-4 text-current" />,
+              },
+              {
+                id: 'timeline' as ACPMViewMode,
+                label: 'Cronograma Gantt',
+                variant: 'amber' as ExpandableButtonVariant,
+                icon: <BarChart2 className="w-4 h-4 text-current" />,
+              },
+            ]
+          ).map((tabItem) => {
+            const isActive = activeTab === tabItem.id;
+            const isCollapsed = Boolean(collapsedViewTabs[tabItem.id]);
+            const styleCfg = WAPPY_SEMANTIC_BUTTON_STYLES[tabItem.variant];
+            return (
+              <button
+                key={tabItem.id}
+                type="button"
+                onClick={() => handleTabChange(tabItem.id, true)}
+                title={tabItem.label}
+                className={`wappy-expand-btn group relative flex items-center justify-center shrink-0 h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3.5 sm:min-w-[40px] rounded-xl border outline-none cursor-pointer select-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
+                  isActive ? styleCfg.active : styleCfg.idle
+                }`}
+              >
+                <div className="relative flex-shrink-0 flex items-center justify-center [&>svg]:h-4 [&>svg]:w-4">
+                  {tabItem.icon}
+                </div>
+                <div
+                  className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap ${
+                    isCollapsed
+                      ? 'max-w-0 opacity-0 ml-0 group-hover:max-w-[280px] group-hover:opacity-100 group-hover:ml-2'
+                      : 'max-w-[280px] opacity-100 ml-2'
+                  }`}
+                >
+                  <span className="text-sm font-bold tracking-wide">{tabItem.label}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="text-[11px] font-semibold text-text-tertiary hidden xl:flex items-center gap-1.5">
@@ -2302,7 +2340,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
             {/* Barra de 4 Pestañas 360° con Botones Estilo WAPPY (ExpandableButton) */}
             {editingTask && (
-              <div className="px-4 sm:px-5 pt-2.5 pb-2 border-b border-border-medium/30 bg-surface-primary/80 dark:bg-gray-900/80 flex items-center gap-2 overflow-x-auto shrink-0">
+              <div className="px-4 sm:px-5 py-2.5 border-b border-border-medium/30 bg-surface-primary/80 dark:bg-gray-900/80 flex flex-wrap items-center gap-2 shrink-0">
                 <ExpandableButton
                   type="button"
                   onClick={() => setModalTab('details')}
