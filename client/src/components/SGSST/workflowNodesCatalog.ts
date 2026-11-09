@@ -229,7 +229,7 @@ export const WAPPY_AGENT_AVATAR_ROTATION: WappyAgentAvatarOption[] = [
     name: 'Tenshi (Gato 3D)',
     animal: 'Gato',
     roleHint: 'Agente IA Principal',
-    src: '/assets/tenshi.png?v=20261108',
+    src: '/assets/tenshi.png?v=orig20261109',
   },
   {
     id: 'suri_suricato',

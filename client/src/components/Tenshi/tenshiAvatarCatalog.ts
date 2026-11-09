@@ -53,15 +53,15 @@ export const TENSHI_AVATAR_PRESETS: TenshiAvatarPreset[] = [
     animal: 'Gato',
     badge: 'Tenshi',
     collection: 'custom',
-    src: '/assets/tenshi.png?v=uhd4',
+    src: '/assets/tenshi.png?v=orig20261109',
     accentColor: '#10B981',
     defaultPersonaName: 'Tenshi',
     defaultGender: 'masculino',
     defaultVoice: 'Puck',
     defaultPersonality:
       'Amigable, carismático, servicial y siempre con buena energía para ayudarte.',
-    leftLens: { left: '31.7%', top: '35.5%', width: '24.5%', height: '14.2%' },
-    rightLens: { left: '68.3%', top: '35.5%', width: '24.5%', height: '14.2%' },
+    leftLens: { left: '30.7%', top: '31.8%', width: '25.6%', height: '15.4%' },
+    rightLens: { left: '68.4%', top: '31.7%', width: '25.6%', height: '15.2%' },
   },
   {
     id: 'suricato',

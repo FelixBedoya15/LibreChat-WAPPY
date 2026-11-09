@@ -3530,7 +3530,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     const activeAvatarSrc =
       currentCfg.avatarSrc ||
       (activeNode.nodeId === 'subagent_chat_tenshi'
-        ? '/assets/tenshi.png?v=20261108'
+        ? '/assets/tenshi.png?v=orig20261109'
         : '/assets/tenshi_suricato.png?v=20261108');
 
     return (

@@ -132,7 +132,7 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     }
     const avatarUrl =
       id.includes('subagent_chat_tenshi')
-        ? '/assets/tenshi.png?v=20261108'
+        ? '/assets/tenshi.png?v=orig20261109'
         : id.includes('research') || id.includes('investigador') || id.includes('editable')
           ? '/assets/tenshi_suricato.png?v=20261108'
           : id.includes('scraper') || id.includes('perro') || id.includes('alturas') || id.includes('vial')
