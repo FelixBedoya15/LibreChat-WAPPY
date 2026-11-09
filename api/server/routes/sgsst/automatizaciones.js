@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
@@ -17,6 +19,59 @@ const {
 const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
 
 const UserPlan = require('~/db/models/UserPlan');
+
+/**
+ * GET /api/sgsst/automatizaciones/evidencias/:fileName
+ * Endpoint público/seguro para servir certificados PDF e imágenes de soporte extraídos por Web Scraping
+ * (registrado ANTES del middleware JWT para permitir <img src>, <iframe src>, enlaces en nueva pestaña y correos en Gmail sin 401).
+ */
+router.get('/evidencias/:fileName', (req, res) => {
+  try {
+    const safeName = path.basename(String(req.params.fileName || '').trim());
+    if (!/^[a-zA-Z0-9._-]+\.(pdf|png|jpg|jpeg)$/i.test(safeName)) {
+      return res.status(400).json({ error: 'Nombre de archivo de evidencia inválido.' });
+    }
+
+    const evidencesDir = path.resolve(process.cwd(), 'uploads', 'scraper_evidences');
+    const filePath = path.resolve(evidencesDir, safeName);
+    if (!filePath.startsWith(evidencesDir + path.sep)) {
+      return res.status(400).json({ error: 'Ruta de evidencia no permitida.' });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Evidencia no encontrada o expirada.' });
+    }
+
+    const ext = path.extname(safeName).toLowerCase();
+    const mimeType =
+      ext === '.pdf'
+        ? 'application/pdf'
+        : ext === '.png'
+          ? 'image/png'
+          : 'image/jpeg';
+
+    const disposition = req.query.download === '1' ? 'attachment' : 'inline';
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${safeName}"`);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.removeHeader('X-Frame-Options');
+
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', (streamErr) => {
+      console.error('[API Automatizaciones Evidencias] Stream error:', streamErr.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error al leer el archivo de evidencia.' });
+      } else {
+        res.end();
+      }
+    });
+    return stream.pipe(res);
+  } catch (err) {
+    console.error('[API Automatizaciones Evidencias] Error sirviendo evidencia:', err);
+    return res.status(500).json({ error: 'Error interno al servir la evidencia.' });
+  }
+});
 
 // Autenticación resiliente: valida JWT Bearer y, si expiró o fue sobreescrito por un token antiguo en localStorage,
 // recupera automáticamente la sesión activa desde la cookie httpOnly refreshToken de WAPPY.

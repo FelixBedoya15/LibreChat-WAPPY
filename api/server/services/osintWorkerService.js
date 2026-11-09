@@ -1,3 +1,12 @@
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const { pathToFileURL } = require('url');
+
+const execFileAsync = promisify(execFile);
+
 let logger = console;
 try {
   const cfg = require('~/config');
@@ -11,6 +20,309 @@ const DEFAULT_HEADERS = {
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'es-CO,es;q=0.9,en;q=0.8',
 };
+
+const portalLiveScreenshotCache = new Map();
+
+function escapeHtmlText(val = '') {
+  return String(val ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeFileStem(raw = '', fallback = 'Constancia_Oficial') {
+  const clean = String(raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\.(pdf|png|jpe?g)$/i, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 90);
+  return clean || fallback;
+}
+
+function resolveChromeBinaryPath() {
+  const envBin = process.env.CHROME_BIN || process.env.PUPPETEER_EXECUTABLE_PATH || '';
+  if (envBin && fs.existsSync(envBin)) return envBin;
+
+  const candidates = [];
+  if (process.platform === 'darwin') {
+    candidates.push(
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    );
+  } else if (process.platform === 'win32') {
+    const pf = process.env.ProgramFiles || 'C:\\Program Files';
+    const pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const localApp = process.env.LOCALAPPDATA || '';
+    candidates.push(
+      path.join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      path.join(pf86, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    );
+    if (localApp) {
+      candidates.push(path.join(localApp, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+    }
+  } else {
+    candidates.push(
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
+      '/snap/bin/chromium',
+    );
+  }
+
+  for (const bin of candidates) {
+    try {
+      if (bin && fs.existsSync(bin)) return bin;
+    } catch (_) {}
+  }
+  return null;
+}
+
+/**
+ * Convierte un PDF en base64 a imagen PNG en base64 puro (sin prefijo data:).
+ * - macOS: usa /usr/bin/sips (~80ms).
+ * - Linux/Contenedor: usa pdftoppm si está disponible, o retorna null limpiamente.
+ */
+async function convertPdfBase64ToPngBase64(pdfBase64) {
+  if (!pdfBase64 || typeof pdfBase64 !== 'string') return null;
+  const cleanB64 = pdfBase64.replace(/^data:application\/pdf;base64,/i, '').trim();
+  if (!cleanB64) return null;
+
+  let pdfBuf;
+  try {
+    pdfBuf = Buffer.from(cleanB64, 'base64');
+  } catch (_) {
+    return null;
+  }
+  if (!pdfBuf || pdfBuf.length < 64 || !pdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
+    return null;
+  }
+
+  const uid = `wappy_pdf2png_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const tmpDir = os.tmpdir();
+  const pdfPath = path.join(tmpDir, `${uid}.pdf`);
+  const pngPath = path.join(tmpDir, `${uid}.png`);
+  const outPrefix = path.join(tmpDir, uid);
+
+  try {
+    await fs.promises.writeFile(pdfPath, pdfBuf);
+
+    if (process.platform === 'darwin') {
+      const sipsBin = fs.existsSync('/usr/bin/sips') ? '/usr/bin/sips' : 'sips';
+      await execFileAsync(sipsBin, ['-s', 'format', 'png', pdfPath, '--out', pngPath], {
+        timeout: 6000,
+      });
+      if (fs.existsSync(pngPath)) {
+        const pngBuf = await fs.promises.readFile(pngPath);
+        if (
+          pngBuf.length > 500 &&
+          pngBuf[0] === 0x89 &&
+          pngBuf[1] === 0x50 &&
+          pngBuf[2] === 0x4e &&
+          pngBuf[3] === 0x47
+        ) {
+          return pngBuf.toString('base64');
+        }
+      }
+      return null;
+    }
+
+    try {
+      await execFileAsync('pdftoppm', ['-png', '-r', '150', '-singlefile', pdfPath, outPrefix], {
+        timeout: 8000,
+      });
+      if (fs.existsSync(pngPath)) {
+        const pngBuf = await fs.promises.readFile(pngPath);
+        if (
+          pngBuf.length > 500 &&
+          pngBuf[0] === 0x89 &&
+          pngBuf[1] === 0x50 &&
+          pngBuf[2] === 0x4e &&
+          pngBuf[3] === 0x47
+        ) {
+          return pngBuf.toString('base64');
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  } catch (err) {
+    logger.warn(`[OSINT PDF->PNG] Aviso convirtiendo PDF a PNG: ${err.message}`);
+    return null;
+  } finally {
+    await fs.promises.unlink(pdfPath).catch(() => {});
+    await fs.promises.unlink(pngPath).catch(() => {});
+  }
+}
+
+/**
+ * Captura evidencia oficial en PDF (%PDF) e imagen PNG (\x89PNG) a partir de una URL en vivo
+ * o de una constancia HTML institucional usando Google Chrome Headless (o Puppeteer como respaldo).
+ */
+async function captureWebOrHtmlEvidence({
+  url = '',
+  htmlContent = '',
+  filePrefix = 'Constancia_Oficial',
+  timeoutMs = 12000,
+} = {}) {
+  const safePrefix = sanitizeFileStem(filePrefix, 'Constancia_Oficial');
+  const hasHtml = Boolean(htmlContent && String(htmlContent).trim());
+  const cleanUrl = String(url || '').trim();
+  if (!hasHtml && !cleanUrl) {
+    return { pdfBase64: null, pdfFileName: null, imageBase64: null, imageFileName: null };
+  }
+
+  let tmpDir = '';
+  let pdfBase64 = null;
+  let imageBase64 = null;
+
+  try {
+    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'wappy_evid_'));
+    const profileDir = path.join(tmpDir, 'chrome_prof');
+    const htmlPath = path.join(tmpDir, 'constancia.html');
+    const pdfPath = path.join(tmpDir, 'out.pdf');
+    const pngPath = path.join(tmpDir, 'out.png');
+
+    let target = cleanUrl;
+    if (hasHtml) {
+      await fs.promises.writeFile(htmlPath, String(htmlContent), 'utf8');
+      target = pathToFileURL(htmlPath).href;
+    }
+
+    const chromeBin = resolveChromeBinaryPath();
+    if (chromeBin) {
+      try {
+        const chromeArgs = [
+          '--headless=new',
+          '--disable-gpu',
+          '--no-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-extensions',
+          '--ignore-certificate-errors',
+          '--hide-scrollbars',
+          '--window-size=1280,960',
+          `--user-data-dir=${profileDir}`,
+          '--no-first-run',
+          '--no-default-browser-check',
+          `--print-to-pdf=${pdfPath}`,
+          '--no-pdf-header-footer',
+          `--screenshot=${pngPath}`,
+          target,
+        ];
+
+        await execFileAsync(chromeBin, chromeArgs, { timeout: timeoutMs });
+
+        if (fs.existsSync(pdfPath)) {
+          const pBuf = await fs.promises.readFile(pdfPath);
+          if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
+            pdfBase64 = pBuf.toString('base64');
+          }
+        }
+        if (fs.existsSync(pngPath)) {
+          const iBuf = await fs.promises.readFile(pngPath);
+          if (
+            iBuf.length > 500 &&
+            iBuf[0] === 0x89 &&
+            iBuf[1] === 0x50 &&
+            iBuf[2] === 0x4e &&
+            iBuf[3] === 0x47
+          ) {
+            imageBase64 = iBuf.toString('base64');
+          }
+        }
+      } catch (chromeErr) {
+        // Incluso si Chrome retorna código != 0 por subrecursos lentos, verificar si ya escribió los archivos
+        try {
+          if (!pdfBase64 && fs.existsSync(pdfPath)) {
+            const pBuf = await fs.promises.readFile(pdfPath);
+            if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
+              pdfBase64 = pBuf.toString('base64');
+            }
+          }
+          if (!imageBase64 && fs.existsSync(pngPath)) {
+            const iBuf = await fs.promises.readFile(pngPath);
+            if (iBuf.length > 500 && iBuf[0] === 0x89 && iBuf[1] === 0x50) {
+              imageBase64 = iBuf.toString('base64');
+            }
+          }
+        } catch (_) {}
+        if (!pdfBase64 && !imageBase64) {
+          logger.warn(`[OSINT Chrome Evidence] Aviso capturando ${safePrefix}: ${chromeErr.message}`);
+        }
+      }
+    }
+
+    // Respaldo con Puppeteer en contenedor Linux o entornos sin binario Chrome estándar
+    if (!pdfBase64 && !imageBase64) {
+      let puppeteerMod = null;
+      try {
+        puppeteerMod = require('puppeteer');
+      } catch (_) {
+        try {
+          puppeteerMod = require('puppeteer-core');
+        } catch (__) {}
+      }
+      if (puppeteerMod && typeof puppeteerMod.launch === 'function') {
+        let browser = null;
+        try {
+          const launchOpts = {
+            headless: 'new',
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--ignore-certificate-errors',
+            ],
+          };
+          if (chromeBin) launchOpts.executablePath = chromeBin;
+          browser = await puppeteerMod.launch(launchOpts);
+          const page = await browser.newPage();
+          await page.setViewport({ width: 1280, height: 960 });
+          if (hasHtml) {
+            await page.setContent(String(htmlContent), { waitUntil: 'load', timeout: timeoutMs });
+          } else {
+            await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+          }
+          const iBuf = Buffer.from(await page.screenshot({ type: 'png' }));
+          if (iBuf.length > 500) imageBase64 = iBuf.toString('base64');
+          const pBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
+          if (pBuf.length > 200 && pBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
+            pdfBase64 = pBuf.toString('base64');
+          }
+        } catch (pupErr) {
+          logger.warn(`[OSINT Puppeteer Evidence] Aviso capturando ${safePrefix}: ${pupErr.message}`);
+        } finally {
+          if (browser) await browser.close().catch(() => {});
+        }
+      }
+    }
+
+    if (pdfBase64 && !imageBase64) {
+      imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+    }
+  } catch (err) {
+    logger.warn(`[OSINT Capture Evidence] Error general en ${safePrefix}: ${err.message}`);
+  } finally {
+    if (tmpDir) {
+      await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
+  return {
+    pdfBase64: pdfBase64 || null,
+    pdfFileName: pdfBase64 ? `${safePrefix}.pdf` : null,
+    imageBase64: imageBase64 || null,
+    imageFileName: imageBase64 ? `${safePrefix}.png` : null,
+  };
+}
 
 /**
  * Decodifica entidades HTML comunes y numéricas en textos extraídos de ASP.NET GridViews.
@@ -321,6 +633,10 @@ function enrichMinTrabajoResult(baseObj = {}, viaDaemon = false) {
 
   return {
     ...baseObj,
+    pdfBase64: baseObj.pdfBase64 || null,
+    pdfFileName: baseObj.pdfFileName || null,
+    imageBase64: baseObj.imageBase64 || null,
+    imageFileName: baseObj.imageFileName || null,
     viaAntigravityDaemon: Boolean(viaDaemon || baseObj.viaAntigravityDaemon),
     fuente,
     status,
@@ -332,7 +648,7 @@ function enrichMinTrabajoResult(baseObj = {}, viaDaemon = false) {
 
 /**
  * Consulta Certificados de Trabajo en Alturas y Espacios Confinados en MinTrabajo
- * y descarga opcionalmente el PDF de la constancia más reciente en base64.
+ * y descarga opcionalmente el PDF e imagen PNG de la constancia más reciente en base64.
  */
 async function consultarAlturasMinTrabajo({
   tipoDoc = 'CC',
@@ -357,6 +673,8 @@ async function consultarAlturasMinTrabajo({
       ultimoCertificadoConfinados: null,
       pdfBase64: null,
       pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
       historialCompleto: [],
       viaAntigravityDaemon: false,
     });
@@ -372,7 +690,7 @@ async function consultarAlturasMinTrabajo({
         cedula: cleanCedula,
         includePdf,
         antigravityMode,
-        timeoutMs: 14000,
+        timeoutMs: includePdf ? 22000 : 14000,
       });
       if (relayedFirst && typeof relayedFirst === 'object') {
         if (relayedFirst.status === 'offline_local' || relayedFirst.status === 'offline_cloud') {
@@ -387,6 +705,8 @@ async function consultarAlturasMinTrabajo({
             ultimoCertificadoConfinados: null,
             pdfBase64: null,
             pdfFileName: null,
+            imageBase64: null,
+            imageFileName: null,
             historialCompleto: [],
             cursos: [],
             viaAntigravityDaemon: false,
@@ -396,6 +716,15 @@ async function consultarAlturasMinTrabajo({
             error: relayedFirst.error,
             antigravityModeUsed: relayedFirst.antigravityModeUsed || antigravityMode,
           };
+        }
+        if (relayedFirst.pdfBase64 && !relayedFirst.imageBase64) {
+          const convertedImg = await convertPdfBase64ToPngBase64(relayedFirst.pdfBase64);
+          if (convertedImg) {
+            relayedFirst.imageBase64 = convertedImg;
+            relayedFirst.imageFileName = String(
+              relayedFirst.pdfFileName || `Constancia_Alturas_${cleanCedula}_oficial.pdf`,
+            ).replace(/\.pdf$/i, '.png');
+          }
         }
         return enrichMinTrabajoResult(relayedFirst, true);
       }
@@ -427,6 +756,8 @@ async function consultarAlturasMinTrabajo({
         ultimoCertificadoConfinados: null,
         pdfBase64: null,
         pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
         historialCompleto: [],
       });
     }
@@ -445,6 +776,8 @@ async function consultarAlturasMinTrabajo({
         ultimoCertificadoConfinados: null,
         pdfBase64: null,
         pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
         historialCompleto: [],
       });
     }
@@ -453,23 +786,38 @@ async function consultarAlturasMinTrabajo({
       historialCompleto.find((c) => c.programa.toUpperCase().includes('ALTURAS')) || null;
     const ultimoCertificadoConfinados =
       historialCompleto.find((c) => c.programa.toUpperCase().includes('CONFINADOS')) || null;
+    const certParaPdf =
+      ultimoCertificadoAlturas || ultimoCertificadoConfinados || historialCompleto[0] || null;
 
     let pdfBase64 = null;
     let pdfFileName = null;
+    let imageBase64 = null;
+    let imageFileName = null;
 
-    if (includePdf && ultimoCertificadoAlturas?.eventTarget) {
+    if (includePdf && historialCompleto.length > 0 && certParaPdf?.eventTarget) {
       try {
         pdfBase64 = await postDownloadPdfFromLista({
           cookieHeader,
           htmlLista,
-          eventTarget: ultimoCertificadoAlturas.eventTarget,
+          eventTarget: certParaPdf.eventTarget,
         });
         if (pdfBase64) {
-          pdfFileName = `Constancia_Alturas_${cleanCedula}_${ultimoCertificadoAlturas.fechaFinISO}.pdf`;
+          const progUpper = String(certParaPdf.programa || '').toUpperCase();
+          const tipoTag = progUpper.includes('CONFINADOS')
+            ? 'Confinados'
+            : progUpper.includes('ALTURAS')
+              ? 'Alturas'
+              : 'MinTrabajo';
+          const baseStem = `Constancia_${tipoTag}_${cleanCedula}_${certParaPdf.fechaFinISO || 'oficial'}`;
+          pdfFileName = `${baseStem}.pdf`;
+          imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+          if (imageBase64) {
+            imageFileName = `${baseStem}.png`;
+          }
         }
       } catch (pdfErr) {
         logger.warn(
-          `[OSINT MinTrabajo] No se pudo descargar el PDF automático para ${cleanCedula}: ${pdfErr.message}`
+          `[OSINT MinTrabajo] No se pudo descargar el PDF automático para ${cleanCedula}: ${pdfErr.message}`,
         );
       }
     }
@@ -485,6 +833,8 @@ async function consultarAlturasMinTrabajo({
       ultimoCertificadoConfinados,
       pdfBase64,
       pdfFileName,
+      imageBase64,
+      imageFileName,
       historialCompleto,
     });
   } catch (error) {
@@ -500,6 +850,15 @@ async function consultarAlturasMinTrabajo({
           antigravityMode,
         });
         if (relayed && typeof relayed === 'object') {
+          if (relayed.pdfBase64 && !relayed.imageBase64) {
+            const convertedImg = await convertPdfBase64ToPngBase64(relayed.pdfBase64);
+            if (convertedImg) {
+              relayed.imageBase64 = convertedImg;
+              relayed.imageFileName = String(
+                relayed.pdfFileName || `Constancia_Alturas_${cleanCedula}_oficial.pdf`,
+              ).replace(/\.pdf$/i, '.png');
+            }
+          }
           return enrichMinTrabajoResult(relayed, true);
         }
       } catch (relayErr) {
@@ -518,6 +877,8 @@ async function consultarAlturasMinTrabajo({
       ultimoCertificadoConfinados: null,
       pdfBase64: null,
       pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
       historialCompleto: [],
       status: 'blocked',
       error: error.message,
@@ -526,14 +887,21 @@ async function consultarAlturasMinTrabajo({
 }
 
 /**
- * Descarga bajo demanda el PDF de cualquier constancia de MinTrabajo (por eventTarget o la más reciente disponible).
+ * Descarga bajo demanda el PDF e imagen PNG de cualquier constancia de MinTrabajo (por eventTarget o la más reciente disponible).
  */
 async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventTarget } = {}) {
   const cleanCedula = String(cedula || '').trim();
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
 
   if (!cleanCedula) {
-    return { ok: false, error: 'El número de documento (cédula) es obligatorio.' };
+    return {
+      ok: false,
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      error: 'El número de documento (cédula) es obligatorio.',
+    };
   }
 
   try {
@@ -548,6 +916,10 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
     ) {
       return {
         ok: false,
+        pdfBase64: null,
+        pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
         error: 'No se encontraron certificados registrados en MinTrabajo para este documento.',
       };
     }
@@ -556,6 +928,10 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
     if (historialCompleto.length === 0) {
       return {
         ok: false,
+        pdfBase64: null,
+        pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
         error: 'No se encontraron filas de certificados disponibles para descargar.',
       };
     }
@@ -577,21 +953,32 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
     if (!pdfBase64) {
       return {
         ok: false,
+        pdfBase64: null,
+        pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
         error: 'El portal de MinTrabajo no devolvió un archivo PDF válido.',
       };
     }
 
-    const tipoTag = String(targetCert.programa || '')
-      .toUpperCase()
-      .includes('CONFINADOS')
+    const progUpper = String(targetCert.programa || '').toUpperCase();
+    const tipoTag = progUpper.includes('CONFINADOS')
       ? 'Confinados'
-      : 'Alturas';
-    const fileName = `Constancia_${tipoTag}_${cleanCedula}_${targetCert.fechaFinISO || 'oficial'}.pdf`;
+      : progUpper.includes('ALTURAS')
+        ? 'Alturas'
+        : 'MinTrabajo';
+    const baseStem = `Constancia_${tipoTag}_${cleanCedula}_${targetCert.fechaFinISO || 'oficial'}`;
+    const fileName = `${baseStem}.pdf`;
+    const imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+    const imageFileName = imageBase64 ? `${baseStem}.png` : null;
 
     return {
       ok: true,
       pdfBase64,
       fileName,
+      pdfFileName: fileName,
+      imageBase64,
+      imageFileName,
       contentType: 'application/pdf',
     };
   } catch (error) {
@@ -605,6 +992,18 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
           eventTarget,
         });
         if (relayed && typeof relayed === 'object' && relayed.ok) {
+          if (relayed.pdfBase64 && !relayed.imageBase64) {
+            const convertedImg = await convertPdfBase64ToPngBase64(relayed.pdfBase64);
+            if (convertedImg) {
+              relayed.imageBase64 = convertedImg;
+              relayed.imageFileName = String(
+                relayed.pdfFileName || relayed.fileName || `Constancia_Alturas_${cleanCedula}_oficial.pdf`,
+              ).replace(/\.pdf$/i, '.png');
+            }
+          }
+          if (!relayed.pdfFileName && relayed.fileName) {
+            relayed.pdfFileName = relayed.fileName;
+          }
           return relayed;
         }
       } catch (relayErr) {
@@ -614,6 +1013,10 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
     logger.error(`[OSINT MinTrabajo PDF] Error descargando constancia ${cleanCedula}:`, error);
     return {
       ok: false,
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
       error: `Error al descargar constancia desde MinTrabajo: ${error.message}`,
     };
   }
@@ -1036,9 +1439,226 @@ function obtenerCatalogoPortales360({ tipoDoc = 'CC', cedula = '', placa = '', n
   };
 }
 
+function buildRamaJudicialEvidenceHtml(rj = {}, { tipoDoc = '', cedula = '' } = {}) {
+  const isoNow = new Date().toISOString();
+  const hasProcs = Number(rj.totalProcesos || 0) > 0;
+  const badgeBg = hasProcs ? '#FEF3C7' : '#DCFCE7';
+  const badgeColor = hasProcs ? '#92400E' : '#166534';
+  const badgeText = hasProcs
+    ? `REGISTRA ${rj.totalProcesos} PROCESO(S) JUDICIAL(ES)`
+    : 'SIN PROCESOS JUDICIALES ACTIVOS';
+  const docStr = cedula ? `${tipoDoc || 'CC'} ${cedula}` : 'Consulta por Nombre / Razón Social';
+  const rowsHtml =
+    Array.isArray(rj.procesos) && rj.procesos.length > 0
+      ? rj.procesos
+          .slice(0, 25)
+          .map(
+            (p, idx) => `
+          <tr>
+            <td style="text-align:center;">${idx + 1}</td>
+            <td style="font-family:monospace;font-weight:700;">${escapeHtmlText(p.llaveProceso || p.idProceso || 'S/N')}</td>
+            <td><strong>${escapeHtmlText(p.despacho || 'Despacho no especificado')}</strong><br/><span style="color:#64748b;font-size:11px;">${escapeHtmlText(p.departamento || '')}</span></td>
+            <td style="font-size:11px;">Rad: ${escapeHtmlText(String(p.fechaProceso || '').slice(0, 10) || 'N/D')}<br/>Últ: ${escapeHtmlText(String(p.fechaUltimaActuacion || '').slice(0, 10) || 'N/D')}</td>
+            <td style="font-size:11px;">${escapeHtmlText(String(p.sujetosProcesales || 'Reservado / Sin detalle').slice(0, 220))}</td>
+            <td style="text-align:center;">${p.esPrivado ? 'Privado' : 'Público'}</td>
+          </tr>`,
+          )
+          .join('')
+      : `<tr><td colspan="6" style="text-align:center;padding:24px;color:#0f766e;font-weight:600;">No se registran procesos judiciales activos para "${escapeHtmlText(rj.nombreConsultado || '')}" en la Consulta Nacional Unificada (API v2 Oficial).</td></tr>`;
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>Constancia Rama Judicial — ${escapeHtmlText(rj.nombreConsultado || '')}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+  .card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(15,23,42,0.06); }
+  .header { background: linear-gradient(135deg, #0c192e 0%, #132c4e 100%); color: #ffffff; padding: 22px 28px; border-bottom: 4px solid #0d9488; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { margin: 0; font-size: 17px; letter-spacing: 0.4px; }
+  .header p { margin: 5px 0 0; font-size: 12px; color: #cbd5e1; }
+  .badge { padding: 7px 14px; border-radius: 999px; font-size: 11px; font-weight: 800; background: ${badgeBg}; color: ${badgeColor}; letter-spacing: 0.3px; }
+  .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 18px 28px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
+  .meta-box { background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .meta-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.4px; }
+  .meta-val { margin-top: 4px; font-size: 13px; font-weight: 700; color: #0f172a; word-break: break-word; }
+  .content { padding: 20px 28px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #0f172a; color: #ffffff; text-align: left; padding: 9px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+  td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .footer { padding: 12px 28px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 10.5px; color: #64748b; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div>
+        <h1>RAMA JUDICIAL DE COLOMBIA — CONSEJO SUPERIOR DE LA JUDICATURA</h1>
+        <p>Constancia Técnica de Consulta Nacional Unificada de Procesos Judiciales (API Oficial v2)</p>
+      </div>
+      <div class="badge">${escapeHtmlText(badgeText)}</div>
+    </div>
+    <div class="meta">
+      <div class="meta-box">
+        <div class="meta-label">Ciudadano / Sujeto Consultado</div>
+        <div class="meta-val">${escapeHtmlText(rj.nombreConsultado || 'No especificado')}</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Identificación Asociada</div>
+        <div class="meta-val">${escapeHtmlText(docStr)}</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Total Procesos Registrados</div>
+        <div class="meta-val">${Number(rj.totalProcesos || 0)}</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Fecha y Hora Verificación (ISO)</div>
+        <div class="meta-val">${escapeHtmlText(isoNow)}</div>
+      </div>
+    </div>
+    <div class="content">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px;text-align:center;">#</th>
+            <th style="width:185px;">Radicado / Llave</th>
+            <th style="width:230px;">Despacho / Ubicación</th>
+            <th style="width:125px;">Fechas</th>
+            <th>Sujetos Procesales</th>
+            <th style="width:76px;text-align:center;">Reserva</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div class="footer">
+      <span>Fuente oficial: consultaprocesos.ramajudicial.gov.co:448/api/v2/Procesos/Consulta/NombreRazonSocial</span>
+      <span>Evidencia generada por WAPPY SG-SST · IP Local Colombia</span>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function buildPortalVerificationEvidenceHtml({
+  label = '',
+  tipoDoc = 'CC',
+  cedula = '',
+  nombre = '',
+  placa = '',
+  detalles = [],
+  okCount = 0,
+  primaryPortalScreenshotBase64 = '',
+  primaryPortalName = '',
+  primaryPortalUrl = '',
+} = {}) {
+  const isoNow = new Date().toISOString();
+  const rowsHtml = detalles
+    .map(
+      (d) => `
+      <tr>
+        <td style="font-weight:700;">${escapeHtmlText(d.entidad)}</td>
+        <td style="font-family:monospace;font-size:11px;color:#334155;">${escapeHtmlText(d.url)}</td>
+        <td style="text-align:center;font-weight:700;">${d.httpStatus ? `HTTP ${d.httpStatus}` : '—'}</td>
+        <td style="text-align:right;">${Number(d.latencyMs || 0)} ms</td>
+        <td style="text-align:center;">
+          <span style="padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;background:${d.reachable ? '#DCFCE7' : '#FEF3C7'};color:${d.reachable ? '#166534' : '#92400E'};">
+            ${d.reachable ? 'EN LÍNEA' : 'CAPTCHA / TIMEOUT'}
+          </span>
+        </td>
+      </tr>`,
+    )
+    .join('');
+
+  const previewHtml = primaryPortalScreenshotBase64
+    ? `<div style="margin-top:16px;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#f8fafc;">
+         <div style="padding:8px 12px;background:#e2e8f0;font-size:11px;font-weight:700;color:#1e293b;">
+           Captura en vivo del portal principal verificado: ${escapeHtmlText(primaryPortalName)} (${escapeHtmlText(primaryPortalUrl)})
+         </div>
+         <img src="data:image/png;base64,${primaryPortalScreenshotBase64}" style="display:block;width:100%;max-height:360px;object-fit:cover;object-position:top;" />
+       </div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>Constancia Verificación Portales — ${escapeHtmlText(cedula || placa || label)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+  .card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; }
+  .header { background: linear-gradient(135deg, #0c192e 0%, #132c4e 100%); color: #ffffff; padding: 20px 26px; border-bottom: 4px solid #0d9488; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { margin: 0; font-size: 16px; }
+  .header p { margin: 4px 0 0; font-size: 12px; color: #cbd5e1; }
+  .badge { padding: 6px 13px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #DCFCE7; color: #166534; }
+  .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px 26px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
+  .meta-box { background: #ffffff; padding: 9px 11px; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .meta-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+  .meta-val { margin-top: 3px; font-size: 12.5px; font-weight: 700; color: #0f172a; }
+  .content { padding: 16px 26px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #0f172a; color: #ffffff; text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+  .footer { padding: 10px 26px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 10.5px; color: #64748b; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div>
+        <h1>CONSTANCIA DE VERIFICACIÓN EN PORTALES OFICIALES — SG-SST COLOMBIA</h1>
+        <p>${escapeHtmlText(label)}</p>
+      </div>
+      <div class="badge">${okCount}/${detalles.length} PORTALES ACTIVOS</div>
+    </div>
+    <div class="meta">
+      <div class="meta-box">
+        <div class="meta-label">Documento / Placa</div>
+        <div class="meta-val">${escapeHtmlText(`${tipoDoc} ${cedula || 'S/D'}${placa ? ` · Placa ${placa}` : ''}`)}</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Trabajador / Titular</div>
+        <div class="meta-val">${escapeHtmlText(nombre || 'Verificación por Documento')}</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Nodo de Red</div>
+        <div class="meta-val">IP Local Colombia</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Fecha y Hora (ISO)</div>
+        <div class="meta-val">${escapeHtmlText(isoNow)}</div>
+      </div>
+    </div>
+    <div class="content">
+      <table>
+        <thead>
+          <tr>
+            <th>Entidad Oficial</th>
+            <th>URL Verificada</th>
+            <th style="text-align:center;">Estado HTTP</th>
+            <th style="text-align:right;">Latencia</th>
+            <th style="text-align:center;">Disponibilidad</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      ${previewHtml}
+    </div>
+    <div class="footer">
+      <span>Auditoría automatizada de Seguridad Social, ReTHUS y Seguridad Vial (Decreto 1072 / Res. 0312)</span>
+      <span>Generado por WAPPY IA · Google Antigravity Bridge</span>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 /**
  * Ejecuta la Investigación 360° de un Trabajador o Conductor en Colombia:
- * 1) MinTrabajo (Alturas y Confinados + PDF en Base64)
+ * 1) MinTrabajo (Alturas y Confinados + PDF e Imagen PNG en Base64)
  * 2) Rama Judicial API v2 (por nombre suministrado o descubierto en MinTrabajo)
  * 3) Catálogo completo de las 26 fuentes oficiales parametrizado con los datos del trabajador.
  */
@@ -1066,6 +1686,8 @@ async function investigarTrabajador360({
     ultimoCertificadoConfinados: null,
     pdfBase64: null,
     pdfFileName: null,
+    imageBase64: null,
+    imageFileName: null,
     historialCompleto: [],
     viaAntigravityDaemon: false,
   };
@@ -1087,10 +1709,19 @@ async function investigarTrabajador360({
     nombreConsultado: nombreEfectivo,
     totalProcesos: 0,
     procesos: [],
+    pdfBase64: null,
+    pdfFileName: null,
+    imageBase64: null,
+    imageFileName: null,
   };
 
   if (nombreEfectivo) {
-    ramaJudicial = await consultarRamaJudicialPorNombre(nombreEfectivo);
+    ramaJudicial = await consultarRamaJudicial({
+      nombreCompleto: nombreEfectivo,
+      tipoDoc: cleanTipoDoc,
+      cedula: cleanCedula,
+      includeEvidence: Boolean(includePdf),
+    });
   }
 
   const portalesOficiales = obtenerCatalogoPortales360({
@@ -1109,6 +1740,10 @@ async function investigarTrabajador360({
       placa: cleanPlaca,
       nombre: nombreEfectivo,
     },
+    pdfBase64: minTrabajo?.pdfBase64 || ramaJudicial?.pdfBase64 || null,
+    pdfFileName: minTrabajo?.pdfFileName || ramaJudicial?.pdfFileName || null,
+    imageBase64: minTrabajo?.imageBase64 || ramaJudicial?.imageBase64 || null,
+    imageFileName: minTrabajo?.imageFileName || ramaJudicial?.imageFileName || null,
     minTrabajo,
     ramaJudicial,
     portalesOficiales,
@@ -1116,13 +1751,19 @@ async function investigarTrabajador360({
 }
 
 /**
- * Wrapper unificado de Rama Judicial / Antecedentes (acepta string u objeto `{ nombreCompleto, nombre }`).
+ * Wrapper unificado de Rama Judicial / Antecedentes (acepta string u objeto `{ nombreCompleto, nombre, includeEvidence, forceEvidence }`).
  */
 async function consultarRamaJudicial(params = '') {
+  const isObj = params && typeof params === 'object';
   const cleanNombre =
     typeof params === 'string'
       ? params.trim()
       : String(params?.nombreCompleto || params?.nombre || '').trim();
+  const includeEvidence = isObj && params.includeEvidence !== undefined ? params.includeEvidence : true;
+  const forceEvidence = Boolean(isObj && params.forceEvidence === true);
+  const cleanTipoDoc = isObj ? String(params.tipoDoc || 'CC').trim().toUpperCase() : 'CC';
+  const cleanCedula = isObj ? String(params.cedula || '').trim() : '';
+
   const rj = await consultarRamaJudicialPorNombre(cleanNombre);
   const resumen = rj.ok
     ? rj.totalProcesos > 0
@@ -1132,8 +1773,39 @@ async function consultarRamaJudicial(params = '') {
           .join('; ')})`
       : `Sin procesos judiciales activos para "${cleanNombre}" en Rama Judicial API v2`
     : rj.aviso || `Consulta judicial verificada para "${cleanNombre || 'S/N'}"`;
+
+  let pdfBase64 = null;
+  let pdfFileName = null;
+  let imageBase64 = null;
+  let imageFileName = null;
+
+  if (rj.ok && (rj.totalProcesos > 0 || forceEvidence) && includeEvidence !== false) {
+    try {
+      const todayISO = new Date().toISOString().split('T')[0];
+      const subjectTag = sanitizeFileStem(cleanCedula || cleanNombre || 'Ciudadano', 'Ciudadano').slice(0, 40);
+      const htmlContent = buildRamaJudicialEvidenceHtml(rj, {
+        tipoDoc: cleanTipoDoc,
+        cedula: cleanCedula,
+      });
+      const evid = await captureWebOrHtmlEvidence({
+        htmlContent,
+        filePrefix: `Constancia_RamaJudicial_${subjectTag}_${todayISO}`,
+      });
+      pdfBase64 = evid.pdfBase64;
+      pdfFileName = evid.pdfFileName;
+      imageBase64 = evid.imageBase64;
+      imageFileName = evid.imageFileName;
+    } catch (evErr) {
+      logger.warn(`[OSINT Rama Judicial] Aviso generando evidencia PDF/PNG: ${evErr.message}`);
+    }
+  }
+
   return {
     ...rj,
+    pdfBase64,
+    pdfFileName,
+    imageBase64,
+    imageFileName,
     fuente: 'Google Antigravity Local (IP Colombia · Rama Judicial / Antecedentes)',
     status: rj.ok ? 'ok' : 'warning',
     resumen,
@@ -1153,6 +1825,7 @@ async function consultarPortalEspecíficoAntigravity({
   cedula = '',
   nombre = '',
   placa = '',
+  includeEvidence = false,
 } = {}) {
   const cleanAction = String(action || 'arl').toLowerCase().trim();
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
@@ -1237,6 +1910,74 @@ async function consultarPortalEspecíficoAntigravity({
 
   const resumen = `Verificación desde IP Local para ${docTag}${cleanNombre ? ` (${cleanNombre})` : ''} en ${labelMap[cleanAction] || cleanAction} -> ${okPortals.length}/${detalles.length} portales en línea [${portalsSummary}]`;
 
+  let pdfBase64 = null;
+  let pdfFileName = null;
+  let imageBase64 = null;
+  let imageFileName = null;
+
+  if (includeEvidence === true && okPortals.length > 0) {
+    try {
+      const primary = okPortals[0];
+      const now = Date.now();
+      let cachedSnap = portalLiveScreenshotCache.get(primary.url);
+      if (!cachedSnap || now > cachedSnap.expiresAt) {
+        const liveSnap = await captureWebOrHtmlEvidence({
+          url: primary.url,
+          filePrefix: 'Snap_Portal',
+          timeoutMs: 10000,
+        });
+        cachedSnap = {
+          imageBase64: liveSnap.imageBase64 || null,
+          pdfBase64: liveSnap.pdfBase64 || null,
+          expiresAt: now + 60000,
+        };
+        if (portalLiveScreenshotCache.size > 30) {
+          for (const [k, v] of portalLiveScreenshotCache.entries()) {
+            if (now > v.expiresAt) portalLiveScreenshotCache.delete(k);
+          }
+        }
+        portalLiveScreenshotCache.set(primary.url, cachedSnap);
+      }
+
+      const todayISO = new Date().toISOString().split('T')[0];
+      const actionTagMap = {
+        arl: 'ARL',
+        pensiones: 'Pensiones',
+        salud_rethus: 'Salud_ReTHUS',
+        vial_pesv: 'PESV_Vial',
+      };
+      const actionTag = actionTagMap[cleanAction] || sanitizeFileStem(cleanAction, 'Portal');
+      const subjectTag = sanitizeFileStem(cleanCedula || cleanPlaca || 'Verificacion', 'Verificacion').slice(0, 32);
+      const prefix = `Constancia_${actionTag}_${subjectTag}_${todayISO}`;
+
+      const htmlContent = buildPortalVerificationEvidenceHtml({
+        label: labelMap[cleanAction] || cleanAction,
+        tipoDoc: cleanTipoDoc,
+        cedula: cleanCedula,
+        nombre: cleanNombre,
+        placa: cleanPlaca,
+        detalles,
+        okCount: okPortals.length,
+        primaryPortalScreenshotBase64: cachedSnap?.imageBase64 || '',
+        primaryPortalName: primary.entidad,
+        primaryPortalUrl: primary.url,
+      });
+
+      const evid = await captureWebOrHtmlEvidence({
+        htmlContent,
+        filePrefix: prefix,
+        timeoutMs: 10000,
+      });
+
+      pdfBase64 = evid.pdfBase64 || cachedSnap?.pdfBase64 || null;
+      pdfFileName = pdfBase64 ? `${prefix}.pdf` : null;
+      imageBase64 = evid.imageBase64 || cachedSnap?.imageBase64 || null;
+      imageFileName = imageBase64 ? `${prefix}.png` : null;
+    } catch (evErr) {
+      logger.warn(`[OSINT Portal ${cleanAction}] Aviso capturando evidencia PDF/PNG: ${evErr.message}`);
+    }
+  }
+
   return {
     fuente: 'Google Antigravity Local (IP Colombia)',
     status: okPortals.length > 0 ? 'ok' : 'warning',
@@ -1245,12 +1986,234 @@ async function consultarPortalEspecíficoAntigravity({
     documento: cleanCedula,
     nombre: cleanNombre,
     placa: cleanPlaca,
+    pdfBase64,
+    pdfFileName,
+    imageBase64,
+    imageFileName,
     resumen,
     detalles,
   };
 }
 
+function isSameOrSubdomain(hostA = '', hostB = '') {
+  const a = String(hostA || '').toLowerCase().replace(/^www\./, '');
+  const b = String(hostB || '').toLowerCase().replace(/^www\./, '');
+  if (!a || !b) return false;
+  return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
+}
+
+/**
+ * Ejecuta Web Scraping genérico sobre una URL retornando texto estructurado + evidencia PDF e Imagen PNG.
+ */
+async function ejecutarWebScrapeConEvidencia({ targetUrl = '', includeEvidence = true } = {}) {
+  const rawUrls = String(targetUrl || 'https://www.mintrabajo.gov.co')
+    .split(',')
+    .map((u) => u.trim())
+    .filter(Boolean);
+  const firstUrl = rawUrls[0] || 'https://www.mintrabajo.gov.co';
+  const normalizedUrl = /^https?:\/\//i.test(firstUrl) ? firstUrl : `https://${firstUrl}`;
+  const todayISO = new Date().toISOString().split('T')[0];
+
+  let parsedTarget;
+  try {
+    parsedTarget = new URL(normalizedUrl);
+  } catch (_) {
+    parsedTarget = new URL('https://www.mintrabajo.gov.co');
+  }
+  const hostSlug = sanitizeFileStem(parsedTarget.hostname.replace(/^www\./i, ''), 'Web').slice(0, 36);
+  const defaultPrefix = `Captura_WebScraper_${hostSlug}_${todayISO}`;
+
+  try {
+    const scrapeRes = await fetch(normalizedUrl, {
+      headers: DEFAULT_HEADERS,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(12000),
+    });
+
+    const contentType = String(scrapeRes.headers.get('content-type') || '').toLowerCase();
+    const rawBuf = Buffer.from(await scrapeRes.arrayBuffer());
+    const isDirectPdf =
+      contentType.includes('application/pdf') ||
+      (rawBuf.length > 64 && rawBuf.subarray(0, 5).toString('ascii').startsWith('%PDF'));
+
+    if (isDirectPdf) {
+      const rawBase = path.basename(parsedTarget.pathname || '', '.pdf');
+      const pdfStem = sanitizeFileStem(rawBase, `Certificado_WebScraper_${hostSlug}_${todayISO}`);
+      const pdfBase64 = rawBuf.toString('base64');
+      const pdfFileName = `${pdfStem}.pdf`;
+      const imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+      const imageFileName = imageBase64 ? `${pdfStem}.png` : null;
+
+      return {
+        fuente: 'Web Scraper Google Antigravity (IP Local)',
+        status: 'ok',
+        url: normalizedUrl,
+        httpStatus: scrapeRes.status,
+        contentType: contentType || 'application/pdf',
+        title: pdfFileName,
+        headings: [],
+        pdfLinks: [normalizedUrl],
+        textExcerpt: `Documento PDF oficial descargado directamente desde ${normalizedUrl} (${(rawBuf.length / 1024).toFixed(1)} KB).`,
+        pdfBase64,
+        pdfFileName,
+        imageBase64,
+        imageFileName,
+      };
+    }
+
+    const html = rawBuf.toString('utf8');
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = titleMatch
+      ? decodeHtmlEntities(titleMatch[1].replace(/\s+/g, ' ').trim())
+      : normalizedUrl;
+    const headings = Array.from(html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi))
+      .slice(0, 10)
+      .map((m) => decodeHtmlEntities(m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()))
+      .filter(Boolean);
+    const cleanBody = decodeHtmlEntities(
+      html
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    ).slice(0, 3500);
+
+    // Extraer enlaces .pdf directos (embedded o hipervínculos)
+    const pdfCandidates = [];
+    const seenPdfUrls = new Set();
+    const pushPdfCandidate = (rawHref, labelText = '', isEmbedded = false) => {
+      if (!rawHref) return;
+      try {
+        const resolved = new URL(decodeHtmlEntities(rawHref).trim(), normalizedUrl);
+        if (!/^https?:$/i.test(resolved.protocol)) return;
+        const hrefLower = `${resolved.pathname}${resolved.search}`.toLowerCase();
+        if (!hrefLower.includes('.pdf')) return;
+        if (seenPdfUrls.has(resolved.href)) return;
+        seenPdfUrls.add(resolved.href);
+        pdfCandidates.push({
+          url: resolved.href,
+          hostname: resolved.hostname,
+          pathname: resolved.pathname,
+          text: decodeHtmlEntities(String(labelText || '').replace(/<[^>]+>/g, ' ')),
+          isEmbedded,
+        });
+      } catch (_) {}
+    };
+
+    for (const m of html.matchAll(/<(?:iframe|embed|object)[^>]+(?:src|data)=["']([^"']+)["'][^>]*>/gi)) {
+      pushPdfCandidate(m[1], 'embedded_pdf', true);
+    }
+    for (const m of html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+      pushPdfCandidate(m[1], m[2], false);
+      if (pdfCandidates.length >= 15) break;
+    }
+
+    let pdfBase64 = null;
+    let pdfFileName = null;
+    let imageBase64 = null;
+    let imageFileName = null;
+
+    if (includeEvidence !== false && pdfCandidates.length > 0) {
+      const firstCand = pdfCandidates[0];
+      const sameDomain = isSameOrSubdomain(firstCand.hostname, parsedTarget.hostname);
+      const candSignal = `${firstCand.url} ${firstCand.text}`;
+      const looksLikeCert =
+        firstCand.isEmbedded ||
+        (/certificad|constancia|diploma|carnet|afiliaci|vigencia|antecedente|boletin|soporte|descarga|imprimir/i.test(
+          candSignal,
+        ) &&
+          !/politica|privacidad|terminos|tratamiento[-_]?datos|manual[-_]?usuario/i.test(
+            firstCand.url,
+          ));
+
+      if (sameDomain && looksLikeCert) {
+        try {
+          const pdfLinkRes = await fetch(firstCand.url, {
+            headers: { ...DEFAULT_HEADERS, Referer: normalizedUrl },
+            redirect: 'follow',
+            signal: AbortSignal.timeout(10000),
+          });
+          const declaredLen = Number(pdfLinkRes.headers.get('content-length') || 0);
+          if (pdfLinkRes.ok && (!declaredLen || declaredLen <= 8 * 1024 * 1024)) {
+            const linkedBuf = Buffer.from(await pdfLinkRes.arrayBuffer());
+            if (
+              linkedBuf.length > 64 &&
+              linkedBuf.length <= 8 * 1024 * 1024 &&
+              linkedBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')
+            ) {
+              const linkedStem = sanitizeFileStem(
+                path.basename(firstCand.pathname || '', '.pdf'),
+                `Certificado_${hostSlug}_${todayISO}`,
+              );
+              pdfBase64 = linkedBuf.toString('base64');
+              pdfFileName = `${linkedStem}.pdf`;
+              imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+              imageFileName = imageBase64 ? `${linkedStem}.png` : null;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (includeEvidence !== false && !pdfBase64) {
+      const evid = await captureWebOrHtmlEvidence({
+        url: normalizedUrl,
+        filePrefix: defaultPrefix,
+        timeoutMs: 12000,
+      });
+      pdfBase64 = evid.pdfBase64;
+      pdfFileName = evid.pdfFileName;
+      imageBase64 = evid.imageBase64;
+      imageFileName = evid.imageFileName;
+    }
+
+    return {
+      fuente: 'Web Scraper Google Antigravity (IP Local)',
+      status: 'ok',
+      url: normalizedUrl,
+      httpStatus: scrapeRes.status,
+      title,
+      headings,
+      pdfLinks: pdfCandidates.map((c) => c.url),
+      textExcerpt: cleanBody,
+      pdfBase64,
+      pdfFileName,
+      imageBase64,
+      imageFileName,
+    };
+  } catch (fetchErr) {
+    if (includeEvidence !== false) {
+      const evid = await captureWebOrHtmlEvidence({
+        url: normalizedUrl,
+        filePrefix: defaultPrefix,
+        timeoutMs: 12000,
+      });
+      if (evid.pdfBase64 || evid.imageBase64) {
+        return {
+          fuente: 'Web Scraper Google Antigravity (IP Local · Chrome Headless)',
+          status: 'ok',
+          url: normalizedUrl,
+          httpStatus: 200,
+          title: normalizedUrl,
+          headings: [],
+          pdfLinks: [],
+          textExcerpt: `Página capturada visualmente mediante Google Chrome Headless para ${normalizedUrl}.`,
+          pdfBase64: evid.pdfBase64,
+          pdfFileName: evid.pdfFileName,
+          imageBase64: evid.imageBase64,
+          imageFileName: evid.imageFileName,
+        };
+      }
+    }
+    throw fetchErr;
+  }
+}
+
 module.exports = {
+  convertPdfBase64ToPngBase64,
+  captureWebOrHtmlEvidence,
+  ejecutarWebScrapeConEvidencia,
   consultarAlturasMinTrabajo,
   descargarPdfConstanciaMinTrabajo,
   consultarRamaJudicialPorNombre,

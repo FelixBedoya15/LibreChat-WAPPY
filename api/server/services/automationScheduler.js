@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { monitorEventLoopDelay } = require('perf_hooks');
 const { getAppConfig } = require('~/server/services/Config');
 const { getAgent } = require('~/models/Agent');
@@ -109,11 +111,215 @@ function getBogotaDate(date = new Date()) {
   return new Date(utc + (BOGOTA_OFFSET_HOURS * 3600000));
 }
 
+let lastEvidenceCleanupAt = 0;
+
 /**
- * Formatea Markdown enriquecido a HTML limpio con tablas, encabezados y negritas para clientes de correo.
+ * Limpieza ligera ocasional no bloqueante de archivos de evidencia mayores a 14 días.
+ */
+function triggerAsyncEvidenceCleanup(evidencesDir) {
+  const now = Date.now();
+  if (now - lastEvidenceCleanupAt < 3600000) return; // Máximo 1 vez por hora
+  lastEvidenceCleanupAt = now;
+  setImmediate(async () => {
+    try {
+      const entries = await fs.promises.readdir(evidencesDir);
+      const maxAgeMs = 14 * 24 * 60 * 60 * 1000;
+      for (const name of entries) {
+        if (!/\.(pdf|png|jpg|jpeg)$/i.test(name)) continue;
+        const full = path.join(evidencesDir, name);
+        const stat = await fs.promises.stat(full).catch(() => null);
+        if (stat && stat.isFile() && now - stat.mtimeMs > maxAgeMs) {
+          await fs.promises.unlink(full).catch(() => {});
+        }
+      }
+    } catch (_) {}
+  });
+}
+
+/**
+ * Persiste en disco (`/app/uploads/scraper_evidences`, volumen Docker `librechat_uploads`)
+ * los certificados PDF y capturas PNG/JPG extraídos en vivo por los nodos de Web Scraping.
+ */
+function saveScraperEvidenceFiles({
+  pdfBase64,
+  pdfFileName,
+  imageBase64,
+  imageFileName,
+  cedula,
+  workerName,
+  portalLabel,
+} = {}) {
+  const emptyResult = {
+    hasEvidence: false,
+    pdfFileName: null,
+    pdfLocalPath: null,
+    pdfUrl: null,
+    pdfDownloadUrl: null,
+    pdfAbsoluteUrl: null,
+    imageFileName: null,
+    imageLocalPath: null,
+    imageUrl: null,
+    imageDownloadUrl: null,
+    imageAbsoluteUrl: null,
+  };
+
+  if (!pdfBase64 && !imageBase64) {
+    return emptyResult;
+  }
+
+  try {
+    const evidencesDir = path.resolve(process.cwd(), 'uploads', 'scraper_evidences');
+    fs.mkdirSync(evidencesDir, { recursive: true });
+    triggerAsyncEvidenceCleanup(evidencesDir);
+
+    const stripDataUri = (raw) => {
+      if (!raw || typeof raw !== 'string') return '';
+      const trimmed = raw.trim();
+      const commaIdx = trimmed.indexOf(',');
+      if (trimmed.startsWith('data:') && commaIdx > -1) {
+        return trimmed.slice(commaIdx + 1).trim();
+      }
+      return trimmed;
+    };
+
+    const sanitizeSlug = (val, maxLen = 40) =>
+      String(val || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\.(pdf|png|jpg|jpeg)$/i, '')
+        .replace(/[^a-zA-Z0-9._-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, maxLen);
+
+    const uniqueSuffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const baseDomain = String(process.env.DOMAIN_CLIENT || 'https://wappy.club').replace(/\/+$/, '');
+    const defaultPrefix =
+      [sanitizeSlug(portalLabel, 22), sanitizeSlug(cedula || workerName, 22)]
+        .filter(Boolean)
+        .join('_') || 'soporte';
+
+    let savedPdfName = null;
+    let pdfLocalPath = null;
+    if (pdfBase64 && typeof pdfBase64 === 'string') {
+      const cleanPdfB64 = stripDataUri(pdfBase64);
+      if (cleanPdfB64.length > 100) {
+        const pdfBuf = Buffer.from(cleanPdfB64, 'base64');
+        const headAscii = pdfBuf.subarray(0, 16).toString('ascii');
+        const headUtf8 = pdfBuf.subarray(0, 32).toString('utf8');
+        if (pdfBuf.length > 200 && (headAscii.includes('%PDF') || !/^\s*</.test(headUtf8))) {
+          const pdfSlug = sanitizeSlug(pdfFileName, 48) || `certificado_${defaultPrefix}`;
+          savedPdfName = `${pdfSlug}_${uniqueSuffix}.pdf`;
+          pdfLocalPath = path.resolve(evidencesDir, savedPdfName);
+          fs.writeFileSync(pdfLocalPath, pdfBuf);
+        }
+      }
+    }
+
+    let savedImgName = null;
+    let imageLocalPath = null;
+    if (imageBase64 && typeof imageBase64 === 'string') {
+      const rawImgStr = imageBase64.trim();
+      const cleanImgB64 = stripDataUri(rawImgStr);
+      if (cleanImgB64.length > 100) {
+        const imgBuf = Buffer.from(cleanImgB64, 'base64');
+        if (imgBuf.length > 200) {
+          const isJpeg =
+            /^data:image\/jpe?g/i.test(rawImgStr) ||
+            /\.jpe?g$/i.test(String(imageFileName || '')) ||
+            (imgBuf[0] === 0xff && imgBuf[1] === 0xd8);
+          const ext = isJpeg ? 'jpg' : 'png';
+          const imgSlug = sanitizeSlug(imageFileName, 48) || `evidencia_${defaultPrefix}`;
+          savedImgName = `${imgSlug}_${uniqueSuffix}.${ext}`;
+          imageLocalPath = path.resolve(evidencesDir, savedImgName);
+          fs.writeFileSync(imageLocalPath, imgBuf);
+        }
+      }
+    }
+
+    return {
+      hasEvidence: Boolean(savedPdfName || savedImgName),
+      pdfFileName: savedPdfName,
+      pdfLocalPath,
+      pdfUrl: savedPdfName ? `/api/sgsst/automatizaciones/evidencias/${savedPdfName}` : null,
+      pdfDownloadUrl: savedPdfName
+        ? `/api/sgsst/automatizaciones/evidencias/${savedPdfName}?download=1`
+        : null,
+      pdfAbsoluteUrl: savedPdfName
+        ? `${baseDomain}/api/sgsst/automatizaciones/evidencias/${savedPdfName}`
+        : null,
+      imageFileName: savedImgName,
+      imageLocalPath,
+      imageUrl: savedImgName ? `/api/sgsst/automatizaciones/evidencias/${savedImgName}` : null,
+      imageDownloadUrl: savedImgName
+        ? `/api/sgsst/automatizaciones/evidencias/${savedImgName}?download=1`
+        : null,
+      imageAbsoluteUrl: savedImgName
+        ? `${baseDomain}/api/sgsst/automatizaciones/evidencias/${savedImgName}`
+        : null,
+    };
+  } catch (err) {
+    console.warn('[AutomationScheduler] Error guardando evidencias de scraping:', err?.message || err);
+    return emptyResult;
+  }
+}
+
+/**
+ * Construye el bloque de instrucción obligatoria para el Agente IA con las URLs reales de certificados/soportes.
+ */
+function buildScraperEvidencesPromptBlock(evidences = []) {
+  if (!Array.isArray(evidences) || evidences.length === 0) return '';
+  const evLines = evidences.map((ev, idx) => {
+    const parts = [
+      `  ${idx + 1}. Persona/Registro: "${ev.workerName || 'Registro'}" (Cédula/ID: ${ev.cedula || 'N/A'}) — Soporte: "${ev.title || 'Certificado / Constancia Oficial'}" (${ev.portal || 'Portal Oficial'})`,
+    ];
+    if (ev.pdfDownloadUrl) parts.push(`     • pdfDownloadUrl: ${ev.pdfDownloadUrl}`);
+    if (ev.pdfUrl) parts.push(`     • pdfUrl: ${ev.pdfUrl}`);
+    if (ev.imageUrl) parts.push(`     • imageUrl: ${ev.imageUrl}`);
+    return parts.join('\n');
+  });
+  return (
+    `\n📎 [LISTADO EXACTO DE CERTIFICADOS Y EVIDENCIAS DESCARGADOS EN VIVO (${evidences.length})]:\n` +
+    `${evLines.join('\n')}\n\n` +
+    `REGLA OBLIGATORIA DE EVIDENCIAS DE SCRAPING: Cuando presentes la tabla de resultados, incluye SIEMPRE una columna \`Certificado / Soporte\` copiando EXACTAMENTE los enlaces Markdown \`[📄 Descargar PDF](<pdfDownloadUrl>)\` y \`[🖼️ Ver Certificado](<imageUrl>)\` para cada persona o registro que tenga certificado/soporte disponible, y debajo de la tabla incluye la imagen Markdown \`![Certificado <Nombre>](<imageUrl>)\` sin modificar ni abreviar la URL.\n`
+  );
+}
+
+/**
+ * Respaldo determinístico de Markdown en caso de que el modelo IA omita los enlaces de evidencia en su texto final.
+ */
+function buildScraperEvidencesFallbackMarkdown(evidences = []) {
+  if (!Array.isArray(evidences) || evidences.length === 0) return '';
+  const lines = ['', '---', '### 📎 Certificados y Soportes Oficiales Descargados:'];
+  evidences.forEach((ev, idx) => {
+    const links = [
+      ev.pdfDownloadUrl ? `[📄 Descargar PDF](${ev.pdfDownloadUrl})` : null,
+      ev.imageUrl ? `[🖼️ Ver Certificado](${ev.imageUrl})` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    lines.push(
+      `- **${idx + 1}. ${ev.workerName || 'Colaborador'} (CC \`${ev.cedula || 'N/A'}\`)** — *${ev.title || 'Certificado Oficial'}* (${ev.portal || 'Portal Oficial'}): ${links}`,
+    );
+    if (ev.imageUrl) {
+      lines.push(`![Certificado ${ev.workerName || ev.cedula}](${ev.imageUrl})`);
+    }
+  });
+  return lines.join('\n');
+}
+
+/**
+ * Formatea Markdown enriquecido a HTML limpio con tablas, encabezados, enlaces, imágenes y negritas para clientes de correo.
  */
 function formatMarkdownToEmailHtml(text) {
   if (!text) return '';
+  const baseDomain = String(process.env.DOMAIN_CLIENT || 'https://wappy.club').replace(/\/+$/, '');
+  const toAbsUrl = (rawUrl = '') => {
+    const u = String(rawUrl || '').trim();
+    if (!u) return '';
+    if (/^https?:\/\//i.test(u)) return u;
+    if (u.startsWith('/')) return `${baseDomain}${u}`;
+    return u;
+  };
   
   // 1. Manejo y embellecimiento de bloques ```wappy-card
   let formatted = text.replace(/```wappy-card[\s\S]*?```/gi, (match) => {
@@ -207,6 +413,17 @@ function formatMarkdownToEmailHtml(text) {
   formatted = formatted.replace(/^### (.*$)/gim, '<h3>$1</h3>');
   formatted = formatted.replace(/^## (.*$)/gim, '<h2>$1</h2>');
   formatted = formatted.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+  // 3.5. Imágenes y Enlaces Markdown (convirtiendo rutas relativas /api/... a URLs absolutas para clientes de correo)
+  formatted = formatted.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, rawUrl) => {
+    const abs = toAbsUrl(rawUrl);
+    const safeAlt = String(alt || 'Certificado / Evidencia').replace(/"/g, '&quot;');
+    return `\n\n<div style="margin: 12px 0;"><a href="${abs}" target="_blank" rel="noopener noreferrer"><img src="${abs}" alt="${safeAlt}" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #334155; display: block;" /></a></div>\n\n`;
+  });
+  formatted = formatted.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, rawUrl) => {
+    const abs = toAbsUrl(rawUrl);
+    return `<a href="${abs}" target="_blank" rel="noopener noreferrer" style="color: #2dd4bf; font-weight: 600; text-decoration: underline;">${label}</a>`;
+  });
 
   // 4. Negritas y Cursivas
   formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>');
@@ -766,6 +983,7 @@ async function runAutomation(automation, isManual = false) {
     // Si el flujo incluye nodos de Scraping Web con Google Antigravity (ej. custom_scraper_agy_alto_riesgo),
     // ejecutar la verificación real por el túnel Push SSE de Antigravity (MinTrabajo Alturas + Rama Judicial + SENA)
     let liveAntigravityScraperBlock = '';
+    const runCapturedEvidences = [];
     try {
       const wfCustomNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
         ? automation.workflowNodes.canvasLayout.customNodes
@@ -777,6 +995,7 @@ async function runAutomation(automation, isManual = false) {
         ? automation.workflowNodes.inputs
         : [];
       const allNodeCfg = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
+      const seenScraperKeys = new Set();
       const scraperCandidates = [
         ...wfCustomNodes.map((cn) => ({
           nodeKey: cn?.key || cn?.id || '',
@@ -793,28 +1012,46 @@ async function runAutomation(automation, isManual = false) {
           nodeId: inId,
           customNodeObj: null,
         })),
-      ].filter((cand) =>
-        isAntigravityScraperIdentifier(cand.nodeKey, cand.nodeId, cand.customNodeObj),
-      );
+      ].filter((cand) => {
+        if (!isAntigravityScraperIdentifier(cand.nodeKey, cand.nodeId, cand.customNodeObj)) {
+          return false;
+        }
+        const dedupKey = `${cand.nodeKey}::${cand.nodeId}`;
+        if (seenScraperKeys.has(dedupKey)) return false;
+        seenScraperKeys.add(dedupKey);
+        return true;
+      });
 
       if (scraperCandidates.length > 0) {
-        const sc = scraperCandidates[0];
-        const scrapeRes = await executeRealAntigravityScraperVerification({
-          userIdStr: String(automation.user),
-          targetCompanyIdStr,
-          nodeKey: sc.nodeKey,
-          nodeId: sc.nodeId,
-          customNodeObj: sc.customNodeObj,
-          nodeCfg: allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {},
-          allNodeConfigs: allNodeCfg,
-          mockTriggerInput: '',
-          promptText: automation.prompt || '',
-        });
-        if (scrapeRes?.outputPreview) {
+        const previewBlocks = [];
+        for (const sc of scraperCandidates) {
+          const scrapeRes = await executeRealAntigravityScraperVerification({
+            userIdStr: String(automation.user),
+            targetCompanyIdStr,
+            companyName: automationCompany?.companyName || 'Empresa Activa',
+            nodeKey: sc.nodeKey,
+            nodeId: sc.nodeId,
+            nodeTitle: sc.customNodeObj?.title || '',
+            customNodeObj: sc.customNodeObj || {},
+            nodeCfg: allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {},
+            allNodeConfigs: allNodeCfg,
+            mockTriggerInput: '',
+            promptText: automation.prompt || '',
+          });
+          if (Array.isArray(scrapeRes?.evidences) && scrapeRes.evidences.length > 0) {
+            runCapturedEvidences.push(...scrapeRes.evidences);
+          }
+          if (scrapeRes?.outputPreview) {
+            previewBlocks.push(
+              `[VERIFICACIÓN EN VIVO EJECUTADA VÍA GOOGLE ANTIGRAVITY SCRAPER (${scrapeRes.portalLabel})]:\n${scrapeRes.outputPreview}`,
+            );
+          }
+        }
+        if (previewBlocks.length > 0) {
           liveAntigravityScraperBlock =
-            `\n[VERIFICACIÓN EN VIVO EJECUTADA VÍA GOOGLE ANTIGRAVITY SCRAPER (${scrapeRes.portalLabel})]:\n` +
-            `${scrapeRes.outputPreview}\n` +
-            `🚨 REGLA INQUEBRANTABLE: Usa EXCLUSIVAMENTE los resultados reales de la tabla anterior verificada por Google Antigravity en MinTrabajo / SENA. PROHIBIDO inventar, suponer o alterar estados de cursos de alturas, fechas o certificados.\n\n`;
+            `\n${previewBlocks.join('\n\n')}\n` +
+            buildScraperEvidencesPromptBlock(runCapturedEvidences) +
+            `🚨 REGLA INQUEBRANTABLE: Usa EXCLUSIVAMENTE los resultados reales de la tabla anterior verificada por Google Antigravity en portales oficiales. PROHIBIDO inventar, suponer o alterar estados de cursos, fechas o certificados.\n\n`;
         }
       }
     } catch (scErr) {
@@ -959,6 +1196,12 @@ async function runAutomation(automation, isManual = false) {
     }
     if (!resultText) {
       resultText = '(Ejecución completada por el agente. Documento generado disponible en el chat)';
+    }
+    if (
+      runCapturedEvidences.length > 0 &&
+      !resultText.includes('/api/sgsst/automatizaciones/evidencias/')
+    ) {
+      resultText = `${resultText}\n${buildScraperEvidencesFallbackMarkdown(runCapturedEvidences)}`;
     }
 
     // 10. Update Log and Automation to SUCCESS immediately in MongoDB
@@ -1186,10 +1429,69 @@ async function runAutomation(automation, isManual = false) {
 
             const chatUrl = generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : null;
 
-            const emailHtmlResult = formatMarkdownToEmailHtml(resultText);
+            const emailAttachments = [];
+            const MAX_EMAIL_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+            let totalAttachmentBytes = 0;
+            const seenAttachmentPaths = new Set();
+
+            if (runCapturedEvidences.length > 0) {
+              for (const ev of runCapturedEvidences) {
+                const chosenLocalPath =
+                  ev.pdfLocalPath && fs.existsSync(ev.pdfLocalPath)
+                    ? ev.pdfLocalPath
+                    : ev.imageLocalPath && fs.existsSync(ev.imageLocalPath)
+                      ? ev.imageLocalPath
+                      : null;
+                if (!chosenLocalPath || seenAttachmentPaths.has(chosenLocalPath)) continue;
+                try {
+                  const fileBuf = await fs.promises.readFile(chosenLocalPath);
+                  if (
+                    fileBuf.length > 200 &&
+                    totalAttachmentBytes + fileBuf.length <= MAX_EMAIL_ATTACHMENT_BYTES
+                  ) {
+                    const chosenFileName = path.basename(chosenLocalPath);
+                    const ext = path.extname(chosenFileName).toLowerCase();
+                    const contentType =
+                      ext === '.pdf'
+                        ? 'application/pdf'
+                        : ext === '.png'
+                          ? 'image/png'
+                          : 'image/jpeg';
+                    emailAttachments.push({
+                      filename: chosenFileName,
+                      content: fileBuf,
+                      contentType,
+                    });
+                    totalAttachmentBytes += fileBuf.length;
+                    seenAttachmentPaths.add(chosenLocalPath);
+                  }
+                } catch (_) {}
+              }
+            }
+
+            let emailHtmlResult = formatMarkdownToEmailHtml(resultText);
+            if (runCapturedEvidences.length > 0) {
+              const evItemsHtml = runCapturedEvidences
+                .map((ev, idx) => {
+                  const pdfLink = ev.pdfAbsoluteUrl
+                    ? `<a href="${ev.pdfAbsoluteUrl}?download=1" target="_blank" rel="noopener noreferrer" style="color: #2dd4bf; font-weight: 700; text-decoration: underline; margin-right: 10px;">📄 Descargar PDF Oficial</a>`
+                    : '';
+                  const imgLink = ev.imageAbsoluteUrl
+                    ? `<a href="${ev.imageAbsoluteUrl}" target="_blank" rel="noopener noreferrer" style="color: #a855f7; font-weight: 700; text-decoration: underline;">🖼️ Ver Imagen del Certificado</a>`
+                    : '';
+                  return `<li style="margin-bottom: 8px;"><strong>${idx + 1}. ${ev.workerName || 'Registro'} (${ev.cedula || 'N/A'})</strong> — ${ev.title || 'Certificado Oficial'} (${ev.portal || 'Portal Oficial'}):<br>${pdfLink}${imgLink}</li>`;
+                })
+                .join('');
+              emailHtmlResult += `
+                <div style="border: 1px solid #0d9488; background: rgba(13, 148, 136, 0.1); border-radius: 10px; padding: 14px; margin: 18px 0 6px 0;">
+                  <h4 style="color: #2dd4bf; margin: 0 0 8px 0; font-size: 14px;">📎 Certificados y Soportes Oficiales Extraídos (${runCapturedEvidences.length})</h4>
+                  <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #e2e8f0;">${evItemsHtml}</ul>
+                </div>
+              `;
+            }
 
             for (const recipient of validEmails) {
-              console.log(`[AutomationScheduler] Sending report email to ${recipient} for "${automation.name}"`);
+              console.log(`[AutomationScheduler] Sending report email to ${recipient} for "${automation.name}" (${emailAttachments.length} attachment(s))`);
               sendEmail({
                 email: recipient,
                 from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
@@ -1205,7 +1507,8 @@ async function runAutomation(automation, isManual = false) {
                   year: new Date().getFullYear()
                 },
                 template: 'agentAutomationReport.handlebars',
-                throwError: false
+                throwError: false,
+                ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {})
               }).catch(e => console.warn(`[AutomationScheduler] Non-blocking email error for ${recipient}:`, e.message));
             }
           }
@@ -1690,6 +1993,7 @@ async function executeRealAntigravityScraperVerification({
       outputPreview: lines.join('\n'),
       inputItems: Array.isArray(upstreamInputItems) ? upstreamInputItems : [],
       outputItems: folderOutputItems,
+      evidences: [],
       logs: stepLogs,
       error: folderRes?.error || null,
     };
@@ -1747,7 +2051,7 @@ async function executeRealAntigravityScraperVerification({
         `Recibidos ${upstreamInputItems.length} registro(s) de entrada desde "${upstreamSourceTitle || 'Nodo previo'}"`,
       );
     }
-    addLog('info', `Extrayendo contenido web desde "${targetUrl}" (modo ${antigravityMode})`);
+    addLog('info', `Extrayendo contenido web y evidencia desde "${targetUrl}" (modo ${antigravityMode})`);
     let scrapeChatPromise = Promise.resolve(null);
     if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
       scrapeChatPromise = global
@@ -1756,7 +2060,7 @@ async function executeRealAntigravityScraperVerification({
           companyId,
           companyName,
           title: `[Flujo WAPPY] ${nodeTitle || 'Web Scraper AGY'} — ${companyName}`,
-          instruction: `Extrae y analiza el contenido en vivo de la URL "${targetUrl}" para "${companyName}" (${Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0} elemento(s) recibidos del paso anterior).`,
+          instruction: `Extrae y analiza el contenido en vivo y captura visual/PDF de la URL "${targetUrl}" para "${companyName}" (${Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0} elemento(s) recibidos del paso anterior).`,
           recursoObjetivo: `Google Antigravity (Web Scraper · ${targetUrl})`,
           antigravityMode,
           waitTimeoutMs: 600,
@@ -1769,10 +2073,30 @@ async function executeRealAntigravityScraperVerification({
         .dispatchOsintViaAntigravityDaemon({
           action: 'web_scrape',
           targetUrl,
+          includeEvidence: true,
           userId: userIdStr,
           antigravityMode,
         })
         .catch(() => null);
+    }
+    if (!scrapeRes || scrapeRes?.error) {
+      try {
+        const portalScrapeFallback = await consultarPortalEspecíficoAntigravity({
+          action: 'web_scrape',
+          targetUrl,
+          url: targetUrl,
+          includeEvidence: true,
+        }).catch(() => null);
+        if (
+          portalScrapeFallback &&
+          portalScrapeFallback.action === 'web_scrape' &&
+          (portalScrapeFallback.textExcerpt ||
+            portalScrapeFallback.pdfBase64 ||
+            portalScrapeFallback.imageBase64)
+        ) {
+          scrapeRes = portalScrapeFallback;
+        }
+      } catch (_) {}
     }
     if (!scrapeRes || scrapeRes?.error) {
       try {
@@ -1782,6 +2106,8 @@ async function executeRealAntigravityScraperVerification({
         const html = await r.text();
         const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
         scrapeRes = {
+          ...(scrapeRes || {}),
+          error: null,
           fuente: 'Web Scraper Directo WAPPY + Google Antigravity',
           status: 'ok',
           url: normUrl,
@@ -1813,6 +2139,48 @@ async function executeRealAntigravityScraperVerification({
         scrapeChatDispatch.title,
       );
     }
+
+    const genericEvidences = [];
+    const savedWebEv = saveScraperEvidenceFiles({
+      pdfBase64: scrapeRes?.pdfBase64 || null,
+      pdfFileName: scrapeRes?.pdfFileName || null,
+      imageBase64: scrapeRes?.imageBase64 || scrapeRes?.screenshotBase64 || null,
+      imageFileName: scrapeRes?.imageFileName || null,
+      cedula: 'WEB',
+      workerName: scrapeRes?.title || 'Captura_Web',
+      portalLabel: nodeTitle || 'Web Scraper AGY',
+    });
+    if (savedWebEv.hasEvidence) {
+      genericEvidences.push({
+        workerName: scrapeRes?.title || targetUrl,
+        cedula: 'WEB',
+        cargo: 'Extracción Web',
+        portal: scrapeRes?.fuente || 'Web Scraper Google Antigravity',
+        title: scrapeRes?.title || 'Certificado / Captura Web Oficial',
+        pdfUrl: savedWebEv.pdfUrl || null,
+        pdfDownloadUrl: savedWebEv.pdfDownloadUrl || null,
+        pdfAbsoluteUrl: savedWebEv.pdfAbsoluteUrl || null,
+        pdfFileName: savedWebEv.pdfFileName || null,
+        pdfLocalPath: savedWebEv.pdfLocalPath || null,
+        imageUrl: savedWebEv.imageUrl || null,
+        imageDownloadUrl: savedWebEv.imageDownloadUrl || null,
+        imageAbsoluteUrl: savedWebEv.imageAbsoluteUrl || null,
+        imageFileName: savedWebEv.imageFileName || null,
+        imageLocalPath: savedWebEv.imageLocalPath || null,
+      });
+      addLog(
+        'success',
+        `Evidencia guardada (${[savedWebEv.pdfFileName, savedWebEv.imageFileName].filter(Boolean).join(' · ')})`,
+      );
+    }
+
+    const webCertLinks = [
+      savedWebEv.pdfDownloadUrl ? `[📄 Descargar PDF](${savedWebEv.pdfDownloadUrl})` : null,
+      savedWebEv.imageUrl ? `[🖼️ Ver Captura](${savedWebEv.imageUrl})` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
     const durationMs = Math.max(1, Date.now() - t0);
     if (scrapeRes?.error) {
       addLog('error', `Error al consultar URL "${targetUrl}": ${scrapeRes.error}`);
@@ -1829,12 +2197,24 @@ async function executeRealAntigravityScraperVerification({
       `- **URL Consultada:** \`${scrapeRes?.url || targetUrl}\``,
       `- **Título Extraído:** ${scrapeRes?.title || 'N/A'}`,
       `- **Tiempo Real HTTP:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
+      webCertLinks ? `- **Certificado / Captura Descargada:** ${webCertLinks}` : null,
       '',
       `### 📄 Contenido Extraído de la Página:`,
       scrapeRes?.textExcerpt
         ? `> ${String(scrapeRes.textExcerpt).slice(0, 1800)}`
         : `> ${scrapeRes?.error || 'Sin contenido extraído.'}`,
     ].filter((l) => l !== null);
+
+    if (savedWebEv.hasEvidence) {
+      lines.push('', '### 📎 Vista Previa de Certificados / Soportes Extraídos:');
+      if (webCertLinks) {
+        lines.push(`- **Soporte Oficial (${scrapeRes?.title || targetUrl}):** ${webCertLinks}`);
+      }
+      if (savedWebEv.imageUrl) {
+        lines.push(`![Captura Web](${savedWebEv.imageUrl})`);
+      }
+    }
+
     return {
       durationMs,
       recordsCount: 1,
@@ -1853,11 +2233,19 @@ async function executeRealAntigravityScraperVerification({
           titulo: scrapeRes?.title || 'N/A',
           fuente: scrapeRes?.fuente || 'Web Scraper Google Antigravity',
           estado: scrapeRes?.status || 'ok',
+          certificado: webCertLinks || 'Sin soporte',
+          pdfUrl: savedWebEv.pdfUrl || null,
+          pdfDownloadUrl: savedWebEv.pdfDownloadUrl || null,
+          imageUrl: savedWebEv.imageUrl || null,
+          imageDownloadUrl: savedWebEv.imageDownloadUrl || null,
+          pdfFileName: savedWebEv.pdfFileName || null,
+          imageFileName: savedWebEv.imageFileName || null,
           extracto: scrapeRes?.textExcerpt ? String(scrapeRes.textExcerpt).slice(0, 600) : scrapeRes?.error || '',
           ordenAntigravity: scrapeChatDispatch?.ordenId || null,
           itemsPreviosRecibidos: Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0,
         },
       ],
+      evidences: genericEvidences,
       logs: stepLogs,
       error: scrapeRes?.error || null,
     };
@@ -2125,17 +2513,125 @@ async function executeRealAntigravityScraperVerification({
 
   // 4. Ejecutar consultas reales en lotes de 10 en paralelo a través del daemon Antigravity
   const verificationRows = [];
+  const evidences = [];
   let relayUsedCount = 0;
   let verifiedWithCoursesCount = 0;
   let verifiedNoCoursesCount = 0;
+
+  const persistAndAttachRowEvidence = ({ primaryRes, secondaryRes, target, fuenteStr, title }) => {
+    const rawPdfB64 =
+      primaryRes?.pdfBase64 ||
+      primaryRes?.ultimoCertificadoAlturas?.pdfBase64 ||
+      primaryRes?.cursos?.[0]?.pdfBase64 ||
+      secondaryRes?.pdfBase64 ||
+      null;
+    const rawPdfName =
+      primaryRes?.pdfFileName ||
+      primaryRes?.ultimoCertificadoAlturas?.pdfFileName ||
+      secondaryRes?.pdfFileName ||
+      null;
+    const rawImgB64 =
+      primaryRes?.imageBase64 ||
+      primaryRes?.screenshotBase64 ||
+      primaryRes?.ultimoCertificadoAlturas?.imageBase64 ||
+      primaryRes?.cursos?.[0]?.imageBase64 ||
+      secondaryRes?.imageBase64 ||
+      secondaryRes?.screenshotBase64 ||
+      null;
+    const rawImgName =
+      primaryRes?.imageFileName ||
+      primaryRes?.ultimoCertificadoAlturas?.imageFileName ||
+      secondaryRes?.imageFileName ||
+      null;
+
+    if (!rawPdfB64 && !rawImgB64) {
+      return {
+        pdfUrl: null,
+        pdfDownloadUrl: null,
+        imageUrl: null,
+        imageDownloadUrl: null,
+        pdfFileName: null,
+        imageFileName: null,
+        certificado: 'Sin soporte',
+        certificadoTabla: 'Sin soporte',
+      };
+    }
+
+    const saved = saveScraperEvidenceFiles({
+      pdfBase64: rawPdfB64,
+      pdfFileName: rawPdfName,
+      imageBase64: rawImgB64,
+      imageFileName: rawImgName,
+      cedula: target.cleanCedula || target.rawDoc,
+      workerName: target.nombre,
+      portalLabel: fuenteStr || nodeTitle || 'Certificado',
+    });
+
+    if (!saved.hasEvidence) {
+      return {
+        pdfUrl: null,
+        pdfDownloadUrl: null,
+        imageUrl: null,
+        imageDownloadUrl: null,
+        pdfFileName: null,
+        imageFileName: null,
+        certificado: 'Sin soporte',
+        certificadoTabla: 'Sin soporte',
+      };
+    }
+
+    evidences.push({
+      workerName: target.nombre,
+      cedula: target.cleanCedula,
+      cargo: target.cargo,
+      portal: fuenteStr,
+      title: title || 'Certificado / Constancia Oficial',
+      pdfUrl: saved.pdfUrl || null,
+      pdfDownloadUrl: saved.pdfDownloadUrl || null,
+      pdfAbsoluteUrl: saved.pdfAbsoluteUrl || null,
+      pdfFileName: saved.pdfFileName || null,
+      pdfLocalPath: saved.pdfLocalPath || null,
+      imageUrl: saved.imageUrl || null,
+      imageDownloadUrl: saved.imageDownloadUrl || null,
+      imageAbsoluteUrl: saved.imageAbsoluteUrl || null,
+      imageFileName: saved.imageFileName || null,
+      imageLocalPath: saved.imageLocalPath || null,
+    });
+
+    const compactLinks = [
+      saved.pdfDownloadUrl ? `[📄 PDF](${saved.pdfDownloadUrl})` : null,
+      saved.imageUrl ? `[🖼️ Imagen](${saved.imageUrl})` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    const tableLinks = [
+      saved.pdfDownloadUrl ? `[📄 Descargar PDF](${saved.pdfDownloadUrl})` : null,
+      saved.imageUrl ? `[🖼️ Ver Certificado](${saved.imageUrl})` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    return {
+      pdfUrl: saved.pdfUrl || null,
+      pdfDownloadUrl: saved.pdfDownloadUrl || null,
+      imageUrl: saved.imageUrl || null,
+      imageDownloadUrl: saved.imageDownloadUrl || null,
+      pdfFileName: saved.pdfFileName || null,
+      imageFileName: saved.imageFileName || null,
+      certificado: compactLinks || 'Sin soporte',
+      certificadoTabla: tableLinks || 'Sin soporte',
+    };
+  };
 
   const batchSize = 10;
   for (let i = 0; i < validTargets.length; i += batchSize) {
     const batch = validTargets.slice(i, i + batchSize);
     const batchResults = await Promise.all(
-      batch.map(async (target) => {
+      batch.map(async (target, batchIdx) => {
         try {
           if (specificPortalAction) {
+            const shouldIncludePortalEvidence = i === 0 && batchIdx < 3;
             let portalRes = null;
             if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
               portalRes = await global
@@ -2146,6 +2642,7 @@ async function executeRealAntigravityScraperVerification({
                   cedula: target.cleanCedula,
                   nombre: target.nombre,
                   placa: target.placa || '',
+                  includeEvidence: shouldIncludePortalEvidence,
                   antigravityMode,
                 })
                 .catch(() => null);
@@ -2157,12 +2654,14 @@ async function executeRealAntigravityScraperVerification({
                 cedula: target.cleanCedula,
                 nombre: target.nombre,
                 placa: target.placa || '',
+                includeEvidence: shouldIncludePortalEvidence,
               });
             }
             return { target, portalRes };
           }
 
           if (isAntecedentes && !isAltoRiesgo) {
+            const forceFirstEvidence = i === 0 && batchIdx === 0;
             let rjRes = null;
             if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
               rjRes = await global
@@ -2172,14 +2671,20 @@ async function executeRealAntigravityScraperVerification({
                   tipoDoc: 'CC',
                   cedula: target.cleanCedula,
                   nombre: target.nombre,
+                  includeEvidence: true,
+                  forceEvidence: forceFirstEvidence,
                   antigravityMode,
                 })
                 .catch(() => null);
             }
             if (!rjRes && antigravityMode === 'auto') {
-              rjRes = await consultarRamaJudicial({ nombreCompleto: target.nombre }).catch(
-                () => null,
-              );
+              rjRes = await consultarRamaJudicial({
+                nombreCompleto: target.nombre,
+                cedula: target.cleanCedula,
+                tipoDoc: 'CC',
+                includeEvidence: true,
+                forceEvidence: forceFirstEvidence,
+              }).catch(() => null);
             }
             return { target, rjOnly: true, rjRes };
           }
@@ -2187,14 +2692,20 @@ async function executeRealAntigravityScraperVerification({
           const mtRes = await consultarAlturasMinTrabajo({
             tipoDoc: 'CC',
             cedula: target.cleanCedula,
-            includePdf: false,
+            includePdf: true,
+            includeEvidence: true,
             userId: userIdStr,
             antigravityMode,
             preferAntigravityDaemon: true,
           });
           let rjRes = null;
           if (isAntecedentes && target.nombre && !target.nombre.startsWith('Cédula solicitada')) {
-            rjRes = await consultarRamaJudicial({ nombreCompleto: target.nombre }).catch(() => null);
+            rjRes = await consultarRamaJudicial({
+              nombreCompleto: target.nombre,
+              cedula: target.cleanCedula,
+              tipoDoc: 'CC',
+              includeEvidence: true,
+            }).catch(() => null);
           }
           return { target, mtRes, rjRes };
         } catch (err) {
@@ -2225,6 +2736,13 @@ async function executeRealAntigravityScraperVerification({
         const estadoStr = isOk ? '✅ VERIFICADO EN PORTAL' : `⚠️ ${pRes.error || 'ADVERTENCIA'}`;
         const detalleStr = pRes.resumen || pRes.error || 'Verificación completada.';
         const fuenteStr = pRes.fuente || 'Google Antigravity';
+        const evMeta = persistAndAttachRowEvidence({
+          primaryRes: pRes,
+          secondaryRes: null,
+          target,
+          fuenteStr,
+          title: pRes?.action ? `Constancia Portal Oficial (${String(pRes.action).toUpperCase()})` : 'Certificado / Constancia Oficial',
+        });
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
@@ -2232,10 +2750,11 @@ async function executeRealAntigravityScraperVerification({
           estado: estadoStr,
           detalle: detalleStr,
           fuente: fuenteStr,
+          ...evMeta,
         });
         addLog(
           isOk ? 'success' : pRes.status === 'error' ? 'error' : 'warn',
-          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}`,
+          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleStr}`,
         );
         continue;
@@ -2256,6 +2775,13 @@ async function executeRealAntigravityScraperVerification({
             : '✅ SIN PROCESOS ACTIVOS';
         const detalleStr = rjRes.resumen || rjRes.error || 'Verificado en Rama Judicial API v2.';
         const fuenteStr = rjRes.fuente || 'Rama Judicial';
+        const evMeta = persistAndAttachRowEvidence({
+          primaryRes: rjRes,
+          secondaryRes: null,
+          target,
+          fuenteStr,
+          title: 'Constancia de Consulta Rama Judicial / Antecedentes',
+        });
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
@@ -2263,10 +2789,11 @@ async function executeRealAntigravityScraperVerification({
           estado: estadoStr,
           detalle: detalleStr,
           fuente: fuenteStr,
+          ...evMeta,
         });
         addLog(
           rjRes.error ? 'error' : hasProcs ? 'warn' : 'success',
-          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}`,
+          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleStr}`,
         );
         continue;
@@ -2286,6 +2813,17 @@ async function executeRealAntigravityScraperVerification({
             : '✅ CERTIFICADO VIGENTE';
         const detalle = `${latest.programa || latest.nivel || 'Alturas'} · Centro: ${latest.entrenador || 'Autorizado'} · Fecha: ${latest.fechaTerminacion || 'Registrada'} · Cert: #${latest.nroCertificado || 'S/N'}`;
         const fuenteStr = mtRes.fuente || 'MinTrabajo';
+        const evMeta = persistAndAttachRowEvidence({
+          primaryRes: mtRes,
+          secondaryRes: rjRes,
+          target,
+          fuenteStr,
+          title:
+            mtRes?.ultimoCertificadoAlturas?.programa ||
+            latest?.programa ||
+            latest?.nivel ||
+            'Certificado / Constancia Oficial',
+        });
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
@@ -2293,10 +2831,11 @@ async function executeRealAntigravityScraperVerification({
           estado: badge,
           detalle: rjRes?.resumen ? `${detalle} | Judicial: ${rjRes.resumen}` : detalle,
           fuente: fuenteStr,
+          ...evMeta,
         });
         addLog(
           mtRes.status === 'warning' ? 'warn' : 'success',
-          `CC ${target.cleanCedula} (${target.nombre}): ${badge}`,
+          `CC ${target.cleanCedula} (${target.nombre}): ${badge}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Certificado descargado]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalle}`,
         );
       } else {
@@ -2309,6 +2848,13 @@ async function executeRealAntigravityScraperVerification({
           mtRes?.resumen ||
           `No registra certificados de Trabajo Seguro en Alturas (Res. 4272/2021) ni Espacios Confinados (Res. 0491/2020) en la base oficial de MinTrabajo para la CC ${target.cleanCedula}.`;
         const fuenteStr = mtRes?.fuente || 'MinTrabajo';
+        const evMeta = persistAndAttachRowEvidence({
+          primaryRes: mtRes,
+          secondaryRes: rjRes,
+          target,
+          fuenteStr,
+          title: 'Constancia de Verificación MinTrabajo / SENA',
+        });
         verificationRows.push({
           nombre: target.nombre,
           documento: target.cleanCedula,
@@ -2316,6 +2862,7 @@ async function executeRealAntigravityScraperVerification({
           estado: estadoLabel,
           detalle: rjRes?.resumen ? `${detalleMsg} | Judicial: ${rjRes.resumen}` : detalleMsg,
           fuente: fuenteStr,
+          ...evMeta,
         });
         addLog(
           mtRes?.status === 'ok'
@@ -2323,10 +2870,62 @@ async function executeRealAntigravityScraperVerification({
             : mtRes?.status === 'blocked' || mtRes?.status === 'warning'
               ? 'warn'
               : 'error',
-          `CC ${target.cleanCedula} (${target.nombre}): ${estadoLabel}`,
+          `CC ${target.cleanCedula} (${target.nombre}): ${estadoLabel}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleMsg}`,
         );
       }
+    }
+  }
+
+  // En Antecedentes / Rama Judicial: si ningún trabajador tuvo procesos pero al menos 1 fue verificado
+  // y aún no se generó constancia en el trabajador idx === 0, pedir evidencia con forceEvidence: true sobre el primer trabajador verificado.
+  if (isAntecedentes && !isAltoRiesgo && evidences.length === 0 && verifiedWithCoursesCount > 0) {
+    const fallbackRowIdx = verificationRows.findIndex(
+      (r) => r && r.nombre && !String(r.nombre).startsWith('Cédula solicitada') && !String(r.estado || '').includes('SIN CONEXIÓN'),
+    );
+    if (fallbackRowIdx > 0) {
+      const fbRow = verificationRows[fallbackRowIdx];
+      try {
+        let fbRjRes = null;
+        if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+          fbRjRes = await global
+            .dispatchOsintViaAntigravityDaemon({
+              userId: userIdStr,
+              action: 'antecedentes',
+              tipoDoc: 'CC',
+              cedula: fbRow.documento,
+              nombre: fbRow.nombre,
+              includeEvidence: true,
+              forceEvidence: true,
+              antigravityMode,
+            })
+            .catch(() => null);
+        }
+        if (!fbRjRes && antigravityMode === 'auto') {
+          fbRjRes = await consultarRamaJudicial({
+            nombreCompleto: fbRow.nombre,
+            cedula: fbRow.documento,
+            tipoDoc: 'CC',
+            includeEvidence: true,
+            forceEvidence: true,
+          }).catch(() => null);
+        }
+        if (fbRjRes?.pdfBase64 || fbRjRes?.imageBase64) {
+          const fbEvMeta = persistAndAttachRowEvidence({
+            primaryRes: fbRjRes,
+            secondaryRes: null,
+            target: {
+              nombre: fbRow.nombre,
+              cleanCedula: fbRow.documento,
+              rawDoc: fbRow.documento,
+              cargo: fbRow.cargo,
+            },
+            fuenteStr: fbRow.fuente || 'Rama Judicial',
+            title: 'Constancia de Consulta Rama Judicial / Antecedentes',
+          });
+          Object.assign(verificationRows[fallbackRowIdx], fbEvMeta);
+        }
+      } catch (_) {}
     }
   }
 
@@ -2338,6 +2937,14 @@ async function executeRealAntigravityScraperVerification({
       estado: '⚪ DOC. DE PRUEBA / NO NUMÉRICO',
       detalle: `El documento "${invalidTarget.rawDoc}" contiene letras o formato de prueba; el portal oficial exige número de cédula numérico (CC/CE/PPT).`,
       fuente: 'Validación Previa WAPPY',
+      pdfUrl: null,
+      pdfDownloadUrl: null,
+      imageUrl: null,
+      imageDownloadUrl: null,
+      pdfFileName: null,
+      imageFileName: null,
+      certificado: 'Sin soporte',
+      certificadoTabla: 'Sin soporte',
     });
     addLog(
       'warn',
@@ -2360,7 +2967,7 @@ async function executeRealAntigravityScraperVerification({
       `Ejecución de nodo de flujo autónomo "${nodeTitle || 'Alto Riesgo & SENA'}" para la empresa "${companyName}".\n` +
       `- Motor configurado: ${scriptEngineStr} (Modo: ${antigravityMode})\n` +
       `- URL(s) objetivo consultadas en vivo: ${targetUrlsStr}\n` +
-      `- Cédulas numéricas consultadas en vivo desde tu Mac/PC: ${validTargets.length} (${verifiedWithCoursesCount} con registro/curso · ${verifiedNoCoursesCount} sin registro en MinTrabajo)\n` +
+      `- Cédulas numéricas consultadas en vivo desde tu Mac/PC: ${validTargets.length} (${verifiedWithCoursesCount} con registro/curso · ${verifiedNoCoursesCount} sin registro en MinTrabajo · ${evidences.length} certificado(s)/soporte(s) descargado(s))\n` +
       (promptText ? `- Solicitud del flujo: ${promptText.trim()}\n` : '') +
       `\n### 📋 RESULTADOS REALES CONSULTADOS CÉDULA POR CÉDULA EN EL PORTAL OFICIAL (${verificationRows.length} REGISTROS):\n${verifiedRowsMarkdown}`;
 
@@ -2401,22 +3008,40 @@ async function executeRealAntigravityScraperVerification({
     `- **Canal de Ejecución:** ${engineUsedLabel}`,
     chatLine,
     `- **Tiempo Real de Consulta HTTP:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
-    `- **Resumen de Hallazgos:** ${validTargets.length} cédula(s) numérica(s) consultada(s) (mismos colaboradores extraídos en Paso #2) · **${verifiedWithCoursesCount}** verificada(s) con hallazgo/registro · **${verifiedNoCoursesCount}** sin registro o alerta${nonNumericTargets.length > 0 ? ` · **${nonNumericTargets.length}** documento(s) de prueba no numérico(s)` : ''}.`,
+    `- **Resumen de Hallazgos:** ${validTargets.length} cédula(s) numérica(s) consultada(s) (mismos colaboradores extraídos en Paso #2) · **${verifiedWithCoursesCount}** verificada(s) con hallazgo/registro · **${verifiedNoCoursesCount}** sin registro o alerta · **${evidences.length}** certificado(s)/soporte(s) extraído(s)${nonNumericTargets.length > 0 ? ` · **${nonNumericTargets.length}** documento(s) de prueba no numérico(s)` : ''}.`,
     '',
-    '| # | Colaborador | Cédula / Doc. | Cargo | Estado en Portal Oficial (En Vivo) | Detalle Oficial Extraído |',
-    '| :--- | :--- | :--- | :--- | :--- | :--- |',
+    '| # | Colaborador | Cédula / Doc. | Cargo | Estado en Portal Oficial (En Vivo) | Detalle Oficial Extraído | Certificado / Evidencia |',
+    '| :--- | :--- | :--- | :--- | :--- | :--- | :--- |',
   ].filter((l) => l !== null);
 
   verificationRows.forEach((row, idx) => {
     tableLines.push(
-      `| ${idx + 1} | **${row.nombre}** | \`${row.documento}\` | ${row.cargo} | ${row.estado} | ${row.detalle} |`,
+      `| ${idx + 1} | **${row.nombre}** | \`${row.documento}\` | ${row.cargo} | ${row.estado} | ${row.detalle} | ${row.certificadoTabla || 'Sin soporte'} |`,
     );
   });
 
   if (verificationRows.length === 0) {
     tableLines.push(
-      '| 1 | *(Sin cédulas)* | `N/A` | — | ⚠️ Sin registros | No se encontraron trabajadores con cédula en la empresa ni cédulas en la instrucción. |',
+      '| 1 | *(Sin cédulas)* | `N/A` | — | ⚠️ Sin registros | No se encontraron trabajadores con cédula en la empresa ni cédulas en la instrucción. | — |',
     );
+  }
+
+  if (evidences.length > 0) {
+    tableLines.push('', '### 📎 Vista Previa de Certificados / Soportes Extraídos:');
+    evidences.forEach((ev, idx) => {
+      const evLinks = [
+        ev.pdfDownloadUrl ? `[📄 Descargar PDF](${ev.pdfDownloadUrl})` : null,
+        ev.imageUrl ? `[🖼️ Ver Certificado](${ev.imageUrl})` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      tableLines.push(
+        `- **${idx + 1}. ${ev.workerName} (CC \`${ev.cedula}\`)** — *${ev.title}* (${ev.portal}): ${evLinks}`,
+      );
+      if (ev.imageUrl) {
+        tableLines.push(`![Certificado de ${ev.workerName} (${ev.cedula})](${ev.imageUrl || ''})`);
+      }
+    });
   }
 
   if (chatDispatchRes?.completedSync && chatDispatchRes?.content) {
@@ -2425,7 +3050,7 @@ async function executeRealAntigravityScraperVerification({
 
   const outputPreview = tableLines.join('\n');
   console.log(
-    `[Antigravity Scraper] ✅ Verificación completada en ${durationMs}ms (Relay Antigravity: ${relayUsedCount}/${validTargets.length}, OK: ${verifiedWithCoursesCount}, Otros: ${verifiedNoCoursesCount}).`,
+    `[Antigravity Scraper] ✅ Verificación completada en ${durationMs}ms (Relay Antigravity: ${relayUsedCount}/${validTargets.length}, OK: ${verifiedWithCoursesCount}, Otros: ${verifiedNoCoursesCount}, Evidencias: ${evidences.length}).`,
   );
 
   const outputItems = verificationRows.map((r, idx) => ({
@@ -2435,7 +3060,14 @@ async function executeRealAntigravityScraperVerification({
     cargo: r.cargo,
     estadoPortal: r.estado,
     detalleOficial: r.detalle,
+    certificado: r.certificado || 'Sin soporte',
     fuente: r.fuente,
+    pdfUrl: r.pdfUrl || null,
+    pdfDownloadUrl: r.pdfDownloadUrl || null,
+    imageUrl: r.imageUrl || null,
+    imageDownloadUrl: r.imageDownloadUrl || null,
+    pdfFileName: r.pdfFileName || null,
+    imageFileName: r.imageFileName || null,
   }));
 
   const resolvedInputItems =
@@ -2457,10 +3089,11 @@ async function executeRealAntigravityScraperVerification({
     verifiedNoCoursesCount,
     antigravityMode,
     portalLabel: nodeTitle || 'Alto Riesgo & SENA',
-    inputSummary: `${engineUsedLabel} · ${validTargets.length} cédula(s) verificada(s)`,
+    inputSummary: `${engineUsedLabel} · ${validTargets.length} cédula(s) verificada(s)${evidences.length > 0 ? ` · ${evidences.length} certificado(s)` : ''}`,
     outputPreview,
     inputItems: resolvedInputItems,
     outputItems,
+    evidences,
     logs: stepLogs,
     error: null,
   };
@@ -3034,6 +3667,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           : 'Todos los registros de la empresa activa';
     let inputSummaryText = `${inputModeLabel}${surgicalFields.length > 0 ? ` · ${surgicalFields.length} campo(s) quirúrgico(s)` : ''}`;
     let finalRecordsCount = filteredRecords.length;
+    let stepEvidences = [];
 
     const resolvedTitle = customTitle || liveData?.moduleTitle || nodeId;
 
@@ -3064,6 +3698,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         }
         if (Array.isArray(realScraperRes?.outputItems) && realScraperRes.outputItems.length > 0) {
           stepOutputItems = realScraperRes.outputItems;
+        }
+        if (Array.isArray(realScraperRes?.evidences) && realScraperRes.evidences.length > 0) {
+          stepEvidences = realScraperRes.evidences;
         }
         if (Array.isArray(realScraperRes?.logs) && realScraperRes.logs.length > 0) {
           stepLogs.push(...realScraperRes.logs);
@@ -3124,6 +3761,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       sourceNodeTitle: incomingSource.title,
       inputItems: incomingItems,
       outputItems: stepOutputItems,
+      evidences: stepEvidences,
       logs: stepLogs,
       error: stepError,
     };
@@ -3141,6 +3779,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       title: stepItem.title,
       category,
       outputItems: stepOutputItems,
+      evidences: stepEvidences,
     });
 
     nodeTrace.push(stepItem);
@@ -3445,6 +4084,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
               ? realScraper.inputItems.slice(0, 50)
               : cnIncomingItems,
           outputItems: cnOutputItems,
+          evidences: Array.isArray(realScraper.evidences) ? realScraper.evidences : [],
           logs:
             Array.isArray(realScraper.logs) && realScraper.logs.length > 0
               ? realScraper.logs
@@ -3461,6 +4101,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           title: cnStep.title,
           category,
           outputItems: cnStep.outputItems,
+          evidences: cnStep.evidences,
         });
         if (Array.isArray(cnStep.outputItems) && cnStep.outputItems.length > 0) {
           currentPipelineItems = cnStep.outputItems;
@@ -3823,6 +4464,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             ? `${effectiveUserPrompt}\n\n(NOTA CRÍTICA: Ajusta este análisis estrictamente a los nodos actualmente conectados en la secuencia: ${connectedDataTitles || 'Disparador'} ➔ ${currentAgentName} ➔ ${downstreamTitles || 'Salida'}).`
             : `Ejecuta el análisis del flujo para "${companyName}" siguiendo estrictamente el orden consecutivo de los pasos conectados (${connectedDataTitles || 'Disparador'} ➔ ${downstreamTitles || 'Salida'}).`);
 
+      const upstreamEvidences = upstreamSteps.flatMap((st) =>
+        Array.isArray(st.evidences) ? st.evidences : [],
+      );
+      const evidencesPromptDirective = buildScraperEvidencesPromptBlock(upstreamEvidences);
+
       const fullAgentPrompt =
         `[CONTEXTO DE EMPRESA ACTIVA]: "${companyName}" (NIT: ${automationCompany?.nit || 'N/A'})\n` +
         companyProfileMemoryBlock +
@@ -3832,6 +4478,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         `\n${dynamicFlowDirective}` +
         `[DATOS REALES EXTRAÍDOS EN LOS PASOS PREVIOS CONECTADOS (#1 AL #${upstreamSteps.length})]:\n` +
         `${upstreamDataFormatted}\n\n` +
+        evidencesPromptDirective +
         (previousAgentResponse
           ? `[DICTAMEN DEL AGENTE ANTERIOR EN LA CADENA]:\n"""\n${previousAgentResponse}\n"""\n\n`
           : '') +
@@ -3872,6 +4519,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
               matchedBase['Estado Portal (Antigravity)'] = tItem.estadoPortal;
               matchedBase['Detalle Oficial'] = tItem.detalleOficial || '';
               matchedBase['Fuente Verificación'] = tItem.fuente || stepEntry.title;
+              if (tItem.certificado) matchedBase['Certificado / Soporte'] = tItem.certificado;
+              if (tItem.pdfUrl) matchedBase.pdfUrl = tItem.pdfUrl;
+              if (tItem.pdfDownloadUrl) matchedBase.pdfDownloadUrl = tItem.pdfDownloadUrl;
+              if (tItem.imageUrl) matchedBase.imageUrl = tItem.imageUrl;
+              if (tItem.imageDownloadUrl) matchedBase.imageDownloadUrl = tItem.imageDownloadUrl;
             } else {
               extraToolInputs.push({
                 origenNodo: stepEntry.title,
@@ -3912,6 +4564,12 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           upstreamSteps
             .map((n) => `#### 🔹 Paso #${n.stepIndex}: ${n.title}\n${n.outputPreview}`)
             .join('\n\n');
+      }
+      if (
+        upstreamEvidences.length > 0 &&
+        !agentResponseText.includes('/api/sgsst/automatizaciones/evidencias/')
+      ) {
+        agentResponseText = `${agentResponseText}\n${buildScraperEvidencesFallbackMarkdown(upstreamEvidences)}`;
       }
 
       agentOutputs.push({
@@ -4127,6 +4785,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     .filter((s) => s.category === 'hito')
     .map((s) => s.nodeId);
 
+  const allSimulationEvidences = nodeTrace.flatMap((n) =>
+    Array.isArray(n.evidences) ? n.evidences : [],
+  );
+
   const simulatedOutputs = {
     emailPreview: {
       enabled: connectedOutputsList.includes('email_report'),
@@ -4134,6 +4796,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       recipients: validEmails,
       subject: `📊 [VISTA PREVIA DESARROLLO] Reporte Automático SGSST: ${flowName} - ${companyName}`,
       htmlBody: formatMarkdownToEmailHtml(finalResponse),
+      attachmentsPreview: allSimulationEvidences.map((ev) => ({
+        workerName: ev.workerName,
+        cedula: ev.cedula,
+        title: ev.title,
+        pdfFileName: ev.pdfFileName,
+        pdfDownloadUrl: ev.pdfDownloadUrl,
+        imageFileName: ev.imageFileName,
+        imageUrl: ev.imageUrl,
+      })),
     },
     wappyNotificationPreview: {
       enabled: connectedOutputsList.includes('wappy_notification'),
@@ -4173,6 +4844,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     finalResponse,
     finalResponseHtml: formatMarkdownToEmailHtml(finalResponse),
     nodeTrace,
+    evidences: allSimulationEvidences,
     agentOutputs,
     ifEvaluation,
     simulatedOutputs,
@@ -4183,6 +4855,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       totalRecordsInspected: totalExtractedRecords,
       totalCriticalRecords,
       agentsExecuted: agentOutputs.length,
+      evidencesExtracted: allSimulationEvidences.length,
     },
   };
 }
@@ -4193,6 +4866,7 @@ module.exports = {
   runAutomation,
   runWorkflowSandboxSimulation,
   formatMarkdownToEmailHtml,
+  saveScraperEvidenceFiles,
   calculateNextRun,
   stopAutomation,
 };

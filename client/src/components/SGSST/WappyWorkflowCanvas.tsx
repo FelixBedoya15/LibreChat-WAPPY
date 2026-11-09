@@ -70,6 +70,10 @@ import {
   ChevronRight,
   Code2,
   Copy,
+  Download,
+  ExternalLink,
+  Eye,
+  Image as ImageIcon,
   Layers,
   Settings2,
   Table2,
@@ -79,7 +83,14 @@ import WappyNodeCustomEditor from './WappyNodeCustomEditors';
 import WappyWorkflowSandboxPanel, {
   type SandboxSimulationResponse,
   type SandboxNodeTraceStep,
+  type ScraperCapturedEvidence,
+  collectUniqueScraperEvidences,
+  extractEvidenceFromRow,
+  normalizeEvidenceUrlForBrowser,
+  renderWorkflowMarkdownToInteractiveHtml,
+  handleEvidenceContainerClick,
 } from './WappyWorkflowSandboxPanel';
+export type { SandboxNodeTraceStep, ScraperCapturedEvidence };
 import {
   TRIGGER_NODES,
   EXTRACTOR_NODES,
@@ -726,6 +737,59 @@ export default function WappyWorkflowCanvas({
     technical: false,
   });
   const [ndvCopiedExpr, setNdvCopiedExpr] = useState<string | null>(null);
+  const [ndvEvidenceStripOpen, setNdvEvidenceStripOpen] = useState<boolean>(true);
+  const [previewEvidence, setPreviewEvidence] = useState<{
+    title: string;
+    workerName?: string;
+    cedula?: string;
+    cargo?: string;
+    portal?: string;
+    imageUrl?: string | null;
+    imageDownloadUrl?: string | null;
+    imageFileName?: string | null;
+    pdfUrl?: string | null;
+    pdfDownloadUrl?: string | null;
+    pdfFileName?: string | null;
+  } | null>(null);
+  const [previewEvidenceMode, setPreviewEvidenceMode] = useState<'image' | 'pdf'>('image');
+
+  const handleOpenEvidencePreview = useCallback(
+    (ev: ScraperCapturedEvidence, preferredMode?: 'image' | 'pdf') => {
+      const normImg = normalizeEvidenceUrlForBrowser(ev.imageUrl);
+      const normImgDl =
+        normalizeEvidenceUrlForBrowser(ev.imageDownloadUrl) ||
+        (normImg ? (normImg.includes('?') ? `${normImg}&download=1` : `${normImg}?download=1`) : null);
+      const normPdf = normalizeEvidenceUrlForBrowser(ev.pdfUrl);
+      const normPdfDl =
+        normalizeEvidenceUrlForBrowser(ev.pdfDownloadUrl) ||
+        (normPdf ? (normPdf.includes('?') ? `${normPdf}&download=1` : `${normPdf}?download=1`) : null);
+
+      const mode: 'image' | 'pdf' =
+        preferredMode === 'pdf' && normPdf
+          ? 'pdf'
+          : preferredMode === 'image' && normImg
+            ? 'image'
+            : normImg
+              ? 'image'
+              : 'pdf';
+
+      setPreviewEvidenceMode(mode);
+      setPreviewEvidence({
+        title: ev.title?.trim() || 'Certificado Oficial Capturado',
+        workerName: ev.workerName?.trim() || '',
+        cedula: ev.cedula?.trim() || '',
+        cargo: ev.cargo?.trim() || '',
+        portal: ev.portal?.trim() || '',
+        imageUrl: normImg,
+        imageDownloadUrl: normImgDl,
+        imageFileName: ev.imageFileName || null,
+        pdfUrl: normPdf,
+        pdfDownloadUrl: normPdfDl,
+        pdfFileName: ev.pdfFileName || null,
+      });
+    },
+    [],
+  );
   const [upstreamLiveRecordsCache, setUpstreamLiveRecordsCache] = useState<
     Record<
       string,
@@ -2878,6 +2942,10 @@ export default function WappyWorkflowCanvas({
         tag === 'select' ||
         Boolean((ev.target as HTMLElement)?.isContentEditable);
 
+      if (ev.key === 'Escape' && previewEvidence) {
+        setPreviewEvidence(null);
+        return;
+      }
       if (ev.key === 'Escape' && activeConfigNodeKey) {
         setActiveConfigNodeKey(null);
         return;
@@ -2895,7 +2963,14 @@ export default function WappyWorkflowCanvas({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeConfigNodeKey, isCanvasFullscreen, readOnly, selectedNodeKeys, handleDeleteNodesByKeys]);
+  }, [
+    previewEvidence,
+    activeConfigNodeKey,
+    isCanvasFullscreen,
+    readOnly,
+    selectedNodeKeys,
+    handleDeleteNodesByKeys,
+  ]);
 
   // Movimiento del puntero sobre el lienzo
   const handleCanvasPointerMove = (e: React.PointerEvent) => {
@@ -3864,7 +3939,7 @@ export default function WappyWorkflowCanvas({
                   <ExpandableButton
                     type="button"
                     size="sm"
-                    variant="primary"
+                    variant="emerald"
                     isActive={showCustomNodeBuilder}
                     icon={<Plus className="w-3.5 h-3.5" />}
                     label={
@@ -6019,6 +6094,7 @@ export default function WappyWorkflowCanvas({
             activeStepTitle={
               visualNodes.find((n) => n.key === sandboxActiveStepNodeId)?.title || null
             }
+            onOpenEvidence={handleOpenEvidencePreview}
           />
         </div>
       )}
@@ -6128,10 +6204,8 @@ export default function WappyWorkflowCanvas({
           if (safeList.length === 0) return [];
 
           let filtered = safeList;
-          if (
-            nodeCfg?.recordFilterMode === 'critical' ||
-            nodeCfg?.recordFilterMode === 'critical_only'
-          ) {
+          const filterMode = String(nodeCfg?.recordFilterMode || '');
+          if (filterMode === 'critical' || filterMode === 'critical_only') {
             filtered = safeList.filter((r) => Boolean(r?.isCritical));
           } else if (
             nodeCfg?.recordFilterMode === 'selected' &&
@@ -6142,10 +6216,9 @@ export default function WappyWorkflowCanvas({
             filtered = safeList.filter((r) => idSet.has(r?.id));
           }
 
+          const rawMaxRecords = (nodeCfg as Record<string, any> | undefined)?.maxRecords;
           const limit =
-            typeof nodeCfg?.maxRecords === 'number' && nodeCfg.maxRecords > 0
-              ? nodeCfg.maxRecords
-              : 30;
+            typeof rawMaxRecords === 'number' && rawMaxRecords > 0 ? rawMaxRecords : 30;
           const sliced = filtered.slice(0, limit);
           const chosenFields = Array.isArray(nodeCfg?.fields)
             ? nodeCfg!.fields.filter(Boolean)
@@ -6417,7 +6490,8 @@ export default function WappyWorkflowCanvas({
                 Categoria: targetNode.subtitle,
                 PortalObjetivo: targetCfg.targetUrl || 'Portales Oficiales / Motor WAPPY',
                 ModoEjecucion:
-                  targetCfg.executionMode === 'local_pc'
+                  (targetCfg as Record<string, any>).executionMode === 'local_pc' ||
+                  targetCfg.antigravityMode === 'local'
                     ? 'PC Local (Antigravity Daemon)'
                     : 'Servidor Cloud 24/7 (Headless)',
                 ColumnasSeleccionadas:
@@ -6509,12 +6583,12 @@ export default function WappyWorkflowCanvas({
                 TipoEntrega: targetNode.subtitle,
                 Destinatarios:
                   (ep?.recipients && ep.recipients.join(', ')) ||
-                  (Array.isArray(emailRecipients) && emailRecipients.length > 0
-                    ? emailRecipients.join(', ')
-                    : 'Destinatarios configurados en el nodo'),
+                  targetCfg.emailRecipientsOverride?.trim() ||
+                  emailsStr?.trim() ||
+                  'Destinatarios configurados en el nodo',
                 Asunto:
                   ep?.subject ||
-                  emailSubjectTemplate ||
+                  targetCfg.emailSubject?.trim() ||
                   `Reporte Automático SG-SST · ${activeCompanyInfo?.companyName || 'Empresa'}`,
                 FormatosAdjuntos:
                   Array.isArray(targetCfg.fields) && targetCfg.fields.length > 0
@@ -6822,6 +6896,234 @@ export default function WappyWorkflowCanvas({
 
         const filteredInputItems = filterItemsByQuery(resolvedInputItems, ndvInputSearch);
         const filteredOutputItems = filterItemsByQuery(resolvedOutputItems, ndvOutputSearch);
+
+        // ─── Certificados / Evidencias capturadas en el nodo activo y en el flujo ───
+        const allKnownEvidences = collectUniqueScraperEvidences(
+          [...(sandboxResult?.nodeTrace || []), ...sandboxLiveSteps],
+          sandboxResult?.evidences,
+        );
+        const rowExtractedNodeEvidences = resolvedOutputItems
+          .map((r) => extractEvidenceFromRow(r, activeNode.title))
+          .filter((ev): ev is ScraperCapturedEvidence => Boolean(ev));
+        const activeNodeEvidences = collectUniqueScraperEvidences(
+          traceStep ? [traceStep] : [],
+          rowExtractedNodeEvidences,
+        );
+
+        const getCleanTableColumns = (rows: Array<Record<string, any>>): string[] => {
+          const allCols: string[] = [];
+          const colSet = new Set<string>();
+          (Array.isArray(rows) ? rows : []).forEach((r) => {
+            Object.keys(r || {}).forEach((k) => {
+              if (!colSet.has(k)) {
+                colSet.add(k);
+                allCols.push(k);
+              }
+            });
+          });
+          const hasPrimaryEvidenceCol =
+            colSet.has('pdfUrl') ||
+            colSet.has('imageUrl') ||
+            colSet.has('certificado') ||
+            colSet.has('Certificado / Soporte') ||
+            colSet.has('Certificado');
+          const redundantAuxCols = new Set([
+            'pdfDownloadUrl',
+            'imageDownloadUrl',
+            'pdfFileName',
+            'imageFileName',
+            'pdfLocalPath',
+            'imageLocalPath',
+            'pdfAbsoluteUrl',
+            'imageAbsoluteUrl',
+          ]);
+          return allCols.filter((c) => !(hasPrimaryEvidenceCol && redundantAuxCols.has(c)));
+        };
+
+        const inputTableCols = getCleanTableColumns(filteredInputItems);
+        const outputTableCols = getCleanTableColumns(filteredOutputItems);
+
+        const isSmartEvidenceCell = (row: Record<string, any>, col: string): boolean => {
+          const lowerCol = col.toLowerCase();
+          if (
+            lowerCol === 'pdfurl' ||
+            lowerCol === 'pdfdownloadurl' ||
+            lowerCol === 'imageurl' ||
+            lowerCol === 'imagedownloadurl' ||
+            lowerCol === 'certificado' ||
+            lowerCol === 'certificado / soporte' ||
+            lowerCol === 'soporte'
+          ) {
+            const v = row?.[col];
+            if (typeof v === 'string' && v.trim()) {
+              if (
+                v.includes('/api/sgsst/automatizaciones/evidencias/') ||
+                /\.(pdf|png|jpe?g|webp)(\?|$)/i.test(v.trim()) ||
+                lowerCol === 'pdfurl' ||
+                lowerCol === 'imageurl' ||
+                lowerCol === 'pdfdownloadurl' ||
+                lowerCol === 'imagedownloadurl'
+              ) {
+                return true;
+              }
+            }
+            if (
+              (lowerCol === 'certificado' || lowerCol === 'certificado / soporte') &&
+              (row?.pdfUrl || row?.imageUrl || row?.pdfDownloadUrl || row?.imageDownloadUrl)
+            ) {
+              return true;
+            }
+          }
+          const rawStr = typeof row?.[col] === 'string' ? row[col].trim() : '';
+          return rawStr.includes('/api/sgsst/automatizaciones/evidencias/');
+        };
+
+        const renderNdvSmartCell = (row: Record<string, any>, col: string): React.ReactNode => {
+          const cellVal = row?.[col];
+          const lowerCol = col.toLowerCase();
+          const rowEv = extractEvidenceFromRow(row, activeNode.title);
+
+          // 1. Columna específica de Imagen (`imageUrl` / `imageDownloadUrl`)
+          if (lowerCol === 'imageurl' || lowerCol === 'imagedownloadurl') {
+            const normImg = normalizeEvidenceUrlForBrowser(
+              typeof cellVal === 'string' ? cellVal : rowEv?.imageUrl,
+            );
+            if (!normImg) {
+              return <span className="text-slate-400">—</span>;
+            }
+            const cleanImgSrc = normImg.replace(/([?&])download=1(&|$)/i, '$1').replace(/[?&]+$/, '');
+            const evPayload: ScraperCapturedEvidence = rowEv || {
+              title: activeNode.title,
+              imageUrl: cleanImgSrc,
+              imageDownloadUrl: normImg,
+            };
+            return (
+              <button
+                type="button"
+                onClick={() => handleOpenEvidencePreview(evPayload, 'image')}
+                title="Ampliar imagen del certificado oficial en WAPPY"
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold transition-all whitespace-nowrap cursor-pointer"
+              >
+                <img
+                  src={cleanImgSrc}
+                  alt="Miniatura certificado"
+                  loading="lazy"
+                  className="h-7 w-7 rounded object-cover border border-teal-500/30 bg-white shrink-0"
+                />
+                <span>🖼️ Ver Imagen</span>
+              </button>
+            );
+          }
+
+          // 2. Columna específica de PDF (`pdfUrl` / `pdfDownloadUrl`)
+          if (lowerCol === 'pdfurl' || lowerCol === 'pdfdownloadurl') {
+            const normPdf = normalizeEvidenceUrlForBrowser(
+              typeof cellVal === 'string' ? cellVal : rowEv?.pdfUrl,
+            );
+            if (!normPdf) {
+              return <span className="text-slate-400">—</span>;
+            }
+            const cleanPdfUrl = normPdf.replace(/([?&])download=1(&|$)/i, '$1').replace(/[?&]+$/, '');
+            const dlPdfUrl =
+              rowEv?.pdfDownloadUrl ||
+              (cleanPdfUrl.includes('?') ? `${cleanPdfUrl}&download=1` : `${cleanPdfUrl}?download=1`);
+            const evPayload: ScraperCapturedEvidence = rowEv || {
+              title: activeNode.title,
+              pdfUrl: cleanPdfUrl,
+              pdfDownloadUrl: dlPdfUrl,
+            };
+            return (
+              <div className="inline-flex items-center gap-1 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => handleOpenEvidencePreview(evPayload, 'pdf')}
+                  title="Ver PDF oficial dentro del visor WAPPY"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold transition-all cursor-pointer"
+                >
+                  <FileText className="w-3 h-3 shrink-0" />
+                  <span>📄 PDF</span>
+                </button>
+                <a
+                  href={dlPdfUrl}
+                  download={rowEv?.pdfFileName || true}
+                  title="Descargar PDF oficial"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all"
+                >
+                  <Download className="w-3 h-3 shrink-0" />
+                  <span>Descargar</span>
+                </a>
+              </div>
+            );
+          }
+
+          // 3. Columna combinada `certificado` / `soporte` o cualquier celda con URL `/evidencias/`
+          if (isSmartEvidenceCell(row, col) && rowEv && (rowEv.imageUrl || rowEv.pdfUrl)) {
+            const rawText = typeof cellVal === 'string' ? cellVal.trim() : '';
+            const humanLabel = rawText
+              .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+              .replace(/\[[^\]]*\]\([^)]+\)/g, '')
+              .replace(/(?:https?:\/\/[^\s|]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^\s|]+/gi, '')
+              .replace(/[|·]+/g, ' ')
+              .trim();
+
+            return (
+              <div className="inline-flex items-center gap-1.5 flex-wrap">
+                {humanLabel && (
+                  <span className="text-[10.5px] font-bold text-slate-700 dark:text-slate-200 max-w-[150px] truncate" title={humanLabel}>
+                    {humanLabel}
+                  </span>
+                )}
+                {rowEv.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEvidencePreview(rowEv, 'image')}
+                    title="Ver imagen HD del certificado"
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold transition-all whitespace-nowrap cursor-pointer"
+                  >
+                    <img
+                      src={rowEv.imageUrl}
+                      alt="Certificado"
+                      loading="lazy"
+                      className="h-7 w-7 rounded object-cover border border-teal-500/30 bg-white shrink-0"
+                    />
+                    <span>🖼️ Ver Imagen</span>
+                  </button>
+                )}
+                {rowEv.pdfUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEvidencePreview(rowEv, 'pdf')}
+                    title="Abrir PDF en el visor WAPPY"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold transition-all whitespace-nowrap cursor-pointer"
+                  >
+                    <FileText className="w-3 h-3 shrink-0" />
+                    <span>📄 PDF</span>
+                  </button>
+                )}
+                {(rowEv.pdfDownloadUrl || rowEv.pdfUrl) && (
+                  <a
+                    href={rowEv.pdfDownloadUrl || rowEv.pdfUrl || '#'}
+                    download={rowEv.pdfFileName || true}
+                    title="Descargar PDF oficial"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all whitespace-nowrap"
+                  >
+                    <Download className="w-3 h-3 shrink-0" />
+                    <span>PDF</span>
+                  </a>
+                )}
+              </div>
+            );
+          }
+
+          // 4. Celda normal de texto/JSON
+          const displayVal =
+            cellVal === undefined || cellVal === null
+              ? '—'
+              : typeof cellVal === 'object'
+                ? JSON.stringify(cellVal)
+                : String(cellVal);
+          return displayVal;
+        };
 
         const buildSchemaFromItems = (
           items: Array<Record<string, any>>,
@@ -7286,7 +7588,7 @@ export default function WappyWorkflowCanvas({
                                       <th className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider w-9">
                                         #
                                       </th>
-                                      {Object.keys(filteredInputItems[0] || {}).map((col) => (
+                                      {inputTableCols.map((col) => (
                                         <th
                                           key={`in_th_${col}`}
                                           className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider whitespace-nowrap"
@@ -7302,24 +7604,29 @@ export default function WappyWorkflowCanvas({
                                         key={`in_tr_${rIdx}`}
                                         className="hover:bg-sky-50/50 dark:hover:bg-sky-950/20 transition-colors"
                                       >
-                                        <td className="py-1.5 px-2.5 font-black text-slate-400">
+                                        <td className="py-1.5 px-2.5 font-black text-slate-400 align-middle">
                                           {rIdx + 1}
                                         </td>
-                                        {Object.keys(filteredInputItems[0] || {}).map((col) => {
+                                        {inputTableCols.map((col) => {
+                                          const isEvCell = isSmartEvidenceCell(row, col);
                                           const cellVal = row?.[col];
-                                          const displayVal =
-                                            cellVal === undefined || cellVal === null
-                                              ? '—'
+                                          const rawTitle =
+                                            isEvCell || cellVal === undefined || cellVal === null
+                                              ? undefined
                                               : typeof cellVal === 'object'
                                                 ? JSON.stringify(cellVal)
                                                 : String(cellVal);
                                           return (
                                             <td
                                               key={`in_td_${rIdx}_${col}`}
-                                              className="py-1.5 px-2.5 text-slate-700 dark:text-slate-200 font-medium max-w-[220px] truncate"
-                                              title={displayVal}
+                                              className={
+                                                isEvCell
+                                                  ? 'py-1.5 px-2.5 align-middle whitespace-nowrap'
+                                                  : 'py-1.5 px-2.5 text-slate-700 dark:text-slate-200 font-medium max-w-[220px] truncate align-middle'
+                                              }
+                                              title={rawTitle}
                                             >
-                                              {displayVal}
+                                              {renderNdvSmartCell(row, col)}
                                             </td>
                                           );
                                         })}
@@ -7858,10 +8165,148 @@ export default function WappyWorkflowCanvas({
 
                             {/* Contenido con scroll de OUTPUT */}
                             <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-                              {ndvOutputView === 'markdown' ? (
-                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-3 text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed font-medium">
-                                  {resolvedOutputPreview}
+                              {/* Franja superior desplegable con los certificados/evidencias capturados por este nodo */}
+                              {activeNodeEvidences.length > 0 && (
+                                <div className="rounded-xl border border-teal-500/35 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-cyan-500/10 overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => setNdvEvidenceStripOpen((v) => !v)}
+                                    className="w-full px-3 py-2 flex items-center justify-between gap-2 text-left hover:bg-teal-500/10 transition-colors"
+                                  >
+                                    <span className="flex items-center gap-1.5 text-[11px] font-black text-teal-800 dark:text-teal-200 min-w-0 truncate">
+                                      {ndvEvidenceStripOpen ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-teal-600 dark:text-teal-300 shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-teal-600 dark:text-teal-300 shrink-0" />
+                                      )}
+                                      <span className="truncate">
+                                        📎 Certificados y Evidencias Capturadas ({activeNodeEvidences.length})
+                                      </span>
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-lg text-[9.5px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 shrink-0">
+                                      PDF / Imagen HD
+                                    </span>
+                                  </button>
+
+                                  {ndvEvidenceStripOpen && (
+                                    <div className="p-2.5 pt-1 grid grid-cols-1 gap-2 border-t border-teal-500/20">
+                                      {activeNodeEvidences.map((ev, evIdx) => {
+                                        const workerLabel =
+                                          ev.workerName?.trim() ||
+                                          ev.title?.trim() ||
+                                          `Certificado #${evIdx + 1}`;
+                                        return (
+                                          <div
+                                            key={`ndv_ev_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
+                                            className="rounded-xl border border-teal-500/25 bg-white/90 dark:bg-slate-900/90 p-2 flex items-center justify-between gap-2.5 min-w-0"
+                                          >
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                              {ev.imageUrl ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleOpenEvidencePreview(ev, 'image')
+                                                  }
+                                                  title="Ampliar certificado HD"
+                                                  className="shrink-0 rounded-lg overflow-hidden border border-teal-500/30 bg-white hover:ring-2 hover:ring-teal-500/40 transition-all cursor-zoom-in"
+                                                >
+                                                  <img
+                                                    src={ev.imageUrl}
+                                                    alt={workerLabel}
+                                                    loading="lazy"
+                                                    className="h-10 w-14 object-cover"
+                                                  />
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleOpenEvidencePreview(ev, 'pdf')
+                                                  }
+                                                  title="Abrir visor PDF"
+                                                  className="h-10 w-12 shrink-0 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 flex items-center justify-center cursor-pointer hover:bg-cyan-500/20 transition-all"
+                                                >
+                                                  <FileText className="w-4 h-4" />
+                                                </button>
+                                              )}
+                                              <div className="min-w-0">
+                                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-100 truncate">
+                                                  {workerLabel}
+                                                </div>
+                                                <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                                                  {[
+                                                    ev.cedula ? `CC ${ev.cedula}` : '',
+                                                    ev.portal || '',
+                                                  ]
+                                                    .filter(Boolean)
+                                                    .join(' · ') || ev.title || 'Soporte oficial'}
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  handleOpenEvidencePreview(
+                                                    ev,
+                                                    ev.imageUrl ? 'image' : 'pdf',
+                                                  )
+                                                }
+                                                title="Abrir Certificado en Lightbox"
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10px] font-extrabold transition-all cursor-pointer"
+                                              >
+                                                <Eye className="w-3 h-3 shrink-0" />
+                                                <span>Ver</span>
+                                              </button>
+                                              {ev.pdfUrl && (
+                                                <a
+                                                  href={ev.pdfUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  title="Abrir PDF en pestaña nueva"
+                                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10px] font-extrabold no-underline transition-all"
+                                                >
+                                                  <ExternalLink className="w-3 h-3 shrink-0" />
+                                                  <span>PDF</span>
+                                                </a>
+                                              )}
+                                              {(ev.pdfDownloadUrl || ev.pdfUrl) && (
+                                                <a
+                                                  href={ev.pdfDownloadUrl || ev.pdfUrl || '#'}
+                                                  download={ev.pdfFileName || true}
+                                                  title="Descargar PDF Oficial"
+                                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10px] font-extrabold no-underline transition-all"
+                                                >
+                                                  <Download className="w-3 h-3 shrink-0" />
+                                                  <span>Descargar</span>
+                                                </a>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
+                              )}
+
+                              {ndvOutputView === 'markdown' ? (
+                                <div
+                                  onClick={(e) =>
+                                    handleEvidenceContainerClick(
+                                      e,
+                                      [...activeNodeEvidences, ...allKnownEvidences],
+                                      handleOpenEvidencePreview,
+                                    )
+                                  }
+                                  className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-3 text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium overflow-x-auto break-words"
+                                  dangerouslySetInnerHTML={{
+                                    __html: renderWorkflowMarkdownToInteractiveHtml(
+                                      resolvedOutputPreview || '',
+                                    ),
+                                  }}
+                                />
                               ) : filteredOutputItems.length === 0 ? (
                                 <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-5 text-center space-y-2 my-2">
                                   <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
@@ -7882,7 +8327,7 @@ export default function WappyWorkflowCanvas({
                                           <th className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider w-9">
                                             #
                                           </th>
-                                          {Object.keys(filteredOutputItems[0] || {}).map((col) => (
+                                          {outputTableCols.map((col) => (
                                             <th
                                               key={`out_th_${col}`}
                                               className="py-2 px-2.5 font-black text-[10px] uppercase tracking-wider whitespace-nowrap"
@@ -7898,24 +8343,29 @@ export default function WappyWorkflowCanvas({
                                             key={`out_tr_${rIdx}`}
                                             className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors"
                                           >
-                                            <td className="py-1.5 px-2.5 font-black text-slate-400">
+                                            <td className="py-1.5 px-2.5 font-black text-slate-400 align-middle">
                                               {rIdx + 1}
                                             </td>
-                                            {Object.keys(filteredOutputItems[0] || {}).map((col) => {
+                                            {outputTableCols.map((col) => {
+                                              const isEvCell = isSmartEvidenceCell(row, col);
                                               const cellVal = row?.[col];
-                                              const displayVal =
-                                                cellVal === undefined || cellVal === null
-                                                  ? '—'
+                                              const rawTitle =
+                                                isEvCell || cellVal === undefined || cellVal === null
+                                                  ? undefined
                                                   : typeof cellVal === 'object'
                                                     ? JSON.stringify(cellVal)
                                                     : String(cellVal);
                                               return (
                                                 <td
                                                   key={`out_td_${rIdx}_${col}`}
-                                                  className="py-1.5 px-2.5 text-slate-700 dark:text-slate-200 font-medium max-w-[220px] truncate"
-                                                  title={displayVal}
+                                                  className={
+                                                    isEvCell
+                                                      ? 'py-1.5 px-2.5 align-middle whitespace-nowrap'
+                                                      : 'py-1.5 px-2.5 text-slate-700 dark:text-slate-200 font-medium max-w-[220px] truncate align-middle'
+                                                  }
+                                                  title={rawTitle}
                                                 >
-                                                  {displayVal}
+                                                  {renderNdvSmartCell(row, col)}
                                                 </td>
                                               );
                                             })}
@@ -8210,6 +8660,184 @@ export default function WappyWorkflowCanvas({
           </>
         );
       })()}
+
+      {/* ─── VISOR LIGHTBOX MODAL DE CERTIFICADO / EVIDENCIA OFICIAL (IMAGEN HD + VISOR PDF EMBEBIDO) ─── */}
+      {previewEvidence &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            id="wappy-evidence-lightbox-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={previewEvidence.title || 'Visor de Certificado Oficial'}
+            className="fixed inset-0 z-[10060] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
+            onClick={() => setPreviewEvidence(null)}
+          >
+            <div
+              className="relative w-full max-w-5xl max-h-[94vh] flex flex-col rounded-2xl border border-teal-500/40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Glows ambientales sutiles estilo WAPPY */}
+              <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-emerald-500/10 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-teal-500/10 blur-3xl" />
+
+              {/* Encabezado del Visor con datos del trabajador, portal y acciones */}
+              <div className="relative px-3.5 sm:px-5 py-3 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-cyan-500/10 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="w-9 h-9 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate max-w-full">
+                        {previewEvidence.workerName?.trim() || previewEvidence.title}
+                      </h3>
+                      {previewEvidence.cedula?.trim() && (
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300">
+                          CC {previewEvidence.cedula}
+                        </span>
+                      )}
+                      {previewEvidence.portal?.trim() && (
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                          🌐 {previewEvidence.portal}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate mt-0.5">
+                      {[
+                        previewEvidence.workerName?.trim() ? previewEvidence.title : '',
+                        previewEvidence.cargo?.trim() || '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || 'Soporte oficial verificado por Web Scraping WAPPY IA'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Selector de vista (Imagen HD vs PDF) + Botones Descargar / Pestaña nueva / Cerrar */}
+                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                  {previewEvidence.imageUrl && previewEvidence.pdfUrl && (
+                    <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 mr-1">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEvidenceMode('image')}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 cursor-pointer ${
+                          previewEvidenceMode === 'image'
+                            ? 'bg-teal-500/15 border border-teal-500/40 text-teal-700 dark:text-teal-300'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 shrink-0" />
+                        <span>Imagen HD</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEvidenceMode('pdf')}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 cursor-pointer ${
+                          previewEvidenceMode === 'pdf'
+                            ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-700 dark:text-cyan-300'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Visor PDF</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {(previewEvidence.pdfDownloadUrl || previewEvidence.pdfUrl) ? (
+                    <a
+                      href={previewEvidence.pdfDownloadUrl || previewEvidence.pdfUrl || '#'}
+                      download={previewEvidence.pdfFileName || true}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-xs font-bold tracking-wide no-underline transition-all active:scale-95"
+                      title="Descargar documento PDF oficial del certificado"
+                    >
+                      <Download className="w-3.5 h-3.5 shrink-0" />
+                      <span>⬇️ Descargar PDF Oficial</span>
+                    </a>
+                  ) : previewEvidence.imageDownloadUrl || previewEvidence.imageUrl ? (
+                    <a
+                      href={previewEvidence.imageDownloadUrl || previewEvidence.imageUrl || '#'}
+                      download={previewEvidence.imageFileName || true}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-xs font-bold tracking-wide no-underline transition-all active:scale-95"
+                      title="Descargar imagen HD del certificado"
+                    >
+                      <Download className="w-3.5 h-3.5 shrink-0" />
+                      <span>⬇️ Descargar Certificado</span>
+                    </a>
+                  ) : null}
+
+                  {(previewEvidence.pdfUrl || previewEvidence.imageUrl) && (
+                    <a
+                      href={
+                        (previewEvidenceMode === 'pdf' && previewEvidence.pdfUrl
+                          ? previewEvidence.pdfUrl
+                          : previewEvidence.pdfUrl || previewEvidence.imageUrl) || '#'
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold tracking-wide no-underline transition-all active:scale-95"
+                      title="Abrir certificado oficial en una pestaña nueva"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      <span className="hidden sm:inline">🔗 Abrir en pestaña nueva</span>
+                      <span className="sm:hidden">Abrir</span>
+                    </a>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setPreviewEvidence(null)}
+                    aria-label="Cerrar visor de certificado"
+                    title="Cerrar visor (Esc)"
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Cuerpo del Visor (Imagen HD y/o Iframe PDF) */}
+              <div className="relative flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 bg-slate-50/70 dark:bg-slate-950/60">
+                {previewEvidence.imageUrl &&
+                (previewEvidenceMode === 'image' || !previewEvidence.pdfUrl) ? (
+                  <div className="flex flex-col items-center justify-center gap-2.5">
+                    <img
+                      src={previewEvidence.imageUrl}
+                      alt={
+                        previewEvidence.workerName
+                          ? `Certificado de ${previewEvidence.workerName}`
+                          : previewEvidence.title
+                      }
+                      className="max-h-[72vh] w-auto max-w-full mx-auto rounded-xl border border-teal-500/30 shadow-xl object-contain bg-white"
+                    />
+                    {previewEvidence.imageDownloadUrl && previewEvidence.pdfUrl && (
+                      <a
+                        href={previewEvidence.imageDownloadUrl}
+                        download={previewEvidence.imageFileName || true}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[11px] font-bold no-underline transition-all"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 shrink-0" />
+                        <span>Descargar captura HD en PNG</span>
+                      </a>
+                    )}
+                  </div>
+                ) : previewEvidence.pdfUrl ? (
+                  <iframe
+                    src={previewEvidence.pdfUrl}
+                    title={previewEvidence.title || 'Visor PDF Certificado Oficial'}
+                    className="w-full h-[70vh] rounded-xl border border-slate-200 dark:border-slate-700 bg-white shadow-inner"
+                  />
+                ) : (
+                  <div className="p-8 text-center text-xs font-bold text-slate-500 dark:text-slate-400">
+                    No se encontró archivo visual adjunto para esta evidencia.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 
