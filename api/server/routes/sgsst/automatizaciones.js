@@ -1147,8 +1147,11 @@ router.post('/', async (req, res) => {
       saveAsSystemPreset,
     } = req.body;
 
-    if (!name || !agentId || !prompt) {
-      return res.status(400).json({ error: 'Faltan campos obligatorios: name, agentId y prompt son necesarios.' });
+    const safeAgentId = (agentId && String(agentId).trim()) || 'tenshi_avatar_3d';
+    const safeAgentName = (agentName && String(agentName).trim()) || 'Tenshi (Avatar 3D)';
+
+    if (!name || !prompt) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios: name y prompt son necesarios.' });
     }
 
     const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveAutomationLimit(req.user.id, req.user.role);
@@ -1183,8 +1186,8 @@ router.post('/', async (req, res) => {
       presetCategory: presetCategory || 'general',
       presetDescription: presetDescription || '',
       name,
-      agentId,
-      agentName,
+      agentId: safeAgentId,
+      agentName: safeAgentName,
       prompt,
       scheduleType: scheduleType || 'daily',
       scheduleConfig: scheduleConfig || { hour: 8, minute: 0 },
@@ -1209,8 +1212,8 @@ router.post('/', async (req, res) => {
         presetCategory: presetCategory || 'general',
         presetDescription: presetDescription || '',
         name: name.trim(),
-        agentId,
-        agentName,
+        agentId: safeAgentId,
+        agentName: safeAgentName,
         prompt: prompt.trim(),
         scheduleType: scheduleType || 'daily',
         scheduleConfig: scheduleConfig || { hour: 8, minute: 0 },
@@ -1263,9 +1266,17 @@ router.put('/:id', async (req, res) => {
     }
 
     // Actualizar campos si vienen en el body
-    if (name !== undefined) automation.name = name;
-    if (agentId !== undefined) automation.agentId = agentId;
-    if (agentName !== undefined) automation.agentName = agentName;
+    if (name !== undefined && String(name).trim()) automation.name = String(name).trim();
+    if (agentId !== undefined && String(agentId).trim()) {
+      automation.agentId = String(agentId).trim();
+    } else if (!automation.agentId) {
+      automation.agentId = 'tenshi_avatar_3d';
+    }
+    if (agentName !== undefined && String(agentName).trim()) {
+      automation.agentName = String(agentName).trim();
+    } else if (!automation.agentName) {
+      automation.agentName = 'Tenshi (Avatar 3D)';
+    }
     if (prompt !== undefined) automation.prompt = prompt;
     if (scheduleType !== undefined) automation.scheduleType = scheduleType;
     if (scheduleConfig !== undefined) automation.scheduleConfig = scheduleConfig;

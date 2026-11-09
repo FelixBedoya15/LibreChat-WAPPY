@@ -391,6 +391,14 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const is404 = status === 404 || msg.includes('404') ||
           msg.includes('not found') || msg.includes('is not found for api version');
 
+        // Transient network / fetch failure — rotate key & model instead of aborting on first attempt
+        const isTransientNet =
+          msg.includes('fetch failed') ||
+          msg.includes('etimedout') ||
+          msg.includes('econnreset') ||
+          msg.includes('socket hang up') ||
+          msg.includes('und_err');
+
         const isDaily = msg.includes('generaterequestsperday') || msg.includes('limit: 20');
 
         geminiPoolManager.reportKeyStatus(apiKey, currentModel, {
@@ -404,10 +412,10 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           throw err;
         }
 
-        if (isRateLimit || isQuotaExceeded || isInvalidKey) {
+        if (isRateLimit || isQuotaExceeded || isInvalidKey || isTransientNet) {
           logger.warn(
             `[SGSST Gemini] Clave #${keyIdx + 1} rechazada ` +
-            `(${status || 'quota'} – ${isInvalidKey ? 'inválida' : isQuotaExceeded ? 'prohibida' : 'límite'}) ` +
+            `(${status || (isTransientNet ? 'red/fetch' : 'quota')} – ${isInvalidKey ? 'inválida' : isQuotaExceeded ? 'prohibida' : isTransientNet ? 'reintento red' : 'límite'}) ` +
             `para modelo "${currentModel}". Rotando API key...`
           );
           allKeysExhaustedDueTo429 = true; // mark; continues to next keyIdx automatically

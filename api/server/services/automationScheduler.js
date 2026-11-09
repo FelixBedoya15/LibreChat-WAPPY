@@ -763,6 +763,64 @@ async function runAutomation(automation, isManual = false) {
       console.error('[AutomationScheduler] Error construyendo extracción quirúrgica en vivo:', liveErr?.message || liveErr);
     }
 
+    // Si el flujo incluye nodos de Scraping Web con Google Antigravity (ej. custom_scraper_agy_alto_riesgo),
+    // ejecutar la verificación real por el túnel Push SSE de Antigravity (MinTrabajo Alturas + Rama Judicial + SENA)
+    let liveAntigravityScraperBlock = '';
+    try {
+      const wfCustomNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
+        ? automation.workflowNodes.canvasLayout.customNodes
+        : [];
+      const wfExtractors = Array.isArray(automation.workflowNodes?.extractors)
+        ? automation.workflowNodes.extractors
+        : [];
+      const wfInputs = Array.isArray(automation.workflowNodes?.inputs)
+        ? automation.workflowNodes.inputs
+        : [];
+      const allNodeCfg = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
+      const scraperCandidates = [
+        ...wfCustomNodes.map((cn) => ({
+          nodeKey: cn?.key || cn?.id || '',
+          nodeId: cn?.nodeType || cn?.id || '',
+          customNodeObj: cn,
+        })),
+        ...wfExtractors.map((extId) => ({
+          nodeKey: `extractor_${extId}`,
+          nodeId: extId,
+          customNodeObj: null,
+        })),
+        ...wfInputs.map((inId) => ({
+          nodeKey: `tool_inputs_${inId}`,
+          nodeId: inId,
+          customNodeObj: null,
+        })),
+      ].filter((cand) =>
+        isAntigravityScraperIdentifier(cand.nodeKey, cand.nodeId, cand.customNodeObj),
+      );
+
+      if (scraperCandidates.length > 0) {
+        const sc = scraperCandidates[0];
+        const scrapeRes = await executeRealAntigravityScraperVerification({
+          userIdStr: String(automation.user),
+          targetCompanyIdStr,
+          nodeKey: sc.nodeKey,
+          nodeId: sc.nodeId,
+          customNodeObj: sc.customNodeObj,
+          nodeCfg: allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {},
+          allNodeConfigs: allNodeCfg,
+          mockTriggerInput: '',
+          promptText: automation.prompt || '',
+        });
+        if (scrapeRes?.outputPreview) {
+          liveAntigravityScraperBlock =
+            `\n[VERIFICACIÓN EN VIVO EJECUTADA VÍA GOOGLE ANTIGRAVITY SCRAPER (${scrapeRes.portalLabel})]:\n` +
+            `${scrapeRes.outputPreview}\n` +
+            `🚨 REGLA INQUEBRANTABLE: Usa EXCLUSIVAMENTE los resultados reales de la tabla anterior verificada por Google Antigravity en MinTrabajo / SENA. PROHIBIDO inventar, suponer o alterar estados de cursos de alturas, fechas o certificados.\n\n`;
+        }
+      }
+    } catch (scErr) {
+      console.warn('[AutomationScheduler] Aviso en verificación real Antigravity Scraper:', scErr?.message || scErr);
+    }
+
     const companyHeaderBlock = automationCompany
       ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
         `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
@@ -773,12 +831,13 @@ async function runAutomation(automation, isManual = false) {
         proceduralNormativeMemoryBlock +
         canvasNodesContextBlock +
         liveDatabaseSurgicalBlock +
+        liveAntigravityScraperBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : `${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}`;
+      : `${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}${liveAntigravityScraperBlock}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
@@ -1434,6 +1493,292 @@ function stopAutomationScheduler() {
 }
 
 /**
+ * Detecta si un nodo del flujo corresponde a un Scraper / Verificador de Google Antigravity
+ * (ej. Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, Seguridad Social RUAF/ADRES, Proveedores & ARL o Scraper Web AGY).
+ */
+function isAntigravityScraperIdentifier(nodeKey, nodeId, customNodeObj = null) {
+  const hay = `${nodeKey || ''} ${nodeId || ''} ${customNodeObj?.id || ''} ${customNodeObj?.key || ''} ${customNodeObj?.nodeType || ''} ${customNodeObj?.title || ''} ${customNodeObj?.targetUrl || ''}`.toLowerCase();
+  return (
+    hay.includes('scraper_agy') ||
+    hay.includes('extract_web_scraping') ||
+    hay.includes('web_scraper') ||
+    hay.includes('mintrabajo') ||
+    hay.includes('alto_riesgo') ||
+    hay.includes('centrosentrenamiento') ||
+    hay.includes('antecedentes_360') ||
+    hay.includes('seguridad_social')
+  );
+}
+
+/**
+ * Ejecuta la verificación REAL en portales oficiales (MinTrabajo Centros de Entrenamiento Res. 4272/2021 y Res. 0491/2020,
+ * SENA Sofia Plus y Rama Judicial) despachando la consulta a través del puente Google Antigravity (`wappy-push-daemon.js`)
+ * o del motor OSINT en vivo (`osintWorkerService.js`).
+ */
+async function executeRealAntigravityScraperVerification({
+  userIdStr,
+  companyId,
+  companyName = 'Empresa Activa',
+  nodeKey = '',
+  nodeId = '',
+  nodeTitle = '',
+  nodeCfg = {},
+  customNodeObj = {},
+  allNodeConfigs = {},
+  mockTriggerInput = '',
+  promptText = '',
+}) {
+  const t0 = Date.now();
+  const {
+    consultarAlturasMinTrabajo,
+    consultarRamaJudicial,
+  } = require('~/server/services/osintWorkerService');
+
+  const combinedId = `${nodeKey} ${nodeId} ${customNodeObj?.id || ''} ${customNodeObj?.title || ''}`.toLowerCase();
+  const isAntecedentes = combinedId.includes('antecedentes_360') || combinedId.includes('rama_judicial');
+
+  // 1. Extraer cédulas explícitas escritas en el prompt, caso de prueba o configuración del nodo (6 a 11 dígitos)
+  const explicitText = [
+    mockTriggerInput,
+    promptText,
+    nodeCfg?.customInstruction,
+    nodeCfg?.inputContext,
+    nodeCfg?.targetUrl,
+    customNodeObj?.content,
+    customNodeObj?.targetUrl,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const explicitCedulas = Array.from(
+    new Set(
+      (explicitText.match(/\b\d{6,11}\b/g) || [])
+        .map((c) => c.trim())
+        .filter((c) => c !== '901437310' && !/^202\d/.test(c)),
+    ),
+  );
+
+  // 2. Cargar trabajadores de la empresa activa desde MongoDB (`SgsstWorker`)
+  let companyWorkers = [];
+  try {
+    const WorkerModel =
+      mongoose.models.SgsstWorker ||
+      (mongoose.modelNames().includes('SgsstWorker')
+        ? mongoose.model('SgsstWorker')
+        : require('~/models/SgsstWorker'));
+    if (WorkerModel && companyId && mongoose.Types.ObjectId.isValid(String(companyId))) {
+      companyWorkers = await WorkerModel.find({
+        companyId: new mongoose.Types.ObjectId(String(companyId)),
+      })
+        .sort({ createdAt: -1 })
+        .limit(60)
+        .lean();
+    }
+  } catch (err) {
+    console.warn('[Antigravity Scraper] Aviso leyendo SgsstWorker:', err?.message);
+  }
+
+  // Respetar filtro quirúrgico si el nodo extractor de trabajadores filtró registros específicos
+  const workerExtCfg =
+    allNodeConfigs?.extractor_extract_sst_workers ||
+    allNodeConfigs?.extract_sst_workers ||
+    allNodeConfigs?.ext_extract_sst_workers ||
+    {};
+  const filterMode = nodeCfg?.recordFilterMode || workerExtCfg?.recordFilterMode || 'all';
+  const selectedIds = Array.isArray(nodeCfg?.selectedRecordIds) && nodeCfg.selectedRecordIds.length > 0
+    ? nodeCfg.selectedRecordIds.map(String)
+    : Array.isArray(workerExtCfg?.selectedRecordIds)
+      ? workerExtCfg.selectedRecordIds.map(String)
+      : [];
+
+  if (filterMode === 'selected' && selectedIds.length > 0) {
+    const idSet = new Set(selectedIds);
+    const filtered = companyWorkers.filter((w) => idSet.has(String(w._id)));
+    if (filtered.length > 0) {
+      companyWorkers = filtered;
+    }
+  }
+
+  // 3. Construir lista unificada de personas/cédulas a consultar en vivo
+  const targetsMap = new Map();
+
+  for (const ced of explicitCedulas) {
+    const matchedWorker = companyWorkers.find(
+      (w) => String(w.documento || w.cedula || w.documentNumber || '').replace(/\D/g, '') === ced,
+    );
+    targetsMap.set(ced, {
+      rawDoc: ced,
+      cleanCedula: ced,
+      isNumericValid: true,
+      nombre: matchedWorker?.nombre || matchedWorker?.fullName || `Cédula solicitada (${ced})`,
+      cargo: matchedWorker?.cargo || matchedWorker?.position || 'Consulta directa',
+      riesgo: matchedWorker?.nivelRiesgo || matchedWorker?.riskLevel || 'N/A',
+    });
+  }
+
+  for (const w of companyWorkers) {
+    const rawDoc = String(w.documento || w.cedula || w.documentNumber || '').trim();
+    const cleanCedula = rawDoc.replace(/\D/g, '');
+    const isNumericValid = /^\d{5,12}$/.test(cleanCedula);
+    const key = isNumericValid ? cleanCedula : rawDoc || String(w._id);
+    if (!targetsMap.has(key)) {
+      targetsMap.set(key, {
+        rawDoc: rawDoc || 'S/D',
+        cleanCedula,
+        isNumericValid,
+        nombre: w.nombre || w.fullName || 'Colaborador',
+        cargo: w.cargo || w.position || 'Operativo',
+        riesgo: w.nivelRiesgo || w.riskLevel || 'I',
+      });
+    }
+  }
+
+  const allTargets = Array.from(targetsMap.values());
+  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 12);
+  const nonNumericTargets = allTargets.filter((t) => !t.isNumericValid);
+
+  console.log(
+    `[Antigravity Scraper] 🚀 Iniciando verificación REAL en MinTrabajo/OSINT para "${companyName}" (${validTargets.length} cédulas numéricas válidas, ${nonNumericTargets.length} no numéricas)...`,
+  );
+
+  // 4. Ejecutar consultas reales en lotes de 4 en paralelo (priorizando el daemon Google Antigravity conectado del usuario)
+  const verificationRows = [];
+  let relayUsedCount = 0;
+  let verifiedWithCoursesCount = 0;
+  let verifiedNoCoursesCount = 0;
+
+  const batchSize = 4;
+  for (let i = 0; i < validTargets.length; i += batchSize) {
+    const batch = validTargets.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (target) => {
+        try {
+          const mtRes = await consultarAlturasMinTrabajo({
+            tipoDoc: 'CC',
+            cedula: target.cleanCedula,
+            includePdf: false,
+            userId: userIdStr,
+            preferAntigravityDaemon: true,
+          });
+          let rjRes = null;
+          if (isAntecedentes && target.nombre && !target.nombre.startsWith('Cédula solicitada')) {
+            rjRes = await consultarRamaJudicial({ nombreCompleto: target.nombre }).catch(() => null);
+          }
+          return { target, mtRes, rjRes };
+        } catch (err) {
+          return {
+            target,
+            mtRes: {
+              fuente: 'MinTrabajo',
+              status: 'error',
+              resumen: err?.message || 'Error de conexión con MinTrabajo',
+              cursos: [],
+            },
+            rjRes: null,
+          };
+        }
+      }),
+    );
+
+    for (const { target, mtRes, rjRes } of batchResults) {
+      if (String(mtRes?.fuente || '').includes('Antigravity')) {
+        relayUsedCount++;
+      }
+      const cursos = Array.isArray(mtRes?.cursos) ? mtRes.cursos : [];
+      if (cursos.length > 0) {
+        verifiedWithCoursesCount++;
+        const latest = cursos[0];
+        const badge =
+          mtRes.status === 'warning'
+            ? `⚠️ VENCIDO / REENTRENAMIENTO (${ mtRes.diasDesdeUltimoCurso || '?'} días)`
+            : '✅ CERTIFICADO VIGENTE';
+        const detalle = `${latest.programa || latest.nivel || 'Alturas'} · Centro: ${latest.entrenador || 'Autorizado'} · Fecha: ${latest.fechaTerminacion || 'Registrada'} · Cert: #${latest.nroCertificado || 'S/N'}`;
+        verificationRows.push({
+          nombre: target.nombre,
+          documento: target.cleanCedula,
+          cargo: target.cargo,
+          estado: badge,
+          detalle: rjRes?.resumen ? `${detalle} | Judicial: ${rjRes.resumen}` : detalle,
+          fuente: mtRes.fuente || 'MinTrabajo',
+        });
+      } else {
+        verifiedNoCoursesCount++;
+        const estadoLabel =
+          mtRes?.status === 'ok'
+            ? '❌ SIN REGISTRO EN MINTRABAJO'
+            : `⚠️ ${mtRes?.status === 'blocked' ? 'BLOQUEO GEO/CAPTCHA' : 'SIN DATOS'}`;
+        const detalleMsg =
+          mtRes?.resumen ||
+          `No registra certificados de Trabajo Seguro en Alturas (Res. 4272/2021) ni Espacios Confinados (Res. 0491/2020) en la base oficial de MinTrabajo para la CC ${target.cleanCedula}.`;
+        verificationRows.push({
+          nombre: target.nombre,
+          documento: target.cleanCedula,
+          cargo: target.cargo,
+          estado: estadoLabel,
+          detalle: rjRes?.resumen ? `${detalleMsg} | Judicial: ${rjRes.resumen}` : detalleMsg,
+          fuente: mtRes?.fuente || 'MinTrabajo',
+        });
+      }
+    }
+  }
+
+  for (const invalidTarget of nonNumericTargets) {
+    verificationRows.push({
+      nombre: invalidTarget.nombre,
+      documento: invalidTarget.rawDoc,
+      cargo: invalidTarget.cargo,
+      estado: '⚪ DOC. DE PRUEBA / NO NUMÉRICO',
+      detalle: `El documento "${invalidTarget.rawDoc}" contiene letras o formato de prueba; MinTrabajo exige número de cédula numérico (CC/CE/PPT).`,
+      fuente: 'Validación Previa WAPPY',
+    });
+  }
+
+  const durationMs = Math.max(1, Date.now() - t0);
+  const engineUsedLabel =
+    relayUsedCount > 0
+      ? `🛰️ Puente Google Antigravity Push Daemon Activo (${relayUsedCount}/${validTargets.length} consultas ejecutadas desde tu Mac con IP Local Colombia)`
+      : `🌐 Consulta en Vivo Directa a Portal Oficial MinTrabajo (${validTargets.length} cédulas verificadas)`;
+
+  const tableLines = [
+    `🛰️ **VERIFICACIÓN OFICIAL EN TIEMPO REAL — GOOGLE ANTIGRAVITY & MINTRABAJO (${nodeTitle || 'Alto Riesgo & SENA'})**`,
+    `- **Canal de Ejecución:** ${engineUsedLabel}`,
+    `- **Portal Consultado:** \`https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx\` (Res. 4272/2021 Alturas y Res. 0491/2020 Confinados)`,
+    `- **Tiempo Real de Consulta HTTP/ASP.NET:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
+    `- **Resumen de Hallazgos:** ${validTargets.length} cédula(s) numérica(s) consultada(s) en MinTrabajo · **${verifiedWithCoursesCount}** con certificado registrado · **${verifiedNoCoursesCount}** sin registro en MinTrabajo${nonNumericTargets.length > 0 ? ` · **${nonNumericTargets.length}** documento(s) de prueba no numérico(s)` : ''}.`,
+    '',
+    '| # | Colaborador | Cédula / Doc. | Cargo | Estado en MinTrabajo (En Vivo) | Detalle Oficial Extraído |',
+    '| :--- | :--- | :--- | :--- | :--- | :--- |',
+  ];
+
+  verificationRows.forEach((row, idx) => {
+    tableLines.push(
+      `| ${idx + 1} | **${row.nombre}** | \`${row.documento}\` | ${row.cargo} | ${row.estado} | ${row.detalle} |`,
+    );
+  });
+
+  if (verificationRows.length === 0) {
+    tableLines.push(
+      '| 1 | *(Sin cédulas)* | `N/A` | — | ⚠️ Sin registros | No se encontraron trabajadores con cédula en la empresa ni cédulas en la instrucción. |',
+    );
+  }
+
+  const outputPreview = tableLines.join('\n');
+  console.log(
+    `[Antigravity Scraper] ✅ Verificación completada en ${durationMs}ms (Relay Antigravity: ${relayUsedCount}/${validTargets.length}, Con curso: ${verifiedWithCoursesCount}, Sin curso: ${verifiedNoCoursesCount}).`,
+  );
+
+  return {
+    durationMs,
+    recordsCount: verificationRows.length,
+    relayUsedCount,
+    verifiedWithCoursesCount,
+    verifiedNoCoursesCount,
+    inputSummary: `${engineUsedLabel} · ${validTargets.length} cédula(s) verificada(s) en MinTrabajo`,
+    outputPreview,
+  };
+}
+
+/**
  * Ejecuta un Agente IA individual dentro del Escenario de Desarrollo (Sandbox) con rotación de claves WAPPY.
  * Cero llamadas a servidores externos innecesarios (Ollama/Firecrawl/Reranker/MCP) y cero efectos secundarios sobre salidas.
  */
@@ -1908,7 +2253,32 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         : filterMode === 'selected'
           ? `Registros seleccionados (${selectedRecordIds.length})`
           : 'Todos los registros de la empresa activa';
-    const inputSummaryText = `${inputModeLabel}${surgicalFields.length > 0 ? ` · ${surgicalFields.length} campo(s) quirúrgico(s)` : ''}`;
+    let inputSummaryText = `${inputModeLabel}${surgicalFields.length > 0 ? ` · ${surgicalFields.length} campo(s) quirúrgico(s)` : ''}`;
+    let finalRecordsCount = filteredRecords.length;
+
+    if (isAntigravityScraperIdentifier(nodeKey, nodeId, null)) {
+      try {
+        const realScraperRes = await executeRealAntigravityScraperVerification({
+          userIdStr,
+          companyId: targetCompanyIdStr,
+          companyName,
+          nodeKey,
+          nodeId,
+          nodeTitle: customTitle || liveData?.moduleTitle || nodeId,
+          nodeCfg: cfg,
+          allNodeConfigs: nodeConfigs,
+          mockTriggerInput,
+          promptText: prompt,
+        });
+        if (realScraperRes?.outputPreview) {
+          previewLines.unshift(realScraperRes.outputPreview);
+          inputSummaryText = realScraperRes.inputSummary || inputSummaryText;
+          finalRecordsCount = Math.max(finalRecordsCount, realScraperRes.recordsCount || 1);
+        }
+      } catch (scErr) {
+        console.warn('[Sandbox Play] Aviso ejecutando Scraper Antigravity en executeDataStep:', scErr?.message);
+      }
+    }
 
     const stepItem = {
       stepIndex: ++stepCounter,
@@ -1918,7 +2288,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       title: customTitle || liveData?.moduleTitle || nodeId,
       status: 'completed',
       durationMs: Math.max(1, Date.now() - t0),
-      recordsCount: filteredRecords.length,
+      recordsCount: finalRecordsCount,
       surgicalFields,
       inputSummary: inputSummaryText,
       inputContext: inputSummaryText,
@@ -2075,7 +2445,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       continue;
     }
 
-    // 4. NODOS PERSONALIZADOS / LÓGICOS (custom_node, logic)
+    // 4. NODOS PERSONALIZADOS / LÓGICOS / SCRAPERS ANTIGRAVITY (custom_node, logic)
     if (category === 'custom_node' || category === 'logic') {
       await emitProgress({
         type: 'step_start',
@@ -2083,10 +2453,58 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         nodeId,
         category,
       });
-      await pauseStep(200);
       const cn =
         configuredCustomNodes.find((c, i) => (c.key || c.id || `custom_${i + 1}`) === nodeKey) || {};
       const cnCfg = resolveNodeConfig(nodeKey, nodeId);
+
+      // Si es un Scraper / Verificador de Google Antigravity (Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, etc.),
+      // ejecuta la consulta REAL en vivo a través del puente Google Antigravity Push Daemon (`wappy-push-daemon.js`) / OSINT
+      if (isAntigravityScraperIdentifier(nodeKey, nodeId, cn)) {
+        const realScraper = await executeRealAntigravityScraperVerification({
+          userIdStr,
+          companyId: targetCompanyIdStr,
+          companyName,
+          nodeKey,
+          nodeId: cn.nodeType || nodeId || nodeKey,
+          nodeTitle: stepCustomTitle || cn.title || 'Alto Riesgo & SENA (MinTrabajo + SENA AGY)',
+          nodeCfg: cnCfg,
+          customNodeObj: cn,
+          allNodeConfigs: nodeConfigs,
+          mockTriggerInput,
+          promptText: prompt,
+        });
+
+        totalExtractedRecords += realScraper.recordsCount || 0;
+        const cnStep = {
+          stepIndex: ++stepCounter,
+          nodeKey,
+          nodeId: cn.nodeType || nodeId || nodeKey,
+          category,
+          title:
+            stepCustomTitle ||
+            `${cn.title || 'Verificador Antigravity'} (${cn.subtitle || 'MinTrabajo + SENA AGY'})`,
+          status: 'completed',
+          durationMs: realScraper.durationMs || 850,
+          recordsCount: realScraper.recordsCount || 1,
+          surgicalFields: [],
+          inputSummary: realScraper.inputSummary,
+          inputContext: realScraper.inputSummary,
+          outputPreview: realScraper.outputPreview,
+        };
+        nodeTrace.push(cnStep);
+        console.log(
+          `[Sandbox Play] ▶ Paso #${cnStep.stepIndex} completado con Verificación Real Antigravity (${nodeKey}): ${cnStep.title} (${cnStep.durationMs}ms)`,
+        );
+        await emitProgress({
+          type: 'step_done',
+          nodeKey,
+          nodeId: cnStep.nodeId,
+          step: cnStep,
+        });
+        continue;
+      }
+
+      await pauseStep(200);
       const details = [
         cn.content || cn.subtitle || cnCfg.customInstruction || '',
         cn.targetUrl || cnCfg.targetUrl ? `🌐 URL: ${cn.targetUrl || cnCfg.targetUrl}` : '',

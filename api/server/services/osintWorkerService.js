@@ -290,7 +290,13 @@ async function postDownloadPdfFromLista({ cookieHeader, htmlLista, eventTarget }
  * Consulta Certificados de Trabajo en Alturas y Espacios Confinados en MinTrabajo
  * y descarga opcionalmente el PDF de la constancia más reciente en base64.
  */
-async function consultarAlturasMinTrabajo({ tipoDoc = 'CC', cedula, includePdf = true } = {}) {
+async function consultarAlturasMinTrabajo({
+  tipoDoc = 'CC',
+  cedula,
+  includePdf = true,
+  userId = '',
+  preferAntigravityDaemon = true,
+} = {}) {
   const cleanCedula = String(cedula || '').trim();
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
 
@@ -307,7 +313,32 @@ async function consultarAlturasMinTrabajo({ tipoDoc = 'CC', cedula, includePdf =
       pdfBase64: null,
       pdfFileName: null,
       historialCompleto: [],
+      viaAntigravityDaemon: false,
     };
+  }
+
+  // 1. Priorizar el Túnel Reactivo de Google Antigravity (wappy-push-daemon en IP Colombia) cuando está conectado
+  if (preferAntigravityDaemon && typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+    try {
+      const relayedFirst = await global.dispatchOsintViaAntigravityDaemon({
+        userId: String(userId || ''),
+        action: 'query',
+        tipoDoc: cleanTipoDoc,
+        cedula: cleanCedula,
+        includePdf,
+        timeoutMs: 14000,
+      });
+      if (relayedFirst && typeof relayedFirst === 'object') {
+        return {
+          ...relayedFirst,
+          viaAntigravityDaemon: true,
+        };
+      }
+    } catch (relayFirstErr) {
+      logger.warn(
+        `[OSINT MinTrabajo] Aviso en intento prioritario por daemon Antigravity para ${cleanCedula}: ${relayFirstErr.message}`,
+      );
+    }
   }
 
   try {
@@ -949,6 +980,7 @@ async function investigarTrabajador360({
   placa = '',
   nombre = '',
   includePdf = true,
+  userId = '',
 } = {}) {
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
   const cleanCedula = String(cedula || '').trim();
@@ -967,6 +999,7 @@ async function investigarTrabajador360({
     pdfBase64: null,
     pdfFileName: null,
     historialCompleto: [],
+    viaAntigravityDaemon: false,
   };
 
   if (cleanCedula) {
@@ -974,6 +1007,7 @@ async function investigarTrabajador360({
       tipoDoc: cleanTipoDoc,
       cedula: cleanCedula,
       includePdf: Boolean(includePdf),
+      userId: String(userId || ''),
     });
   }
 

@@ -12414,6 +12414,7 @@ router.post('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
 const pendingOsintRelayRequests = new Map();
 
 function dispatchOsintViaAntigravityDaemon({
+  userId = '',
   action = 'query',
   tipoDoc = 'CC',
   cedula = '',
@@ -12422,15 +12423,36 @@ function dispatchOsintViaAntigravityDaemon({
   timeoutMs = 16000,
 } = {}) {
   let targetRes = null;
-  for (const [, clients] of antigravityStreamClients.entries()) {
-    if (!clients || clients.size === 0) continue;
-    for (const clientRes of clients) {
-      if (clientRes.__wappyClientType !== 'browser' && clientRes.__wappyDaemonEnv !== 'cloud') {
-        targetRes = clientRes;
-        break;
+  if (userId) {
+    const userClients = antigravityStreamClients.get(String(userId));
+    if (userClients && userClients.size > 0) {
+      for (const clientRes of userClients) {
+        if (clientRes.__wappyClientType !== 'browser' && clientRes.__wappyDaemonEnv !== 'cloud') {
+          targetRes = clientRes;
+          break;
+        }
+      }
+      if (!targetRes) {
+        for (const clientRes of userClients) {
+          if (clientRes.__wappyClientType !== 'browser') {
+            targetRes = clientRes;
+            break;
+          }
+        }
       }
     }
-    if (targetRes) break;
+  }
+  if (!targetRes) {
+    for (const [, clients] of antigravityStreamClients.entries()) {
+      if (!clients || clients.size === 0) continue;
+      for (const clientRes of clients) {
+        if (clientRes.__wappyClientType !== 'browser' && clientRes.__wappyDaemonEnv !== 'cloud') {
+          targetRes = clientRes;
+          break;
+        }
+      }
+      if (targetRes) break;
+    }
   }
   if (!targetRes) {
     for (const [, clients] of antigravityStreamClients.entries()) {
@@ -12449,6 +12471,9 @@ function dispatchOsintViaAntigravityDaemon({
   }
 
   const requestId = `osint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  logger.info(
+    `[MCP Bridge] 📡 Despachando consulta OSINT MinTrabajo (${tipoDoc} ${cedula}, action=${action}) al daemon Google Antigravity (${requestId})...`,
+  );
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       pendingOsintRelayRequests.delete(requestId);
