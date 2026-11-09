@@ -9700,8 +9700,14 @@ function broadcastAntigravityEvent(userId, eventName, payload, options = {}) {
       (payload?.sourceModule === 'sgsst_workflow_antigravity' ||
         payload?.sourceModule === 'sgsst_automation'));
   const clientArray = Array.from(clients);
-  // Recorrer desde el cliente más reciente hacia atrás cuando `singleDaemonOnly` está activo
-  const orderedClients = singleDaemonOnly ? clientArray.slice().reverse() : clientArray;
+  // Priorizar el Mac principal del propietario (Felix-Bedoya) y luego el cliente más reciente cuando `singleDaemonOnly` está activo
+  const orderedClients = singleDaemonOnly
+    ? clientArray.slice().reverse().sort((a, b) => {
+        const aIsMainMac = String(a?.__wappyDaemonHost || '').toLowerCase().includes('felix-bedoya') ? 1 : 0;
+        const bIsMainMac = String(b?.__wappyDaemonHost || '').toLowerCase().includes('felix-bedoya') ? 1 : 0;
+        return bIsMainMac - aIsMainMac;
+      })
+    : clientArray;
   for (const clientRes of orderedClients) {
     try {
       if (singleDaemonOnly && clientRes.__wappyClientType === 'browser') {
@@ -12648,36 +12654,46 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
   const effectiveTimeoutMs = Number(payload?.timeoutMs || timeoutMs || 45000);
 
   const getClientEnv = (c) => ((c?.env || c?.__wappyDaemonEnv || 'local') === 'cloud' ? 'cloud' : 'local');
-  const findDaemonByEnv = (desiredEnv) => {
+  const sortPreferredDaemons = (arr) =>
+    arr.slice().reverse().sort((a, b) => {
+      const aIsMainMac = String(a?.__wappyDaemonHost || '').toLowerCase().includes('felix-bedoya') ? 1 : 0;
+      const bIsMainMac = String(b?.__wappyDaemonHost || '').toLowerCase().includes('felix-bedoya') ? 1 : 0;
+      return bIsMainMac - aIsMainMac;
+    });
+
+  const findDaemonsByEnv = (desiredEnv) => {
+    const matched = [];
     if (userId) {
       const userClients = antigravityStreamClients.get(String(userId));
       if (userClients && userClients.size > 0) {
         for (const c of userClients) {
           if (c.__wappyClientType !== 'browser') {
             const cEnv = getClientEnv(c);
-            if (desiredEnv === 'local' && cEnv !== 'cloud') return c;
-            if (desiredEnv === 'cloud' && cEnv === 'cloud') return c;
+            if (desiredEnv === 'local' && cEnv !== 'cloud') matched.push(c);
+            else if (desiredEnv === 'cloud' && cEnv === 'cloud') matched.push(c);
           }
         }
       }
     }
+    if (matched.length > 0) return sortPreferredDaemons(matched);
     for (const [, clients] of antigravityStreamClients.entries()) {
       if (!clients || clients.size === 0) continue;
       for (const c of clients) {
         if (c.__wappyClientType !== 'browser') {
           const cEnv = getClientEnv(c);
-          if (desiredEnv === 'local' && cEnv !== 'cloud') return c;
-          if (desiredEnv === 'cloud' && cEnv === 'cloud') return c;
+          if (desiredEnv === 'local' && cEnv !== 'cloud') matched.push(c);
+          else if (desiredEnv === 'cloud' && cEnv === 'cloud') matched.push(c);
         }
       }
     }
-    return null;
+    return sortPreferredDaemons(matched);
   };
 
-  let targetClient = null;
+  let targetClients = [];
   if (mode === 'local') {
-    targetClient = findDaemonByEnv('local') || findDaemonByEnv('cloud');
-    if (!targetClient) {
+    targetClients = findDaemonsByEnv('local');
+    if (targetClients.length === 0) targetClients = findDaemonsByEnv('cloud');
+    if (targetClients.length === 0) {
       return {
         error: 'No hay puente Google Antigravity Local (PC/Mac) en línea para este modo.',
         status: 'offline_local',
@@ -12685,8 +12701,9 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
       };
     }
   } else if (mode === 'cloud') {
-    targetClient = findDaemonByEnv('cloud') || findDaemonByEnv('local');
-    if (!targetClient) {
+    targetClients = findDaemonsByEnv('cloud');
+    if (targetClients.length === 0) targetClients = findDaemonsByEnv('local');
+    if (targetClients.length === 0) {
       return {
         error: 'No hay instancia Google Antigravity Cloud 24/7 en línea para este modo.',
         status: 'offline_cloud',
@@ -12694,16 +12711,18 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
       };
     }
   } else {
-    targetClient = findDaemonByEnv('local') || findDaemonByEnv('cloud');
-    if (!targetClient) {
+    targetClients = findDaemonsByEnv('local');
+    if (targetClients.length === 0) targetClients = findDaemonsByEnv('cloud');
+    if (targetClients.length === 0) {
       return null;
     }
   }
 
+  const targetClient = targetClients[0];
   const resolvedEnv = getClientEnv(targetClient);
   const requestId = `osint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   logger.info(
-    `[MCP Bridge] 📡 Despachando acción Antigravity (action=${action}, doc=${tipoDoc} ${cedula || folderPath || targetUrl}, mode=${mode} -> ${resolvedEnv}) al daemon Google Antigravity (${requestId})...`,
+    `[MCP Bridge] 📡 Despachando acción Antigravity (action=${action}, doc=${tipoDoc} ${cedula || folderPath || targetUrl}, mode=${mode} -> ${resolvedEnv}, host=${targetClient?.__wappyDaemonHost || 'local'}) al daemon Google Antigravity (${requestId})...`,
   );
 
   return new Promise((resolve) => {
@@ -12740,8 +12759,12 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
         eventTarget,
         antigravityMode: mode,
       })}\n\n`;
-      targetClient.write(frame);
-      if (typeof targetClient.flush === 'function') targetClient.flush();
+      for (const clientConn of targetClients) {
+        try {
+          clientConn.write(frame);
+          if (typeof clientConn.flush === 'function') clientConn.flush();
+        } catch (_) {}
+      }
     } catch (_) {
       clearTimeout(timer);
       pendingOsintRelayRequests.delete(requestId);
@@ -12755,10 +12778,13 @@ global.dispatchOsintViaAntigravityDaemon = dispatchOsintViaAntigravityDaemon;
 router.post('/antigravity/osint-callback', requireApiKeyOrJwt, (req, res) => {
   const { requestId, result } = req.body || {};
   if (requestId && pendingOsintRelayRequests.has(requestId)) {
+    if (result == null) {
+      return res.json({ ok: true, ignoredEmpty: true });
+    }
     const entry = pendingOsintRelayRequests.get(requestId);
     clearTimeout(entry.timer);
     pendingOsintRelayRequests.delete(requestId);
-    entry.resolve(result || null);
+    entry.resolve(result);
   }
   return res.json({ ok: true });
 });
