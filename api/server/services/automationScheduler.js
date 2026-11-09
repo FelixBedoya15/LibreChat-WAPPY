@@ -2337,6 +2337,17 @@ async function executeRealAntigravityScraperVerification({
             item.arl ||
             item.arlName ||
             '',
+          afp:
+            item['AFP (Fondo de Pensiones)'] ||
+            item['AFP'] ||
+            item.afp ||
+            item.fondoPensiones ||
+            '',
+          fechaNacimiento:
+            item['Fecha de Nacimiento'] ||
+            item.fechaNacimiento ||
+            item.birthDate ||
+            '',
           nivelRiesgo: item.estado || item.badge || item.nivelRiesgo || 'I',
           placa: item['Placa'] || item.placa || '',
         };
@@ -2345,6 +2356,72 @@ async function executeRealAntigravityScraperVerification({
 
     if (upstreamWorkers.length > 0) {
       companyWorkers = upstreamWorkers;
+      if (companyWorkers.some((w) => !w.arl || !w.fechaNacimiento)) {
+        try {
+          const liveHydrationData = await inspectNodeLiveData({
+            userId: userIdStr,
+            companyId: companyId ? String(companyId) : '',
+            nodeId: 'extract_sst_workers',
+          });
+          if (Array.isArray(liveHydrationData?.records) && liveHydrationData.records.length > 0) {
+            const byCleanCedula = new Map();
+            for (const rec of liveHydrationData.records) {
+              const rawCed = String(
+                rec.fields?.['Cédula / Documento'] ||
+                  rec.documento ||
+                  rec.identificacion ||
+                  rec.cedula ||
+                  rec.id ||
+                  '',
+              ).replace(/\D/g, '');
+              if (rawCed) {
+                byCleanCedula.set(rawCed, rec);
+              }
+            }
+            companyWorkers = companyWorkers.map((w) => {
+              const cleanCed = String(w.documento || '').replace(/\D/g, '');
+              const fullRec = cleanCed ? byCleanCedula.get(cleanCed) : null;
+              if (!fullRec) return w;
+              const f = fullRec.fields || {};
+              return {
+                ...w,
+                arl:
+                  w.arl ||
+                  f['ARL'] ||
+                  f['ARL (Administradora de Riesgos Laborales)'] ||
+                  fullRec.arl ||
+                  '',
+                eps:
+                  w.eps ||
+                  f['EPS'] ||
+                  f['EPS (Entidad Promotora de Salud)'] ||
+                  fullRec.eps ||
+                  '',
+                afp:
+                  w.afp ||
+                  f['AFP (Fondo de Pensiones)'] ||
+                  fullRec.afp ||
+                  '',
+                fechaNacimiento:
+                  w.fechaNacimiento ||
+                  f['Fecha de Nacimiento'] ||
+                  fullRec.fechaNacimiento ||
+                  '',
+                cargo:
+                  w.cargo && w.cargo !== 'Operativo'
+                    ? w.cargo
+                    : f['Cargo'] || f['Cargo / Antigüedad'] || fullRec.cargo || w.cargo || 'Operativo',
+                placa: w.placa || f['Placa'] || fullRec.placa || '',
+              };
+            });
+          }
+        } catch (hydrErr) {
+          console.warn(
+            '[Antigravity Scraper] Aviso hidratando campos de upstreamWorkers:',
+            hydrErr?.message,
+          );
+        }
+      }
       addLog(
         'info',
         `Procesando ${companyWorkers.length} trabajador(es) con cédula transferidos directamente por el flujo desde "${upstreamSourceTitle || 'Nodo previo'}"`,
@@ -2397,12 +2474,15 @@ async function executeRealAntigravityScraperVerification({
             rec.cedula ||
             '',
           cargo:
+            rec.fields?.['Cargo'] ||
             rec.fields?.['Cargo / Antigüedad'] ||
             rec.sublabel ||
             rec.cargo ||
             'Operativo',
-          eps: rec.fields?.['EPS'] || '',
-          arl: rec.fields?.['ARL'] || '',
+          eps: rec.fields?.['EPS'] || rec.fields?.['EPS (Entidad Promotora de Salud)'] || '',
+          arl: rec.fields?.['ARL'] || rec.fields?.['ARL (Administradora de Riesgos Laborales)'] || '',
+          afp: rec.fields?.['AFP (Fondo de Pensiones)'] || rec.afp || '',
+          fechaNacimiento: rec.fields?.['Fecha de Nacimiento'] || rec.fechaNacimiento || '',
           nivelRiesgo: rec.badge || 'I',
           placa: rec.fields?.['Placa'] || rec.placa || '',
         }));
@@ -2477,6 +2557,8 @@ async function executeRealAntigravityScraperVerification({
       placa: matchedWorker?.placa || '',
       arl: matchedWorker?.arl || matchedWorker?.arlName || '',
       eps: matchedWorker?.eps || matchedWorker?.epsName || '',
+      afp: matchedWorker?.afp || matchedWorker?.fondoPensiones || '',
+      fechaNacimiento: matchedWorker?.fechaNacimiento || matchedWorker?.birthDate || '',
     });
   }
 
@@ -2496,6 +2578,8 @@ async function executeRealAntigravityScraperVerification({
         placa: w.placa || '',
         arl: w.arl || w.arlName || '',
         eps: w.eps || w.epsName || '',
+        afp: w.afp || w.fondoPensiones || '',
+        fechaNacimiento: w.fechaNacimiento || w.birthDate || '',
       });
     }
   }
@@ -2659,6 +2743,8 @@ async function executeRealAntigravityScraperVerification({
                   placa: target.placa || '',
                   arl: target.arl || '',
                   eps: target.eps || '',
+                  afp: target.afp || '',
+                  fechaNacimiento: target.fechaNacimiento || '',
                   includeEvidence: shouldIncludePortalEvidence,
                   timeoutMs: portalTimeoutMs,
                   antigravityMode,
@@ -2674,6 +2760,8 @@ async function executeRealAntigravityScraperVerification({
                 placa: target.placa || '',
                 arl: target.arl || '',
                 eps: target.eps || '',
+                afp: target.afp || '',
+                fechaNacimiento: target.fechaNacimiento || '',
                 includeEvidence: shouldIncludePortalEvidence,
                 timeoutMs: portalTimeoutMs,
               });
@@ -2770,6 +2858,8 @@ async function executeRealAntigravityScraperVerification({
           cargo: target.cargo,
           arl: target.arl || '',
           eps: target.eps || '',
+          afp: target.afp || '',
+          fechaNacimiento: target.fechaNacimiento || '',
           placa: target.placa || '',
           estado: estadoStr,
           detalle: detalleStr,
@@ -2812,6 +2902,8 @@ async function executeRealAntigravityScraperVerification({
           cargo: target.cargo,
           arl: target.arl || '',
           eps: target.eps || '',
+          afp: target.afp || '',
+          fechaNacimiento: target.fechaNacimiento || '',
           placa: target.placa || '',
           estado: estadoStr,
           detalle: detalleStr,
@@ -2857,6 +2949,8 @@ async function executeRealAntigravityScraperVerification({
           cargo: target.cargo,
           arl: target.arl || '',
           eps: target.eps || '',
+          afp: target.afp || '',
+          fechaNacimiento: target.fechaNacimiento || '',
           placa: target.placa || '',
           estado: badge,
           detalle: rjRes?.resumen ? `${detalle} | Judicial: ${rjRes.resumen}` : detalle,
@@ -2891,6 +2985,8 @@ async function executeRealAntigravityScraperVerification({
           cargo: target.cargo,
           arl: target.arl || '',
           eps: target.eps || '',
+          afp: target.afp || '',
+          fechaNacimiento: target.fechaNacimiento || '',
           placa: target.placa || '',
           estado: estadoLabel,
           detalle: rjRes?.resumen ? `${detalleMsg} | Judicial: ${rjRes.resumen}` : detalleMsg,
@@ -3093,6 +3189,8 @@ async function executeRealAntigravityScraperVerification({
     cargo: r.cargo,
     arl: r.arl || '',
     eps: r.eps || '',
+    afp: r.afp || '',
+    fechaNacimiento: r.fechaNacimiento || '',
     placa: r.placa || '',
     estadoPortal: r.estado,
     detalleOficial: r.detalle,

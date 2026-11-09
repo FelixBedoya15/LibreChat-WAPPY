@@ -1655,12 +1655,33 @@ function buildRamaJudicialEvidenceHtml(rj = {}, { tipoDoc = '', cedula = '' } = 
 </html>`;
 }
 
+function formatCleanFechaNacimiento(raw = '') {
+  if (!raw) return '';
+  if (raw instanceof Date && !isNaN(raw.getTime())) {
+    return raw.toISOString().slice(0, 10);
+  }
+  const str = String(raw).trim();
+  if (!str) return '';
+  const isoMatch = str.match(/^(\d{4}-\d{2}-\d{2})(?:T.*)?$/);
+  if (isoMatch) return isoMatch[1];
+  const dmyMatch = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmyMatch) {
+    return `${dmyMatch[1].padStart(2, '0')}/${dmyMatch[2].padStart(2, '0')}/${dmyMatch[3]}`;
+  }
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime()) && /\d{4}/.test(str)) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return str.slice(0, 20);
+}
+
 function buildPortalVerificationEvidenceHtml({
   label = '',
   tipoDoc = 'CC',
   cedula = '',
   nombre = '',
   placa = '',
+  fechaNacimiento = '',
   arl = '',
   eps = '',
   afp = '',
@@ -1672,6 +1693,7 @@ function buildPortalVerificationEvidenceHtml({
 } = {}) {
   const isoNow = new Date().toISOString();
   const nominaItems = [
+    fechaNacimiento ? `F. Nac: ${fechaNacimiento}` : '',
     arl ? `ARL Registrada en Nómina: ${arl}` : '',
     eps ? `EPS Registrada en Nómina: ${eps}` : '',
     afp ? `AFP Registrada en Nómina: ${afp}` : '',
@@ -2001,6 +2023,7 @@ async function consultarPortalEspecíficoAntigravity({
   cedula = '',
   nombre = '',
   placa = '',
+  fechaNacimiento = '',
   arl = '',
   eps = '',
   afp = '',
@@ -2011,6 +2034,7 @@ async function consultarPortalEspecíficoAntigravity({
   const cleanCedula = String(cedula || '').trim();
   const cleanNombre = String(nombre || '').trim();
   const cleanPlaca = String(placa || '').trim().toUpperCase();
+  const cleanFechaNac = formatCleanFechaNacimiento(fechaNacimiento);
   const cleanArl = String(arl || '').trim();
   const cleanEps = String(eps || '').trim();
   const cleanAfp = String(afp || '').trim();
@@ -2080,7 +2104,7 @@ async function consultarPortalEspecíficoAntigravity({
     vial_pesv: 'SIMIT Comparendos + RUNT 2.0 (Licencia / SOAT / RTM)',
   };
 
-  const docTag = `${cleanTipoDoc} ${cleanCedula || 'S/D'}${cleanPlaca ? ` · Placa ${cleanPlaca}` : ''}`;
+  const docTag = `${cleanTipoDoc} ${cleanCedula || 'S/D'}${cleanFechaNac ? ` · F. Nac: ${cleanFechaNac}` : ''}${cleanPlaca ? ` · Placa ${cleanPlaca}` : ''}`;
   const portalsSummary = detalles
     .map((d) => `${d.entidad}: ${d.reachable ? `HTTP ${d.httpStatus} (${d.latencyMs}ms)` : 'Timeout/Captcha'}`)
     .join(' · ');
@@ -2102,7 +2126,13 @@ async function consultarPortalEspecíficoAntigravity({
       .join(' / ')} · `;
   }
 
-  const resumen = `${nominaPrefix}Verificación desde IP Local para ${docTag}${cleanNombre ? ` (${cleanNombre})` : ''} en ${labelMap[cleanAction] || cleanAction} -> ${okPortals.length}/${detalles.length} portales en línea [${portalsSummary}]`;
+  const requiresBirthDateNote =
+    !cleanFechaNac &&
+    ((cleanAction === 'arl' && /colmena/i.test(cleanArl)) || cleanAction === 'pensiones')
+      ? ' · Nota: ARL Colmena / Colpensiones requieren Fecha de Nacimiento en la ficha del trabajador para descarga directa de carné/certificado individual'
+      : '';
+
+  const resumen = `${nominaPrefix}Verificación desde IP Local para ${docTag}${cleanNombre ? ` (${cleanNombre})` : ''} en ${labelMap[cleanAction] || cleanAction} -> ${okPortals.length}/${detalles.length} portales en línea [${portalsSummary}]${requiresBirthDateNote}`;
 
   let pdfBase64 = null;
   let pdfFileName = null;
@@ -2166,6 +2196,7 @@ async function consultarPortalEspecíficoAntigravity({
         cedula: cleanCedula,
         nombre: cleanNombre,
         placa: cleanPlaca,
+        fechaNacimiento: cleanFechaNac,
         arl: cleanArl,
         eps: cleanEps,
         afp: cleanAfp,
@@ -2199,6 +2230,7 @@ async function consultarPortalEspecíficoAntigravity({
     documento: cleanCedula,
     nombre: cleanNombre,
     placa: cleanPlaca,
+    fechaNacimiento: cleanFechaNac || undefined,
     arl: cleanArl || undefined,
     eps: cleanEps || undefined,
     afp: cleanAfp || undefined,

@@ -5049,6 +5049,7 @@ function startSseWorker(cliArgs) {
                                   cedula: parsedData.cedula,
                                   nombre: parsedData.nombre,
                                   placa: parsedData.placa,
+                                  fechaNacimiento: parsedData.fechaNacimiento || '',
                                   arl: parsedData.arl,
                                   eps: parsedData.eps,
                                   afp: parsedData.afp,
