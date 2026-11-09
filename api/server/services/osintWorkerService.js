@@ -242,6 +242,13 @@ async function captureWebOrHtmlEvidence({
             '--no-sandbox',
             '--disable-dev-shm-usage',
             '--disable-extensions',
+            '--disable-background-networking',
+            '--disable-sync',
+            '--disable-translate',
+            '--metrics-recording-only',
+            '--safebrowsing-disable-auto-update',
+            '--disable-component-update',
+            '--disable-default-apps',
             '--ignore-certificate-errors',
             '--hide-scrollbars',
             '--window-size=1280,960',
@@ -256,7 +263,7 @@ async function captureWebOrHtmlEvidence({
           }
           chromeArgs.push(target);
 
-          const hardLimitMs = Math.min(Number(timeoutMs) || 12000, hasHtml ? 6000 : 7500);
+          const hardLimitMs = Math.min(Number(timeoutMs) || 12000, hasHtml ? 8500 : 9000);
           await new Promise((resolve) => {
             let settled = false;
             const finish = () => {
@@ -306,7 +313,7 @@ async function captureWebOrHtmlEvidence({
       }
 
       // Respaldo con Puppeteer en contenedor Linux o entornos sin binario Chrome estándar
-      if (!pdfBase64 && !imageBase64) {
+      if (!pdfBase64 && !imageBase64 && (process.platform !== 'darwin' || !chromeBin)) {
         let puppeteerMod = null;
         try {
           puppeteerMod = require('puppeteer');
@@ -1980,7 +1987,7 @@ async function probeSinglePortalTarget(p) {
         method: 'GET',
         headers: DEFAULT_HEADERS,
         redirect: 'manual',
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(attempt === 1 ? 4500 : 5500),
       });
       const latencyMs = Date.now() - tStart;
       await res.body?.cancel?.().catch(() => {});
@@ -2182,7 +2189,7 @@ async function consultarPortalEspecíficoAntigravity({
       const evid = await captureWebOrHtmlEvidence({
         htmlContent,
         filePrefix: prefix,
-        timeoutMs: 6000,
+        timeoutMs: 8500,
       });
 
       pdfBase64 = evid.pdfBase64 || null;

@@ -4320,6 +4320,13 @@ async function captureWebOrHtmlEvidence({
           '--no-sandbox',
           '--disable-dev-shm-usage',
           '--disable-extensions',
+          '--disable-background-networking',
+          '--disable-sync',
+          '--disable-translate',
+          '--metrics-recording-only',
+          '--safebrowsing-disable-auto-update',
+          '--disable-component-update',
+          '--disable-default-apps',
           '--ignore-certificate-errors',
           '--hide-scrollbars',
           '--window-size=1280,960',
@@ -4334,7 +4341,7 @@ async function captureWebOrHtmlEvidence({
         }
         chromeArgs.push(target);
 
-        const hardLimitMs = Math.min(Number(timeoutMs) || 12000, hasHtml ? 6000 : 7500);
+        const hardLimitMs = Math.min(Number(timeoutMs) || 12000, hasHtml ? 8500 : 9000);
         await new Promise((resolve) => {
           let settled = false;
           const finish = () => {
@@ -4381,7 +4388,7 @@ async function captureWebOrHtmlEvidence({
       } catch (_) {}
     }
 
-    if (!pdfBase64 && !imageBase64) {
+    if (!pdfBase64 && !imageBase64 && (process.platform !== 'darwin' || !chromeBin)) {
       let puppeteerMod = null;
       try {
         puppeteerMod = require('puppeteer');
