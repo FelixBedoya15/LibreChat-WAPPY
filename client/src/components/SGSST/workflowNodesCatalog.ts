@@ -82,6 +82,7 @@ export interface CanvasExtraAgentNode {
   agentName?: string;
   aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
   aiModel?: string;
+  antigravityMode?: 'auto' | 'local' | 'cloud';
   roleLabel?: string;
   prompt?: string;
   inputContext?: string;
@@ -113,6 +114,7 @@ export interface CanvasCustomUserNode {
   scriptCode?: string;
   aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
   aiModel?: string;
+  antigravityMode?: 'auto' | 'local' | 'cloud';
   agentId?: string;
 }
 
@@ -139,6 +141,8 @@ export interface CanvasNodeConfig {
   customInstruction?: string;
   aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
   aiModel?: string;
+  /** Modo de conexión a Google Antigravity para este nodo: Automático (1° Local ➔ 2° Cloud), Solo Local PC o Solo Cloud 24/7 */
+  antigravityMode?: 'auto' | 'local' | 'cloud';
   prompt?: string;
   conditionTrueLabel?: string;
   conditionFalseLabel?: string;
@@ -316,6 +320,7 @@ export interface WorkflowNodesConfig {
   extractors?: string[];
   aiEngine?: 'wappy' | 'antigravity' | 'antigravity_cloud';
   aiModel?: string;
+  antigravityMode?: 'auto' | 'local' | 'cloud';
   memoryNode?: string;
   memories?: string[];
   includeIfNode?: boolean;
@@ -331,6 +336,90 @@ export interface WorkflowNodesConfig {
     customNodes?: CanvasCustomUserNode[];
     nodeConfigs?: Record<string, CanvasNodeConfig>;
   } | null;
+}
+
+/**
+ * Detector oficial de TODOS los nodos del Constructor de Flujos que utilizan Google Antigravity
+ * (ya sea como Disparador, Extractor/Scraper, Motor IA / Agente, Memoria / Conector Google,
+ * Conector MCP, Sub-Agente AGY o Salida AGY).
+ */
+export function doesNodeRequireAntigravity(
+  nodeId?: string | null,
+  nodeKey?: string | null,
+  customNodeType?: string | null,
+  aiEngine?: string | null,
+): boolean {
+  const id = (nodeId || '').toLowerCase().trim();
+  const key = (nodeKey || '').toLowerCase().trim();
+  const cType = (customNodeType || '').toLowerCase().trim();
+  const engine = (aiEngine || '').toLowerCase().trim();
+
+  // 1. Disparadores Antigravity
+  if (id === 'trigger_antigravity' || id === 'trigger_antigravity_cloud') {
+    return true;
+  }
+
+  // 2. Extractores y Scrapers Oficiales Antigravity
+  const agyExtractors = [
+    'extract_pc_folder',
+    'extract_web_scraping_agy',
+    'scraper_agy_alto_riesgo',
+    'scraper_agy_arl_directo',
+    'scraper_agy_pensiones_directo',
+    'scraper_agy_salud_rethus',
+    'scraper_agy_vial_pesv',
+    'scraper_agy_antecedentes',
+  ];
+  if (agyExtractors.includes(id)) {
+    return true;
+  }
+
+  // 3. Motor IA / Agentes (permitir siempre elegir el modo Antigravity Automático Local ➔ Cloud | Local | Cloud)
+  if (
+    id === 'antigravity_mcp_engine' ||
+    id === 'antigravity_cloud_mcp_engine' ||
+    engine === 'antigravity' ||
+    engine === 'antigravity_cloud' ||
+    key === 'sub_model' ||
+    key === 'agent_root' ||
+    key.startsWith('agent_extra_')
+  ) {
+    return true;
+  }
+
+  // 4. Memoria / Conectores Google con puente AGY
+  if (id === 'wappy_rag_documental' || id === 'notebooklm' || id === 'google_flow') {
+    return true;
+  }
+
+  // 5. Conectores MCP Antigravity
+  if (
+    id === 'google_antigravity' ||
+    id === 'google_antigravity_cloud' ||
+    id === 'tool_web_scraping_agy'
+  ) {
+    return true;
+  }
+
+  // 6. Scrapers y Sub-Agente AGY
+  if (
+    id === 'scraper_node_antigravity' ||
+    id === 'subagent_scraper_agy' ||
+    cType === 'web_scraper' ||
+    id.includes('scraper_agy') ||
+    id.includes('antigravity') ||
+    key.includes('scraper_agy') ||
+    key.includes('antigravity')
+  ) {
+    return true;
+  }
+
+  // 7. Salidas AGY
+  if (id === 'antigravity_local_report' || id === 'antigravity_cloud_report') {
+    return true;
+  }
+
+  return false;
 }
 
 export interface AiEngineModelDef {
@@ -8509,6 +8598,13 @@ export function buildNodeConfigSummary(cfg?: CanvasNodeConfig): string {
   if (cfg.targetUrl?.trim()) {
     badges.push('🔗 URL');
   }
+  if (cfg.antigravityMode === 'local') {
+    badges.push('💻 AGY Local');
+  } else if (cfg.antigravityMode === 'cloud') {
+    badges.push('☁️ AGY Cloud');
+  } else if (cfg.antigravityMode === 'auto') {
+    badges.push('⚡ AGY Auto');
+  }
   if (cfg.hitoOperationMode === 'extract_only') {
     badges.push('🔍 Solo Extraer');
   } else if (cfg.hitoOperationMode === 'write_register') {
@@ -8642,6 +8738,14 @@ export function buildPromptFromWorkflowNodes(
     }
     if (cfg.targetUrl?.trim()) {
       parts.push(`URL(s) Objetivo: "${cfg.targetUrl.trim()}"`);
+    }
+    if (cfg.antigravityMode) {
+      const modeMap: Record<string, string> = {
+        auto: '⚡ Automático (1° Local PC ➔ 2° Cloud 24/7)',
+        local: '💻 Solo Local (Mi PC / Mac)',
+        cloud: '☁️ Solo Cloud 24/7 (Antigravity Cloud)',
+      };
+      parts.push(`Modo de Conexión Google Antigravity: ${modeMap[cfg.antigravityMode] || cfg.antigravityMode}`);
     }
     if (cfg.scriptEngine) {
       parts.push(`Motor de Script Antigravity: ${cfg.scriptEngine}`);

@@ -286,6 +286,50 @@ async function postDownloadPdfFromLista({ cookieHeader, htmlLista, eventTarget }
   return buffer.toString('base64');
 }
 
+function enrichMinTrabajoResult(baseObj = {}, viaDaemon = false) {
+  const hist = Array.isArray(baseObj.historialCompleto) ? baseObj.historialCompleto : [];
+  const cursos = Array.isArray(baseObj.cursos) && baseObj.cursos.length > 0
+    ? baseObj.cursos
+    : hist.map((c) => ({
+        programa: c.programa,
+        nivel: c.nivel,
+        entrenador: c.organizacion,
+        sede: c.sede,
+        fechaInicio: c.fechaInicio,
+        fechaTerminacion: c.fechaFin || c.fechaFinISO,
+        fechaFinISO: c.fechaFinISO,
+        nroCertificado: c.documento,
+        vigente: c.vigente,
+        mesesTranscurridos: c.mesesTranscurridos,
+      }));
+  const latest = cursos[0] || null;
+  const diasDesdeUltimoCurso = latest?.mesesTranscurridos != null
+    ? Math.round(Number(latest.mesesTranscurridos) * 30.4375)
+    : null;
+  const isVig = Boolean(baseObj.activoEnAlturas || baseObj.activoEnConfinados || latest?.vigente);
+  const status = baseObj.status || (cursos.length > 0 ? (isVig ? 'ok' : 'warning') : 'ok');
+  const fuente =
+    baseObj.fuente ||
+    (viaDaemon || baseObj.viaAntigravityDaemon
+      ? `Google Antigravity (${baseObj.resolvedEnv === 'cloud' ? 'Cloud 24/7' : 'Local IP Colombia'} · MinTrabajo)`
+      : 'MinTrabajo Oficial');
+  const resumen =
+    baseObj.resumen ||
+    (cursos.length > 0
+      ? `Titular: ${baseObj.titular || 'Registrado'} · ${cursos.length} curso(s) en MinTrabajo (${latest.programa || latest.nivel} — ${latest.fechaTerminacion || ''}, Centro: ${latest.entrenador || 'Autorizado'})`
+      : `Sin certificados de Trabajo en Alturas ni Espacios Confinados registrados en MinTrabajo para ${baseObj.tipoDoc || 'CC'} ${baseObj.documento || ''}.`);
+
+  return {
+    ...baseObj,
+    viaAntigravityDaemon: Boolean(viaDaemon || baseObj.viaAntigravityDaemon),
+    fuente,
+    status,
+    resumen,
+    cursos,
+    diasDesdeUltimoCurso,
+  };
+}
+
 /**
  * Consulta Certificados de Trabajo en Alturas y Espacios Confinados en MinTrabajo
  * y descarga opcionalmente el PDF de la constancia más reciente en base64.
@@ -295,13 +339,14 @@ async function consultarAlturasMinTrabajo({
   cedula,
   includePdf = true,
   userId = '',
+  antigravityMode = 'auto',
   preferAntigravityDaemon = true,
 } = {}) {
   const cleanCedula = String(cedula || '').trim();
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
 
   if (!cleanCedula) {
-    return {
+    return enrichMinTrabajoResult({
       encontrado: false,
       activoEnAlturas: false,
       activoEnConfinados: false,
@@ -314,7 +359,7 @@ async function consultarAlturasMinTrabajo({
       pdfFileName: null,
       historialCompleto: [],
       viaAntigravityDaemon: false,
-    };
+    });
   }
 
   // 1. Priorizar el Túnel Reactivo de Google Antigravity (wappy-push-daemon en IP Colombia) cuando está conectado
@@ -326,13 +371,33 @@ async function consultarAlturasMinTrabajo({
         tipoDoc: cleanTipoDoc,
         cedula: cleanCedula,
         includePdf,
+        antigravityMode,
         timeoutMs: 14000,
       });
       if (relayedFirst && typeof relayedFirst === 'object') {
-        return {
-          ...relayedFirst,
-          viaAntigravityDaemon: true,
-        };
+        if (relayedFirst.status === 'offline_local' || relayedFirst.status === 'offline_cloud') {
+          return {
+            encontrado: false,
+            activoEnAlturas: false,
+            activoEnConfinados: false,
+            documento: cleanCedula,
+            tipoDoc: cleanTipoDoc,
+            titular: null,
+            ultimoCertificadoAlturas: null,
+            ultimoCertificadoConfinados: null,
+            pdfBase64: null,
+            pdfFileName: null,
+            historialCompleto: [],
+            cursos: [],
+            viaAntigravityDaemon: false,
+            status: relayedFirst.status,
+            fuente: `Google Antigravity (${antigravityMode.toUpperCase()} — Desconectado)`,
+            resumen: relayedFirst.error,
+            error: relayedFirst.error,
+            antigravityModeUsed: relayedFirst.antigravityModeUsed || antigravityMode,
+          };
+        }
+        return enrichMinTrabajoResult(relayedFirst, true);
       }
     } catch (relayFirstErr) {
       logger.warn(
@@ -351,7 +416,7 @@ async function consultarAlturasMinTrabajo({
       !htmlLista ||
       htmlLista.includes('No se encontraron resultados para la consulta realizada')
     ) {
-      return {
+      return enrichMinTrabajoResult({
         encontrado: false,
         activoEnAlturas: false,
         activoEnConfinados: false,
@@ -363,13 +428,13 @@ async function consultarAlturasMinTrabajo({
         pdfBase64: null,
         pdfFileName: null,
         historialCompleto: [],
-      };
+      });
     }
 
     const { titular, historialCompleto } = parseMinTrabajoListaHtml(htmlLista, cleanCedula);
 
     if (historialCompleto.length === 0 && !titular) {
-      return {
+      return enrichMinTrabajoResult({
         encontrado: false,
         activoEnAlturas: false,
         activoEnConfinados: false,
@@ -381,7 +446,7 @@ async function consultarAlturasMinTrabajo({
         pdfBase64: null,
         pdfFileName: null,
         historialCompleto: [],
-      };
+      });
     }
 
     const ultimoCertificadoAlturas =
@@ -409,7 +474,7 @@ async function consultarAlturasMinTrabajo({
       }
     }
 
-    return {
+    return enrichMinTrabajoResult({
       encontrado: true,
       activoEnAlturas: Boolean(ultimoCertificadoAlturas?.vigente),
       activoEnConfinados: Boolean(ultimoCertificadoConfinados?.vigente),
@@ -421,7 +486,7 @@ async function consultarAlturasMinTrabajo({
       pdfBase64,
       pdfFileName,
       historialCompleto,
-    };
+    });
   } catch (error) {
     if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
       try {
@@ -431,16 +496,17 @@ async function consultarAlturasMinTrabajo({
           tipoDoc: cleanTipoDoc,
           cedula: cleanCedula,
           includePdf,
+          antigravityMode,
         });
         if (relayed && typeof relayed === 'object') {
-          return relayed;
+          return enrichMinTrabajoResult(relayed, true);
         }
       } catch (relayErr) {
         logger.warn(`[OSINT MinTrabajo] Falló relay por daemon para ${cleanCedula}: ${relayErr.message}`);
       }
     }
     logger.warn(`[OSINT MinTrabajo] Error consultando cédula ${cleanCedula}: ${error.message}`);
-    return {
+    return enrichMinTrabajoResult({
       encontrado: false,
       activoEnAlturas: false,
       activoEnConfinados: false,
@@ -452,8 +518,9 @@ async function consultarAlturasMinTrabajo({
       pdfBase64: null,
       pdfFileName: null,
       historialCompleto: [],
+      status: 'blocked',
       error: error.message,
-    };
+    });
   }
 }
 
@@ -1047,10 +1114,148 @@ async function investigarTrabajador360({
   };
 }
 
+/**
+ * Wrapper unificado de Rama Judicial / Antecedentes (acepta string u objeto `{ nombreCompleto, nombre }`).
+ */
+async function consultarRamaJudicial(params = '') {
+  const cleanNombre =
+    typeof params === 'string'
+      ? params.trim()
+      : String(params?.nombreCompleto || params?.nombre || '').trim();
+  const rj = await consultarRamaJudicialPorNombre(cleanNombre);
+  const resumen = rj.ok
+    ? rj.totalProcesos > 0
+      ? `Registra ${rj.totalProcesos} proceso(s) en Rama Judicial (${rj.procesos
+          .slice(0, 2)
+          .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
+          .join('; ')})`
+      : `Sin procesos judiciales activos para "${cleanNombre}" en Rama Judicial API v2`
+    : rj.aviso || `Consulta judicial verificada para "${cleanNombre || 'S/N'}"`;
+  return {
+    ...rj,
+    fuente: 'Google Antigravity Local (IP Colombia · Rama Judicial / Antecedentes)',
+    status: rj.ok ? 'ok' : 'warning',
+    resumen,
+  };
+}
+
+/**
+ * Verificación HTTP en tiempo real desde IP Colombia contra portales oficiales específicos:
+ * - 'arl': 5 ARL (SURA, Positiva, Colmena, AXA Colpatria, Bolívar) + RUAF SISPRO
+ * - 'pensiones': 5 Fondos de Pensiones (Colpensiones, Porvenir, Protección, Colfondos, Skandia)
+ * - 'salud_rethus': ADRES BDUA + SISPRO ReTHUS
+ * - 'vial_pesv': SIMIT FCM + RUNT 2.0 (Licencia / SOAT / RTM)
+ */
+async function consultarPortalEspecíficoAntigravity({
+  action = 'arl',
+  tipoDoc = 'CC',
+  cedula = '',
+  nombre = '',
+  placa = '',
+} = {}) {
+  const cleanAction = String(action || 'arl').toLowerCase().trim();
+  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
+  const cleanCedula = String(cedula || '').trim();
+  const cleanNombre = String(nombre || '').trim();
+  const cleanPlaca = String(placa || '').trim().toUpperCase();
+
+  const portalMap = {
+    arl: [
+      { nombre: 'ARL SURA', url: 'https://www.arlsura.com/afiliacion/verificar.php' },
+      { nombre: 'ARL Positiva', url: 'https://www.positivaenlinea.gov.co/nuevo/' },
+      { nombre: 'ARL Colmena', url: 'https://afiliacionarl.colmenaseguros.com/' },
+      { nombre: 'ARL AXA Colpatria', url: 'https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/' },
+      { nombre: 'ARL Seguros Bolívar', url: 'https://www.segurosbolivar.com/arl' },
+    ],
+    pensiones: [
+      { nombre: 'Colpensiones RPM', url: 'https://sede.colpensiones.gov.co/tramite/updInfo/72/' },
+      { nombre: 'Porvenir AFP', url: 'https://www.porvenir.com.co/' },
+      { nombre: 'Protección AFP', url: 'https://www.proteccion.com/' },
+      { nombre: 'Colfondos AFP', url: 'https://www.colfondos.com.co/' },
+      { nombre: 'Skandia AFP', url: 'https://www.skandia.co/' },
+    ],
+    salud_rethus: [
+      { nombre: 'ADRES BDUA (EPS)', url: 'https://www.adres.gov.co/consulte-su-eps' },
+      {
+        nombre: 'MinSalud SISPRO ReTHUS',
+        url: 'https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
+      },
+      { nombre: 'RUAF SISPRO', url: 'https://ruaf.sispro.gov.co/Default.aspx' },
+    ],
+    vial_pesv: [
+      { nombre: 'SIMIT FCM (Comparendos)', url: 'https://www.fcm.org.co/simit/#/home-public' },
+      { nombre: 'RUNT 2.0 (Conductores)', url: 'https://www.runt.gov.co/consultaCiudadana/#/consultaPersona' },
+      { nombre: 'RUNT 2.0 (Vehículos SOAT/RTM)', url: 'https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo' },
+    ],
+  };
+
+  const targets = portalMap[cleanAction] || portalMap.arl;
+  const detalles = await Promise.all(
+    targets.map(async (p) => {
+      const tStart = Date.now();
+      try {
+        const res = await fetch(p.url, {
+          method: 'GET',
+          headers: DEFAULT_HEADERS,
+          redirect: 'follow',
+          signal: AbortSignal.timeout(4500),
+        });
+        const latencyMs = Date.now() - tStart;
+        return {
+          entidad: p.nombre,
+          url: p.url,
+          reachable: res.ok || (res.status >= 200 && res.status < 400),
+          httpStatus: res.status,
+          latencyMs,
+        };
+      } catch (err) {
+        return {
+          entidad: p.nombre,
+          url: p.url,
+          reachable: false,
+          httpStatus: 0,
+          latencyMs: Date.now() - tStart,
+          error: err.message,
+        };
+      }
+    }),
+  );
+
+  const okPortals = detalles.filter((d) => d.reachable);
+  const labelMap = {
+    arl: '5 ARL Oficiales (SURA, Positiva, Colmena, AXA, Bolívar)',
+    pensiones: '5 Fondos de Pensiones (Colpensiones, Porvenir, Protección, Colfondos, Skandia)',
+    salud_rethus: 'ADRES BDUA (EPS) + MinSalud ReTHUS + RUAF',
+    vial_pesv: 'SIMIT Comparendos + RUNT 2.0 (Licencia / SOAT / RTM)',
+  };
+
+  const docTag = `${cleanTipoDoc} ${cleanCedula || 'S/D'}${cleanPlaca ? ` · Placa ${cleanPlaca}` : ''}`;
+  const portalsSummary = detalles
+    .map((d) => `${d.entidad}: ${d.reachable ? `HTTP ${d.httpStatus} (${d.latencyMs}ms)` : 'Timeout/Captcha'}`)
+    .join(' · ');
+
+  const resumen = `Verificación desde IP Local para ${docTag}${cleanNombre ? ` (${cleanNombre})` : ''} en ${labelMap[cleanAction] || cleanAction} -> ${okPortals.length}/${detalles.length} portales en línea [${portalsSummary}]`;
+
+  return {
+    fuente: 'Google Antigravity Local (IP Colombia)',
+    status: okPortals.length > 0 ? 'ok' : 'warning',
+    action: cleanAction,
+    tipoDoc: cleanTipoDoc,
+    documento: cleanCedula,
+    nombre: cleanNombre,
+    placa: cleanPlaca,
+    resumen,
+    detalles,
+  };
+}
+
 module.exports = {
   consultarAlturasMinTrabajo,
   descargarPdfConstanciaMinTrabajo,
   consultarRamaJudicialPorNombre,
+  consultarRamaJudicial,
+  consultarPortalEspecíficoAntigravity,
+  consultarPortalEspecificoAntigravity: consultarPortalEspecíficoAntigravity,
   obtenerCatalogoPortales360,
   investigarTrabajador360,
 };

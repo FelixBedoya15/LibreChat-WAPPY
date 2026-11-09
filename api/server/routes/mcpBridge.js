@@ -10313,6 +10313,7 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
     res.__wappyClientType = isDaemonClient ? 'daemon' : 'browser';
     res.__wappyRawApiKey = isDaemonClient ? String(req.query.apiKey || req.headers['x-api-key'] || '').trim() : '';
     res.__wappyDaemonEnv = isDaemonClient ? (isCloudDaemon ? 'cloud' : 'local') : 'browser';
+    res.env = res.__wappyDaemonEnv;
     res.__wappyDaemonPlatform = rawPlatform || (isDaemonClient ? (isCloudDaemon ? 'linux-cloud' : 'local-os') : 'web');
     res.__wappyDaemonHost = rawHost;
     res.__wappyDaemonVersion = clientVersion || (isDaemonClient ? 'legacy' : 'browser');
@@ -12413,85 +12414,117 @@ router.post('/plan-emergencias', requireApiKeyOrJwt, async (req, res) => {
 
 const pendingOsintRelayRequests = new Map();
 
-function dispatchOsintViaAntigravityDaemon({
-  userId = '',
-  action = 'query',
-  tipoDoc = 'CC',
-  cedula = '',
-  includePdf = true,
-  eventTarget = '',
-  timeoutMs = 16000,
-} = {}) {
-  let targetRes = null;
-  if (userId) {
-    const userClients = antigravityStreamClients.get(String(userId));
-    if (userClients && userClients.size > 0) {
-      for (const clientRes of userClients) {
-        if (clientRes.__wappyClientType !== 'browser' && clientRes.__wappyDaemonEnv !== 'cloud') {
-          targetRes = clientRes;
-          break;
-        }
-      }
-      if (!targetRes) {
-        for (const clientRes of userClients) {
-          if (clientRes.__wappyClientType !== 'browser') {
-            targetRes = clientRes;
-            break;
+async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000) {
+  const {
+    userId = '',
+    action = 'query',
+    tipoDoc = 'CC',
+    cedula = '',
+    nombre = '',
+    placa = '',
+    folderPath = '',
+    targetUrl = '',
+    includePdf = true,
+    eventTarget = '',
+  } = payload || {};
+  const mode = String(payload?.antigravityMode || 'auto').toLowerCase();
+  const effectiveTimeoutMs = Number(payload?.timeoutMs || timeoutMs || 45000);
+
+  const getClientEnv = (c) => ((c?.env || c?.__wappyDaemonEnv || 'local') === 'cloud' ? 'cloud' : 'local');
+  const findDaemonByEnv = (desiredEnv) => {
+    if (userId) {
+      const userClients = antigravityStreamClients.get(String(userId));
+      if (userClients && userClients.size > 0) {
+        for (const c of userClients) {
+          if (c.__wappyClientType !== 'browser') {
+            const cEnv = getClientEnv(c);
+            if (desiredEnv === 'local' && cEnv !== 'cloud') return c;
+            if (desiredEnv === 'cloud' && cEnv === 'cloud') return c;
           }
         }
       }
     }
-  }
-  if (!targetRes) {
     for (const [, clients] of antigravityStreamClients.entries()) {
       if (!clients || clients.size === 0) continue;
-      for (const clientRes of clients) {
-        if (clientRes.__wappyClientType !== 'browser' && clientRes.__wappyDaemonEnv !== 'cloud') {
-          targetRes = clientRes;
-          break;
+      for (const c of clients) {
+        if (c.__wappyClientType !== 'browser') {
+          const cEnv = getClientEnv(c);
+          if (desiredEnv === 'local' && cEnv !== 'cloud') return c;
+          if (desiredEnv === 'cloud' && cEnv === 'cloud') return c;
         }
       }
-      if (targetRes) break;
     }
-  }
-  if (!targetRes) {
-    for (const [, clients] of antigravityStreamClients.entries()) {
-      if (!clients || clients.size === 0) continue;
-      for (const clientRes of clients) {
-        if (clientRes.__wappyClientType !== 'browser') {
-          targetRes = clientRes;
-          break;
-        }
-      }
-      if (targetRes) break;
+    return null;
+  };
+
+  let targetClient = null;
+  if (mode === 'local') {
+    targetClient = findDaemonByEnv('local');
+    if (!targetClient) {
+      return {
+        error: 'No hay puente Google Antigravity Local (PC/Mac) en línea para este modo.',
+        status: 'offline_local',
+        antigravityModeUsed: mode,
+      };
     }
-  }
-  if (!targetRes) {
-    return Promise.resolve(null);
+  } else if (mode === 'cloud') {
+    targetClient = findDaemonByEnv('cloud');
+    if (!targetClient) {
+      return {
+        error: 'No hay instancia Google Antigravity Cloud 24/7 en línea para este modo.',
+        status: 'offline_cloud',
+        antigravityModeUsed: mode,
+      };
+    }
+  } else {
+    targetClient = findDaemonByEnv('local') || findDaemonByEnv('cloud');
+    if (!targetClient) {
+      return null;
+    }
   }
 
+  const resolvedEnv = getClientEnv(targetClient);
   const requestId = `osint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   logger.info(
-    `[MCP Bridge] 📡 Despachando consulta OSINT MinTrabajo (${tipoDoc} ${cedula}, action=${action}) al daemon Google Antigravity (${requestId})...`,
+    `[MCP Bridge] 📡 Despachando acción Antigravity (action=${action}, doc=${tipoDoc} ${cedula || folderPath || targetUrl}, mode=${mode} -> ${resolvedEnv}) al daemon Google Antigravity (${requestId})...`,
   );
+
   return new Promise((resolve) => {
+    const finishResolve = (rawRes) => {
+      if (rawRes && typeof rawRes === 'object') {
+        resolve({
+          ...rawRes,
+          resolvedEnv: targetClient.env || targetClient.__wappyDaemonEnv || 'local',
+          antigravityModeUsed: mode,
+        });
+      } else {
+        resolve(rawRes || null);
+      }
+    };
+
     const timer = setTimeout(() => {
       pendingOsintRelayRequests.delete(requestId);
       resolve(null);
-    }, timeoutMs);
+    }, effectiveTimeoutMs);
 
-    pendingOsintRelayRequests.set(requestId, { resolve, timer });
+    pendingOsintRelayRequests.set(requestId, { resolve: finishResolve, timer });
     try {
       const frame = `event: osint_mintrabajo_request\ndata: ${JSON.stringify({
+        ...payload,
         requestId,
         action,
         tipoDoc,
         cedula,
+        nombre,
+        placa,
+        folderPath,
+        targetUrl,
         includePdf,
         eventTarget,
+        antigravityMode: mode,
       })}\n\n`;
-      targetRes.write(frame);
-      if (typeof targetRes.flush === 'function') targetRes.flush();
+      targetClient.write(frame);
+      if (typeof targetClient.flush === 'function') targetClient.flush();
     } catch (_) {
       clearTimeout(timer);
       pendingOsintRelayRequests.delete(requestId);

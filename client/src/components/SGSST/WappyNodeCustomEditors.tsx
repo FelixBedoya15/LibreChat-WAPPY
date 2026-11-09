@@ -36,6 +36,9 @@ import {
   Plus,
   Filter,
   Sliders,
+  Zap,
+  Cloud,
+  Laptop,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import {
@@ -44,6 +47,7 @@ import {
   WAPPY_AGENT_AVATAR_ROTATION,
   getRotatedAgentAvatar,
   getNodeModuleMetadata,
+  doesNodeRequireAntigravity,
   type CanvasNodeConfig,
   type CanvasExtraAgentNode,
   type CanvasCustomUserNode,
@@ -913,6 +917,159 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   };
 
   /* ═════════════════════════════════════════════════════════════════════════
+     SELECTOR OFICIAL DE MODO DE CONEXIÓN GOOGLE ANTIGRAVITY POR NODO
+     (Automático 1° Local ➔ 2° Cloud | Solo Local PC/Mac | Solo Cloud 24/7)
+     ═════════════════════════════════════════════════════════════════════════ */
+  const effectiveNodeAiEngine =
+    currentCfg.aiEngine ||
+    (activeNode.key.startsWith('agent_extra_') ? extraAgentObj?.aiEngine : aiEngine) ||
+    'wappy';
+  const requiresAntigravity = doesNodeRequireAntigravity(
+    activeNode.nodeId,
+    activeNode.key,
+    activeNode.customNodeType,
+    effectiveNodeAiEngine,
+  );
+  const currentAntigravityMode: 'auto' | 'local' | 'cloud' =
+    currentCfg.antigravityMode ||
+    (effectiveNodeAiEngine === 'antigravity'
+      ? 'local'
+      : effectiveNodeAiEngine === 'antigravity_cloud'
+        ? 'cloud'
+        : 'auto');
+
+  const handleSelectNodeAntigravityMode = (mode: 'auto' | 'local' | 'cloud') => {
+    const isRootOrModelNode =
+      activeNode.key === 'sub_model' || activeNode.key === 'agent_root';
+    const isExtraAgentNode = activeNode.key.startsWith('agent_extra_');
+    const isUsingAntigravityAsEngine =
+      effectiveNodeAiEngine === 'antigravity' ||
+      effectiveNodeAiEngine === 'antigravity_cloud' ||
+      activeNode.nodeId?.includes('antigravity');
+
+    if (isRootOrModelNode && isUsingAntigravityAsEngine) {
+      if (mode === 'local') {
+        onSelectAiEngineModel('antigravity', 'antigravity-local-agent');
+      } else if (mode === 'cloud') {
+        onSelectAiEngineModel('antigravity_cloud', 'antigravity-cloud-agent');
+      } else {
+        const autoEngine = antigravityStatus?.localConnected
+          ? 'antigravity'
+          : 'antigravity_cloud';
+        const autoModel = antigravityStatus?.localConnected
+          ? 'antigravity-local-agent'
+          : 'antigravity-cloud-agent';
+        onSelectAiEngineModel(autoEngine, autoModel);
+      }
+    }
+
+    if (isExtraAgentNode && isUsingAntigravityAsEngine) {
+      const nextEng =
+        mode === 'local'
+          ? 'antigravity'
+          : mode === 'cloud'
+            ? 'antigravity_cloud'
+            : antigravityStatus?.localConnected
+              ? 'antigravity'
+              : 'antigravity_cloud';
+      const nextMod =
+        nextEng === 'antigravity' ? 'antigravity-local-agent' : 'antigravity-cloud-agent';
+      onUpdateNodeConfig(activeNode.key, {
+        antigravityMode: mode,
+        aiEngine: nextEng,
+        aiModel: nextMod,
+      });
+      return;
+    }
+
+    onUpdateNodeConfig(activeNode.key, { antigravityMode: mode });
+  };
+
+  const renderAntigravityModeSelectorPanel = () => {
+    const localUp = Boolean(antigravityStatus?.localConnected);
+    const cloudUp = Boolean(antigravityStatus?.cloudConnected);
+
+    return (
+      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-amber-500/5 to-cyan-500/10 border border-emerald-500/30 dark:border-[#C7F303]/40 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-[#C7F303]">
+              🛰️ Modo de Conexión Google Antigravity para este Nodo
+            </span>
+          </div>
+
+          {/* Indicador de estado en vivo a la derecha */}
+          <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-extrabold">
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                localUp
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-slate-500/10 border-slate-300/60 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  localUp ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                }`}
+              />
+              💻 Local PC/Mac: {localUp ? 'Conectado' : 'Apagado'}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                cloudUp
+                  ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-700 dark:text-cyan-300'
+                  : 'bg-slate-500/10 border-slate-300/60 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  cloudUp ? 'bg-cyan-500 animate-pulse' : 'bg-slate-400'
+                }`}
+              />
+              ☁️ Cloud 24/7: {cloudUp ? 'Activo' : 'En Espera'}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+          Elige cómo debe conectarse este nodo a Google Antigravity. En modo Automático intentará primero con tu PC/Mac local y, si no está encendido, pasará automáticamente a Antigravity Cloud 24/7.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2 py-1 px-1">
+          <ExpandableButton
+            type="button"
+            size="sm"
+            variant="emerald"
+            isActive={currentAntigravityMode === 'auto'}
+            icon={<Zap className="w-3.5 h-3.5" />}
+            label="⚡ Automático (1° Local ➔ 2° Cloud)"
+            onClick={() => handleSelectNodeAntigravityMode('auto')}
+          />
+          <ExpandableButton
+            type="button"
+            size="sm"
+            variant="amber"
+            isActive={currentAntigravityMode === 'local'}
+            icon={<Laptop className="w-3.5 h-3.5" />}
+            label="💻 Solo Local (Mi PC / Mac)"
+            onClick={() => handleSelectNodeAntigravityMode('local')}
+          />
+          <ExpandableButton
+            type="button"
+            size="sm"
+            variant="cyan"
+            isActive={currentAntigravityMode === 'cloud'}
+            icon={<Cloud className="w-3.5 h-3.5" />}
+            label="☁️ Solo Cloud 24/7"
+            onClick={() => handleSelectNodeAntigravityMode('cloud')}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderSpecificNodeEditor = () => {
+  /* ═════════════════════════════════════════════════════════════════════════
      EQUIPO 1: DISPARADORES (TRIGGER_NODES — 8 Nodos con UI Propia de Activación)
      ═════════════════════════════════════════════════════════════════════════ */
   if (activeNode.shape === 'trigger') {
@@ -1727,10 +1884,25 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   'wappy' | 'antigravity' | 'antigravity_cloud',
                   string,
                 ];
+                const syncedMode =
+                  eng === 'antigravity'
+                    ? currentCfg.antigravityMode === 'auto'
+                      ? 'auto'
+                      : 'local'
+                    : eng === 'antigravity_cloud'
+                      ? currentCfg.antigravityMode === 'auto'
+                        ? 'auto'
+                        : 'cloud'
+                      : currentCfg.antigravityMode || 'auto';
                 if (isExtraAgent) {
-                  onUpdateNodeConfig(activeNode.key, { aiEngine: eng, aiModel: mod });
+                  onUpdateNodeConfig(activeNode.key, {
+                    aiEngine: eng,
+                    aiModel: mod,
+                    antigravityMode: syncedMode,
+                  });
                 } else {
                   onSelectAiEngineModel(eng, mod);
+                  onUpdateNodeConfig(activeNode.key, { antigravityMode: syncedMode });
                 }
               }}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
@@ -1881,7 +2053,18 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               <button
                 key={m.id}
                 type="button"
-                onClick={() => onSelectAiEngineModel(m.engine, m.model)}
+                onClick={() => {
+                  onSelectAiEngineModel(m.engine, m.model);
+                  if (m.engine === 'antigravity') {
+                    onUpdateNodeConfig(activeNode.key, {
+                      antigravityMode: currentCfg.antigravityMode === 'auto' ? 'auto' : 'local',
+                    });
+                  } else if (m.engine === 'antigravity_cloud') {
+                    onUpdateNodeConfig(activeNode.key, {
+                      antigravityMode: currentCfg.antigravityMode === 'auto' ? 'auto' : 'cloud',
+                    });
+                  }
+                }}
                 className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
                   isSel
                     ? 'bg-indigo-50/90 dark:bg-slate-800 border-indigo-500 dark:border-[#C7F303] ring-2 ring-indigo-500/20 shadow-sm'
@@ -4456,6 +4639,14 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
       {/* 4. HISTORIAL DE INFORMES GUARDADOS DE ESTE APLICATIVO */}
       {renderReportHistorySection()}
+    </div>
+  );
+  };
+
+  return (
+    <div className="space-y-4">
+      {requiresAntigravity && renderAntigravityModeSelectorPanel()}
+      {renderSpecificNodeEditor()}
     </div>
   );
 }

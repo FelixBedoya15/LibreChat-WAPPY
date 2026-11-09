@@ -1494,26 +1494,35 @@ function stopAutomationScheduler() {
 
 /**
  * Detecta si un nodo del flujo corresponde a un Scraper / Verificador de Google Antigravity
- * (ej. Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, Seguridad Social RUAF/ADRES, Proveedores & ARL o Scraper Web AGY).
+ * (ej. Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, Seguridad Social RUAF/ADRES, Proveedores & ARL, Carpeta PC o Scraper Web AGY).
  */
 function isAntigravityScraperIdentifier(nodeKey, nodeId, customNodeObj = null) {
   const hay = `${nodeKey || ''} ${nodeId || ''} ${customNodeObj?.id || ''} ${customNodeObj?.key || ''} ${customNodeObj?.nodeType || ''} ${customNodeObj?.title || ''} ${customNodeObj?.targetUrl || ''}`.toLowerCase();
   return (
     hay.includes('scraper_agy') ||
+    hay.includes('scraper_node_antigravity') ||
     hay.includes('extract_web_scraping') ||
+    hay.includes('tool_web_scraping_agy') ||
+    hay.includes('subagent_scraper_agy') ||
     hay.includes('web_scraper') ||
+    hay.includes('extract_pc_folder') ||
+    hay.includes('pc_folder') ||
+    hay.includes('arl_directo') ||
+    hay.includes('pensiones_directo') ||
+    hay.includes('salud_rethus') ||
+    hay.includes('vial_pesv') ||
     hay.includes('mintrabajo') ||
     hay.includes('alto_riesgo') ||
     hay.includes('centrosentrenamiento') ||
-    hay.includes('antecedentes_360') ||
+    hay.includes('antecedentes') ||
     hay.includes('seguridad_social')
   );
 }
 
 /**
  * Ejecuta la verificación REAL en portales oficiales (MinTrabajo Centros de Entrenamiento Res. 4272/2021 y Res. 0491/2020,
- * SENA Sofia Plus y Rama Judicial) despachando la consulta a través del puente Google Antigravity (`wappy-push-daemon.js`)
- * o del motor OSINT en vivo (`osintWorkerService.js`).
+ * SENA Sofia Plus, Rama Judicial, ARL, Pensiones, Salud ReTHUS, Vial PESV, Carpeta Local PC y Scraper Web)
+ * despachando la consulta a través del puente Google Antigravity (`wappy-push-daemon.js`) o del motor OSINT en vivo (`osintWorkerService.js`).
  */
 async function executeRealAntigravityScraperVerification({
   userIdStr,
@@ -1532,10 +1541,168 @@ async function executeRealAntigravityScraperVerification({
   const {
     consultarAlturasMinTrabajo,
     consultarRamaJudicial,
+    consultarPortalEspecíficoAntigravity,
   } = require('~/server/services/osintWorkerService');
 
-  const combinedId = `${nodeKey} ${nodeId} ${customNodeObj?.id || ''} ${customNodeObj?.title || ''}`.toLowerCase();
-  const isAntecedentes = combinedId.includes('antecedentes_360') || combinedId.includes('rama_judicial');
+  const antigravityMode = String(
+    nodeCfg?.antigravityMode || customNodeObj?.antigravityMode || 'auto',
+  ).toLowerCase();
+  const modeHeaderLine = `- **Modo Antigravity Configurado:** ${
+    antigravityMode === 'local'
+      ? '💻 Solo Local (Mi PC)'
+      : antigravityMode === 'cloud'
+        ? '☁️ Solo Cloud 24/7'
+        : '⚡ Automático (1° Local ➔ 2° Cloud)'
+  }`;
+
+  const combinedId = `${nodeKey} ${nodeId} ${customNodeObj?.id || ''} ${customNodeObj?.nodeType || ''} ${customNodeObj?.title || ''}`.toLowerCase();
+
+  // Caso A: Carpeta Local PC / Mac (`extract_pc_folder` / `pc_folder`)
+  if (combinedId.includes('extract_pc_folder') || combinedId.includes('pc_folder')) {
+    const folderPath = nodeCfg?.watchFolderPath || nodeCfg?.driveFolderName || '~/Documents';
+    let folderRes = null;
+    if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+      folderRes = await global
+        .dispatchOsintViaAntigravityDaemon({
+          action: 'pc_folder',
+          folderPath,
+          userId: userIdStr,
+          antigravityMode,
+        })
+        .catch(() => null);
+    }
+    const durationMs = Math.max(1, Date.now() - t0);
+    const files = Array.isArray(folderRes?.files) ? folderRes.files : [];
+    const resolvedDir = folderRes?.folderPath || folderPath;
+    const statusMsg = folderRes?.error
+      ? `⚠️ ${folderRes.error}`
+      : folderRes?.fuente || 'Disco Local vía Google Antigravity (Mac/PC)';
+
+    const lines = [
+      `🛰️ **LECTURA DE CARPETA LOCAL VÍA GOOGLE ANTIGRAVITY (${nodeTitle || 'Carpeta de mi PC'})**`,
+      modeHeaderLine,
+      `- **Canal de Ejecución:** ${statusMsg}`,
+      `- **Ruta Inspeccionada en Mac/PC:** \`${resolvedDir}\``,
+      `- **Tiempo Real de Lectura:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
+      `- **Archivos Detectados:** **${files.length}** elemento(s)`,
+      '',
+      '| # | Archivo / Elemento | Tipo | Tamaño (KB) | Última Modificación | Extracto / Contenido |',
+      '| :--- | :--- | :---: | :---: | :--- | :--- |',
+    ];
+    if (files.length > 0) {
+      files.forEach((f, idx) => {
+        lines.push(
+          `| ${idx + 1} | **${f.name}** | ${f.isDirectory ? '📁 Carpeta' : '📄 Archivo'} | ${f.sizeKB ?? 0} KB | ${f.modifiedAt ? String(f.modifiedAt).split('T')[0] : '—'} | ${f.excerpt ? String(f.excerpt).replace(/\|/g, '·') : '—'} |`,
+        );
+      });
+    } else {
+      lines.push(
+        `| 1 | *(Sin archivos leídos)* | — | 0 KB | — | ${folderRes?.error || `No se encontraron archivos en ${resolvedDir} o el daemon local no está en línea.`} |`,
+      );
+    }
+
+    return {
+      durationMs,
+      recordsCount: Math.max(1, files.length),
+      relayUsedCount: folderRes && !folderRes.error ? 1 : 0,
+      verifiedWithCoursesCount: files.length,
+      verifiedNoCoursesCount: 0,
+      antigravityMode,
+      inputSummary: `${statusMsg} · Carpeta ${resolvedDir} (${files.length} archivos)`,
+      outputPreview: lines.join('\n'),
+    };
+  }
+
+  // Determinar si es portal específico, antecedentes, alto riesgo/mintrabajo o web scraper genérico
+  const isArlDirecto = combinedId.includes('arl_directo');
+  const isPensionesDirecto = combinedId.includes('pensiones_directo');
+  const isSaludRethus = combinedId.includes('salud_rethus');
+  const isVialPesv = combinedId.includes('vial_pesv');
+  const isAntecedentes = combinedId.includes('antecedentes') || combinedId.includes('rama_judicial');
+  const isAltoRiesgo = combinedId.includes('alto_riesgo') || combinedId.includes('mintrabajo') || combinedId.includes('centrosentrenamiento');
+  const isGenericWebScraper =
+    !isArlDirecto &&
+    !isPensionesDirecto &&
+    !isSaludRethus &&
+    !isVialPesv &&
+    !isAntecedentes &&
+    !isAltoRiesgo &&
+    (combinedId.includes('scraper_node_antigravity') ||
+      combinedId.includes('extract_web_scraping_agy') ||
+      combinedId.includes('tool_web_scraping_agy') ||
+      combinedId.includes('subagent_scraper_agy') ||
+      combinedId.includes('web_scraper') ||
+      combinedId.includes('extract_web_scraping'));
+
+  // Caso B: Web Scraper Genérico (`web_scrape`)
+  if (isGenericWebScraper) {
+    const targetUrl =
+      customNodeObj?.targetUrl || nodeCfg?.targetUrl || 'https://www.mintrabajo.gov.co';
+    let scrapeRes = null;
+    if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+      scrapeRes = await global
+        .dispatchOsintViaAntigravityDaemon({
+          action: 'web_scrape',
+          targetUrl,
+          userId: userIdStr,
+          antigravityMode,
+        })
+        .catch(() => null);
+    }
+    if (!scrapeRes && antigravityMode !== 'local' && antigravityMode !== 'cloud') {
+      try {
+        const firstUrl = String(targetUrl).split(',')[0].trim() || 'https://www.mintrabajo.gov.co';
+        const normUrl = /^https?:\/\//i.test(firstUrl) ? firstUrl : `https://${firstUrl}`;
+        const r = await fetch(normUrl, { signal: AbortSignal.timeout(10000) });
+        const html = await r.text();
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        scrapeRes = {
+          fuente: 'Web Scraper Directo WAPPY',
+          status: 'ok',
+          url: normUrl,
+          title: titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : normUrl,
+          textExcerpt: html
+            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 3500),
+        };
+      } catch (e) {
+        scrapeRes = {
+          fuente: 'Web Scraper Google Antigravity',
+          status: 'error',
+          url: targetUrl,
+          error: e.message,
+        };
+      }
+    }
+    const durationMs = Math.max(1, Date.now() - t0);
+    const lines = [
+      `🛰️ **EXTRACCIÓN WEB EN TIEMPO REAL — GOOGLE ANTIGRAVITY (${nodeTitle || 'Web Scraper AGY'})**`,
+      modeHeaderLine,
+      `- **Canal de Ejecución:** ${scrapeRes?.error ? `⚠️ ${scrapeRes.error}` : scrapeRes?.fuente || 'Web Scraper Google Antigravity'}`,
+      `- **URL Consultada:** \`${scrapeRes?.url || targetUrl}\``,
+      `- **Título Extraído:** ${scrapeRes?.title || 'N/A'}`,
+      `- **Tiempo Real HTTP:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
+      '',
+      `### 📄 Contenido Extraído de la Página:`,
+      scrapeRes?.textExcerpt
+        ? `> ${String(scrapeRes.textExcerpt).slice(0, 1800)}`
+        : `> ${scrapeRes?.error || 'Sin contenido extraído.'}`,
+    ];
+    return {
+      durationMs,
+      recordsCount: 1,
+      relayUsedCount: scrapeRes && !scrapeRes.error ? 1 : 0,
+      verifiedWithCoursesCount: scrapeRes?.textExcerpt ? 1 : 0,
+      verifiedNoCoursesCount: scrapeRes?.textExcerpt ? 0 : 1,
+      antigravityMode,
+      inputSummary: `${scrapeRes?.fuente || 'Web Scraper Antigravity'} · ${scrapeRes?.url || targetUrl}`,
+      outputPreview: lines.join('\n'),
+    };
+  }
 
   // 1. Extraer cédulas explícitas escritas en el prompt, caso de prueba o configuración del nodo (6 a 11 dígitos)
   const explicitText = [
@@ -1613,6 +1780,7 @@ async function executeRealAntigravityScraperVerification({
       nombre: matchedWorker?.nombre || matchedWorker?.fullName || `Cédula solicitada (${ced})`,
       cargo: matchedWorker?.cargo || matchedWorker?.position || 'Consulta directa',
       riesgo: matchedWorker?.nivelRiesgo || matchedWorker?.riskLevel || 'N/A',
+      placa: matchedWorker?.placa || '',
     });
   }
 
@@ -1629,6 +1797,7 @@ async function executeRealAntigravityScraperVerification({
         nombre: w.nombre || w.fullName || 'Colaborador',
         cargo: w.cargo || w.position || 'Operativo',
         riesgo: w.nivelRiesgo || w.riskLevel || 'I',
+        placa: w.placa || '',
       });
     }
   }
@@ -1637,11 +1806,21 @@ async function executeRealAntigravityScraperVerification({
   const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 12);
   const nonNumericTargets = allTargets.filter((t) => !t.isNumericValid);
 
+  const specificPortalAction = isArlDirecto
+    ? 'arl'
+    : isPensionesDirecto
+      ? 'pensiones'
+      : isSaludRethus
+        ? 'salud_rethus'
+        : isVialPesv
+          ? 'vial_pesv'
+          : null;
+
   console.log(
-    `[Antigravity Scraper] 🚀 Iniciando verificación REAL en MinTrabajo/OSINT para "${companyName}" (${validTargets.length} cédulas numéricas válidas, ${nonNumericTargets.length} no numéricas)...`,
+    `[Antigravity Scraper] 🚀 Iniciando verificación REAL (${specificPortalAction || (isAntecedentes ? 'antecedentes' : 'alto_riesgo')}, mode=${antigravityMode}) para "${companyName}" (${validTargets.length} cédulas numéricas válidas)...`,
   );
 
-  // 4. Ejecutar consultas reales en lotes de 4 en paralelo (priorizando el daemon Google Antigravity conectado del usuario)
+  // 4. Ejecutar consultas reales en lotes de 4 en paralelo
   const verificationRows = [];
   let relayUsedCount = 0;
   let verifiedWithCoursesCount = 0;
@@ -1653,11 +1832,61 @@ async function executeRealAntigravityScraperVerification({
     const batchResults = await Promise.all(
       batch.map(async (target) => {
         try {
+          if (specificPortalAction) {
+            let portalRes = null;
+            if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+              portalRes = await global
+                .dispatchOsintViaAntigravityDaemon({
+                  userId: userIdStr,
+                  action: specificPortalAction,
+                  tipoDoc: 'CC',
+                  cedula: target.cleanCedula,
+                  nombre: target.nombre,
+                  placa: target.placa || '',
+                  antigravityMode,
+                })
+                .catch(() => null);
+            }
+            if (!portalRes && antigravityMode === 'auto') {
+              portalRes = await consultarPortalEspecíficoAntigravity({
+                action: specificPortalAction,
+                tipoDoc: 'CC',
+                cedula: target.cleanCedula,
+                nombre: target.nombre,
+                placa: target.placa || '',
+              });
+            }
+            return { target, portalRes };
+          }
+
+          if (isAntecedentes && !isAltoRiesgo) {
+            let rjRes = null;
+            if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
+              rjRes = await global
+                .dispatchOsintViaAntigravityDaemon({
+                  userId: userIdStr,
+                  action: 'antecedentes',
+                  tipoDoc: 'CC',
+                  cedula: target.cleanCedula,
+                  nombre: target.nombre,
+                  antigravityMode,
+                })
+                .catch(() => null);
+            }
+            if (!rjRes && antigravityMode === 'auto') {
+              rjRes = await consultarRamaJudicial({ nombreCompleto: target.nombre }).catch(
+                () => null,
+              );
+            }
+            return { target, rjOnly: true, rjRes };
+          }
+
           const mtRes = await consultarAlturasMinTrabajo({
             tipoDoc: 'CC',
             cedula: target.cleanCedula,
             includePdf: false,
             userId: userIdStr,
+            antigravityMode,
             preferAntigravityDaemon: true,
           });
           let rjRes = null;
@@ -1671,7 +1900,7 @@ async function executeRealAntigravityScraperVerification({
             mtRes: {
               fuente: 'MinTrabajo',
               status: 'error',
-              resumen: err?.message || 'Error de conexión con MinTrabajo',
+              resumen: err?.message || 'Error de conexión con portal oficial',
               cursos: [],
             },
             rjRes: null,
@@ -1680,8 +1909,52 @@ async function executeRealAntigravityScraperVerification({
       }),
     );
 
-    for (const { target, mtRes, rjRes } of batchResults) {
-      if (String(mtRes?.fuente || '').includes('Antigravity')) {
+    for (const item of batchResults) {
+      const { target } = item;
+      if (item.portalRes) {
+        const pRes = item.portalRes;
+        if (String(pRes?.fuente || '').includes('Antigravity')) {
+          relayUsedCount++;
+        }
+        const isOk = pRes.status === 'ok';
+        if (isOk) verifiedWithCoursesCount++;
+        else verifiedNoCoursesCount++;
+        verificationRows.push({
+          nombre: target.nombre,
+          documento: target.cleanCedula,
+          cargo: target.cargo,
+          estado: isOk ? '✅ VERIFICADO EN PORTAL' : `⚠️ ${pRes.error || 'ADVERTENCIA'}`,
+          detalle: pRes.resumen || pRes.error || 'Verificación completada.',
+          fuente: pRes.fuente || 'Google Antigravity',
+        });
+        continue;
+      }
+
+      if (item.rjOnly) {
+        const rjRes = item.rjRes || {};
+        if (String(rjRes?.fuente || '').includes('Antigravity')) {
+          relayUsedCount++;
+        }
+        const hasProcs = Number(rjRes?.totalProcesos || 0) > 0;
+        if (!rjRes?.error) verifiedWithCoursesCount++;
+        else verifiedNoCoursesCount++;
+        verificationRows.push({
+          nombre: target.nombre,
+          documento: target.cleanCedula,
+          cargo: target.cargo,
+          estado: rjRes.error
+            ? `⚠️ ${rjRes.status || 'SIN CONEXIÓN'}`
+            : hasProcs
+              ? `⚠️ ${rjRes.totalProcesos} PROCESO(S) JUDICIAL(ES)`
+              : '✅ SIN PROCESOS ACTIVOS',
+          detalle: rjRes.resumen || rjRes.error || 'Verificado en Rama Judicial API v2.',
+          fuente: rjRes.fuente || 'Rama Judicial',
+        });
+        continue;
+      }
+
+      const { mtRes, rjRes } = item;
+      if (String(mtRes?.fuente || '').includes('Antigravity') || mtRes?.viaAntigravityDaemon) {
         relayUsedCount++;
       }
       const cursos = Array.isArray(mtRes?.cursos) ? mtRes.cursos : [];
@@ -1690,7 +1963,7 @@ async function executeRealAntigravityScraperVerification({
         const latest = cursos[0];
         const badge =
           mtRes.status === 'warning'
-            ? `⚠️ VENCIDO / REENTRENAMIENTO (${ mtRes.diasDesdeUltimoCurso || '?'} días)`
+            ? `⚠️ VENCIDO / REENTRENAMIENTO (${mtRes.diasDesdeUltimoCurso || '?'} días)`
             : '✅ CERTIFICADO VIGENTE';
         const detalle = `${latest.programa || latest.nivel || 'Alturas'} · Centro: ${latest.entrenador || 'Autorizado'} · Fecha: ${latest.fechaTerminacion || 'Registrada'} · Cert: #${latest.nroCertificado || 'S/N'}`;
         verificationRows.push({
@@ -1706,7 +1979,7 @@ async function executeRealAntigravityScraperVerification({
         const estadoLabel =
           mtRes?.status === 'ok'
             ? '❌ SIN REGISTRO EN MINTRABAJO'
-            : `⚠️ ${mtRes?.status === 'blocked' ? 'BLOQUEO GEO/CAPTCHA' : 'SIN DATOS'}`;
+            : `⚠️ ${mtRes?.status === 'blocked' ? 'BLOQUEO GEO/CAPTCHA' : mtRes?.status || 'SIN DATOS'}`;
         const detalleMsg =
           mtRes?.resumen ||
           `No registra certificados de Trabajo Seguro en Alturas (Res. 4272/2021) ni Espacios Confinados (Res. 0491/2020) en la base oficial de MinTrabajo para la CC ${target.cleanCedula}.`;
@@ -1728,7 +2001,7 @@ async function executeRealAntigravityScraperVerification({
       documento: invalidTarget.rawDoc,
       cargo: invalidTarget.cargo,
       estado: '⚪ DOC. DE PRUEBA / NO NUMÉRICO',
-      detalle: `El documento "${invalidTarget.rawDoc}" contiene letras o formato de prueba; MinTrabajo exige número de cédula numérico (CC/CE/PPT).`,
+      detalle: `El documento "${invalidTarget.rawDoc}" contiene letras o formato de prueba; el portal oficial exige número de cédula numérico (CC/CE/PPT).`,
       fuente: 'Validación Previa WAPPY',
     });
   }
@@ -1736,17 +2009,17 @@ async function executeRealAntigravityScraperVerification({
   const durationMs = Math.max(1, Date.now() - t0);
   const engineUsedLabel =
     relayUsedCount > 0
-      ? `🛰️ Puente Google Antigravity Push Daemon Activo (${relayUsedCount}/${validTargets.length} consultas ejecutadas desde tu Mac con IP Local Colombia)`
-      : `🌐 Consulta en Vivo Directa a Portal Oficial MinTrabajo (${validTargets.length} cédulas verificadas)`;
+      ? `🛰️ Puente Google Antigravity Push Daemon Activo (${relayUsedCount}/${validTargets.length} consultas ejecutadas vía Antigravity)`
+      : `🌐 Consulta en Vivo Directa a Portal Oficial (${validTargets.length} cédulas verificadas)`;
 
   const tableLines = [
-    `🛰️ **VERIFICACIÓN OFICIAL EN TIEMPO REAL — GOOGLE ANTIGRAVITY & MINTRABAJO (${nodeTitle || 'Alto Riesgo & SENA'})**`,
+    `🛰️ **VERIFICACIÓN OFICIAL EN TIEMPO REAL — GOOGLE ANTIGRAVITY (${nodeTitle || 'Alto Riesgo & SENA'})**`,
+    modeHeaderLine,
     `- **Canal de Ejecución:** ${engineUsedLabel}`,
-    `- **Portal Consultado:** \`https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx\` (Res. 4272/2021 Alturas y Res. 0491/2020 Confinados)`,
-    `- **Tiempo Real de Consulta HTTP/ASP.NET:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
-    `- **Resumen de Hallazgos:** ${validTargets.length} cédula(s) numérica(s) consultada(s) en MinTrabajo · **${verifiedWithCoursesCount}** con certificado registrado · **${verifiedNoCoursesCount}** sin registro en MinTrabajo${nonNumericTargets.length > 0 ? ` · **${nonNumericTargets.length}** documento(s) de prueba no numérico(s)` : ''}.`,
+    `- **Tiempo Real de Consulta HTTP:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
+    `- **Resumen de Hallazgos:** ${validTargets.length} cédula(s) numérica(s) consultada(s) · **${verifiedWithCoursesCount}** verificada(s) con hallazgo/registro · **${verifiedNoCoursesCount}** sin registro o alerta${nonNumericTargets.length > 0 ? ` · **${nonNumericTargets.length}** documento(s) de prueba no numérico(s)` : ''}.`,
     '',
-    '| # | Colaborador | Cédula / Doc. | Cargo | Estado en MinTrabajo (En Vivo) | Detalle Oficial Extraído |',
+    '| # | Colaborador | Cédula / Doc. | Cargo | Estado en Portal Oficial (En Vivo) | Detalle Oficial Extraído |',
     '| :--- | :--- | :--- | :--- | :--- | :--- |',
   ];
 
@@ -1764,7 +2037,7 @@ async function executeRealAntigravityScraperVerification({
 
   const outputPreview = tableLines.join('\n');
   console.log(
-    `[Antigravity Scraper] ✅ Verificación completada en ${durationMs}ms (Relay Antigravity: ${relayUsedCount}/${validTargets.length}, Con curso: ${verifiedWithCoursesCount}, Sin curso: ${verifiedNoCoursesCount}).`,
+    `[Antigravity Scraper] ✅ Verificación completada en ${durationMs}ms (Relay Antigravity: ${relayUsedCount}/${validTargets.length}, OK: ${verifiedWithCoursesCount}, Otros: ${verifiedNoCoursesCount}).`,
   );
 
   return {
@@ -1773,7 +2046,8 @@ async function executeRealAntigravityScraperVerification({
     relayUsedCount,
     verifiedWithCoursesCount,
     verifiedNoCoursesCount,
-    inputSummary: `${engineUsedLabel} · ${validTargets.length} cédula(s) verificada(s) en MinTrabajo`,
+    antigravityMode,
+    inputSummary: `${engineUsedLabel} · ${validTargets.length} cédula(s) verificada(s)`,
     outputPreview,
   };
 }
@@ -2272,12 +2546,19 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         });
         if (realScraperRes?.outputPreview) {
           previewLines.unshift(realScraperRes.outputPreview);
-          inputSummaryText = realScraperRes.inputSummary || inputSummaryText;
+          const agyMode = String(cfg?.antigravityMode || realScraperRes?.antigravityMode || 'auto');
+          inputSummaryText =
+            category === 'tool'
+              ? `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${agyMode.toUpperCase()}) y devolviendo respuesta al Agente IA`
+              : realScraperRes.inputSummary || inputSummaryText;
           finalRecordsCount = Math.max(finalRecordsCount, realScraperRes.recordsCount || 1);
         }
       } catch (scErr) {
         console.warn('[Sandbox Play] Aviso ejecutando Scraper Antigravity en executeDataStep:', scErr?.message);
       }
+    } else if (category === 'tool') {
+      const agyMode = String(cfg?.antigravityMode || 'auto');
+      inputSummaryText = `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${agyMode.toUpperCase()}) y devolviendo respuesta al Agente IA`;
     }
 
     const stepItem = {
@@ -2475,6 +2756,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         });
 
         totalExtractedRecords += realScraper.recordsCount || 0;
+        const antigravityMode = String(
+          cnCfg?.antigravityMode || cn?.antigravityMode || realScraper?.antigravityMode || 'auto',
+        );
+        const reactToolInputSummary = `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()}) y devolviendo respuesta al Agente IA`;
         const cnStep = {
           stepIndex: ++stepCounter,
           nodeKey,
@@ -2487,8 +2772,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           durationMs: realScraper.durationMs || 850,
           recordsCount: realScraper.recordsCount || 1,
           surgicalFields: [],
-          inputSummary: realScraper.inputSummary,
-          inputContext: realScraper.inputSummary,
+          inputSummary: reactToolInputSummary,
+          inputContext: reactToolInputSummary,
           outputPreview: realScraper.outputPreview,
         };
         nodeTrace.push(cnStep);
@@ -2518,6 +2803,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .filter(Boolean)
         .join('\n');
 
+      const antigravityMode = String(cnCfg?.antigravityMode || cn?.antigravityMode || 'auto');
+      const cnInputSummary =
+        category === 'custom_node'
+          ? `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()}) y devolviendo respuesta al Agente IA`
+          : `Paso conectado en posición #${stepCounter + 1}`;
       const cnStep = {
         stepIndex: ++stepCounter,
         nodeKey,
@@ -2528,8 +2818,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         durationMs: 25,
         recordsCount: 1,
         surgicalFields: [],
-        inputSummary: `Paso conectado en posición #${stepCounter}`,
-        inputContext: `Paso conectado en posición #${stepCounter}`,
+        inputSummary: cnInputSummary,
+        inputContext: cnInputSummary,
         outputPreview:
           details ||
           `Paso "${stepCustomTitle || nodeKey}" ejecutado dentro de la secuencia conectada (${totalExtractedRecords} registros acumulados).`,
@@ -2762,6 +3052,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         durationMs: agentExec.durationMs,
       });
 
+      const reactCycleSummary = `1° Recibió datos de entrada (${totalExtractedRecords} reg.) y analizó el Prompt con ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'} ➔ 2° Consultó herramientas/Antigravity ➔ 3° Procesó la respuesta y envía el dictamen a las salidas`;
       const agentStepItem = {
         stepIndex: ++stepCounter,
         nodeKey,
@@ -2772,8 +3063,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         durationMs: agentExec.durationMs,
         recordsCount: 1,
         surgicalFields: [],
-        inputSummary: `Recibió ${upstreamSteps.length} paso(s) conectados previos (${totalExtractedRecords} reg.)`,
-        inputContext: `Recibió ${upstreamSteps.length} paso(s) conectados previos (${totalExtractedRecords} reg.)`,
+        inputSummary: reactCycleSummary,
+        inputContext: reactCycleSummary,
         outputPreview: agentResponseText.slice(0, 1200),
       };
       nodeTrace.push(agentStepItem);

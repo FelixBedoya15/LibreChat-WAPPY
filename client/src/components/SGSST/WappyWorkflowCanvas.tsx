@@ -93,6 +93,7 @@ import {
   normalizeMemoriesList,
   WAPPY_AGENT_AVATAR_ROTATION,
   getRotatedAgentAvatar,
+  doesNodeRequireAntigravity,
   type WorkflowNodesConfig,
   type CanvasNodePosition,
   type CanvasWireEdge,
@@ -1878,6 +1879,7 @@ export default function WappyWorkflowCanvas({
               ...ea,
               ...(partial.aiEngine ? { aiEngine: partial.aiEngine } : {}),
               ...(partial.aiModel ? { aiModel: partial.aiModel } : {}),
+              ...(partial.antigravityMode ? { antigravityMode: partial.antigravityMode } : {}),
               ...(partial.prompt !== undefined ? { prompt: partial.prompt } : {}),
               ...(partial.inputContext !== undefined ? { inputContext: partial.inputContext } : {}),
               ...(partial.outputContext !== undefined ? { outputContext: partial.outputContext } : {}),
@@ -1897,6 +1899,7 @@ export default function WappyWorkflowCanvas({
               ...(partial.customSubtitle !== undefined ? { subtitle: partial.customSubtitle } : {}),
               ...(partial.aiEngine ? { aiEngine: partial.aiEngine } : {}),
               ...(partial.aiModel ? { aiModel: partial.aiModel } : {}),
+              ...(partial.antigravityMode ? { antigravityMode: partial.antigravityMode } : {}),
               ...(partial.linkedAgentId !== undefined ? { agentId: partial.linkedAgentId } : {}),
               ...(partial.targetUrl !== undefined ? { targetUrl: partial.targetUrl } : {}),
               ...(partial.scriptEngine ? { scriptEngine: partial.scriptEngine } : {}),
@@ -1911,6 +1914,9 @@ export default function WappyWorkflowCanvas({
 
     onChange({
       ...workflowNodes,
+      ...((nodeKey === 'agent_root' || nodeKey === 'sub_model') && partial.antigravityMode
+        ? { antigravityMode: partial.antigravityMode }
+        : {}),
       canvasLayout: {
         ...(workflowNodes?.canvasLayout || {}),
         ...(nextExtra ? { extraAgents: nextExtra } : {}),
@@ -4889,11 +4895,55 @@ export default function WappyWorkflowCanvas({
               const nodeCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[node.key];
               const hasCustomConfig = Boolean(
                 (nodeCfg?.fields && nodeCfg.fields.length > 0) ||
+                  nodeCfg?.antigravityMode ||
                   nodeCfg?.inputContext?.trim() ||
                   nodeCfg?.outputContext?.trim() ||
                   nodeCfg?.customInstruction?.trim() ||
                   nodeCfg?.prompt?.trim(),
               );
+              const nodeEffectiveAiEngine =
+                nodeCfg?.aiEngine ||
+                (node.key.startsWith('agent_extra_')
+                  ? (workflowNodes?.canvasLayout?.extraAgents || []).find(
+                      (ea) => ea.key === node.key,
+                    )?.aiEngine
+                  : aiEngine);
+              const isNodeAntigravity = doesNodeRequireAntigravity(
+                node.nodeId,
+                node.key,
+                node.customNodeType,
+                nodeEffectiveAiEngine,
+              );
+              const showAntigravityBadge =
+                node.key !== 'agent_root' &&
+                node.key !== 'sub_model' &&
+                !node.key.startsWith('agent_extra_')
+                  ? isNodeAntigravity
+                  : Boolean(
+                      nodeCfg?.antigravityMode ||
+                        nodeEffectiveAiEngine === 'antigravity' ||
+                        nodeEffectiveAiEngine === 'antigravity_cloud',
+                    );
+              const resolvedAgyMode: 'auto' | 'local' | 'cloud' =
+                nodeCfg?.antigravityMode ||
+                (nodeEffectiveAiEngine === 'antigravity'
+                  ? 'local'
+                  : nodeEffectiveAiEngine === 'antigravity_cloud'
+                    ? 'cloud'
+                    : 'auto');
+              const agyModeBadgeLabel =
+                resolvedAgyMode === 'local'
+                  ? '💻 AGY Local'
+                  : resolvedAgyMode === 'cloud'
+                    ? '☁️ AGY Cloud'
+                    : '⚡ AGY Auto';
+              const agyModePillClass =
+                resolvedAgyMode === 'local'
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300'
+                  : resolvedAgyMode === 'cloud'
+                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-700 dark:text-cyan-300'
+                    : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300';
+
               const selectedRingClass = isSandboxHighlighted
                 ? 'ring-4 ring-emerald-500 dark:ring-[#C7F303] ring-offset-2 dark:ring-offset-slate-900 shadow-lg shadow-emerald-500/25'
                 : isNodeSelected
@@ -4962,7 +5012,9 @@ export default function WappyWorkflowCanvas({
                       <div className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
                         {node.title}
                       </div>
-                      <div className="text-[9.5px] font-medium text-slate-400">{node.subtitle}</div>
+                      <div className="text-[9.5px] font-medium text-slate-400">
+                        {showAntigravityBadge ? `${agyModeBadgeLabel} · ${node.subtitle}` : node.subtitle}
+                      </div>
                     </div>
                   </div>
                 );
@@ -4984,7 +5036,7 @@ export default function WappyWorkflowCanvas({
                     {renderSandboxNodeOverlay(node)}
 
                     <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-sky-600 text-white text-[7.5px] font-black uppercase tracking-wider shadow-xs z-10 whitespace-nowrap">
-                      Extraer
+                      {showAntigravityBadge ? agyModeBadgeLabel : 'Extraer'}
                     </span>
 
                     <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-500 border-2 border-white dark:border-slate-900" />
@@ -5027,7 +5079,10 @@ export default function WappyWorkflowCanvas({
                         {node.title}
                       </div>
                       <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
-                        {buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                        {buildNodeConfigSummary(nodeCfg) ||
+                          (showAntigravityBadge
+                            ? `${agyModeBadgeLabel} · ${node.subtitle}`
+                            : node.subtitle)}
                       </div>
                     </div>
                   </div>
@@ -5103,9 +5158,18 @@ export default function WappyWorkflowCanvas({
                           <span className="text-[11.5px] font-black text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
                             {node.title}
                           </span>
-                          <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 whitespace-nowrap">
-                            {isExtraAgent ? `${rotatedAvatar.animal} · #${extraIdx + 2}` : 'Principal'}
-                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {showAntigravityBadge && (
+                              <span
+                                className={`px-1 py-0.2 rounded border text-[7.5px] font-extrabold whitespace-nowrap ${agyModePillClass}`}
+                              >
+                                {agyModeBadgeLabel}
+                              </span>
+                            )}
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 whitespace-nowrap">
+                              {isExtraAgent ? `${rotatedAvatar.animal} · #${extraIdx + 2}` : 'Principal'}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Selector directo de Agente Especialista (según permisos del usuario) + Tenshi Avatar */}
@@ -5493,7 +5557,11 @@ export default function WappyWorkflowCanvas({
                       <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
                         {node.title}
                       </div>
-                      <div className="text-[9px] text-slate-400 truncate">{node.subtitle}</div>
+                      <div className="text-[9px] text-slate-400 truncate">
+                        {showAntigravityBadge
+                          ? `${agyModeBadgeLabel} · ${node.subtitle}`
+                          : node.subtitle}
+                      </div>
                     </div>
                   </div>
                 );
@@ -5505,11 +5573,13 @@ export default function WappyWorkflowCanvas({
                   node.customNodeType === 'skill'
                     ? '🧩 Skill'
                     : node.customNodeType === 'subagent'
-                      ? '🤖 Sub-Agente'
+                      ? showAntigravityBadge
+                        ? `🤖 ${agyModeBadgeLabel}`
+                        : '🤖 Sub-Agente'
                       : node.customNodeType === 'rule'
                         ? '📏 Regla'
                         : node.customNodeType === 'web_scraper'
-                          ? '🕷️ Scraper AGY'
+                          ? `🕷️ ${agyModeBadgeLabel}`
                           : '🌐 Búsqueda Web';
                 const badgeColor =
                   node.customNodeType === 'skill'
@@ -5612,7 +5682,9 @@ export default function WappyWorkflowCanvas({
                         {node.title}
                       </div>
                       <div className="text-[9px] text-purple-600 dark:text-purple-400 font-semibold truncate">
-                        {node.subtitle}
+                        {showAntigravityBadge
+                          ? `${agyModeBadgeLabel} · ${node.subtitle}`
+                          : node.subtitle}
                       </div>
                     </div>
                   </div>
@@ -5691,7 +5763,9 @@ export default function WappyWorkflowCanvas({
                       {node.title}
                     </div>
                     <div className="text-[8.5px] font-semibold text-slate-400 truncate">
-                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                      {showAntigravityBadge
+                        ? `${agyModeBadgeLabel} · ${buildNodeConfigSummary(nodeCfg) || node.subtitle}`
+                        : buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
                   </div>
                 </div>
@@ -5762,32 +5836,51 @@ export default function WappyWorkflowCanvas({
 
       {/* ─── ESCENARIO DE DESARROLLO & SIMULACIÓN EN VIVO (MODO SANDBOX SIN ENVIAR A LAS SALIDAS) ─── */}
       {!compact && (
-        <WappyWorkflowSandboxPanel
-          open={sandboxOpen}
-          running={sandboxRunning}
-          result={sandboxResult}
-          error={sandboxError}
-          mockTriggerInput={mockTriggerInput}
-          onChangeMockTriggerInput={setMockTriggerInput}
-          onRunSimulation={handleRunSandboxSimulation}
-          onClearSimulation={() => {
-            setSandboxResult(null);
-            setSandboxError(null);
-            setSandboxActiveStepNodeId(null);
-            setSandboxCompletedNodeKeys([]);
-            setSandboxBlockedNodeKeys([]);
-            setSandboxLiveSteps([]);
-          }}
-          onClose={() => setSandboxOpen(false)}
-          activeStepNodeId={sandboxActiveStepNodeId}
-          onSelectStepNode={setSandboxActiveStepNodeId}
-          emailsStr={emailsStr}
-          liveSteps={sandboxLiveSteps}
-          totalPlannedSteps={connectedExecutionPlan.length}
-          activeStepTitle={
-            visualNodes.find((n) => n.key === sandboxActiveStepNodeId)?.title || null
-          }
-        />
+        <div className="space-y-2">
+          {visualNodes.some(
+            (n) =>
+              n.shape === 'circle_tool' ||
+              n.shape === 'custom_node' ||
+              n.shape === 'square_extractor' ||
+              doesNodeRequireAntigravity(n.nodeId, n.key, n.customNodeType, aiEngine),
+          ) && (
+            <div className="rounded-xl border border-emerald-500/30 dark:border-[#C7F303]/40 bg-gradient-to-r from-emerald-500/10 via-purple-500/5 to-cyan-500/10 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <span className="font-black uppercase tracking-wider text-emerald-800 dark:text-[#C7F303]">
+                🛰️ Ciclo de Ejecución Agente IA ⇄ Herramienta Antigravity:
+              </span>
+              <span className="font-bold text-slate-700 dark:text-slate-200">
+                📥 Recibe Datos ➔ 🧠 Agente IA analiza Prompt (Gemini / Antigravity) ➔ 🛰️ Invoca Herramienta en Antigravity ➔ 🔄 Antigravity devuelve respuesta al Agente IA ➔ 📤 Continúa a Salidas
+              </span>
+            </div>
+          )}
+
+          <WappyWorkflowSandboxPanel
+            open={sandboxOpen}
+            running={sandboxRunning}
+            result={sandboxResult}
+            error={sandboxError}
+            mockTriggerInput={mockTriggerInput}
+            onChangeMockTriggerInput={setMockTriggerInput}
+            onRunSimulation={handleRunSandboxSimulation}
+            onClearSimulation={() => {
+              setSandboxResult(null);
+              setSandboxError(null);
+              setSandboxActiveStepNodeId(null);
+              setSandboxCompletedNodeKeys([]);
+              setSandboxBlockedNodeKeys([]);
+              setSandboxLiveSteps([]);
+            }}
+            onClose={() => setSandboxOpen(false)}
+            activeStepNodeId={sandboxActiveStepNodeId}
+            onSelectStepNode={setSandboxActiveStepNodeId}
+            emailsStr={emailsStr}
+            liveSteps={sandboxLiveSteps}
+            totalPlannedSteps={connectedExecutionPlan.length}
+            activeStepTitle={
+              visualNodes.find((n) => n.key === sandboxActiveStepNodeId)?.title || null
+            }
+          />
+        </div>
       )}
 
       {/* ─── PANEL INTERACTIVO DE EDICIÓN DE CADA NODO AL HACER CLIC SOBRE ÉL (ESTILO INSPECTOR DE PROPIEDADES) ─── */}
