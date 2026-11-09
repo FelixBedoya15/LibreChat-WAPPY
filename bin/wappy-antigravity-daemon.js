@@ -2562,19 +2562,35 @@ function resolveOrderRoutingProfile(orden = {}) {
     };
   }
 
-  // 5. Tareas y Automatizaciones Programadas (`/tareas` — `sourceModule === 'sgsst_automation'`)
-  if (rawSource === 'sgsst_automation' || rawSource === 'automation') {
+  // 5. Tareas y Flujos Autónomos de Conectores (`/tareas` — `sourceModule === 'sgsst_workflow_antigravity'` o `'sgsst_automation'`)
+  if (
+    rawSource === 'sgsst_workflow_antigravity' ||
+    rawSource === 'sgsst_automation' ||
+    rawSource === 'automation' ||
+    /^\[Flujo WAPPY\]/i.test(rawTitle)
+  ) {
+    const isWorkflowNode =
+      rawSource === 'sgsst_workflow_antigravity' || /^\[Flujo WAPPY\]/i.test(rawTitle);
     return {
       category: 'sgsst_automation',
-      sourceModule: 'sgsst_automation',
-      icon: '🤖',
-      channelLabel: `Tarea Programada · ${companyName}`,
+      sourceModule: isWorkflowNode ? 'sgsst_workflow_antigravity' : 'sgsst_automation',
+      icon: isWorkflowNode ? '⚡' : '🤖',
+      channelLabel: isWorkflowNode ? `Flujo WAPPY · ${companyName}` : `Tarea Programada · ${companyName}`,
       companyName,
       companySlug,
       cleanTitle,
-      chatTitlePrefix: `🤖 [Tarea Programada · ${companyName}]`,
-      chatTitle: `🤖 [Tarea Programada · ${companyName}] ${cleanTitle}`,
-      threadFile: path.join(AGY_DIR, `wappy-automation-thread-${companySlug}.json`),
+      chatTitlePrefix: isWorkflowNode
+        ? `⚡ [Flujo WAPPY · ${companyName}]`
+        : `🤖 [Tarea Programada · ${companyName}]`,
+      chatTitle: isWorkflowNode
+        ? `⚡ [Flujo WAPPY · ${companyName}] ${cleanTitle}`
+        : `🤖 [Tarea Programada · ${companyName}] ${cleanTitle}`,
+      threadFile: path.join(
+        AGY_DIR,
+        isWorkflowNode
+          ? `wappy-workflow-thread-${companySlug}.json`
+          : `wappy-automation-thread-${companySlug}.json`,
+      ),
       ttlMs: AUTOMATION_THREAD_TTL_MS,
       workspaceCwd,
       projectId,
@@ -3115,6 +3131,20 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `1. El motor de Wappy Studio + FFmpeg está ensamblando el archivo .MP4 final a partir del HTML activo ("${STUDIO_CURRENT_HTML_FILE}") y la pista de audio WAV.`,
       `2. Confirma inmediatamente la orden ejecutando:`,
       `   node "${helperScript}" --complete-order="${ordenId}" --formato="respuesta" --resultado="Video MP4 renderizado y listo para descarga en Wappy Studio."`,
+    ];
+  } else if (
+    routingProfile.sourceModule === 'sgsst_workflow_antigravity' ||
+    routingProfile.category === 'sgsst_automation'
+  ) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE NODO DE FLUJO AUTÓNOMO WAPPY (CANAL EXCLUSIVO DE FLUJOS /TAREAS — PROHIBIDO ENVIAR A TENSHI VOZ):`,
+      `1. Esta orden proviene directamente de un NODO DE FLUJO AUTÓNOMO en /tareas para la empresa "${empresa}" (NO proviene de Tenshi Voz).`,
+      `2. En la sección "Instrucción del Usuario" de arriba ya se incluyen los RESULTADOS REALES CONSULTADOS CÉDULA POR CÉDULA en el portal oficial para cada trabajador recibido del nodo anterior.`,
+      `3. Presenta en este hilo la tabla Markdown completa con todos los trabajadores consultados (Cédula, Nombre, Cargo, Estado en Portal Oficial y Detalle) sin omitir ni resumir nombres, e invoca 'wappy_completar_orden_delegada_tenshi' enviando:`,
+      `   - ordenId: "${ordenId}"`,
+      `   - formato: "respuesta"`,
+      `   - resultado: Resumen técnico y tabla consolidada devuelta al flujo autónomo de WAPPY.`,
+      `4. PROHIBIDO escribir que la respuesta fue inyectada en Tenshi Voz; indica siempre que el resultado fue entregado al Flujo Autónomo de WAPPY (/tareas).`,
     ];
   } else if (isQuestionOnly) {
     executionInstructions = [
@@ -4155,6 +4185,36 @@ function startSseWorker(cliArgs) {
                           try {
                             const reqAction = String(parsedData.action || 'query').toLowerCase().trim();
                             log(`🔍 [Antigravity Relay] Ejecutando acción "${reqAction}" desde IP Local (${parsedData.cedula || parsedData.folderPath || parsedData.targetUrl || parsedData.nombre || 'N/A'})...`);
+                            if (
+                              process.platform === 'darwin' &&
+                              isOwnerAdminMac() &&
+                              reqAction !== 'pc_folder' &&
+                              (!global.__lastVisualPortalOpenedAt ||
+                                Date.now() - global.__lastVisualPortalOpenedAt > 25000)
+                            ) {
+                              global.__lastVisualPortalOpenedAt = Date.now();
+                              const visualPortalMap = {
+                                query: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+                                alto_riesgo: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+                                antecedentes: 'https://consultaprocesos.ramajudicial.gov.co/Procesos/NombreRazonSocial',
+                                arl: 'https://ruaf.sispro.gov.co/',
+                                pensiones: 'https://www.colpensiones.gov.co/',
+                                salud_rethus: 'https://aplicaciones.adres.gov.co/bdua_internet/Pages/ConsultarAfiliadoWeb.aspx',
+                                vial_pesv: 'https://www.fcm.org.co/simit/#/home-public',
+                              };
+                              const portalToOpen =
+                                reqAction === 'web_scrape'
+                                  ? String(parsedData.targetUrl || 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx')
+                                      .split(',')[0]
+                                      .trim()
+                                  : visualPortalMap[reqAction] || visualPortalMap.query;
+                              try {
+                                spawn('/usr/bin/open', ['-g', '-a', 'Google Chrome', portalToOpen], {
+                                  detached: true,
+                                  stdio: 'ignore',
+                                }).unref();
+                              } catch (_) {}
+                            }
                             const osintPath = '/Users/venta/Documents/GitHub/LibreChat-WAPPY/api/server/services/osintWorkerService.js';
                             let osintSvc = null;
                             try {

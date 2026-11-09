@@ -1695,43 +1695,47 @@ async function executeRealAntigravityScraperVerification({
     };
   }
 
-  // Determinar si es portal específico, antecedentes, alto riesgo/mintrabajo o web scraper genérico
-  const isExplicitGenericWebScraper =
-    String(customNodeObj?.nodeType || nodeId || '').toLowerCase() === 'web_scraper' ||
-    combinedId.includes('web_scraper') ||
+  // Determinar PRIMERO si es uno de los 6 portales oficiales de verificación de personas/vehículos
+  // (NOTA CRÍTICA: en WappyWorkflowCanvas.tsx todos los nodos scraper tienen `nodeType: 'web_scraper'`,
+  //  por lo que NUNCA se debe usar `nodeType === 'web_scraper'` para desactivar `isAltoRiesgo`, `isAntecedentes`, etc.)
+  const isExplicitGenericOnly =
+    combinedId.includes('custom_web_scraper_mintrabajo') ||
     combinedId.includes('scraper_node_antigravity') ||
     combinedId.includes('extract_web_scraping_agy') ||
     combinedId.includes('tool_web_scraping_agy') ||
-    combinedId.includes('subagent_scraper_agy') ||
-    combinedId.includes('extract_web_scraping');
+    combinedId.includes('subagent_scraper_agy');
   const isArlDirecto =
-    !isExplicitGenericWebScraper &&
+    !isExplicitGenericOnly &&
     (combinedId.includes('arl_directo') || combinedId.includes('agy_arl') || /\barl\b/.test(combinedId));
   const isPensionesDirecto =
-    !isExplicitGenericWebScraper &&
+    !isExplicitGenericOnly &&
     (combinedId.includes('pensiones_directo') ||
       combinedId.includes('agy_pensiones') ||
       combinedId.includes('pensiones') ||
       combinedId.includes('ruaf') ||
       combinedId.includes('colpensiones'));
-  const isSaludRethus = !isExplicitGenericWebScraper && combinedId.includes('salud_rethus');
-  const isVialPesv = !isExplicitGenericWebScraper && combinedId.includes('vial_pesv');
+  const isSaludRethus = !isExplicitGenericOnly && combinedId.includes('salud_rethus');
+  const isVialPesv = !isExplicitGenericOnly && combinedId.includes('vial_pesv');
   const isAntecedentes =
-    !isExplicitGenericWebScraper &&
+    !isExplicitGenericOnly &&
     (combinedId.includes('antecedentes') || combinedId.includes('rama_judicial'));
   const isAltoRiesgo =
-    !isExplicitGenericWebScraper &&
+    !isExplicitGenericOnly &&
     (combinedId.includes('alto_riesgo') ||
+      combinedId.includes('alto riesgo') ||
       combinedId.includes('mintrabajo') ||
       combinedId.includes('centrosentrenamiento'));
   const isGenericWebScraper =
-    isExplicitGenericWebScraper &&
     !isArlDirecto &&
     !isPensionesDirecto &&
     !isSaludRethus &&
     !isVialPesv &&
     !isAntecedentes &&
-    !isAltoRiesgo;
+    !isAltoRiesgo &&
+    (isExplicitGenericOnly ||
+      String(customNodeObj?.nodeType || nodeId || '').toLowerCase() === 'web_scraper' ||
+      combinedId.includes('web_scraper') ||
+      combinedId.includes('extract_web_scraping'));
 
   // Caso B: Web Scraper Genérico (`web_scrape`)
   if (isGenericWebScraper) {
@@ -2095,7 +2099,7 @@ async function executeRealAntigravityScraperVerification({
   }
 
   const allTargets = Array.from(targetsMap.values());
-  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 15);
+  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 60);
   const nonNumericTargets = allTargets.filter((t) => !t.isNumericValid);
 
   const specificPortalAction = isArlDirecto
@@ -2112,49 +2116,20 @@ async function executeRealAntigravityScraperVerification({
     `[Antigravity Scraper] 🚀 Iniciando verificación REAL (${specificPortalAction || (isAntecedentes ? 'antecedentes' : 'alto_riesgo')}, mode=${antigravityMode}) para "${companyName}" (${validTargets.length} cédulas numéricas válidas)...`,
   );
 
-  // 3.5. Despachar también la orden real (`event: nueva_orden`) al Chat de Google Antigravity IDE (`wappy-push-daemon.js`)
-  // para que abra/active la conversación de Antigravity en el PC/Mac o Cloud con las cédulas, URLs y script configurados.
   const targetUrlsStr =
     nodeCfg?.targetUrl ||
     customNodeObj?.targetUrl ||
     'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx, https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer';
   const scriptEngineStr = nodeCfg?.scriptEngine || customNodeObj?.scriptEngine || 'chrome_mcp';
   const scriptCodeStr = nodeCfg?.scriptCode || customNodeObj?.scriptCode || '';
-  const workersBulletList = validTargets
-    .map((t, idx) => `${idx + 1}. CC ${t.cleanCedula} — ${t.nombre} (${t.cargo})`)
-    .join('\n');
 
-  let antigravityChatDispatchPromise = Promise.resolve(null);
-  if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' && validTargets.length > 0) {
-    const orderInstruction =
-      `Ejecuta la verificación en vivo del nodo "${nodeTitle || 'Alto Riesgo & SENA'}" para la empresa "${companyName}".\n` +
-      `- Motor configurado: ${scriptEngineStr}\n` +
-      `- URL(s) objetivo: ${targetUrlsStr}\n` +
-      (promptText ? `- Solicitud del flujo: ${promptText.trim()}\n` : '') +
-      (scriptCodeStr ? `- Script / Pasos:\n${scriptCodeStr}\n` : '') +
-      `\nTrabajadores y Cédulas a verificar (${validTargets.length}):\n${workersBulletList}`;
-
-    antigravityChatDispatchPromise = global
-      .dispatchWorkflowOrderToAntigravityChat({
-        userId: userIdStr,
-        companyId,
-        companyName,
-        title: `[Flujo WAPPY] ${nodeTitle || 'Alto Riesgo & SENA'} — ${companyName}`,
-        instruction: orderInstruction,
-        recursoObjetivo: `Google Antigravity (${scriptEngineStr}) · ${targetUrlsStr.slice(0, 90)}`,
-        antigravityMode,
-        waitTimeoutMs: 600,
-      })
-      .catch(() => null);
-  }
-
-  // 4. Ejecutar consultas reales en lotes de 5 en paralelo a través del daemon Antigravity
+  // 4. Ejecutar consultas reales en lotes de 10 en paralelo a través del daemon Antigravity
   const verificationRows = [];
   let relayUsedCount = 0;
   let verifiedWithCoursesCount = 0;
   let verifiedNoCoursesCount = 0;
 
-  const batchSize = 5;
+  const batchSize = 10;
   for (let i = 0; i < validTargets.length; i += batchSize) {
     const batch = validTargets.slice(i, i + batchSize);
     const batchResults = await Promise.all(
@@ -2371,7 +2346,37 @@ async function executeRealAntigravityScraperVerification({
     );
   }
 
-  const chatDispatchRes = await antigravityChatDispatchPromise;
+  // 4.5. Registrar en el hilo dedicado de Flujo Autónomo WAPPY en Google Antigravity IDE (`wappy-push-daemon.js`)
+  // la tabla REAL ya verificada cédula por cédula para que el usuario vea el detalle exacto en su IDE y NUNCA se envíe a Tenshi Voz.
+  let chatDispatchRes = null;
+  if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' && verificationRows.length > 0) {
+    const verifiedRowsMarkdown = verificationRows
+      .map(
+        (r, idx) =>
+          `${idx + 1}. **CC ${r.documento} — ${r.nombre}** (${r.cargo}) ➔ **${r.estado}** | ${r.detalle} *(Fuente: ${r.fuente})*`,
+      )
+      .join('\n');
+    const orderInstruction =
+      `Ejecución de nodo de flujo autónomo "${nodeTitle || 'Alto Riesgo & SENA'}" para la empresa "${companyName}".\n` +
+      `- Motor configurado: ${scriptEngineStr} (Modo: ${antigravityMode})\n` +
+      `- URL(s) objetivo consultadas en vivo: ${targetUrlsStr}\n` +
+      `- Cédulas numéricas consultadas en vivo desde tu Mac/PC: ${validTargets.length} (${verifiedWithCoursesCount} con registro/curso · ${verifiedNoCoursesCount} sin registro en MinTrabajo)\n` +
+      (promptText ? `- Solicitud del flujo: ${promptText.trim()}\n` : '') +
+      `\n### 📋 RESULTADOS REALES CONSULTADOS CÉDULA POR CÉDULA EN EL PORTAL OFICIAL (${verificationRows.length} REGISTROS):\n${verifiedRowsMarkdown}`;
+
+    chatDispatchRes = await global
+      .dispatchWorkflowOrderToAntigravityChat({
+        userId: userIdStr,
+        companyId,
+        companyName,
+        title: `[Flujo WAPPY] ${nodeTitle || 'Alto Riesgo & SENA'} — ${companyName}`,
+        instruction: orderInstruction,
+        recursoObjetivo: `Google Antigravity (${scriptEngineStr}) · ${targetUrlsStr.slice(0, 90)}`,
+        antigravityMode,
+        waitTimeoutMs: 1200,
+      })
+      .catch(() => null);
+  }
   if (chatDispatchRes?.dispatched) {
     addLog(
       'success',

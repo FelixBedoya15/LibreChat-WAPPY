@@ -9694,8 +9694,19 @@ function broadcastAntigravityEvent(userId, eventName, payload, options = {}) {
 
   const frame = `event: ${eventName}\ndata: ${JSON.stringify(enrichedPayload)}\n\n`;
   let sentCount = 0;
-  for (const clientRes of clients) {
+  const singleDaemonOnly =
+    eventName === 'osint_mintrabajo_request' ||
+    (eventName === 'nueva_orden' &&
+      (payload?.sourceModule === 'sgsst_workflow_antigravity' ||
+        payload?.sourceModule === 'sgsst_automation'));
+  const clientArray = Array.from(clients);
+  // Recorrer desde el cliente más reciente hacia atrás cuando `singleDaemonOnly` está activo
+  const orderedClients = singleDaemonOnly ? clientArray.slice().reverse() : clientArray;
+  for (const clientRes of orderedClients) {
     try {
+      if (singleDaemonOnly && clientRes.__wappyClientType === 'browser') {
+        continue;
+      }
       if (targetDaemonEnv && clientRes.__wappyClientType !== 'browser') {
         const clientEnv = clientRes.__wappyDaemonEnv === 'cloud' ? 'cloud' : 'local';
         if (clientEnv !== targetDaemonEnv) {
@@ -9707,6 +9718,9 @@ function broadcastAntigravityEvent(userId, eventName, payload, options = {}) {
         clientRes.flush();
       }
       sentCount++;
+      if (singleDaemonOnly && clientRes.__wappyClientType !== 'browser') {
+        break;
+      }
     } catch (_) {
       clients.delete(clientRes);
     }
@@ -11741,6 +11755,28 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
         title: task.title,
         summary: finalSummary,
         content: finalContentStr || finalSummary,
+      });
+    }
+
+    // Si la orden pertenece a un nodo de Flujo Autónomo (`sgsst_workflow_antigravity` o `sgsst_automation`),
+    // entregar el resultado EXCLUSIVAMENTE al flujo autónomo y JAMÁS inyectarlo en el chat de Tenshi Voz.
+    if (
+      task.sourceModule === 'sgsst_workflow_antigravity' ||
+      task.sourceModule === 'sgsst_automation'
+    ) {
+      logger.info(
+        `[MCP Bridge] ✅ Orden de Flujo Autónomo ${task._id} ("${task.title}") completada y entregada al flujo (sin inyectar en Tenshi Voz).`,
+      );
+      return res.json({
+        exito: true,
+        mensaje: `Orden de flujo autónomo "${task.title}" completada y entregada al flujo de WAPPY.`,
+        orden: {
+          id: task._id.toString(),
+          titulo: task.title,
+          status: task.status,
+          formato: finalFormat,
+          resumen: finalSummary,
+        },
       });
     }
 
