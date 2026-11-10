@@ -3607,8 +3607,13 @@ async function consultarPensionesRealPorCedula({
         }
       });
 
-      await page.goto(porvUrl, { waitUntil: 'domcontentloaded', timeout: 14000 });
-      await page.waitForSelector('select[id$="_documento"]', { timeout: 9000 });
+      await page.goto(porvUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      try {
+        await page.waitForSelector('select[id$="_documento"]', { timeout: 11000 });
+      } catch (_) {
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 14000 });
+        await page.waitForSelector('select[id$="_documento"]', { timeout: 11000 });
+      }
       await sleepMs(600);
       await page.select('select[id$="_documento"]', porvTipo);
       await page.focus('input[id$="_numeroIdentificacion"]');
@@ -3621,7 +3626,7 @@ async function consultarPensionesRealPorCedula({
         await sleepMs(400);
       }
       return certResp;
-    }, 18000);
+    }, 26000);
 
     const isPdf =
       porvOut?.buf &&
