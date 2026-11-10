@@ -1,5 +1,24 @@
 const mongoose = require('mongoose');
 
+const automationEvidenceFileSchema = new mongoose.Schema(
+  {
+    workerName: { type: String, default: '' },
+    cedula: { type: String, default: '' },
+    cargo: { type: String, default: '' },
+    portal: { type: String, default: '' },
+    title: { type: String, default: '' },
+    pdfUrl: { type: String, default: null },
+    pdfDownloadUrl: { type: String, default: null },
+    pdfAbsoluteUrl: { type: String, default: null },
+    pdfFileName: { type: String, default: null },
+    imageUrl: { type: String, default: null },
+    imageDownloadUrl: { type: String, default: null },
+    imageAbsoluteUrl: { type: String, default: null },
+    imageFileName: { type: String, default: null },
+  },
+  { _id: false },
+);
+
 const automationLogSchema = new mongoose.Schema(
   {
     automation: {
@@ -49,12 +68,22 @@ const automationLogSchema = new mongoose.Schema(
     conversationId: {
       type: String,
     },
+    evidenceFiles: {
+      type: [automationEvidenceFileSchema],
+      default: [],
+    },
+    evidences: {
+      type: [automationEvidenceFileSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const AutomationLog = mongoose.models.AutomationLog || mongoose.model('AutomationLog', automationLogSchema);
+const AutomationLog =
+  mongoose.models.AutomationLog || mongoose.model('AutomationLog', automationLogSchema);
 
 module.exports = AutomationLog;
+

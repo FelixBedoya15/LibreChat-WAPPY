@@ -134,10 +134,24 @@ router.use(async (req, res, next) => {
   }
 });
 
-// Auxiliar para obtener el ID de la empresa activa del usuario
-async function getActiveCompanyId(userId) {
-  let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-  if (!active) active = await CompanyInfo.findOne({ user: userId });
+// Auxiliar para obtener el ID de la empresa objetivo/activa del usuario (respeta ?companyId= o body.companyId validando pertenencia)
+async function getActiveCompanyId(userId, explicitCompanyId = null, userRole = '') {
+  const cleanExplicit =
+    explicitCompanyId && String(explicitCompanyId).trim() !== 'SYSTEM_PRESET'
+      ? String(explicitCompanyId).trim()
+      : '';
+  if (cleanExplicit && mongoose.Types.ObjectId.isValid(cleanExplicit)) {
+    const query =
+      userRole === 'ADMIN'
+        ? { _id: cleanExplicit }
+        : { _id: cleanExplicit, user: userId };
+    const matched = await CompanyInfo.findOne(query).select('_id').lean();
+    if (matched?._id) {
+      return matched._id.toString();
+    }
+  }
+  let active = await CompanyInfo.findOne({ user: userId, isActive: true }).select('_id').lean();
+  if (!active) active = await CompanyInfo.findOne({ user: userId }).select('_id').lean();
   return active ? active._id.toString() : null;
 }
 
@@ -813,11 +827,12 @@ router.get('/node-live-inspector', async (req, res) => {
       return res.status(400).json({ error: 'El parámetro nodeId es obligatorio.' });
     }
     const explicitCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
-    const companyId = explicitCompanyId || (await getActiveCompanyId(req.user.id));
+    const companyId = await getActiveCompanyId(req.user.id, explicitCompanyId, req.user?.role);
     const data = await inspectNodeLiveData({
       userId: req.user.id,
       companyId,
       nodeId,
+      sstAppSourceId: req.query.sstAppSourceId ? String(req.query.sstAppSourceId).trim() : '',
     });
     return res.json({ success: true, ...data });
   } catch (error) {
@@ -851,10 +866,11 @@ router.post('/test-sandbox', async (req, res) => {
       executionPlan,
     } = req.body || {};
 
-    const resolvedCompanyId =
-      explicitCompanyId && explicitCompanyId !== 'SYSTEM_PRESET'
-        ? String(explicitCompanyId).trim()
-        : await getActiveCompanyId(req.user.id);
+    const resolvedCompanyId = await getActiveCompanyId(
+      req.user.id,
+      explicitCompanyId || req.query?.companyId,
+      req.user?.role,
+    );
 
     // Si se pasa un automationId opcional, usarlo como base de respaldo para campos no enviados en el body
     let existingDoc = null;
@@ -1101,9 +1117,13 @@ router.delete('/presets/:id', async (req, res) => {
 router.post('/presets/:id/install', async (req, res) => {
   try {
     const { id } = req.params;
-    const { activateImmediately = false, emails } = req.body || {};
+    const { activateImmediately = false, emails, companyId: explicitCompanyId } = req.body || {};
 
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      explicitCompanyId || req.query?.companyId,
+      req.user?.role,
+    );
     if (!companyId) {
       return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario. Registre su empresa primero.' });
     }
@@ -1173,7 +1193,7 @@ router.post('/presets/:id/install', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
     if (!companyId) {
       return res.json([]);
     }
@@ -1223,6 +1243,7 @@ router.post('/', async (req, res) => {
       presetDescription,
       workflowNodes,
       saveAsSystemPreset,
+      companyId: explicitCompanyId,
     } = req.body;
 
     const safeAgentId = (agentId && String(agentId).trim()) || 'tenshi_avatar_3d';
@@ -1250,7 +1271,11 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      explicitCompanyId || req.query?.companyId,
+      req.user?.role,
+    );
     if (!companyId) {
       return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario. Registre su empresa primero.' });
     }
@@ -1336,8 +1361,23 @@ router.put('/:id', async (req, res) => {
       saveAsSystemPreset,
     } = req.body;
 
-    const companyId = await getActiveCompanyId(req.user.id);
-    const automation = await Automation.findOne({ _id: id, companyId, isSystemPreset: { $ne: true } });
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.body?.companyId || req.query?.companyId,
+      req.user?.role,
+    );
+    let automation = await Automation.findOne({
+      _id: id,
+      companyId,
+      isSystemPreset: { $ne: true },
+    });
+    if (!automation) {
+      automation = await Automation.findOne({
+        _id: id,
+        ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
+        isSystemPreset: { $ne: true },
+      });
+    }
 
     if (!automation) {
       return res.status(404).json({ error: 'No se encontró la automatización.' });
@@ -1426,9 +1466,20 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.query?.companyId || req.body?.companyId,
+      req.user?.role,
+    );
 
-    const result = await Automation.deleteOne({ _id: id, companyId });
+    let result = await Automation.deleteOne({ _id: id, companyId, isSystemPreset: { $ne: true } });
+    if (result.deletedCount === 0) {
+      result = await Automation.deleteOne({
+        _id: id,
+        ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
+        isSystemPreset: { $ne: true },
+      });
+    }
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'No se encontró la automatización para eliminar.' });
     }
@@ -1450,9 +1501,20 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/run', async (req, res) => {
   try {
     const { id } = req.params;
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.body?.companyId || req.query?.companyId,
+      req.user?.role,
+    );
 
-    const automation = await Automation.findOne({ _id: id, companyId });
+    let automation = await Automation.findOne({ _id: id, companyId, isSystemPreset: { $ne: true } });
+    if (!automation) {
+      automation = await Automation.findOne({
+        _id: id,
+        ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
+        isSystemPreset: { $ne: true },
+      });
+    }
     if (!automation) {
       return res.status(404).json({ error: 'Automatización no encontrada.' });
     }
@@ -1487,9 +1549,20 @@ router.post('/:id/run', async (req, res) => {
 router.post('/:id/stop', async (req, res) => {
   try {
     const { id } = req.params;
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.body?.companyId || req.query?.companyId,
+      req.user?.role,
+    );
 
-    const automation = await Automation.findOne({ _id: id, companyId });
+    let automation = await Automation.findOne({ _id: id, companyId, isSystemPreset: { $ne: true } });
+    if (!automation) {
+      automation = await Automation.findOne({
+        _id: id,
+        ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
+        isSystemPreset: { $ne: true },
+      });
+    }
     if (!automation) {
       return res.status(404).json({ error: 'Automatización no encontrada.' });
     }
@@ -1511,7 +1584,11 @@ router.post('/seed-admin-examples', async (req, res) => {
     if (req.user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Acción exclusiva para administradores.' });
     }
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.body?.companyId || req.query?.companyId,
+      req.user?.role,
+    );
     if (!companyId) {
       return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario.' });
     }
@@ -1526,11 +1603,11 @@ router.post('/seed-admin-examples', async (req, res) => {
 
 /**
  * GET /api/sgsst/automatizaciones/logs
- * Obtiene el historial completo de ejecuciones para la empresa activa.
+ * Obtiene el historial completo de ejecuciones para la empresa activa (incluyendo bandeja estructurada evidenceFiles / evidences).
  */
 router.get('/logs', async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id);
+    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
     if (!companyId) {
       return res.json([]);
     }
@@ -1542,10 +1619,30 @@ router.get('/logs', async (req, res) => {
       { $set: { status: 'failed', error: 'Tiempo de ejecución límite superado.' } }
     );
 
-    const logs = await AutomationLog.find({ companyId })
+    const logFilter = { companyId };
+    if (req.query?.automationId && mongoose.Types.ObjectId.isValid(String(req.query.automationId))) {
+      logFilter.automation = String(req.query.automationId);
+    }
+
+    const rawLogs = await AutomationLog.find(logFilter)
       .sort({ runAt: -1 })
       .limit(50) // Capped a las últimas 50 corridas
       .lean();
+
+    const logs = rawLogs.map((l) => {
+      const files =
+        Array.isArray(l.evidenceFiles) && l.evidenceFiles.length > 0
+          ? l.evidenceFiles
+          : Array.isArray(l.evidences)
+            ? l.evidences
+            : [];
+      return {
+        ...l,
+        evidenceFiles: files,
+        evidences: files,
+      };
+    });
+
     res.json(logs);
   } catch (error) {
     console.error('[API Automatizaciones Logs] Error listing logs:', error);

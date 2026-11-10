@@ -34,7 +34,9 @@ import {
   Download,
   ShieldCheck,
   Copy,
-  Wand2
+  Wand2,
+  Paperclip,
+  FileText,
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useAuthContext } from '~/hooks';
@@ -42,6 +44,7 @@ import { useToastContext } from '@librechat/client';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import {
   PRESET_CATEGORIES,
+  WORKFLOW_PRESETS,
   TRIGGER_NODES,
   INPUT_CONNECTOR_NODES,
   HITO_APP_NODES,
@@ -50,10 +53,22 @@ import {
   normalizeTriggersList,
   normalizeExtractorsList,
   normalizeMemoriesList,
+  sanitizeWorkflowNodesForActiveUse,
   buildPromptFromWorkflowNodes,
   type WorkflowNodesConfig,
 } from './workflowNodesCatalog';
 import WappyWorkflowCanvas, { renderOfficialNodeSvg } from './WappyWorkflowCanvas';
+import {
+  type ScraperCapturedEvidence,
+  collectUniqueScraperEvidences,
+  extractEvidenceFromRow,
+  stripNoiseEvidencesFromAgentResponse,
+  triggerDirectFileDownload,
+  renderWorkflowMarkdownToInteractiveHtml,
+  handleEvidenceContainerClick,
+  WorkflowEvidenceTray,
+  WorkflowEvidenceLightboxModal,
+} from './WappyWorkflowSandboxPanel';
 
 interface ScheduleConfig {
   hour: number;
@@ -81,6 +96,8 @@ interface Automation {
   lastRunAt?: string;
   lastRunStatus?: 'success' | 'failed' | 'running' | 'stopped';
   lastRunResult?: string;
+  evidenceFiles?: ScraperCapturedEvidence[];
+  evidences?: ScraperCapturedEvidence[];
   nextRunAt?: string;
   conversationId?: string;
   createdAt: string;
@@ -96,6 +113,29 @@ interface AutomationLog {
   result?: string;
   error?: string;
   conversationId?: string;
+  evidenceFiles?: ScraperCapturedEvidence[];
+  evidences?: ScraperCapturedEvidence[];
+}
+
+function resolveAutomationLogEvidences(
+  logOrAuto?: {
+    evidenceFiles?: ScraperCapturedEvidence[];
+    evidences?: ScraperCapturedEvidence[];
+    result?: string;
+    lastRunResult?: string;
+  } | null,
+): ScraperCapturedEvidence[] {
+  if (!logOrAuto) return [];
+  const rawList: Array<ScraperCapturedEvidence | Record<string, any>> = [
+    ...(Array.isArray(logOrAuto.evidenceFiles) ? logOrAuto.evidenceFiles : []),
+    ...(Array.isArray(logOrAuto.evidences) ? logOrAuto.evidences : []),
+  ];
+  const textBody = String(logOrAuto.result || logOrAuto.lastRunResult || '');
+  if (textBody.includes('/api/sgsst/automatizaciones/evidencias/')) {
+    const fallbackRowEv = extractEvidenceFromRow({ certificado: textBody });
+    if (fallbackRowEv) rawList.push(fallbackRowEv);
+  }
+  return collectUniqueScraperEvidences([], rawList);
 }
 
 interface AutomatizacionesProps {
@@ -172,7 +212,21 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     date?: string;
     content: string;
     conversationId?: string;
+    evidences?: ScraperCapturedEvidence[];
   } | null>(null);
+  const [previewLogEvidence, setPreviewLogEvidence] = useState<ScraperCapturedEvidence | null>(null);
+  const [previewLogEvidenceMode, setPreviewLogEvidenceMode] = useState<'image' | 'pdf'>('image');
+  const [disabledSgsstApps, setDisabledSgsstApps] = useState<string[]>([]);
+
+  const handleOpenLogEvidence = useCallback(
+    (ev: ScraperCapturedEvidence, preferredMode?: 'image' | 'pdf') => {
+      setPreviewLogEvidenceMode(
+        preferredMode || (ev.imageUrl ? 'image' : 'pdf'),
+      );
+      setPreviewLogEvidence(ev);
+    },
+    [],
+  );
 
   // Form State
   const [formName, setFormName] = useState('');
@@ -234,15 +288,66 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
   }, [showToast]);
 
-  // Fetch system preset workflows
+  const mapCatalogPresetsToAutomations = useCallback(
+    (disabledList: string[]): Automation[] =>
+      WORKFLOW_PRESETS.map((p) => {
+        const sanitizedNodes = sanitizeWorkflowNodesForActiveUse(p.workflowNodes, disabledList);
+        return {
+          _id: p.presetKey,
+          name: p.name,
+          agentId: 'tenshi_avatar_orchestrator',
+          agentName: 'Consultor SG-SST',
+          prompt: buildPromptFromWorkflowNodes(p.name, 'Consultor SG-SST', sanitizedNodes),
+          scheduleType: p.scheduleType,
+          scheduleConfig: {
+            hour: p.hour,
+            minute: p.minute,
+            dayOfWeek: p.daysOfWeek,
+            dayOfMonth: p.dayOfMonth,
+            intervalHours: 1,
+          },
+          emails: [],
+          status: 'active',
+          isSystemPreset: true,
+          presetKey: p.presetKey,
+          presetCategory: p.presetCategory,
+          presetDescription: p.description,
+          workflowNodes: sanitizedNodes,
+          createdAt: new Date().toISOString(),
+        };
+      }),
+    [],
+  );
+
+  // Fetch system preset workflows (sanitizing any legacy blocked `En Construcción` nodes)
   const fetchPresets = useCallback(async () => {
     setPresetsLoading(true);
     try {
       const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
       const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
-      const res = await axios.get(`/api/sgsst/automatizaciones/presets${q}`);
-      setPresets(res.data || []);
+      const [res, cfgRes] = await Promise.all([
+        axios.get(`/api/sgsst/automatizaciones/presets${q}`),
+        axios.get('/api/sgsst/config').catch(() => ({ data: null })),
+      ]);
+      const nextDisabled = Array.isArray(cfgRes?.data?.disabledApps)
+        ? cfgRes.data.disabledApps
+        : disabledSgsstApps;
+      if (Array.isArray(cfgRes?.data?.disabledApps)) {
+        setDisabledSgsstApps(cfgRes.data.disabledApps);
+      }
+      const rawPresets: Automation[] = Array.isArray(res.data) ? res.data : [];
+      if (rawPresets.length === 0) {
+        setPresets(mapCatalogPresetsToAutomations(nextDisabled));
+      } else {
+        setPresets(
+          rawPresets.map((p) => ({
+            ...p,
+            workflowNodes: sanitizeWorkflowNodesForActiveUse(p.workflowNodes, nextDisabled),
+          })),
+        );
+      }
     } catch (err: any) {
+      setPresets(mapCatalogPresetsToAutomations(disabledSgsstApps));
       showToast({
         message: 'Error al cargar el catálogo de tareas preestablecidas.',
         status: 'error'
@@ -250,7 +355,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     } finally {
       setPresetsLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, disabledSgsstApps, mapCatalogPresetsToAutomations]);
 
   // Fetch execution logs
   const fetchLogs = useCallback(async () => {
@@ -321,7 +426,13 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           setLogs(logsRes.value.data || []);
         }
         if (presetsRes.status === 'fulfilled') {
-          setPresets(presetsRes.value.data || []);
+          const rawP = Array.isArray(presetsRes.value.data) ? presetsRes.value.data : [];
+          setPresets(
+            rawP.map((p: Automation) => ({
+              ...p,
+              workflowNodes: sanitizeWorkflowNodesForActiveUse(p.workflowNodes, disabledSgsstApps),
+            })),
+          );
         }
       } catch (_) {}
     };
@@ -552,23 +663,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory(automation.presetCategory || 'salud_vencimientos');
     setFormPresetDescription(automation.presetDescription || '');
     setFormSaveAsSystemPreset(false);
-    const normTrigs = normalizeTriggersList(automation.workflowNodes);
-    const normExts = normalizeExtractorsList(automation.workflowNodes);
-    const normMems = normalizeMemoriesList(automation.workflowNodes);
-    setFormWorkflowNodes({
-      trigger: normTrigs[0] || 'schedule_cron',
-      triggers: normTrigs,
-      extractors: normExts,
-      aiEngine: automation.workflowNodes?.aiEngine || 'wappy',
-      aiModel: automation.workflowNodes?.aiModel || 'gemini-3.6-flash',
-      memoryNode: normMems[0] || 'wappy_memory_company',
-      memories: normMems,
-      includeIfNode: automation.workflowNodes?.includeIfNode !== false,
-      inputs: Array.isArray(automation.workflowNodes?.inputs) ? automation.workflowNodes!.inputs : [],
-      hitos: Array.isArray(automation.workflowNodes?.hitos) ? automation.workflowNodes!.hitos : [],
-      outputs: Array.isArray(automation.workflowNodes?.outputs) ? automation.workflowNodes!.outputs : ['email_report'],
-      canvasLayout: automation.workflowNodes?.canvasLayout || null,
-    });
+    setFormWorkflowNodes(
+      sanitizeWorkflowNodesForActiveUse(automation.workflowNodes, disabledSgsstApps),
+    );
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
     setIsFreqOpen(false);
@@ -607,33 +704,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory(preset.presetCategory || 'salud_vencimientos');
     setFormPresetDescription(preset.presetDescription || '');
     setFormSaveAsSystemPreset(false);
-    const normPresetTrigs = normalizeTriggersList(preset.workflowNodes);
-    const normPresetExts = normalizeExtractorsList(preset.workflowNodes);
-    const normPresetMems = normalizeMemoriesList(preset.workflowNodes);
-    setFormWorkflowNodes({
-      trigger: normPresetTrigs[0] || 'schedule_cron',
-      triggers: normPresetTrigs,
-      extractors: normPresetExts,
-      aiEngine: preset.workflowNodes?.aiEngine || 'wappy',
-      aiModel: preset.workflowNodes?.aiModel || 'gemini-3.6-flash',
-      memoryNode: normPresetMems[0] || 'wappy_memory_company',
-      memories: normPresetMems,
-      includeIfNode: preset.workflowNodes?.includeIfNode !== false,
-      inputs: Array.isArray(preset.workflowNodes?.inputs) ? [...preset.workflowNodes!.inputs] : [],
-      hitos: Array.isArray(preset.workflowNodes?.hitos) ? [...preset.workflowNodes!.hitos] : [],
-      outputs: Array.isArray(preset.workflowNodes?.outputs) ? [...preset.workflowNodes!.outputs] : ['email_report'],
-      canvasLayout: preset.workflowNodes?.canvasLayout || null,
-    });
+    setFormWorkflowNodes(
+      sanitizeWorkflowNodesForActiveUse(preset.workflowNodes, disabledSgsstApps),
+    );
     setActiveNodeBuilderTab('inputs');
     setIsModalOpen(true);
   };
 
-  // Instalar una tarea preestablecida directamente en la empresa activa
+  // Instalar una tarea preestablecida directamente en la empresa activa (garantizando 0 nodos en construcción)
   const handleInstallPreset = async (preset: Automation) => {
     setActionLoadingId(preset._id);
     try {
+      const sanitizedNodes = sanitizeWorkflowNodesForActiveUse(
+        preset.workflowNodes,
+        disabledSgsstApps,
+      );
       const res = await axios.post(`/api/sgsst/automatizaciones/presets/${preset._id}/install`, {
         activateImmediately: false,
+        workflowNodes: sanitizedNodes,
       });
       showToast({
         message: res.data?.message || `Tarea "${preset.name}" agregada a Mis Tareas.`,
@@ -937,7 +1025,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           const dayStrings = sortedDays.map(d => days[Number(d)]);
           return `Semanal los ${dayStrings.join(', ')} a las ${time}`;
         }
-        return `Semanal los ${days[config.dayOfWeek ?? 1]} a las ${time}`;
+        return `Semanal los ${days[typeof dayOfWeekVal === 'number' ? dayOfWeekVal : 1]} a las ${time}`;
       case 'monthly':
         return `El día ${config.dayOfMonth ?? 1} de cada mes a las ${time}`;
       default:
@@ -946,23 +1034,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   const renderWorkflowPipeline = (nodes?: WorkflowNodesConfig, agentLabel?: string) => {
-    const normalizedTriggers = normalizeTriggersList(nodes);
-    const normalizedExtractors = normalizeExtractorsList(nodes);
-    const normalizedMemories = normalizeMemoriesList(nodes);
-    const safeNodes: WorkflowNodesConfig = {
-      trigger: normalizedTriggers[0] || 'schedule_cron',
-      triggers: normalizedTriggers,
-      extractors: normalizedExtractors,
-      aiEngine: nodes?.aiEngine || 'wappy',
-      aiModel: nodes?.aiModel || 'gemini-3.6-flash',
-      memoryNode: normalizedMemories[0] || 'wappy_memory_company',
-      memories: normalizedMemories,
-      includeIfNode: nodes?.includeIfNode !== false,
-      inputs: Array.isArray(nodes?.inputs) ? nodes!.inputs : ['somos_sst_empresa'],
-      hitos: Array.isArray(nodes?.hitos) ? nodes!.hitos : [],
-      outputs: Array.isArray(nodes?.outputs) && nodes!.outputs.length > 0 ? nodes!.outputs : ['email_report'],
-      canvasLayout: nodes?.canvasLayout || null,
-    };
+    const safeNodes = sanitizeWorkflowNodesForActiveUse(nodes, disabledSgsstApps);
 
     return (
       <div className="mb-3.5">
@@ -1444,15 +1516,22 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                           icon={<Eye className="w-3.5 h-3.5" />}
                           label="Ver Informe"
                           title="Ver informe de la última ejecución"
-                          onClick={() =>
+                          onClick={() => {
+                            const matchingLog = logs.find(
+                              (l) => String(l.automation) === String(auto._id),
+                            );
+                            const autoEvidences = resolveAutomationLogEvidences(
+                              matchingLog || auto,
+                            );
                             setViewResultModal({
                               title: auto.name,
                               agentName: auto.agentName,
                               date: auto.lastRunAt,
                               content: auto.lastRunResult || '',
                               conversationId: auto.conversationId,
-                            })
-                          }
+                              evidences: autoEvidences,
+                            });
+                          }}
                         />
                       )}
 
@@ -1554,7 +1633,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 <div className="shrink-0 py-0.5 px-1">
                   <ExpandableButton
                     type="button"
-                    variant="primary"
+                    variant="teal"
                     icon={<Plus className="w-4 h-4" />}
                     label="Nueva Tarea Preestablecida (Admin)"
                     title="Crear nueva tarea preestablecida global para todos los usuarios"
@@ -1756,75 +1835,201 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                    {logs.map((log) => (
-                      <tr key={log._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition">
-                        <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                          {new Date(log.runAt).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-bold">
-                          {log.agentName}
-                        </td>
-                        <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs" title={log.prompt}>
-                          {log.prompt}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {log.status === 'running' ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                              <Loader2 className="w-3 h-3 animate-spin" /> Corriendo
-                            </span>
-                          ) : log.status === 'success' ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                              <CheckCircle className="w-3 h-3" /> Completado
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                              <XCircle className="w-3 h-3" /> Fallido
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-xs text-gray-700 dark:text-gray-300 max-w-sm">
-                          {log.status === 'success' ? (
-                            <div>
-                              <p className="line-clamp-2 italic leading-relaxed text-gray-800 dark:text-gray-200">
-                                "{log.result}"
-                              </p>
-                              <div className="mt-1.5">
-                                <ExpandableButton
-                                  type="button"
-                                  size="sm"
-                                  variant="purple"
-                                  icon={<Eye className="w-3.5 h-3.5" />}
-                                  label="Ver Informe Completo"
-                                  onClick={() =>
-                                    setViewResultModal({
-                                      title: log.prompt,
-                                      agentName: log.agentName,
-                                      date: log.runAt,
-                                      content: log.result || '',
-                                      conversationId: log.conversationId,
-                                    })
-                                  }
-                                />
+                    {logs.map((log) => {
+                      const logEvidences = resolveAutomationLogEvidences(log);
+                      const cleanedSummary = stripNoiseEvidencesFromAgentResponse(
+                        log.result || '',
+                      );
+                      return (
+                        <tr key={log._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition">
+                          <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap align-top">
+                            {new Date(log.runAt).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-bold align-top">
+                            {log.agentName}
+                          </td>
+                          <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs align-top" title={log.prompt}>
+                            {log.prompt}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap align-top">
+                            {log.status === 'running' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 font-bold px-2 py-0.5 rounded-xl border border-blue-500/30 uppercase tracking-wider">
+                                <Loader2 className="w-3 h-3 animate-spin" /> Corriendo
+                              </span>
+                            ) : log.status === 'success' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-xl border border-emerald-500/30 uppercase tracking-wider">
+                                <CheckCircle className="w-3 h-3" /> Completado
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500/10 text-rose-700 dark:text-rose-300 font-bold px-2 py-0.5 rounded-xl border border-rose-500/30 uppercase tracking-wider">
+                                <XCircle className="w-3 h-3" /> Fallido
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-xs text-gray-700 dark:text-gray-300 max-w-md align-top">
+                            {log.status === 'success' ? (
+                              <div className="space-y-2.5 min-w-0">
+                                <p className="line-clamp-2 italic leading-relaxed text-gray-800 dark:text-gray-200">
+                                  "{cleanedSummary || log.result || 'Ejecución completada.'}"
+                                </p>
+
+                                {/* ─── BANDEJA DEDICADA DE CERTIFICADOS Y SOPORTES EN BITÁCORA REAL (`evidenceFiles`) ─── */}
+                                {logEvidences.length > 0 && (
+                                  <div className="rounded-xl border border-teal-500/35 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent p-2.5 space-y-2 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 text-[10.5px] font-black text-teal-800 dark:text-teal-200">
+                                      <span className="inline-flex items-center gap-1.5 truncate">
+                                        <Paperclip className="w-3.5 h-3.5 shrink-0 text-teal-600 dark:text-teal-300" />
+                                        Certificados y Soportes Descargados ({logEvidences.length})
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded-md bg-teal-500/15 border border-teal-500/30 text-[9.5px] font-extrabold shrink-0">
+                                        PDF / PNG
+                                      </span>
+                                    </div>
+
+                                    <div className="space-y-1.5 max-h-[176px] overflow-y-auto pr-0.5">
+                                      {logEvidences.map((ev, evIdx) => {
+                                        const dlHref =
+                                          ev.pdfDownloadUrl ||
+                                          ev.pdfUrl ||
+                                          ev.imageDownloadUrl ||
+                                          ev.imageUrl ||
+                                          '';
+                                        const dlName =
+                                          ev.pdfFileName || ev.imageFileName || null;
+                                        return (
+                                          <div
+                                            key={`log_ev_${log._id}_${evIdx}`}
+                                            className="rounded-lg border border-teal-500/25 bg-white/95 dark:bg-slate-900/95 p-1.5 flex items-center justify-between gap-2 min-w-0"
+                                          >
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                              {ev.imageUrl ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleOpenLogEvidence(ev, 'image')
+                                                  }
+                                                  className="w-8 h-8 rounded-md overflow-hidden border border-teal-500/30 bg-white shrink-0 cursor-zoom-in"
+                                                  title="Previsualizar certificado en modal"
+                                                >
+                                                  <img
+                                                    src={ev.imageUrl}
+                                                    alt={ev.workerName || ev.title || 'Soporte'}
+                                                    className="w-full h-full object-cover object-top"
+                                                    onError={(e) => {
+                                                      (e.currentTarget as HTMLImageElement).style.display =
+                                                        'none';
+                                                    }}
+                                                  />
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleOpenLogEvidence(ev, 'pdf')
+                                                  }
+                                                  className="w-8 h-8 rounded-md border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-300 flex items-center justify-center shrink-0 cursor-pointer"
+                                                  title="Previsualizar PDF en modal"
+                                                >
+                                                  <FileText className="w-4 h-4" />
+                                                </button>
+                                              )}
+                                              <div className="min-w-0">
+                                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-100 truncate">
+                                                  {ev.workerName?.trim() ||
+                                                    ev.title ||
+                                                    `Soporte #${evIdx + 1}`}
+                                                </div>
+                                                <div className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                                                  {[
+                                                    ev.cedula ? `CC ${ev.cedula}` : '',
+                                                    ev.portal || '',
+                                                  ]
+                                                    .filter(Boolean)
+                                                    .join(' · ') || 'Portal Oficial'}
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1 shrink-0">
+                                              <ExpandableButton
+                                                type="button"
+                                                size="sm"
+                                                variant="teal"
+                                                icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                                                label="Vista Previa"
+                                                title="Ver soporte en modal ampliado"
+                                                onClick={() =>
+                                                  handleOpenLogEvidence(
+                                                    ev,
+                                                    ev.imageUrl ? 'image' : 'pdf',
+                                                  )
+                                                }
+                                              />
+                                              {dlHref && (
+                                                <ExpandableButton
+                                                  type="button"
+                                                  size="sm"
+                                                  variant="green"
+                                                  icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                                                  label="Descargar"
+                                                  title="Descargar archivo oficial (.pdf / .png)"
+                                                  onClick={() =>
+                                                    triggerDirectFileDownload(dlHref, dlName)
+                                                  }
+                                                />
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="purple"
+                                    icon={<Eye className="w-3.5 h-3.5" />}
+                                    label="Ver Informe Completo"
+                                    onClick={() =>
+                                      setViewResultModal({
+                                        title: log.prompt,
+                                        agentName: log.agentName,
+                                        date: log.runAt,
+                                        content: log.result || '',
+                                        conversationId: log.conversationId,
+                                        evidences: logEvidences,
+                                      })
+                                    }
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          ) : log.status === 'failed' ? (
-                            <p className="text-red-500 font-semibold leading-relaxed">{log.error}</p>
-                          ) : (
-                            <p className="text-gray-400 font-medium">Ejecutándose en segundo plano...</p>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-xs font-semibold whitespace-nowrap">
-                          {log.conversationId && (
-                            <a
-                              href={`/c/${log.conversationId}`}
-                              className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-bold bg-purple-50 dark:bg-purple-950/30 px-2.5 py-1 rounded-lg"
-                            >
-                              Ver chat <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                            ) : log.status === 'failed' ? (
+                              <p className="text-red-500 font-semibold leading-relaxed">{log.error}</p>
+                            ) : (
+                              <p className="text-gray-400 font-medium">Ejecutándose en segundo plano...</p>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-xs font-semibold whitespace-nowrap align-top">
+                            {log.conversationId && (
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="fuchsia"
+                                icon={<ExternalLink className="w-3.5 h-3.5" />}
+                                label="Ver chat"
+                                title="Abrir conversación en el chat"
+                                onClick={() => {
+                                  window.location.href = `/c/${log.conversationId}`;
+                                }}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2036,29 +2241,30 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         </div>
       )}
 
-      {/* Modal Visor de Informe / Resultado */}
+      {/* Modal Visor de Informe / Resultado (Con Bandeja Dedicada de Certificados `evidenceFiles`) */}
       {viewResultModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[88vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4 bg-surface-secondary/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 rounded-xl">
+            <div className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 px-6 py-4 bg-surface-secondary/20">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 rounded-xl shrink-0">
                   <Bot className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-sm text-gray-900 dark:text-white line-clamp-1">
                     {viewResultModal.title}
                   </h3>
-                  <p className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold mt-0.5">
-                    Ejecutado por: {viewResultModal.agentName} {viewResultModal.date && `• ${new Date(viewResultModal.date).toLocaleString()}`}
+                  <p className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold mt-0.5 truncate">
+                    Ejecutado por: {viewResultModal.agentName}{' '}
+                    {viewResultModal.date && `• ${new Date(viewResultModal.date).toLocaleString()}`}
                   </p>
                 </div>
               </div>
               <ExpandableButton
                 type="button"
                 size="sm"
-                variant="slate"
+                variant="neutral"
                 icon={<XCircle className="w-4 h-4" />}
                 label="Cerrar"
                 onClick={() => setViewResultModal(null)}
@@ -2066,11 +2272,34 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             </div>
 
             {/* Modal Content / Report Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <div className="bg-surface-secondary/30 dark:bg-gray-800/40 rounded-2xl p-5 border border-border-medium/20">
-                <div className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-sans leading-relaxed">
-                  {viewResultModal.content || 'Sin resultado registrado para esta ejecución.'}
-                </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {Array.isArray(viewResultModal.evidences) &&
+                viewResultModal.evidences.length > 0 && (
+                  <WorkflowEvidenceTray
+                    evidences={viewResultModal.evidences}
+                    onOpenEvidence={handleOpenLogEvidence}
+                  />
+                )}
+
+              <div className="bg-surface-secondary/30 dark:bg-gray-800/40 rounded-2xl p-5 border border-border-medium/20 min-w-0">
+                <div
+                  onClick={(e) =>
+                    handleEvidenceContainerClick(
+                      e,
+                      viewResultModal.evidences || [],
+                      handleOpenLogEvidence,
+                    )
+                  }
+                  className="text-xs text-gray-800 dark:text-gray-200 font-sans leading-relaxed overflow-x-auto break-words"
+                  dangerouslySetInnerHTML={{
+                    __html: renderWorkflowMarkdownToInteractiveHtml(
+                      stripNoiseEvidencesFromAgentResponse(
+                        viewResultModal.content ||
+                          'Sin resultado registrado para esta ejecución.',
+                      ),
+                    ),
+                  }}
+                />
               </div>
             </div>
 
@@ -2078,18 +2307,22 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 px-6 py-3.5 bg-gray-50/50 dark:bg-gray-850">
               <div>
                 {viewResultModal.conversationId && (
-                  <a
-                    href={`/c/${viewResultModal.conversationId}`}
-                    className="inline-flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 font-bold transition"
-                  >
-                    Abrir conversación completa en el chat <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  <ExpandableButton
+                    type="button"
+                    size="sm"
+                    variant="fuchsia"
+                    icon={<ExternalLink className="w-3.5 h-3.5" />}
+                    label="Abrir conversación completa en el chat"
+                    onClick={() => {
+                      window.location.href = `/c/${viewResultModal.conversationId}`;
+                    }}
+                  />
                 )}
               </div>
               <ExpandableButton
                 type="button"
                 size="sm"
-                variant="slate"
+                variant="neutral"
                 icon={<XCircle className="w-4 h-4" />}
                 label="Cerrar"
                 onClick={() => setViewResultModal(null)}
@@ -2098,6 +2331,13 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           </div>
         </div>
       )}
+
+      {/* Visor Modal Lightbox HD / PDF para Certificados de Bitácora Real */}
+      <WorkflowEvidenceLightboxModal
+        evidence={previewLogEvidence}
+        initialMode={previewLogEvidenceMode}
+        onClose={() => setPreviewLogEvidence(null)}
+      />
 
       {/* Upgrade Alert / Lock Modal */}
       {upgradeAlert.isOpen && (

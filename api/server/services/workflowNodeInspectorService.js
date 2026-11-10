@@ -1,5 +1,396 @@
+const fs = require('fs');
+const path = require('path');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
+
+/**
+ * Catálogo explícito de nodos bloqueados / En Construcción que NO deben ejecutar llamadas externas
+ * y deben devolver aviso claro de `🚧 Nodo en Construcción`.
+ */
+const BLOCKED_CONSTRUCTION_NODE_SPECS = {
+  trigger_whatsapp: {
+    title: 'Disparador WhatsApp Business Cloud API',
+    team: 'Equipo 1 · Disparadores',
+    reason:
+      '🚧 Nodo en Construcción: La integración directa con Meta WhatsApp Business Cloud API se encuentra en fase de homologación de plantillas HSM y webhooks verificados.',
+  },
+  extract_onedrive: {
+    title: 'Extractor Microsoft OneDrive / SharePoint',
+    team: 'Equipo 2 · Extractores',
+    reason:
+      '🚧 Nodo en Construcción: El extractor corporativo Microsoft Graph (OneDrive / SharePoint) se encuentra en fase de habilitación de permisos Azure AD.',
+  },
+  one_drive: {
+    title: 'Conector Microsoft OneDrive / SharePoint',
+    team: 'Equipo 5 · Conectores Externos',
+    reason:
+      '🚧 Nodo en Construcción: El conector Microsoft OneDrive / SharePoint se encuentra temporalmente en construcción. Utiliza Google Drive o Carpeta Local Antigravity.',
+  },
+  scraper_agy_pensiones_directo: {
+    title: 'Scraper Fondo de Pensiones y RUAF Directo',
+    team: 'Equipo 2/8 · Web Scraping Oficial',
+    reason:
+      '🚧 Nodo en Construcción: El conector directo de certificados AFP / RUAF SISPRO se encuentra en ajuste por actualización de tokens CAPTCHA gubernamentales.',
+  },
+  scraper_agy_salud_rethus: {
+    title: 'Scraper ADRES BDUA Salud & ReTHUS MinSalud',
+    team: 'Equipo 2/8 · Web Scraping Oficial',
+    reason:
+      '🚧 Nodo en Construcción: El conector directo ADRES BDUA / ReTHUS se encuentra en mantenimiento preventivo de sesión.',
+  },
+};
+
+/**
+ * Aplicativos de Hitos marcados con `defaultConstruction: true` en el catálogo.
+ */
+const DEFAULT_CONSTRUCTION_HITO_APPS = new Set([
+  'hito1_matriz_legal',
+  'hito3_comite_pesv',
+  'hito3_brigada_emergencias',
+  'hito5_equipos_emergencia',
+  'hito6_comunicaciones_sst',
+  'hito6_simulacros_emergencia',
+  'hito6_app_builder',
+  'hito7_investigacion_profunda',
+]);
+
+/**
+ * Limpia cualquier valor escalar u objeto para garantizar cero `undefined`, cero `[object Object]`
+ * y cero cadenas base64 gigantescas dentro de las celdas de inspección.
+ */
+function formatCleanScalar(val, fallback = 'N/A') {
+  if (val === undefined || val === null) return fallback;
+  if (typeof val === 'boolean') return val ? 'Sí' : 'No';
+  if (typeof val === 'number') return Number.isFinite(val) ? String(val) : fallback;
+  if (val instanceof Date) return Number.isNaN(val.getTime()) ? fallback : val.toISOString();
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return fallback;
+    if (/^data:[a-z0-9.+-]+\/[a-z0-9.+-]+;base64,/i.test(trimmed)) {
+      return '[Archivo Binario Adjunto]';
+    }
+    const cleaned = trimmed
+      .replace(/\bundefined\b/g, '')
+      .replace(/\[object Object\]/g, '')
+      .replace(/\(\s*CC\s*\)/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return cleaned || fallback;
+  }
+  if (Array.isArray(val)) {
+    const parts = val
+      .map((item) => formatCleanScalar(item, ''))
+      .filter((s) => s && s !== 'N/A');
+    return parts.length > 0 ? parts.join(', ') : fallback;
+  }
+  if (typeof val === 'object') {
+    if (val._bsontype === 'ObjectId' || typeof val.toHexString === 'function') {
+      return String(val);
+    }
+    const entries = Object.entries(val)
+      .filter(([k, v]) => !k.startsWith('_') && v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => {
+        const formatted = formatCleanScalar(v, '');
+        return formatted ? `${k}: ${formatted}` : '';
+      })
+      .filter(Boolean);
+    return entries.length > 0 ? entries.join(' | ').slice(0, 600) : fallback;
+  }
+  return String(val);
+}
+
+/**
+ * Sanitiza recursivamente un registro de salida del inspector para garantizar 0 `undefined` y 0 `[object Object]`.
+ */
+function sanitizeInspectorRecord(rec, idx = 0) {
+  if (!rec || typeof rec !== 'object') {
+    return {
+      id: `rec_${idx}`,
+      label: `Registro #${idx + 1}`,
+      sublabel: 'Sin detalle adicional',
+      badge: 'ACTIVO',
+      badgeTone: 'teal',
+      isCritical: false,
+      fields: {},
+    };
+  }
+  const cleanFields = {};
+  const rawFields = rec.fields && typeof rec.fields === 'object' ? rec.fields : {};
+  for (const [k, v] of Object.entries(rawFields)) {
+    const cleanKey = formatCleanScalar(k, '').trim();
+    if (!cleanKey) continue;
+    cleanFields[cleanKey] = formatCleanScalar(v, 'No registra');
+  }
+  return {
+    ...rec,
+    id: formatCleanScalar(rec.id || rec._id, `rec_${idx}`),
+    label: formatCleanScalar(rec.label, `Registro #${idx + 1}`),
+    sublabel: formatCleanScalar(rec.sublabel, 'Registro verificado en Somos SST'),
+    badge: formatCleanScalar(rec.badge, 'ACTIVO'),
+    badgeTone: formatCleanScalar(rec.badgeTone, 'teal'),
+    isCritical: Boolean(rec.isCritical),
+    fields: cleanFields,
+  };
+}
+
+/**
+ * Construye y normaliza la lista limpia de archivos de evidencia (PDF / PNG / JPG)
+ * evitando URLs rotas, campos `undefined` o cadenas base64 crudas.
+ */
+function normalizeCleanEvidenceFile(rawEv = {}, idx = 0) {
+  if (!rawEv || typeof rawEv !== 'object') return null;
+  const baseDomain = String(process.env.DOMAIN_CLIENT || 'https://wappy.club').replace(/\/+$/, '');
+  const results = [];
+
+  const pushSingle = ({ fileName, url, downloadUrl, absoluteUrl, localPath, fileType, mimeType, kindLabel }) => {
+    const safeFile = path.basename(String(fileName || url || '').split('?')[0].trim());
+    if (!safeFile || !/\.(pdf|png|jpe?g)$/i.test(safeFile)) return;
+    const ext = path.extname(safeFile).toLowerCase().replace('.', '');
+    const normalizedType = ext === 'pdf' ? 'pdf' : ext === 'png' ? 'png' : 'jpg';
+    const normalizedMime =
+      normalizedType === 'pdf'
+        ? 'application/pdf'
+        : normalizedType === 'png'
+          ? 'image/png'
+          : 'image/jpeg';
+    const cleanRelUrl =
+      url && String(url).startsWith('/')
+        ? String(url)
+        : `/api/sgsst/automatizaciones/evidencias/${safeFile}`;
+    const cleanDownloadUrl =
+      downloadUrl && String(downloadUrl).startsWith('/')
+        ? String(downloadUrl)
+        : `${cleanRelUrl}${cleanRelUrl.includes('?') ? '&' : '?'}download=1`;
+    const cleanAbsUrl =
+      absoluteUrl && /^https?:\/\//i.test(String(absoluteUrl))
+        ? String(absoluteUrl)
+        : `${baseDomain}${cleanRelUrl}`;
+
+    results.push({
+      id: formatCleanScalar(rawEv.id, `ev_${idx}_${normalizedType}_${safeFile.slice(0, 24)}`),
+      fileName: safeFile,
+      fileType: fileType || normalizedType,
+      mimeType: mimeType || normalizedMime,
+      url: cleanRelUrl,
+      downloadUrl: cleanDownloadUrl,
+      absoluteUrl: cleanAbsUrl,
+      localPath: localPath ? String(localPath) : '',
+      cedula: formatCleanScalar(rawEv.cedula || rawEv.documento, 'N/A'),
+      workerName: formatCleanScalar(rawEv.workerName || rawEv.nombre, 'Colaborador'),
+      cargo: formatCleanScalar(rawEv.cargo, 'General'),
+      portal: formatCleanScalar(rawEv.portal || rawEv.fuente, 'Portal Oficial'),
+      title: formatCleanScalar(rawEv.title || kindLabel, 'Certificado / Soporte Oficial'),
+    });
+  };
+
+  if (rawEv.pdfFileName || (rawEv.url && /\.pdf(\?|$)/i.test(String(rawEv.url))) || rawEv.pdfUrl) {
+    pushSingle({
+      fileName: rawEv.pdfFileName || rawEv.fileName || rawEv.pdfUrl || rawEv.url,
+      url: rawEv.pdfUrl || rawEv.url,
+      downloadUrl: rawEv.pdfDownloadUrl || rawEv.downloadUrl,
+      absoluteUrl: rawEv.pdfAbsoluteUrl || rawEv.absoluteUrl,
+      localPath: rawEv.pdfLocalPath || rawEv.localPath,
+      fileType: 'pdf',
+      mimeType: 'application/pdf',
+      kindLabel: 'Certificado Oficial PDF',
+    });
+  }
+
+  if (
+    rawEv.imageFileName ||
+    rawEv.imageUrl ||
+    (rawEv.url && /\.(png|jpe?g)(\?|$)/i.test(String(rawEv.url)))
+  ) {
+    pushSingle({
+      fileName: rawEv.imageFileName || rawEv.fileName || rawEv.imageUrl || rawEv.url,
+      url: rawEv.imageUrl || rawEv.url,
+      downloadUrl: rawEv.imageDownloadUrl || rawEv.downloadUrl,
+      absoluteUrl: rawEv.imageAbsoluteUrl || rawEv.absoluteUrl,
+      localPath: rawEv.imageLocalPath || rawEv.localPath,
+      kindLabel: 'Captura Oficial de Verificación',
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Escanea `/uploads/scraper_evidences` buscando certificados PDF/PNG reales descargados
+ * previamente para las cédulas de los trabajadores de la empresa activa.
+ */
+function scanCompanyScraperEvidenceFiles({ workerRecords = [], portalHint = '' } = {}) {
+  const candidateDirs = [
+    path.resolve(process.cwd(), 'uploads', 'scraper_evidences'),
+    '/app/api/uploads/scraper_evidences',
+    '/app/uploads/scraper_evidences',
+    path.resolve(__dirname, '../../../uploads/scraper_evidences'),
+  ];
+
+  const cedulaToWorker = new Map();
+  for (const w of workerRecords) {
+    const wf = w?.fields || {};
+    const rawCed = String(
+      wf['Cédula / Documento'] ||
+        wf['Número de Documento / Cédula'] ||
+        wf['Cédula / Documento de Identidad'] ||
+        w?.id ||
+        '',
+    ).replace(/\D/g, '');
+    if (rawCed.length >= 5) {
+      cedulaToWorker.set(rawCed, {
+        cedula: rawCed,
+        workerName: formatCleanScalar(wf['Nombre Completo'] || w?.label, 'Colaborador'),
+        cargo: formatCleanScalar(wf['Cargo'] || 'Colaborador', 'Colaborador'),
+      });
+    }
+  }
+
+  const found = [];
+  const seenFiles = new Set();
+
+  for (const dir of candidateDirs) {
+    if (!fs.existsSync(dir)) continue;
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir);
+    } catch (_) {
+      continue;
+    }
+    for (const fname of entries) {
+      if (seenFiles.has(fname)) continue;
+      if (!/^[a-zA-Z0-9._-]+\.(pdf|png|jpe?g)$/i.test(fname)) continue;
+
+      let matchedWorker = null;
+      for (const [ced, wInfo] of cedulaToWorker.entries()) {
+        if (fname.includes(ced)) {
+          matchedWorker = wInfo;
+          break;
+        }
+      }
+      if (!matchedWorker) continue;
+
+      if (portalHint) {
+        const lowName = fname.toLowerCase();
+        if (portalHint === 'arl' && !/(arl|sura|positiva|colmena|bolivar)/i.test(lowName)) continue;
+        if (portalHint === 'vial_pesv' && !/(simit|runt|vial|pesv)/i.test(lowName)) continue;
+        if (portalHint === 'antecedentes' && !/(rama|judicial|contraloria|antecedentes|policia)/i.test(lowName)) continue;
+        if (portalHint === 'alto_riesgo' && !/(mintrabajo|sena|alturas|constancia)/i.test(lowName)) continue;
+      }
+
+      seenFiles.add(fname);
+      const isPdf = /\.pdf$/i.test(fname);
+      const normalized = normalizeCleanEvidenceFile(
+        {
+          fileName: fname,
+          pdfFileName: isPdf ? fname : null,
+          imageFileName: !isPdf ? fname : null,
+          localPath: path.resolve(dir, fname),
+          cedula: matchedWorker.cedula,
+          workerName: matchedWorker.workerName,
+          cargo: matchedWorker.cargo,
+          portal: portalHint || 'Portal Oficial Verificado',
+          title: isPdf ? `Certificado Oficial PDF (CC ${matchedWorker.cedula})` : `Soporte Oficial PNG (CC ${matchedWorker.cedula})`,
+        },
+        found.length,
+      );
+      if (Array.isArray(normalized)) {
+        found.push(...normalized);
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * Guarda en disco (`uploads/scraper_evidences`) un certificado PDF o captura PNG en vivo
+ * y devuelve entradas limpias listas para `evidenceFiles`.
+ */
+function persistInspectorEvidenceToDisk({
+  pdfBase64,
+  pdfFileName,
+  imageBase64,
+  imageFileName,
+  cedula,
+  workerName,
+  cargo,
+  portalLabel,
+  title,
+} = {}) {
+  if (!pdfBase64 && !imageBase64) return [];
+  try {
+    const evidencesDir = path.resolve(process.cwd(), 'uploads', 'scraper_evidences');
+    fs.mkdirSync(evidencesDir, { recursive: true });
+
+    const stripDataUri = (raw) => {
+      if (!raw || typeof raw !== 'string') return '';
+      const trimmed = raw.trim();
+      const idx = trimmed.indexOf(',');
+      return trimmed.startsWith('data:') && idx > -1 ? trimmed.slice(idx + 1).trim() : trimmed;
+    };
+
+    const slugify = (val, maxLen = 40) =>
+      String(val || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\.(pdf|png|jpe?g)$/i, '')
+        .replace(/[^a-zA-Z0-9._-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, maxLen);
+
+    const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const prefix = [slugify(portalLabel, 20), slugify(cedula || workerName, 20)].filter(Boolean).join('_') || 'certificado';
+
+    let savedPdfName = null;
+    let pdfLocalPath = null;
+    if (pdfBase64 && typeof pdfBase64 === 'string') {
+      const cleanB64 = stripDataUri(pdfBase64);
+      if (cleanB64.length > 100) {
+        const buf = Buffer.from(cleanB64, 'base64');
+        const head = buf.subarray(0, 16).toString('ascii');
+        if (buf.length > 200 && head.includes('%PDF')) {
+          savedPdfName = `${slugify(pdfFileName, 44) || `certificado_${prefix}`}_${suffix}.pdf`;
+          pdfLocalPath = path.resolve(evidencesDir, savedPdfName);
+          fs.writeFileSync(pdfLocalPath, buf);
+        }
+      }
+    }
+
+    let savedImgName = null;
+    let imageLocalPath = null;
+    if (imageBase64 && typeof imageBase64 === 'string') {
+      const cleanB64 = stripDataUri(imageBase64);
+      if (cleanB64.length > 100) {
+        const buf = Buffer.from(cleanB64, 'base64');
+        if (buf.length > 200) {
+          const isJpg = buf[0] === 0xff && buf[1] === 0xd8;
+          const ext = isJpg ? 'jpg' : 'png';
+          savedImgName = `${slugify(imageFileName, 44) || `soporte_${prefix}`}_${suffix}.${ext}`;
+          imageLocalPath = path.resolve(evidencesDir, savedImgName);
+          fs.writeFileSync(imageLocalPath, buf);
+        }
+      }
+    }
+
+    return (
+      normalizeCleanEvidenceFile(
+        {
+          pdfFileName: savedPdfName,
+          pdfLocalPath,
+          imageFileName: savedImgName,
+          imageLocalPath,
+          cedula,
+          workerName,
+          cargo,
+          portal: portalLabel,
+          title: title || 'Certificado Oficial Verificado en Vivo',
+        },
+        0,
+      ) || []
+    );
+  } catch (_) {
+    return [];
+  }
+}
 
 /**
  * Carga o recupera de forma segura un modelo Mongoose, incluyendo aquellos
@@ -74,7 +465,7 @@ function buildCompanyScopeFilter(userId, company) {
 }
 
 /**
- * Busca el documento único de un aplicativo para la empresa activa (con fallback a búsqueda por user).
+ * Busca el documento único de un aplicativo para la empresa activa (con aislamiento estricto multi-empresa).
  */
 async function findSingleCompanyDoc(Model, userId, company) {
   if (!Model) return null;
@@ -86,7 +477,13 @@ async function findSingleCompanyDoc(Model, userId, company) {
       if (mongoose.Types.ObjectId.isValid(String(userId))) {
         userVariants.push(new mongoose.Types.ObjectId(String(userId)));
       }
-      doc = await Model.findOne({ user: { $in: userVariants } }).sort({ updatedAt: -1 }).lean();
+      const legacyNoCompanyFilter = company?._id
+        ? {
+            user: { $in: userVariants },
+            $or: [{ companyId: null }, { companyId: '' }, { companyId: { $exists: false } }],
+          }
+        : { user: { $in: userVariants } };
+      doc = await Model.findOne(legacyNoCompanyFilter).sort({ updatedAt: -1 }).lean();
     }
     return doc;
   } catch (_) {
@@ -95,7 +492,7 @@ async function findSingleCompanyDoc(Model, userId, company) {
 }
 
 /**
- * Busca múltiples documentos de un aplicativo para la empresa activa (con fallback a búsqueda por user).
+ * Busca múltiples documentos de un aplicativo para la empresa activa (con aislamiento estricto multi-empresa).
  */
 async function findManyCompanyDocs(Model, userId, company, sortObj = { updatedAt: -1 }, limit = 300) {
   if (!Model) return [];
@@ -107,7 +504,13 @@ async function findManyCompanyDocs(Model, userId, company, sortObj = { updatedAt
       if (mongoose.Types.ObjectId.isValid(String(userId))) {
         userVariants.push(new mongoose.Types.ObjectId(String(userId)));
       }
-      docs = await Model.find({ user: { $in: userVariants } }).sort(sortObj).limit(limit).lean();
+      const legacyNoCompanyFilter = company?._id
+        ? {
+            user: { $in: userVariants },
+            $or: [{ companyId: null }, { companyId: '' }, { companyId: { $exists: false } }],
+          }
+        : { user: { $in: userVariants } };
+      docs = await Model.find(legacyNoCompanyFilter).sort(sortObj).limit(limit).lean();
     }
     return Array.isArray(docs) ? docs : [];
   } catch (_) {
@@ -122,8 +525,19 @@ function normalizeInspectorNodeId(rawId) {
   let clean = String(rawId || '').trim();
   if (/^trigger_trigger_/.test(clean)) {
     clean = clean.replace(/^trigger_/, '');
-  } else if (!/^trigger_(tenshi|antigravity|antigravity_local|antigravity_cloud|email|agent|qr_worker|qr_report|webhook|whatsapp)$/.test(clean)) {
-    clean = clean.replace(/^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_)/, '');
+  } else if (
+    !/^trigger_(tenshi|antigravity|antigravity_local|antigravity_cloud|email|agent|qr_worker|qr_report|webhook|whatsapp)$/.test(
+      clean,
+    )
+  ) {
+    clean = clean.replace(
+      /^(trigger_|extractor_|ext_|hito_|out_|output_|action_|tool_inputs_|tool_hitos_|sub_memory_|sub_tool_|sub_skill_|sub_rule_|logic_node_)/,
+      '',
+    );
+  }
+
+  if (/^(extra_agent_\d+|agent_extra_\d+)$/.test(clean)) {
+    return 'agent_root';
   }
 
   const aliasMap = {
@@ -153,6 +567,25 @@ function normalizeInspectorNodeId(rawId) {
     trigger_qr_report: 'trigger_qr_worker',
     webhook: 'trigger_webhook',
     whatsapp: 'trigger_whatsapp',
+
+    // Nodo Agente Principal y Nodos Lógicos (Equipo 3)
+    ai_agent_root: 'agent_root',
+    agent_primary: 'agent_root',
+    main_agent: 'agent_root',
+    if_condition: 'if_router',
+    if_node_router: 'if_router',
+    logic_if: 'if_router',
+    logic_switch: 'if_router',
+    switch_router: 'if_router',
+    logic_loop: 'loop',
+    batch_loop: 'loop',
+    split_in_batches: 'loop',
+    logic_merge: 'merge',
+    join_branches: 'merge',
+    logic_human_approval: 'human_approval',
+    hitl_approval: 'human_approval',
+    aprobacion_humana: 'human_approval',
+    logic_filter: 'filter',
 
     // Los 8 Hitos — 50 Apps SST (Equipo 6 + Aliases Canónicos)
     contexto_organizacion: 'hito1_dofa',
@@ -239,6 +672,8 @@ function normalizeInspectorNodeId(rawId) {
     custom_scraper_agy_pensiones: 'scraper_agy_pensiones_directo',
     custom_scraper_agy_salud_rethus: 'scraper_agy_salud_rethus',
     custom_scraper_agy_vial_pesv: 'scraper_agy_vial_pesv',
+    search_node_realtime: 'extract_web_search',
+    search_node_live_web: 'extract_web_search',
     equipos_emergencia: 'hito5_equipos_emergencia',
     hito5_inspecciones: 'hito5_equipos_emergencia',
     comunicaciones_sst: 'hito6_comunicaciones_sst',
@@ -264,6 +699,7 @@ function normalizeInspectorNodeId(rawId) {
     control_acpm: 'hito7_acpm',
     acpm: 'hito7_acpm',
     acpm_task: 'hito7_acpm',
+    tarea_kanban: 'hito7_acpm',
     hito2_cronograma: 'hito7_acpm',
     hito4_plan_anual: 'hito7_acpm',
     plan_anual: 'hito7_acpm',
@@ -285,6 +721,10 @@ function normalizeInspectorNodeId(rawId) {
     memory_history: 'wappy_memory_antiduplicate',
     wappy_memory_rag: 'wappy_rag_documental',
     memory_rag: 'wappy_rag_documental',
+    briefing_voz_tenshi: 'tenshi_voice_briefing',
+    voice_briefing: 'tenshi_voice_briefing',
+    documento_vivo: 'canvas_doc',
+    respaldo_drive: 'drive_backup',
   };
 
   return aliasMap[clean] || clean;
@@ -725,14 +1165,56 @@ async function inspectHito1And2(canonicalId, userId, company) {
   // 10. Hito 1 · Matriz Oficial de Peligros IPEVR (GTC-45)
   if (canonicalId === 'hito2_matriz_ipevar') {
     const GTC45WorkspaceSession = getSafeModel('GTC45WorkspaceSession', '~/server/routes/sgsst/gtc45Workspace', '~/models/GTC45WorkspaceSession');
+    const MatrizPeligrosData = getSafeModel('MatrizPeligrosData', '~/server/routes/sgsst/matrizPeligros');
     const docs = await findManyCompanyDocs(GTC45WorkspaceSession, userId, company, { isOfficial: -1, updatedAt: -1 }, 10);
     const officialDoc = docs.find((d) => d.isOfficial && Array.isArray(d.matrixRows) && d.matrixRows.length > 0) || docs.find((d) => Array.isArray(d.matrixRows) && d.matrixRows.length > 0);
-    const rows = Array.isArray(officialDoc?.matrixRows) ? officialDoc.matrixRows : [];
+    let rows = Array.isArray(officialDoc?.matrixRows) ? officialDoc.matrixRows : [];
+    let sourceCollectionLabel = 'GTC45WorkspaceSession';
+
+    if (rows.length === 0 && MatrizPeligrosData) {
+      const mpDoc = await findSingleCompanyDoc(MatrizPeligrosData, userId, company);
+      const mpEntries = Array.isArray(mpDoc?.entries) ? mpDoc.entries : [];
+      if (mpEntries.length > 0) {
+        sourceCollectionLabel = 'MatrizPeligrosData';
+        rows = mpEntries.map((e, idx) => ({
+          id: e.id || `mp_${idx}`,
+          proceso: e.proceso || 'Operativo',
+          zona: e.zona || 'Principal',
+          cargo: e.cargo || e.proceso || 'Operativo',
+          actividad: e.actividad || '',
+          tareas: e.tarea || '',
+          rutinaria: e.rutinario === false ? 'No' : 'Sí',
+          peligro_clasificacion: e.clasificacion || 'Peligro Operativo',
+          peligro_descripcion: e.descripcionPeligro || '',
+          efectos_posibles: e.efectosPosibles || '',
+          controles_fuente: e.controlFuente || 'Ninguno',
+          controles_medio: e.controlMedio || 'Ninguno',
+          controles_individuo: e.controlIndividuo || 'Ninguno',
+          nd: e.nivelDeficiencia ?? '',
+          ne: e.nivelExposicion ?? '',
+          np: e.nivelProbabilidad ?? '',
+          interpretacion_np: e.interpretacionNP || '',
+          nc: e.nivelConsecuencia ?? '',
+          nr: e.nivelRiesgo ?? '',
+          interpretacion_nr: e.interpretacionNR || '',
+          aceptabilidad: e.aceptabilidad || '',
+          nro_expuestos: e.numExpuestos ?? '',
+          peor_consecuencia: e.peorConsecuencia || '',
+          requisito_legal: e.requisitoLegal ? 'Sí' : 'No',
+          medida_eliminacion: e.eliminacion || 'N/A',
+          medida_sustitucion: e.sustitucion || 'N/A',
+          medida_ingenieria: e.controlesIngenieria || 'N/A',
+          medida_administrativa: e.controlesAdmin || 'N/A',
+          medida_eppu: e.epp || 'N/A',
+        }));
+      }
+    }
+
     const criticos = rows.filter((r) => r.interpretacion_nr === 'I' || r.interpretacion_nr === 'II' || /no aceptable/i.test(r.aceptabilidad || '')).length;
 
     return {
       moduleTitle: 'Hito 1 · Matriz Oficial de Identificación de Peligros y Valoración de Riesgos (GTC-45)',
-      sourceCollection: 'GTC45WorkspaceSession',
+      sourceCollection: sourceCollectionLabel,
       kpis: [
         { label: 'Total Peligros GTC-45', value: rows.length, tone: 'teal' },
         { label: 'Críticos / Altos (Nivel I y II)', value: criticos, tone: criticos > 0 ? 'rose' : 'emerald' },
@@ -745,7 +1227,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
           id: r.id || `gtc45_${i}`,
           label: `[${r.peligro_clasificacion || 'Peligro'}] ${r.peligro_descripcion || 'Sin descripción'} — Cargo: ${r.cargo || r.proceso || 'General'}`,
           sublabel: `Proceso: ${r.proceso || ''} • Actividad: ${r.actividad || ''} • Efectos: ${r.efectos_posibles || ''}`,
-          badge: `NR: ${r.nr || ''} (Nivel ${r.interpretacion_nr || 'N/A'} · ${r.aceptabilidad || ''})`,
+          badge: `NR: ${r.nr || 'N/A'} (Nivel ${r.interpretacion_nr || 'N/A'} · ${r.aceptabilidad || 'Evaluado'})`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
@@ -1287,19 +1769,24 @@ async function inspectHito3To5(canonicalId, userId, company) {
       ...actas.map((a, i) => {
         const comps = Array.isArray(a.compromisos) ? a.compromisos : [];
         const pend = comps.filter((c) => c.estado !== 'Cumplido' && c.estado !== 'cumplido').length;
+        const actaNum = a.numeroActa || a.consecutivo || i + 1;
+        const rawDate = a.fechaReunion || a.fecha || a.createdAt;
+        const dateStr = rawDate ? new Date(rawDate).toLocaleDateString('es-CO') : 'Reciente';
+        const lugarStr = a.lugarModalidad || a.lugar || 'Sede Principal';
+        const temasStr = formatCleanScalar(a.desarrollo || a.temasTratados || a.ordenDelDia, 'Seguimiento mensual SG-SST, inspecciones e indicadores ATEL');
         return {
-          id: String(a._id || a.numeroActa || `acta_${i}`),
-          label: `[Acta COPASST ${a.numeroActa || i + 1}] ${a.fechaReunion ? new Date(a.fechaReunion).toLocaleDateString('es-CO') : ''}`,
-          sublabel: `Compromisos: ${comps.length} (${pend} pendientes) • Lugar: ${a.lugarModalidad || 'Sede Principal'}`,
+          id: String(a._id || actaNum || `acta_${i}`),
+          label: `[Acta COPASST ${actaNum}] ${dateStr}`,
+          sublabel: `Compromisos: ${comps.length} (${pend} pendientes) • Lugar: ${lugarStr}`,
           badge: pend > 0 ? `${pend} Compromiso(s) Pendiente(s)` : 'Cumplida',
           badgeTone: pend > 0 ? 'amber' : 'emerald',
           isCritical: pend > 0,
           fields: {
-            'Actas de Reunión Mensual Ordinaria / Extraordinaria': `Acta ${a.numeroActa || ''} (${a.fechaReunion ? new Date(a.fechaReunion).toLocaleDateString('es-CO') : ''})`,
-            'Número y Fecha de Acta de Reunión Mensual Ordinaria / Extraordinaria': `Acta ${a.numeroActa || ''} - ${a.fechaReunion ? new Date(a.fechaReunion).toLocaleDateString('es-CO') : ''}`,
+            'Actas de Reunión Mensual Ordinaria / Extraordinaria': `Acta ${actaNum} (${dateStr})`,
+            'Número y Fecha de Acta de Reunión Mensual Ordinaria / Extraordinaria': `Acta ${actaNum} - ${dateStr}`,
             'Verificación de Quórum y Asistencia de Miembros': `${(a.asistentes || []).length} asistentes registrados`,
-            'Temas Tratados (Inspecciones, Investigación ATEL, Seguimiento Plan Anual)': JSON.stringify(a.desarrollo || {}),
-            'Compromisos del Acta, Responsables y Fechas de Cumplimiento': comps.map((c) => `${c.actividad || ''} (Resp: ${c.responsable || ''} - Estado: ${c.estado || 'Pendiente'})`).join(' | '),
+            'Temas Tratados (Inspecciones, Investigación ATEL, Seguimiento Plan Anual)': temasStr,
+            'Compromisos del Acta, Responsables y Fechas de Cumplimiento': comps.map((c) => `${c.actividad || ''} (Resp: ${c.responsable || ''} - Estado: ${c.estado || 'Pendiente'})`).join(' | ') || 'Sin compromisos pendientes',
             'Seguimiento al Estado de Compromisos de Actas Anteriores': `${pend} pendientes de ${comps.length}`,
             'Estado de Compromisos de Actas Anteriores (Abierto / En Gestión / Cerrado)': `${pend} abiertos`,
           },
@@ -1496,7 +1983,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
         const isCrit = /cr[ií]tico|alto/i.test(br.clasificacion_bio || '') || Boolean(br.intervencion_prioritaria);
         rows.push({
           id: br.id || `${w.documento}_${br.dominio_bio || rows.length}`,
-          label: `${w.nombre || 'Trabajador'} (CC ${w.documento || ''}) · [${br.dominio_bio || 'Bio-Riesgo'}] ${br.peligro_cargo || ''}`,
+          label: `${w.nombre || 'Trabajador'} (CC ${w.documento || 'S/D'}) · [${br.dominio_bio || 'Bio-Riesgo'}] ${br.peligro_cargo || ''}`,
           sublabel: `Cargo: ${w.cargo || ''} • Efectos: ${br.efectos_posibles || ''} • Factor Individual: ${br.factor_individual || ''}`,
           badge: `${br.clasificacion_bio || 'Moderado'} (Índice: ${br.indice_bio_riesgo_efectivo ?? br.indice_bio_riesgo_bruto ?? ''})`,
           badgeTone: isCrit ? 'rose' : 'emerald',
@@ -1516,11 +2003,47 @@ async function inspectHito3To5(canonicalId, userId, company) {
       }
     }
 
+    let sourceLabel = 'SgsstWorker.riesgosBioIndividual';
+    if (rows.length === 0 && workers.length > 0) {
+      const gtcRes = await inspectHito1And2('hito2_matriz_ipevar', userId, company);
+      const gtcRecords = Array.isArray(gtcRes?.records) ? gtcRes.records : [];
+      if (gtcRecords.length > 0) {
+        sourceLabel = `SgsstWorker + ${gtcRes.sourceCollection || 'GTC45'}`;
+        for (const w of workers.slice(0, 60)) {
+          const wCargo = String(w.cargo || '').toLowerCase();
+          const matchedGtc =
+            gtcRecords.find((g) => wCargo && String(g.fields?.['Cargo'] || g.label || '').toLowerCase().includes(wCargo)) ||
+            gtcRecords[0];
+          const gf = matchedGtc?.fields || {};
+          const isCrit = Boolean(matchedGtc?.isCritical || w.restriccionesMedicas);
+          rows.push({
+            id: `bio_cross_${w.documento || w._id}_${rows.length}`,
+            label: `${w.nombre || 'Trabajador'} (CC ${w.documento || 'S/D'}) · [${gf['Clasificación del Peligro'] || 'Riesgo Cargo'}] ${gf['Descripción del Peligro'] || w.cargo || 'Operativo'}`,
+            sublabel: `Cargo: ${w.cargo || 'Operativo'} • Efectos: ${gf['Efectos Posibles en la Salud'] || 'Evaluado'} • Salud: ${w.restriccionesMedicas || w.conceptoMedico || 'Apto'}`,
+            badge: isCrit ? 'ALTO / PRIORITARIO' : 'CONTROLADO',
+            badgeTone: isCrit ? 'rose' : 'emerald',
+            isCritical: isCrit,
+            fields: {
+              'Cédula y Nombre Completo del Trabajador': `${w.nombre || ''} (CC ${w.documento || 'S/D'})`,
+              'Cédula / Documento': w.documento || 'S/D',
+              'Nombre Completo': w.nombre || '',
+              'Cargo, Proceso y Sede': `${w.cargo || ''} (${w.area || 'General'} - ${w.sede || 'Principal'})`,
+              'Dominio Bio-Individual': gf['Clasificación del Peligro'] || 'Biomecánico / Operativo',
+              'Peligros Expuestos en el Puesto Individual': gf['Peligro (Descripción y Clasificación: Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad, Fenómenos Naturales)'] || w.cargo || '',
+              'Cruces con Condiciones de Salud y Sintomatología Corporal': `${w.restriccionesMedicas || w.conceptoMedico || 'Sin restricciones activas'} -> ${gf['Efectos Posibles en la Salud'] || 'Vigilancia epidemiológica'}`,
+              'Valoración de Riesgo Bio-Individual (NR y Aceptabilidad)': gf['Valoración del Riesgo (NR = NP×NC, Nivel de Riesgo I/II/III/IV y Aceptabilidad)'] || 'Evaluado',
+              'Controles Personalizados (Fuente, Medio e Individuo)': gf['Medidas de Intervención (Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos / Señalización y EPP)'] || 'Controles preventivos del cargo',
+            },
+          });
+        }
+      }
+    }
+
     return {
       moduleTitle: 'Hito 4 · Matriz Bio-IPEVR (Evaluación Individual por Trabajador)',
-      sourceCollection: 'SgsstWorker.riesgosBioIndividual',
+      sourceCollection: sourceLabel,
       kpis: [
-        { label: 'Trabajadores Evaluados', value: workers.filter((w) => (w.riesgosBioIndividual || []).length > 0).length, tone: 'teal' },
+        { label: 'Trabajadores Evaluados', value: rows.length > 0 ? new Set(rows.map((r) => r.fields?.['Cédula / Documento'])).size : 0, tone: 'teal' },
         { label: 'Total Filas Bio-IPEVR', value: rows.length, tone: 'indigo' },
         { label: 'Bio-Riesgos Críticos / Altos', value: rows.filter((r) => r.isCritical).length, tone: 'rose' },
       ],
@@ -1571,10 +2094,31 @@ async function inspectHito3To5(canonicalId, userId, company) {
     const EstudioPuestoTrabajo = getSafeModel('EstudioPuestoTrabajo', '~/server/routes/sgsst/estudioPuestoTrabajo', '~/models/EstudioPuestoTrabajo');
     const studies = await findManyCompanyDocs(EstudioPuestoTrabajo, userId, company, { createdAt: -1 }, 100);
     const crit = studies.filter((s) => /cr[ií]tico|alto/i.test(s.riskLevel || '') || Number(s.rulaScore) >= 5).length;
+    const eptEvidences = [];
+    for (const s of studies) {
+      for (const ev of s.evidences || []) {
+        if (ev?.url && /\.(pdf|png|jpe?g)(\?|$)/i.test(String(ev.url))) {
+          const norm = normalizeCleanEvidenceFile(
+            {
+              url: ev.url,
+              fileName: ev.name || path.basename(String(ev.url).split('?')[0]),
+              cedula: s.workerId || '',
+              workerName: s.workerName || 'Trabajador',
+              cargo: s.cargo || '',
+              portal: 'Estudio de Puesto de Trabajo (EPT)',
+              title: ev.name || 'Evidencia Fotográfica / PDF EPT',
+            },
+            eptEvidences.length,
+          );
+          if (Array.isArray(norm)) eptEvidences.push(...norm);
+        }
+      }
+    }
 
     return {
       moduleTitle: 'Hito 4 · Estudio de Puesto de Trabajo (EPT — RULA / REBA / MediaPipe)',
       sourceCollection: 'EstudioPuestoTrabajo',
+      evidenceFiles: eptEvidences,
       kpis: [
         { label: 'Estudios EPT Realizados', value: studies.length, tone: 'teal' },
         { label: 'Riesgo Crítico / Alto', value: crit, tone: crit > 0 ? 'rose' : 'emerald' },
@@ -1584,21 +2128,21 @@ async function inspectHito3To5(canonicalId, userId, company) {
         const isCrit = /cr[ií]tico|alto/i.test(s.riskLevel || '') || Number(s.rulaScore) >= 5;
         return {
           id: String(s._id || `ept_${i}`),
-          label: `${s.workerName || 'Trabajador'} (CC ${s.workerId || ''}) — Cargo: ${s.cargo || ''}`,
-          sublabel: `Actividad: ${s.actividad || ''} • RULA: ${s.rulaScore ?? 'N/A'} | REBA: ${s.rebaScore ?? 'N/A'} • Cuello: ${s.telemetry?.neckAngle ?? ''}° | Tronco: ${s.telemetry?.trunkAngle ?? ''}°`,
-          badge: `${s.riskLevel || 'Evaluado'} (${s.actionLevel || ''})`,
+          label: `${s.workerName || 'Trabajador'} (CC ${s.workerId || 'S/D'}) — Cargo: ${s.cargo || 'General'}`,
+          sublabel: `Actividad: ${s.actividad || ''} • RULA: ${s.rulaScore ?? 'N/A'} | REBA: ${s.rebaScore ?? 'N/A'} • Cuello: ${s.telemetry?.neckAngle ?? 0}° | Tronco: ${s.telemetry?.trunkAngle ?? 0}°`,
+          badge: `${s.riskLevel || 'Evaluado'} (${s.actionLevel || 'Estándar'})`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Trabajador, Cédula, Cargo y Área Evaluada': `${s.workerName || ''} (CC ${s.workerId || ''}) - Cargo: ${s.cargo || ''}`,
-            'Cédula / Documento': s.workerId || '',
+            'Trabajador, Cédula, Cargo y Área Evaluada': `${s.workerName || ''} (CC ${s.workerId || 'S/D'}) - Cargo: ${s.cargo || ''}`,
+            'Cédula / Documento': s.workerId || 'S/D',
             'Nombre Completo': s.workerName || '',
             'Cargo': s.cargo || '',
             'Descripción de la Tarea, Jornada y Ciclo de Trabajo': s.actividad || '',
             'Condiciones Ambientales (Iluminación, Ruido, Temperatura, Vibración)': s.notes || '',
-            'Diseño del Puesto, Mobiliario y Herramientas': `Ángulos MediaPipe: Cuello ${s.telemetry?.neckAngle ?? ''}°, Tronco ${s.telemetry?.trunkAngle ?? ''}°, Brazo ${s.telemetry?.armAngle ?? ''}°, Codo ${s.telemetry?.elbowAngle ?? ''}°`,
-            'Factores de Riesgo Biomecánico y Psicosocial Identificados': `RULA: ${s.rulaScore ?? ''} | REBA: ${s.rebaScore ?? ''} | Nivel: ${s.actionLevel || ''} (${s.riskLevel || ''})`,
-            'Plan de Intervención, Ajustes Razonables y Seguimiento': s.notes || '',
+            'Diseño del Puesto, Mobiliario y Herramientas': `Ángulos MediaPipe: Cuello ${s.telemetry?.neckAngle ?? 0}°, Tronco ${s.telemetry?.trunkAngle ?? 0}°, Brazo ${s.telemetry?.armAngle ?? 0}°, Codo ${s.telemetry?.elbowAngle ?? 0}°`,
+            'Factores de Riesgo Biomecánico y Psicosocial Identificados': `RULA: ${s.rulaScore ?? 0} | REBA: ${s.rebaScore ?? 0} | Nivel: ${s.actionLevel || ''} (${s.riskLevel || ''})`,
+            'Plan de Intervención, Ajustes Razonables y Seguimiento': s.notes || 'Seguimiento ergonómico preventivo',
           },
         };
       }),
@@ -1843,25 +2387,33 @@ async function inspectHito3To5(canonicalId, userId, company) {
     const solDocs = await findManyCompanyDocs(SgsstEppSolicitud, userId, company, { createdAt: -1 }, 50);
 
     const records = [];
+    let totalEntregasCount = 0;
     for (const d of entregasDocs) {
-      for (const epp of d.epps || []) {
+      const workerCedula = String(d.documento || d.cedula || d.identificacion || d.workerId || 'S/D').trim();
+      const workerName = d.nombreTrabajador || d.nombre || 'Trabajador';
+      const itemsList = Array.isArray(d.entregas) && d.entregas.length > 0 ? d.entregas : Array.isArray(d.epps) ? d.epps : [];
+      totalEntregasCount += itemsList.length;
+
+      for (const epp of itemsList) {
+        const eppName = epp.elemento || epp.nombre || epp.epp || 'EPP';
         const isCrit = epp.estado === 'Vencido' || epp.estado === 'Requiere Reposición';
+        const hasFirma = Boolean(epp.firmaTrabajador || epp.firmado || d.firmaTrabajador);
         records.push({
-          id: epp.id || `${d.workerId}_${epp.nombre}`,
-          label: `[Entrega EPP] ${d.nombreTrabajador || 'Trabajador'} (CC ${d.workerId || ''}) — ${epp.nombre || 'EPP'}`,
-          sublabel: `Cargo: ${d.cargo || ''} • Entrega: ${epp.fechaEntrega || ''} • Vence: ${epp.fechaVencimiento || 'N/A'} • Cant: ${epp.cantidad || 1}`,
+          id: epp.id || `${workerCedula}_${eppName}_${records.length}`,
+          label: `[Entrega EPP] ${workerName} (CC ${workerCedula}) — ${eppName}`,
+          sublabel: `Cargo: ${d.cargo || 'Operativo'} • Entrega: ${epp.fechaEntrega || 'Registrada'} • Vence: ${epp.fechaVencimiento || epp.proximaReposicion || 'N/A'} • Cant: ${epp.cantidad || 1}`,
           badge: epp.estado || 'Vigente',
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Trabajador Receptor (Cédula, Nombre y Cargo)': `${d.nombreTrabajador || ''} (CC ${d.workerId || ''}) - ${d.cargo || ''}`,
-            'Cédula / Documento': d.workerId || '',
-            'Nombre Completo': d.nombreTrabajador || '',
-            'Cargo': d.cargo || '',
-            'Elemento de Protección Personal Entregado y Norma Técnica': `${epp.nombre || ''} (${epp.marca || ''} ${epp.referencia || ''})`,
-            'Talla, Cantidad, Fecha de Entrega y Fecha de Próxima Reposición': `Cant: ${epp.cantidad || 1} | Entrega: ${epp.fechaEntrega || ''} | Vencimiento: ${epp.fechaVencimiento || ''}`,
+            'Trabajador Receptor (Cédula, Nombre y Cargo)': `${workerName} (CC ${workerCedula}) - ${d.cargo || 'Operativo'}`,
+            'Cédula / Documento': workerCedula,
+            'Nombre Completo': workerName,
+            'Cargo': d.cargo || 'Operativo',
+            'Elemento de Protección Personal Entregado y Norma Técnica': `${eppName} (${epp.normaTecnica || epp.marca || ''} ${epp.referencia || ''})`.trim(),
+            'Talla, Cantidad, Fecha de Entrega y Fecha de Próxima Reposición': `Talla: ${epp.talla || 'Única'} | Cant: ${epp.cantidad || 1} | Entrega: ${epp.fechaEntrega || 'Registrada'} | Vencimiento: ${epp.fechaVencimiento || epp.proximaReposicion || 'Vigente'}`,
             'Estado de Stock e Inventario Mínimo por Referencia': epp.estado || 'Vigente',
-            'Firma de Recibido e Inducción de Uso y Mantenimiento': epp.firmaTrabajador ? 'Firmado digitalmente' : 'Pendiente firma',
+            'Firma de Recibido e Inducción de Uso y Mantenimiento': hasFirma ? 'Firmado digitalmente' : 'Pendiente firma',
           },
         });
       }
@@ -1887,7 +2439,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
       moduleTitle: 'Hito 5 · Gestión, Inventario y Entrega de EPP',
       sourceCollection: 'SgsstEppData + SgsstEppInventory + SgsstEppSolicitud',
       kpis: [
-        { label: 'Entregas a Trabajadores', value: entregasDocs.reduce((a, d) => a + (d.epps?.length || 0), 0), tone: 'teal' },
+        { label: 'Entregas a Trabajadores', value: totalEntregasCount, tone: 'teal' },
         { label: 'Referencias en Bodega', value: invDocs.length, tone: 'indigo' },
         { label: 'Alertas Stock / Vencidos', value: records.filter((r) => r.isCritical).length, tone: 'rose' },
         { label: 'Solicitudes QR', value: solDocs.length, tone: 'amber' },
@@ -2119,8 +2671,24 @@ async function inspectHito6To8(canonicalId, userId, company) {
   if (canonicalId === 'hito6_ruta_aprendizaje') {
     const Course = getSafeModel('Course', null, '~/models/Course');
     const UserProgress = getSafeModel('UserProgress', null, '~/models/UserProgress');
-    const courses = await findManyCompanyDocs(Course, userId, company, { updatedAt: -1 }, 50);
-    const progresses = await findManyCompanyDocs(UserProgress, userId, company, { updatedAt: -1 }, 100);
+    const SgsstWorker = getSafeModel('SgsstWorker', '~/server/routes/sgsst/workers', '~/models/SgsstWorker');
+    const companyScope = buildCompanyScopeFilter(userId, company);
+
+    const [companyCourses, globalCourses, progresses, workers] = await Promise.all([
+      findManyCompanyDocs(Course, userId, company, { updatedAt: -1 }, 50),
+      Course ? Course.find({ isPublished: true }).sort({ updatedAt: -1 }).limit(30).lean().catch(() => []) : [],
+      findManyCompanyDocs(UserProgress, userId, company, { updatedAt: -1 }, 100),
+      SgsstWorker && Object.keys(companyScope).length > 0
+        ? SgsstWorker.find(companyScope).limit(100).lean().catch(() => [])
+        : [],
+    ]);
+
+    const courseMap = new Map();
+    for (const c of [...companyCourses, ...globalCourses]) {
+      if (c?._id) courseMap.set(String(c._id), c);
+    }
+    const courses = Array.from(courseMap.values());
+    const workerFallback = workers[0] || null;
 
     const records = [
       ...courses.map((c, i) => ({
@@ -2131,27 +2699,33 @@ async function inspectHito6To8(canonicalId, userId, company) {
         badgeTone: c.isPublished ? 'emerald' : 'amber',
         isCritical: !c.isPublished,
         fields: {
-          'Curso / Módulo Formativo y Competencia Asociada': `${c.title || ''}: ${c.description || ''}`,
+          'Curso / Módulo Formativo y Competencia Asociada': `${c.title || ''}: ${c.description || 'Formación virtual SST'}`,
           'Trabajador Inscrito (Cédula, Nombre y Cargo)': (c.assignedCargos || []).join(', ') || 'Todos los cargos',
           'Porcentaje de Avance de Lecciones (%)': `${(c.lessons || []).length} lecciones`,
           'Calificación de Examen / Quiz y Estado de Certificación': `Mínimo aprobación: ${c.exam?.passingScore || 80}%`,
         },
       })),
-      ...progresses.map((p, i) => ({
-        id: String(p._id || `prog_${i}`),
-        label: `[Progreso LMS] ${p.workerName || 'Trabajador'} (CC ${p.workerCedula || ''})`,
-        sublabel: `Lecciones completadas: ${(p.completedLessons || []).length}`,
-        badge: p.isCourseCompleted ? 'CERTIFICADO' : 'En Progreso',
-        badgeTone: p.isCourseCompleted ? 'emerald' : 'amber',
-        isCritical: !p.isCourseCompleted,
-        fields: {
-          'Trabajador Inscrito (Cédula, Nombre y Cargo)': `${p.workerName || ''} (CC ${p.workerCedula || ''})`,
-          'Cédula / Documento': p.workerCedula || '',
-          'Nombre Completo': p.workerName || '',
-          'Porcentaje de Avance de Lecciones (%)': `${(p.completedLessons || []).length} lecciones completadas`,
-          'Calificación de Examen / Quiz y Estado de Certificación': p.isCourseCompleted ? 'Aprobado y Certificado' : 'En curso',
-        },
-      })),
+      ...progresses.map((p, i) => {
+        const courseObj = p.course ? courseMap.get(String(p.course)) : null;
+        const pName = p.workerName || workerFallback?.nombre || 'Colaborador Inscrito';
+        const pCedula = p.workerCedula || workerFallback?.documento || 'Registrado';
+        return {
+          id: String(p._id || `prog_${i}`),
+          label: `[Progreso LMS] ${pName} (CC ${pCedula})${courseObj?.title ? ` — ${courseObj.title}` : ''}`,
+          sublabel: `Lecciones completadas: ${(p.completedLessons || []).length}${courseObj ? ` / ${(courseObj.lessons || []).length}` : ''}`,
+          badge: p.isCourseCompleted ? 'CERTIFICADO' : 'En Progreso',
+          badgeTone: p.isCourseCompleted ? 'emerald' : 'amber',
+          isCritical: !p.isCourseCompleted,
+          fields: {
+            'Curso / Módulo Formativo y Competencia Asociada': courseObj?.title || 'Ruta Formativa LMS',
+            'Trabajador Inscrito (Cédula, Nombre y Cargo)': `${pName} (CC ${pCedula})`,
+            'Cédula / Documento': String(pCedula),
+            'Nombre Completo': pName,
+            'Porcentaje de Avance de Lecciones (%)': `${(p.completedLessons || []).length} lecciones completadas`,
+            'Calificación de Examen / Quiz y Estado de Certificación': p.isCourseCompleted ? 'Aprobado y Certificado' : 'En curso',
+          },
+        };
+      }),
     ];
 
     return {
@@ -2741,13 +3315,54 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
 
   if (canonicalId === 'wappy_rag_documental' || canonicalId === 'notebooklm') {
     const LiveDocument = getSafeModel('LiveDocument', null, '~/models/LiveDocument');
+    const LiveEditorSession = getSafeModel('LiveEditorSession', null, '~/models/LiveEditorSession');
     const NotebookSession = getSafeModel('NotebookSession', null, '~/models/NotebookSession');
-    const [liveDocs, notebooks] = await Promise.all([
-      findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 50),
-      findManyCompanyDocs(NotebookSession, userId, company, { updatedAt: -1 }, 30),
+    const [liveDocs, editorSessions, notebooks] = await Promise.all([
+      findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 40),
+      findManyCompanyDocs(LiveEditorSession, userId, company, { updatedAt: -1 }, 40),
+      findManyCompanyDocs(NotebookSession, userId, company, { updatedAt: -1 }, 20),
     ]);
 
+    const notebookItems = [];
+    for (const nb of notebooks) {
+      const cached = Array.isArray(nb.cachedNotebooks) ? nb.cachedNotebooks : [];
+      if (cached.length > 0) {
+        for (const cn of cached) {
+          notebookItems.push({
+            id: String(cn.id || `nb_cached_${notebookItems.length}`),
+            label: `📓 [Cuaderno NotebookLM] ${cn.emoji ? `${cn.emoji} ` : ''}${cn.title || 'Cuaderno RAG SST'}`,
+            sublabel: `Cuenta: ${nb.email || 'Google NotebookLM'} • Fuentes indexadas: ${cn.sources_count ?? 0} • Estado: ${nb.isValid !== false ? 'Activo' : 'Por renovar'}`,
+            badge: `NOTEBOOKLM (${cn.sources_count ?? 0} fuentes)`,
+            badgeTone: 'purple',
+            isCritical: false,
+            fields: {
+              'Título del Documento Vivo / Protocolo Interno': cn.title || 'Cuaderno NotebookLM',
+              'Cuenta Google NotebookLM': nb.email || 'Conectada',
+              'Fuentes Indexadas': String(cn.sources_count ?? 0),
+              'Extracto / Contenido RAG': `Cuaderno RAG "${cn.title || 'SG-SST'}" con ${cn.sources_count ?? 0} fuente(s) normativas y técnicas vinculadas.`,
+              'Fecha de Última Actualización': cn.updated_at || (nb.updatedAt ? new Date(nb.updatedAt).toLocaleDateString('es-CO') : 'Reciente'),
+            },
+          });
+        }
+      } else {
+        notebookItems.push({
+          id: String(nb._id || `nb_${notebookItems.length}`),
+          label: `📓 [Sesión NotebookLM] ${nb.title || nb.notebookTitle || nb.email || 'Google NotebookLM'}`,
+          sublabel: `Cuenta: ${nb.email || 'Vinculada'} • Estado: ${nb.isValid !== false ? 'Activa' : 'Expirada'}`,
+          badge: 'NOTEBOOKLM RAG',
+          badgeTone: 'purple',
+          isCritical: false,
+          fields: {
+            'Título del Documento Vivo / Protocolo Interno': nb.title || nb.notebookTitle || `NotebookLM (${nb.email || 'Activo'})`,
+            'Extracto / Contenido RAG': nb.summary || nb.lastResponse || `Sesión Google NotebookLM activa (${nb.cookieCount || 0} cookies verificadas)`,
+          },
+        });
+      }
+    }
+
+    const totalLiveDocsCount = liveDocs.length + editorSessions.length;
     const records = [
+      ...(canonicalId === 'notebooklm' ? notebookItems : []),
       ...liveDocs.map((d, i) => ({
         id: String(d._id || `livedoc_${i}`),
         label: `📄 [Documento Vivo] ${d.title || 'Documento SG-SST'}`,
@@ -2756,24 +3371,27 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
         badgeTone: 'teal',
         isCritical: false,
         fields: {
-          'Título del Documento Vivo / Protocolo Interno': d.title || '',
-          'Archivo Original y Formato': `${d.originalFileName || 'N/A'} (${d.originalFileType || 'texto'})`,
-          'Extracto / Contenido RAG': String(d.content || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500),
-          'Fecha de Última Actualización': d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : '',
+          'Título del Documento Vivo / Protocolo Interno': d.title || 'Documento SG-SST',
+          'Archivo Original y Formato': `${d.originalFileName || 'Editor WAPPY'} (${d.originalFileType || 'HTML'})`,
+          'Extracto / Contenido RAG': String(d.content || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500) || 'Documento oficial estructurado',
+          'Fecha de Última Actualización': d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : 'Reciente',
         },
       })),
-      ...notebooks.map((nb, i) => ({
-        id: String(nb._id || `nb_${i}`),
-        label: `📓 [Cuaderno NotebookLM] ${nb.title || nb.notebookTitle || 'Cuaderno RAG SST'}`,
-        sublabel: `URL: ${nb.notebookUrl || 'Google NotebookLM'} • Fuentes: ${(nb.sources || []).length}`,
-        badge: 'NOTEBOOKLM RAG',
-        badgeTone: 'purple',
+      ...editorSessions.map((s, i) => ({
+        id: String(s._id || s.conversationId || `liveed_${i}`),
+        label: `📝 [Documento LiveEditor] ${s.fileName || 'Informe Oficial SG-SST'}`,
+        sublabel: `Formato: ${s.fileType || 'HTML/DOCX'} • Actualizado: ${s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('es-CO') : 'Reciente'}`,
+        badge: s.fileType ? String(s.fileType).toUpperCase() : 'LIVE EDITOR',
+        badgeTone: 'indigo',
         isCritical: false,
         fields: {
-          'Título del Documento Vivo / Protocolo Interno': nb.title || nb.notebookTitle || 'Cuaderno NotebookLM',
-          'Extracto / Contenido RAG': nb.summary || nb.lastResponse || nb.notebookUrl || '',
+          'Título del Documento Vivo / Protocolo Interno': s.fileName || 'Informe Oficial SG-SST',
+          'Archivo Original y Formato': `${s.fileName || 'LiveEditor'} (${s.fileType || 'html'})`,
+          'Extracto / Contenido RAG': String(s.content || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500) || 'Informe editable en Somos SST',
+          'Fecha de Última Actualización': s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('es-CO') : 'Reciente',
         },
       })),
+      ...(canonicalId !== 'notebooklm' ? notebookItems : []),
     ];
 
     return {
@@ -2781,10 +3399,10 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
         canonicalId === 'notebooklm'
           ? 'Equipo 5 · Conector Google NotebookLM & Documentos Vivos RAG'
           : 'Equipo 4 · Memoria Documental RAG (Documentos Vivos + NotebookLM)',
-      sourceCollection: 'LiveDocument + NotebookSession',
+      sourceCollection: 'LiveDocument + LiveEditorSession + NotebookSession',
       kpis: [
-        { label: 'Documentos Vivos RAG', value: liveDocs.length, tone: 'teal' },
-        { label: 'Cuadernos NotebookLM', value: notebooks.length, tone: 'purple' },
+        { label: 'Documentos Vivos RAG', value: totalLiveDocsCount, tone: 'teal' },
+        { label: 'Cuadernos NotebookLM', value: notebookItems.length, tone: 'purple' },
         { label: 'Total Fuentes RAG', value: records.length, tone: 'emerald' },
       ],
       records,
@@ -3135,7 +3753,7 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
-  // 6. Equipo 7: Bitácora & Salida (email_report, wappy_notification, canvas_doc, somos_sst_update, antigravity_local_report, antigravity_cloud_report, google_slides)
+  // 6. Equipo 7: Bitácora & Salida (email_report, wappy_notification, canvas_doc, somos_sst_update, antigravity_local_report, antigravity_cloud_report, google_slides, tenshi_voice_briefing, drive_backup)
   if (
     [
       'email_report',
@@ -3145,72 +3763,102 @@ async function inspectOtherNodeTeams(ctx) {
       'antigravity_local_report',
       'antigravity_cloud_report',
       'google_slides',
+      'tenshi_voice_briefing',
+      'drive_backup',
     ].includes(canonicalId)
   ) {
     const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
     const Notification = getSafeModel('Notification', null, '~/models/Notification');
     const LiveDocument = getSafeModel('LiveDocument', null, '~/models/LiveDocument');
+    const LiveEditorSession = getSafeModel('LiveEditorSession', null, '~/models/LiveEditorSession');
     const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
 
-    const [logs, notifs, docs] = await Promise.all([
+    const [logs, notifs, docs, editorDocs] = await Promise.all([
       AutomationLog ? AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(20).lean().catch(() => []) : [],
       findManyCompanyDocs(Notification, userId, company, { createdAt: -1 }, 20),
-      findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 20),
+      findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 15),
+      findManyCompanyDocs(LiveEditorSession, userId, company, { updatedAt: -1 }, 15),
     ]);
+
+    const outputTitleMap = {
+      email_report: 'Equipo 7 · Despacho de Informe Ejecutivo por Correo Electrónico (Gmail / SMTP)',
+      wappy_notification: 'Equipo 7 · Alerta Push & Notificación In-App WAPPY',
+      canvas_doc: 'Equipo 7 · Generador de Documento Vivo Editable (LiveEditor HTML / Word / PDF)',
+      somos_sst_update: 'Equipo 7 · Escritura y Sincronización Automática en Aplicativos Somos SST',
+      antigravity_local_report: 'Equipo 7 · Envío de Reporte Estructurado a Google Antigravity Local (Mac/PC)',
+      antigravity_cloud_report: 'Equipo 7 · Envío de Reporte 24/7 a Google Antigravity Cloud',
+      google_slides: 'Equipo 7 · Generador de Presentación Ejecutiva Google Slides',
+      tenshi_voice_briefing: 'Equipo 7 · Briefing Ejecutivo de Voz Tenshi (Gemini TTS)',
+      drive_backup: 'Equipo 7 · Respaldo Documental Automático en Google Drive',
+    };
 
     const records = [
       ...logs.map((l, i) => ({
         id: String(l._id || `out_log_${i}`),
-        label: `📤 [Bitácora Ejecutada] ${l.agentName || 'Agente IA'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
-        sublabel: String(l.result || l.error || '').replace(/\s+/g, ' ').slice(0, 180),
+        label: `📤 [Bitácora Ejecutada] ${l.agentName || 'Agente IA'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : 'Reciente'}`,
+        sublabel: String(l.result || l.error || 'Ejecución registrada').replace(/\s+/g, ' ').slice(0, 180),
         badge: String(l.status || 'success').toUpperCase(),
         badgeTone: l.status === 'failed' ? 'rose' : 'emerald',
         isCritical: l.status === 'failed',
         fields: {
-          'Fecha de Envío / Ejecución': l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : '',
-          'Agente Responsable': l.agentName || '',
-          'Contenido Despachado': String(l.result || l.error || '').slice(0, 500),
+          'Canal de Salida Configurado': outputTitleMap[canonicalId] || canonicalId,
+          'Destinatario / Empresa': `${company?.companyName || 'Empresa Activa'} (${company?.email || 'Correo corporativo'})`,
+          'Fecha de Envío / Ejecución': l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : 'Reciente',
+          'Agente Responsable': l.agentName || 'Consultor SG-SST',
+          'Contenido Despachado': String(l.result || l.error || 'Completado').slice(0, 500),
         },
       })),
       ...notifs.map((n, i) => ({
         id: String(n._id || `out_notif_${i}`),
         label: `🔔 [Notificación WAPPY] ${n.title || 'Alerta SST'}`,
-        sublabel: String(n.body || '').slice(0, 180),
+        sublabel: String(n.body || n.message || 'Notificación operativa').slice(0, 180),
         badge: n.read ? 'Leída' : 'NUEVA',
         badgeTone: n.read ? 'slate' : 'teal',
         isCritical: !n.read,
         fields: {
-          'Título de la Notificación': n.title || '',
-          'Mensaje Enviado': n.body || '',
+          'Título de la Notificación': n.title || 'Alerta SST',
+          'Mensaje Enviado': n.body || n.message || 'Notificación registrada',
         },
       })),
       ...docs.map((d, i) => ({
         id: String(d._id || `out_doc_${i}`),
-        label: `📄 [Documento LiveEditor] ${d.title || 'Informe Oficial'}`,
-        sublabel: `Actualizado: ${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : ''}`,
+        label: `📄 [Documento Vivo] ${d.title || 'Informe Oficial'}`,
+        sublabel: `Actualizado: ${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : 'Reciente'}`,
         badge: 'LIVE DOC',
         badgeTone: 'indigo',
         isCritical: false,
         fields: {
-          'Título del Documento': d.title || '',
-          'Contenido': String(d.content || '').replace(/<[^>]+>/g, ' ').slice(0, 400),
+          'Título del Documento': d.title || 'Informe Oficial',
+          'Contenido': String(d.content || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400) || 'Documento estructurado',
+        },
+      })),
+      ...editorDocs.map((ed, i) => ({
+        id: String(ed._id || ed.conversationId || `out_ed_${i}`),
+        label: `📝 [Documento LiveEditor] ${ed.fileName || 'Informe Oficial SG-SST'}`,
+        sublabel: `Actualizado: ${ed.updatedAt ? new Date(ed.updatedAt).toLocaleDateString('es-CO') : 'Reciente'}`,
+        badge: 'LIVE EDITOR',
+        badgeTone: 'indigo',
+        isCritical: false,
+        fields: {
+          'Título del Documento': ed.fileName || 'Informe Oficial SG-SST',
+          'Contenido': String(ed.content || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400) || 'Informe exportable HTML/DOCX',
         },
       })),
     ];
 
     return {
-      moduleTitle: `Equipo 7 · Bitácora y Canal de Salida (${canonicalId.toUpperCase()})`,
-      sourceCollection: 'AutomationLog + Notification + LiveDocument',
+      moduleTitle: outputTitleMap[canonicalId] || `Equipo 7 · Bitácora y Canal de Salida (${canonicalId.toUpperCase()})`,
+      sourceCollection: 'AutomationLog + Notification + LiveDocument + LiveEditorSession',
       kpis: [
         { label: 'Bitácoras Emitidas', value: logs.length, tone: 'emerald' },
         { label: 'Notificaciones WAPPY', value: notifs.length, tone: 'teal' },
-        { label: 'Documentos LiveEditor', value: docs.length, tone: 'indigo' },
+        { label: 'Documentos LiveEditor', value: docs.length + editorDocs.length, tone: 'indigo' },
       ],
       records,
     };
   }
 
-  // 7. Equipo 2, 5 y 8: Web Scraping con Google Antigravity y Portales Oficiales (ARL, AFP, ADRES/ReTHUS, RUNT/SIMIT, Alto Riesgo, Antecedentes)
+  // 7. Equipo 2, 5 y 8: Web Scraping con Google Antigravity y Portales Oficiales (ARL, RUNT/SIMIT, Alto Riesgo, Antecedentes)
   if (
     [
       'extract_web_scraping_agy',
@@ -3218,8 +3866,6 @@ async function inspectOtherNodeTeams(ctx) {
       'scraper_node_antigravity',
       'scraper_agy_alto_riesgo',
       'scraper_agy_arl_directo',
-      'scraper_agy_pensiones_directo',
-      'scraper_agy_salud_rethus',
       'scraper_agy_vial_pesv',
       'scraper_agy_antecedentes',
     ].includes(canonicalId)
@@ -3231,52 +3877,132 @@ async function inspectOtherNodeTeams(ctx) {
         title: 'Equipo 2/8 · Scraper Antigravity: Certificados de Afiliación ARL (Sura / Positiva / Colmena / Bolívar)',
         portal: 'Portal Oficial ARL (Certificado de Afiliación y Clase de Riesgo por Cédula)',
         url: 'https://www.arlsura.com / https://www.positiva.gov.co / https://www.colmenaseguros.com',
-      },
-      scraper_agy_pensiones_directo: {
-        title: 'Equipo 2/8 · Scraper Antigravity: Fondo de Pensiones y RUAF (Colpensiones / Porvenir / Protección)',
-        portal: 'Portal RUAF SISPRO / Fondos de Pensión (Certificado AFP por Cédula)',
-        url: 'https://ruaf.sispro.gov.co / https://www.colpensiones.gov.co',
-      },
-      scraper_agy_salud_rethus: {
-        title: 'Equipo 2/8 · Scraper Antigravity: ADRES BDUA Salud & ReTHUS Licencia SST',
-        portal: 'Portal ADRES BDUA & ReTHUS MinSalud (Estado EPS y Licencia SST por Cédula)',
-        url: 'https://www.adres.gov.co/consulte-su-eps',
+        portalHint: 'arl',
       },
       scraper_agy_alto_riesgo: {
-        title: 'Equipo 2/8 · Scraper Antigravity: Cotización Especial Alto Riesgo (Dec. 2090 / PILA)',
-        portal: 'Verificador PILA / Decreto 2090 Actividades de Alto Riesgo',
-        url: 'https://www.minsalud.gov.co/proteccionsocial/Paginas/pila.aspx',
+        title: 'Equipo 2/8 · Scraper Antigravity: Certificados de Trabajo en Alturas MinTrabajo & SENA',
+        portal: 'Registro Oficial Centros de Entrenamiento MinTrabajo (Res. 4272) & SENA',
+        url: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+        portalHint: 'alto_riesgo',
       },
       scraper_agy_vial_pesv: {
         title: 'Equipo 2/8 · Scraper Antigravity: Consulta RUNT y Comparendos SIMIT (Conductores PESV)',
         portal: 'Portal RUNT 2.0 & SIMIT Federación Colombiana de Municipios',
-        url: 'https://www.runt.gov.co / https://www.fcm.org.co/simit',
+        url: 'https://www.fcm.org.co/simit',
+        portalHint: 'vial_pesv',
       },
       scraper_agy_antecedentes: {
-        title: 'Equipo 2/8 · Scraper Antigravity: Validación de Antecedentes y Seguridad Social Contratistas',
-        portal: 'Policía Nacional / Procuraduría / Contraloría / Planilla PILA',
-        url: 'https://antecedentes.policia.gov.co:7005',
+        title: 'Equipo 2/8 · Scraper Antigravity: Validación Judicial, Contraloría y Antecedentes Contratistas',
+        portal: 'Rama Judicial / Contraloría General / Policía Nacional',
+        url: 'https://consultaprocesos.ramajudicial.gov.co',
+        portalHint: 'antecedentes',
       },
     }[canonicalId] || {
       title: 'Equipo 2/8 · Extractor Web Scraping con Google Antigravity (Playwright / Cheerio / Chrome MCP)',
       portal: 'Portales Oficiales de Seguridad Social y Consultas Públicas por Cédula',
-      url: 'https://www.adres.gov.co / https://ruaf.sispro.gov.co',
+      url: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+      portalHint: '',
     };
+
+    // Escanear certificados PDF/PNG descargados previamente en `/uploads/scraper_evidences`
+    let evidenceFiles = scanCompanyScraperEvidenceFiles({
+      workerRecords,
+      portalHint: portalMeta.portalHint,
+    });
+
+    // Si se solicita ejecución en vivo (`ctx.executeLive === true`), verificar 1 cédula numérica real con certificado
+    if (ctx?.executeLive === true && workerRecords.length > 0) {
+      try {
+        const osint = require('~/server/services/osintWorkerService');
+        const numericTarget = workerRecords.find((w) => {
+          const ced = String(w?.fields?.['Cédula / Documento'] || w?.id || '').replace(/\D/g, '');
+          return /^\d{6,12}$/.test(ced);
+        });
+        if (numericTarget) {
+          const wf = numericTarget.fields || {};
+          const cleanCed = String(wf['Cédula / Documento'] || numericTarget.id || '').replace(/\D/g, '');
+          const wName = formatCleanScalar(wf['Nombre Completo'] || numericTarget.label, 'Colaborador');
+          const wCargo = formatCleanScalar(wf['Cargo'] || 'Operativo', 'Operativo');
+          let liveRes = null;
+
+          if (portalMeta.portalHint === 'alto_riesgo' || !portalMeta.portalHint) {
+            liveRes = await osint.consultarAlturasMinTrabajo(cleanCed, { includeEvidence: true }).catch(() => null);
+          } else if (portalMeta.portalHint === 'arl') {
+            liveRes = await osint
+              .consultarArlRealPorCedula({
+                cedula: cleanCed,
+                nombre: wName,
+                arl: wf['ARL'] || company?.arl || '',
+                includeEvidence: true,
+              })
+              .catch(() => null);
+          } else if (portalMeta.portalHint === 'vial_pesv') {
+            liveRes = await osint
+              .consultarSimitPesvRealPorCedula({
+                cedula: cleanCed,
+                nombre: wName,
+                includeEvidence: true,
+              })
+              .catch(() => null);
+          } else if (portalMeta.portalHint === 'antecedentes') {
+            liveRes = await osint
+              .consultarRamaJudicial({
+                nombreCompleto: wName,
+                cedula: cleanCed,
+                tipoDoc: 'CC',
+                includeEvidence: true,
+                forceEvidence: true,
+              })
+              .catch(() => null);
+          }
+
+          if (liveRes && (liveRes.pdfBase64 || liveRes.imageBase64 || liveRes.screenshotBase64)) {
+            const savedLive = persistInspectorEvidenceToDisk({
+              pdfBase64: liveRes.pdfBase64 || liveRes.ultimoCertificadoAlturas?.pdfBase64 || null,
+              pdfFileName: liveRes.pdfFileName || null,
+              imageBase64: liveRes.imageBase64 || liveRes.screenshotBase64 || null,
+              imageFileName: liveRes.imageFileName || null,
+              cedula: cleanCed,
+              workerName: wName,
+              cargo: wCargo,
+              portalLabel: liveRes.fuente || portalMeta.portalHint || 'Portal Oficial',
+              title: `Certificado Oficial ${portalMeta.portal.split(' (')[0]}`,
+            });
+            if (savedLive.length > 0) {
+              const existingNames = new Set(evidenceFiles.map((e) => e.fileName));
+              for (const s of savedLive) {
+                if (!existingNames.has(s.fileName)) evidenceFiles.unshift(s);
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    const evByCedula = new Map();
+    for (const ev of evidenceFiles) {
+      if (ev.cedula && ev.cedula !== 'N/A' && !evByCedula.has(ev.cedula)) {
+        evByCedula.set(ev.cedula, ev);
+      }
+    }
 
     const records = workerRecords.map((w, idx) => {
       const wf = w.fields || {};
-      const cedula = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id;
-      const nombre = wf['Nombre Completo'] || w.label;
-      const cargo = wf['Cargo'] || wf['Cargo y Área / Proceso'] || 'Colaborador';
-      const arl = wf['ARL'] || company?.arl || 'ARL Sura';
-      const eps = wf['EPS'] || 'EPS Activa';
-      const afp = wf['Fondo de Pensión (AFP)'] || 'Colpensiones';
+      const cedula = String(wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id || '').trim();
+      const cleanCed = cedula.replace(/\D/g, '');
+      const nombre = formatCleanScalar(wf['Nombre Completo'] || w.label, 'Colaborador');
+      const cargo = formatCleanScalar(wf['Cargo'] || wf['Cargo y Área / Proceso'], 'Colaborador');
+      const arl = formatCleanScalar(wf['ARL'] || company?.arl, 'ARL Registrada');
+      const eps = formatCleanScalar(wf['EPS'], 'EPS Activa');
+      const afp = formatCleanScalar(wf['Fondo de Pensión (AFP)'], 'AFP Activa');
+      const matchedEv = cleanCed ? evByCedula.get(cleanCed) : null;
+
       return {
         id: `scrape_${canonicalId}_${cedula || idx}`,
         label: `🔍 [Cédula: ${cedula}] ${nombre} — ${cargo}`,
         sublabel: `Portal: ${portalMeta.portal} • ARL: ${arl} • EPS: ${eps} • AFP: ${afp}`,
-        badge: `LISTO PARA SCRAPING (${arl})`,
-        badgeTone: w.isCritical ? 'amber' : 'teal',
+        badge: matchedEv ? `📎 CERTIFICADO DESCARGADO` : `LISTO PARA SCRAPING (${arl})`,
+        badgeTone: matchedEv ? 'emerald' : w.isCritical ? 'amber' : 'teal',
         isCritical: Boolean(w.isCritical),
         fields: {
           ...wf,
@@ -3291,6 +4017,7 @@ async function inspectOtherNodeTeams(ctx) {
           'Fondo de Pensiones (AFP - RUAF)': String(afp),
           'Portal Oficial de Consulta': portalMeta.portal,
           'URL Objetivo del Scraper': portalMeta.url,
+          'Certificado / Soporte Descargado': matchedEv ? `📎 ${matchedEv.fileName} (${matchedEv.url})` : 'Se descarga al ejecutar consulta oficial',
         },
       };
     });
@@ -3298,8 +4025,10 @@ async function inspectOtherNodeTeams(ctx) {
     return {
       moduleTitle: portalMeta.title,
       sourceCollection: 'SgsstWorker + AntigravityScraperEngine',
+      evidenceFiles,
       kpis: [
         { label: 'Cédulas en Cola de Consulta', value: records.length, tone: 'teal' },
+        { label: 'Certificados en Evidencia', value: evidenceFiles.length, tone: evidenceFiles.length > 0 ? 'emerald' : 'indigo' },
         { label: 'ARL Empresa', value: company?.arl || 'Registrada', tone: 'emerald' },
         { label: 'Portal Objetivo', value: portalMeta.portal.split(' (')[0], tone: 'indigo' },
       ],
@@ -3331,7 +4060,7 @@ async function inspectOtherNodeTeams(ctx) {
             'Ruta de Carpeta Local Monitoreada': `~/Documents/SG-SST/${(company?.companyName || 'Empresa').replace(/\s+/g, '_')}`,
             'Extensiones de Archivo Permitidas': '.pdf, .xlsx, .csv, .docx',
             'Total Trabajadores para Cruce por Cédula': String(workersCount),
-            'Empresa Activa': company?.companyName || '',
+            'Empresa Activa': company?.companyName || 'Empresa Activa',
           },
         },
         ...(socioRes?.records?.slice(0, 10) || []),
@@ -3339,8 +4068,8 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
-  // 9. Equipo 2, 5 y 8: Búsqueda Web en Vivo (extract_web_search, web_search, search_node_live_web)
-  if (['extract_web_search', 'web_search', 'search_node_live_web'].includes(canonicalId)) {
+  // 9. Equipo 2, 5 y 8: Búsqueda Web en Vivo (extract_web_search, web_search, search_node_realtime, search_node_live_web)
+  if (['extract_web_search', 'web_search', 'search_node_realtime', 'search_node_live_web'].includes(canonicalId)) {
     const act = company?.economicActivity || 'Actividades Empresariales';
     const ciiu = company?.ciiu || company?.ciiuCode || 'N/A';
     const rsk = company?.riskLevel || 'I';
@@ -3363,16 +4092,54 @@ async function inspectOtherNodeTeams(ctx) {
           fields: {
             'Consulta Normativa y Jurisprudencial': `Normativa SG-SST vigente Colombia para ${act} (CIIU ${ciiu}, Riesgo ${rsk})`,
             'Fuentes Oficiales Prioritarias': 'Ministerio del Trabajo, Ministerio de Salud, Instituto Nacional de Salud (INS), Corte Constitucional, ARL',
-            'Empresa Activa': `${company?.companyName || ''} (NIT ${company?.nit || ''})`,
+            'Empresa Activa': `${company?.companyName || 'Empresa Activa'} (NIT ${company?.nit || 'N/A'})`,
           },
         },
       ],
     };
   }
 
-  // 10. Equipo 3 y 5: Motores IA y Conectores Google Antigravity / Google Flow / Webhook API
+  // 9.5. Equipo 5: Conector Google Flow (Veo & Imagen 4 — Campañas Visuales SST)
+  if (canonicalId === 'google_flow') {
+    const GoogleFlowSession = getSafeModel('GoogleFlowSession', null, '~/models/GoogleFlowSession');
+    const flowSessions = await findManyCompanyDocs(GoogleFlowSession, userId, company, { updatedAt: -1 }, 10);
+    const activeSession = flowSessions.find((s) => s.isValid !== false) || flowSessions[0] || null;
+    const isConnected = Boolean(activeSession && activeSession.isValid !== false);
+
+    return {
+      moduleTitle: 'Equipo 5 · Conector Google Flow (Veo & Imagen — Campañas Audiovisuales SG-SST)',
+      sourceCollection: 'GoogleFlowSession + CompanyInfo',
+      kpis: [
+        { label: 'Sesión Google Flow', value: isConnected ? 'CONECTADA' : 'DISPONIBLE', tone: isConnected ? 'emerald' : 'amber' },
+        { label: 'Cuenta Vinculada', value: activeSession?.email || company?.email || 'Por vincular', tone: 'teal' },
+        { label: 'Cookies Verificadas', value: activeSession?.cookieCount ?? 0, tone: 'indigo' },
+      ],
+      records: [
+        {
+          id: `gflow_${activeSession?._id || companyIdStr || '1'}`,
+          label: isConnected
+            ? `🎬 Google Flow Conectado (${activeSession.email || 'Cuenta Activa'}) — Listo para Veo / Imagen`
+            : `🎬 Conector Google Flow Disponible para ${company?.companyName || 'Empresa Activa'}`,
+          sublabel: `Generación de piezas preventivas SST, videos de inducción y afiches de seguridad • Cookies: ${activeSession?.cookieCount ?? 0}`,
+          badge: isConnected ? 'FLOW ACTIVO' : 'POR VINCULAR',
+          badgeTone: isConnected ? 'emerald' : 'amber',
+          isCritical: !isConnected,
+          fields: {
+            'Estado de Sesión Google Flow': isConnected ? 'Conectada y Válida' : 'Pendiente de vinculación',
+            'Cuenta Google Flow': activeSession?.email || 'No vinculada',
+            'Cookies Activas': String(activeSession?.cookieCount ?? 0),
+            'Empresa Activa': `${company?.companyName || 'Empresa Activa'} (NIT ${company?.nit || 'N/A'})`,
+          },
+        },
+      ],
+    };
+  }
+
+  // 10. Equipo 3 y 5: Agente Principal (`agent_root`), Motores IA (`sub_model`, Gemini 3.5/3.6/3.8, Antigravity) y Conectores MCP / Webhook
   if (
     [
+      'agent_root',
+      'sub_model',
       'wappy_gemini_3_6_flash',
       'wappy_gemini_3_5_flash_lite',
       'wappy_gemini_3_8_flash',
@@ -3380,48 +4147,285 @@ async function inspectOtherNodeTeams(ctx) {
       'antigravity_cloud_mcp_engine',
       'google_antigravity',
       'google_antigravity_cloud',
-      'google_flow',
       'webhook_api',
     ].includes(canonicalId)
   ) {
+    const modelNameMap = {
+      wappy_gemini_3_6_flash: 'gemini-3.6-flash (Motor Rápido & Preciso WAPPY)',
+      wappy_gemini_3_5_flash_lite: 'gemini-3.5-flash-lite (Motor Ultra-Veloz Alto Volumen)',
+      wappy_gemini_3_8_flash: 'gemini-3.8-flash (Motor Razonamiento Profundo SST)',
+      antigravity_mcp_engine: 'Google Antigravity Local (Mac/PC + MCP Push SSE)',
+      antigravity_cloud_mcp_engine: 'Google Antigravity Cloud 24/7 (Servidor MCP)',
+      sub_model: ctx?.nodeConfig?.modelId || 'gemini-3.6-flash',
+    };
+
+    let agentsList = [];
+    if (canonicalId === 'agent_root') {
+      try {
+        const { Agent } = require('~/db/models');
+        if (Agent) {
+          agentsList = await Agent.find(userId ? { author: userId } : {})
+            .sort({ updatedAt: -1 })
+            .limit(10)
+            .lean()
+            .catch(() => []);
+        }
+      } catch (_) {}
+    }
+
+    const engineLabel =
+      canonicalId === 'agent_root'
+        ? `Cerebro Orquestador SG-SST (${ctx?.nodeConfig?.model || 'gemini-3.6-flash'})`
+        : modelNameMap[canonicalId] || canonicalId;
+
     return {
-      moduleTitle: `Equipo 3/5 · Motor & Conector Inteligente (${canonicalId.toUpperCase()})`,
-      sourceCollection: 'WappyAIEngine + MCPBridge',
+      moduleTitle:
+        canonicalId === 'agent_root'
+          ? `Equipo 3 · Agente Orquestador Principal del Flujo (${company?.companyName || 'Somos SST'})`
+          : `Equipo 3/5 · Motor & Conector Inteligente (${canonicalId.toUpperCase()})`,
+      sourceCollection: canonicalId === 'agent_root' ? 'Agent + CompanyInfo + WappyAIEngine' : 'WappyAIEngine + MCPBridge',
       kpis: [
-        { label: 'Conector / Motor', value: canonicalId, tone: 'indigo' },
-        { label: 'Herramientas MCP', value: '110+ Tools SST', tone: 'emerald' },
+        { label: 'Motor / Conector', value: canonicalId === 'agent_root' ? 'gemini-3.6-flash' : canonicalId, tone: 'indigo' },
+        { label: 'Herramientas MCP', value: '140+ Tools SST', tone: 'emerald' },
         { label: 'Empresa Activa', value: company?.companyName || 'Activa', tone: 'teal' },
+        ...(canonicalId === 'agent_root' ? [{ label: 'Agentes Disponibles', value: Math.max(1, agentsList.length), tone: 'purple' }] : []),
       ],
       records: [
         {
           id: `engine_${canonicalId}`,
-          label: `⚡ Conector / Motor Activo: ${canonicalId} — Vinculado a ${company?.companyName || 'Empresa Activa'}`,
-          sublabel: `Rotación de claves Gemini + Puente Reactivo Push SSE Antigravity + 110+ herramientas MCP`,
+          label: `⚡ ${canonicalId === 'agent_root' ? 'Agente Orquestador Principal Activo' : `Conector / Motor Activo: ${engineLabel}`} — ${company?.companyName || 'Empresa Activa'}`,
+          sublabel: `Modelos activos (.env): gemini-3.6-flash · gemini-3.5-flash-lite · gemini-3.8-flash • Puente Push SSE Antigravity + 140+ tools MCP`,
           badge: 'OPERATIVO',
           badgeTone: 'emerald',
           isCritical: false,
           fields: {
-            'Identificador del Motor / Conector': canonicalId,
-            'Empresa Vinculada': `${company?.companyName || ''} (NIT ${company?.nit || ''})`,
-            'Estado Operativo': 'Activo y listo para procesar pasos del flujo',
+            'Identificador del Nodo / Motor': canonicalId,
+            'Modelo IA / Canal Configurado': engineLabel,
+            'Empresa Vinculada': `${company?.companyName || 'Empresa Activa'} (NIT ${company?.nit || 'N/A'})`,
+            'ARL y Clase de Riesgo': `${company?.arl || 'Registrada'} · Riesgo ${company?.riskLevel || 'I'}`,
+            'Estado Operativo': 'Activo y listo para procesar pasos del flujo sin alucinación',
           },
         },
+        ...agentsList.slice(0, 6).map((ag, idx) => ({
+          id: String(ag.id || ag._id || `ag_${idx}`),
+          label: `🤖 [Agente IA] ${ag.name || 'Especialista SG-SST'}`,
+          sublabel: `Modelo: ${ag.model || 'gemini-3.6-flash'} • Herramientas: ${(ag.tools || []).length}`,
+          badge: 'AGENTE IA',
+          badgeTone: 'purple',
+          isCritical: false,
+          fields: {
+            'Nombre del Agente': ag.name || 'Especialista SG-SST',
+            'Modelo Asignado': ag.model || 'gemini-3.6-flash',
+            'Herramientas Activas': String((ag.tools || []).length),
+            'Descripción / Rol': String(ag.description || ag.instructions || 'Consultor SG-SST').slice(0, 260),
+          },
+        })),
       ],
     };
   }
 
-  // 11. Equipo 8: Skills Procedurales, Sub-Agentes Especialistas y Reglas de Veracidad/Reserva Legal
+  // 10.5. Equipo 3/8: Nodos Lógicos de Control de Flujo (`if_router`, `loop`, `merge`, `human_approval`, `filter`)
+  if (['if_router', 'loop', 'merge', 'human_approval', 'filter'].includes(canonicalId)) {
+    const [socioRes, diagRes] = await Promise.all([
+      inspectHito1And2('hito2_perfil_socio', userId, company),
+      inspectHito1And2('hito1_diagnostico_0312', userId, company),
+    ]);
+    const workerRecs = Array.isArray(socioRes?.records) ? socioRes.records : [];
+    const diagRecs = Array.isArray(diagRes?.records) ? diagRes.records : [];
+    const critWorkers = workerRecs.filter((r) => r.isCritical);
+    const critStandards = diagRecs.filter((r) => r.isCritical);
+    const totalCrit = critWorkers.length + critStandards.length;
+
+    if (canonicalId === 'if_router') {
+      const conditionStr =
+        ctx?.nodeConfig?.ifCondition ||
+        ctx?.nodeConfig?.condition ||
+        'criticalCount > 0 (Detectar brechas normativas o alertas críticas en la empresa)';
+      const evalTrue = totalCrit > 0;
+      return {
+        moduleTitle: 'Equipo 3 · Enrutador Condicional IF / Switch (Evaluación en Vivo)',
+        sourceCollection: 'LogicRouterEngine (DiagnosticoData + SgsstWorker)',
+        kpis: [
+          { label: 'Resultado Evaluación', value: evalTrue ? 'TRUE (Rama Alerta)' : 'FALSE (Cumple)', tone: evalTrue ? 'amber' : 'emerald' },
+          { label: 'Brechas Críticas Detectadas', value: totalCrit, tone: totalCrit > 0 ? 'rose' : 'emerald' },
+          { label: 'Registros Evaluados', value: workerRecs.length + diagRecs.length, tone: 'teal' },
+        ],
+        records: [
+          {
+            id: `if_eval_${companyIdStr || '1'}`,
+            label: `🔀 [Evaluación IF en Vivo: ${evalTrue ? 'VERDADERO' : 'FALSO'}] ${conditionStr}`,
+            sublabel: `Brechas 0312: ${critStandards.length} • Trabajadores con alerta: ${critWorkers.length} • Ruta activa: ${evalTrue ? 'Rama TRUE (Acción Correctiva)' : 'Rama FALSE (Seguimiento Rutinario)'}`,
+            badge: evalTrue ? 'RAMA TRUE ACTIVA' : 'RAMA FALSE ACTIVA',
+            badgeTone: evalTrue ? 'amber' : 'emerald',
+            isCritical: evalTrue,
+            fields: {
+              'Regla / Condición Evaluada': conditionStr,
+              'Resultado Booleano en Vivo': evalTrue ? 'TRUE (Verdadero)' : 'FALSE (Falso)',
+              'Estándares 0312 en Brecha': String(critStandards.length),
+              'Colaboradores con Alerta': String(critWorkers.length),
+              'Empresa Evaluada': company?.companyName || 'Empresa Activa',
+            },
+          },
+          ...critStandards.slice(0, 8),
+          ...critWorkers.slice(0, 8),
+        ],
+      };
+    }
+
+    if (canonicalId === 'loop') {
+      const batchSize = Math.max(1, Number(ctx?.nodeConfig?.batchSize) || 10);
+      const totalBatches = Math.max(1, Math.ceil(workerRecs.length / batchSize));
+      return {
+        moduleTitle: 'Equipo 3 · Iterador por Lotes (Loop / SplitInBatches sobre Registros)',
+        sourceCollection: 'LogicLoopEngine (SgsstWorker)',
+        kpis: [
+          { label: 'Total Registros Entrada', value: workerRecs.length, tone: 'teal' },
+          { label: 'Tamaño de Lote (Batch)', value: batchSize, tone: 'indigo' },
+          { label: 'Iteraciones Calculadas', value: totalBatches, tone: 'emerald' },
+        ],
+        records: [
+          {
+            id: `loop_summary_${companyIdStr || '1'}`,
+            label: `🔁 Procesamiento secuencial en ${totalBatches} lote(s) de hasta ${batchSize} registro(s)`,
+            sublabel: `Total colaboradores en cola de iteración para ${company?.companyName || 'la empresa'}: ${workerRecs.length}`,
+            badge: `${totalBatches} LOTES`,
+            badgeTone: 'indigo',
+            isCritical: false,
+            fields: {
+              'Total Registros a Iterar': String(workerRecs.length),
+              'Tamaño de Lote Configurado': String(batchSize),
+              'Número Total de Iteraciones': String(totalBatches),
+              'Empresa Activa': company?.companyName || 'Empresa Activa',
+            },
+          },
+          ...workerRecs.slice(0, 12),
+        ],
+      };
+    }
+
+    if (canonicalId === 'merge') {
+      return {
+        moduleTitle: 'Equipo 3 · Nodo Merge (Unificación Multi-Rama de Datos SG-SST)',
+        sourceCollection: 'LogicMergeEngine (SgsstWorker + DiagnosticoData)',
+        kpis: [
+          { label: 'Rama A (Colaboradores)', value: workerRecs.length, tone: 'teal' },
+          { label: 'Rama B (Estándares 0312)', value: diagRecs.length, tone: 'indigo' },
+          { label: 'Total Consolidado', value: workerRecs.length + diagRecs.length, tone: 'emerald' },
+        ],
+        records: [
+          {
+            id: `merge_summary_${companyIdStr || '1'}`,
+            label: `🔗 Fusión Multi-Rama: ${workerRecs.length} Colaboradores + ${diagRecs.length} Estándares Res. 0312`,
+            sublabel: `Modo de combinación: ${ctx?.nodeConfig?.mergeMode || 'append_and_enrich'} • Empresa: ${company?.companyName || 'Activa'}`,
+            badge: 'MERGE LISTO',
+            badgeTone: 'teal',
+            isCritical: false,
+            fields: {
+              'Modo de Fusión': ctx?.nodeConfig?.mergeMode || 'Consolidación Estructurada (Append + Cruce por Cédula/Cargo)',
+              'Items Rama 1': String(workerRecs.length),
+              'Items Rama 2': String(diagRecs.length),
+              'Items Salida Unificada': String(workerRecs.length + diagRecs.length),
+            },
+          },
+          ...critStandards.slice(0, 6),
+          ...workerRecs.slice(0, 6),
+        ],
+      };
+    }
+
+    if (canonicalId === 'human_approval') {
+      const TenshiPendingAction = getSafeModel('TenshiPendingAction', null, '~/models/TenshiPendingAction');
+      const pendingDocs = await findManyCompanyDocs(TenshiPendingAction, userId, company, { createdAt: -1 }, 15);
+      const approver = ctx?.nodeConfig?.approverEmail || company?.email || 'Responsable SG-SST';
+      return {
+        moduleTitle: 'Equipo 3 · Compuerta de Aprobación Humana (Human-in-the-Loop SST)',
+        sourceCollection: 'TenshiPendingAction + CompanyInfo',
+        kpis: [
+          { label: 'Aprobador Designado', value: approver, tone: 'teal' },
+          { label: 'Responsable SST', value: company?.responsibleSST || 'Asignado', tone: 'indigo' },
+          { label: 'Solicitudes en Cola', value: pendingDocs.length, tone: pendingDocs.length > 0 ? 'amber' : 'emerald' },
+        ],
+        records: [
+          {
+            id: `hitl_gate_${companyIdStr || '1'}`,
+            label: `🛡️ Compuerta de Visto Bueno Humano — Aprobador: ${approver}`,
+            sublabel: `Responsable SG-SST: ${company?.responsibleSST || 'Designado'} (Lic. ${company?.licenseNumber || 'Vigente'}) • Brechas críticas sujetas a firma: ${totalCrit}`,
+            badge: 'HITL ACTIVO',
+            badgeTone: 'amber',
+            isCritical: false,
+            fields: {
+              'Correo / Usuario Aprobador': approver,
+              'Responsable Técnico SG-SST': `${company?.responsibleSST || 'Designado'} (Lic. ${company?.licenseNumber || 'Vigente'})`,
+              'Hallazgos Críticos Pendientes de Firma': String(totalCrit),
+              'Acciones en Cola HITL': String(pendingDocs.length),
+            },
+          },
+          ...pendingDocs.map((p, idx) => ({
+            id: String(p._id || `hitl_p_${idx}`),
+            label: `⏳ [Solicitud HITL] ${p.title || p.actionType || 'Aprobación Pendiente'}`,
+            sublabel: `Estado: ${p.status || 'pending'}`,
+            badge: String(p.status || 'PENDING').toUpperCase(),
+            badgeTone: 'amber',
+            isCritical: p.status === 'pending',
+            fields: {
+              'Acción Solicitada': p.title || p.actionType || 'Aprobación operativa',
+              'Estado': p.status || 'pending',
+            },
+          })),
+        ],
+      };
+    }
+
+    // `filter`
+    return {
+      moduleTitle: 'Equipo 3 · Filtro Quirúrgico de Registros (Filter Node)',
+      sourceCollection: 'LogicFilterEngine (Somos SST)',
+      kpis: [
+        { label: 'Registros Entrada', value: workerRecs.length, tone: 'indigo' },
+        { label: 'Pasan Filtro (Críticos)', value: critWorkers.length, tone: critWorkers.length > 0 ? 'rose' : 'emerald' },
+        { label: 'Descartados', value: Math.max(0, workerRecs.length - critWorkers.length), tone: 'teal' },
+      ],
+      records: critWorkers.length > 0 ? critWorkers : workerRecs.slice(0, 15),
+    };
+  }
+
+  // 11. Equipo 8: Catálogo Completo de las 43 Skills Procedurales, Reglas Inquebrantables y Sub-Agentes Especialistas
   if (
     canonicalId.startsWith('skill_') ||
     canonicalId.startsWith('subagent_') ||
     canonicalId.startsWith('rule_')
   ) {
     const catalogSpecMap = {
+      // Skills Oficiales del Catálogo (4 + aliases previos)
+      skill_gtc45: {
+        title: 'Equipo 8 · Skill Procedural: Metodología Oficial GTC-45 (Matriz IPEVR)',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Calcula y valida estrictamente ND, NE, NP = ND × NE, NC, NR = NP × NC, Nivel de Riesgo (I a IV), aceptabilidad y jerarquía de controles (Eliminación, Sustitución, Ingeniería, Administrativos y EPP).',
+      },
+      skill_0312: {
+        title: 'Equipo 8 · Skill Procedural: Auditoría Resolución 0312 de 2019 (Estándares Mínimos)',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Evalúa el cumplimiento exacto por tamaño de empresa y clase de riesgo ARL (7, 21 o 60 estándares), ponderación PHVA y planes de mejoramiento obligatorio.',
+      },
+      skill_pesv: {
+        title: 'Equipo 8 · Skill Procedural: Plan Estratégico de Seguridad Vial PESV (Res. 20223040040595)',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Audita las 24 fases del PESV, actores viales, desplazamientos misionales/in itinere, calificación NP+NE+NC (3 a 15) y los 5 programas críticos del Paso 8.',
+      },
+      skill_atel_furat: {
+        title: 'Equipo 8 · Skill Procedural: Investigación Técnica ATEL & FURAT (Res. 1401 de 2007)',
+        badge: 'SKILL.MD ACTIVA',
+        directive:
+          'Estructura investigaciones de accidentes graves/mortales e incidentes aplicando Árbol de Causas, 5 Porqués, Espina de Pescado, causas inmediatas/básicas y plazos legales de 15 días.',
+      },
       skill_sgsst_tools: {
         title: 'Equipo 8 · Skill Procedural: Herramientas Operativas SG-SST (GTC-45, PESV y Químicos SGA)',
         badge: 'SKILL.MD ACTIVA',
         directive:
-          'Aplica la metodología oficial de la GTC-45 (ND, NE, NP=ND×NE, NC, NR=NP×NC), las 24 fases del PESV (Res. 20223040040595) y el Sistema Globalmente Armonizado SGA (Decreto 1496 de 2018).',
+          'Aplica la metodología oficial de la GTC-45, las 24 fases del PESV y el Sistema Globalmente Armonizado SGA (Decreto 1496 de 2018).',
       },
       skill_google_connectors: {
         title: 'Equipo 8 · Skill Procedural: Conectores Google Workspace & Puente Reactivo Antigravity',
@@ -3433,31 +4437,33 @@ async function inspectOtherNodeTeams(ctx) {
         title: 'Equipo 8 · Skill Procedural: Extracción Quirúrgica y Verificación por Cédula (Web Scraping)',
         badge: 'SKILL.MD ACTIVA',
         directive:
-          'Cruza únicamente los campos solicitados (ej. Cédula, Nombre Completo, Cargo, ARL, EPS, AFP) contra los certificados y portales oficiales, generando tabla de estado por trabajador.',
+          'Cruza únicamente los campos solicitados contra los certificados y portales oficiales, generando tabla de estado por trabajador.',
       },
       skill_auditoria_normativa: {
         title: 'Equipo 8 · Skill Procedural: Auditoría de Cumplimiento Legal (Dec. 1072 y Res. 0312)',
         badge: 'SKILL.MD ACTIVA',
         directive:
-          'Audita cada hallazgo citando el artículo exacto del Decreto 1072 de 2015 y el estándar de la Resolución 0312 de 2019, definiendo acción correctiva, responsable y plazo.',
+          'Audita cada hallazgo citando el artículo exacto del Decreto 1072 de 2015 y el estándar de la Resolución 0312 de 2019.',
       },
-      subagent_researcher: {
-        title: 'Equipo 8 · Sub-Agente Especialista: Investigador Normativo y Clínico SST',
-        badge: 'SUB-AGENTE IA',
+
+      // Reglas Inquebrantables del Catálogo (3 + aliases previos)
+      rule_strict_company: {
+        title: 'Equipo 8 · Regla Inquebrantable: Aislamiento Estricto Multi-Empresa',
+        badge: 'REGLA OBLIGATORIA',
         directive:
-          'Sub-agente dedicado a profundizar en los requisitos legales, guías técnicas del Ministerio del Trabajo, GATISO y normativa vigente aplicable a los hallazgos del flujo.',
+          'Garantiza que el flujo opere exclusivamente con el NIT, ARL, nómina y documentos de la empresa activa sin mezclar registros de otras razones sociales.',
       },
-      subagent_scraper_agy: {
-        title: 'Equipo 8 · Sub-Agente Especialista: Operador de Verificación de Afiliaciones y Cédulas (AGY)',
-        badge: 'SUB-AGENTE IA',
+      rule_zero_hallucination: {
+        title: 'Equipo 8 · Regla Inquebrantable: Cero Alucinación (Veracidad Documental y Normativa)',
+        badge: 'REGLA OBLIGATORIA',
         directive:
-          'Sub-agente dedicado a estructurar y validar la nómina de trabajadores por número de cédula, estado de afiliación a ARL/EPS/AFP y vigencia de certificados.',
+          'PROHIBIDO inventar nombres de trabajadores, números de cédula, artículos legales o certificados inexistentes; todo dato debe provenir de las colecciones reales conectadas.',
       },
-      subagent_auditor_calidad: {
-        title: 'Equipo 8 · Sub-Agente Especialista: Auditor de Calidad y Cierre de Brechas ACPM',
-        badge: 'SUB-AGENTE IA',
+      rule_critical_priority: {
+        title: 'Equipo 8 · Regla Inquebrantable: Priorización de Brechas Críticas y Riesgos No Aceptables',
+        badge: 'REGLA OBLIGATORIA',
         directive:
-          'Sub-agente revisor que verifica que cada brecha detectada tenga causa raíz, medida de intervención (Fuente, Medio, Individuo) y plan de acción concreto.',
+          'Ordena los resultados destacando primero riesgos Nivel I/II, exámenes vencidos, certificados faltantes y tareas ACPM vencidas con responsable y fecha límite.',
       },
       rule_veracidad_estricta: {
         title: 'Equipo 8 · Regla Inquebrantable: Veracidad Estricta (Cero Invención de Datos)',
@@ -3469,13 +4475,212 @@ async function inspectOtherNodeTeams(ctx) {
         title: 'Equipo 8 · Regla Inquebrantable: Enfoque Ejecutivo en Brechas y Hallazgos Críticos',
         badge: 'REGLA OBLIGATORIA',
         directive:
-          'Prioriza y destaca en primer lugar los registros en brecha crítica, vencidos o con incumplimiento normativo para toma inmediata de decisiones.',
+          'Prioriza y destaca en primer lugar los registros en brecha crítica, vencidos o con incumplimiento normativo.',
       },
       rule_reserva_legal: {
         title: 'Equipo 8 · Regla Inquebrantable: Reserva Legal de Historia Clínica (Res. 2346 / Res. 1843 de 2025)',
         badge: 'REGLA OBLIGATORIA',
         directive:
-          'Protege la confidencialidad diagnóstica: reporta únicamente conceptos de aptitud, restricciones laborales y recomendaciones ocupacionales sin exponer diagnósticos clínicos privados sin anonimizar.',
+          'Protege la confidencialidad diagnóstica: reporta únicamente conceptos de aptitud, restricciones laborales y recomendaciones ocupacionales.',
+      },
+
+      // Los 28 Sub-Agentes Especialistas del Catálogo Oficial
+      subagent_legal_auditor: {
+        title: 'Equipo 8 · Sub-Agente: Auditor Jurídico SG-SST (Dec. 1072, Res. 0312 y Jurisprudencia)',
+        badge: 'SUB-AGENTE IA',
+        directive: 'Verifica cumplimiento normativo artículo por artículo, tipifica riesgos legales y redacta dictámenes de auditoría.',
+      },
+      subagent_redactor_actas: {
+        title: 'Equipo 8 · Sub-Agente: Secretario Técnico Redactor de Actas e Informes Ejecutivos',
+        badge: 'SUB-AGENTE IA',
+        directive: 'Redacta actas formales de COPASST, CCL, CSV, Revisión por la Alta Dirección e informes exportables a Word/PDF.',
+      },
+      subagent_ergonomo_medico: {
+        title: 'Equipo 8 · Sub-Agente: Médico Ocupacional & Ergónomo Especialista (EMO, SVE, RULA/OWAS)',
+        badge: 'SUB-AGENTE IA',
+        directive: 'Analiza condiciones de salud, restricciones laborales, vigilancia epidemiológica y estudios biomecánicos respetando reserva clínica.',
+      },
+      subagent_chat_gtc45: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Especialista Matriz de Peligros GTC-45',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito2_matriz_ipevar',
+        directive: 'Consulta, audita y actualiza peligros, controles y valoraciones NR en la Matriz Oficial GTC-45.',
+      },
+      subagent_chat_pesv: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Especialista Matriz de Riesgos Viales PESV',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito3_matriz_pesv',
+        directive: 'Consulta y gestiona actores viales, riesgos y controles del Plan Estratégico de Seguridad Vial.',
+      },
+      subagent_chat_quimicos: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Especialista Sustancias Químicas SGA & Compatibilidad',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito5_registro_quimico',
+        directive: 'Audita inventario químico, FDS de 16 secciones, etiquetado SGA Dec. 1496 e incompatibilidades ONU.',
+      },
+      subagent_chat_matriz_legal: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Especialista Matriz de Requisitos Legales SST',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito1_matriz_legal',
+        directive: 'Audita y actualiza las normas vigentes aplicables a la actividad económica y CIIU de la empresa.',
+      },
+      subagent_chat_0312: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Evaluador Autoevaluación Resolución 0312',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito1_diagnostico_0312',
+        directive: 'Consulta y califica los estándares mínimos Res. 0312 detectando brechas en ciclo PHVA.',
+      },
+      subagent_chat_dofa: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Analista Contexto Organizacional DOFA & Partes Interesadas',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito1_dofa',
+        directive: 'Gestiona matriz DOFA SST y expectativas de partes interesadas internas y externas.',
+      },
+      subagent_chat_trabajadores: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Gestor de Nómina y Perfil Sociodemográfico 360°',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito2_perfil_socio',
+        directive: 'Consulta trabajadores activos, cédulas, cargos, ARL/EPS/AFP y vigencia de exámenes médicos.',
+      },
+      subagent_chat_perfiles_cargo: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Especialista Profesiogramas y Perfiles de Cargo SST',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito2_perfiles_cargo',
+        directive: 'Administra responsabilidades SST, competencias, profesiogramas y EPP requeridos por cargo.',
+      },
+      subagent_chat_epp: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Gestor de Entregas, Bodega y Reposición de EPP',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito3_epp',
+        directive: 'Verifica entregas firmadas de EPP por trabajador, tallas, normas ANSI/NTC y alertas de stock mínimo.',
+      },
+      subagent_chat_alturas: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Coordinador Trabajo en Alturas & Equipos Res. 4272',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito3_alturas',
+        directive: 'Audita permisos de trabajo en alturas, hojas de vida de arneses/eslingas y certificados vigentes.',
+      },
+      subagent_chat_ats: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Especialista Análisis de Trabajo Seguro (ATS)',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito3_ats',
+        directive: 'Verifica pasos secuenciales de tareas críticas, peligros por etapa y controles preoperacionales.',
+      },
+      subagent_chat_estudios_puesto: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Analista Estudios de Puesto de Trabajo (EPT RULA/REBA)',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito3_estudio_puesto',
+        directive: 'Consulta evaluaciones ergonómicas EPT, ángulos posturales y planes de ajuste razonable.',
+      },
+      subagent_chat_owas: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Evaluador Biomecánico Método OWAS',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito3_owas',
+        directive: 'Analiza códigos posturales OWAS de 4 dígitos y prioriza correcciones de Categoría 3 y 4.',
+      },
+      subagent_chat_psicosocial: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Analista Clima Emocional & Riesgo Psicosocial (Res. 2764)',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito4_psicosocial',
+        directive: 'Monitorea telemetría de estado de ánimo, estresores por área y alertas tempranas de agotamiento.',
+      },
+      subagent_chat_actos_condiciones: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Gestor de Reportes QR de Actos y Condiciones Inseguras',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito4_actos_condiciones',
+        directive: 'Clasifica reportes de campo del buzón QR y coordina cierres correctivos inmediatos.',
+      },
+      subagent_chat_atel: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Investigador de Casos ATEL (Res. 1401)',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito7_investigacion_atel',
+        directive: 'Gestiona expedientes de accidentes e incidentes laborales, causas raíz y lecciones aprendidas.',
+      },
+      subagent_chat_estadisticas_atel: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Analista de Siniestralidad y 6 Indicadores ATEL Res. 0312',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito7_estadisticas_atel',
+        directive: 'Calcula frecuencia, severidad, proporción mortal, prevalencia, incidencia y ausentismo.',
+      },
+      subagent_chat_vulnerabilidad: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Especialista Amenazas, Vulnerabilidad y Plan de Emergencias',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito6_vulnerabilidad',
+        directive: 'Evalúa diamantes de riesgo (naturales, tecnológicos, sociales), PONs y recursos de emergencia.',
+      },
+      subagent_chat_vehiculos: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Gestor de Flota e Inspección Preoperacional PESV',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito3_vehiculos',
+        directive: 'Verifica vigencia de SOAT, revisión técnico-mecánica, mantenimiento e inspecciones diarias.',
+      },
+      subagent_chat_comites: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Gestor de Comités COPASST y Convivencia Laboral',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito4_comites',
+        directive: 'Controla conformación paritaria, quórum, actas mensuales/trimestrales y compromisos abiertos.',
+      },
+      subagent_chat_capacitaciones: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Coordinador Programa Anual de Capacitación SST',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito5_capacitaciones',
+        directive: 'Supervisa sesiones programadas, cobertura de inducción/reinducción y eficacia formativa.',
+      },
+      subagent_chat_cursos_lms: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Tutor de Escuela Virtual y Progreso LMS',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito6_ruta_aprendizaje',
+        directive: 'Monitorea cursos publicados, avance de lecciones por colaborador y certificados emitidos.',
+      },
+      subagent_chat_auditorias: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Auditor Interno Anual SG-SST (Dec. 1072)',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito7_auditoria',
+        directive: 'Registra y da seguimiento a no conformidades mayores, menores y observaciones de auditoría.',
+      },
+      subagent_chat_cronograma: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Gestor de Plan de Trabajo Anual y Tablero ACPM',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito7_acpm',
+        directive: 'Crea, actualiza y audita tareas preventivas/correctivas Kanban y vencimientos del cronograma.',
+      },
+      subagent_chat_alta_direccion: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Asesor de Revisión Anual por la Alta Dirección',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'hito7_alta_direccion',
+        directive: 'Consolida las 24 entradas gerenciales exigidas por el Art. 2.2.4.6.31 del Decreto 1072.',
+      },
+      subagent_chat_documentos_vivo: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Editor de Documentos Vivos SG-SST (LiveEditor)',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'wappy_rag_documental',
+        directive: 'Consulta, redacta y actualiza documentos controlados y matrices exportables de la empresa.',
+      },
+      subagent_chat_agenda: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Coordinador de Agenda Operativa y Google Calendar SST',
+        badge: 'SUB-AGENTE MCP',
+        directive: 'Programa inspecciones, reuniones de comités, exámenes periódicos y recordatorios SST.',
+      },
+      subagent_chat_automatizaciones: {
+        title: 'Equipo 8 · Sub-Agente Operativo MCP: Orquestador de Tareas Programadas y Flujos Autónomos',
+        badge: 'SUB-AGENTE MCP',
+        targetInspectId: 'schedule_cron',
+        directive: 'Consulta el estado de las automatizaciones activas, horarios Cron y bitácoras de ejecución.',
+      },
+      subagent_researcher: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Investigador Normativo y Clínico SST',
+        badge: 'SUB-AGENTE IA',
+        directive: 'Profundiza en requisitos legales, guías técnicas MinTrabajo, GATISO y normativa vigente.',
+      },
+      subagent_scraper_agy: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Operador de Verificación de Afiliaciones y Cédulas (AGY)',
+        badge: 'SUB-AGENTE IA',
+        directive: 'Valida la nómina de trabajadores por cédula, estado ARL/EPS/AFP y certificados oficiales.',
+      },
+      subagent_auditor_calidad: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Auditor de Calidad y Cierre de Brechas ACPM',
+        badge: 'SUB-AGENTE IA',
+        directive: 'Verifica que cada brecha detectada tenga causa raíz y plan de acción en Fuente, Medio e Individuo.',
       },
     };
 
@@ -3485,12 +4690,27 @@ async function inspectOtherNodeTeams(ctx) {
       directive: `Directriz procedural activa para ${canonicalId} en el flujo de ${company?.companyName || 'la empresa'}.`,
     };
 
+    let linkedRecords = [];
+    if (spec.targetInspectId) {
+      try {
+        let subRes = await inspectHito1And2(spec.targetInspectId, userId, company);
+        if (!subRes) subRes = await inspectHito3To5(spec.targetInspectId, userId, company);
+        if (!subRes) subRes = await inspectHito6To8(spec.targetInspectId, userId, company);
+        if (!subRes) subRes = await inspectTriggersAndMemoryTeams({ canonicalId: spec.targetInspectId, userId, company });
+        if (Array.isArray(subRes?.records)) {
+          linkedRecords = subRes.records.slice(0, 8);
+        }
+      } catch (_) {}
+    }
+
     return {
       moduleTitle: spec.title,
-      sourceCollection: 'WappySkillsAndRulesCatalog',
+      sourceCollection: spec.targetInspectId ? `WappySkillsAndRulesCatalog + ${spec.targetInspectId}` : 'WappySkillsAndRulesCatalog',
       kpis: [
         { label: 'Tipo de Nodo', value: spec.badge, tone: 'purple' },
         { label: 'Aplicación en Flujo', value: 'OBLIGATORIA', tone: 'emerald' },
+        { label: 'Empresa Objetivo', value: company?.companyName || 'Activa', tone: 'teal' },
+        ...(linkedRecords.length > 0 ? [{ label: 'Registros Vinculados', value: linkedRecords.length, tone: 'indigo' }] : []),
       ],
       records: [
         {
@@ -3503,9 +4723,10 @@ async function inspectOtherNodeTeams(ctx) {
           fields: {
             'Nombre del Nodo / Regla / Skill': spec.title,
             'Directriz Procedural Obligatoria': spec.directive,
-            'Empresa Objetivo': company?.companyName || '',
+            'Empresa Objetivo': `${company?.companyName || 'Empresa Activa'} (NIT ${company?.nit || 'N/A'})`,
           },
         },
+        ...linkedRecords,
       ],
     };
   }
@@ -3514,11 +4735,92 @@ async function inspectOtherNodeTeams(ctx) {
 }
 
 /**
+ * Construye la respuesta oficial bloqueada para nodos en estado `🚧 Nodo en Construcción`,
+ * impidiendo cualquier llamada externa o scraping y entregando mensaje claro en los 3 paneles.
+ */
+function buildBlockedConstructionResponse({ rawNodeId, canonicalId, company, specOverride = null }) {
+  const spec = specOverride || BLOCKED_CONSTRUCTION_NODE_SPECS[canonicalId] || {
+    title: canonicalId,
+    team: 'Catálogo de Flujos WAPPY',
+    reason: `🚧 Nodo en Construcción: El conector «${canonicalId}» se encuentra temporalmente en construcción y no ejecuta consultas externas.`,
+  };
+  const cName = company?.companyName || 'Empresa Activa';
+  const warningMsg = spec.reason.includes('🚧 Nodo en Construcción')
+    ? spec.reason
+    : `🚧 Nodo en Construcción: ${spec.reason}`;
+
+  const blockedRecord = sanitizeInspectorRecord(
+    {
+      id: `construction_${canonicalId}`,
+      label: `🚧 Nodo en Construcción — ${spec.title}`,
+      sublabel: warningMsg,
+      badge: '🚧 Nodo en Construcción',
+      badgeTone: 'amber',
+      isCritical: false,
+      fields: {
+        'Estado Operativo del Nodo': '🚧 Nodo en Construcción (Ejecución Externa Bloqueada)',
+        'Nombre del Nodo': spec.title,
+        'Equipo / Categoría': spec.team,
+        'Detalle Técnico': warningMsg,
+        'Empresa Seleccionada': cName,
+      },
+    },
+    0,
+  );
+
+  return {
+    success: true,
+    status: 'under_construction',
+    underConstruction: true,
+    warning: warningMsg,
+    nodeId: String(rawNodeId || canonicalId || ''),
+    canonicalNodeId: canonicalId,
+    companyId: company?._id ? String(company._id) : null,
+    companyName: cName,
+    moduleTitle: `🚧 Nodo en Construcción — ${spec.title}`,
+    sourceCollection: 'WappyCatalogConstructionGuard',
+    totalRecords: 1,
+    criticalCount: 0,
+    kpis: [
+      { label: 'Estado del Nodo', value: '🚧 Nodo en Construcción', tone: 'amber' },
+      { label: 'Ejecución Externa', value: 'BLOQUEADA', tone: 'rose' },
+      { label: 'Empresa Activa', value: cName, tone: 'teal' },
+    ],
+    evidenceFiles: [],
+    evidences: [],
+    records: [blockedRecord],
+  };
+}
+
+/**
  * Función principal para el endpoint GET /api/sgsst/automatizaciones/node-live-inspector
  */
-async function inspectNodeLiveData({ userId, companyId, nodeId }) {
+async function inspectNodeLiveData(params = {}) {
+  const {
+    userId,
+    companyId,
+    nodeId,
+    nodeConfig = {},
+    disabledApps = [],
+    executeLive = false,
+  } = params || {};
+
   const company = await resolveTargetCompany(userId, companyId);
   const canonicalId = normalizeInspectorNodeId(nodeId);
+
+  // 0. Guardia Estricta de Nodos Bloqueados / En Construcción (`🚧 Nodo en Construcción`)
+  const isExplicitlyBlocked = Boolean(BLOCKED_CONSTRUCTION_NODE_SPECS[canonicalId]);
+  const isDisabledApp =
+    nodeConfig?.underConstruction === true ||
+    (Array.isArray(disabledApps) && (disabledApps.includes(canonicalId) || disabledApps.includes(String(nodeId || ''))));
+
+  if (isExplicitlyBlocked || isDisabledApp) {
+    return buildBlockedConstructionResponse({
+      rawNodeId: nodeId,
+      canonicalId,
+      company,
+    });
+  }
 
   let result = await inspectHito1And2(canonicalId, userId, company);
   if (!result) {
@@ -3528,18 +4830,29 @@ async function inspectNodeLiveData({ userId, companyId, nodeId }) {
     result = await inspectHito6To8(canonicalId, userId, company);
   }
   if (!result) {
-    result = await inspectOtherNodeTeams({ canonicalId, rawNodeId: nodeId, userId, company });
+    result = await inspectOtherNodeTeams({
+      canonicalId,
+      rawNodeId: nodeId,
+      userId,
+      company,
+      nodeConfig,
+      executeLive,
+    });
   }
 
-  // Fallback para extract_sst_app o cualquier otro nodo
+  // Fallback para cualquier nodo dinámico nuevo personalizado
   if (!result) {
     const wRes = await inspectHito1And2('hito2_perfil_socio', userId, company);
     const dRes = await inspectHito1And2('hito1_diagnostico_0312', userId, company);
     result = {
-      moduleTitle: 'Resumen Operativo 360° de Aplicativos (Somos SST)',
+      moduleTitle: `Inspector Operativo SG-SST (${canonicalId || 'General'})`,
       sourceCollection: 'Multi-Colección Somos SST',
+      isGenericFallback: true,
       kpis: [...(dRes?.kpis?.slice(0, 2) || []), ...(wRes?.kpis?.slice(0, 2) || [])],
-      records: [...(wRes?.records?.slice(0, 25) || []), ...(dRes?.records?.filter((r) => r.isCritical).slice(0, 15) || [])],
+      records: [
+        ...(wRes?.records?.slice(0, 25) || []),
+        ...(dRes?.records?.filter((r) => r.isCritical).slice(0, 15) || []),
+      ],
     };
   }
 
@@ -3568,8 +4881,8 @@ async function inspectNodeLiveData({ userId, companyId, nodeId }) {
 
     const mappedSocioFallback = socioFallbackRecords.map((w, idx) => {
       const wf = w.fields || {};
-      const ced = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id;
-      const nom = wf['Nombre Completo'] || w.label;
+      const ced = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id || `T-${idx + 1}`;
+      const nom = wf['Nombre Completo'] || w.label || 'Colaborador';
       const car = wf['Cargo'] || 'Colaborador';
       return {
         id: `baseline_worker_${canonicalId}_${ced || idx}`,
@@ -3619,19 +4932,249 @@ async function inspectNodeLiveData({ userId, companyId, nodeId }) {
         : [baselineCompanyRow, ...mappedSocioFallback];
   }
 
-  const criticalCount = records.filter((r) => r.isCritical).length;
+  const sanitizedRecords = records.slice(0, 300).map((r, i) => sanitizeInspectorRecord(r, i));
+  const sanitizedKpis = (Array.isArray(result.kpis) ? result.kpis : []).map((k) => ({
+    label: formatCleanScalar(k?.label, 'Indicador'),
+    value: typeof k?.value === 'number' && Number.isFinite(k.value) ? k.value : formatCleanScalar(k?.value, '0'),
+    tone: formatCleanScalar(k?.tone, 'teal'),
+  }));
+
+  const rawEvidences = Array.isArray(result.evidenceFiles)
+    ? result.evidenceFiles
+    : Array.isArray(result.evidences)
+      ? result.evidences
+      : [];
+  const cleanEvidenceFiles = [];
+  const seenEvKeys = new Set();
+  for (let i = 0; i < rawEvidences.length; i++) {
+    const evItem = rawEvidences[i];
+    if (evItem && evItem.fileName && evItem.url && evItem.mimeType) {
+      const key = `${evItem.fileName}::${evItem.url}`;
+      if (!seenEvKeys.has(key)) {
+        seenEvKeys.add(key);
+        cleanEvidenceFiles.push({
+          id: formatCleanScalar(evItem.id, `ev_${i}`),
+          fileName: formatCleanScalar(evItem.fileName, `certificado_${i + 1}.pdf`),
+          fileType: formatCleanScalar(evItem.fileType, 'pdf'),
+          mimeType: formatCleanScalar(evItem.mimeType, 'application/pdf'),
+          url: formatCleanScalar(evItem.url, ''),
+          downloadUrl: formatCleanScalar(evItem.downloadUrl, ''),
+          absoluteUrl: formatCleanScalar(evItem.absoluteUrl, ''),
+          localPath: evItem.localPath ? String(evItem.localPath) : '',
+          cedula: formatCleanScalar(evItem.cedula, 'N/A'),
+          workerName: formatCleanScalar(evItem.workerName, 'Colaborador'),
+          cargo: formatCleanScalar(evItem.cargo, 'General'),
+          portal: formatCleanScalar(evItem.portal, 'Portal Oficial'),
+          title: formatCleanScalar(evItem.title, 'Certificado Oficial'),
+        });
+      }
+    } else {
+      const normalizedArr = normalizeCleanEvidenceFile(evItem, i) || [];
+      for (const n of normalizedArr) {
+        const key = `${n.fileName}::${n.url}`;
+        if (!seenEvKeys.has(key)) {
+          seenEvKeys.add(key);
+          cleanEvidenceFiles.push(n);
+        }
+      }
+    }
+  }
+
+  const criticalCount = sanitizedRecords.filter((r) => r.isCritical).length;
 
   return {
+    success: true,
+    status: 'ok',
+    underConstruction: false,
+    defaultConstruction: DEFAULT_CONSTRUCTION_HITO_APPS.has(canonicalId),
+    isGenericFallback: Boolean(result.isGenericFallback),
+    warning: null,
     nodeId: String(nodeId || ''),
     canonicalNodeId: canonicalId,
     companyId: company?._id ? String(company._id) : null,
-    companyName: company?.companyName || 'Empresa Activa',
-    moduleTitle: result.moduleTitle || 'Aplicativo SG-SST',
-    sourceCollection: result.sourceCollection || 'Somos SST',
-    totalRecords: records.length,
+    companyName: formatCleanScalar(company?.companyName, 'Empresa Activa'),
+    moduleTitle: formatCleanScalar(result.moduleTitle, 'Aplicativo SG-SST'),
+    sourceCollection: formatCleanScalar(result.sourceCollection, 'Somos SST'),
+    totalRecords: sanitizedRecords.length,
     criticalCount,
-    kpis: Array.isArray(result.kpis) ? result.kpis : [],
-    records: records.slice(0, 300),
+    kpis: sanitizedKpis,
+    evidenceFiles: cleanEvidenceFiles,
+    evidences: cleanEvidenceFiles,
+    records: sanitizedRecords,
+  };
+}
+
+/**
+ * Inspector en Vivo de Nodos Estilo n8n de 3 Paneles (1. Entrada / 2. Config / 3. Salida Real).
+ * Soporta tanto `inspectWorkflowNodeLive({ userId, companyId, nodeId, ... })` como `inspectWorkflowNodeLive(nodeId, opts)`.
+ */
+async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
+  const opts =
+    typeof arg1 === 'string'
+      ? { ...(arg2 || {}), nodeId: arg1 }
+      : { ...(arg1 || {}) };
+
+  const targetNodeId = opts.nodeId || opts.nodeKey || opts.id || 'schedule_cron';
+  const nodeConfig = opts.nodeConfig && typeof opts.nodeConfig === 'object' ? opts.nodeConfig : {};
+  const t0 = Date.now();
+
+  const baseData = await inspectNodeLiveData({
+    userId: opts.userId,
+    companyId: opts.companyId,
+    nodeId: targetNodeId,
+    nodeConfig,
+    disabledApps: opts.disabledApps,
+    executeLive: Boolean(opts.executeLive),
+  });
+
+  // Panel 1: ENTRADA (Upstream Items o Contexto de Empresa Activa)
+  const rawUpstream = Array.isArray(opts.upstreamItems) ? opts.upstreamItems : [];
+  let inputItems = [];
+  if (rawUpstream.length > 0) {
+    inputItems = rawUpstream.slice(0, 100).map((it, idx) => {
+      if (!it || typeof it !== 'object') {
+        return { index: idx + 1, valor: formatCleanScalar(it, 'N/A') };
+      }
+      const src = it.fields && typeof it.fields === 'object' ? it.fields : it;
+      const cleanObj = {};
+      for (const [k, v] of Object.entries(src)) {
+        const ck = formatCleanScalar(k, '');
+        if (ck) cleanObj[ck] = formatCleanScalar(v, 'No registra');
+      }
+      return cleanObj;
+    });
+  } else {
+    inputItems = [
+      {
+        'Empresa Activa': baseData.companyName,
+        'ID Empresa': baseData.companyId || 'Activa',
+        'Nodo Evaluado': baseData.moduleTitle,
+        'Colección Origen': baseData.sourceCollection,
+      },
+    ];
+  }
+  const inputSchemaFields = Array.from(
+    new Set(inputItems.slice(0, 10).flatMap((obj) => Object.keys(obj || {}))),
+  );
+
+  // Panel 2: CONFIGURACIÓN QUIRÚRGICA DEL NODO
+  const availableFields = Array.from(
+    new Set(
+      (baseData.records || [])
+        .slice(0, 25)
+        .flatMap((r) => Object.keys(r?.fields || {})),
+    ),
+  );
+  const rawSelectedFields = Array.isArray(nodeConfig.selectedFields)
+    ? nodeConfig.selectedFields
+    : Array.isArray(nodeConfig.fields)
+      ? nodeConfig.fields
+      : [];
+  const selectedFields = rawSelectedFields
+    .map((f) => formatCleanScalar(f, ''))
+    .filter((f) => f && f !== 'N/A');
+  const strictFieldFilter = nodeConfig.strictFieldFilter !== false && selectedFields.length > 0;
+  const filterMode = nodeConfig.recordFilterMode || 'all';
+  const selectedRecordIds = Array.isArray(nodeConfig.selectedRecordIds)
+    ? nodeConfig.selectedRecordIds.map(String)
+    : [];
+
+  // Panel 3: SALIDA REAL PROYECTADA (Items JSON limpios + Archivos de Evidencia)
+  let filteredRecords = baseData.records || [];
+  if (!baseData.underConstruction) {
+    if (filterMode === 'critical_only') {
+      filteredRecords = filteredRecords.filter((r) => r.isCritical);
+    } else if (filterMode === 'selected' && selectedRecordIds.length > 0) {
+      const idSet = new Set(selectedRecordIds);
+      filteredRecords = filteredRecords.filter((r) => idSet.has(String(r.id)));
+    }
+  }
+
+  const outputItems = filteredRecords.map((rec) => {
+    const recFields = rec.fields || {};
+    if (strictFieldFilter) {
+      const projected = { _recordId: rec.id, _estado: rec.badge };
+      const entries = Object.entries(recFields);
+      for (const sf of selectedFields) {
+        const sfLow = sf.toLowerCase().trim();
+        const match = entries.find(
+          ([fk]) =>
+            fk.toLowerCase().trim() === sfLow ||
+            fk.toLowerCase().includes(sfLow) ||
+            sfLow.includes(fk.toLowerCase().trim()),
+        );
+        projected[sf] = match ? formatCleanScalar(match[1], 'No registra') : 'No registra';
+      }
+      return projected;
+    }
+    return {
+      _recordId: rec.id,
+      _resumen: rec.label,
+      _estado: rec.badge,
+      _critico: rec.isCritical ? 'Sí' : 'No',
+      ...recFields,
+    };
+  });
+
+  const durationMs = Math.max(1, Date.now() - t0);
+  const logs = baseData.underConstruction
+    ? [
+        {
+          level: 'warn',
+          message: baseData.warning || '🚧 Nodo en Construcción',
+          durationMs,
+        },
+      ]
+    : [
+        {
+          level: 'success',
+          message: `Inspección en vivo completada sobre «${baseData.moduleTitle}» (${outputItems.length} registro(s), ${baseData.evidenceFiles.length} archivo(s) de evidencia) en ${durationMs} ms.`,
+          durationMs,
+        },
+      ];
+
+  return {
+    ...baseData,
+    durationMs,
+    filteredRecordsCount: filteredRecords.length,
+    outputItems,
+    logs,
+    inputPanel: {
+      sourceTitle: formatCleanScalar(
+        opts.upstreamNodeTitle,
+        rawUpstream.length > 0 ? 'Nodo Anterior Conectado' : 'Contexto Directo de Empresa Activa',
+      ),
+      itemCount: inputItems.length,
+      schemaFields: inputSchemaFields,
+      items: inputItems,
+    },
+    configPanel: {
+      nodeId: baseData.nodeId,
+      canonicalNodeId: baseData.canonicalNodeId,
+      moduleTitle: baseData.moduleTitle,
+      underConstruction: baseData.underConstruction,
+      filterMode,
+      strictFieldFilter,
+      selectedFields,
+      availableFields,
+      parameters: {
+        prompt: formatCleanScalar(nodeConfig.prompt || nodeConfig.customInstruction, 'Extracción estructurada automática'),
+        targetUrl: formatCleanScalar(nodeConfig.targetUrl, 'Automático según conector'),
+      },
+    },
+    outputPanel: {
+      status: baseData.status,
+      underConstruction: baseData.underConstruction,
+      warning: baseData.warning,
+      sourceCollection: baseData.sourceCollection,
+      totalRecords: baseData.totalRecords,
+      filteredCount: filteredRecords.length,
+      criticalCount: baseData.criticalCount,
+      kpis: baseData.kpis,
+      items: outputItems,
+      records: filteredRecords,
+      evidenceFiles: baseData.evidenceFiles,
+    },
   };
 }
 
@@ -3768,8 +5311,10 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
 }
 
 module.exports = {
+  inspectWorkflowNodeLive,
   inspectNodeLiveData,
   inspectOtherNodeTeams,
   buildSurgicalLiveContextForWorkflow,
   normalizeInspectorNodeId,
+  BLOCKED_CONSTRUCTION_NODE_SPECS,
 };

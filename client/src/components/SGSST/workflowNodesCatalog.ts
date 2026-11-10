@@ -213,6 +213,8 @@ export interface CanvasNodeConfig {
   customSubtitle?: string;
   /** ID del Agente de Chat vinculado al Sub-Agente */
   linkedAgentId?: string;
+  /** Destinatarios específicos de correo por nodo de salida (`email_report`) */
+  emailRecipientsOverride?: string;
 }
 
 export interface WappyAgentAvatarOption {
@@ -1192,8 +1194,8 @@ export function normalizeExtractorsList(nodes?: Partial<WorkflowNodesConfig> | n
   if (Array.isArray(nodes?.extractors)) {
     const valid = nodes!.extractors!.filter(
       (id) =>
-        EXTRACTOR_NODES.some((e) => e.id === id && !e.defaultConstruction) ||
-        HITO_APP_NODES.some((h) => h.id === id && !h.defaultConstruction),
+        EXTRACTOR_NODES.some((e) => e.id === id && !isWorkflowNodeUnderConstruction(e)) ||
+        HITO_APP_NODES.some((h) => h.id === id && !isWorkflowNodeUnderConstruction(h)),
     );
     return Array.from(new Set(valid));
   }
@@ -1201,7 +1203,6 @@ export function normalizeExtractorsList(nodes?: Partial<WorkflowNodesConfig> | n
   const ins = Array.isArray(nodes?.inputs) ? nodes!.inputs! : [];
   if (ins.includes('google_drive')) derived.push('extract_drive');
   if (ins.includes('google_gmail')) derived.push('extract_gmail');
-  if (ins.includes('one_drive')) derived.push('extract_onedrive');
   if (ins.includes('google_antigravity')) derived.push('extract_pc_folder');
   if (ins.includes('somos_sst_trabajadores')) derived.push('extract_sst_workers');
   if (ins.includes('somos_sst_empresa') || derived.length === 0) derived.push('extract_sst_app');
@@ -1219,14 +1220,14 @@ export function normalizeMemoriesList(nodes?: Partial<WorkflowNodesConfig> | nul
   return ['wappy_memory_company'];
 }
 
-export const PRESET_CATEGORIES = [
-  { id: 'all', label: 'Todos los Flujos' },
-  { id: 'salud_vencimientos', label: 'Salud, EMO y Vencimientos' },
-  { id: 'drive_sincronizacion', label: 'Google Drive, Cloud y LMS' },
-  { id: 'atel_inspecciones', label: 'ATEL, Inspecciones y Campo' },
-  { id: 'legal_cumplimiento', label: 'Matriz Legal y Normativa' },
-  { id: 'riesgos_vial_quimico', label: 'PESV, Químicos SGA y Clima' },
-  { id: 'gerencia_auditoria', label: 'Auditoría 0312 y Gerencia' },
+export const PRESET_CATEGORIES: Array<{ id: string; label: string; icon: string }> = [
+  { id: 'all', label: 'Todos los Flujos', icon: '⚡' },
+  { id: 'salud_vencimientos', label: 'Salud, EMO y Vencimientos', icon: '🩺' },
+  { id: 'drive_sincronizacion', label: 'Google Drive, Cloud y LMS', icon: '📁' },
+  { id: 'atel_inspecciones', label: 'ATEL, Inspecciones y Campo', icon: '🚨' },
+  { id: 'legal_cumplimiento', label: 'Políticas, RIT y Normativa', icon: '⚖️' },
+  { id: 'riesgos_vial_quimico', label: 'PESV, Químicos SGA y Clima', icon: '🚗' },
+  { id: 'gerencia_auditoria', label: 'Auditoría 0312 y Gerencia', icon: '📊' },
 ];
 
 export const TRIGGER_NODES: WorkflowNodeDef[] = [
@@ -1327,11 +1328,12 @@ export function normalizeTriggerId(rawId?: string): string {
   if (!rawId) return 'schedule_cron';
   if (rawId === 'gmail_inbox_watch' || rawId === 'gmail_watch') return 'trigger_email';
   if (rawId === 'webhook_event') return 'trigger_webhook';
+  if (rawId === 'trigger_whatsapp') return 'schedule_cron';
   if (rawId === 'drive_folder_watch' || rawId === 'drive_watch' || rawId === 'sgsst_db_audit' || rawId === 'sst_deadline_watch') {
     return 'schedule_cron';
   }
-  const exists = TRIGGER_NODES.some((t) => t.id === rawId);
-  return exists ? rawId : 'schedule_cron';
+  const matched = TRIGGER_NODES.find((t) => t.id === rawId && !t.defaultConstruction);
+  return matched ? matched.id : 'schedule_cron';
 }
 
 export function normalizeTriggersList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
@@ -1341,8 +1343,12 @@ export function normalizeTriggersList(nodes?: Partial<WorkflowNodesConfig> | nul
       : nodes?.trigger
         ? [nodes.trigger]
         : ['schedule_cron'];
-  const mapped = rawArr.map((id) => normalizeTriggerId(id));
-  const unique = Array.from(new Set(mapped));
+  const mapped = rawArr
+    .filter((id) => id !== 'trigger_whatsapp')
+    .map((id) => normalizeTriggerId(id));
+  const unique = Array.from(new Set(mapped)).filter((id) =>
+    TRIGGER_NODES.some((t) => t.id === id && !t.defaultConstruction),
+  );
   return unique.length > 0 ? unique : ['schedule_cron'];
 }
 
@@ -2304,16 +2310,569 @@ export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
                   : id === 'hito6_emergencias'
                     ? 'hito1_plan_emergencias'
                     : id;
-  return (
+  const direct =
     TRIGGER_NODES.find((n) => n.id === normId) ||
     EXTRACTOR_NODES.find((n) => n.id === normId) ||
     MEMORY_NODES.find((n) => n.id === normId) ||
     INPUT_CONNECTOR_NODES.find((n) => n.id === normId) ||
     HITO_APP_NODES.find((n) => n.id === normId || n.sgsstAppId === normId) ||
-    OUTPUT_ACTION_NODES.find((n) => n.id === normId) ||
-    SKILL_RULE_SUBAGENT_NODES.find((n) => n.id === normId)
-  );
+    OUTPUT_ACTION_NODES.find((n) => n.id === normId);
+  if (direct) return direct;
+
+  const skillOrSubagent = SKILL_RULE_SUBAGENT_NODES.find((n) => n.id === normId);
+  if (skillOrSubagent) {
+    return {
+      id: skillOrSubagent.id,
+      label: skillOrSubagent.label,
+      shortLabel: skillOrSubagent.shortLabel,
+      category: skillOrSubagent.nodeType,
+      toolHint: skillOrSubagent.subtitle,
+      badge: skillOrSubagent.subtitle,
+      description: skillOrSubagent.content,
+      defaultConstruction: Boolean(skillOrSubagent.defaultConstruction),
+      badgeColor:
+        'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
+    };
+  }
+
+  const modelOpt = AI_ENGINE_MODELS.find((m) => m.id === normId || m.model === normId);
+  if (modelOpt) {
+    return {
+      id: modelOpt.id,
+      label: modelOpt.label,
+      shortLabel: modelOpt.shortLabel,
+      category: 'ai_model',
+      badge: modelOpt.engine === 'wappy' ? 'Motor WAPPY Cloud' : 'Google Antigravity',
+      description: modelOpt.description,
+      toolHint: `${modelOpt.engine} (${modelOpt.model})`,
+      badgeColor:
+        'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+    };
+  }
+  return undefined;
 }
+
+/**
+ * Nodos explícitamente bloqueados (`🚧 En Construcción`) que NINGUNA plantilla ni acción
+ * de "Usar Flujo" debe inyectar en el lienzo activo.
+ */
+export const BLOCKED_WORKFLOW_NODE_IDS = new Set<string>([
+  'scraper_agy_pensiones_directo',
+  'scraper_agy_salud_rethus',
+  'extract_onedrive',
+  'one_drive',
+  'trigger_whatsapp',
+  'legal',
+  'matriz_legal',
+  'hito1_matriz_legal',
+  'comite_pesv',
+  'hito3_comite_pesv',
+  'brigada_emergencias',
+  'hito3_brigada_emergencias',
+  'equipos_emergencia',
+  'hito5_equipos_emergencia',
+  'comunicaciones_sst',
+  'hito6_comunicaciones_sst',
+  'simulacros_emergencia',
+  'hito6_simulacros_emergencia',
+  'app_builder',
+  'hito6_app_builder',
+  'investigacion_profunda',
+  'hito7_investigacion_profunda',
+]);
+
+/**
+ * Reemplazos activos equivalentes cuando una plantilla histórica referenciaba un Hito en construcción.
+ */
+export const BLOCKED_HITO_ACTIVE_REPLACEMENTS: Record<string, string> = {
+  legal: 'hito1_politica_objetivos',
+  matriz_legal: 'hito1_politica_objetivos',
+  hito1_matriz_legal: 'hito1_politica_objetivos',
+  comite_pesv: 'hito3_matriz_pesv',
+  hito3_comite_pesv: 'hito3_matriz_pesv',
+  brigada_emergencias: 'hito1_plan_emergencias',
+  hito3_brigada_emergencias: 'hito1_plan_emergencias',
+  equipos_emergencia: 'hito1_plan_emergencias',
+  hito5_equipos_emergencia: 'hito1_plan_emergencias',
+  comunicaciones_sst: 'hito5_capacitaciones',
+  hito6_comunicaciones_sst: 'hito5_capacitaciones',
+  simulacros_emergencia: 'hito1_plan_emergencias',
+  hito6_simulacros_emergencia: 'hito1_plan_emergencias',
+  app_builder: 'hito7_acpm',
+  hito6_app_builder: 'hito7_acpm',
+  investigacion_profunda: 'hito7_auditoria',
+  hito7_investigacion_profunda: 'hito7_auditoria',
+};
+
+export function isNodeIdBlockedInWorkflow(
+  rawId?: string | null,
+  disabledApps?: string[] | null,
+): boolean {
+  const id = String(rawId || '').trim();
+  if (!id) return false;
+  const clean = id.replace(
+    /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
+    '',
+  );
+  if (BLOCKED_WORKFLOW_NODE_IDS.has(id) || BLOCKED_WORKFLOW_NODE_IDS.has(clean)) {
+    return true;
+  }
+  const def = getNodeDefById(id) || getNodeDefById(clean);
+  return isWorkflowNodeUnderConstruction(def, disabledApps);
+}
+
+/**
+ * Limpia y reemplaza automáticamente cualquier nodo `🚧 En Construcción` al cargar plantillas
+ * preconstruidas ("Usar Flujo") o flujos heredados, manteniendo intacta la topología activa.
+ */
+export function sanitizeWorkflowNodesForActiveUse(
+  rawNodes?: Partial<WorkflowNodesConfig> | null,
+  disabledApps?: string[] | null,
+): WorkflowNodesConfig {
+  const src = rawNodes || {};
+  const safeTriggers = normalizeTriggersList(src).filter(
+    (id) => !isNodeIdBlockedInWorkflow(id, disabledApps),
+  );
+  const finalTriggers = safeTriggers.length > 0 ? safeTriggers : ['schedule_cron'];
+
+  const rawInputs = Array.isArray(src.inputs) ? src.inputs : [];
+  const safeInputs = Array.from(
+    new Set(
+      rawInputs
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)
+        .filter((id) => !isNodeIdBlockedInWorkflow(id, disabledApps)),
+    ),
+  );
+
+  const rawExtractors = Array.isArray(src.extractors)
+    ? src.extractors
+    : normalizeExtractorsList({ ...src, inputs: safeInputs });
+  const safeExtractors = Array.from(
+    new Set(
+      rawExtractors
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)
+        .filter((id) => !isNodeIdBlockedInWorkflow(id, disabledApps)),
+    ),
+  );
+
+  const rawHitos = Array.isArray(src.hitos) ? src.hitos : [];
+  const replacedKeyMap: Record<string, string> = {};
+  const safeHitos = Array.from(
+    new Set(
+      rawHitos
+        .map((id) => {
+          const clean = String(id || '').trim();
+          if (!clean) return '';
+          if (BLOCKED_HITO_ACTIVE_REPLACEMENTS[clean]) {
+            const replacement = BLOCKED_HITO_ACTIVE_REPLACEMENTS[clean];
+            replacedKeyMap[`hito_${clean}`] = `hito_${replacement}`;
+            replacedKeyMap[`tool_hitos_${clean}`] = `tool_hitos_${replacement}`;
+            return replacement;
+          }
+          return clean;
+        })
+        .filter(Boolean)
+        .filter((id) => !isNodeIdBlockedInWorkflow(id, disabledApps)),
+    ),
+  );
+
+  const rawOutputs = Array.isArray(src.outputs) ? src.outputs : ['email_report', 'wappy_notification'];
+  const safeOutputs = Array.from(
+    new Set(
+      rawOutputs
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)
+        .filter((id) => !isNodeIdBlockedInWorkflow(id, disabledApps)),
+    ),
+  );
+
+  const safeMemories = normalizeMemoriesList(src);
+
+  let nextCanvasLayout = src.canvasLayout;
+  if (src.canvasLayout) {
+    const rawCustomNodes = Array.isArray(src.canvasLayout.customNodes)
+      ? src.canvasLayout.customNodes
+      : [];
+    const blockedCustomKeys = new Set<string>();
+    const safeCustomNodes = rawCustomNodes.filter((cn) => {
+      const checkCandidate = String(cn?.key || '').trim();
+      const blocked =
+        isNodeIdBlockedInWorkflow(checkCandidate, disabledApps) ||
+        checkCandidate.includes('scraper_agy_pensiones_directo') ||
+        checkCandidate.includes('scraper_agy_salud_rethus') ||
+        checkCandidate.includes('extract_onedrive') ||
+        checkCandidate.includes('one_drive') ||
+        checkCandidate.includes('trigger_whatsapp');
+      if (blocked && cn?.key) blockedCustomKeys.add(cn.key);
+      return !blocked;
+    });
+
+    const isCanvasKeyBlocked = (k: string): boolean => {
+      if (!k) return true;
+      if (blockedCustomKeys.has(k)) return true;
+      if (replacedKeyMap[k]) return false;
+      if (
+        k === 'agent_root' ||
+        k === 'if_router' ||
+        k === 'trigger_root' ||
+        k === 'sub_model' ||
+        k === 'sub_memory' ||
+        k.startsWith('agent_extra_') ||
+        k.startsWith('logic_')
+      ) {
+        return false;
+      }
+      return isNodeIdBlockedInWorkflow(k, disabledApps);
+    };
+
+    const rawEdges = Array.isArray(src.canvasLayout.edges) ? src.canvasLayout.edges : [];
+    const safeEdges = rawEdges
+      .map((ed) => ({
+        ...ed,
+        from: replacedKeyMap[ed.from] || ed.from,
+        to: replacedKeyMap[ed.to] || ed.to,
+      }))
+      .filter((ed) => !isCanvasKeyBlocked(ed.from) && !isCanvasKeyBlocked(ed.to));
+
+    const nextPositions: Record<string, CanvasNodePosition> = {};
+    if (src.canvasLayout.positions && typeof src.canvasLayout.positions === 'object') {
+      Object.entries(src.canvasLayout.positions).forEach(([k, pos]) => {
+        const mappedK = replacedKeyMap[k] || k;
+        if (!isCanvasKeyBlocked(mappedK) && !nextPositions[mappedK]) {
+          nextPositions[mappedK] = pos;
+        }
+      });
+    }
+
+    const nextConfigs: Record<string, CanvasNodeConfig> = {};
+    if (src.canvasLayout.nodeConfigs && typeof src.canvasLayout.nodeConfigs === 'object') {
+      Object.entries(src.canvasLayout.nodeConfigs).forEach(([k, cfg]) => {
+        const mappedK = replacedKeyMap[k] || k;
+        if (!isCanvasKeyBlocked(mappedK) && !nextConfigs[mappedK]) {
+          nextConfigs[mappedK] = cfg;
+        }
+      });
+    }
+
+    nextCanvasLayout = {
+      ...src.canvasLayout,
+      positions: nextPositions,
+      edges: safeEdges,
+      customNodes: safeCustomNodes,
+      nodeConfigs: nextConfigs,
+    };
+  }
+
+  return {
+    ...src,
+    trigger: finalTriggers[0],
+    triggers: finalTriggers,
+    extractors: safeExtractors,
+    aiEngine: src.aiEngine || 'wappy',
+    aiModel: src.aiModel || 'gemini-3.6-flash',
+    memoryNode: safeMemories[0] || 'wappy_memory_company',
+    memories: safeMemories,
+    includeIfNode: src.includeIfNode !== false,
+    inputs: safeInputs,
+    hitos: safeHitos,
+    outputs: safeOutputs.length > 0 ? safeOutputs : ['wappy_notification'],
+    canvasLayout: nextCanvasLayout,
+  };
+}
+
+export interface WorkflowPresetDef {
+  presetKey: string;
+  presetCategory: string;
+  name: string;
+  description: string;
+  scheduleType: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  hour: number;
+  minute: number;
+  daysOfWeek?: number[];
+  dayOfMonth?: number;
+  workflowNodes: WorkflowNodesConfig;
+}
+
+/**
+ * Catálogo oficial en Frontend de Plantillas / Flujos Preconstruidos WAPPY IA,
+ * 100% auditado y libre de nodos `🚧 En Construcción`.
+ */
+export const WORKFLOW_PRESETS: WorkflowPresetDef[] = [
+  {
+    presetKey: 'preset_drive_trabajadores_sync',
+    presetCategory: 'drive_sincronizacion',
+    name: '📁 Sincronización Viva de Trabajadores y Soportes desde Google Drive',
+    description:
+      'Explora carpetas de trabajadores en Google Drive, valida soportes por cédula y actualiza el Perfil Sociodemográfico y Condiciones de Salud sin duplicar registros.',
+    scheduleType: 'daily',
+    hour: 7,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_drive', 'extract_sst_workers'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
+      includeIfNode: true,
+      inputs: ['google_drive', 'somos_sst_empresa', 'somos_sst_trabajadores'],
+      hitos: ['hito2_perfil_socio', 'hito2_condiciones_salud'],
+      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_centinela_emo_alturas',
+    presetCategory: 'salud_vencimientos',
+    name: '🩺 Centinela de Vencimientos: Exámenes Médicos (EMO), Alturas y EPP',
+    description:
+      'Cruza trabajadores activos con exámenes médicos ocupacionales, certificados de Trabajo Seguro en Alturas (Res. 4272) en MinTrabajo/SENA y entregas de EPP.',
+    scheduleType: 'weekly',
+    daysOfWeek: [1],
+    hour: 7,
+    minute: 30,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_sst_workers', 'scraper_agy_alto_riesgo'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      includeIfNode: true,
+      inputs: ['somos_sst_trabajadores', 'somos_sst_examenes', 'somos_sst_epp'],
+      hitos: ['hito2_condiciones_salud', 'hito3_alturas', 'hito3_epp', 'hito7_acpm'],
+      outputs: ['acpm_task', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_verificacion_arl_seguridad_social',
+    presetCategory: 'salud_vencimientos',
+    name: '🛡️ Auditoría Directa de Certificados ARL y Antecedentes por Cédula',
+    description:
+      'Consulta en portales oficiales ARL y Rama Judicial/Procuraduría/Contraloría/Policía por cédula vía Antigravity, descargando los certificados PDF y PNG en bandeja dedicada.',
+    scheduleType: 'weekly',
+    daysOfWeek: [2],
+    hour: 8,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_sst_workers', 'scraper_agy_arl_directo', 'scraper_agy_antecedentes'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
+      includeIfNode: true,
+      inputs: ['somos_sst_empresa', 'somos_sst_trabajadores', 'google_antigravity'],
+      hitos: ['hito2_perfil_socio', 'hito5_contratistas', 'hito7_acpm'],
+      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_investigacion_atel_1401',
+    presetCategory: 'atel_inspecciones',
+    name: '🚨 Alerta e Investigación Temprana ATEL (Resolución 1401 de 2007)',
+    description:
+      'Detecta reportes de incidentes/accidentes en Gmail y Somos SST, controla el plazo legal de 15 días y estructura el pre-análisis causal (5 Porqués / Ishikawa).',
+    scheduleType: 'daily',
+    hour: 8,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'trigger_email',
+      triggers: ['trigger_email', 'schedule_cron'],
+      extractors: ['extract_gmail', 'extract_sst_app'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.8-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      includeIfNode: true,
+      inputs: ['google_gmail', 'somos_sst_empresa', 'somos_sst_trabajadores', 'matriz_ipevar'],
+      hitos: ['hito7_investigacion_atel', 'hito7_estadisticas_atel', 'hito7_acpm'],
+      outputs: ['canvas_doc', 'acpm_task', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_radar_matriz_legal',
+    presetCategory: 'legal_cumplimiento',
+    name: '⚖️ Radar Normativo MinTrabajo: Políticas, Reglamento Interno y Estándares 0312',
+    description:
+      'Rastrea nuevas resoluciones, decretos y circulares laborales en Colombia aplicables al CIIU y riesgo ARL de la empresa, actualizando Políticas, RIT y Diagnóstico 0312.',
+    scheduleType: 'weekly',
+    daysOfWeek: [3],
+    hour: 8,
+    minute: 30,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_web_search', 'extract_sst_app'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      includeIfNode: true,
+      inputs: ['web_search', 'somos_sst_empresa'],
+      hitos: ['hito1_politica_objetivos', 'hito1_rit', 'hito1_diagnostico_0312'],
+      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_pesv_flota_vial',
+    presetCategory: 'riesgos_vial_quimico',
+    name: '🚗 Control de Flota PESV: SIMIT, RUNT (SOAT / RTM / Licencias) y Riesgo Vial',
+    description:
+      'Verifica conductores y vehículos por cédula y placa en SIMIT y RUNT Ciudadano (Res. 20223040040595), descargando soportes PDF/PNG y creando alertas preventivas.',
+    scheduleType: 'weekly',
+    daysOfWeek: [1, 4],
+    hour: 6,
+    minute: 30,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_sst_workers', 'scraper_agy_vial_pesv'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      includeIfNode: true,
+      inputs: ['somos_sst_empresa', 'matriz_pesv', 'pronostico_clima_sst'],
+      hitos: ['hito3_vehiculos', 'hito3_matriz_pesv', 'hito7_acpm'],
+      outputs: ['acpm_task', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_quimicos_sga_pubchem',
+    presetCategory: 'riesgos_vial_quimico',
+    name: '🧪 Auditoría Química SGA (Decreto 1496) + Fichas FDS en PubChem NIH',
+    description:
+      'Valida el inventario de productos químicos, cruza datos toxicológicos en PubChem NIH, detecta incompatibilidades de almacenamiento ONU y FDS mayores a 5 años.',
+    scheduleType: 'monthly',
+    dayOfMonth: 5,
+    hour: 9,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_sst_app'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      includeIfNode: true,
+      inputs: ['somos_sst_empresa', 'matriz_compatibilidad', 'consultar_pubchem_quimico'],
+      hitos: ['hito5_registro_quimico', 'hito3_quimicos_sga', 'hito3_epp'],
+      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_cierre_actos_inseguros_qr',
+    presetCategory: 'atel_inspecciones',
+    name: '📱 Gestión Inmediata de Reportes QR de Actos y Condiciones Inseguras',
+    description:
+      'Procesa reportes enviados por trabajadores en campo vía código QR, clasifica peligros bajo GTC-45 y genera acciones correctivas inmediatas en el tablero ACPM.',
+    scheduleType: 'daily',
+    hour: 17,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'trigger_qr_worker',
+      triggers: ['trigger_qr_worker', 'schedule_cron'],
+      extractors: ['extract_sst_app'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company'],
+      includeIfNode: true,
+      inputs: ['somos_sst_empresa', 'consultar_analitica_actos_condiciones', 'matriz_ipevar'],
+      hitos: ['hito4_actos_condiciones', 'hito2_matriz_ipevar', 'hito7_acpm'],
+      outputs: ['acpm_task', 'wappy_notification', 'email_report'],
+    }),
+  },
+  {
+    presetKey: 'preset_psicosocial_cocolab',
+    presetCategory: 'salud_vencimientos',
+    name: '🧠 Vigilancia Psicosocial (Res. 2764) y Comité de Convivencia (Res. 3461)',
+    description:
+      'Analiza indicadores grupales de clima y estado de ánimo con reserva legal estricta (Res. 2346 / Ley 1581), proponiendo intervenciones preventivas para el CCL.',
+    scheduleType: 'monthly',
+    dayOfMonth: 15,
+    hour: 8,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_sst_app'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      includeIfNode: true,
+      inputs: ['somos_sst_empresa', 'consultar_analitica_psicosocial'],
+      hitos: ['hito4_psicosocial', 'hito3_cocolab'],
+      outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_lms_induccion_capacitaciones',
+    presetCategory: 'drive_sincronizacion',
+    name: '🎓 Seguimiento de Inducción, Reinducción y Escuela Virtual SST (LMS)',
+    description:
+      'Cruza ingresos recientes y cargos críticos contra el avance en cursos LMS y cronograma de capacitaciones, agendando sesiones pendientes.',
+    scheduleType: 'weekly',
+    daysOfWeek: [5],
+    hour: 9,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_sst_workers'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company'],
+      includeIfNode: true,
+      inputs: ['somos_sst_trabajadores', 'cursos_lms', 'notebooklm'],
+      hitos: ['hito5_capacitaciones', 'hito6_ruta_aprendizaje'],
+      outputs: ['google_calendar', 'email_report', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_antigravity_cloud_bridge',
+    presetCategory: 'drive_sincronizacion',
+    name: '🛰️ Puente Multi-Nube: Google Drive + Carpeta PC + Antigravity',
+    description:
+      'Unifica documentos de Google Drive y carpetas locales en PC vía Google Antigravity con la base de datos de Somos SST y hojas de control en Google Sheets.',
+    scheduleType: 'daily',
+    hour: 18,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'trigger_antigravity',
+      triggers: ['trigger_antigravity', 'schedule_cron'],
+      extractors: ['extract_drive', 'extract_pc_folder', 'extract_sst_workers'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
+      includeIfNode: true,
+      inputs: ['google_drive', 'google_antigravity', 'somos_sst_empresa', 'somos_sst_trabajadores'],
+      hitos: ['hito2_perfil_socio', 'hito7_acpm'],
+      outputs: ['google_sheets', 'somos_sst_update', 'wappy_notification'],
+    }),
+  },
+  {
+    presetKey: 'preset_gerencia_auditoria_0312',
+    presetCategory: 'gerencia_auditoria',
+    name: '📊 Informe Gerencial Mensual: Autoevaluación Res. 0312 y Alta Dirección',
+    description:
+      'Consolida el cumplimiento de Estándares Mínimos Res. 0312, estadísticas ATEL (Art. 30), avance Kanban ACPM y genera informe ejecutivo para la Alta Dirección.',
+    scheduleType: 'monthly',
+    dayOfMonth: 28,
+    hour: 7,
+    minute: 30,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron'],
+      extractors: ['extract_sst_app'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.8-flash',
+      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
+      includeIfNode: true,
+      inputs: ['somos_sst_empresa', 'matriz_ipevar'],
+      hitos: ['hito1_diagnostico_0312', 'hito7_estadisticas_atel', 'hito7_auditoria', 'hito7_alta_direccion'],
+      outputs: ['canvas_doc', 'google_slides', 'email_report', 'wappy_notification'],
+    }),
+  },
+];
 
 /**
  * Diccionario maestro de Metadatos, Campos Reales Propios, Combos Quirúrgicos (1 clic) y Etiquetas de Historial de Informes
@@ -7725,79 +8284,78 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     ],
     reportTags: [],
   },
-  // ═══ 6 NODOS ESPECIALIZADOS DE CONSULTA OFICIAL POR CÉDULA Y PLACA VÍA GOOGLE ANTIGRAVITY (SIN RUAF) ═══
+  // ═══ 6 NODOS ESPECIALIZADOS DE CONSULTA OFICIAL POR CÉDULA Y PLACA VÍA GOOGLE ANTIGRAVITY (4 ACTIVOS EN VIVO + 2 EN CONSTRUCCIÓN) ═══
   scraper_agy_alto_riesgo: {
-    moduleTitle: '🪖 Scraper Antigravity · Certificados de Alto Riesgo (MinTrabajo Alturas/Confinados) y SENA por Cédula',
-    moduleBadge: 'AGY · Alto Riesgo & SENA',
-    fieldsLabel: 'Portales y Certificados Oficiales a Extraer por Cédula vía Google Antigravity',
+    moduleTitle: '🪖 Consulta en Vivo · Certificados de Alto Riesgo (MinTrabajo Alturas/Confinados) y SENA por Cédula',
+    moduleBadge: 'En Vivo · MinTrabajo & SENA',
+    fieldsLabel: 'Portales Oficiales Consultados Hoy en Vivo y Soportes Descargados (.PDF y .PNG)',
     fields: [
-      'MinTrabajo — Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
-      'MinTrabajo — Descarga de Constancia Oficial en PDF (Último Reentrenamiento Vigente y Coordinador)',
-      'MinTrabajo — Nivel del Curso (Trabajador Autorizado, Reentrenamiento Sectorial, Coordinador, Administrativo)',
-      'MinTrabajo — Nombre del Centro de Entrenamiento, NIT, Entrenador y Fechas de Inicio/Finalización',
-      'SENA — Sofia Plus / Certificados Digitales por Cédula: https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer',
-      'SENA — Títulos Técnicos/Tecnólogos, Curso de 50 Horas / 20 Horas SG-SST y Competencias Laborales',
-      'Alerta Automática si el Reentrenamiento de Alturas supera los 12 meses o no registra curso',
+      'MinTrabajo — Consulta Real sin CAPTCHA en Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+      'MinTrabajo — Nivel del Curso Verificado (Trabajador Autorizado, Reentrenamiento Sectorial, Coordinador, Administrativo)',
+      'MinTrabajo — Centro de Entrenamiento Autorizado, NIT, Entrenador y Fechas Exactas de Inicio/Finalización',
+      'SENA — Sofia Plus / Certificados Digitales Oficiales por Cédula: https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer',
+      'SENA — Títulos Técnicos/Tecnólogos, Curso de 50 Horas / 20 Horas SG-SST y Competencias Laborales Vigentes',
+      'Descarga Automática de Constancia Oficial (.PDF) y Captura de Verificación (.PNG) en Bandeja de Evidencias',
+      'Alerta Automática si el Reentrenamiento Anual de Alturas supera los 12 meses o no registra certificado',
     ],
     quickCombos: [
       {
-        label: '⚡ MinTrabajo Alturas/Confinados (Tabla Completa + Descarga PDF Vigente) + SENA',
-        description: 'Consulta ambos portales oficiales por Cédula y descarga las constancias en PDF',
+        label: '⚡ MinTrabajo Alturas/Confinados + SENA + Descarga de Certificados (.PDF / .PNG)',
+        description: 'Consulta ambos portales oficiales en vivo por Cédula y deposita los soportes PDF/PNG en bandeja aparte',
         fields: [
-          'MinTrabajo — Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
-          'MinTrabajo — Descarga de Constancia Oficial en PDF (Último Reentrenamiento Vigente y Coordinador)',
-          'MinTrabajo — Nivel del Curso (Trabajador Autorizado, Reentrenamiento Sectorial, Coordinador, Administrativo)',
-          'SENA — Sofia Plus / Certificados Digitales por Cédula: https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer',
-          'Alerta Automática si el Reentrenamiento de Alturas supera los 12 meses o no registra curso',
+          'MinTrabajo — Consulta Real sin CAPTCHA en Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+          'MinTrabajo — Nivel del Curso Verificado (Trabajador Autorizado, Reentrenamiento Sectorial, Coordinador, Administrativo)',
+          'SENA — Sofia Plus / Certificados Digitales Oficiales por Cédula: https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer',
+          'Descarga Automática de Constancia Oficial (.PDF) y Captura de Verificación (.PNG) en Bandeja de Evidencias',
+          'Alerta Automática si el Reentrenamiento Anual de Alturas supera los 12 meses o no registra certificado',
         ],
       },
       {
         label: '⚡ Solo MinTrabajo Centros de Entrenamiento (Alturas Res. 4272 y Confinados Res. 0491)',
-        description: 'Consulta directa sin CAPTCHA en app2.mintrabajo.gov.co',
+        description: 'Verificación directa en app2.mintrabajo.gov.co con constancia oficial PDF/PNG',
         fields: [
-          'MinTrabajo — Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
-          'MinTrabajo — Descarga de Constancia Oficial en PDF (Último Reentrenamiento Vigente y Coordinador)',
-          'MinTrabajo — Nombre del Centro de Entrenamiento, NIT, Entrenador y Fechas de Inicio/Finalización',
+          'MinTrabajo — Consulta Real sin CAPTCHA en Centros de Entrenamiento (Trabajo en Alturas Res. 4272/2021 y Espacios Confinados Res. 0491/2020): https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
+          'MinTrabajo — Centro de Entrenamiento Autorizado, NIT, Entrenador y Fechas Exactas de Inicio/Finalización',
+          'Descarga Automática de Constancia Oficial (.PDF) y Captura de Verificación (.PNG) en Bandeja de Evidencias',
         ],
       },
     ],
     reportTags: ['sgsst-tareas-alto-riesgo', 'sgsst-equipo-alturas'],
   },
   scraper_agy_arl_directo: {
-    moduleTitle: '🛡️ Scraper Antigravity · Certificados de ARL Directos por Cédula (Sin RUAF)',
-    moduleBadge: 'AGY · 5 ARL Directas',
-    fieldsLabel: 'Portales Directos de ARL a Consultar por Cédula vía Google Antigravity',
+    moduleTitle: '🛡️ Consulta en Vivo · Verificación y Certificados de ARL Directos por Cédula',
+    moduleBadge: 'En Vivo · ARL Directas',
+    fieldsLabel: 'Portales Directos de ARL Consultados Hoy en Vivo y Soportes Descargados (.PDF y .PNG)',
     fields: [
-      'ARL SURA (Verificación de Afiliación y Certificado): https://www.arlsura.com/afiliacion/verificar.php',
-      'ARL Positiva (Certificado de Afiliación en Línea): https://www.positivaenlinea.gov.co/nuevo/',
-      'ARL Colmena Seguros (Consulta de Afiliación ARL): https://afiliacionarl.colmenaseguros.com/',
-      'ARL AXA Colpatria (Certificados ESST): https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/',
-      'ARL Seguros Bolívar (Certificado de Afiliación ARL): https://www.segurosbolivar.com/arl',
-      'Identificación de Estado Activo/Inactivo, Clase de Riesgo (I a V) y Razón Social del Empleador',
-      'Descarga del Certificado Oficial de Afiliación ARL en PDF',
+      'ARL SURA — Verificación Pública de Afiliación y Certificado: https://www.arlsura.com/afiliacion/verificar.php',
+      'ARL Positiva — Consulta y Certificado de Afiliación en Línea: https://www.positivaenlinea.gov.co/nuevo/',
+      'ARL Colmena Seguros — Consulta de Afiliación ARL por Cédula: https://afiliacionarl.colmenaseguros.com/',
+      'ARL AXA Colpatria — Certificados de Afiliación ESST: https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/',
+      'ARL Seguros Bolívar / La Equidad — Verificación de Cobertura en Riesgos Laborales',
+      'Validación de Estado Activo / Inactivo, Clase de Riesgo (I a V) y Coherencia con el Expediente SST',
+      'Descarga Automática de Certificado / Constancia ARL (.PDF) y Captura (.PNG) en Bandeja de Evidencias',
     ],
     quickCombos: [
       {
-        label: '⚡ Barrido Completo en las 5 ARL Directas (SURA, Positiva, Colmena, AXA y Bolívar)',
-        description: 'Verifica en cuál ARL está activo el trabajador o contratista y descarga el PDF',
+        label: '⚡ Barrido en Vivo de ARL Directas (SURA, Positiva, Colmena, AXA y Bolívar) + PDF/PNG',
+        description: 'Verifica cobertura real de riesgos laborales por Cédula y deposita los soportes PDF/PNG en bandeja aparte',
         fields: [
-          'ARL SURA (Verificación de Afiliación y Certificado): https://www.arlsura.com/afiliacion/verificar.php',
-          'ARL Positiva (Certificado de Afiliación en Línea): https://www.positivaenlinea.gov.co/nuevo/',
-          'ARL Colmena Seguros (Consulta de Afiliación ARL): https://afiliacionarl.colmenaseguros.com/',
-          'ARL AXA Colpatria (Certificados ESST): https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/',
-          'ARL Seguros Bolívar (Certificado de Afiliación ARL): https://www.segurosbolivar.com/arl',
-          'Identificación de Estado Activo/Inactivo, Clase de Riesgo (I a V) y Razón Social del Empleador',
-          'Descarga del Certificado Oficial de Afiliación ARL en PDF',
+          'ARL SURA — Verificación Pública de Afiliación y Certificado: https://www.arlsura.com/afiliacion/verificar.php',
+          'ARL Positiva — Consulta y Certificado de Afiliación en Línea: https://www.positivaenlinea.gov.co/nuevo/',
+          'ARL Colmena Seguros — Consulta de Afiliación ARL por Cédula: https://afiliacionarl.colmenaseguros.com/',
+          'ARL AXA Colpatria — Certificados de Afiliación ESST: https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/',
+          'Validación de Estado Activo / Inactivo, Clase de Riesgo (I a V) y Coherencia con el Expediente SST',
+          'Descarga Automática de Certificado / Constancia ARL (.PDF) y Captura (.PNG) en Bandeja de Evidencias',
         ],
       },
       {
-        label: '⚡ Solo ARL SURA + ARL Positiva + ARL Colmena',
-        description: 'Consulta rápida en las 3 ARL de mayor volumen de afiliados',
+        label: '⚡ Solo ARL SURA + ARL Positiva + ARL Colmena + Soporte Descargable',
+        description: 'Consulta rápida en las 3 ARL de mayor volumen de trabajadores y contratistas',
         fields: [
-          'ARL SURA (Verificación de Afiliación y Certificado): https://www.arlsura.com/afiliacion/verificar.php',
-          'ARL Positiva (Certificado de Afiliación en Línea): https://www.positivaenlinea.gov.co/nuevo/',
-          'ARL Colmena Seguros (Consulta de Afiliación ARL): https://afiliacionarl.colmenaseguros.com/',
-          'Descarga del Certificado Oficial de Afiliación ARL en PDF',
+          'ARL SURA — Verificación Pública de Afiliación y Certificado: https://www.arlsura.com/afiliacion/verificar.php',
+          'ARL Positiva — Consulta y Certificado de Afiliación en Línea: https://www.positivaenlinea.gov.co/nuevo/',
+          'ARL Colmena Seguros — Consulta de Afiliación ARL por Cédula: https://afiliacionarl.colmenaseguros.com/',
+          'Descarga Automática de Certificado / Constancia ARL (.PDF) y Captura (.PNG) en Bandeja de Evidencias',
         ],
       },
     ],
@@ -7830,16 +8388,6 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
           'Descarga del Certificado Oficial de Pensión en PDF',
         ],
       },
-      {
-        label: '⚡ Solo Fondos Privados RAIS (Porvenir + Protección + Colfondos + Skandia)',
-        description: 'Verifica afiliación en los 4 fondos privados de pensiones y cesantías',
-        fields: [
-          'Porvenir (Certificado de Afiliación Directo): https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion',
-          'Protección — Certifácil (Pensión y Cesantías por Cédula): https://www.proteccion.com/portalafiliados/certifacil',
-          'Colfondos (Certificado de Afiliación Pensión Obligatoria): https://www.colfondos.com.co/dxp/personas/pensiones-obligatorias/certificado-afiliacion',
-          'Skandia (Consulta de Certificados de Afiliación): https://www.skandia.co/consulta-extractos-y-certificados',
-        ],
-      },
     ],
     reportTags: ['sgsst-seguridad-social'],
   },
@@ -7862,88 +8410,1203 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
           'ADRES — BDUA (Consulta de EPS Activa por Cédula): https://www.adres.gov.co/consulte-su-eps',
           'ADRES — Entidad EPS, Régimen (Contributivo / Subsidiado), Estado de Afiliación y Tipo de Afiliado',
           'ReTHUS — SISPRO MinSalud (Talento Humano en Salud): https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
-          'ReTHUS — Profesión/Ocupación Autorizada (Médico, Enfermero, Psicólogo, Fisioterapeuta, Profesional SST en Salud)',
-          'ReTHUS — Acto Administrativo / Autorización de Ejercicio, Entidad Reportadora y Estado Vigente',
         ],
       },
     ],
     reportTags: ['sgsst-seguridad-social', 'sgsst-condiciones-salud'],
   },
   scraper_agy_vial_pesv: {
-    moduleTitle: '🚗 Scraper Antigravity · Seguridad Vial PESV: SIMIT y RUNT por Cédula o Placa',
-    moduleBadge: 'AGY · SIMIT & RUNT',
-    fieldsLabel: 'Consultas Viales PESV por Cédula (Conductor) y por Placa (Vehículo) vía Google Antigravity',
+    moduleTitle: '🚗 Consulta en Vivo · Seguridad Vial PESV: SIMIT y RUNT por Cédula y Placa',
+    moduleBadge: 'En Vivo · SIMIT & RUNT',
+    fieldsLabel: 'Consultas Viales PESV Ejecutadas Hoy en Vivo y Soportes Descargados (.PDF y .PNG)',
     fields: [
-      'SIMIT por Cédula o Placa (Comparendos, Multas y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
-      'RUNT por Cédula (Conductor — Vigencia y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
-      'RUNT por Placa (Vehículo — Vigencia de SOAT y Revisión Técnico-Mecánica RTM): https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo',
-      'Alerta de Licencia de Conducción Vencida o Suspendida y Comparendos Pendientes de Pago',
-      'Alerta de Vehículo con SOAT o Revisión Técnico-Mecánica Vencida o Próxima a Vencer (≤ 30 días)',
+      'SIMIT Nacional por Cédula o Placa (Comparendos, Multas, Paz y Salvo y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
+      'RUNT Ciudadano por Cédula (Conductor — Vigencia, Estado y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
+      'RUNT Ciudadano por Placa (Vehículo — Vigencia Exacta de Póliza SOAT y Revisión Técnico-Mecánica RTM): https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo',
+      'Descarga Automática de Constancia Vial (.PDF) y Captura de Evidencia (.PNG) en Bandeja de Soportes',
+      'Alerta Automática PESV (Res. 20223040040595) por Licencia Suspendida/Vencida, Comparendos o SOAT/RTM ≤ 30 días',
     ],
     quickCombos: [
       {
-        label: '⚡ Auditoría PESV Completa: SIMIT (Cédula/Placa) + RUNT Conductor (Cédula) + RUNT Vehículo (Placa)',
-        description: 'Cruza conductor y vehículo para el Plan Estratégico de Seguridad Vial Res. 20223040040595',
+        label: '⚡ Auditoría PESV en Vivo: SIMIT + RUNT Conductor/Placa + Constancias (.PDF / .PNG)',
+        description: 'Cruza conductores y flota vehicular bajo Res. 20223040040595 descargando soportes oficiales en bandeja aparte',
         fields: [
-          'SIMIT por Cédula o Placa (Comparendos, Multas y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
-          'RUNT por Cédula (Conductor — Vigencia y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
-          'RUNT por Placa (Vehículo — Vigencia de SOAT y Revisión Técnico-Mecánica RTM): https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo',
-          'Alerta de Licencia de Conducción Vencida o Suspendida y Comparendos Pendientes de Pago',
-          'Alerta de Vehículo con SOAT o Revisión Técnico-Mecánica Vencida o Próxima a Vencer (≤ 30 días)',
+          'SIMIT Nacional por Cédula o Placa (Comparendos, Multas, Paz y Salvo y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
+          'RUNT Ciudadano por Cédula (Conductor — Vigencia, Estado y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
+          'RUNT Ciudadano por Placa (Vehículo — Vigencia Exacta de Póliza SOAT y Revisión Técnico-Mecánica RTM): https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo',
+          'Descarga Automática de Constancia Vial (.PDF) y Captura de Evidencia (.PNG) en Bandeja de Soportes',
+          'Alerta Automática PESV (Res. 20223040040595) por Licencia Suspendida/Vencida, Comparendos o SOAT/RTM ≤ 30 días',
         ],
       },
       {
-        label: '⚡ Solo Conductor por Cédula (RUNT Licencia de Conducción + SIMIT Comparendos)',
-        description: 'Verificación de conductores antes de ingreso o asignación de vehículo',
+        label: '⚡ Solo Conductor por Cédula (RUNT Licencia + SIMIT Comparendos + Soporte PDF/PNG)',
+        description: 'Verificación inmediata de idoneidad vial antes de ingreso o asignación de vehículo',
         fields: [
-          'SIMIT por Cédula o Placa (Comparendos, Multas y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
-          'RUNT por Cédula (Conductor — Vigencia y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
-          'Alerta de Licencia de Conducción Vencida o Suspendida y Comparendos Pendientes de Pago',
+          'SIMIT Nacional por Cédula o Placa (Comparendos, Multas, Paz y Salvo y Acuerdos de Pago): https://www.fcm.org.co/simit/#/home-public',
+          'RUNT Ciudadano por Cédula (Conductor — Vigencia, Estado y Categoría de Licencia A2, B1, C1, C2, C3): https://www.runt.gov.co/consultaCiudadana/#/consultaPersona',
+          'Descarga Automática de Constancia Vial (.PDF) y Captura de Evidencia (.PNG) en Bandeja de Soportes',
         ],
       },
     ],
     reportTags: ['sgsst-matriz-pesv'],
   },
   scraper_agy_antecedentes: {
-    moduleTitle: '⚖️ Scraper Antigravity · Antecedentes y Procesos Judiciales por Cédula (6 Entes Oficiales)',
-    moduleBadge: 'AGY · 6 Antecedentes',
-    fieldsLabel: 'Portales Judiciales, Disciplinarios, Fiscales y Policiales a Consultar por Cédula',
+    moduleTitle: '⚖️ Consulta en Vivo · Antecedentes y Procesos Judiciales por Cédula (Rama Judicial API v2 + Entes)',
+    moduleBadge: 'En Vivo · Rama Judicial & Entes',
+    fieldsLabel: 'Consultas Oficiales en Vivo por Cédula/Nombre y Certificados Descargados (.PDF y .PNG)',
     fields: [
-      'Rama Judicial — Consulta Nacional Unificada de Procesos Judiciales: https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
+      'Rama Judicial — API Oficial v2 Consulta Nacional Unificada de Procesos Judiciales: https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
       'Contraloría General de la República — Certificado de Antecedentes Fiscales (SIBOR): https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx',
       'Procuraduría General de la Nación — Certificado de Antecedentes Disciplinarios (SIRI): https://apps.procuraduria.gov.co/webcert/Certificado.aspx',
       'Policía Nacional — Antecedentes Judiciales: https://antecedentes.policia.gov.co:7005/WebJudicial/',
-      'Policía Nacional — RNMC (Registro Nacional de Medidas Correctivas Código de Policía): https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx',
-      'Policía Nacional — Consulta de Inhabilidades por Delitos Sexuales (Ley 1918 de 2018): https://inhabilidades.policia.gov.co:8080/',
-      'Consolidado de Hallazgos (Sin Antecedentes vs. Alertas Activas) y Descarga de Certificados PDF',
+      'Policía Nacional — RNMC (Medidas Correctivas Código de Policía) e Inhabilidades Ley 1918 de 2018',
+      'Descarga Automática de Constancia Oficial (.PDF) y Captura (.PNG) en Bandeja Aparte sin Ruido en el Mensaje',
+      'Dictamen Consolidado de Debida Diligencia (Sin Novedades vs. Procesos / Alertas Activas por Despacho)',
     ],
     quickCombos: [
       {
-        label: '⚡ Barrido Completo en los 6 Entes Oficiales (Rama Judicial, Contraloría, Procuraduría y 3 Policía)',
-        description: 'Debida diligencia integral de ingreso y contratación por Cédula vía Antigravity',
+        label: '⚡ Barrido Completo en Vivo (Rama Judicial API v2 + Contraloría + Procuraduría + Policía + PDF/PNG)',
+        description: 'Debida diligencia integral por Cédula y Nombre con certificados descargados en bandeja dedicada',
         fields: [
-          'Rama Judicial — Consulta Nacional Unificada de Procesos Judiciales: https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
+          'Rama Judicial — API Oficial v2 Consulta Nacional Unificada de Procesos Judiciales: https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
           'Contraloría General de la República — Certificado de Antecedentes Fiscales (SIBOR): https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx',
           'Procuraduría General de la Nación — Certificado de Antecedentes Disciplinarios (SIRI): https://apps.procuraduria.gov.co/webcert/Certificado.aspx',
           'Policía Nacional — Antecedentes Judiciales: https://antecedentes.policia.gov.co:7005/WebJudicial/',
-          'Policía Nacional — RNMC (Registro Nacional de Medidas Correctivas Código de Policía): https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx',
-          'Policía Nacional — Consulta de Inhabilidades por Delitos Sexuales (Ley 1918 de 2018): https://inhabilidades.policia.gov.co:8080/',
-          'Consolidado de Hallazgos (Sin Antecedentes vs. Alertas Activas) y Descarga de Certificados PDF',
+          'Policía Nacional — RNMC (Medidas Correctivas Código de Policía) e Inhabilidades Ley 1918 de 2018',
+          'Descarga Automática de Constancia Oficial (.PDF) y Captura (.PNG) en Bandeja Aparte sin Ruido en el Mensaje',
         ],
       },
       {
-        label: '⚡ Certificados Básicos de Contratación (Policía Antecedentes + Procuraduría SIRI + Contraloría SIBOR)',
-        description: 'Los 3 certificados de antecedentes estándar exigidos en contratación',
+        label: '⚡ Contratación Estándar (Rama Judicial + Policía + Procuraduría SIRI + Contraloría SIBOR)',
+        description: 'Certificados esenciales exigidos en selección y control de contratistas',
         fields: [
+          'Rama Judicial — API Oficial v2 Consulta Nacional Unificada de Procesos Judiciales: https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
           'Contraloría General de la República — Certificado de Antecedentes Fiscales (SIBOR): https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx',
           'Procuraduría General de la Nación — Certificado de Antecedentes Disciplinarios (SIRI): https://apps.procuraduria.gov.co/webcert/Certificado.aspx',
           'Policía Nacional — Antecedentes Judiciales: https://antecedentes.policia.gov.co:7005/WebJudicial/',
+          'Descarga Automática de Constancia Oficial (.PDF) y Captura (.PNG) en Bandeja Aparte sin Ruido en el Mensaje',
         ],
       },
     ],
     reportTags: [],
   },
+
+  // ═══ ENTRADAS DIRECTAS DE COBERTURA 100% PARA CONECTORES DE ENTRADA, SALIDAS Y SUB-AGENTES ESPECIALISTAS ═══
+  somos_sst_empresa: {
+    moduleTitle: '🏢 Conector WAPPY · Contexto y Ficha Técnica de la Empresa Activa (Somos SST)',
+    moduleBadge: 'WAPPY · Empresa Activa',
+    fieldsLabel: 'Campos Oficiales del Perfil de la Empresa Activa a Inyectar',
+    fields: [
+      'Razón Social, NIT y Actividad Económica (Código CIIU)',
+      'Clase de Riesgo ARL (Nivel I a V) y Entidad ARL Afiliada',
+      'Número Total de Trabajadores Activos y Distribución por Sedes',
+      'Ciudad, Dirección Principal y Centros de Trabajo',
+      'Representante Legal y Responsable del SG-SST con Licencia Vigente',
+      'Tamaño de Empresa y Estándares Aplicables Res. 0312 (7, 21 o 60)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Encabezado Normativo (Razón Social + NIT + CIIU + ARL + Trabajadores)',
+        description: 'Contexto corporativo esencial para cualquier dictamen o auditoría',
+        fields: [
+          'Razón Social, NIT y Actividad Económica (Código CIIU)',
+          'Clase de Riesgo ARL (Nivel I a V) y Entidad ARL Afiliada',
+          'Número Total de Trabajadores Activos y Distribución por Sedes',
+          'Tamaño de Empresa y Estándares Aplicables Res. 0312 (7, 21 o 60)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-diagnostico'],
+  },
+  somos_sst_trabajadores: {
+    moduleTitle: '👥 Conector WAPPY · Bio-Motor de Trabajadores y Expedientes 360°',
+    moduleBadge: 'WAPPY · Trabajadores 360°',
+    fieldsLabel: 'Columnas del Expediente Integral 360° por Trabajador',
+    fields: [
+      'Cédula / Documento de Identidad y Nombre Completo',
+      'Cargo, Área / Proceso, Sede y Fecha de Ingreso',
+      'Seguridad Social Registrada (EPS, ARL, Fondo de Pensión AFP y CCF)',
+      'Estado de Examen Médico Ocupacional (EMO), Concepto y Restricciones Vigentes',
+      'Vigencia de Certificados de Trabajo en Alturas, Capacitaciones y Entregas EPP',
+      'Alertas Preventivas Activas en el Expediente 360°',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Nómina Activa + Seguridad Social + Vencimientos EMO/Alturas/EPP',
+        description: 'Cruce integral 360° por cédula sin datos superfluos',
+        fields: [
+          'Cédula / Documento de Identidad y Nombre Completo',
+          'Cargo, Área / Proceso, Sede y Fecha de Ingreso',
+          'Seguridad Social Registrada (EPS, ARL, Fondo de Pensión AFP y CCF)',
+          'Estado de Examen Médico Ocupacional (EMO), Concepto y Restricciones Vigentes',
+          'Vigencia de Certificados de Trabajo en Alturas, Capacitaciones y Entregas EPP',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-perfil-sociodemografico'],
+  },
+  somos_sst_perfiles_cargo: {
+    moduleTitle: '💼 Conector WAPPY · Perfiles de Cargo, Funciones y Competencias SST',
+    moduleBadge: 'WAPPY · Perfiles de Cargo',
+    fieldsLabel: 'Elementos del Perfil de Cargo a Consultar',
+    fields: [
+      'Nombre del Cargo, Área y Propósito Principal',
+      'Funciones Esenciales y Responsabilidades Específicas en SG-SST',
+      'Educación, Formación, Licencia o Certificación Exigida (Alturas, PESV, RETIE)',
+      'Peligros Asociados al Cargo, EPP Obligatorios y Exámenes del Profesiograma',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Funciones SST + Certificaciones Exigidas + EPP y Profesiograma',
+        description: 'Valida idoneidad del trabajador frente a las exigencias de su cargo',
+        fields: [
+          'Nombre del Cargo, Área y Propósito Principal',
+          'Funciones Esenciales y Responsabilidades Específicas en SG-SST',
+          'Educación, Formación, Licencia o Certificación Exigida (Alturas, PESV, RETIE)',
+          'Peligros Asociados al Cargo, EPP Obligatorios y Exámenes del Profesiograma',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-perfiles-cargo'],
+  },
+  somos_sst_epp: {
+    moduleTitle: '🦺 Conector WAPPY · Control y Entregas de EPP por Trabajador',
+    moduleBadge: 'WAPPY · Entregas EPP',
+    fieldsLabel: 'Campos del Registro de Entrega y Reposición de EPP',
+    fields: [
+      'Cédula, Nombre del Trabajador y Cargo',
+      'Elemento de Protección Personal Entregado y Norma Técnica (ANSI / NIOSH / EN)',
+      'Fecha de Entrega, Vida Útil Estimada y Fecha de Próxima Reposición',
+      'Estado de Firma / Constancia de Recepción por el Trabajador',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Trabajador + EPP Entregado + Fecha de Reposición + Firma',
+        description: 'Detecta dotaciones vencidas o entregas sin soporte firmado',
+        fields: [
+          'Cédula, Nombre del Trabajador y Cargo',
+          'Elemento de Protección Personal Entregado y Norma Técnica (ANSI / NIOSH / EN)',
+          'Fecha de Entrega, Vida Útil Estimada y Fecha de Próxima Reposición',
+          'Estado de Firma / Constancia de Recepción por el Trabajador',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-epp'],
+  },
+  somos_sst_examenes: {
+    moduleTitle: '🩺 Conector WAPPY · Evaluaciones Médicas Ocupacionales (EMO) y Restricciones',
+    moduleBadge: 'WAPPY · EMO Res. 1843',
+    fieldsLabel: 'Campos Clínico-Ocupacionales (Bajo Reserva Legal Res. 2346 / Res. 1843)',
+    fields: [
+      'Cédula, Nombre del Trabajador y Cargo Evaluado',
+      'Tipo de Evaluación (Ingreso, Periódico, Egreso, Post-Incapacidad, Cambio de Ocupación)',
+      'Concepto de Aptitud Médica, Fecha de Examen y Fecha de Próximo Control',
+      'Restricciones Laborales, Recomendaciones Ocupacionales y Remisión a SVE',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Concepto EMO + Vencimientos + Restricciones Activas por Cédula',
+        description: 'Control médico preventivo respetando la reserva de historia clínica',
+        fields: [
+          'Cédula, Nombre del Trabajador y Cargo Evaluado',
+          'Concepto de Aptitud Médica, Fecha de Examen y Fecha de Próximo Control',
+          'Restricciones Laborales, Recomendaciones Ocupacionales y Remisión a SVE',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-condiciones-salud'],
+  },
+  matriz_ipevar: {
+    moduleTitle: '⚠️ Motor WAPPY · Matriz de Peligros y Valoración de Riesgos IPEVR (GTC-45)',
+    moduleBadge: 'Motor · GTC-45',
+    fieldsLabel: 'Columnas de Valoración Matemática GTC-45 a Consultar o Alimentar',
+    fields: [
+      'Proceso, Zona / Lugar, Actividad y Tarea (Rutinaria / No Rutinaria)',
+      'Clasificación y Descripción del Peligro y Efectos Posibles',
+      'Evaluación del Riesgo: ND, NE, NP, NC, NR e Interpretación (Nivel I a IV)',
+      'Aceptabilidad del Riesgo y Número de Expuestos',
+      'Jerarquía de Controles (Eliminación, Sustitución, Ingeniería, Administrativos y EPP)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Peligros Nivel I y II (Críticos/Altos) + Valoración NR + Controles',
+        description: 'Prioriza peligros no aceptables para planes de intervención',
+        fields: [
+          'Proceso, Zona / Lugar, Actividad y Tarea (Rutinaria / No Rutinaria)',
+          'Clasificación y Descripción del Peligro y Efectos Posibles',
+          'Evaluación del Riesgo: ND, NE, NP, NC, NR e Interpretación (Nivel I a IV)',
+          'Jerarquía de Controles (Eliminación, Sustitución, Ingeniería, Administrativos y EPP)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-ipevar'],
+  },
+  matriz_pesv: {
+    moduleTitle: '🚗 Motor WAPPY · Matriz de Riesgos Viales PESV (Res. 20223040040595)',
+    moduleBadge: 'Motor · PESV Vial',
+    fieldsLabel: 'Variables de Evaluación de Riesgo Vial por Actor de la Vía',
+    fields: [
+      'Actor Vial Evaluado (Conductor, Motociclista, Ciclista, Peatón, Pasajero)',
+      'Factor de Riesgo Vial (Humano, Vehículo, Infraestructura, Entorno)',
+      'Valoración de Probabilidad x Severidad y Nivel de Riesgo Vial',
+      'Controles Preventivos y Articulación con las 24 Fases del PESV',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Riesgos Viales Críticos por Actor Vial + Controles PESV',
+        description: 'Alineado con la Fase 1 y Fase 2 de la Resolución 20223040040595',
+        fields: [
+          'Actor Vial Evaluado (Conductor, Motociclista, Ciclista, Peatón, Pasajero)',
+          'Factor de Riesgo Vial (Humano, Vehículo, Infraestructura, Entorno)',
+          'Valoración de Probabilidad x Severidad y Nivel de Riesgo Vial',
+          'Controles Preventivos y Articulación con las 24 Fases del PESV',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-pesv'],
+  },
+  matriz_compatibilidad: {
+    moduleTitle: '🧪 Motor WAPPY · Matriz de Compatibilidad Química SGA (Decreto 1496 de 2018)',
+    moduleBadge: 'Motor · SGA Químico',
+    fieldsLabel: 'Parámetros de Almacenamiento Seguro y Segregación Química SGA',
+    fields: [
+      'Sustancia Química, Número CAS, Número ONU y Clase de Peligro SGA (1 a 9)',
+      'Pictogramas SGA, Palabra de Advertencia e Indicaciones de Peligro (Frases H y P)',
+      'Resultado de Compatibilidad Cruzada (Compatible / Precaución / Incompatible)',
+      'Vigencia de Ficha de Datos de Seguridad FDS (< 5 Años) y Kit de Derrames',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Choques Químicos Incompatibles + Vigencia FDS + Pictogramas SGA',
+        description: 'Previene reacciones peligrosas en bodegas y cuartos químicos',
+        fields: [
+          'Sustancia Química, Número CAS, Número ONU y Clase de Peligro SGA (1 a 9)',
+          'Resultado de Compatibilidad Cruzada (Compatible / Precaución / Incompatible)',
+          'Vigencia de Ficha de Datos de Seguridad FDS (< 5 Años) y Kit de Derrames',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-compatibilidad'],
+  },
+  consultar_analitica_psicosocial: {
+    moduleTitle: '🧠 Conector WAPPY · Analítica Psicosocial y Clima Emocional (Res. 2764)',
+    moduleBadge: 'WAPPY · Psicosocial',
+    fieldsLabel: 'Indicadores Grupales y Confidenciales de Bienestar y Riesgo Psicosocial',
+    fields: [
+      'Tendencia Grupal de Estado de Ánimo, Estrés y Fatiga por Área / Sede',
+      'Dimensiones Intralaborales y Extralaborales Prioritarias (Res. 2764 de 2022)',
+      'Alertas Tempranas de Sobrecarga o Burnout (Anonimizadas bajo Reserva Legal)',
+      'Acciones de Promoción de Salud Mental y Protocolos Sectoriales sugeridos',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Tendencia por Área + Alertas Anonimizadas + Plan Salud Mental',
+        description: 'Cumple estrictamente la reserva de la Resolución 2346 y Ley 1090',
+        fields: [
+          'Tendencia Grupal de Estado de Ánimo, Estrés y Fatiga por Área / Sede',
+          'Alertas Tempranas de Sobrecarga o Burnout (Anonimizadas bajo Reserva Legal)',
+          'Acciones de Promoción de Salud Mental y Protocolos Sectoriales sugeridos',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-animo'],
+  },
+  consultar_analitica_actos_condiciones: {
+    moduleTitle: '🔍 Conector WAPPY · Analítica de Reportes de Actos y Condiciones Inseguras',
+    moduleBadge: 'WAPPY · Actos y Condiciones',
+    fieldsLabel: 'Métricas y Hallazgos de Seguridad en Campo',
+    fields: [
+      'Fecha del Reporte, Área / Sede y Tipo (Acto Inseguro vs. Condición Peligrosa)',
+      'Descripción del Peligro Detectado, Evidencia y Nivel de Severidad',
+      'Estado de Cierre (Abierto, En Gestión, Cerrado) y Responsable Asignado',
+      'Zonas con Reincidencia de Hallazgos para Inspección COPASST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Hallazgos Abiertos de Severidad Alta + Zonas Reincidentes',
+        description: 'Prioriza el cierre inmediato de peligros reportados en planta',
+        fields: [
+          'Fecha del Reporte, Área / Sede y Tipo (Acto Inseguro vs. Condición Peligrosa)',
+          'Descripción del Peligro Detectado, Evidencia y Nivel de Severidad',
+          'Estado de Cierre (Abierto, En Gestión, Cerrado) y Responsable Asignado',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-actos-condiciones'],
+  },
+  cursos_lms: {
+    moduleTitle: '🎓 Conector WAPPY · Escuela Virtual SST (Cursos LMS y Avance por Trabajador)',
+    moduleBadge: 'WAPPY · Cursos LMS',
+    fieldsLabel: 'Métricas de Formación, Evaluaciones y Certificados LMS',
+    fields: [
+      'Catálogo de Cursos Activos de Inducción, Reinducción y Riesgos Críticos',
+      'Progreso Individual por Cédula y Nombre del Trabajador (%)',
+      'Puntaje de Evaluaciones de Conocimiento y Fecha de Aprobación',
+      'Trabajadores Pendientes por Completar Formación Obligatoria',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Trabajadores con Inducción/Cursos Pendientes + Puntajes de Evaluación',
+        description: 'Controla cobertura real del Programa Anual de Capacitación SST',
+        fields: [
+          'Progreso Individual por Cédula y Nombre del Trabajador (%)',
+          'Puntaje de Evaluaciones de Conocimiento y Fecha de Aprobación',
+          'Trabajadores Pendientes por Completar Formación Obligatoria',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-capacitaciones'],
+  },
+  google_drive: {
+    moduleTitle: '🔧 Conector · Google Drive (Exploración de Carpetas, PDF y Hojas de Cálculo)',
+    moduleBadge: 'Conector · Google Drive',
+    fieldsLabel: 'Archivos y Metadatos a Consultar o Guardar en Google Drive',
+    fields: [
+      'Exploración de Carpetas de Trabajadores y Soportes SG-SST en Google Drive',
+      'Cédula y Nombre del Trabajador Detectado en el Documento o Carpeta',
+      'Certificados PDF (EPS, ARL, AFP, Alturas, Conceptos EMO e Incapacidades)',
+      'Nombre del Archivo, Enlace en Google Drive y Fecha de Última Modificación',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Carpetas por Cédula + Certificados PDF + Fecha de Modificación',
+        description: 'Audita soportes documentales directamente en Google Drive',
+        fields: [
+          'Exploración de Carpetas de Trabajadores y Soportes SG-SST en Google Drive',
+          'Cédula y Nombre del Trabajador Detectado en el Documento o Carpeta',
+          'Certificados PDF (EPS, ARL, AFP, Alturas, Conceptos EMO e Incapacidades)',
+          'Nombre del Archivo, Enlace en Google Drive y Fecha de Última Modificación',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  google_gmail: {
+    moduleTitle: '🔧 Conector · Google Gmail (Lectura de Bandeja, Filtros y Adjuntos SST)',
+    moduleBadge: 'Conector · Gmail',
+    fieldsLabel: 'Elementos del Correo Electrónico a Consultar con el Agente',
+    fields: [
+      'Asunto, Remitente y Fecha/Hora Exacta del Correo',
+      'Cédula y Nombre del Colaborador o Contratista Mencionado',
+      'Archivos Adjuntos (FURAT, Incapacidades, Conceptos EMO, Certificados ARL)',
+      'Filtrado Quirúrgico de Correos No Leídos o por Etiqueta SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Correos No Leídos + Cédula/Nombre + Adjuntos PDF SST',
+        description: 'Extrae novedades médicas y reportes ARL entrantes desde Gmail',
+        fields: [
+          'Asunto, Remitente y Fecha/Hora Exacta del Correo',
+          'Cédula y Nombre del Colaborador o Contratista Mencionado',
+          'Archivos Adjuntos (FURAT, Incapacidades, Conceptos EMO, Certificados ARL)',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  web_search: {
+    moduleTitle: '🌐 Herramienta · Búsqueda Web Oficial y Jurídica en Tiempo Real',
+    moduleBadge: 'Web · Fuentes Oficiales',
+    fieldsLabel: 'Criterios de Investigación en Portales Oficiales (.gov.co / Jurisprudencia)',
+    fields: [
+      'Consulta Prioritaria en Portales Oficiales (MinTrabajo, MinSalud, INS, SUIN-Juriscol)',
+      'Verificación de Vigencia de Leyes, Decretos, Resoluciones y Circulares SST',
+      'Citas Verificadas con URL Exacta y Fecha de Publicación Oficial',
+      'Tabla Comparativa de Nuevas Obligaciones Aplicables a la Empresa',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Portales .gov.co + Vigencia Normativa + Citas con URL Exacta',
+        description: 'Búsqueda jurídica sin alucinaciones ni fuentes no verificadas',
+        fields: [
+          'Consulta Prioritaria en Portales Oficiales (MinTrabajo, MinSalud, INS, SUIN-Juriscol)',
+          'Verificación de Vigencia de Leyes, Decretos, Resoluciones y Circulares SST',
+          'Citas Verificadas con URL Exacta y Fecha de Publicación Oficial',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  search_node_live_web: {
+    moduleTitle: '🌐 Nodo de Búsqueda en Vivo · Radar Web Oficial y Normativo',
+    moduleBadge: 'Radar Web en Vivo',
+    fieldsLabel: 'Parámetros de Búsqueda Web en Tiempo Real',
+    fields: [
+      'Dominios Oficiales Prioritarios (mintrabajo.gov.co, suin-juriscol.gov.co, minsalud.gov.co)',
+      'Resoluciones, Decretos y Guías Técnicas Recientes de SST',
+      'Enlaces Oficiales Verificados y Síntesis Ejecutiva en Tabla Markdown',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Radar Normativo .gov.co + Enlaces Verificados + Tabla Resumen',
+        description: 'Monitoreo automático de novedades normativas laborales',
+        fields: [
+          'Dominios Oficiales Prioritarios (mintrabajo.gov.co, suin-juriscol.gov.co, minsalud.gov.co)',
+          'Resoluciones, Decretos y Guías Técnicas Recientes de SST',
+          'Enlaces Oficiales Verificados y Síntesis Ejecutiva en Tabla Markdown',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  google_antigravity: {
+    moduleTitle: '🛰️ Conector MCP · Google Antigravity Local (Puente Reactivo Mac / PC)',
+    moduleBadge: 'MCP · Antigravity Local',
+    fieldsLabel: 'Capacidades Delegadas a tu Instancia Local de Google Antigravity',
+    fields: [
+      'Ejecución de Herramientas MCP y Scripts Locales vía Puente Push SSE',
+      'Inspección de Portales Oficiales con Navegador Real (Chrome DevTools MCP)',
+      'Lectura de Carpetas Locales autorizadas y Generación de Soportes PDF/PNG',
+      'Retorno de Evidencias Descargadas a la Bandeja Aparte de WAPPY',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Navegador Real Chrome MCP + Extracción Oficial + Soportes PDF/PNG',
+        description: 'Delega tareas avanzadas en tu Mac/PC conectado sin latencia de polling',
+        fields: [
+          'Ejecución de Herramientas MCP y Scripts Locales vía Puente Push SSE',
+          'Inspección de Portales Oficiales con Navegador Real (Chrome DevTools MCP)',
+          'Retorno de Evidencias Descargadas a la Bandeja Aparte de WAPPY',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  google_antigravity_cloud: {
+    moduleTitle: '☁️ Conector MCP · Google Antigravity Cloud 24/7 (antigravity.google.com)',
+    moduleBadge: 'MCP · Antigravity Cloud',
+    fieldsLabel: 'Capacidades Delegadas a Google Antigravity Cloud 24/7',
+    fields: [
+      'Ejecución Autónoma 24/7 en la Nube sin requerir tu computador encendido',
+      'Orquestación de Agentes y Scripts de Verificación en Entorno Cloud',
+      'Sincronización Directa con Herramientas MCP de WAPPY y Somos SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Ejecución Autónoma Cloud 24/7 + Sincronización MCP WAPPY',
+        description: 'Continuidad operativa 24/7 para flujos nocturnos o programados',
+        fields: [
+          'Ejecución Autónoma 24/7 en la Nube sin requerir tu computador encendido',
+          'Orquestación de Agentes y Scripts de Verificación en Entorno Cloud',
+          'Sincronización Directa con Herramientas MCP de WAPPY y Somos SST',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  tool_web_scraping_agy: {
+    moduleTitle: '🕷️ Herramienta · Web Scraping Estructurado con Google Antigravity',
+    moduleBadge: 'Tool · Web Scraping AGY',
+    fieldsLabel: 'Elementos a Extraer mediante Script o Navegador en Antigravity',
+    fields: [
+      'Tablas de Datos HTML convertidas a Markdown / JSON estructurado',
+      'Consulta por Cédula, NIT o Placa en Portales Públicos',
+      'Descarga de Certificados PDF y Capturas de Verificación PNG en Bandeja Aparte',
+      'Limpieza de Ruido Visual y Validación de Columnas Extraídas',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Extraer Tablas + Consultar Cédula/Placa + Descargar PDF/PNG',
+        description: 'Extracción estructurada limpia con soportes verificables',
+        fields: [
+          'Tablas de Datos HTML convertidas a Markdown / JSON estructurado',
+          'Consulta por Cédula, NIT o Placa en Portales Públicos',
+          'Descarga de Certificados PDF y Capturas de Verificación PNG en Bandeja Aparte',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  scraper_node_antigravity: {
+    moduleTitle: '🕷️ Nodo Scraper Personalizado · Script Python / Node / Playwright en Antigravity',
+    moduleBadge: 'Scraper · Script Propio',
+    fieldsLabel: 'Datos y Soportes que Extraerá tu Script en Google Antigravity',
+    fields: [
+      'Ejecución de Script Python (BS4 / Playwright), Node.js (Cheerio) o Chrome MCP',
+      'Tablas y Registros Normalizados en Formato JSON / Markdown',
+      'Descarga de Archivos Oficiales (.PDF / .PNG) en la Bandeja de Certificados',
+      'Control de Tiempos de Espera y Reporte Transparente de Estado HTTP',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Script Playwright/BS4 + Tablas JSON/Markdown + Soportes PDF/PNG',
+        description: 'Configuración lista para portales web personalizados',
+        fields: [
+          'Ejecución de Script Python (BS4 / Playwright), Node.js (Cheerio) o Chrome MCP',
+          'Tablas y Registros Normalizados en Formato JSON / Markdown',
+          'Descarga de Archivos Oficiales (.PDF / .PNG) en la Bandeja de Certificados',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  one_drive: {
+    moduleTitle: '🔧 Conector · Microsoft OneDrive / SharePoint Corporativo (En Construcción)',
+    moduleBadge: '🚧 En Construcción',
+    fieldsLabel: 'Elementos Documentales de OneDrive / SharePoint',
+    fields: [
+      'Carpetas Corporativas y Soportes PDF/Excel en Microsoft OneDrive',
+      'Metadatos de Archivo y Control de Versiones Documentales',
+    ],
+    quickCombos: [],
+    reportTags: [],
+  },
+  acpm_task: {
+    moduleTitle: '📤 Salida · Crear Actividad / Acción Correctiva en Tablero Kanban ACPM',
+    moduleBadge: 'Salida · Tarea ACPM',
+    fieldsLabel: 'Campos de la Acción Correctiva, Preventiva o de Mejora a Registrar',
+    fields: [
+      'Título Claro de la Acción ACPM y Origen del Hallazgo (Auditoría, Inspección, ATEL, Vencimiento)',
+      'Tipo de Acción (Correctiva, Preventiva o de Mejora Continua)',
+      'Prioridad / Etapa Kanban (Pendiente, En Ejecución, Próxima a Vencer, Urgente)',
+      'Responsable Sugerido, Plazo de Cierre y Evidencia Esperada',
+      'Control Anti-Duplicados para no repetir tareas ya abiertas sobre el mismo hallazgo',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Crear Acción ACPM Priorizada + Responsable + Plazo + Anti-Duplicados',
+        description: 'Convierte brechas reales en tareas trazables dentro del Hito 7',
+        fields: [
+          'Título Claro de la Acción ACPM y Origen del Hallazgo (Auditoría, Inspección, ATEL, Vencimiento)',
+          'Tipo de Acción (Correctiva, Preventiva o de Mejora Continua)',
+          'Prioridad / Etapa Kanban (Pendiente, En Ejecución, Próxima a Vencer, Urgente)',
+          'Responsable Sugerido, Plazo de Cierre y Evidencia Esperada',
+          'Control Anti-Duplicados para no repetir tareas ya abiertas sobre el mismo hallazgo',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-acpm'],
+  },
+
+  // ═══ SUB-AGENTES ESPECIALISTAS DEL CATÁLOGO OFICIAL WAPPY IA (COBERTURA 100% EXACTA) ═══
+  subagent_editable_custom: {
+    moduleTitle: '🤖 Sub-Agente · Especialista Personalizable WAPPY IA',
+    moduleBadge: 'Sub-Agente · A Medida',
+    fieldsLabel: 'Entregables y Criterios del Sub-Agente Personalizado',
+    fields: [
+      'Análisis Especializado según el Rol e Instrucción Definidos en el Nodo',
+      'Cruce de Datos Reales por Cédula, Cargo o Proceso de la Empresa Activa',
+      'Tabla Estructurada de Hallazgos, Brechas y Prioridad de Intervención',
+      'Recomendaciones Accionables Alineadas con Decreto 1072 y Resolución 0312',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Análisis por Cédula/Proceso + Tabla de Hallazgos + Plan de Acción',
+        description: 'Estructura limpia lista para encadenar con el Agente Principal',
+        fields: [
+          'Análisis Especializado según el Rol e Instrucción Definidos en el Nodo',
+          'Cruce de Datos Reales por Cédula, Cargo o Proceso de la Empresa Activa',
+          'Tabla Estructurada de Hallazgos, Brechas y Prioridad de Intervención',
+          'Recomendaciones Accionables Alineadas con Decreto 1072 y Resolución 0312',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  subagent_chat_consultor_sgsst: {
+    moduleTitle: '🤖 Sub-Agente · Consultor Maestro SG-SST (Dec. 1072 / Res. 0312)',
+    moduleBadge: 'Sub-Agente · Consultor SST',
+    fieldsLabel: 'Criterios Técnicos del Consultor Maestro SG-SST',
+    fields: [
+      'Evaluación Integral del Ciclo PHVA (Planear, Hacer, Verificar, Actuar)',
+      'Verificación de Estándares Mínimos Res. 0312 de 2019 según Tamaño y Riesgo ARL',
+      'Articulación entre Matriz GTC-45, Plan de Trabajo Anual e Indicadores Art. 30',
+      'Plan de Mejoramiento Priorizado con Responsables y Evidencias Documentales',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Ciclo PHVA + Brechas Res. 0312 + Plan de Mejoramiento',
+        description: 'Diagnóstico integral de consultoría senior SG-SST',
+        fields: [
+          'Evaluación Integral del Ciclo PHVA (Planear, Hacer, Verificar, Actuar)',
+          'Verificación de Estándares Mínimos Res. 0312 de 2019 según Tamaño y Riesgo ARL',
+          'Plan de Mejoramiento Priorizado con Responsables y Evidencias Documentales',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-diagnostico'],
+  },
+  subagent_chat_tenshi: {
+    moduleTitle: '🤖 Sub-Agente · Tenshi IA Orquestadora Central WAPPY',
+    moduleBadge: 'Sub-Agente · Tenshi IA',
+    fieldsLabel: 'Funciones de Síntesis y Orquestación Ejecutiva de Tenshi IA',
+    fields: [
+      'Consolidación Ejecutiva 360° de todos los Nodos y Sub-Agentes del Flujo',
+      'Priorización de Alertas Críticas por Trabajador, Vehículo o Sede',
+      'Redacción Clara, Directa y Accionable sin Ruido Técnico ni Enlaces Crudos',
+      'Resumen de Acciones Inmediatas para Gerencia y Responsable SG-SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Briefing Ejecutivo 360° + Alertas Críticas + Acciones Inmediatas',
+        description: 'Síntesis ejecutiva impecable firmada por Tenshi IA',
+        fields: [
+          'Consolidación Ejecutiva 360° de todos los Nodos y Sub-Agentes del Flujo',
+          'Priorización de Alertas Críticas por Trabajador, Vehículo o Sede',
+          'Redacción Clara, Directa y Accionable sin Ruido Técnico ni Enlaces Crudos',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  subagent_chat_abogado_laboral: {
+    moduleTitle: '🤖 Sub-Agente · Abogado Laboralista y de Seguridad Social Colombia',
+    moduleBadge: 'Sub-Agente · Jurídico SST',
+    fieldsLabel: 'Criterios Jurídico-Laborales y de Blindaje Legal',
+    fields: [
+      'Fundamentación en Código Sustantivo del Trabajo (CST), Ley 1562 y Decreto 1072 de 2015',
+      'Análisis de Culpa Patronal (Art. 216 CST) y Responsabilidad Administrativa/Civil en ATEL',
+      'Revisión de Estabilidad Laboral Reforzada, Debido Proceso y Reglamento Interno (RIT)',
+      'Tasación Preventiva de Riesgo Sancionatorio MinTrabajo y Blindaje Probatorio',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Blindaje CST / Dec. 1072 + Culpa Patronal + Debido Proceso',
+        description: 'Concepto jurídico preventivo laboral y de riesgos laborales',
+        fields: [
+          'Fundamentación en Código Sustantivo del Trabajo (CST), Ley 1562 y Decreto 1072 de 2015',
+          'Análisis de Culpa Patronal (Art. 216 CST) y Responsabilidad Administrativa/Civil en ATEL',
+          'Tasación Preventiva de Riesgo Sancionatorio MinTrabajo y Blindaje Probatorio',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-rit'],
+  },
+  subagent_medico_laboral: {
+    moduleTitle: '🤖 Sub-Agente · Médico Especialista en Medicina del Trabajo (Res. 1843 / 2346)',
+    moduleBadge: 'Sub-Agente · Médico SST',
+    fieldsLabel: 'Criterios Clínico-Ocupacionales y de Vigilancia Epidemiológica',
+    fields: [
+      'Auditoría de Evaluaciones Médicas Ocupacionales (Resolución 1843 de 2025 y Res. 2346 de 2007)',
+      'Seguimiento de Restricciones, Recomendaciones Médicas y Reubicación Laboral por Cédula',
+      'Cruce de Morbilidad CIE-10 y Sistemas de Vigilancia Epidemiológica (SVE)',
+      'Custodia y Reserva Estricta de la Historia Clínica Ocupacional',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Conceptos EMO (Res. 1843) + Restricciones + SVE con Reserva Clínica',
+        description: 'Dictamen médico-ocupacional preventivo por cargo y trabajador',
+        fields: [
+          'Auditoría de Evaluaciones Médicas Ocupacionales (Resolución 1843 de 2025 y Res. 2346 de 2007)',
+          'Seguimiento de Restricciones, Recomendaciones Médicas y Reubicación Laboral por Cédula',
+          'Custodia y Reserva Estricta de la Historia Clínica Ocupacional',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-condiciones-salud'],
+  },
+  subagent_chat_fisioterapeuta: {
+    moduleTitle: '🤖 Sub-Agente · Fisioterapeuta Especialista en Ergonomía y Biomecánica',
+    moduleBadge: 'Sub-Agente · Ergonomía',
+    fieldsLabel: 'Criterios Biomecánicos, OWAS y Prevención de DME',
+    fields: [
+      'Evaluación Postural OWAS (Espalda, Brazos, Piernas, Fuerza y Categoría de Acción 1 a 4)',
+      'Análisis de Estudios de Puesto de Trabajo (EPT) y Manipulación Manual de Cargas',
+      'Prevención de Desórdenes Musculoesqueléticos (DME: Lumbago, Túnel Carpiano, Manguito Rotador)',
+      'Diseño de Pausas Activas Específicas y Rediseño Ergonómico de Puestos',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Evaluación OWAS + Estudio de Puesto (EPT) + Controles DME',
+        description: 'Intervención biomecánica para SVE Osteomuscular',
+        fields: [
+          'Evaluación Postural OWAS (Espalda, Brazos, Piernas, Fuerza y Categoría de Acción 1 a 4)',
+          'Análisis de Estudios de Puesto de Trabajo (EPT) y Manipulación Manual de Cargas',
+          'Prevención de Desórdenes Musculoesqueléticos (DME: Lumbago, Túnel Carpiano, Manguito Rotador)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-metodo-owas', 'sgsst-estudio-puesto'],
+  },
+  subagent_chat_psicologo_sst: {
+    moduleTitle: '🤖 Sub-Agente · Psicólogo Especialista en Riesgo Psicosocial (Res. 2764)',
+    moduleBadge: 'Sub-Agente · Psicosocial',
+    fieldsLabel: 'Criterios de Batería Psicosocial y Convivencia Laboral',
+    fields: [
+      'Análisis de Factores Intralaborales, Extralaborales e Individuales (Res. 2764 de 2022)',
+      'Gestión Preventiva de Convivencia Laboral (Ley 1010 de 2006 y Res. 3461 de 2025)',
+      'Aplicación de los 14 Protocolos de Intervención Psicosocial del Ministerio del Trabajo',
+      'Anonimización y Reserva Ética de Resultados Individuales (Ley 1090 de 2006)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Batería Res. 2764 + Convivencia Res. 3461 + Protocolos MinTrabajo',
+        description: 'Vigilancia psicosocial ética y accionable',
+        fields: [
+          'Análisis de Factores Intralaborales, Extralaborales e Individuales (Res. 2764 de 2022)',
+          'Gestión Preventiva de Convivencia Laboral (Ley 1010 de 2006 y Res. 3461 de 2025)',
+          'Anonimización y Reserva Ética de Resultados Individuales (Ley 1090 de 2006)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-animo'],
+  },
+  subagent_chat_terapeuta_mental: {
+    moduleTitle: '🤖 Sub-Agente · Especialista en Salud Mental, Burnout y Primeros Auxilios Psicológicos',
+    moduleBadge: 'Sub-Agente · Salud Mental',
+    fieldsLabel: 'Criterios de Contención Emocional y Prevención de Burnout',
+    fields: [
+      'Detección Grupal de Fatiga Mental, Estrés Agudo y Síndrome de Burnout',
+      'Guías de Primeros Auxilios Psicológicos (PAP) y Rutas de Atención EPS/ARL',
+      'Equilibrio Vida-Trabajo, Desconexión Laboral (Ley 2191) y Clima Saludable',
+      'Recomendaciones Confidenciales sin Exponer Datos Clínicos Individuales',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Prevención Burnout + Primeros Auxilios Psicológicos + Desconexión Ley 2191',
+        description: 'Plan preventivo de bienestar emocional corporativo',
+        fields: [
+          'Detección Grupal de Fatiga Mental, Estrés Agudo y Síndrome de Burnout',
+          'Guías de Primeros Auxilios Psicológicos (PAP) y Rutas de Atención EPS/ARL',
+          'Equilibrio Vida-Trabajo, Desconexión Laboral (Ley 2191) y Clima Saludable',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-animo'],
+  },
+  subagent_chat_nutricionista: {
+    moduleTitle: '🤖 Sub-Agente · Nutricionista Ocupacional y Estilos de Vida Saludable',
+    moduleBadge: 'Sub-Agente · Nutrición SST',
+    fieldsLabel: 'Criterios de Salud Metabólica, Hidratación y Turnos de Trabajo',
+    fields: [
+      'Prevención de Riesgo Cardiovascular y Metabólico (IMC, Dislipidemias, Hipertensión)',
+      'Pautas de Alimentación para Trabajadores por Turnos Nocturnos o Trabajo Pesado',
+      'Protocolos de Hidratación por Estrés Térmico y Trabajo a la Intemperie',
+      'Campañas de Estilos de Vida y Trabajo Saludable para el Plan Anual SST',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Riesgo Cardiovascular + Hidratación Térmica + Nutrición por Turnos',
+        description: 'Programa de promoción y prevención en salud nutricional laboral',
+        fields: [
+          'Prevención de Riesgo Cardiovascular y Metabólico (IMC, Dislipidemias, Hipertensión)',
+          'Pautas de Alimentación para Trabajadores por Turnos Nocturnos o Trabajo Pesado',
+          'Protocolos de Hidratación por Estrés Térmico y Trabajo a la Intemperie',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-condiciones-salud'],
+  },
+  subagent_chat_primer_respondiente: {
+    moduleTitle: '🤖 Sub-Agente · Instructor de Primeros Auxilios, MEDEVAC y Atención Prehospitalaria',
+    moduleBadge: 'Sub-Agente · MEDEVAC / APH',
+    fieldsLabel: 'Protocolos de Atención Inicial de Urgencias y Evacuación Médica',
+    fields: [
+      'Protocolo PAS (Proteger, Avisar, Socorrer) y Valoración Primaria ABCDE en Planta',
+      'Activación de Cadena de Llamadas y Plan de Evacuación Médica (MEDEVAC)',
+      'Dotación Reglamentaria de Botiquines (Tipo A, B, C), Camillas y DEA (Ley 1831)',
+      'Georreferenciación de Clínicas y Centros de Urgencias ARL Cercanos a la Sede',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Protocolo MEDEVAC + Botiquines/DEA + Clínicas de Urgencia Cercanas',
+        description: 'Respuesta inmediata ante emergencias médicas en centros de trabajo',
+        fields: [
+          'Protocolo PAS (Proteger, Avisar, Socorrer) y Valoración Primaria ABCDE en Planta',
+          'Activación de Cadena de Llamadas y Plan de Evacuación Médica (MEDEVAC)',
+          'Dotación Reglamentaria de Botiquines (Tipo A, B, C), Camillas y DEA (Ley 1831)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-emergencias'],
+  },
+  subagent_chat_emergencias: {
+    moduleTitle: '🤖 Sub-Agente · Comandante SCI, Plan de Emergencias y Vulnerabilidad',
+    moduleBadge: 'Sub-Agente · Emergencias SCI',
+    fieldsLabel: 'Criterios de Gestión del Riesgo de Desastres y Planes de Emergencia',
+    fields: [
+      'Análisis de Amenazas (Naturales, Tecnológicas, Sociales) y Vulnerabilidad por Diamante de Riesgo',
+      'Procedimientos Operativos Normalizados (PON: Incendio, Sismo, Fuga Química, Evacuación)',
+      'Inspección de Extintores (NTC 2885 / NFPA 10), Rutas de Evacuación y Puntos de Encuentro',
+      'Estructura del Sistema Comando de Incidentes (SCI) y Plan de Ayuda Mutua',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Análisis de Vulnerabilidad + PON de Emergencia + Inspección Extintores',
+        description: 'Cumplimiento del Art. 2.2.4.6.25 del Decreto 1072 de 2015',
+        fields: [
+          'Análisis de Amenazas (Naturales, Tecnológicas, Sociales) y Vulnerabilidad por Diamante de Riesgo',
+          'Procedimientos Operativos Normalizados (PON: Incendio, Sismo, Fuga Química, Evacuación)',
+          'Inspección de Extintores (NTC 2885 / NFPA 10), Rutas de Evacuación y Puntos de Encuentro',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-emergencias', 'sgsst-vulnerabilidad'],
+  },
+  subagent_chat_bioseguridad: {
+    moduleTitle: '🤖 Sub-Agente · Especialista en Riesgo Biológico, Bioseguridad y PGIRASA',
+    moduleBadge: 'Sub-Agente · Bioseguridad',
+    fieldsLabel: 'Criterios de Control de Agentes Biológicos y Esquemas de Vacunación',
+    fields: [
+      'Identificación de Peligros Biológicos (Virus, Bacterias, Hongos, Fluidos, Vectores)',
+      'Protocolos de Bioseguridad, Asepsia, Antisepsia y Manejo de Accidentes Percutáneos',
+      'Control de Esquemas de Vacunación Ocupacional (Hepatitis B, Tétanos, Fiebre Amarilla)',
+      'Segregación de Residuos Peligrosos Biosanitarios y Cortopunzantes (Código de Colores)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Protocolo Bioseguridad + Esquema Vacunación + Residuos Biosanitarios',
+        description: 'Vigilancia de riesgo biológico para salud, alimentos, aseo y agroindustria',
+        fields: [
+          'Identificación de Peligros Biológicos (Virus, Bacterias, Hongos, Fluidos, Vectores)',
+          'Control de Esquemas de Vacunación Ocupacional (Hepatitis B, Tétanos, Fiebre Amarilla)',
+          'Segregación de Residuos Peligrosos Biosanitarios y Cortopunzantes (Código de Colores)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-ipevar'],
+  },
+  subagent_chat_electricista: {
+    moduleTitle: '🤖 Sub-Agente · Ingeniero de Seguridad Eléctrica RETIE y Bloqueo LOTO',
+    moduleBadge: 'Sub-Agente · RETIE / LOTO',
+    fieldsLabel: 'Criterios de las 5 Reglas de Oro, RETIE y Arco Eléctrico',
+    fields: [
+      'Aplicación Estricta de las 5 Reglas de Oro para Trabajos Eléctricos Sin Tensión',
+      'Cumplimiento RETIE y Distancias Mínimas de Seguridad en Redes Energizadas',
+      'Procedimiento de Bloqueo y Etiquetado de Energías Peligrosas (LOTO)',
+      'Selección de EPP Dieléctrico e Ignífugo (Categoría Cal/cm² NFPA 70E) y Matrícula CONTE/COPNIA',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ 5 Reglas de Oro + Bloqueo LOTO + EPP Dieléctrico RETIE / NFPA 70E',
+        description: 'Validación técnica para mantenimiento eléctrico e industrial',
+        fields: [
+          'Aplicación Estricta de las 5 Reglas de Oro para Trabajos Eléctricos Sin Tensión',
+          'Procedimiento de Bloqueo y Etiquetado de Energías Peligrosas (LOTO)',
+          'Selección de EPP Dieléctrico e Ignífugo (Categoría Cal/cm² NFPA 70E) y Matrícula CONTE/COPNIA',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-ats'],
+  },
+  subagent_chat_quimico: {
+    moduleTitle: '🤖 Sub-Agente · Higienista Químico SGA (Decreto 1496 de 2018 y TLV ACGIH)',
+    moduleBadge: 'Sub-Agente · Riesgo Químico',
+    fieldsLabel: 'Criterios Toxicológicos, FDS de 16 Secciones y Compatibilidad SGA',
+    fields: [
+      'Revisión de Fichas de Datos de Seguridad (FDS de 16 Secciones vigentes < 5 años) y Etiquetado SGA',
+      'Matriz de Compatibilidad de Almacenamiento Químico (Clases ONU, Ácidos, Bases, Inflamables)',
+      'Límites Permisibles de Exposición Ocupacional (TLV-TWA / STEL ACGIH) y Ventilación',
+      'Selección de Protección Respiratoria (Cartuchos Vapores Orgánicos / Ácidos) y Duchas Lavaojos',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ FDS 16 Secciones + Compatibilidad SGA + Protección Respiratoria',
+        description: 'Control integral del Programa de Riesgo Químico Decreto 1496',
+        fields: [
+          'Revisión de Fichas de Datos de Seguridad (FDS de 16 Secciones vigentes < 5 años) y Etiquetado SGA',
+          'Matriz de Compatibilidad de Almacenamiento Químico (Clases ONU, Ácidos, Bases, Inflamables)',
+          'Selección de Protección Respiratoria (Cartuchos Vapores Orgánicos / Ácidos) y Duchas Lavaojos',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-compatibilidad'],
+  },
+  subagent_chat_seguridad_vial: {
+    moduleTitle: '🤖 Sub-Agente · Auditor Líder PESV (Resolución 20223040040595)',
+    moduleBadge: 'Sub-Agente · PESV Vial',
+    fieldsLabel: 'Criterios de las 24 Fases del Plan Estratégico de Seguridad Vial',
+    fields: [
+      'Evaluación de las 24 Fases del PESV según Nivel Básico, Estándar o Avanzado (Res. 40595)',
+      'Auditoría de Licencias de Conducción (RUNT), Comparendos (SIMIT), SOAT y RTM de Flota',
+      'Inspecciones Preoperacionales Diarias y Plan de Mantenimiento Preventivo Vehicular',
+      'Programas de Gestión de Velocidad Segura, Cero Alcohol, Prevención de Fatiga y Distracción',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ PESV 24 Fases + Control RUNT/SIMIT/SOAT/RTM + Programas Críticos',
+        description: 'Auditoría especializada de movilidad segura y flota corporativa',
+        fields: [
+          'Evaluación de las 24 Fases del PESV según Nivel Básico, Estándar o Avanzado (Res. 40595)',
+          'Auditoría de Licencias de Conducción (RUNT), Comparendos (SIMIT), SOAT y RTM de Flota',
+          'Programas de Gestión de Velocidad Segura, Cero Alcohol, Prevención de Fatiga y Distracción',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-matriz-pesv'],
+  },
+  subagent_chat_tareas_criticas: {
+    moduleTitle: '🤖 Sub-Agente · Supervisor de Tareas de Alto Riesgo (Alturas, Confinados, Izaje, Caliente)',
+    moduleBadge: 'Sub-Agente · TAR Críticas',
+    fieldsLabel: 'Criterios de Permisos de Trabajo, ATS y Certificación de Equipos',
+    fields: [
+      'Trabajo Seguro en Alturas (Res. 4272 de 2021): Certificados MinTrabajo, Sistemas de Acceso y Rescate',
+      'Espacios Confinados (Res. 0491 de 2020): Medición de Atmósferas (O2, LEL, CO, H2S) y Vigía',
+      'Trabajos en Caliente (Soldadura/Corte) e Izaje Mecánico de Cargas (Aparejos y Grúas)',
+      'Validación de ATS, Permiso de Trabajo Firmado e Inspección Preuso de Arneses y Eslingas',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Alturas Res. 4272 + Confinados Res. 0491 + ATS y Permisos TAR',
+        description: 'Bloqueo preventivo de accidentes graves y mortales en campo',
+        fields: [
+          'Trabajo Seguro en Alturas (Res. 4272 de 2021): Certificados MinTrabajo, Sistemas de Acceso y Rescate',
+          'Espacios Confinados (Res. 0491 de 2020): Medición de Atmósferas (O2, LEL, CO, H2S) y Vigía',
+          'Validación de ATS, Permiso de Trabajo Firmado e Inspección Preuso de Arneses y Eslingas',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-ats', 'sgsst-permiso-alturas'],
+  },
+  subagent_chat_minas: {
+    moduleTitle: '🤖 Sub-Agente · Ingeniero de Seguridad Minera, Excavaciones y Geotecnia (Dec. 1886 / 539)',
+    moduleBadge: 'Sub-Agente · Minería / Obras',
+    fieldsLabel: 'Criterios de Seguridad en Labores Subterráneas, Cielo Abierto y Excavaciones',
+    fields: [
+      'Cumplimiento del Reglamento de Seguridad en Labores Mineras Subterráneas (Dec. 1886) y Cielo Abierto (Dec. 539)',
+      'Control de Ventilación, Monitoreo de Gases, Polvo de Carbón / Sílice y Sostenimiento de Taludes',
+      'Seguridad en Excavaciones, Zanjas, Maquinaria Amarilla y Voladuras Controladas',
+      'Planes de Salvamento Minero, Autorrescatadores y Refugios Señalizados',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Seguridad Minera (Dec. 1886/539) + Gases/Taludes + Salvamento',
+        description: 'Especializado para minería, túneles, canteras e infraestructura civil',
+        fields: [
+          'Cumplimiento del Reglamento de Seguridad en Labores Mineras Subterráneas (Dec. 1886) y Cielo Abierto (Dec. 539)',
+          'Control de Ventilación, Monitoreo de Gases, Polvo de Carbón / Sílice y Sostenimiento de Taludes',
+          'Planes de Salvamento Minero, Autorrescatadores y Refugios Señalizados',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-ats'],
+  },
+  subagent_chat_ambiental: {
+    moduleTitle: '🤖 Sub-Agente · Ingeniero Ambiental HSEQ (ISO 14001 y Gestión de Residuos)',
+    moduleBadge: 'Sub-Agente · Ambiental HSEQ',
+    fieldsLabel: 'Criterios de Matriz de Aspectos Ambientales, RESPEL y Sostenibilidad',
+    fields: [
+      'Identificación de Aspectos e Impactos Ambientales (ISO 14001) en Procesos Operativos',
+      'Gestión Integral de Residuos Sólidos y Peligrosos RESPEL (Decreto 1076 y Código de Colores)',
+      'Control de Vertimientos, Emisiones Atmosféricas, Ruido Ambiental y Consumo Hídrico/Energético',
+      'Planes de Contingencia ante Derrames de Hidrocarburos o Sustancias Químicas',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Aspectos ISO 14001 + Gestión RESPEL + Plan Anti-Derrames',
+        description: 'Integración HSEQ entre Seguridad y Salud en el Trabajo y Medio Ambiente',
+        fields: [
+          'Identificación de Aspectos e Impactos Ambientales (ISO 14001) en Procesos Operativos',
+          'Gestión Integral de Residuos Sólidos y Peligrosos RESPEL (Decreto 1076 y Código de Colores)',
+          'Planes de Contingencia ante Derrames de Hidrocarburos o Sustancias Químicas',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  subagent_chat_redactor: {
+    moduleTitle: '🤖 Sub-Agente · Redactor Documental ISO 45001 / SG-SST (Procedimientos, Programas y Actas)',
+    moduleBadge: 'Sub-Agente · Redactor SST',
+    fieldsLabel: 'Estructura Editorial y Control Documental para LiveEditor / Word / PDF',
+    fields: [
+      'Encabezado de Control Documental (Código, Versión, Fecha, Alcance y Definiciones)',
+      'Redacción Técnica Formal de Políticas, Reglamentos, Programas PVE y Procedimientos PON',
+      'Tablas Limpias con Bordes Sólidos Listas para Exportar a Word (.docx) y PDF',
+      'Bloque Oficial de Elaboración, Revisión y Aprobación con Firmas',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Control Documental + Tablas Exportables Word/PDF + Bloque de Firmas',
+        description: 'Entrega documentos formales listos para auditoría o firma gerencial',
+        fields: [
+          'Encabezado de Control Documental (Código, Versión, Fecha, Alcance y Definiciones)',
+          'Redacción Técnica Formal de Políticas, Reglamentos, Programas PVE y Procedimientos PON',
+          'Tablas Limpias con Bordes Sólidos Listas para Exportar a Word (.docx) y PDF',
+          'Bloque Oficial de Elaboración, Revisión y Aprobación con Firmas',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-live-editor'],
+  },
+  subagent_chat_profesional_sst: {
+    moduleTitle: '🤖 Sub-Agente · Coordinador Operativo SG-SST en Campo (Inspecciones y Controles)',
+    moduleBadge: 'Sub-Agente · Campo SST',
+    fieldsLabel: 'Criterios Operativos de Supervisión Diaria y Cierre de Hallazgos',
+    fields: [
+      'Verificación de Condiciones de Orden y Aseo (5S), Señalización y Resguardos de Maquinaria',
+      'Supervisión de Uso Real de EPP y Charlas Preoperacionales de 5 Minutos',
+      'Seguimiento en Terreno a Contratistas, Visitantes y Permisos de Trabajo',
+      'Conversión de Hallazgos de Inspección en Acciones Correctivas Concretas',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Inspección 5S/Maquinaria + Charla 5 Min + Cierre de Hallazgos',
+        description: 'Gestión práctica de prevención operativa en planta u obra',
+        fields: [
+          'Verificación de Condiciones de Orden y Aseo (5S), Señalización y Resguardos de Maquinaria',
+          'Supervisión de Uso Real de EPP y Charlas Preoperacionales de 5 Minutos',
+          'Conversión de Hallazgos de Inspección en Acciones Correctivas Concretas',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-actos-condiciones'],
+  },
+  subagent_chat_capacitaciones: {
+    moduleTitle: '🤖 Sub-Agente · Diseñador Instruccional y Pedagogo SST (Capacitaciones y Evaluaciones)',
+    moduleBadge: 'Sub-Agente · Escuela SST',
+    fieldsLabel: 'Entregables Pedagógicos para Inducción, Reinducción y Entrenamiento',
+    fields: [
+      'Diseño del Programa Anual de Capacitación SST por Peligros Prioritarios del Cargo',
+      'Guiones de Charlas de 5 Minutos, Talleres Andragógicos y Material Didáctico',
+      'Construcción de Evaluaciones de Eficacia y Conocimiento (Preguntas de Selección Múltiple)',
+      'Indicadores de Cobertura, Cumplimiento y Eficacia de Capacitación (Res. 0312)',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Guion de Capacitación + Evaluación de Conocimiento + Indicadores 0312',
+        description: 'Material formativo listo para dictar o cargar en el LMS de WAPPY',
+        fields: [
+          'Diseño del Programa Anual de Capacitación SST por Peligros Prioritarios del Cargo',
+          'Construcción de Evaluaciones de Eficacia y Conocimiento (Preguntas de Selección Múltiple)',
+          'Indicadores de Cobertura, Cumplimiento y Eficacia de Capacitación (Res. 0312)',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-capacitaciones'],
+  },
+  subagent_chat_climatico: {
+    moduleTitle: '🤖 Sub-Agente · Analista de Riesgo Climático, Estrés Térmico y Trabajo a la Intemperie',
+    moduleBadge: 'Sub-Agente · Clima & UV',
+    fieldsLabel: 'Criterios Meteorológicos Aplicados a Tareas Críticas y Campo',
+    fields: [
+      'Evaluación de Lluvia, Tormenta Eléctrica y Velocidad de Viento para Suspensión de Alturas / Izaje',
+      'Control de Índice UV, Radiación Solar, Calor (WBGT) y Pausas de Hidratación/Sombra',
+      'Alertas Preventivas Viales por Piso Húmedo, Neblina o Deslizamientos en Ruta',
+      'Recomendaciones Operativas por Sede según Pronóstico en Tiempo Real',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Umbral Suspensión Alturas (Lluvia/Viento) + Estrés Térmico UV + Alerta Vial',
+        description: 'Cruza meteorología en vivo con operaciones de alto riesgo',
+        fields: [
+          'Evaluación de Lluvia, Tormenta Eléctrica y Velocidad de Viento para Suspensión de Alturas / Izaje',
+          'Control de Índice UV, Radiación Solar, Calor (WBGT) y Pausas de Hidratación/Sombra',
+          'Alertas Preventivas Viales por Piso Húmedo, Neblina o Deslizamientos en Ruta',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  subagent_chat_simulador_atel: {
+    moduleTitle: '🤖 Sub-Agente · Investigador Forense ATEL (Resolución 1401 de 2007)',
+    moduleBadge: 'Sub-Agente · Forense ATEL',
+    fieldsLabel: 'Metodología Causal de Investigación de Accidentes e Incidentes',
+    fields: [
+      'Reconstrucción Cronológica del Evento y Revisión del FURAT / FUREL (Plazo Legal ≤ 15 Días)',
+      'Análisis Causal con 5 Porqués, Árbol de Causas e Ishikawa',
+      'Clasificación Técnica NTC 3701: Causas Inmediatas y Causas Básicas',
+      'Plan de Acción en Fuente, Medio e Individuo con Lección Aprendida Divulgable',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ 5 Porqués + NTC 3701 (Causas Básicas/Inmediatas) + Plan Fuente/Medio/Individuo',
+        description: 'Investigación completa conforme a la Resolución 1401 de 2007',
+        fields: [
+          'Reconstrucción Cronológica del Evento y Revisión del FURAT / FUREL (Plazo Legal ≤ 15 Días)',
+          'Análisis Causal con 5 Porqués, Árbol de Causas e Ishikawa',
+          'Clasificación Técnica NTC 3701: Causas Inmediatas y Causas Básicas',
+          'Plan de Acción en Fuente, Medio e Individuo con Lección Aprendida Divulgable',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-investigacion-atel'],
+  },
+  subagent_analista_ausentismo: {
+    moduleTitle: '🤖 Sub-Agente · Analista Estadístico de Ausentismo e Indicadores Art. 30 Res. 0312',
+    moduleBadge: 'Sub-Agente · Ausentismo',
+    fieldsLabel: 'Fórmulas Oficiales e Indicadores Epidemiológicos de Ausentismo',
+    fields: [
+      'Cálculo de los 6 Indicadores Mínimos del Art. 30 Res. 0312 (IF, IS, PAM, Prevalencia, Incidencia, Ausentismo)',
+      'Análisis de Incapacidades por Origen (Enfermedad Común, Accidente de Trabajo, Enfermedad Laboral)',
+      'Identificación de Casos de Incapacidad Prolongada (> 90 / > 120 / > 180 días — Concepto Rehabilitación)',
+      'Pareto de Causas CIE-10 y Costo Oculto del Ausentismo por Área',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ 6 Indicadores Art. 30 Res. 0312 + Incapacidades Prolongadas + Pareto CIE-10',
+        description: 'Analítica exacta de ausentismo y siniestralidad laboral',
+        fields: [
+          'Cálculo de los 6 Indicadores Mínimos del Art. 30 Res. 0312 (IF, IS, PAM, Prevalencia, Incidencia, Ausentismo)',
+          'Identificación de Casos de Incapacidad Prolongada (> 90 / > 120 / > 180 días — Concepto Rehabilitación)',
+          'Pareto de Causas CIE-10 y Costo Oculto del Ausentismo por Área',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-estadisticas-atel'],
+  },
+  subagent_validador_seguridad_social: {
+    moduleTitle: '🤖 Sub-Agente · Validador de Seguridad Social, PILA y Contratistas',
+    moduleBadge: 'Sub-Agente · PILA & ARL',
+    fieldsLabel: 'Controles de Afiliación y Aportes antes de Autorizar Ingreso a Planta/Obra',
+    fields: [
+      'Verificación por Cédula de Cobertura Activa en EPS, ARL, Fondo de Pensión (AFP) y CCF',
+      'Validación de Clase de Riesgo ARL Cotizada (Nivel I a V) acorde a la Tarea Crítica',
+      'Control de Vigencia de Planilla Integrada PILA en Contratistas e Independientes (Dec. 1072)',
+      'Listado Nominal de Personal Habilitado vs. Personal Bloqueado para Ingreso',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Cobertura EPS/ARL/AFP + Riesgo ARL Correcto + Habilitados vs. Bloqueados',
+        description: 'Filtro estricto de seguridad social para nómina y contratistas',
+        fields: [
+          'Verificación por Cédula de Cobertura Activa en EPS, ARL, Fondo de Pensión (AFP) y CCF',
+          'Validación de Clase de Riesgo ARL Cotizada (Nivel I a V) acorde a la Tarea Crítica',
+          'Listado Nominal de Personal Habilitado vs. Personal Bloqueado para Ingreso',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-seguridad-social'],
+  },
+  subagent_redactor_actas: {
+    moduleTitle: '🤖 Sub-Agente · Secretario Técnico y Redactor de Actas (COPASST, CCL, PESV y Brigada)',
+    moduleBadge: 'Sub-Agente · Actas Oficiales',
+    fieldsLabel: 'Estructura Legal de Actas de Comités Paritarios y Estratégicos',
+    fields: [
+      'Verificación de Quórum, Orden del Día, Fecha, Hora y Número Consecutivo de Acta',
+      'Desarrollo de Temas Obligatorios (Inspecciones, ATEL, Indicadores, Seguimiento de Compromisos)',
+      'Tabla de Compromisos con Responsable, Fecha Límite y Estado de Avance',
+      'Espacio Formal de Firmas de Representantes del Empleador y de los Trabajadores',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Acta Formal Completa (Quórum + Desarrollo + Tabla Compromisos + Firmas)',
+        description: 'Lista para exportar a PDF/Word y firmar mensualmente o trimestralmente',
+        fields: [
+          'Verificación de Quórum, Orden del Día, Fecha, Hora y Número Consecutivo de Acta',
+          'Desarrollo de Temas Obligatorios (Inspecciones, ATEL, Indicadores, Seguimiento de Compromisos)',
+          'Tabla de Compromisos con Responsable, Fecha Límite y Estado de Avance',
+          'Espacio Formal de Firmas de Representantes del Empleador y de los Trabajadores',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-comites'],
+  },
+  subagent_sintetizador_gerencia: {
+    moduleTitle: '🤖 Sub-Agente · Sintetizador Ejecutivo para Gerencia y Alta Dirección (Art. 2.2.4.6.31)',
+    moduleBadge: 'Sub-Agente · Alta Dirección',
+    fieldsLabel: 'Indicadores Estratégicos y Decisiones para la Alta Dirección',
+    fields: [
+      'Resumen Ejecutivo de 1 Página: % Cumplimiento Res. 0312, Siniestralidad y Riesgos Críticos',
+      'Evaluación de los 24 Aspectos de Revisión por la Alta Dirección (Art. 2.2.4.6.31 Dec. 1072)',
+      'Estado de Ejecución del Presupuesto SST y Retorno Preventivo (Evitación de Multas/ATEL)',
+      'Decisiones Estratégicas y Recursos Solicitados a la Gerencia General',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Resumen Gerencial 1 Página + Revisión Art. 31 + Presupuesto y Decisiones',
+        description: 'Lenguaje directivo orientado a toma de decisiones y gobierno corporativo',
+        fields: [
+          'Resumen Ejecutivo de 1 Página: % Cumplimiento Res. 0312, Siniestralidad y Riesgos Críticos',
+          'Evaluación de los 24 Aspectos de Revisión por la Alta Dirección (Art. 2.2.4.6.31 Dec. 1072)',
+          'Decisiones Estratégicas y Recursos Solicitados a la Gerencia General',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-alta-direccion'],
+  },
 };
+
+export const NODE_MODULE_METADATA: Record<string, NodeModuleMetadata> = MODULE_METADATA_MAP;
 
 /**
  * Resuelve los metadatos completos (campos reales, combos quirúrgicos 1 clic e historial de informes)
@@ -8519,6 +10182,13 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
   }
 
   if (shape === 'circle_memory' || cleanId.startsWith('wappy_memory') || cleanId.startsWith('wappy_rag')) {
+    if (cleanId.includes('antiduplicate')) return MODULE_METADATA_MAP.wappy_memory_antiduplicate;
+    if (cleanId.includes('procedural') || cleanId.includes('normativa')) {
+      return MODULE_METADATA_MAP.wappy_memory_procedural;
+    }
+    if (cleanId.includes('rag') || cleanId.includes('documental') || cleanId.includes('notebook')) {
+      return MODULE_METADATA_MAP.wappy_rag_documental;
+    }
     return MODULE_METADATA_MAP.wappy_memory_company;
   }
 

@@ -87,6 +87,8 @@ import WappyWorkflowSandboxPanel, {
   collectUniqueScraperEvidences,
   extractEvidenceFromRow,
   normalizeEvidenceUrlForBrowser,
+  triggerDirectFileDownload,
+  stripNoiseEvidencesFromAgentResponse,
   renderWorkflowMarkdownToInteractiveHtml,
   handleEvidenceContainerClick,
 } from './WappyWorkflowSandboxPanel';
@@ -104,6 +106,7 @@ import {
   TOOL_SUBGROUP_TABS,
   DEFAULT_CONSTRUCTION_APP_IDS,
   isWorkflowNodeUnderConstruction,
+  isNodeIdBlockedInWorkflow,
   getNodeDefById,
   getNodeModuleMetadata,
   getPresetFieldsForNode,
@@ -231,12 +234,22 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
     );
   }
 
-  // Tenshi IA / Notificación Directa WAPPY + Tenshi (Avatar 3D Oficial de Tenshi en WAPPY)
-  if (id.includes('trigger_tenshi') || id.includes('tenshi') || id.includes('wappy_notification')) {
+  // Tenshi IA / Notificación Directa WAPPY + Tenshi / Agente IA Principal (Avatar 3D Oficial de Tenshi en WAPPY)
+  if (
+    id.includes('trigger_tenshi') ||
+    id.includes('tenshi') ||
+    id.includes('wappy_notification') ||
+    id.includes('ai_agent_root') ||
+    id.includes('ai_agent_extra') ||
+    id === 'agent_root'
+  ) {
     return (
       <img
         src="/assets/tenshi.png"
         alt="Tenshi IA"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = 'none';
+        }}
         className={`${sizeClass} object-contain drop-shadow-sm select-none pointer-events-none scale-125`}
       />
     );
@@ -388,17 +401,18 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
 
   // Modelos WAPPY Cloud IA / Google Gemini
   if (id.includes('wappy_gemini') || id.includes('gemini')) {
+    const gradId = `wappyGeminiGrad_${id.replace(/[^a-z0-9]/g, '_') || 'default'}`;
     return (
       <svg viewBox="0 0 24 24" className={sizeClass}>
         <defs>
-          <linearGradient id="wappyGeminiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#4285F4" />
             <stop offset="50%" stopColor="#A855F7" />
             <stop offset="100%" stopColor="#14B8A6" />
           </linearGradient>
         </defs>
         <path
-          fill="url(#wappyGeminiGrad)"
+          fill={`url(#${gradId})`}
           d="M12 2C12.6 7.2 16.8 11.4 22 12C16.8 12.6 12.6 16.8 12 22C11.4 16.8 7.2 12.6 2 12C7.2 11.4 11.4 7.2 12 2Z"
         />
       </svg>
@@ -576,6 +590,18 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   }
   if (id.includes('if_node') || id.includes('if_router')) {
     return <GitFork className={`${sizeClass} text-emerald-600`} />;
+  }
+  if (id.includes('logic_loop') || id === 'loop') {
+    return <Repeat className={`${sizeClass} text-violet-500`} />;
+  }
+  if (id.includes('logic_merge') || id === 'merge') {
+    return <GitMerge className={`${sizeClass} text-cyan-500`} />;
+  }
+  if (id.includes('logic_human') || id.includes('human_approval') || id.includes('approval')) {
+    return <UserCheck className={`${sizeClass} text-amber-500`} />;
+  }
+  if (id.startsWith('logic_')) {
+    return <Sliders className={`${sizeClass} text-emerald-500`} />;
   }
   if (id.includes('memory') || id.includes('rag')) {
     return <Brain className={`${sizeClass} text-pink-500`} />;
@@ -1209,8 +1235,10 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // 3C. SUB-NODOS CIRCULARES: HERRAMIENTAS DEL AGENTE (Separación limpia de 106px)
-    const toolInputs = workflowNodes?.inputs || [];
+    // 3C. SUB-NODOS CIRCULARES: HERRAMIENTAS DEL AGENTE (Separación limpia de 106px, sin nodos en construcción)
+    const toolInputs = (Array.isArray(workflowNodes?.inputs) ? workflowNodes.inputs : []).filter(
+      (toolId) => !isNodeIdBlockedInWorkflow(toolId, disabledSgsstApps),
+    );
     const memoryRightEdge = 274 + Math.max(1, activeMemories.length) * 106;
     toolInputs.forEach((toolId, idx) => {
       const def = getNodeDefById(toolId);
@@ -1282,12 +1310,14 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // ETAPA 4B. NODOS DE ACCIÓN EN HITOS / APLICATIVOS SOMOS SST (Cambiar / Alimentar Hitos 1–7)
-    const hitosList = workflowNodes?.hitos || [];
+    // ETAPA 4B. NODOS DE ACCIÓN EN HITOS / APLICATIVOS SOMOS SST (Cambiar / Alimentar Hitos 1–7, sin nodos en construcción)
+    const hitosList = (Array.isArray(workflowNodes?.hitos) ? workflowNodes.hitos : []).filter(
+      (hitoId) => !isNodeIdBlockedInWorkflow(hitoId, disabledSgsstApps),
+    );
     const hitoBaseX = includeIfNode ? 662 : 556;
     hitosList.forEach((hitoId, idx) => {
       const def = getNodeDefById(hitoId);
-      if (!def) return;
+      if (!def || isWorkflowNodeUnderConstruction(def, disabledSgsstApps)) return;
       const key = `tool_hitos_${hitoId}`;
       const defaultY =
         hitosList.length === 1
@@ -1312,9 +1342,10 @@ export default function WappyWorkflowCanvas({
     });
 
     // ETAPA 5. NODOS DE BITÁCORA Y NOTIFICACIÓN FINAL (Gmail, WAPPY Notification, Antigravity PC/Cloud)
-    const outputs = Array.isArray(workflowNodes?.outputs)
-      ? workflowNodes.outputs
+    const rawOutputs = Array.isArray(workflowNodes?.outputs)
+      ? workflowNodes.outputs.filter((outId) => !isNodeIdBlockedInWorkflow(outId, disabledSgsstApps))
       : ['email_report'];
+    const outputs = rawOutputs.length > 0 ? rawOutputs : ['email_report'];
     const outBaseX = hitosList.length > 0 ? hitoBaseX + 128 : includeIfNode ? 674 : 566;
     outputs.forEach((outId, idx) => {
       const def = getNodeDefById(outId);
@@ -1364,7 +1395,11 @@ export default function WappyWorkflowCanvas({
     });
 
     // NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
-    const customNodesList = workflowNodes?.canvasLayout?.customNodes || [];
+    const customNodesList = (
+      Array.isArray(workflowNodes?.canvasLayout?.customNodes)
+        ? workflowNodes.canvasLayout!.customNodes!
+        : []
+    ).filter((cn) => cn?.key && !isNodeIdBlockedInWorkflow(cn.key, disabledSgsstApps));
     customNodesList.forEach((cn, idx) => {
       const defaultCustomX = Math.max(380, memoryRightEdge) + (toolInputs.length + idx) * 106;
       const pos = customPositions[cn.key] || { x: defaultCustomX, y: 228 };
@@ -1396,6 +1431,7 @@ export default function WappyWorkflowCanvas({
     includeIfNode,
     customPositions,
     activeCompanyInfo,
+    disabledSgsstApps,
   ]);
 
   // Calcular los cables curvos Bezier entre los módulos (con soporte para borrar cables automáticos y conectar libremente)
@@ -6950,17 +6986,26 @@ export default function WappyWorkflowCanvas({
         const filteredInputItems = filterItemsByQuery(resolvedInputItems, ndvInputSearch);
         const filteredOutputItems = filterItemsByQuery(resolvedOutputItems, ndvOutputSearch);
 
-        // ─── Certificados / Evidencias capturadas en el nodo activo y en el flujo ───
+        // ─── Certificados / Evidencias capturadas en el nodo activo y en el flujo (`evidenceFiles` + `evidences`) ───
         const allKnownEvidences = collectUniqueScraperEvidences(
           [...(sandboxResult?.nodeTrace || []), ...sandboxLiveSteps],
-          sandboxResult?.evidences,
+          [
+            ...(Array.isArray(sandboxResult?.evidenceFiles) ? sandboxResult!.evidenceFiles! : []),
+            ...(Array.isArray(sandboxResult?.evidences) ? sandboxResult!.evidences! : []),
+            ...(Array.isArray((sandboxResult as any)?.capturedEvidences)
+              ? (sandboxResult as any).capturedEvidences
+              : []),
+          ],
         );
         const rowExtractedNodeEvidences = resolvedOutputItems
           .map((r) => extractEvidenceFromRow(r, activeNode.title))
           .filter((ev): ev is ScraperCapturedEvidence => Boolean(ev));
         const activeNodeEvidences = collectUniqueScraperEvidences(
           traceStep ? [traceStep] : [],
-          rowExtractedNodeEvidences,
+          [
+            ...(Array.isArray(traceStep?.evidenceFiles) ? traceStep!.evidenceFiles! : []),
+            ...rowExtractedNodeEvidences,
+          ],
         );
 
         const getCleanTableColumns = (rows: Array<Record<string, any>>): string[] => {
@@ -7051,20 +7096,24 @@ export default function WappyWorkflowCanvas({
               imageDownloadUrl: normImg,
             };
             return (
-              <button
-                type="button"
-                onClick={() => handleOpenEvidencePreview(evPayload, 'image')}
-                title="Ampliar imagen del certificado oficial en WAPPY"
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold transition-all whitespace-nowrap cursor-pointer"
-              >
+              <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
                 <img
                   src={cleanImgSrc}
                   alt="Miniatura certificado"
                   loading="lazy"
-                  className="h-7 w-7 rounded object-cover border border-teal-500/30 bg-white shrink-0"
+                  onClick={() => handleOpenEvidencePreview(evPayload, 'image')}
+                  className="h-7 w-7 rounded-lg object-cover border border-teal-500/30 bg-white shrink-0 cursor-zoom-in"
                 />
-                <span>🖼️ Ver Imagen</span>
-              </button>
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="teal"
+                  icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                  label="Ver Imagen"
+                  title="Ampliar imagen del certificado oficial en WAPPY"
+                  onClick={() => handleOpenEvidencePreview(evPayload, 'image')}
+                />
+              </div>
             );
           }
 
@@ -7087,24 +7136,24 @@ export default function WappyWorkflowCanvas({
             };
             return (
               <div className="inline-flex items-center gap-1 whitespace-nowrap">
-                <button
+                <ExpandableButton
                   type="button"
-                  onClick={() => handleOpenEvidencePreview(evPayload, 'pdf')}
+                  size="sm"
+                  variant="cyan"
+                  icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                  label="Visor PDF"
                   title="Ver PDF oficial dentro del visor WAPPY"
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold transition-all cursor-pointer"
-                >
-                  <FileText className="w-3 h-3 shrink-0" />
-                  <span>📄 PDF</span>
-                </button>
-                <a
-                  href={dlPdfUrl}
-                  download={rowEv?.pdfFileName || true}
+                  onClick={() => handleOpenEvidencePreview(evPayload, 'pdf')}
+                />
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="emerald"
+                  icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                  label="Descargar"
                   title="Descargar PDF oficial"
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all"
-                >
-                  <Download className="w-3 h-3 shrink-0" />
-                  <span>Descargar</span>
-                </a>
+                  onClick={() => triggerDirectFileDownload(dlPdfUrl, rowEv?.pdfFileName || null)}
+                />
               </div>
             );
           }
@@ -7127,42 +7176,54 @@ export default function WappyWorkflowCanvas({
                   </span>
                 )}
                 {rowEv.imageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEvidencePreview(rowEv, 'image')}
-                    title="Ver imagen HD del certificado"
-                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold transition-all whitespace-nowrap cursor-pointer"
-                  >
+                  <>
                     <img
                       src={rowEv.imageUrl}
                       alt="Certificado"
                       loading="lazy"
-                      className="h-7 w-7 rounded object-cover border border-teal-500/30 bg-white shrink-0"
+                      onClick={() => handleOpenEvidencePreview(rowEv, 'image')}
+                      className="h-7 w-7 rounded-lg object-cover border border-teal-500/30 bg-white shrink-0 cursor-zoom-in"
                     />
-                    <span>🖼️ Ver Imagen</span>
-                  </button>
+                    <ExpandableButton
+                      type="button"
+                      size="sm"
+                      variant="teal"
+                      icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                      label="Ver Imagen"
+                      title="Ver imagen HD del certificado"
+                      onClick={() => handleOpenEvidencePreview(rowEv, 'image')}
+                    />
+                  </>
                 )}
                 {rowEv.pdfUrl && (
-                  <button
+                  <ExpandableButton
                     type="button"
-                    onClick={() => handleOpenEvidencePreview(rowEv, 'pdf')}
+                    size="sm"
+                    variant="cyan"
+                    icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                    label="Visor PDF"
                     title="Abrir PDF en el visor WAPPY"
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold transition-all whitespace-nowrap cursor-pointer"
-                  >
-                    <FileText className="w-3 h-3 shrink-0" />
-                    <span>📄 PDF</span>
-                  </button>
+                    onClick={() => handleOpenEvidencePreview(rowEv, 'pdf')}
+                  />
                 )}
-                {(rowEv.pdfDownloadUrl || rowEv.pdfUrl) && (
-                  <a
-                    href={rowEv.pdfDownloadUrl || rowEv.pdfUrl || '#'}
-                    download={rowEv.pdfFileName || true}
-                    title="Descargar PDF oficial"
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all whitespace-nowrap"
-                  >
-                    <Download className="w-3 h-3 shrink-0" />
-                    <span>PDF</span>
-                  </a>
+                {(rowEv.pdfDownloadUrl || rowEv.pdfUrl || rowEv.imageDownloadUrl || rowEv.imageUrl) && (
+                  <ExpandableButton
+                    type="button"
+                    size="sm"
+                    variant="emerald"
+                    icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                    label="Descargar"
+                    title="Descargar soporte oficial"
+                    onClick={() =>
+                      triggerDirectFileDownload(
+                        rowEv.pdfDownloadUrl ||
+                          rowEv.pdfUrl ||
+                          rowEv.imageDownloadUrl ||
+                          rowEv.imageUrl,
+                        rowEv.pdfFileName || rowEv.imageFileName || null,
+                      )
+                    }
+                  />
                 )}
               </div>
             );
@@ -8298,42 +8359,54 @@ export default function WappyWorkflowCanvas({
                                             </div>
 
                                             <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                                              <button
+                                              <ExpandableButton
                                                 type="button"
+                                                size="sm"
+                                                variant="teal"
+                                                icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                                                label="Vista Previa"
+                                                title="Abrir Certificado en Modal"
                                                 onClick={() =>
                                                   handleOpenEvidencePreview(
                                                     ev,
                                                     ev.imageUrl ? 'image' : 'pdf',
                                                   )
                                                 }
-                                                title="Abrir Certificado en Lightbox"
-                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10px] font-extrabold transition-all cursor-pointer"
-                                              >
-                                                <Eye className="w-3 h-3 shrink-0" />
-                                                <span>Ver</span>
-                                              </button>
+                                              />
                                               {ev.pdfUrl && (
-                                                <a
-                                                  href={ev.pdfUrl}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  title="Abrir PDF en pestaña nueva"
-                                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10px] font-extrabold no-underline transition-all"
-                                                >
-                                                  <ExternalLink className="w-3 h-3 shrink-0" />
-                                                  <span>PDF</span>
-                                                </a>
+                                                <ExpandableButton
+                                                  type="button"
+                                                  size="sm"
+                                                  variant="cyan"
+                                                  icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                                                  label="Visor PDF"
+                                                  title="Previsualizar PDF en el Modal"
+                                                  onClick={() =>
+                                                    handleOpenEvidencePreview(ev, 'pdf')
+                                                  }
+                                                />
                                               )}
-                                              {(ev.pdfDownloadUrl || ev.pdfUrl) && (
-                                                <a
-                                                  href={ev.pdfDownloadUrl || ev.pdfUrl || '#'}
-                                                  download={ev.pdfFileName || true}
-                                                  title="Descargar PDF Oficial"
-                                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10px] font-extrabold no-underline transition-all"
-                                                >
-                                                  <Download className="w-3 h-3 shrink-0" />
-                                                  <span>Descargar</span>
-                                                </a>
+                                              {(ev.pdfDownloadUrl ||
+                                                ev.pdfUrl ||
+                                                ev.imageDownloadUrl ||
+                                                ev.imageUrl) && (
+                                                <ExpandableButton
+                                                  type="button"
+                                                  size="sm"
+                                                  variant="emerald"
+                                                  icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                                                  label="Descargar"
+                                                  title="Descargar soporte oficial (.pdf / .png)"
+                                                  onClick={() =>
+                                                    triggerDirectFileDownload(
+                                                      ev.pdfDownloadUrl ||
+                                                        ev.pdfUrl ||
+                                                        ev.imageDownloadUrl ||
+                                                        ev.imageUrl,
+                                                      ev.pdfFileName || ev.imageFileName || null,
+                                                    )
+                                                  }
+                                                />
                                               )}
                                             </div>
                                           </div>
@@ -8356,7 +8429,11 @@ export default function WappyWorkflowCanvas({
                                   className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-3 text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium overflow-x-auto break-words"
                                   dangerouslySetInnerHTML={{
                                     __html: renderWorkflowMarkdownToInteractiveHtml(
-                                      resolvedOutputPreview || '',
+                                      activeNodeEvidences.length > 0
+                                        ? stripNoiseEvidencesFromAgentResponse(
+                                            resolvedOutputPreview || '',
+                                          )
+                                        : resolvedOutputPreview || '',
                                     ),
                                   }}
                                 />
@@ -8798,55 +8875,62 @@ export default function WappyWorkflowCanvas({
                     </div>
                   )}
 
-                  {(previewEvidence.pdfDownloadUrl || previewEvidence.pdfUrl) ? (
-                    <a
-                      href={previewEvidence.pdfDownloadUrl || previewEvidence.pdfUrl || '#'}
-                      download={previewEvidence.pdfFileName || true}
-                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-xs font-bold tracking-wide no-underline transition-all active:scale-95"
-                      title="Descargar documento PDF oficial del certificado"
-                    >
-                      <Download className="w-3.5 h-3.5 shrink-0" />
-                      <span>⬇️ Descargar PDF Oficial</span>
-                    </a>
-                  ) : previewEvidence.imageDownloadUrl || previewEvidence.imageUrl ? (
-                    <a
-                      href={previewEvidence.imageDownloadUrl || previewEvidence.imageUrl || '#'}
-                      download={previewEvidence.imageFileName || true}
-                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-xs font-bold tracking-wide no-underline transition-all active:scale-95"
-                      title="Descargar imagen HD del certificado"
-                    >
-                      <Download className="w-3.5 h-3.5 shrink-0" />
-                      <span>⬇️ Descargar Certificado</span>
-                    </a>
-                  ) : null}
-
-                  {(previewEvidence.pdfUrl || previewEvidence.imageUrl) && (
-                    <a
-                      href={
-                        (previewEvidenceMode === 'pdf' && previewEvidence.pdfUrl
-                          ? previewEvidence.pdfUrl
-                          : previewEvidence.pdfUrl || previewEvidence.imageUrl) || '#'
+                  {(previewEvidence.pdfDownloadUrl ||
+                    previewEvidence.pdfUrl ||
+                    previewEvidence.imageDownloadUrl ||
+                    previewEvidence.imageUrl) && (
+                    <ExpandableButton
+                      type="button"
+                      size="sm"
+                      variant="emerald"
+                      icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                      label={
+                        previewEvidence.pdfDownloadUrl || previewEvidence.pdfUrl
+                          ? 'Descargar PDF Oficial'
+                          : 'Descargar Certificado'
                       }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold tracking-wide no-underline transition-all active:scale-95"
-                      title="Abrir certificado oficial en una pestaña nueva"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      <span className="hidden sm:inline">🔗 Abrir en pestaña nueva</span>
-                      <span className="sm:hidden">Abrir</span>
-                    </a>
+                      title="Descargar documento oficial del certificado"
+                      onClick={() =>
+                        triggerDirectFileDownload(
+                          previewEvidence.pdfDownloadUrl ||
+                            previewEvidence.pdfUrl ||
+                            previewEvidence.imageDownloadUrl ||
+                            previewEvidence.imageUrl,
+                          previewEvidence.pdfFileName || previewEvidence.imageFileName || null,
+                        )
+                      }
+                    />
                   )}
 
-                  <button
+                  {(previewEvidence.pdfUrl || previewEvidence.imageUrl) && (
+                    <ExpandableButton
+                      type="button"
+                      size="sm"
+                      variant="cyan"
+                      icon={<ExternalLink className="w-3.5 h-3.5 shrink-0" />}
+                      label="Abrir en pestaña nueva"
+                      title="Abrir certificado oficial en una pestaña nueva"
+                      onClick={() =>
+                        window.open(
+                          (previewEvidenceMode === 'pdf' && previewEvidence.pdfUrl
+                            ? previewEvidence.pdfUrl
+                            : previewEvidence.pdfUrl || previewEvidence.imageUrl) || '#',
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                      }
+                    />
+                  )}
+
+                  <ExpandableButton
                     type="button"
-                    onClick={() => setPreviewEvidence(null)}
-                    aria-label="Cerrar visor de certificado"
+                    size="sm"
+                    variant="rose"
+                    icon={<X className="w-3.5 h-3.5 shrink-0" />}
+                    label="Cerrar"
                     title="Cerrar visor (Esc)"
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-all active:scale-95 cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    onClick={() => setPreviewEvidence(null)}
+                  />
                 </div>
               </div>
 
@@ -8865,14 +8949,19 @@ export default function WappyWorkflowCanvas({
                       className="max-h-[72vh] w-auto max-w-full mx-auto rounded-xl border border-teal-500/30 shadow-xl object-contain bg-white"
                     />
                     {previewEvidence.imageDownloadUrl && previewEvidence.pdfUrl && (
-                      <a
-                        href={previewEvidence.imageDownloadUrl}
-                        download={previewEvidence.imageFileName || true}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[11px] font-bold no-underline transition-all"
-                      >
-                        <ImageIcon className="w-3.5 h-3.5 shrink-0" />
-                        <span>Descargar captura HD en PNG</span>
-                      </a>
+                      <ExpandableButton
+                        type="button"
+                        size="sm"
+                        variant="teal"
+                        icon={<ImageIcon className="w-3.5 h-3.5 shrink-0" />}
+                        label="Descargar captura HD en PNG"
+                        onClick={() =>
+                          triggerDirectFileDownload(
+                            previewEvidence.imageDownloadUrl,
+                            previewEvidence.imageFileName || null,
+                          )
+                        }
+                      />
                     )}
                   </div>
                 ) : previewEvidence.pdfUrl ? (

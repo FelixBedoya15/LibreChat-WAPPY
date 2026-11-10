@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Play,
   Copy,
@@ -48,9 +49,11 @@ export interface ScraperCapturedEvidence {
   title?: string;
   pdfUrl?: string | null;
   pdfDownloadUrl?: string | null;
+  pdfAbsoluteUrl?: string | null;
   pdfFileName?: string | null;
   imageUrl?: string | null;
   imageDownloadUrl?: string | null;
+  imageAbsoluteUrl?: string | null;
   imageFileName?: string | null;
 }
 
@@ -72,6 +75,7 @@ export interface SandboxNodeTraceStep {
   sourceNodeTitle?: string;
   inputItems?: Array<Record<string, any>>;
   outputItems?: Array<Record<string, any>>;
+  evidenceFiles?: ScraperCapturedEvidence[];
   evidences?: ScraperCapturedEvidence[];
   logs?: Array<{
     timestamp?: string;
@@ -164,6 +168,7 @@ export interface SandboxSimulationResponse {
   emailPreview?: SandboxEmailPreview;
   notificationPreview?: SandboxNotificationPreview;
   hitoImpacts?: SandboxHitoImpactPreview[];
+  evidenceFiles?: ScraperCapturedEvidence[];
   evidences?: ScraperCapturedEvidence[];
 }
 
@@ -248,6 +253,168 @@ function stripEvidenceDownloadQuery(url?: string | null): string {
   return norm
     .replace(/([?&])download=1(&|$)/i, '$1')
     .replace(/[?&]+$/, '');
+}
+
+/**
+ * Dispara la descarga directa de un certificado/soporte (`.pdf` o `.png`) usando un `<a>` efímero,
+ * permitiendo usar `<ExpandableButton />` con su física de expansión/contracción intacta.
+ */
+export function triggerDirectFileDownload(rawUrl?: string | null, fileName?: string | null): void {
+  if (typeof document === 'undefined') return;
+  const norm = normalizeEvidenceUrlForBrowser(rawUrl);
+  if (!norm) return;
+  const href =
+    norm.includes('/api/sgsst/automatizaciones/evidencias/') && !/[?&]download=1\b/i.test(norm)
+      ? norm.includes('?')
+        ? `${norm}&download=1`
+        : `${norm}?download=1`
+      : norm;
+  const a = document.createElement('a');
+  a.href = href;
+  a.setAttribute('download', String(fileName || '').trim() || '');
+  a.rel = 'noopener noreferrer';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try {
+      document.body.removeChild(a);
+    } catch (_) {}
+  }, 150);
+}
+
+/**
+ * Normaliza cualquier objeto de `evidenceFiles` / `evidences` (tanto con `pdfUrl`/`imageUrl`
+ * como objetos planos `{ url, downloadUrl, fileName, mimeType, type }`).
+ */
+export function normalizeAnyEvidenceEntry(
+  raw?: Record<string, any> | null,
+  fallbackPortal?: string,
+): ScraperCapturedEvidence | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  let rawPdfUrl: string | null =
+    (typeof raw.pdfUrl === 'string' && raw.pdfUrl.trim()) ||
+    (typeof raw.pdfAbsoluteUrl === 'string' && raw.pdfAbsoluteUrl.trim()) ||
+    null;
+  let rawPdfDlUrl: string | null =
+    (typeof raw.pdfDownloadUrl === 'string' && raw.pdfDownloadUrl.trim()) || null;
+  let rawImgUrl: string | null =
+    (typeof raw.imageUrl === 'string' && raw.imageUrl.trim()) ||
+    (typeof raw.imageAbsoluteUrl === 'string' && raw.imageAbsoluteUrl.trim()) ||
+    null;
+  let rawImgDlUrl: string | null =
+    (typeof raw.imageDownloadUrl === 'string' && raw.imageDownloadUrl.trim()) || null;
+
+  // Soporte para objetos planos `{ url, downloadUrl, fileUrl, fileName, mimeType, type }`
+  const genericUrl = String(raw.url ?? raw.fileUrl ?? raw.href ?? '').trim();
+  const genericDlUrl = String(raw.downloadUrl ?? '').trim();
+  const genericFileName = String(raw.fileName ?? raw.filename ?? raw.name ?? '').trim();
+  const genericMime = String(raw.mimeType ?? raw.type ?? '').toLowerCase();
+
+  if (genericUrl || genericDlUrl) {
+    const cleanGeneric = stripEvidenceDownloadQuery(genericUrl || genericDlUrl);
+    const isPdf =
+      genericMime.includes('pdf') ||
+      /\.pdf(\?|$)/i.test(cleanGeneric) ||
+      /\.pdf$/i.test(genericFileName);
+    const isImage =
+      genericMime.includes('image') ||
+      genericMime.includes('png') ||
+      genericMime.includes('jpeg') ||
+      /\.(png|jpe?g|webp)(\?|$)/i.test(cleanGeneric) ||
+      /\.(png|jpe?g|webp)$/i.test(genericFileName);
+
+    if (isPdf) {
+      if (!rawPdfUrl) rawPdfUrl = cleanGeneric;
+      if (!rawPdfDlUrl && genericDlUrl) rawPdfDlUrl = genericDlUrl;
+    } else if (isImage) {
+      if (!rawImgUrl) rawImgUrl = cleanGeneric;
+      if (!rawImgDlUrl && genericDlUrl) rawImgDlUrl = genericDlUrl;
+    }
+  }
+
+  if (!rawPdfUrl && !rawPdfDlUrl && !rawImgUrl && !rawImgDlUrl) {
+    return extractEvidenceFromRow(raw, fallbackPortal);
+  }
+
+  const pdfUrl = stripEvidenceDownloadQuery(rawPdfUrl || rawPdfDlUrl) || null;
+  const pdfDownloadUrl =
+    normalizeEvidenceUrlForBrowser(rawPdfDlUrl) ||
+    (pdfUrl ? (pdfUrl.includes('?') ? `${pdfUrl}&download=1` : `${pdfUrl}?download=1`) : null);
+  const imageUrl = stripEvidenceDownloadQuery(rawImgUrl || rawImgDlUrl) || null;
+  const imageDownloadUrl =
+    normalizeEvidenceUrlForBrowser(rawImgDlUrl) ||
+    (imageUrl
+      ? imageUrl.includes('?')
+        ? `${imageUrl}&download=1`
+        : `${imageUrl}?download=1`
+      : null);
+
+  if (!pdfUrl && !imageUrl) return null;
+
+  const workerName = String(
+    raw.workerName ??
+      raw['Nombre Completo'] ??
+      raw.nombreCompleto ??
+      raw.nombre ??
+      raw.Colaborador ??
+      raw.Trabajador ??
+      '',
+  ).trim();
+  const cedula = String(
+    raw.cedula ??
+      raw['Cédula / Documento'] ??
+      raw['Cédula'] ??
+      raw.documento ??
+      raw.Documento ??
+      raw.CC ??
+      '',
+  ).trim();
+  const cargo = String(raw.cargo ?? raw.Cargo ?? '').trim();
+  const portal = String(
+    raw.portal ??
+      raw.Portal ??
+      raw.PortalObjetivo ??
+      raw.entidad ??
+      raw.Entidad ??
+      fallbackPortal ??
+      '',
+  ).trim();
+  const title = String(
+    raw.title ??
+      raw.curso ??
+      raw.Curso ??
+      raw['Curso / Norma'] ??
+      raw.certificadoNombre ??
+      '',
+  ).trim();
+
+  return {
+    workerName: workerName || undefined,
+    cedula: cedula || undefined,
+    cargo: cargo || undefined,
+    portal: portal || undefined,
+    title: title || 'Certificado / Soporte Oficial',
+    pdfUrl,
+    pdfDownloadUrl,
+    pdfAbsoluteUrl: raw.pdfAbsoluteUrl ? String(raw.pdfAbsoluteUrl) : null,
+    pdfFileName:
+      raw.pdfFileName
+        ? String(raw.pdfFileName)
+        : pdfUrl && /\.pdf$/i.test(genericFileName)
+          ? genericFileName
+          : null,
+    imageUrl,
+    imageDownloadUrl,
+    imageAbsoluteUrl: raw.imageAbsoluteUrl ? String(raw.imageAbsoluteUrl) : null,
+    imageFileName:
+      raw.imageFileName
+        ? String(raw.imageFileName)
+        : imageUrl && /\.(png|jpe?g|webp)$/i.test(genericFileName)
+          ? genericFileName
+          : null,
+  };
 }
 
 /**
@@ -364,15 +531,26 @@ export function extractEvidenceFromRow(
 }
 
 /**
- * Recolecta y deduplica todos los certificados/evidencias de `nodeTrace`, `liveSteps` y `outputItems`.
+ * Recolecta y deduplica todos los certificados/evidencias de `evidenceFiles`, `evidences`, `nodeTrace`, `liveSteps` y `outputItems`.
  */
 export function collectUniqueScraperEvidences(
   steps?: SandboxNodeTraceStep[] | null,
-  extraEvidences?: ScraperCapturedEvidence[] | null,
+  extraEvidences?: Array<ScraperCapturedEvidence | Record<string, any>> | null,
 ): ScraperCapturedEvidence[] {
   const byKey = new Map<string, ScraperCapturedEvidence>();
 
-  const upsertEvidence = (rawEv?: ScraperCapturedEvidence | null, fallbackPortal?: string) => {
+  const getBaseStem = (url?: string | null): string => {
+    const clean = stripEvidenceDownloadQuery(url);
+    if (!clean) return '';
+    const lastSeg = clean.split('/').pop() || '';
+    return lastSeg.replace(/\.(pdf|png|jpe?g|webp)$/i, '').toLowerCase();
+  };
+
+  const upsertEvidence = (
+    rawInput?: ScraperCapturedEvidence | Record<string, any> | null,
+    fallbackPortal?: string,
+  ) => {
+    const rawEv = normalizeAnyEvidenceEntry(rawInput as Record<string, any>, fallbackPortal);
     if (!rawEv) return;
     const pdfUrl = stripEvidenceDownloadQuery(rawEv.pdfUrl || rawEv.pdfDownloadUrl) || null;
     const imageUrl = stripEvidenceDownloadQuery(rawEv.imageUrl || rawEv.imageDownloadUrl) || null;
@@ -389,19 +567,23 @@ export function collectUniqueScraperEvidences(
           : `${imageUrl}?download=1`
         : null);
 
-    // Buscar si ya existe por pdfUrl o por imageUrl para fusionar sin duplicar
+    const stem = getBaseStem(pdfUrl || imageUrl);
+
+    // Buscar si ya existe por pdfUrl, imageUrl o stem común (.pdf + .png del mismo soporte) para fusionar sin duplicar
     let matchKey = '';
     for (const [k, existing] of byKey.entries()) {
+      const existingStem = getBaseStem(existing.pdfUrl || existing.imageUrl);
       if (
         (pdfUrl && existing.pdfUrl === pdfUrl) ||
-        (imageUrl && existing.imageUrl === imageUrl)
+        (imageUrl && existing.imageUrl === imageUrl) ||
+        (stem && existingStem && stem === existingStem)
       ) {
         matchKey = k;
         break;
       }
     }
     if (!matchKey) {
-      matchKey = `${pdfUrl || ''}::${imageUrl || ''}`;
+      matchKey = stem ? `stem:${stem}` : `${pdfUrl || ''}::${imageUrl || ''}`;
     }
 
     const prev = byKey.get(matchKey);
@@ -411,14 +593,17 @@ export function collectUniqueScraperEvidences(
       cargo: rawEv.cargo?.trim() || prev?.cargo || undefined,
       portal: rawEv.portal?.trim() || prev?.portal || fallbackPortal || undefined,
       title:
-        rawEv.title?.trim() ||
+        (rawEv.title && rawEv.title !== 'Certificado / Soporte Oficial' ? rawEv.title.trim() : '') ||
         prev?.title ||
+        rawEv.title?.trim() ||
         'Certificado / Evidencia Oficial',
       pdfUrl: pdfUrl || prev?.pdfUrl || null,
       pdfDownloadUrl: pdfDownloadUrl || prev?.pdfDownloadUrl || null,
+      pdfAbsoluteUrl: rawEv.pdfAbsoluteUrl || prev?.pdfAbsoluteUrl || null,
       pdfFileName: rawEv.pdfFileName || prev?.pdfFileName || null,
       imageUrl: imageUrl || prev?.imageUrl || null,
       imageDownloadUrl: imageDownloadUrl || prev?.imageDownloadUrl || null,
+      imageAbsoluteUrl: rawEv.imageAbsoluteUrl || prev?.imageAbsoluteUrl || null,
       imageFileName: rawEv.imageFileName || prev?.imageFileName || null,
     });
   };
@@ -429,8 +614,14 @@ export function collectUniqueScraperEvidences(
 
   const safeSteps = Array.isArray(steps) ? steps : [];
   safeSteps.forEach((st) => {
+    if (Array.isArray(st?.evidenceFiles)) {
+      st.evidenceFiles.forEach((ev) => upsertEvidence(ev, st.title));
+    }
     if (Array.isArray(st?.evidences)) {
       st.evidences.forEach((ev) => upsertEvidence(ev, st.title));
+    }
+    if (Array.isArray((st as any)?.capturedEvidences)) {
+      (st as any).capturedEvidences.forEach((ev: any) => upsertEvidence(ev, st.title));
     }
     if (Array.isArray(st?.outputItems)) {
       st.outputItems.forEach((row) => {
@@ -457,7 +648,7 @@ export function collectUniqueScraperEvidences(
  * Limpia defensivamente imágenes y bloques sueltos de evidencias `/api/sgsst/automatizaciones/evidencias/...`
  * dentro del mensaje ejecutivo del Agente IA cuando ya se muestran en el Campo Aparte / Pestaña Archivos.
  */
-function stripNoiseEvidencesFromAgentResponse(content: string): string {
+export function stripNoiseEvidencesFromAgentResponse(content: string): string {
   const safe = String(content || '');
   if (!safe || !safe.includes('/api/sgsst/automatizaciones/evidencias/')) {
     return safe;
@@ -915,11 +1106,11 @@ export default function WappyWorkflowSandboxPanel({
       ...nodeTrace,
       ...(Array.isArray(liveSteps) ? liveSteps : []),
     ];
-    const topEvidences: ScraperCapturedEvidence[] = Array.isArray(result?.evidences)
-      ? [...result!.evidences!]
-      : Array.isArray((result as any)?.capturedEvidences)
-        ? [...(result as any).capturedEvidences]
-        : [];
+    const topEvidences: Array<ScraperCapturedEvidence | Record<string, any>> = [
+      ...(Array.isArray(result?.evidenceFiles) ? result!.evidenceFiles! : []),
+      ...(Array.isArray(result?.evidences) ? result!.evidences! : []),
+      ...(Array.isArray((result as any)?.capturedEvidences) ? (result as any).capturedEvidences : []),
+    ];
 
     // Respaldo adicional si finalResponseMarkdown contiene rutas de evidencias no listadas aún
     const rawFinalMd = String(result?.finalResponseMarkdown || '');
@@ -1521,15 +1712,16 @@ export default function WappyWorkflowSandboxPanel({
                       </button>
                     </div>
 
-                    <button
+                    <ExpandableButton
                       type="button"
-                      onClick={() => setActiveTab('files')}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-800 dark:text-[#C7F303] text-[10.5px] font-black transition cursor-pointer"
+                      size="sm"
+                      variant="emerald"
+                      icon={<ArrowRight className="w-3.5 h-3.5 shrink-0" />}
+                      badge={capturedEvidences.length}
+                      label="Ver todos en pestaña Archivos"
                       title="Abrir todos los certificados y archivos en su pestaña dedicada"
-                    >
-                      <span>Ver todos en pestaña Archivos ({capturedEvidences.length})</span>
-                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                    </button>
+                      onClick={() => setActiveTab('files')}
+                    />
                   </div>
                 </div>
 
@@ -1542,8 +1734,8 @@ export default function WappyWorkflowSandboxPanel({
                         ev.pdfUrl ||
                         ev.imageDownloadUrl ||
                         ev.imageUrl ||
-                        '#';
-                      const dlName = ev.pdfFileName || ev.imageFileName || true;
+                        '';
+                      const dlName = ev.pdfFileName || ev.imageFileName || null;
                       return (
                         <div
                           key={`comp_ev_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
@@ -1595,33 +1787,37 @@ export default function WappyWorkflowSandboxPanel({
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                            <button
+                            <ExpandableButton
                               type="button"
+                              size="sm"
+                              variant="teal"
+                              icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                              label="Vista Previa"
+                              title="Ver certificado en modal ampliado"
                               onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition"
-                              title="Ver certificado en pantalla ampliada"
-                            >
-                              <span>🖼️ Ver</span>
-                            </button>
+                            />
                             {ev.pdfUrl && (
-                              <a
-                                href={ev.pdfUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition"
-                                title="Abrir PDF en pestaña nueva"
-                              >
-                                <span>📄 PDF</span>
-                              </a>
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="cyan"
+                                icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                                label="Visor PDF"
+                                title="Abrir PDF en el visor modal o pestaña nueva"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                              />
                             )}
-                            <a
-                              href={dlHref}
-                              download={dlName}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition"
-                              title="Descargar archivo oficial"
-                            >
-                              <span>⬇️ Descargar</span>
-                            </a>
+                            {dlHref && (
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="emerald"
+                                icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                                label="Descargar"
+                                title="Descargar archivo oficial (.pdf / .png)"
+                                onClick={() => triggerDirectFileDownload(dlHref, dlName)}
+                              />
+                            )}
                           </div>
                         </div>
                       );
@@ -1636,8 +1832,8 @@ export default function WappyWorkflowSandboxPanel({
                         ev.pdfUrl ||
                         ev.imageDownloadUrl ||
                         ev.imageUrl ||
-                        '#';
-                      const dlName = ev.pdfFileName || ev.imageFileName || true;
+                        '';
+                      const dlName = ev.pdfFileName || ev.imageFileName || null;
                       return (
                         <div
                           key={`gal_ev_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
@@ -1713,30 +1909,37 @@ export default function WappyWorkflowSandboxPanel({
                           </div>
 
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
-                            <button
+                            <ExpandableButton
                               type="button"
+                              size="sm"
+                              variant="teal"
+                              icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                              label="Vista Previa"
+                              title="Abrir certificado en modal ampliado"
                               onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition-all"
-                            >
-                              <span>🖼️ Ver</span>
-                            </button>
+                            />
                             {ev.pdfUrl && (
-                              <a
-                                href={ev.pdfUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition-all"
-                              >
-                                <span>📄 PDF</span>
-                              </a>
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="cyan"
+                                icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                                label="Visor PDF"
+                                title="Previsualizar PDF en modal"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                              />
                             )}
-                            <a
-                              href={dlHref}
-                              download={dlName}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all"
-                            >
-                              <span>⬇️ Descargar</span>
-                            </a>
+                            {dlHref && (
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="emerald"
+                                icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                                label="Descargar"
+                                title="Descargar archivo oficial (.pdf / .png)"
+                                onClick={() => triggerDirectFileDownload(dlHref, dlName)}
+                              />
+                            )}
                           </div>
                         </div>
                       );
@@ -2052,32 +2255,44 @@ export default function WappyWorkflowSandboxPanel({
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                            <button
+                            <ExpandableButton
                               type="button"
+                              size="sm"
+                              variant="teal"
+                              icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                              label="Ver Certificado"
+                              title="Abrir certificado en modal ampliado"
                               onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition"
-                            >
-                              <span>🖼️ Ver Certificado</span>
-                            </button>
+                            />
                             {ev.pdfUrl && (
-                              <a
-                                href={ev.pdfUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition"
-                              >
-                                <span>📄 Abrir PDF</span>
-                              </a>
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="cyan"
+                                icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                                label="Abrir PDF"
+                                title="Abrir PDF en el visor modal"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                              />
                             )}
-                            <a
-                              href={dlHref}
-                              download={dlName}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition"
-                            >
-                              <span>
-                                {ev.pdfUrl || ev.pdfDownloadUrl ? '⬇️ Descargar PDF' : '⬇️ Descargar'}
-                              </span>
-                            </a>
+                            {dlHref && dlHref !== '#' && (
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="emerald"
+                                icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                                label={
+                                  ev.pdfUrl || ev.pdfDownloadUrl ? 'Descargar PDF' : 'Descargar'
+                                }
+                                title="Descargar soporte oficial (.pdf / .png)"
+                                onClick={() =>
+                                  triggerDirectFileDownload(
+                                    dlHref,
+                                    typeof dlName === 'string' ? dlName : null,
+                                  )
+                                }
+                              />
+                            )}
                           </div>
                         </div>
                       );
@@ -2168,32 +2383,44 @@ export default function WappyWorkflowSandboxPanel({
                           </div>
 
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
-                            <button
+                            <ExpandableButton
                               type="button"
+                              size="sm"
+                              variant="teal"
+                              icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                              label="Ver Certificado"
+                              title="Abrir certificado en modal ampliado"
                               onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition-all"
-                            >
-                              <span>🖼️ Ver Certificado</span>
-                            </button>
+                            />
                             {ev.pdfUrl && (
-                              <a
-                                href={ev.pdfUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition-all"
-                              >
-                                <span>📄 Abrir PDF</span>
-                              </a>
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="cyan"
+                                icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                                label="Abrir PDF"
+                                title="Abrir PDF en el visor modal"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                              />
                             )}
-                            <a
-                              href={dlHref}
-                              download={dlName}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all"
-                            >
-                              <span>
-                                {ev.pdfUrl || ev.pdfDownloadUrl ? '⬇️ Descargar PDF' : '⬇️ Descargar'}
-                              </span>
-                            </a>
+                            {dlHref && dlHref !== '#' && (
+                              <ExpandableButton
+                                type="button"
+                                size="sm"
+                                variant="emerald"
+                                icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                                label={
+                                  ev.pdfUrl || ev.pdfDownloadUrl ? 'Descargar PDF' : 'Descargar'
+                                }
+                                title="Descargar soporte oficial (.pdf / .png)"
+                                onClick={() =>
+                                  triggerDirectFileDownload(
+                                    dlHref,
+                                    typeof dlName === 'string' ? dlName : null,
+                                  )
+                                }
+                              />
+                            )}
                           </div>
                         </div>
                       );
@@ -2338,26 +2565,38 @@ export default function WappyWorkflowSandboxPanel({
                                   className="w-8 h-8 rounded-lg object-cover border border-teal-500/30 cursor-zoom-in shrink-0 bg-white"
                                 />
                               )}
-                              <span className="font-bold text-[11px] text-slate-800 dark:text-slate-100 max-w-[160px] truncate">
-                                {ev.workerName || ev.cedula || ev.title || `Soporte #${sIdx + 1}`}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
-                                className="px-2 py-0.5 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10px] font-extrabold cursor-pointer"
-                              >
-                                🖼️ Ver
-                              </button>
-                              {(ev.pdfDownloadUrl || ev.pdfUrl) && (
-                                <a
-                                  href={ev.pdfDownloadUrl || ev.pdfUrl || '#'}
-                                  download={ev.pdfFileName || true}
-                                  className="px-2 py-0.5 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10px] font-extrabold no-underline"
-                                >
-                                  ⬇️ PDF
-                                </a>
-                              )}
-                            </div>
+                                <span className="font-bold text-[11px] text-slate-800 dark:text-slate-100 max-w-[160px] truncate">
+                                  {ev.workerName || ev.cedula || ev.title || `Soporte #${sIdx + 1}`}
+                                </span>
+                                <ExpandableButton
+                                  type="button"
+                                  size="sm"
+                                  variant="teal"
+                                  icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                                  label="Vista Previa"
+                                  title="Ver soporte en modal ampliado"
+                                  onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
+                                />
+                                {(ev.pdfDownloadUrl || ev.pdfUrl || ev.imageDownloadUrl || ev.imageUrl) && (
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="emerald"
+                                    icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                                    label="Descargar"
+                                    title="Descargar soporte oficial"
+                                    onClick={() =>
+                                      triggerDirectFileDownload(
+                                        ev.pdfDownloadUrl ||
+                                          ev.pdfUrl ||
+                                          ev.imageDownloadUrl ||
+                                          ev.imageUrl,
+                                        ev.pdfFileName || ev.imageFileName || null,
+                                      )
+                                    }
+                                  />
+                                )}
+                              </div>
                           ))}
                         </div>
                       </div>
@@ -2580,5 +2819,486 @@ export default function WappyWorkflowSandboxPanel({
         )}
       </div>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BANDEJA REUTILIZABLE DE CERTIFICADOS Y ARCHIVOS DESCARGADOS + VISOR MODAL
+   (Usada en Historial de Ejecuciones Reales / Bitácora de `TareasPage.tsx` y Modales)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+export interface WorkflowEvidenceTrayProps {
+  evidences: ScraperCapturedEvidence[];
+  onOpenEvidence: (evidence: ScraperCapturedEvidence, preferredMode?: 'image' | 'pdf') => void;
+  title?: string;
+  subtitle?: string;
+  defaultLayout?: 'compact' | 'cards';
+  className?: string;
+}
+
+export function WorkflowEvidenceTray({
+  evidences,
+  onOpenEvidence,
+  title,
+  subtitle = 'Bandeja dedicada para previsualizar en modal o descargar certificados (.PDF / .PNG) sin meter ruido visual en el informe.',
+  defaultLayout = 'compact',
+  className = '',
+}: WorkflowEvidenceTrayProps) {
+  const [layout, setLayout] = useState<'compact' | 'cards'>(defaultLayout);
+  const safeEvidences = Array.isArray(evidences) ? evidences : [];
+  if (safeEvidences.length === 0) return null;
+
+  return (
+    <div
+      className={`rounded-2xl border-2 border-[#0D9488]/60 dark:border-teal-400/50 bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-transparent p-3.5 sm:p-4 space-y-3 min-w-0 max-w-full shadow-xs ${className}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+            <Paperclip className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-black text-teal-900 dark:text-teal-200 truncate">
+              {title || `📎 Certificados y Soportes Descargados (${safeEvidences.length})`}
+            </h4>
+            {subtitle && (
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate">{subtitle}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="inline-flex items-center gap-0.5 p-0.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-teal-500/30 shrink-0">
+          <button
+            type="button"
+            onClick={() => setLayout('compact')}
+            className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1 transition cursor-pointer ${
+              layout === 'compact'
+                ? 'bg-teal-500/15 text-teal-800 dark:text-[#C7F303] border border-teal-500/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="Vista compacta de filas"
+          >
+            <List className="w-3.5 h-3.5 shrink-0" />
+            <span>Filas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLayout('cards')}
+            className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1 transition cursor-pointer ${
+              layout === 'cards'
+                ? 'bg-teal-500/15 text-teal-800 dark:text-[#C7F303] border border-teal-500/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="Vista de tarjetas con miniatura"
+          >
+            <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+            <span>Tarjetas</span>
+          </button>
+        </div>
+      </div>
+
+      {layout === 'compact' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-0.5 min-w-0">
+          {safeEvidences.map((ev, idx) => {
+            const dlHref =
+              ev.pdfDownloadUrl || ev.pdfUrl || ev.imageDownloadUrl || ev.imageUrl || '';
+            const dlName = ev.pdfFileName || ev.imageFileName || null;
+            return (
+              <div
+                key={`tray_comp_${idx}_${ev.pdfUrl || ev.imageUrl || idx}`}
+                className="rounded-xl border border-teal-500/30 bg-white/95 dark:bg-slate-900/95 p-2.5 flex items-center justify-between gap-2.5 hover:border-teal-500/60 transition min-w-0"
+              >
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  {ev.imageUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenEvidence(ev, 'image')}
+                      className="w-11 h-11 rounded-lg overflow-hidden border border-teal-500/30 bg-slate-100 dark:bg-slate-800 shrink-0 cursor-zoom-in"
+                      title="Ampliar certificado en HD"
+                    >
+                      <img
+                        src={ev.imageUrl}
+                        alt={ev.workerName || ev.title || 'Certificado'}
+                        className="w-full h-full object-cover object-top bg-white"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onOpenEvidence(ev, 'pdf')}
+                      className="w-11 h-11 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-300 flex items-center justify-center shrink-0 cursor-pointer"
+                      title="Abrir visor PDF"
+                    >
+                      <FileText className="w-5 h-5" />
+                    </button>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                      {ev.workerName?.trim() || ev.title || 'Colaborador / Soporte Oficial'}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 mt-0.5 text-[10px]">
+                      {ev.cedula && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                          CC {ev.cedula}
+                        </span>
+                      )}
+                      <span className="px-1.5 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/30 font-extrabold text-teal-700 dark:text-teal-300 truncate max-w-[180px]">
+                        🏛️ {ev.portal || ev.title || 'Portal Oficial'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                  <ExpandableButton
+                    type="button"
+                    size="sm"
+                    variant="teal"
+                    icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                    label="Vista Previa"
+                    title="Abrir vista previa en modal"
+                    onClick={() => onOpenEvidence(ev, ev.imageUrl ? 'image' : 'pdf')}
+                  />
+                  {ev.pdfUrl && (
+                    <ExpandableButton
+                      type="button"
+                      size="sm"
+                      variant="cyan"
+                      icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                      label="Visor PDF"
+                      title="Previsualizar PDF en modal"
+                      onClick={() => onOpenEvidence(ev, 'pdf')}
+                    />
+                  )}
+                  {dlHref && (
+                    <ExpandableButton
+                      type="button"
+                      size="sm"
+                      variant="emerald"
+                      icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                      label="Descargar"
+                      title="Descargar archivo oficial (.pdf / .png)"
+                      onClick={() => triggerDirectFileDownload(dlHref, dlName)}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
+          {safeEvidences.map((ev, idx) => {
+            const dlHref =
+              ev.pdfDownloadUrl || ev.pdfUrl || ev.imageDownloadUrl || ev.imageUrl || '';
+            const dlName = ev.pdfFileName || ev.imageFileName || null;
+            return (
+              <div
+                key={`tray_card_${idx}_${ev.pdfUrl || ev.imageUrl || idx}`}
+                className="group/evcard rounded-2xl border border-teal-500/30 bg-white/95 dark:bg-slate-900/95 p-3 flex flex-col justify-between gap-2.5 shadow-xs hover:border-teal-500/60 hover:shadow-md transition-all min-w-0"
+              >
+                <div className="space-y-2.5 min-w-0">
+                  {ev.imageUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenEvidence(ev, 'image')}
+                      className="group/thumb relative w-full h-36 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 cursor-zoom-in block text-left"
+                    >
+                      <img
+                        src={ev.imageUrl}
+                        alt={ev.title || ev.workerName || 'Certificado Oficial'}
+                        className="w-full h-full object-cover object-top transition-transform duration-300 group-hover/thumb:scale-105 bg-white"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <span className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-slate-950/80 text-white text-[10px] font-extrabold flex items-center gap-1 backdrop-blur-xs">
+                        <ZoomIn className="w-3 h-3 text-[#C7F303]" />
+                        Ver HD
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onOpenEvidence(ev, 'pdf')}
+                      className="w-full h-36 rounded-xl border border-dashed border-teal-500/40 bg-teal-500/5 hover:bg-teal-500/10 flex flex-col items-center justify-center gap-2 p-3 text-center cursor-pointer transition-colors"
+                    >
+                      <FileText className="w-6 h-6 text-teal-600 dark:text-teal-300" />
+                      <div className="text-xs font-extrabold text-teal-800 dark:text-teal-200 line-clamp-2">
+                        {ev.pdfFileName || ev.title || 'Certificado PDF Oficial'}
+                      </div>
+                    </button>
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                      {ev.workerName?.trim() || ev.title || 'Colaborador / Soporte Oficial'}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 mt-1 text-[10px]">
+                      {ev.cedula && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-mono font-bold text-slate-700 dark:text-slate-300">
+                          CC {ev.cedula}
+                        </span>
+                      )}
+                      {ev.portal && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/30 font-extrabold text-teal-700 dark:text-teal-300 truncate max-w-full">
+                          🏛️ {ev.portal}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
+                  <ExpandableButton
+                    type="button"
+                    size="sm"
+                    variant="teal"
+                    icon={<Eye className="w-3.5 h-3.5 shrink-0" />}
+                    label="Vista Previa"
+                    onClick={() => onOpenEvidence(ev, ev.imageUrl ? 'image' : 'pdf')}
+                  />
+                  {ev.pdfUrl && (
+                    <ExpandableButton
+                      type="button"
+                      size="sm"
+                      variant="cyan"
+                      icon={<FileText className="w-3.5 h-3.5 shrink-0" />}
+                      label="Visor PDF"
+                      onClick={() => onOpenEvidence(ev, 'pdf')}
+                    />
+                  )}
+                  {dlHref && (
+                    <ExpandableButton
+                      type="button"
+                      size="sm"
+                      variant="emerald"
+                      icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                      label="Descargar"
+                      onClick={() => triggerDirectFileDownload(dlHref, dlName)}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export interface WorkflowEvidenceLightboxModalProps {
+  evidence: ScraperCapturedEvidence | null;
+  initialMode?: 'image' | 'pdf';
+  onClose: () => void;
+}
+
+export function WorkflowEvidenceLightboxModal({
+  evidence,
+  initialMode,
+  onClose,
+}: WorkflowEvidenceLightboxModalProps) {
+  const [mode, setMode] = useState<'image' | 'pdf'>(
+    initialMode || (evidence?.imageUrl ? 'image' : 'pdf'),
+  );
+
+  useEffect(() => {
+    if (!evidence) return;
+    if (initialMode === 'pdf' && evidence.pdfUrl) {
+      setMode('pdf');
+    } else if (evidence.imageUrl) {
+      setMode('image');
+    } else {
+      setMode('pdf');
+    }
+  }, [evidence, initialMode]);
+
+  useEffect(() => {
+    if (!evidence || typeof window === 'undefined') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [evidence, onClose]);
+
+  if (!evidence || typeof document === 'undefined') return null;
+
+  const dlHref =
+    evidence.pdfDownloadUrl ||
+    evidence.pdfUrl ||
+    evidence.imageDownloadUrl ||
+    evidence.imageUrl ||
+    '';
+  const dlName = evidence.pdfFileName || evidence.imageFileName || null;
+  const openHref =
+    (mode === 'pdf' && evidence.pdfUrl
+      ? evidence.pdfUrl
+      : evidence.pdfUrl || evidence.imageUrl) || '';
+
+  return createPortal(
+    <div
+      id="wappy-evidence-lightbox-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={evidence.title || 'Visor de Certificado Oficial'}
+      className="fixed inset-0 z-[10060] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-5xl max-h-[94vh] flex flex-col rounded-2xl border border-teal-500/40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-teal-500/10 blur-3xl" />
+
+        <div className="relative px-3.5 sm:px-5 py-3 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-cyan-500/10 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate max-w-full">
+                  {evidence.workerName?.trim() || evidence.title || 'Certificado Oficial'}
+                </h3>
+                {evidence.cedula?.trim() && (
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300">
+                    CC {evidence.cedula}
+                  </span>
+                )}
+                {evidence.portal?.trim() && (
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                    🌐 {evidence.portal}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate mt-0.5">
+                {[
+                  evidence.workerName?.trim() ? evidence.title : '',
+                  evidence.cargo?.trim() || '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'Soporte oficial verificado por WAPPY IA'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+            {evidence.imageUrl && evidence.pdfUrl && (
+              <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 mr-1">
+                <button
+                  type="button"
+                  onClick={() => setMode('image')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 cursor-pointer ${
+                    mode === 'image'
+                      ? 'bg-teal-500/15 border border-teal-500/40 text-teal-700 dark:text-teal-300'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span>Imagen HD</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('pdf')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 cursor-pointer ${
+                    mode === 'pdf'
+                      ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-700 dark:text-cyan-300'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  <span>Visor PDF</span>
+                </button>
+              </div>
+            )}
+
+            {dlHref && (
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant="emerald"
+                icon={<Download className="w-3.5 h-3.5 shrink-0" />}
+                label={
+                  evidence.pdfDownloadUrl || evidence.pdfUrl
+                    ? 'Descargar PDF Oficial'
+                    : 'Descargar Certificado'
+                }
+                title="Descargar documento oficial"
+                onClick={() => triggerDirectFileDownload(dlHref, dlName)}
+              />
+            )}
+
+            {openHref && (
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant="cyan"
+                icon={<ExternalLink className="w-3.5 h-3.5 shrink-0" />}
+                label="Abrir en pestaña nueva"
+                title="Abrir certificado oficial en pestaña nueva"
+                onClick={() => window.open(openHref, '_blank', 'noopener,noreferrer')}
+              />
+            )}
+
+            <ExpandableButton
+              type="button"
+              size="sm"
+              variant="rose"
+              icon={<X className="w-3.5 h-3.5 shrink-0" />}
+              label="Cerrar"
+              title="Cerrar visor (Esc)"
+              onClick={onClose}
+            />
+          </div>
+        </div>
+
+        <div className="relative flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 bg-slate-50/70 dark:bg-slate-950/60">
+          {evidence.imageUrl && (mode === 'image' || !evidence.pdfUrl) ? (
+            <div className="flex flex-col items-center justify-center gap-2.5">
+              <img
+                src={evidence.imageUrl}
+                alt={
+                  evidence.workerName
+                    ? `Certificado de ${evidence.workerName}`
+                    : evidence.title || 'Certificado'
+                }
+                className="max-h-[72vh] w-auto max-w-full mx-auto rounded-xl border border-teal-500/30 shadow-xl object-contain bg-white"
+              />
+              {evidence.imageDownloadUrl && evidence.pdfUrl && (
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="teal"
+                  icon={<ImageIcon className="w-3.5 h-3.5 shrink-0" />}
+                  label="Descargar captura HD en PNG"
+                  onClick={() =>
+                    triggerDirectFileDownload(
+                      evidence.imageDownloadUrl,
+                      evidence.imageFileName || null,
+                    )
+                  }
+                />
+              )}
+            </div>
+          ) : evidence.pdfUrl ? (
+            <iframe
+              src={evidence.pdfUrl}
+              title={evidence.title || 'Visor PDF Certificado Oficial'}
+              className="w-full h-[70vh] rounded-xl border border-slate-200 dark:border-slate-700 bg-white shadow-inner"
+            />
+          ) : (
+            <div className="p-8 text-center text-xs font-bold text-slate-500 dark:text-slate-400">
+              No se encontró archivo visual adjunto para esta evidencia.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

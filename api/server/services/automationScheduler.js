@@ -16,6 +16,7 @@ const {
   inspectNodeLiveData,
   buildSurgicalLiveContextForWorkflow,
 } = require('~/server/services/workflowNodeInspectorService');
+const { normalizeAnyDateYmd } = require('~/server/routes/sgsst/birthDateHelper');
 
 let schedulerInterval = null;
 let isCheckingAutomations = false; // Evita que dos ticks del intervalo se solapen
@@ -264,6 +265,94 @@ function saveScraperEvidenceFiles({
 }
 
 /**
+ * Limpia y deduplica la lista de certificados/soportes (`evidenceFiles`) para exposición segura en API y MongoDB
+ * (remueve rutas internas del sistema de archivos `pdfLocalPath` / `imageLocalPath`).
+ */
+function sanitizePublicEvidenceList(rawEvidences = []) {
+  if (!Array.isArray(rawEvidences) || rawEvidences.length === 0) return [];
+  const seen = new Set();
+  const clean = [];
+  for (const ev of rawEvidences) {
+    if (!ev || typeof ev !== 'object') continue;
+    const pdfUrl = ev.pdfUrl || null;
+    const imageUrl = ev.imageUrl || null;
+    if (!pdfUrl && !imageUrl) continue;
+    const cedNorm = String(ev.cedula || '').trim();
+    const portalNorm = String(ev.portal || '').trim().toLowerCase();
+    const titleNorm = String(ev.title || '').trim().toLowerCase();
+    const dedupKey =
+      cedNorm && cedNorm !== 'N/A'
+        ? `person::${cedNorm}::${portalNorm}::${titleNorm}`
+        : `${pdfUrl || ''}::${imageUrl || ''}::${cedNorm}::${titleNorm}`;
+    if (seen.has(dedupKey)) continue;
+    seen.add(dedupKey);
+    clean.push({
+      workerName: String(ev.workerName || 'Colaborador / Registro').trim(),
+      cedula: String(ev.cedula || 'N/A').trim(),
+      cargo: String(ev.cargo || '').trim(),
+      portal: String(ev.portal || 'Portal Oficial').trim(),
+      title: String(ev.title || 'Certificado / Soporte Oficial').trim(),
+      pdfUrl,
+      pdfDownloadUrl: ev.pdfDownloadUrl || (pdfUrl ? `${pdfUrl}?download=1` : null),
+      pdfAbsoluteUrl: ev.pdfAbsoluteUrl || null,
+      pdfFileName: ev.pdfFileName || (pdfUrl ? path.basename(String(pdfUrl).split('?')[0]) : null),
+      imageUrl,
+      imageDownloadUrl: ev.imageDownloadUrl || (imageUrl ? `${imageUrl}?download=1` : null),
+      imageAbsoluteUrl: ev.imageAbsoluteUrl || null,
+      imageFileName: ev.imageFileName || (imageUrl ? path.basename(String(imageUrl).split('?')[0]) : null),
+    });
+  }
+  return clean;
+}
+
+/**
+ * Sanitizador post-generación para garantizar CERO ruido visual de URLs o enlaces de descarga
+ * dentro del mensaje Markdown o celdas de tablas del Agente IA cuando ya existe la bandeja `evidenceFiles`.
+ */
+function stripAgentInlineEvidenceNoise(markdownText, evidences = []) {
+  if (!markdownText || typeof markdownText !== 'string') return '';
+  if (!Array.isArray(evidences) || evidences.length === 0) return markdownText;
+  return markdownText
+    // Remover imágenes Markdown apuntando a /api/sgsst/automatizaciones/evidencias/...
+    .replace(
+      /!\[[^\]]*\]\((?:https?:\/\/[^)\s]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^)\s]+\)/gi,
+      '',
+    )
+    // Reemplazar enlaces Markdown [Descargar PDF](/api/sgsst/automatizaciones/evidencias/...) por insignia limpia
+    .replace(
+      /\[([^\]]*)\]\((?:https?:\/\/[^)\s]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^)\s]+\)/gi,
+      '📎 En bandeja de soportes',
+    )
+    // Reemplazar URLs crudas /api/sgsst/automatizaciones/evidencias/... sueltas en texto o tablas
+    .replace(
+      /(?:https?:\/\/[^\s|)]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[a-zA-Z0-9._-]+(?:\?download=1)?/gi,
+      '📎 En bandeja de soportes',
+    )
+    // Compactar repeticiones si el LLM puso PDF + PNG seguidos en la misma celda
+    .replace(/(📎 En bandeja de soportes[\s·,/|-]*){2,}/g, '📎 En bandeja de soportes');
+}
+
+/**
+ * Detecta si un nodo pertenece a conectores marcados como "En Construcción" en el catálogo oficial,
+ * para devolver un paso limpio `🚧 En Construcción (Omitido)` sin romper ni demorar flujos heredados.
+ */
+function isUnderConstructionNode(nodeKey = '', nodeId = '', customNodeObj = null) {
+  if (customNodeObj && customNodeObj.underConstruction === true) return true;
+  const hay = `${nodeKey || ''} ${nodeId || ''} ${customNodeObj?.id || ''} ${customNodeObj?.key || ''} ${customNodeObj?.nodeType || ''}`.toLowerCase();
+  return (
+    hay.includes('scraper_agy_pensiones_directo') ||
+    hay.includes('custom_scraper_agy_pensiones') ||
+    hay.includes('pensiones_directo') ||
+    hay.includes('scraper_agy_salud_rethus') ||
+    hay.includes('custom_scraper_agy_salud_rethus') ||
+    hay.includes('salud_rethus') ||
+    hay.includes('extract_onedrive') ||
+    /\bone_drive\b/.test(hay) ||
+    hay.includes('trigger_whatsapp')
+  );
+}
+
+/**
  * Construye el bloque de instrucción obligatoria para el Agente IA sobre certificados/soportes descargados,
  * aplicando CERO RUIDO VISUAL (sin inyectar URLs ni imágenes dentro del mensaje o tablas Markdown).
  */
@@ -274,12 +363,12 @@ function buildScraperEvidencesPromptBlock(evidences = []) {
       `  ${idx + 1}. Persona/Registro: "${ev.workerName || 'Registro'}" (Cédula/ID: ${ev.cedula || 'N/A'}) — Soporte descargado: "${ev.title || 'Certificado / Constancia Oficial'}" (${ev.portal || 'Portal Oficial'})`,
   );
   return (
-    `\n📎 [REGISTROS CON CERTIFICADO / SOPORTE OFICIAL DESCARGADO EN ARCHIVOS (${evidences.length})]:\n` +
+    `\n📎 [BANDEJA DEDICADA DE CERTIFICADOS Y SOPORTES DESCARGADOS (evidenceFiles: ${evidences.length} archivo(s))]:\n` +
     `${evLines.join('\n')}\n\n` +
-    `🚨 REGLA ESTRICTA CERO RUIDO VISUAL EN CERTIFICADOS:\n` +
-    `- Tienes TERMINANTEMENTE PROHIBIDO incluir URLs, rutas \`/api/...\`, enlaces Markdown \`[Descargar PDF](...)\` o imágenes \`![...](...)\` dentro de tu respuesta o tablas Markdown.\n` +
-    `- Si incluyes una columna de soporte/certificado en tu tabla, escribe ÚNICAMENTE texto limpio y corto como \`✅ Descargado (ver archivos)\` (solo para quienes aparecen en el listado de arriba) o \`Sin certificado\` (para quienes no tienen soporte).\n` +
-    `- Indícale brevemente al usuario en 1 sola línea que los archivos PDF/PNG descargados están listos para abrir o descargar en el apartado separado **"Certificados y Archivos Descargados"**.\n`
+    `🚨 REGLA ESTRICTA CERO RUIDO VISUAL EN TABLAS Y MENSAJE DEL AGENTE:\n` +
+    `- Tienes TERMINANTEMENTE PROHIBIDO escribir URLs, rutas \`/api/...\`, enlaces Markdown \`[Descargar PDF](...)\`, botones HTML o imágenes \`![...](...)\` dentro de las celdas de tus tablas o cuerpo del mensaje.\n` +
+    `- En las celdas de estado de tu tabla usa ÚNICAMENTE estados ejecutivos ultra limpios como: \`✅ VIGENTE\`, \`✅ AFILIADO ACTIVO (ARL SURA)\`, \`❌ SIN REGISTRO\`, \`✅ PAZ Y SALVO\`, y en la columna de soporte escribe solo \`📎 En bandeja\` (o \`—\` si no aplica).\n` +
+    `- Al final, menciona en 1 sola línea limpia que los ${evidences.length} certificado(s)/soporte(s) oficiales PDF/PNG ya están disponibles en el cajón aparte **"Certificados y Archivos Descargados"**.\n`
   );
 }
 
@@ -900,6 +989,23 @@ async function runAutomation(automation, isManual = false) {
         if (cfg.ruleText && String(cfg.ruleText).trim()) {
           parts.push(`Regla Obligatoria: "${String(cfg.ruleText).trim()}"`);
         }
+        if (cfg.hitoOperationMode) {
+          const modeLabel =
+            cfg.hitoOperationMode === 'write_register'
+              ? 'ESCRITURA / REGISTRO DIRECTO EN SOMOS SST'
+              : cfg.hitoOperationMode === 'audit_and_update'
+                ? 'AUDITORÍA + ACTUALIZACIÓN EN SOMOS SST'
+                : 'SOLO EXTRACCIÓN Y LECTURA';
+          parts.push(`Modo Operativo en Aplicativo SST: ${modeLabel}`);
+        }
+        if (cfg.ifConditionType || cfg.ifRuleExpression) {
+          parts.push(
+            `Regla Condicional (${cfg.ifConditionType || 'critical_findings'}): "${cfg.ifRuleExpression || 'Detectar hallazgos críticos'}"`,
+          );
+        }
+        if (cfg.approverEmail) {
+          parts.push(`Aprobador Humano Responsable: ${cfg.approverEmail}`);
+        }
         if (cfg.inputContext && String(cfg.inputContext).trim()) {
           parts.push(`Contexto de entrada: "${String(cfg.inputContext).trim()}"`);
         }
@@ -929,6 +1035,12 @@ async function runAutomation(automation, isManual = false) {
       });
       customNodes.forEach((cn) => {
         if (!cn) return;
+        if (isUnderConstructionNode(cn.key || cn.id || '', cn.nodeType || cn.id || '', cn)) {
+          cfgLines.push(
+            `  • 🚧 Nodo Omitido (En Construcción): "${cn.title || cn.key || cn.id}" — Omitido limpiamente sin demorar ni afectar el flujo.`,
+          );
+          return;
+        }
         const cnParts = [
           `Nodo Especial [${cn.nodeType || 'custom'} — "${cn.title || cn.key}"]: ${cn.content || cn.subtitle || ''}`,
         ];
@@ -943,6 +1055,49 @@ async function runAutomation(automation, isManual = false) {
         }
         cfgLines.push(`  • ${cnParts.join(' | ')}`);
       });
+      const logicNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.logicNodes)
+        ? automation.workflowNodes.canvasLayout.logicNodes
+        : [];
+      logicNodes.forEach((ln) => {
+        if (!ln) return;
+        cfgLines.push(
+          `  • Nodo Lógico [${ln.logicType || 'logic'} — "${ln.title || ln.key}"]: ${ln.subtitle || 'Control lógico del flujo'}`,
+        );
+      });
+      const legacyCheckIds = [
+        ...(Array.isArray(automation.workflowNodes?.triggers) ? automation.workflowNodes.triggers : [automation.workflowNodes?.trigger]),
+        ...(Array.isArray(automation.workflowNodes?.extractors) ? automation.workflowNodes.extractors : []),
+        ...(Array.isArray(automation.workflowNodes?.inputs) ? automation.workflowNodes.inputs : []),
+      ].filter(Boolean);
+      for (const lid of legacyCheckIds) {
+        if (isUnderConstructionNode(lid, lid, null)) {
+          cfgLines.push(
+            `  • 🚧 Conector Omitido (En Construcción): [${lid}] — Omitido limpiamente sin demorar ni afectar el flujo.`,
+          );
+        }
+      }
+      const wfOutputsList = Array.isArray(automation.workflowNodes?.outputs)
+        ? automation.workflowNodes.outputs
+        : [];
+      const workspaceOutDirectives = [];
+      if (wfOutputsList.includes('somos_sst_update')) {
+        workspaceOutDirectives.push('Actualizar/sincronizar hallazgos en los módulos correspondientes de Somos SST');
+      }
+      if (wfOutputsList.includes('google_docs')) {
+        workspaceOutDirectives.push('Si tienes habilitado el conector Google Docs, genera o actualiza el acta/informe en Google Docs');
+      }
+      if (wfOutputsList.includes('google_sheets')) {
+        workspaceOutDirectives.push('Si tienes habilitado el conector Google Sheets, sincroniza la tabla de control en Google Sheets');
+      }
+      if (wfOutputsList.includes('google_calendar')) {
+        workspaceOutDirectives.push('Si tienes habilitado el conector Google Calendar, agenda los hitos o vencimientos críticos');
+      }
+      if (wfOutputsList.includes('google_slides')) {
+        workspaceOutDirectives.push('Estructura el resumen ejecutivo listo para presentación gerencial (Google Slides)');
+      }
+      if (workspaceOutDirectives.length > 0) {
+        cfgLines.push(`  • Salidas Conectadas Adicionales: ${workspaceOutDirectives.join(' | ')}`);
+      }
       if (cfgLines.length > 0) {
         canvasNodesContextBlock =
           `- [CONFIGURACIÓN DETALLADA DE NODOS Y MULTI-AGENTE EN EL LIENZO WAPPY]:\n${cfgLines.join('\n')}\n`;
@@ -963,19 +1118,24 @@ async function runAutomation(automation, isManual = false) {
     try {
       const wfCustomNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
         ? automation.workflowNodes.canvasLayout.customNodes
-        : [];
+        : Array.isArray(automation.workflowNodes?.customNodes)
+          ? automation.workflowNodes.customNodes
+          : [];
       const wfExtractors = Array.isArray(automation.workflowNodes?.extractors)
         ? automation.workflowNodes.extractors
         : [];
       const wfInputs = Array.isArray(automation.workflowNodes?.inputs)
         ? automation.workflowNodes.inputs
         : [];
-      const allNodeCfg = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
+      const allNodeCfg =
+        automation.workflowNodes?.canvasLayout?.nodeConfigs ||
+        automation.workflowNodes?.nodeConfigs ||
+        {};
       const seenScraperKeys = new Set();
       const scraperCandidates = [
         ...wfCustomNodes.map((cn) => ({
           nodeKey: cn?.key || cn?.id || '',
-          nodeId: cn?.nodeType || cn?.id || '',
+          nodeId: cn?.nodeType || cn?.config?.scraperTarget || cn?.id || '',
           customNodeObj: cn,
         })),
         ...wfExtractors.map((extId) => ({
@@ -992,15 +1152,29 @@ async function runAutomation(automation, isManual = false) {
         if (!isAntigravityScraperIdentifier(cand.nodeKey, cand.nodeId, cand.customNodeObj)) {
           return false;
         }
-        const dedupKey = `${cand.nodeKey}::${cand.nodeId}`;
-        if (seenScraperKeys.has(dedupKey)) return false;
-        seenScraperKeys.add(dedupKey);
+        const hay = `${cand.nodeKey} ${cand.nodeId} ${cand.customNodeObj?.title || ''} ${cand.customNodeObj?.config?.scraperTarget || ''}`.toLowerCase();
+        let canonicalPortalKey = `${cand.nodeKey}::${cand.nodeId}`;
+        if (hay.includes('arl_directo') || hay.includes('agy_arl') || /\barl\b/.test(hay)) {
+          canonicalPortalKey = 'portal::arl_directo';
+        } else if (hay.includes('vial_pesv')) {
+          canonicalPortalKey = 'portal::vial_pesv';
+        } else if (hay.includes('antecedentes') || hay.includes('rama_judicial')) {
+          canonicalPortalKey = 'portal::antecedentes';
+        } else if (hay.includes('alto_riesgo') || hay.includes('mintrabajo') || hay.includes('centrosentrenamiento')) {
+          canonicalPortalKey = 'portal::alto_riesgo';
+        }
+        if (seenScraperKeys.has(canonicalPortalKey)) return false;
+        seenScraperKeys.add(canonicalPortalKey);
         return true;
       });
 
       if (scraperCandidates.length > 0) {
         const previewBlocks = [];
         for (const sc of scraperCandidates) {
+          const mergedNodeCfg = {
+            ...(sc.customNodeObj?.config || {}),
+            ...(allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {}),
+          };
           const scrapeRes = await executeRealAntigravityScraperVerification({
             userIdStr: String(automation.user),
             targetCompanyIdStr,
@@ -1009,7 +1183,7 @@ async function runAutomation(automation, isManual = false) {
             nodeId: sc.nodeId,
             nodeTitle: sc.customNodeObj?.title || '',
             customNodeObj: sc.customNodeObj || {},
-            nodeCfg: allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {},
+            nodeCfg: mergedNodeCfg,
             allNodeConfigs: allNodeCfg,
             mockTriggerInput: '',
             promptText: automation.prompt || '',
@@ -1174,8 +1348,16 @@ async function runAutomation(automation, isManual = false) {
       resultText = '(Ejecución completada por el agente. Documento generado disponible en el chat)';
     }
 
-    // 10. Update Log and Automation to SUCCESS immediately in MongoDB
-    console.log(`[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} and Automation ${automation._id} to SUCCESS...`);
+    // Limpiar ruido visual de URLs crudas en la respuesta si existen certificados descargados en la bandeja dedicada
+    const cleanRunEvidenceFiles = sanitizePublicEvidenceList(runCapturedEvidences);
+    if (cleanRunEvidenceFiles.length > 0) {
+      resultText = stripAgentInlineEvidenceNoise(resultText, cleanRunEvidenceFiles);
+    }
+
+    // 10. Update Log (con evidenceFiles / evidences) and Automation to SUCCESS immediately in MongoDB
+    console.log(
+      `[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} (${cleanRunEvidenceFiles.length} evidenceFiles) and Automation ${automation._id} to SUCCESS...`,
+    );
     await Promise.all([
       AutomationLog.updateOne(
         { _id: log._id },
@@ -1183,7 +1365,9 @@ async function runAutomation(automation, isManual = false) {
           $set: {
             status: 'success',
             result: resultText,
-            conversationId: generatedConvoId
+            conversationId: generatedConvoId,
+            evidenceFiles: cleanRunEvidenceFiles,
+            evidences: cleanRunEvidenceFiles,
           }
         }
       ),
@@ -1766,10 +1950,13 @@ function stopAutomationScheduler() {
 }
 
 /**
- * Detecta si un nodo del flujo corresponde a un Scraper / Verificador de Google Antigravity
- * (ej. Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, Seguridad Social RUAF/ADRES, Proveedores & ARL, Carpeta PC o Scraper Web AGY).
+ * Detecta si un nodo del flujo corresponde a un Scraper / Verificador ACTIVO de Google Antigravity
+ * (excluyendo explícitamente conectores En Construcción como pensiones_directo o salud_rethus).
  */
 function isAntigravityScraperIdentifier(nodeKey, nodeId, customNodeObj = null) {
+  if (isUnderConstructionNode(nodeKey, nodeId, customNodeObj)) {
+    return false;
+  }
   const hay = `${nodeKey || ''} ${nodeId || ''} ${customNodeObj?.id || ''} ${customNodeObj?.key || ''} ${customNodeObj?.nodeType || ''} ${customNodeObj?.title || ''} ${customNodeObj?.targetUrl || ''}`.toLowerCase();
   return (
     hay.includes('scraper_agy') ||
@@ -1781,8 +1968,6 @@ function isAntigravityScraperIdentifier(nodeKey, nodeId, customNodeObj = null) {
     hay.includes('extract_pc_folder') ||
     hay.includes('pc_folder') ||
     hay.includes('arl_directo') ||
-    hay.includes('pensiones_directo') ||
-    hay.includes('salud_rethus') ||
     hay.includes('vial_pesv') ||
     hay.includes('mintrabajo') ||
     hay.includes('alto_riesgo') ||
@@ -2219,9 +2404,13 @@ async function executeRealAntigravityScraperVerification({
   const explicitText = [
     mockTriggerInput,
     promptText,
+    nodeCfg?.cedula,
+    nodeCfg?.documento,
     nodeCfg?.customInstruction,
     nodeCfg?.inputContext,
     nodeCfg?.targetUrl,
+    customNodeObj?.config?.cedula,
+    customNodeObj?.config?.documento,
     customNodeObj?.content,
     customNodeObj?.targetUrl,
   ]
@@ -2307,11 +2496,12 @@ async function executeRealAntigravityScraperVerification({
             item.afp ||
             item.fondoPensiones ||
             '',
-          fechaNacimiento:
+          fechaNacimiento: normalizeAnyDateYmd(
             item['Fecha de Nacimiento'] ||
-            item.fechaNacimiento ||
-            item.birthDate ||
-            '',
+              item.fechaNacimiento ||
+              item.birthDate ||
+              '',
+          ),
           nivelRiesgo: item.estado || item.badge || item.nivelRiesgo || 'I',
           placa: item['Placa'] || item.placa || '',
         };
@@ -2366,11 +2556,13 @@ async function executeRealAntigravityScraperVerification({
                   f['AFP (Fondo de Pensiones)'] ||
                   fullRec.afp ||
                   '',
-                fechaNacimiento:
+                fechaNacimiento: normalizeAnyDateYmd(
                   w.fechaNacimiento ||
-                  f['Fecha de Nacimiento'] ||
-                  fullRec.fechaNacimiento ||
-                  '',
+                    f['Fecha de Nacimiento'] ||
+                    fullRec.fechaNacimiento ||
+                    fullRec.birthDate ||
+                    '',
+                ),
                 cargo:
                   w.cargo && w.cargo !== 'Operativo'
                     ? w.cargo
@@ -2446,7 +2638,9 @@ async function executeRealAntigravityScraperVerification({
           eps: rec.fields?.['EPS'] || rec.fields?.['EPS (Entidad Promotora de Salud)'] || '',
           arl: rec.fields?.['ARL'] || rec.fields?.['ARL (Administradora de Riesgos Laborales)'] || '',
           afp: rec.fields?.['AFP (Fondo de Pensiones)'] || rec.afp || '',
-          fechaNacimiento: rec.fields?.['Fecha de Nacimiento'] || rec.fechaNacimiento || '',
+          fechaNacimiento: normalizeAnyDateYmd(
+            rec.fields?.['Fecha de Nacimiento'] || rec.fechaNacimiento || rec.birthDate || '',
+          ),
           nivelRiesgo: rec.badge || 'I',
           placa: rec.fields?.['Placa'] || rec.placa || '',
         }));
@@ -2522,7 +2716,9 @@ async function executeRealAntigravityScraperVerification({
       arl: matchedWorker?.arl || matchedWorker?.arlName || '',
       eps: matchedWorker?.eps || matchedWorker?.epsName || '',
       afp: matchedWorker?.afp || matchedWorker?.fondoPensiones || '',
-      fechaNacimiento: matchedWorker?.fechaNacimiento || matchedWorker?.birthDate || '',
+      fechaNacimiento: normalizeAnyDateYmd(
+        matchedWorker?.fechaNacimiento || matchedWorker?.birthDate || '',
+      ),
     });
   }
 
@@ -2543,7 +2739,7 @@ async function executeRealAntigravityScraperVerification({
         arl: w.arl || w.arlName || '',
         eps: w.eps || w.epsName || '',
         afp: w.afp || w.fondoPensiones || '',
-        fechaNacimiento: w.fechaNacimiento || w.birthDate || '',
+        fechaNacimiento: normalizeAnyDateYmd(w.fechaNacimiento || w.birthDate || ''),
       });
     }
   }
@@ -3184,6 +3380,7 @@ async function executeRealAntigravityScraperVerification({
     eps: r.eps || '',
     afp: r.afp || '',
     fechaNacimiento: r.fechaNacimiento || '',
+    birthDate: r.fechaNacimiento || '',
     placa: r.placa || '',
     estadoPortal: r.estado,
     detalleOficial: r.detalle,
@@ -3349,16 +3546,23 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
   // Helper para recuperar la configuración quirúrgica de cualquier nodo del lienzo
   const resolveNodeConfig = (nodeKey, nodeId) => {
+    const isIfKey =
+      nodeKey === 'if_condition' ||
+      nodeKey === 'if_router' ||
+      nodeId === 'if_condition' ||
+      nodeId === 'if_node_router';
     return (
       nodeConfigs[nodeKey] ||
       nodeConfigs[nodeId] ||
       nodeConfigs[`trigger_${nodeId}`] ||
+      nodeConfigs[`extractor_${nodeId}`] ||
       nodeConfigs[`ext_${nodeId}`] ||
       nodeConfigs[`sub_memory_${nodeId}`] ||
       nodeConfigs[`tool_inputs_${nodeId}`] ||
       nodeConfigs[`tool_hitos_${nodeId}`] ||
       nodeConfigs[`hito_${nodeId}`] ||
       nodeConfigs[`out_${nodeId}`] ||
+      (isIfKey ? nodeConfigs.if_router || nodeConfigs.if_condition : null) ||
       {}
     );
   };
@@ -3376,6 +3580,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
   const configuredInputs = Array.isArray(wf.inputs) ? wf.inputs : [];
   const configuredCustomNodes = Array.isArray(wf.canvasLayout?.customNodes)
     ? wf.canvasLayout.customNodes.filter(Boolean)
+    : [];
+  const configuredLogicNodes = Array.isArray(wf.canvasLayout?.logicNodes)
+    ? wf.canvasLayout.logicNodes.filter(Boolean)
     : [];
   const configuredHitos = Array.isArray(wf.hitos) ? wf.hitos : [];
   const configuredOutputs =
@@ -3469,11 +3676,20 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     });
     if (wf.includeIfNode !== false) {
       executionPlan.push({
-        nodeKey: 'if_condition',
+        nodeKey: 'if_router',
         nodeId: 'if_condition',
         category: 'condition',
       });
     }
+    configuredLogicNodes.forEach((ln, idx) => {
+      const lKey = ln.key || `logic_${ln.logicType || 'step'}_${idx + 1}`;
+      executionPlan.push({
+        nodeKey: lKey,
+        nodeId: `logic_${ln.logicType || 'step'}`,
+        category: 'logic',
+        title: ln.title || `Nodo Lógico (${ln.logicType || 'step'})`,
+      });
+    });
     configuredHitos.forEach((hId) => {
       executionPlan.push({
         nodeKey: `hito_${hId}`,
@@ -3616,17 +3832,40 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     const filterMode = cfg.recordFilterMode || 'all';
     const selectedRecordIds = Array.isArray(cfg.selectedRecordIds) ? cfg.selectedRecordIds : [];
 
+    const sstAppSourceAliasMap = {
+      gtc45: 'hito3_matriz_gtc45',
+      pesv: 'hito4_matriz_pesv',
+      '0312': 'hito1_diagnostico_0312',
+      diagnostico_0312: 'hito1_diagnostico_0312',
+      atel: 'hito7_investigacion_atel',
+      acpm: 'hito8_acciones_acpm',
+      quimicos: 'hito4_inventario_quimico',
+      alturas: 'hito4_permisos_alturas',
+      epp: 'hito5_entrega_epp',
+      inspecciones: 'hito5_actos_condiciones',
+      capacitaciones: 'hito6_capacitaciones',
+      auditorias: 'hito7_auditorias',
+      trabajadores: 'extract_sst_workers',
+      cronograma: 'hito1_plan_trabajo',
+      legal: 'hito1_matriz_legal',
+    };
+    const effectiveInspectNodeId =
+      nodeId === 'extract_sst_app' && cfg.sstAppSourceId
+        ? sstAppSourceAliasMap[String(cfg.sstAppSourceId).toLowerCase().trim()] ||
+          String(cfg.sstAppSourceId).trim()
+        : nodeId;
+
     let liveData = null;
     let stepError = null;
     try {
       liveData = await inspectNodeLiveData({
         userId: userIdStr,
         companyId: targetCompanyIdStr,
-        nodeId,
+        nodeId: effectiveInspectNodeId,
       });
     } catch (inspectErr) {
       stepError = inspectErr?.message || 'Error inspeccionando datos del nodo';
-      addStepLog('error', `Error al consultar datos de ${nodeId}: ${stepError}`);
+      addStepLog('error', `Error al consultar datos de ${effectiveInspectNodeId}: ${stepError}`);
     }
     await pauseStep(240);
 
@@ -3682,8 +3921,20 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .split(/\s+/)
         .filter((w) => w.length >= 3 && !['del', 'los', 'las', 'por', 'con', 'para', 'una', 'uno', 'que', 'sus'].includes(w));
 
+    const isWorkerDataNode =
+      effectiveInspectNodeId === 'extract_sst_workers' ||
+      effectiveInspectNodeId === 'somos_sst_trabajadores' ||
+      effectiveInspectNodeId === 'hito2_perfil_socio';
+
     // Proyectar cada registro de filteredRecords.slice(0, 300) en un objeto JSON limpio para stepOutputItems (estilo n8n)
     let stepOutputItems = filteredRecords.slice(0, 300).map((rec, idx) => {
+      const rawBirth =
+        rec?.fields?.['Fecha de Nacimiento'] ||
+        rec?.fechaNacimiento ||
+        rec?.birthDate ||
+        '';
+      const normalizedBirth = rawBirth ? normalizeAnyDateYmd(rawBirth) || String(rawBirth).trim() : '';
+
       if (
         surgicalFields.length > 0 &&
         !isProceduralNode &&
@@ -3697,6 +3948,18 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         const entries = Object.entries(rec.fields);
         for (const sf of surgicalFields) {
           const sfNorm = sf.toLowerCase().trim();
+          if (
+            isWorkerDataNode &&
+            (sfNorm === 'birthdate' ||
+              sfNorm === 'fechanacimiento' ||
+              sfNorm.includes('fecha de nacimiento') ||
+              sfNorm.includes('nacimiento'))
+          ) {
+            projectedObj[sf] = normalizedBirth;
+            projectedObj.birthDate = normalizedBirth;
+            projectedObj.fechaNacimiento = normalizedBirth;
+            continue;
+          }
           const sfTokens = normalizeFieldTokens(sf);
           let match = entries.find(
             ([fk]) =>
@@ -3736,6 +3999,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         detalle: rec.sublabel || '',
         estado: rec.badge || 'Activo',
         ...(rec.fields && typeof rec.fields === 'object' ? rec.fields : {}),
+        ...(isWorkerDataNode
+          ? {
+              'Fecha de Nacimiento': normalizedBirth || rec?.fields?.['Fecha de Nacimiento'] || '',
+              fechaNacimiento: normalizedBirth,
+              birthDate: normalizedBirth,
+            }
+          : {}),
       };
     });
 
@@ -3837,6 +4107,47 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         addStepLog('error', `Fallo ejecutando Scraper Antigravity: ${stepError}`);
         console.warn('[Sandbox Play] Aviso ejecutando Scraper Antigravity en executeDataStep:', scErr?.message);
       }
+    } else if (nodeId === 'extract_web_search' || nodeId === 'web_search') {
+      const searchQueryStr = String(
+        cfg.searchQuery ||
+          cfg.targetUrl ||
+          cfg.customInstruction ||
+          mockTriggerInput ||
+          prompt ||
+          `Normativa vigente SG-SST Colombia para ${companyName}`,
+      ).trim();
+      addStepLog('info', `Ejecutando Búsqueda Web en Vivo: "${searchQueryStr.slice(0, 140)}"`);
+      try {
+        const searchExec = await executeSandboxAgentCall({
+          reqUser,
+          agentDoc: {
+            name: 'Buscador Normativo Web WAPPY',
+            model: effectiveAiModel,
+            instructions:
+              'Eres un motor de búsqueda normativa y técnica SST en Colombia (MinTrabajo, ARL, Decreto 1072/2015, Res. 0312/2019, Res. 4272/2021, PESV). Entrega de 3 a 5 hallazgos verificados, concisos y con fuente oficial.',
+          },
+          fullPrompt: `Consulta en vivo sobre: "${searchQueryStr}". Resume los hallazgos oficiales más recientes aplicables a "${companyName}".`,
+          useWebSearch: true,
+        });
+        if (searchExec.text) {
+          previewLines.unshift(`🌐 **RESULTADO DE BÚSQUEDA WEB EN VIVO (${effectiveAiModel} + Grounding):**\n${searchExec.text.slice(0, 1500)}`);
+          stepOutputItems = [
+            {
+              index: 1,
+              id: `${nodeKey}_web_search_live`,
+              consulta: searchQueryStr,
+              motor: `${effectiveAiModel} (Google Search Grounding)`,
+              hallazgos: searchExec.text.slice(0, 2000),
+              duracionMs: searchExec.durationMs,
+            },
+          ];
+          finalRecordsCount = Math.max(1, finalRecordsCount);
+          inputSummaryText = `Búsqueda Web en Vivo: "${searchQueryStr.slice(0, 120)}"`;
+          addStepLog('success', `Búsqueda Web completada en ${searchExec.durationMs} ms`);
+        }
+      } catch (wsErr) {
+        addStepLog('warn', `Aviso en Búsqueda Web en Vivo: ${wsErr?.message || wsErr}`);
+      }
     } else {
       addStepLog(
         filteredRecords.length > 0 ? 'success' : 'info',
@@ -3848,6 +4159,22 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       if (category === 'tool') {
         const agyMode = String(cfg?.antigravityMode || 'auto');
         inputSummaryText = `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${agyMode.toUpperCase()}) y devolviendo respuesta al Agente IA`;
+      }
+      if (category === 'hito') {
+        const hitoMode = String(cfg?.hitoOperationMode || 'extract_only');
+        if (hitoMode === 'write_register' || hitoMode === 'audit_and_update') {
+          const modeLabel =
+            hitoMode === 'write_register'
+              ? 'ESCRITURA / REGISTRO NUEVO'
+              : 'AUDITORÍA Y ACTUALIZACIÓN DE REGISTROS';
+          previewLines.push(
+            `🛡️ [MODO OPERATIVO EN HITO (${modeLabel} — SIMULADO EN SANDBOX)]: En ejecución real se impactará "${resolvedTitle}" a partir de ${incomingItems.length} item(s) entrantes sin alterar la base de datos durante esta prueba (dryRun: true).`,
+          );
+          addStepLog(
+            'info',
+            `Modo Hito "${modeLabel}" validado en Sandbox (${incomingItems.length} item(s) evaluados; escritura bloqueada por dryRun: true)`,
+          );
+        }
       }
     }
 
@@ -3922,17 +4249,22 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
   // Variables de estado de la ejecución paso a paso
   const agentOutputs = [];
+  const activeSkillsAndRulesBlocks = [];
   let finalResponse = '';
   let previousAgentResponse = '';
   let effectiveUserPrompt = typeof prompt === 'string' ? prompt.trim() : '';
+  let ifHasEvaluated = false;
   let ifEvaluation = {
-    enabled: connectedNodeKeys.has('if_condition'),
+    enabled: connectedNodeKeys.has('if_condition') || connectedNodeKeys.has('if_router'),
     branchTaken: 'SI',
     reason: 'Flujo directo hacia los nodos conectados.',
   };
 
   const extraAgentsList = Array.isArray(wf?.canvasLayout?.extraAgents)
     ? wf.canvasLayout.extraAgents.filter(Boolean)
+    : [];
+  const customEdgesList = Array.isArray(wf?.canvasLayout?.edges)
+    ? wf.canvasLayout.edges.filter((e) => e && e.kind !== 'sub')
     : [];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -3944,7 +4276,14 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     let category = planStep.category;
     if (!category) {
       if (nodeKey === 'sub_model') category = 'model';
-      else if (nodeKey === 'if_condition') category = 'condition';
+      else if (
+        nodeKey === 'if_condition' ||
+        nodeKey === 'if_router' ||
+        nodeId === 'if_condition' ||
+        nodeId === 'if_node_router'
+      ) {
+        category = 'condition';
+      } else if (/^logic_/.test(nodeKey) || /^logic_/.test(nodeId)) category = 'logic';
       else if (/^(trigger_|schedule_)/.test(nodeKey) || /^(trigger_|schedule_)/.test(nodeId)) category = 'trigger';
       else if (/^(extractor_|extract_)/.test(nodeKey) || /^extract_/.test(nodeId)) category = 'extractor';
       else if (/^(sub_memory|wappy_memory_|wappy_rag_)/.test(nodeKey) || /^wappy_(memory|rag)_/.test(nodeId)) category = 'memory';
@@ -3956,6 +4295,132 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       else category = 'tool';
     }
     if (category === 'input' || category === 'inputs') category = 'tool';
+
+    const matchedCustomObj =
+      configuredCustomNodes.find((c, i) => (c.key || c.id || `custom_${i + 1}`) === nodeKey) || null;
+
+    // 0A. GUARDIA OBLIGATORIA PARA NODOS "EN CONSTRUCCIÓN" (Omitir limpiamente sin romper ni demorar)
+    if (
+      planStep.underConstruction === true ||
+      isUnderConstructionNode(nodeKey, nodeId, matchedCustomObj)
+    ) {
+      await emitProgress({
+        type: 'step_start',
+        nodeKey,
+        nodeId,
+        category,
+      });
+      const baseSkipTitle =
+        stepCustomTitle || matchedCustomObj?.title || nodeId || nodeKey;
+      const passthroughItems =
+        currentPipelineItems.length > 0
+          ? currentPipelineItems.slice(0, 300)
+          : [
+              {
+                index: 1,
+                nodo: baseSkipTitle,
+                nodeId,
+                estado: '🚧 En Construcción (Omitido)',
+              },
+            ];
+      const skipMsg =
+        '🚧 En Construcción (Omitido): Este conector se encuentra actualmente en desarrollo y fue omitido limpiamente sin interrumpir ni demorar la secuencia del flujo.';
+      const skippedStep = {
+        stepIndex: ++stepCounter,
+        nodeKey,
+        nodeId: nodeId || nodeKey,
+        category,
+        title: `${baseSkipTitle} — 🚧 En Construcción (Omitido)`,
+        status: 'skipped',
+        durationMs: 3,
+        recordsCount: 0,
+        surgicalFields: [],
+        inputSummary: '🚧 En Construcción (Omitido)',
+        inputContext: '🚧 En Construcción (Omitido)',
+        outputPreview: skipMsg,
+        sourceNodeKey: lastProducerNode.nodeKey,
+        sourceNodeTitle: lastProducerNode.title,
+        inputItems: currentPipelineItems.slice(0, 300),
+        outputItems: passthroughItems,
+        evidences: [],
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            level: 'warn',
+            message: `🚧 En Construcción (Omitido): "${baseSkipTitle}" saltado en 3 ms sin afectar el flujo.`,
+          },
+        ],
+        error: null,
+      };
+      stepOutputsByKey.set(nodeKey, {
+        title: skippedStep.title,
+        category,
+        outputItems: passthroughItems,
+        evidences: [],
+      });
+      nodeTrace.push(skippedStep);
+      await emitProgress({
+        type: 'step_done',
+        nodeKey,
+        nodeId: skippedStep.nodeId,
+        step: skippedStep,
+      });
+      continue;
+    }
+
+    // 0B. ENRUTAMIENTO POR RAMA CONDICIONAL (Si existen cables explícitos if_true / if_false desde if_router)
+    if (ifHasEvaluated && customEdgesList.length > 0) {
+      const incomingEdges = customEdgesList.filter(
+        (e) => (e.targetKey || e.target) === nodeKey,
+      );
+      if (incomingEdges.length > 0) {
+        const allFromUntakenIfBranch = incomingEdges.every((e) => {
+          const src = e.sourceKey || e.source || '';
+          const port = String(e.portType || e.sourceHandle || '').toLowerCase();
+          if (src !== 'if_router' && src !== 'if_condition') return false;
+          if (!port.includes('true') && !port.includes('false')) return false;
+          const edgeIsTrue = port.includes('true');
+          return ifEvaluation.branchTaken === 'SI' ? !edgeIsTrue : edgeIsTrue;
+        });
+        if (allFromUntakenIfBranch) {
+          const untakenBranchStep = {
+            stepIndex: ++stepCounter,
+            nodeKey,
+            nodeId: nodeId || nodeKey,
+            category,
+            title: `${stepCustomTitle || nodeId} (Omitido — Rama ${ifEvaluation.branchTaken === 'SI' ? 'NO' : 'SÍ'} inactiva)`,
+            status: 'skipped',
+            durationMs: 2,
+            recordsCount: 0,
+            surgicalFields: [],
+            inputSummary: `Rama condicional activa: ${ifEvaluation.branchTaken}`,
+            inputContext: `Rama condicional activa: ${ifEvaluation.branchTaken}`,
+            outputPreview: `⏭️ Paso omitido porque pertenece exclusivamente a la rama opuesta a [${ifEvaluation.branchTaken}].`,
+            sourceNodeKey: lastProducerNode.nodeKey,
+            sourceNodeTitle: lastProducerNode.title,
+            inputItems: [],
+            outputItems: [],
+            evidences: [],
+            logs: [
+              {
+                timestamp: new Date().toISOString(),
+                level: 'info',
+                message: `Nodo omitido por bifurcación Si/No (Rama tomada: ${ifEvaluation.branchTaken})`,
+              },
+            ],
+            error: null,
+          };
+          nodeTrace.push(untakenBranchStep);
+          await emitProgress({
+            type: 'step_done',
+            nodeKey,
+            nodeId: untakenBranchStep.nodeId,
+            step: untakenBranchStep,
+          });
+          continue;
+        }
+      }
+    }
 
     // 1. NODO DISPARADOR (Trigger)
     if (category === 'trigger') {
@@ -4003,6 +4468,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           empresa: companyName,
           modoHorario: scheduleType,
           entradaSimulada: mockTriggerInput || 'Disparo automático',
+          ...(cfg.voiceCommand ? { comandoVoz: cfg.voiceCommand } : {}),
+          ...(cfg.emailSenderFilter ? { filtroRemitente: cfg.emailSenderFilter } : {}),
+          ...(cfg.emailSubjectFilter ? { filtroAsunto: cfg.emailSubjectFilter } : {}),
+          ...(cfg.qrPortalTarget ? { portalQR: cfg.qrPortalTarget } : {}),
           estado: 'activo',
           timestamp: new Date().toISOString(),
         },
@@ -4032,6 +4501,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           [
             hasMockInput ? `🧪 [EVENTO SIMULADO]: ${String(mockTriggerInput).trim()}` : null,
             kpiLine ? `📊 Estado del Disparador: ${kpiLine}` : null,
+            cfg.voiceCommand ? `🎙️ Comando Tenshi: "${cfg.voiceCommand}"` : null,
+            cfg.emailSubjectFilter ? `📧 Filtro Correo: "${cfg.emailSubjectFilter}"` : null,
+            cfg.qrPortalTarget ? `📱 Portal QR Colaborador: ${cfg.qrPortalTarget}` : null,
             cfg.customInstruction ? `📌 Instrucción: ${cfg.customInstruction}` : null,
           ]
             .filter(Boolean)
@@ -4073,11 +4545,18 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'model',
       });
       await pauseStep(180);
+      const engineDisplay =
+        selectedAiEngine === 'antigravity_cloud'
+          ? `Google Antigravity Cloud 24/7 (Respaldo: ${effectiveAiModel})`
+          : selectedAiEngine === 'antigravity'
+            ? `Google Antigravity Local Mac/PC (Respaldo: ${effectiveAiModel})`
+            : `WAPPY IA Rotación de Claves (${effectiveAiModel})`;
       const modelOutputItems = [
         {
           index: 1,
           motorIA: selectedAiEngine,
           modeloActivo: effectiveAiModel,
+          descripcionMotor: engineDisplay,
           estado: 'listo',
           rotacionClaves: true,
         },
@@ -4087,14 +4566,14 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         nodeKey,
         nodeId: effectiveAiModel,
         category: 'model',
-        title: stepCustomTitle || `🧠 Motor IA Activo (${effectiveAiModel})`,
+        title: stepCustomTitle || `🧠 Motor IA Activo (${engineDisplay})`,
         status: 'completed',
         durationMs: 15,
         recordsCount: 1,
         surgicalFields: [],
         inputSummary: `Motor: ${selectedAiEngine} · Modelo: ${effectiveAiModel}`,
         inputContext: `Motor: ${selectedAiEngine} · Modelo: ${effectiveAiModel}`,
-        outputPreview: `Motor IA "${effectiveAiModel}" preparado con rotación de claves WAPPY.`,
+        outputPreview: `Motor IA "${engineDisplay}" inicializado y verificado.`,
         sourceNodeKey: lastProducerNode.nodeKey,
         sourceNodeTitle: lastProducerNode.title,
         inputItems: currentPipelineItems.slice(0, 300),
@@ -4103,7 +4582,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           {
             timestamp: new Date().toISOString(),
             level: 'info',
-            message: `Motor IA "${effectiveAiModel}" inicializado para el Agente IA`,
+            message: `Motor IA "${engineDisplay}" inicializado para el Agente IA`,
           },
         ],
         error: null,
@@ -4140,21 +4619,170 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       continue;
     }
 
-    // 4. NODOS PERSONALIZADOS / LÓGICOS / SCRAPERS ANTIGRAVITY (custom_node, logic)
-    if (category === 'custom_node' || category === 'logic') {
+    // 4A. NODOS LÓGICOS DE CONTROL DE FLUJO (`loop`, `merge`, `switch`, `filter`, `human_approval`)
+    if (category === 'logic') {
+      await emitProgress({
+        type: 'step_start',
+        nodeKey,
+        nodeId,
+        category: 'logic',
+      });
+      const tLogic0 = Date.now();
+      await pauseStep(140);
+      const lnObj =
+        configuredLogicNodes.find((l) => l.key === nodeKey || `logic_${l.logicType}` === nodeId) || {};
+      const lnCfg = resolveNodeConfig(nodeKey, nodeId);
+      const rawLogicType = String(
+        lnObj.logicType || String(nodeId || nodeKey).replace(/^logic_/, ''),
+      ).toLowerCase();
+      const logicIncoming = currentPipelineItems.slice(0, 300);
+      const logicSource = { ...lastProducerNode };
+
+      let logicOutputItems = logicIncoming;
+      let logicEvidences = [];
+      let logicSummary = '';
+      let logicPreview = '';
+      const logicTitle = stepCustomTitle || lnObj.title || `Nodo Lógico (${rawLogicType})`;
+
+      if (rawLogicType.includes('merge')) {
+        // Consolidar salidas de múltiples ramas productoras previas sin duplicar registros
+        const mergedItems = [];
+        const mergedEvidences = [];
+        const seenItemKeys = new Set();
+        for (const [sKey, sVal] of stepOutputsByKey.entries()) {
+          if (sVal.category === 'model' || sVal.category === 'trigger') continue;
+          if (Array.isArray(sVal.evidences) && sVal.evidences.length > 0) {
+            mergedEvidences.push(...sVal.evidences);
+          }
+          for (const it of sVal.outputItems || []) {
+            const k =
+              String(
+                it.cedula ||
+                  it['Cédula / Documento'] ||
+                  it.documento ||
+                  it.id ||
+                  `${sKey}_${it.nombre || it.colaborador || it.index || ''}`,
+              ).trim() + `::${it.fuente || sVal.title || ''}`;
+            if (seenItemKeys.has(k)) continue;
+            seenItemKeys.add(k);
+            mergedItems.push({
+              ...it,
+              index: mergedItems.length + 1,
+              _mergedFrom: sVal.title,
+            });
+          }
+        }
+        logicOutputItems = mergedItems.length > 0 ? mergedItems.slice(0, 300) : logicIncoming;
+        logicEvidences = sanitizePublicEvidenceList(mergedEvidences);
+        logicSummary = `Unión (Merge) de ${stepOutputsByKey.size} paso(s) previos ➔ ${logicOutputItems.length} registro(s) consolidados`;
+        logicPreview = `🔗 **MERGE COMPLETADO:** Se unificaron las ramas conectadas previas entregando **${logicOutputItems.length}** registro(s) consolidado(s)${logicEvidences.length > 0 ? ` y **${logicEvidences.length}** soporte(s) documental(es)` : ''} al siguiente nodo.`;
+      } else if (rawLogicType.includes('loop')) {
+        const batchSize = Math.max(1, Number(lnCfg.batchSize) || 25);
+        const totalBatches = Math.max(1, Math.ceil(logicIncoming.length / batchSize));
+        logicOutputItems = logicIncoming.map((it, idx) => ({
+          ...it,
+          index: idx + 1,
+          _loopIteration: idx + 1,
+          _loopTotal: logicIncoming.length,
+          _loopBatch: Math.floor(idx / batchSize) + 1,
+        }));
+        logicSummary = `Iteración por Lotes (Loop): ${logicOutputItems.length} registro(s) recorridos en ${totalBatches} lote(s)`;
+        logicPreview = `🔁 **LOOP EJECUTADO:** Se iteraron **${logicOutputItems.length}** registro(s) de "${logicSource.title}" (${totalBatches} lote(s) de máx. ${batchSize} ítems) listos para procesamiento individual.`;
+      } else if (rawLogicType.includes('human_approval') || rawLogicType.includes('approval')) {
+        const approver = String(lnCfg.approverEmail || validEmails[0] || 'responsable.sst@empresa.com').trim();
+        logicOutputItems =
+          logicIncoming.length > 0
+            ? logicIncoming.map((it, idx) => ({
+                ...it,
+                index: idx + 1,
+                _approvalGate: 'simulado_aprobado_sandbox',
+                _approverEmail: approver,
+              }))
+            : [
+                {
+                  index: 1,
+                  aprobador: approver,
+                  estadoAprobacion: 'simulado_aprobado_sandbox',
+                },
+              ];
+        logicSummary = `Compuerta de Aprobación Humana (${approver}) — Simulada en Sandbox`;
+        logicPreview = `👤 **APROBACIÓN HUMANA (VISTA PREVIA SANDBOX):** En ejecución real se solicitará visto bueno a **${approver}** antes de continuar. En Modo Desarrollo continúa automáticamente (${logicOutputItems.length} registro(s)).`;
+      } else {
+        // switch / filter
+        const ruleExpr = String(lnCfg.ifRuleExpression || lnCfg.customInstruction || '').trim().toLowerCase();
+        if (ruleExpr) {
+          const matched = logicIncoming.filter((it) =>
+            JSON.stringify(it).toLowerCase().includes(ruleExpr),
+          );
+          logicOutputItems = matched.length > 0 ? matched : logicIncoming;
+        }
+        logicSummary = `Filtro / Enrutador Lógico (${logicOutputItems.length}/${logicIncoming.length} registro(s))`;
+        logicPreview = `🎛️ **FILTRO LÓGICO APLICADO:** ${logicOutputItems.length} de ${logicIncoming.length} registro(s) cumplen los criterios configurados${ruleExpr ? ` ("${ruleExpr}")` : ''}.`;
+      }
+
+      const logicDurationMs = Math.max(1, Date.now() - tLogic0);
+      const logicStep = {
+        stepIndex: ++stepCounter,
+        nodeKey,
+        nodeId: nodeId || nodeKey,
+        category: 'logic',
+        title: logicTitle,
+        status: 'completed',
+        durationMs: logicDurationMs,
+        recordsCount: logicOutputItems.length,
+        surgicalFields: [],
+        inputSummary: logicSummary,
+        inputContext: logicSummary,
+        outputPreview: logicPreview,
+        sourceNodeKey: logicSource.nodeKey,
+        sourceNodeTitle: logicSource.title,
+        inputItems: logicIncoming,
+        outputItems: logicOutputItems,
+        evidences: logicEvidences,
+        logs: [
+          {
+            timestamp: new Date().toISOString(),
+            level: 'success',
+            message: `${logicTitle}: ${logicSummary} (${logicDurationMs} ms)`,
+          },
+        ],
+        error: null,
+      };
+      stepOutputsByKey.set(nodeKey, {
+        title: logicStep.title,
+        category: 'logic',
+        outputItems: logicOutputItems,
+        evidences: logicEvidences,
+      });
+      if (logicOutputItems.length > 0) {
+        currentPipelineItems = logicOutputItems;
+        lastProducerNode = { nodeKey, title: logicStep.title };
+      }
+      nodeTrace.push(logicStep);
+      await emitProgress({
+        type: 'step_done',
+        nodeKey,
+        nodeId: logicStep.nodeId,
+        step: logicStep,
+      });
+      continue;
+    }
+
+    // 4B. NODOS PERSONALIZADOS / SKILLS / REGLAS / SUB-AGENTES / SCRAPERS ANTIGRAVITY (custom_node)
+    if (category === 'custom_node') {
       await emitProgress({
         type: 'step_start',
         nodeKey,
         nodeId,
         category,
       });
-      const cn =
-        configuredCustomNodes.find((c, i) => (c.key || c.id || `custom_${i + 1}`) === nodeKey) || {};
+      const cn = matchedCustomObj || {};
       const cnCfg = resolveNodeConfig(nodeKey, nodeId);
       const cnIncomingItems = currentPipelineItems.slice(0, 300);
       const cnIncomingSource = { ...lastProducerNode };
+      const cnTypeLower = String(cn.nodeType || nodeId || '').toLowerCase();
 
-      // Si es un Scraper / Verificador de Google Antigravity (Alto Riesgo & SENA MinTrabajo, Antecedentes 360°, etc.),
+      // Si es un Scraper / Verificador ACTIVO de Google Antigravity (Alto Riesgo, ARL Directo, Vial PESV, Antecedentes, Carpeta PC o Scraper Web AGY),
       // ejecuta la consulta REAL en vivo a través del puente Google Antigravity Push Daemon (`wappy-push-daemon.js`) / OSINT
       if (isAntigravityScraperIdentifier(nodeKey, nodeId, cn)) {
         const realScraper = await executeRealAntigravityScraperVerification({
@@ -4247,10 +4875,117 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         continue;
       }
 
-      await pauseStep(200);
+      // Caso Especial: Sub-Agente Especialista o Buscador Web en Vivo (`subagent` / `web_search`)
+      if (cnTypeLower === 'subagent' || cnTypeLower === 'web_search') {
+        const subTitle = stepCustomTitle || cn.title || (cnTypeLower === 'web_search' ? 'Buscador Web SST' : 'Sub-Agente Especialista');
+        const subInstruction =
+          cn.content ||
+          cnCfg.customInstruction ||
+          cn.subtitle ||
+          prompt ||
+          `Analiza técnicamente los datos recibidos de "${companyName}".`;
+        const subItemsDigest = cnIncomingItems
+          .slice(0, 20)
+          .map((it, idx) => `${idx + 1}. ${JSON.stringify(it).slice(0, 260)}`)
+          .join('\n');
+        const subExec = await executeSandboxAgentCall({
+          reqUser,
+          agentDoc: {
+            name: subTitle,
+            model: effectiveAiModel,
+            instructions: `Actúas como ${subTitle} de WAPPY IA para la empresa "${companyName}". ${subInstruction}`,
+          },
+          fullPrompt:
+            `[EMPRESA]: "${companyName}"\n` +
+            `[DATOS DE ENTRADA DESDE "${cnIncomingSource.title}" (${cnIncomingItems.length} ítem(s))]:\n${subItemsDigest || 'Sin registros previos.'}\n\n` +
+            `[TAREA ESPECIALIZADA]: ${subInstruction}\nEntrega un dictamen técnico concreto y estructurado en Markdown.`,
+          useWebSearch: cnTypeLower === 'web_search',
+        });
+        const cleanSubText = stripAgentInlineEvidenceNoise(
+          subExec.text || `Dictamen completado por ${subTitle}.`,
+          nodeTrace.flatMap((n) => (Array.isArray(n.evidences) ? n.evidences : [])),
+        );
+        if (cnTypeLower === 'subagent') {
+          agentOutputs.push({
+            agentKey: nodeKey,
+            agentName: subTitle,
+            roleLabel: cn.subtitle || 'Sub-Agente Especialista',
+            model: effectiveAiModel,
+            avatarSrc: '/assets/tenshi.png',
+            promptUsed: subInstruction,
+            responseText: cleanSubText,
+            durationMs: subExec.durationMs,
+          });
+          previousAgentResponse = cleanSubText;
+        }
+        const subOutItems = [
+          {
+            index: 1,
+            subAgente: subTitle,
+            tipo: cnTypeLower,
+            modelo: effectiveAiModel,
+            dictamen: cleanSubText,
+            duracionMs: subExec.durationMs,
+          },
+        ];
+        const subStep = {
+          stepIndex: ++stepCounter,
+          nodeKey,
+          nodeId: cn.nodeType || nodeId || nodeKey,
+          category,
+          title: `🧑‍🔬 ${subTitle}`,
+          status: 'completed',
+          durationMs: subExec.durationMs,
+          recordsCount: 1,
+          surgicalFields: [],
+          inputSummary: `${cnTypeLower === 'web_search' ? 'Búsqueda Web Grounding' : 'Sub-Agente Especialista'} (${effectiveAiModel}) sobre ${cnIncomingItems.length} ítem(s)`,
+          inputContext: subInstruction.slice(0, 220),
+          outputPreview: cleanSubText.slice(0, 1400),
+          sourceNodeKey: cnIncomingSource.nodeKey,
+          sourceNodeTitle: cnIncomingSource.title,
+          inputItems: cnIncomingItems,
+          outputItems: subOutItems,
+          logs: [
+            {
+              timestamp: new Date().toISOString(),
+              level: subExec.error ? 'warn' : 'success',
+              message: `${subTitle} ejecutado en ${subExec.durationMs} ms`,
+            },
+          ],
+          error: subExec.error || null,
+        };
+        stepOutputsByKey.set(nodeKey, {
+          title: subStep.title,
+          category,
+          outputItems: subOutItems,
+        });
+        currentPipelineItems = subOutItems;
+        lastProducerNode = { nodeKey, title: subStep.title };
+        nodeTrace.push(subStep);
+        await emitProgress({
+          type: 'step_done',
+          nodeKey,
+          nodeId: subStep.nodeId,
+          step: subStep,
+        });
+        continue;
+      }
+
+      // Registrar Skills y Reglas activas para inyectarlas en el prompt del Agente IA siguiente
+      if (cnTypeLower === 'skill' || cnTypeLower === 'rule') {
+        const srBody =
+          cnCfg.skillContent || cnCfg.ruleText || cn.content || cnCfg.customInstruction || cn.subtitle || '';
+        if (srBody) {
+          activeSkillsAndRulesBlocks.push(
+            `- [${cnTypeLower === 'skill' ? 'SKILL TÉCNICA ACTIVA' : 'REGLA OBLIGATORIA ACTIVA'} — "${cn.title || stepCustomTitle || nodeKey}"]: ${srBody}`,
+          );
+        }
+      }
+
+      await pauseStep(160);
       const antigravityMode = String(cnCfg?.antigravityMode || cn?.antigravityMode || 'auto');
       let customChatDispatch = null;
-      if (category === 'custom_node' && typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
+      if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' && cnTypeLower !== 'skill' && cnTypeLower !== 'rule') {
         const cnInstruction = [
           cn.content || cn.subtitle || cnCfg.customInstruction || prompt || '',
           cn.targetUrl || cnCfg.targetUrl ? `URL(s): ${cn.targetUrl || cnCfg.targetUrl}` : '',
@@ -4290,8 +5025,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         cn.scriptCode || cnCfg.scriptCode
           ? `💻 Script: ${String(cn.scriptCode || cnCfg.scriptCode).slice(0, 260)}`
           : '',
-        cnCfg.skillContent ? `📘 Skill: ${String(cnCfg.skillContent).slice(0, 260)}` : '',
-        cnCfg.ruleText ? `🛡️ Regla: ${String(cnCfg.ruleText).slice(0, 260)}` : '',
+        cnCfg.skillContent ? `📘 Skill: ${String(cnCfg.skillContent).slice(0, 400)}` : '',
+        cnCfg.ruleText ? `🛡️ Regla: ${String(cnCfg.ruleText).slice(0, 400)}` : '',
         customChatDispatch?.completedSync && customChatDispatch?.content
           ? `💬 Respuesta de Antigravity:\n${String(customChatDispatch.content).slice(0, 1200)}`
           : '',
@@ -4299,11 +5034,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .filter(Boolean)
         .join('\n');
 
-      const cnInputSummary =
-        category === 'custom_node'
-          ? `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()}) y devolviendo respuesta al Agente IA`
-          : `Paso conectado en posición #${stepCounter + 1}`;
       const cnNodeLabel = stepCustomTitle || cn.title || nodeKey;
+      const cnInputSummary =
+        cnTypeLower === 'skill' || cnTypeLower === 'rule'
+          ? `${cnTypeLower === 'skill' ? '📘 Skill Técnica' : '🛡️ Regla Normativa'} cargada e inyectada para el Agente IA`
+          : `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${antigravityMode.toUpperCase()})`;
       const cnEnrichedOutput =
         cnIncomingItems.length > 0
           ? cnIncomingItems.map((it, idx) => ({
@@ -4314,10 +5049,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
               modoAntigravity: antigravityMode,
               ordenAntigravity: customChatDispatch?.ordenId || it.ordenAntigravity || null,
               dictamenAntigravity:
-                (cn.nodeType || '').toLowerCase() === 'skill'
+                cnTypeLower === 'skill'
                   ? `Evaluado con Skill (${cnNodeLabel}) · Cumple criterios GTC-45 / SG-SST`
-                  : (cn.nodeType || '').toLowerCase() === 'subagent'
-                    ? `Auditado por Sub-Agente (${cnNodeLabel}) · Controles y matriz verificados`
+                  : cnTypeLower === 'rule'
+                    ? `Validado bajo Regla (${cnNodeLabel})`
                     : `Procesado en ${cnNodeLabel}`,
             }))
           : [
@@ -4393,17 +5128,27 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       continue;
     }
 
-    // 5. NODO CONDICIÓN SI/NO (if_condition)
-    if (category === 'condition' || nodeKey === 'if_condition') {
+    // 5. NODO CONDICIÓN SI/NO (`if_router` / `if_condition`)
+    if (
+      category === 'condition' ||
+      nodeKey === 'if_condition' ||
+      nodeKey === 'if_router' ||
+      nodeId === 'if_condition'
+    ) {
       await emitProgress({
         type: 'step_start',
         nodeKey,
         nodeId: 'if_condition',
         category: 'condition',
       });
-      await pauseStep(220);
+      await pauseStep(180);
+      const ifCfg = resolveNodeConfig(nodeKey, 'if_condition');
+      const condType = String(ifCfg.ifConditionType || 'critical_findings');
+      const ruleExpr = String(ifCfg.ifRuleExpression || '').trim();
       const mockLower = String(mockTriggerInput || '').toLowerCase();
       const respLower = String(previousAgentResponse || finalResponse || '').toLowerCase();
+      const pipelineStrLower = JSON.stringify(currentPipelineItems.slice(0, 50)).toLowerCase();
+
       const explicitNoInMock =
         /sin novedad|sin hallazgo|no hay archivo|0 alerta|todo al d[ií]a|ning[uú]n vencimiento|rama no/i.test(
           mockLower,
@@ -4415,7 +5160,42 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           respLower,
         );
 
-      if (explicitNoInMock || explicitNoInResp) {
+      if (condType === 'keyword_match' && ruleExpr) {
+        const keywords = ruleExpr
+          .split(/[,;|]+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        const matchedKw = keywords.find(
+          (kw) => respLower.includes(kw) || pipelineStrLower.includes(kw) || mockLower.includes(kw),
+        );
+        ifEvaluation = {
+          enabled: true,
+          branchTaken: matchedKw ? 'SI' : 'NO',
+          reason: matchedKw
+            ? `Coincidencia exacta de palabra clave "${matchedKw}" detectada en el flujo -> Se activa la Rama SÍ.`
+            : `Ninguna palabra clave de [${ruleExpr}] apareció en los datos evaluados -> Se activa la Rama NO.`,
+        };
+      } else if (condType === 'numeric_threshold' && ruleExpr) {
+        const numMatch = ruleExpr.match(/(>=|<=|>|<|==|=)\s*(\d+(?:\.\d+)?)/);
+        const threshold = numMatch ? Number(numMatch[2]) : 1;
+        const op = numMatch ? numMatch[1] : '>=';
+        const observed = totalCriticalRecords > 0 ? totalCriticalRecords : totalExtractedRecords;
+        const passed =
+          op === '>'
+            ? observed > threshold
+            : op === '>='
+              ? observed >= threshold
+              : op === '<'
+                ? observed < threshold
+                : op === '<='
+                  ? observed <= threshold
+                  : observed === threshold;
+        ifEvaluation = {
+          enabled: true,
+          branchTaken: passed ? 'SI' : 'NO',
+          reason: `Evaluación de umbral numérico (${observed} ${op} ${threshold}) -> Se activa la Rama ${passed ? 'SÍ' : 'NO'}.`,
+        };
+      } else if (explicitNoInMock || explicitNoInResp) {
         ifEvaluation = {
           enabled: true,
           branchTaken: 'NO',
@@ -4430,14 +5210,16 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           reason: `Se validaron ${totalExtractedRecords} registro(s) en los pasos conectados previos (${totalCriticalRecords} críticos/en brecha) -> Se activa la Rama SÍ hacia los siguientes nodos del flujo.`,
         };
       }
+      ifHasEvaluated = true;
 
-      const ifCfg = resolveNodeConfig(nodeKey, 'if_condition');
       const condIncomingItems = currentPipelineItems.slice(0, 300);
       const condSource = { ...lastProducerNode };
       const condOutputItems = [
         {
           index: 1,
           condicion: stepCustomTitle || 'Condición Si/No',
+          tipoRegla: condType,
+          expresion: ruleExpr || 'Detección automática de hallazgos',
           branchTaken: ifEvaluation.branchTaken,
           reason: ifEvaluation.reason,
           registrosEvaluados: totalExtractedRecords,
@@ -4456,10 +5238,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         surgicalFields: [],
         inputSummary:
           ifCfg.customInstruction ||
-          `Evaluación en Paso #${stepCounter} sobre ${nodeTrace.length} paso(s) previos conectados`,
+          `Evaluación (${condType}) en Paso #${stepCounter} sobre ${nodeTrace.length} paso(s) previos conectados`,
         inputContext:
           ifCfg.customInstruction ||
-          `Evaluación en Paso #${stepCounter} sobre ${nodeTrace.length} paso(s) previos conectados`,
+          `Evaluación (${condType}) en Paso #${stepCounter} sobre ${nodeTrace.length} paso(s) previos conectados`,
         outputPreview: `✅ Rama tomada: [${ifEvaluation.branchTaken}] — ${ifEvaluation.reason}`,
         sourceNodeKey: condSource.nodeKey,
         sourceNodeTitle: condSource.title,
@@ -4553,10 +5335,25 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
               .join('\n\n')
           : 'Este Agente IA se encuentra al inicio del flujo sin extractores previos.';
 
-      let companyProfileMemoryBlock = '';
+      let connectedMemoriesPromptBlock = '';
       if (connectedNodeIds.has('wappy_memory_company') && automationCompany) {
-        companyProfileMemoryBlock =
+        connectedMemoriesPromptBlock +=
           `- [MEMORIA DE EMPRESA CONECTADA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiuCode || automationCompany.ciiu || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.employeeCount ?? automationCompany.workerCount ?? 'N/A'}\n`;
+      }
+      if (connectedNodeIds.has('wappy_memory_antiduplicate')) {
+        connectedMemoriesPromptBlock +=
+          `- [MEMORIA ANTI-DUPLICADOS ACTIVA (wappy_memory_antiduplicate)]: Cruza los IDs/cédulas ya reportados en corridas previas del paso de memoria para NO repetir alertas idénticas ya cerradas.\n`;
+      }
+      if (connectedNodeIds.has('wappy_rag_documental')) {
+        connectedMemoriesPromptBlock +=
+          `- [MEMORIA RAG DOCUMENTAL CONECTADA (wappy_rag_documental)]: Aplica los documentos vivos y cuadernos NotebookLM indexados para "${companyName}" extraídos en el paso de memoria.\n`;
+      }
+      if (connectedNodeIds.has('wappy_memory_procedural')) {
+        connectedMemoriesPromptBlock +=
+          `- [MEMORIA PROCEDURAL NORMATIVA SST ACTIVA (wappy_memory_procedural)]: Aplica estrictamente Decreto 1072/2015, Res. 0312/2019, GTC-45, Res. 4272/2021, Res. 20223040040595 PESV, Res. 2764/2022 y Decreto 1496/2018 SGA.\n`;
+      }
+      if (activeSkillsAndRulesBlocks.length > 0) {
+        connectedMemoriesPromptBlock += `${activeSkillsAndRulesBlocks.join('\n')}\n`;
       }
 
       const agentCfg = resolveNodeConfig(nodeKey, nodeId);
@@ -4564,7 +5361,6 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         (!isPrimaryAgent && eaObj?.prompt ? String(eaObj.prompt).trim() : '') ||
         (agentCfg?.customInstruction ? String(agentCfg.customInstruction).trim() : '');
 
-      // Si el flujo cambió (nodos desconectados o reordenados), el prompt debe reflejar OBLIGATORIAMENTE los pasos reales conectados
       const connectedDataTitles = upstreamSteps
         .filter((s) => s.category !== 'model')
         .map((s) => s.title)
@@ -4591,14 +5387,14 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             ? `${effectiveUserPrompt}\n\n(NOTA CRÍTICA: Ajusta este análisis estrictamente a los nodos actualmente conectados en la secuencia: ${connectedDataTitles || 'Disparador'} ➔ ${currentAgentName} ➔ ${downstreamTitles || 'Salida'}).`
             : `Ejecuta el análisis del flujo para "${companyName}" siguiendo estrictamente el orden consecutivo de los pasos conectados (${connectedDataTitles || 'Disparador'} ➔ ${downstreamTitles || 'Salida'}).`);
 
-      const upstreamEvidences = upstreamSteps.flatMap((st) =>
-        Array.isArray(st.evidences) ? st.evidences : [],
+      const upstreamEvidences = sanitizePublicEvidenceList(
+        upstreamSteps.flatMap((st) => (Array.isArray(st.evidences) ? st.evidences : [])),
       );
       const evidencesPromptDirective = buildScraperEvidencesPromptBlock(upstreamEvidences);
 
       const fullAgentPrompt =
         `[CONTEXTO DE EMPRESA ACTIVA]: "${companyName}" (NIT: ${automationCompany?.nit || 'N/A'})\n` +
-        companyProfileMemoryBlock +
+        connectedMemoriesPromptBlock +
         (cleanMockInput
           ? `\n🚨 [ENTRADA / SOLICITUD EN VIVO RECIBIDA EN EL DISPARADOR — PRIORIDAD #1 A RESPONDER]:\n"""\n${cleanMockInput}\n"""\n`
           : '') +
@@ -4671,6 +5467,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           model: currentAgentModel,
         },
         fullPrompt: fullAgentPrompt,
+        useWebSearch:
+          connectedNodeIds.has('web_search') || connectedNodeIds.has('extract_web_search'),
         timeoutMs: 60000,
       });
 
@@ -4693,6 +5491,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             .join('\n\n');
       }
 
+      if (upstreamEvidences.length > 0) {
+        agentResponseText = stripAgentInlineEvidenceNoise(agentResponseText, upstreamEvidences);
+      }
+
       agentOutputs.push({
         agentKey: nodeKey,
         agentName: currentAgentName,
@@ -4704,6 +5506,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           '/assets/tenshi.png',
         promptUsed: baseInstructionForAgent,
         responseText: agentResponseText,
+        responseMarkdown: agentResponseText,
         durationMs: agentExec.durationMs,
       });
 
@@ -4806,7 +5609,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         nodeId,
         category: 'output',
       });
-      await pauseStep(200);
+      await pauseStep(160);
       const outCfg = resolveNodeConfig(nodeKey, nodeId);
       const outIncomingItems = currentPipelineItems.slice(0, 300);
       const outSource = { ...lastProducerNode };
@@ -4815,12 +5618,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .replace(/\s+/g, ' ')
         .trim()
         .substring(0, 260);
-      const outSubject = `📊 [VISTA PREVIA DESARROLLO] Reporte Automático SGSST: ${flowName} - ${companyName}`;
+      const outSubject =
+        outCfg.emailSubject ||
+        `📊 [VISTA PREVIA DESARROLLO] Reporte Automático SGSST: ${flowName} - ${companyName}`;
       const outOutputItems = [
         {
           index: 1,
           canal: nodeId,
-          destinatarios: validEmails,
+          tituloCanal: outputTitleMap[nodeId] || stepCustomTitle || nodeId,
+          destinatarios: nodeId === 'email_report' ? validEmails : [],
           asunto: outSubject,
           estado: 'bloqueado_modo_desarrollo',
           resumen: currentShortSummary || 'Salida lista en Modo Desarrollo (dryRun: true)',
@@ -4860,7 +5666,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             level: 'warn',
             message: `Salida "${stepCustomTitle || outputTitleMap[nodeId] || nodeId}" preparada y bloqueada por Modo Desarrollo (dryRun: true)`,
             detail:
-              validEmails.length > 0
+              nodeId === 'email_report' && validEmails.length > 0
                 ? `Destinatarios configurados: ${validEmails.join(', ')}`
                 : 'Sin envío externo en escenario de pruebas.',
           },
@@ -4893,6 +5699,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         .join('\n\n');
   }
 
+  const allSimulationEvidences = sanitizePublicEvidenceList(
+    nodeTrace.flatMap((n) => (Array.isArray(n.evidences) ? n.evidences : [])),
+  );
+  if (allSimulationEvidences.length > 0) {
+    finalResponse = stripAgentInlineEvidenceNoise(finalResponse, allSimulationEvidences);
+  }
+
   const shortSummary = finalResponse
     .replace(/[#*_`]/g, '')
     .replace(/\s+/g, ' ')
@@ -4906,14 +5719,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     .filter((s) => s.category === 'hito')
     .map((s) => s.nodeId);
 
-  const allSimulationEvidences = nodeTrace.flatMap((n) =>
-    Array.isArray(n.evidences) ? n.evidences : [],
-  );
-
   const simulatedOutputs = {
     emailPreview: {
       enabled: connectedOutputsList.includes('email_report'),
       blocked: true,
+      from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
       recipients: validEmails,
       subject: `📊 [VISTA PREVIA DESARROLLO] Reporte Automático SGSST: ${flowName} - ${companyName}`,
       htmlBody: formatMarkdownToEmailHtml(finalResponse),
@@ -4939,6 +5749,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         connectedOutputsList.includes('acpm_task') ||
         connectedOutputsList.includes('canvas_doc') ||
         connectedOutputsList.includes('somos_sst_update') ||
+        connectedOutputsList.includes('google_docs') ||
+        connectedOutputsList.includes('google_sheets') ||
+        connectedOutputsList.includes('google_slides') ||
+        connectedOutputsList.includes('google_calendar') ||
         connectedHitosList.length > 0,
       blocked: true,
       targetHitos: connectedHitosList,
@@ -4963,15 +5777,19 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     mockTriggerInput: mockTriggerInput ? String(mockTriggerInput).trim() : '',
     promptUsed: effectiveUserPrompt,
     finalResponse,
+    finalResponseMarkdown: finalResponse,
     finalResponseHtml: formatMarkdownToEmailHtml(finalResponse),
     nodeTrace,
+    evidenceFiles: allSimulationEvidences,
     evidences: allSimulationEvidences,
     agentOutputs,
     ifEvaluation,
     simulatedOutputs,
+    interceptedOutputs: simulatedOutputs,
     stats: {
       totalSteps: nodeTrace.length,
       completedSteps: nodeTrace.filter((n) => n.status === 'completed').length,
+      skippedSteps: nodeTrace.filter((n) => n.status === 'skipped').length,
       blockedOutputSteps: nodeTrace.filter((n) => n.status === 'simulated_blocked').length,
       totalRecordsInspected: totalExtractedRecords,
       totalCriticalRecords,
@@ -4988,6 +5806,9 @@ module.exports = {
   runWorkflowSandboxSimulation,
   formatMarkdownToEmailHtml,
   saveScraperEvidenceFiles,
+  sanitizePublicEvidenceList,
+  stripAgentInlineEvidenceNoise,
+  isUnderConstructionNode,
   calculateNextRun,
   stopAutomation,
 };

@@ -750,19 +750,33 @@ function enrichMinTrabajoResult(baseObj = {}, viaDaemon = false) {
     : null;
   const isVig = Boolean(baseObj.activoEnAlturas || baseObj.activoEnConfinados || latest?.vigente);
   const status = baseObj.status || (cursos.length > 0 ? (isVig ? 'ok' : 'warning') : 'ok');
+  const entidadDetectada = baseObj.entidadDetectada || latest?.entrenador || null;
+  const fechaCertificado =
+    baseObj.fechaCertificado || latest?.fechaTerminacion || latest?.fechaFinISO || null;
+  const estadoReal =
+    baseObj.estadoReal ||
+    (cursos.length > 0
+      ? isVig
+        ? '✅ VIGENTE'
+        : '⚠️ VENCIDO / REQUIERE REENTRENAMIENTO'
+      : '❌ SIN REGISTRO');
   const fuente =
     baseObj.fuente ||
     (viaDaemon || baseObj.viaAntigravityDaemon
-      ? `Google Antigravity (${baseObj.resolvedEnv === 'cloud' ? 'Cloud 24/7' : 'Local IP Colombia'} · MinTrabajo)`
-      : 'MinTrabajo Oficial');
+      ? `Google Antigravity (${baseObj.resolvedEnv === 'cloud' ? 'Cloud 24/7' : 'Local IP Colombia'} · MinTrabajo / SENA)`
+      : 'MinTrabajo / SENA Oficial');
   const resumen =
     baseObj.resumen ||
     (cursos.length > 0
       ? `Titular: ${baseObj.titular || 'Registrado'} · ${cursos.length} curso(s) en MinTrabajo (${latest.programa || latest.nivel} — ${latest.fechaTerminacion || ''}, Centro: ${latest.entrenador || 'Autorizado'})`
-      : `Sin certificados de Trabajo en Alturas ni Espacios Confinados registrados en MinTrabajo para ${baseObj.tipoDoc || 'CC'} ${baseObj.documento || ''}.`);
+      : `Sin certificados de Trabajo en Alturas ni Espacios Confinados registrados en MinTrabajo / SENA para ${baseObj.tipoDoc || 'CC'} ${baseObj.documento || ''}.`);
 
   return {
     ...baseObj,
+    estadoReal,
+    entidadDetectada,
+    fechaCertificado,
+    tieneCertificado: Boolean(baseObj.pdfBase64),
     pdfBase64: baseObj.pdfBase64 || null,
     pdfFileName: baseObj.pdfFileName || null,
     imageBase64: baseObj.imageBase64 || null,
@@ -1994,15 +2008,44 @@ function createAsyncSemaphore(maxConcurrent = 4) {
 
 const runWithArlHttpSlot = createAsyncSemaphore(6);
 const runWithContraloriaSlot = createAsyncSemaphore(4);
-const runWithPuppeteerSlot = createAsyncSemaphore(2);
-const runWithSimitMutex = createAsyncSemaphore(1);
+const runWithPuppeteerSlot = createAsyncSemaphore(4);
+const SIMIT_POOL_SIZE = 1;
+const runWithSimitPool = createAsyncSemaphore(SIMIT_POOL_SIZE);
 
 let sharedPuppeteerBrowser = null;
 let sharedPuppeteerLaunchPromise = null;
 let sharedPuppeteerActiveCount = 0;
 let sharedPuppeteerIdleTimer = null;
-let sharedSimitPage = null;
-let sharedSimitResponseSink = null;
+const simitWorkerSlots = Array.from({ length: SIMIT_POOL_SIZE }, (_, idx) => ({
+  id: idx,
+  busy: false,
+  context: null,
+  page: null,
+  sink: null,
+  uses: 0,
+}));
+
+function acquireFreeSimitSlot() {
+  const free = simitWorkerSlots.find((s) => !s.busy);
+  if (free) {
+    free.busy = true;
+    return free;
+  }
+  simitWorkerSlots[0].busy = true;
+  return simitWorkerSlots[0];
+}
+
+async function resetSimitSlot(slot) {
+  if (!slot) return;
+  const oldPage = slot.page;
+  const oldCtx = slot.context;
+  slot.page = null;
+  slot.context = null;
+  slot.sink = null;
+  slot.uses = 0;
+  if (oldPage) await oldPage.close().catch(() => {});
+  if (oldCtx) await oldCtx.close().catch(() => {});
+}
 
 function scheduleSharedBrowserIdleClose() {
   if (sharedPuppeteerIdleTimer) {
@@ -2012,11 +2055,15 @@ function scheduleSharedBrowserIdleClose() {
   if (sharedPuppeteerActiveCount === 0 && sharedPuppeteerBrowser) {
     sharedPuppeteerIdleTimer = setTimeout(() => {
       if (sharedPuppeteerActiveCount === 0 && sharedPuppeteerBrowser) {
-        const sp = sharedSimitPage;
-        sharedSimitPage = null;
-        sharedSimitResponseSink = null;
-        if (sp) {
-          sp.close().catch(() => {});
+        for (const slot of simitWorkerSlots) {
+          const sp = slot.page;
+          const sc = slot.context;
+          slot.page = null;
+          slot.context = null;
+          slot.sink = null;
+          slot.uses = 0;
+          if (sp) sp.close().catch(() => {});
+          if (sc) sc.close().catch(() => {});
         }
         const b = sharedPuppeteerBrowser;
         sharedPuppeteerBrowser = null;
@@ -2464,126 +2511,154 @@ async function consultarRamaJudicial(params = '') {
   const cleanNombre =
     typeof params === 'string'
       ? params.trim()
-      : String(params?.nombreCompleto || params?.nombre || '').trim();
+      : String(params?.nombreCompleto || params?.nombre || params?.fullName || '').trim();
   const includeEvidence = isObj && params.includeEvidence !== undefined ? params.includeEvidence : true;
-  const forceEvidence = Boolean(isObj && params.forceEvidence === true);
   const cleanTipoDoc = isObj ? String(params.tipoDoc || 'CC').trim().toUpperCase() : 'CC';
-  const cleanCedula = isObj ? String(params.cedula || '').trim() : '';
+  const cleanCedula = isObj
+    ? String(params.cedula || params.documento || params.identificacion || '').trim()
+    : '';
 
-  const [rj, contraloria] = await Promise.all([
-    cleanNombre && cleanNombre.length >= 4
-      ? consultarRamaJudicialPorNombre(cleanNombre)
-      : Promise.resolve({
-          ok: false,
-          consultado: false,
-          nombreConsultado: cleanNombre,
-          totalProcesos: 0,
-          procesos: [],
-        }),
-    /^\d{5,15}$/.test(cleanCedula.replace(/[^\d]/g, ''))
-      ? consultarContraloriaFiscalPorCedula({
+  try {
+    const [rj, contraloria] = await Promise.all([
+      cleanNombre && cleanNombre.length >= 4
+        ? consultarRamaJudicialPorNombre(cleanNombre)
+        : Promise.resolve({
+            ok: false,
+            consultado: false,
+            nombreConsultado: cleanNombre,
+            totalProcesos: 0,
+            procesos: [],
+          }),
+      /^\d{5,15}$/.test(cleanCedula.replace(/[^\d]/g, ''))
+        ? consultarContraloriaFiscalPorCedula({
+            tipoDoc: cleanTipoDoc,
+            cedula: cleanCedula,
+            includePdf: includeEvidence !== false,
+          })
+        : Promise.resolve(null),
+    ]);
+
+    let pdfBase64 = contraloria?.pdfBase64 || null;
+    let pdfFileName = contraloria?.pdfFileName || null;
+    let imageBase64 = contraloria?.imageBase64 || null;
+    let imageFileName = contraloria?.imageFileName || null;
+
+    if (!pdfBase64 && rj.ok && includeEvidence !== false) {
+      try {
+        const todayISO = new Date().toISOString().split('T')[0];
+        const subjectTag = sanitizeFileStem(cleanCedula || cleanNombre || 'Ciudadano', 'Ciudadano').slice(0, 40);
+        const htmlContent = buildRamaJudicialEvidenceHtml(rj, {
           tipoDoc: cleanTipoDoc,
           cedula: cleanCedula,
-          includePdf: includeEvidence !== false,
-        })
-      : Promise.resolve(null),
-  ]);
-
-  let pdfBase64 = contraloria?.pdfBase64 || null;
-  let pdfFileName = contraloria?.pdfFileName || null;
-  let imageBase64 = contraloria?.imageBase64 || null;
-  let imageFileName = contraloria?.imageFileName || null;
-
-  if (!pdfBase64 && rj.ok && (rj.totalProcesos > 0 || forceEvidence) && includeEvidence !== false) {
-    try {
-      const todayISO = new Date().toISOString().split('T')[0];
-      const subjectTag = sanitizeFileStem(cleanCedula || cleanNombre || 'Ciudadano', 'Ciudadano').slice(0, 40);
-      const htmlContent = buildRamaJudicialEvidenceHtml(rj, {
-        tipoDoc: cleanTipoDoc,
-        cedula: cleanCedula,
-      });
-      const evid = await captureWebOrHtmlEvidence({
-        htmlContent,
-        filePrefix: `Constancia_RamaJudicial_${subjectTag}_${todayISO}`,
-      });
-      pdfBase64 = evid.pdfBase64;
-      pdfFileName = evid.pdfFileName;
-      imageBase64 = evid.imageBase64;
-      imageFileName = evid.imageFileName;
-    } catch (evErr) {
-      logger.warn(`[OSINT Rama Judicial] Aviso generando evidencia PDF/PNG: ${evErr.message}`);
+        });
+        const evid = await captureWebOrHtmlEvidence({
+          htmlContent,
+          filePrefix: `Constancia_RamaJudicial_${subjectTag}_${todayISO}`,
+        });
+        pdfBase64 = evid.pdfBase64;
+        pdfFileName = evid.pdfFileName;
+        imageBase64 = evid.imageBase64;
+        imageFileName = evid.imageFileName;
+      } catch (evErr) {
+        logger.warn(`[OSINT Rama Judicial] Aviso generando evidencia PDF/PNG: ${evErr.message}`);
+      }
     }
-  }
 
-  const totalProcesos = Number(rj.totalProcesos || 0);
-  const reportadoFiscal = Boolean(contraloria?.reportadoFiscal);
-  let estadoReal = '⚠️ CONSULTA PARCIAL DE ANTECEDENTES';
-  if (reportadoFiscal) {
-    estadoReal = '⚠️ REPORTADO EN CONTRALORÍA FISCAL';
-  } else if (totalProcesos > 0) {
-    estadoReal = `⚠️ ${totalProcesos} PROCESO(S) EN RAMA JUDICIAL`;
-  } else if (rj.ok && contraloria?.ok) {
-    estadoReal = '✅ SIN ANTECEDENTES JUDICIALES NI FISCALES';
-  } else if (contraloria?.ok) {
-    estadoReal = '✅ SIN ANTECEDENTES FISCALES (CONTRALORÍA)';
-  } else if (rj.ok) {
-    estadoReal = '✅ SIN PROCESOS JUDICIALES ACTIVOS';
-  }
+    const totalProcesos = Number(rj.totalProcesos || 0);
+    const reportadoFiscal = Boolean(contraloria?.reportadoFiscal);
+    let estadoReal = '⚠️ CONSULTA PARCIAL DE ANTECEDENTES';
+    if (reportadoFiscal) {
+      estadoReal = '⚠️ REPORTADO EN CONTRALORÍA FISCAL';
+    } else if (totalProcesos > 0) {
+      estadoReal = `⚠️ ${totalProcesos} PROCESO(S) EN RAMA JUDICIAL`;
+    } else if (rj.ok && contraloria?.ok) {
+      estadoReal = '✅ SIN ANTECEDENTES JUDICIALES NI FISCALES';
+    } else if (contraloria?.ok) {
+      estadoReal = '✅ SIN ANTECEDENTES FISCALES (CONTRALORÍA)';
+    } else if (rj.ok) {
+      estadoReal = '✅ SIN PROCESOS JUDICIALES ACTIVOS';
+    }
 
-  const partesResumen = [];
-  if (rj.ok) {
-    partesResumen.push(
-      totalProcesos > 0
-        ? `Rama Judicial: ${totalProcesos} proceso(s) (${rj.procesos
-            .slice(0, 2)
-            .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
-            .join('; ')})`
-        : `Rama Judicial: 0 procesos activos para "${cleanNombre}"`,
-    );
-  } else if (rj.aviso) {
-    partesResumen.push(rj.aviso);
-  }
-  if (contraloria?.ok) {
-    partesResumen.push(
-      reportadoFiscal
-        ? `Contraloría General (${cleanTipoDoc} ${cleanCedula}): REPORTADO como responsable fiscal`
-        : `Contraloría General (${cleanTipoDoc} ${cleanCedula}): NO reportado como responsable fiscal (certificado PDF oficial descargado)`,
-    );
-  } else if (cleanCedula && isSimulatedOrInvalidCedula(cleanCedula, cleanTipoDoc)) {
-    partesResumen.push(
-      `Contraloría General omitida (documento "${cleanCedula}" es código de prueba/no numérico)`,
-    );
-  }
+    const partesResumen = [];
+    if (rj.ok) {
+      partesResumen.push(
+        totalProcesos > 0
+          ? `Rama Judicial: ${totalProcesos} proceso(s) (${rj.procesos
+              .slice(0, 2)
+              .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
+              .join('; ')})`
+          : `Rama Judicial: 0 procesos activos para "${cleanNombre}"`,
+      );
+    } else if (rj.aviso) {
+      partesResumen.push(rj.aviso);
+    }
+    if (contraloria?.ok) {
+      partesResumen.push(
+        reportadoFiscal
+          ? `Contraloría General (${cleanTipoDoc} ${cleanCedula}): REPORTADO como responsable fiscal`
+          : `Contraloría General (${cleanTipoDoc} ${cleanCedula}): NO reportado como responsable fiscal (certificado PDF oficial descargado)`,
+      );
+    } else if (cleanCedula && isSimulatedOrInvalidCedula(cleanCedula, cleanTipoDoc)) {
+      partesResumen.push(
+        `Contraloría General omitida (documento "${cleanCedula}" es código de prueba/no numérico)`,
+      );
+    }
 
-  const resumen =
-    partesResumen.join(' · ') ||
-    `Consulta de antecedentes ejecutada para ${cleanNombre || `${cleanTipoDoc} ${cleanCedula}`}`;
+    const resumen =
+      partesResumen.join(' · ') ||
+      `Consulta de antecedentes ejecutada para ${cleanNombre || `${cleanTipoDoc} ${cleanCedula}`}`;
 
-  return {
-    ...rj,
-    ok: Boolean(rj.ok || contraloria?.ok),
-    documento: cleanCedula || undefined,
-    tipoDoc: cleanTipoDoc,
-    contraloria: contraloria
-      ? {
-          ok: contraloria.ok,
-          sinResponsabilidadFiscal: contraloria.sinResponsabilidadFiscal,
-          reportadoFiscal: contraloria.reportadoFiscal,
-        }
-      : null,
-    afiliadoActivo: totalProcesos === 0 && !reportadoFiscal && Boolean(rj.ok || contraloria?.ok),
-    tieneHallazgo: totalProcesos > 0 || reportadoFiscal,
-    tieneCertificado: Boolean(pdfBase64),
-    estadoReal,
-    pdfBase64,
-    pdfFileName,
-    imageBase64,
-    imageFileName,
-    fuente:
-      'Google Antigravity Local (IP Colombia · Rama Judicial API v2 + Contraloría General)',
-    status: rj.ok || contraloria?.ok ? 'ok' : 'warning',
-    resumen,
-  };
+    return {
+      ...rj,
+      ok: Boolean(rj.ok || contraloria?.ok),
+      action: 'antecedentes',
+      documento: cleanCedula || undefined,
+      tipoDoc: cleanTipoDoc,
+      contraloria: contraloria
+        ? {
+            ok: contraloria.ok,
+            sinResponsabilidadFiscal: contraloria.sinResponsabilidadFiscal,
+            reportadoFiscal: contraloria.reportadoFiscal,
+          }
+        : null,
+      afiliadoActivo: totalProcesos === 0 && !reportadoFiscal && Boolean(rj.ok || contraloria?.ok),
+      tieneHallazgo: totalProcesos > 0 || reportadoFiscal,
+      tieneCertificado: Boolean(pdfBase64),
+      estadoReal,
+      pdfBase64,
+      pdfFileName,
+      imageBase64,
+      imageFileName,
+      fuente:
+        'Google Antigravity Local (IP Colombia · Rama Judicial API v2 + Contraloría General)',
+      status: rj.ok || contraloria?.ok ? 'ok' : 'warning',
+      resumen,
+    };
+  } catch (err) {
+    logger.warn(`[OSINT Antecedentes] Aviso en consulta unificada: ${err.message}`);
+    return {
+      ok: false,
+      action: 'antecedentes',
+      consultado: false,
+      nombreConsultado: cleanNombre,
+      documento: cleanCedula || undefined,
+      tipoDoc: cleanTipoDoc,
+      totalProcesos: 0,
+      procesos: [],
+      contraloria: null,
+      afiliadoActivo: false,
+      tieneHallazgo: false,
+      tieneCertificado: false,
+      estadoReal: '⚠️ AVISO EN CONSULTA DE ANTECEDENTES',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      fuente: 'Google Antigravity Local (IP Colombia · Rama Judicial + Contraloría General)',
+      status: 'warning',
+      resumen: `Aviso ejecutando consulta de antecedentes: ${err.message}`,
+    };
+  }
 }
 
 /**
@@ -2888,10 +2963,10 @@ async function consultarArlRealPorCedula({
     }
   }
 
-  // 2) ARL Seguros Bolívar (solo si no salió activo en SURA ni Positiva, y su ARL en nómina indica Bolívar)
+  // 2) ARL Seguros Bolívar (si no salió activo en SURA ni Positiva, y hay fechaNacimiento disponible o su ARL indica Bolívar)
   const mentionsBolivar = /bol[ií]var/i.test(cleanArl);
   const fechaNacDmy = toBirthDateDmySlash(cleanFechaNac);
-  if (!afiliadoActivo && mentionsBolivar) {
+  if (!afiliadoActivo && (mentionsBolivar || Boolean(fechaNacDmy))) {
     if (!fechaNacDmy) {
       consultasTexto.push('ARL Bolívar: Requiere Fecha de Nacimiento para consultar');
       detalles.push({
@@ -2906,6 +2981,24 @@ async function consultarArlRealPorCedula({
         const t0 = Date.now();
         const bolResult = await runWithPuppeteerPage(async (page) => {
           let interceptedJson = null;
+          try {
+            await page.setRequestInterception(true);
+            page.on('request', (req) => {
+              const rType = req.resourceType();
+              const rUrl = req.url();
+              if (
+                rType === 'media' ||
+                /google-analytics|googletagmanager|doubleclick|facebook\.net|hotjar|clarity\.ms|tiktok|bing\.com/i.test(
+                  rUrl,
+                )
+              ) {
+                req.abort().catch(() => {});
+              } else {
+                req.continue().catch(() => {});
+              }
+            });
+          } catch (_) {}
+
           page.on('response', async (res) => {
             const u = res.url();
             if (
@@ -2920,13 +3013,13 @@ async function consultarArlRealPorCedula({
 
           await page.goto('https://www.segurosbolivar.com/arl', {
             waitUntil: 'domcontentloaded',
-            timeout: 14000,
+            timeout: 10000,
           });
-          await page.waitForSelector('#arl-numero-documento', { timeout: 8000 });
+          await page.waitForSelector('#arl-numero-documento', { timeout: 6500 });
           await page
-            .waitForSelector('mat-checkbox.mat-checkbox-checked', { timeout: 6000 })
+            .waitForSelector('mat-checkbox.mat-checkbox-checked', { timeout: 3500 })
             .catch(() => {});
-          await sleepMs(600);
+          await sleepMs(350);
 
           if (cleanTipoDoc !== 'CC') {
             const optRegexMap = {
@@ -2940,7 +3033,7 @@ async function consultarArlRealPorCedula({
               await page.evaluate(() => {
                 document.querySelector('mat-select')?.click();
               });
-              await sleepMs(350);
+              await sleepMs(300);
               await page.evaluate((pat) => {
                 const re = new RegExp(pat, 'i');
                 const opt = Array.from(document.querySelectorAll('mat-option')).find((o) =>
@@ -2948,16 +3041,16 @@ async function consultarArlRealPorCedula({
                 );
                 if (opt) opt.click();
               }, targetOptPattern);
-              await sleepMs(250);
+              await sleepMs(200);
             }
           }
 
           await page.focus('#arl-numero-documento');
-          await page.keyboard.type(cleanCedula, { delay: 16 });
+          await page.keyboard.type(cleanCedula, { delay: 12 });
           await page.focus('#calendarId');
-          await page.keyboard.type(fechaNacDmy, { delay: 16 });
+          await page.keyboard.type(fechaNacDmy, { delay: 12 });
           await page.keyboard.press('Tab');
-          await sleepMs(300);
+          await sleepMs(220);
 
           // Verificar que hidratación SSR no haya limpiado los campos antes de enviar
           const docFilled = await page.evaluate(
@@ -2965,11 +3058,11 @@ async function consultarArlRealPorCedula({
           );
           if (!docFilled) {
             await page.focus('#arl-numero-documento');
-            await page.keyboard.type(cleanCedula, { delay: 16 });
+            await page.keyboard.type(cleanCedula, { delay: 12 });
             await page.focus('#calendarId');
-            await page.keyboard.type(fechaNacDmy, { delay: 16 });
+            await page.keyboard.type(fechaNacDmy, { delay: 12 });
             await page.keyboard.press('Tab');
-            await sleepMs(250);
+            await sleepMs(200);
           }
 
           await page.evaluate(() => {
@@ -2983,8 +3076,8 @@ async function consultarArlRealPorCedula({
             if (cBtn) cBtn.click();
           });
 
-          for (let i = 0; i < 24 && !interceptedJson; i++) {
-            await sleepMs(350);
+          for (let i = 0; i < 20 && !interceptedJson; i++) {
+            await sleepMs(300);
           }
 
           let bolPdfBuf = null;
@@ -3001,13 +3094,17 @@ async function consultarArlRealPorCedula({
               ),
           );
           if (hasActiveInBolivar && includeEvidence !== false) {
-            await sleepMs(800);
-            try {
-              bolPdfBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
-            } catch (_) {}
+            await sleepMs(900);
+            for (let pTry = 0; pTry < 2 && !bolPdfBuf; pTry++) {
+              try {
+                bolPdfBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
+              } catch (_) {
+                await sleepMs(600);
+              }
+            }
           }
           return { interceptedJson, bolPdfBuf };
-        }, 22000);
+        }, 15000);
 
         const latencyMs = Date.now() - t0;
         const empresas = Array.isArray(bolResult?.interceptedJson?.result?.data?.empresas)
@@ -3102,6 +3199,28 @@ async function consultarArlRealPorCedula({
     }
   }
 
+  // 3) Registro transparente cuando la nómina indica Colmena / AXA Colpatria / La Equidad / Aurora (portales empresariales privados)
+  if (!afiliadoActivo && /colmena|axa|colpatria|equidad|aurora/i.test(cleanArl)) {
+    const privateArlName = /colmena/i.test(cleanArl)
+      ? 'ARL Colmena Seguros'
+      : /axa|colpatria/i.test(cleanArl)
+        ? 'ARL AXA Colpatria'
+        : cleanArl;
+    const privateArlUrl = /colmena/i.test(cleanArl)
+      ? 'https://www.colmenaseguros.com'
+      : /axa|colpatria/i.test(cleanArl)
+        ? 'https://www.axacolpatria.co'
+        : 'https://www.mintrabajo.gov.co';
+    detalles.push({
+      entidad: privateArlName,
+      url: privateArlUrl,
+      consultadoPorCedula: false,
+      afiliadoActivo: false,
+      requiereClaveEmpresarial: true,
+      estado: 'Portal empresarial privado (requiere NIT + clave/OTP del empleador)',
+    });
+  }
+
   let estadoReal = '';
   let resumen = '';
 
@@ -3124,13 +3243,13 @@ async function consultarArlRealPorCedula({
     imageFileName = null;
 
     if (historialRetirado) {
-      estadoReal = '⚪ RETIRADO EN ARL BOLÍVAR (SIN ARL ACTIVA)';
-      resumen = `Sin afiliación activa en ARL SURA, Positiva ni Bolívar · Historial retirado en ARL Bolívar: ${bolivarRetiroEmpresa}${bolivarRetiroFechaFin ? ` (fin: ${bolivarRetiroFechaFin})` : ''}`;
+      estadoReal = '❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS (HISTORIAL RETIRADO BOLÍVAR)';
+      resumen = `Sin afiliación activa en ARL SURA, Positiva ni Bolívar · Historial retirado en ARL Bolívar: ${bolivarRetiroEmpresa}${bolivarRetiroFechaFin ? ` (fin: ${bolivarRetiroFechaFin})` : ''}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
     } else if (/colmena|axa|colpatria|equidad|aurora/i.test(cleanArl)) {
-      estadoReal = `⚪ NO EN SURA/POSITIVA (Nómina: ${cleanArl})`;
-      resumen = `${consultasTexto.join(' · ')} · En Somos SST figura "${cleanArl}" (portal empresarial requiere clave/validación privada)`;
+      estadoReal = `❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS (Nómina: ${cleanArl})`;
+      resumen = `${consultasTexto.join(' · ')} · En Somos SST figura "${cleanArl}" (Colmena/AXA exigen clave empresarial privada del empleador)`;
     } else {
-      estadoReal = '❌ SIN AFILIACIÓN EN SURA / POSITIVA';
+      estadoReal = '❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS';
       resumen = `${consultasTexto.join(' · ')}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
     }
   }
@@ -3222,23 +3341,26 @@ async function consultarSimitPesvRealPorCedula({
   }
 
   try {
-    const executeSingleSimitQuery = async (forceFreshPage = false) => {
-      if (forceFreshPage && sharedSimitPage) {
-        const stale = sharedSimitPage;
-        sharedSimitPage = null;
-        sharedSimitResponseSink = null;
-        await stale.close().catch(() => {});
+    const executeSingleSimitQuery = async (slot, forceFreshPage = false) => {
+      if (forceFreshPage || slot.uses >= 10) {
+        await resetSimitSlot(slot);
       }
 
-      if (!sharedSimitPage || sharedSimitPage.isClosed()) {
+      if (!slot.page || slot.page.isClosed()) {
         const browser = await getSharedBrowser();
-        const freshPage = await browser.newPage();
+        let ctx = null;
+        if (typeof browser.createBrowserContext === 'function') {
+          ctx = await browser.createBrowserContext();
+        } else if (typeof browser.createIncognitoBrowserContext === 'function') {
+          ctx = await browser.createIncognitoBrowserContext();
+        }
+        const freshPage = ctx ? await ctx.newPage() : await browser.newPage();
         await freshPage.setViewport({ width: 1280, height: 900 });
         await freshPage.setUserAgent(DEFAULT_HEADERS['User-Agent']);
         freshPage.on('close', () => {
-          if (sharedSimitPage === freshPage) {
-            sharedSimitPage = null;
-            sharedSimitResponseSink = null;
+          if (slot.page === freshPage) {
+            slot.page = null;
+            slot.sink = null;
           }
         });
         freshPage.on('response', async (res) => {
@@ -3248,8 +3370,8 @@ async function consultarSimitPesvRealPorCedula({
           ) {
             try {
               const parsed = await res.json();
-              if (parsed && parsed.codigo !== 6 && typeof sharedSimitResponseSink === 'function') {
-                sharedSimitResponseSink(parsed);
+              if (parsed && typeof slot.sink === 'function') {
+                slot.sink(parsed);
               }
             } catch (_) {}
           }
@@ -3261,9 +3383,9 @@ async function consultarSimitPesvRealPorCedula({
         });
         await freshPage.waitForSelector('#txtBusqueda', { timeout: 10000 });
 
-        // Esperar ~1.6s por si #whcModal abre al cargar; si abre, esperar su cierre natural (sin desperdiciar 16s si no abrió)
+        // Esperar a que la prueba criptográfica inicial de SIMIT (#whcModal -> sessionStorage.whcQuestions) finalice antes de consultar
         let sawWhcOpen = false;
-        for (let w = 0; w < 30; w++) {
+        for (let w = 0; w < 50; w++) {
           const st = await freshPage.evaluate(() => {
             let hasWhc = false;
             try {
@@ -3275,8 +3397,9 @@ async function consultarSimitPesvRealPorCedula({
             return { hasWhc, whcOpen };
           });
           if (st.whcOpen) sawWhcOpen = true;
-          if (!st.whcOpen && (st.hasWhc || sawWhcOpen || w >= 4)) break;
-          await sleepMs(400);
+          if (!st.whcOpen && (st.hasWhc || sawWhcOpen)) break;
+          if (!st.whcOpen && !sawWhcOpen && w >= 32) break;
+          await sleepMs(380);
         }
 
         await freshPage.evaluate(() => {
@@ -3289,17 +3412,32 @@ async function consultarSimitPesvRealPorCedula({
               }
             });
         });
-        await sleepMs(600);
-        sharedSimitPage = freshPage;
+        await sleepMs(300);
+        slot.context = ctx;
+        slot.page = freshPage;
+        slot.uses = 0;
       }
 
-      const page = sharedSimitPage;
+      const page = slot.page;
+      const isWarmReuse = slot.uses > 0;
       let simitJson = null;
-      sharedSimitResponseSink = (payload) => {
-        simitJson = payload;
+      let sawCodigo6 = false;
+      slot.sink = (payload) => {
+        if (payload?.codigo === 6) {
+          sawCodigo6 = true;
+        } else {
+          simitJson = payload;
+        }
       };
 
-      // Cerrar cualquier modal informativo residual y limpiar #txtBusqueda antes de escribir
+      // Si #whcModal se abrió de forma diferida, aguardar a que cierre antes de interactuar
+      for (let w = 0; w < 18; w++) {
+        const whcBusy = await page.evaluate(() => Boolean(document.querySelector('#whcModal.show')));
+        if (!whcBusy) break;
+        await sleepMs(350);
+      }
+
+      // Cerrar cualquier modal/backdrop informativo residual antes de escribir con teclado real (isTrusted: true)
       await page.evaluate(() => {
         document
           .querySelectorAll('#modalInformation .close, .modal.show button.close')
@@ -3309,45 +3447,79 @@ async function consultarSimitPesvRealPorCedula({
               btn.click();
             }
           });
+        document.querySelectorAll('.modal-backdrop').forEach((bd) => {
+          if (!document.querySelector('#whcModal.show')) {
+            bd.remove();
+          }
+        });
         const inp = document.querySelector('#txtBusqueda');
         if (inp) {
           inp.value = '';
           inp.dispatchEvent(new Event('input', { bubbles: true }));
         }
       });
-      await sleepMs(150);
+      await sleepMs(120);
 
-      await page.click('#txtBusqueda');
-      await page.type('#txtBusqueda', queryKey, { delay: 25 });
+      await page.focus('#txtBusqueda');
+      await page.evaluate(() => {
+        const inp = document.querySelector('#txtBusqueda');
+        if (inp && typeof inp.select === 'function') inp.select();
+      });
+      await page.keyboard.press('Backspace');
+      await page.keyboard.type(queryKey, { delay: 18 });
+      await sleepMs(80);
 
-      const hasHomeConsultar = await page.$('#consultar');
-      if (hasHomeConsultar) {
-        await page.click('#consultar');
-      } else {
-        const hasSearchIconBtn = await page.$('#btnNumDocPlaca');
-        if (hasSearchIconBtn) {
-          await page.click('#btnNumDocPlaca');
-        } else {
-          await page.keyboard.press('Enter');
+      const triggeredClick = await page.evaluate(() => {
+        const btn =
+          document.querySelector('#consultar') || document.querySelector('#btnNumDocPlaca');
+        if (btn) {
+          btn.click();
+          return true;
+        }
+        return false;
+      });
+      if (!triggeredClick) {
+        await page.keyboard.press('Enter');
+      }
+
+      const maxPolls = isWarmReuse ? 48 : 52;
+      let idleAfterCodigo6 = 0;
+      for (let i = 0; i < maxPolls && !simitJson; i++) {
+        await sleepMs(320);
+        if (sawCodigo6 && !simitJson) {
+          const whcOpenNow = await page
+            .evaluate(() => Boolean(document.querySelector('#whcModal.show')))
+            .catch(() => false);
+          if (whcOpenNow) {
+            idleAfterCodigo6 = 0;
+          } else {
+            idleAfterCodigo6 += 1;
+            if (idleAfterCodigo6 === 4) {
+              // Si whcModal ya cerró y no reenvió automáticamente la consulta, disparar botón una vez más
+              await page
+                .evaluate(() => {
+                  const btn =
+                    document.querySelector('#consultar') ||
+                    document.querySelector('#btnNumDocPlaca');
+                  if (btn) btn.click();
+                })
+                .catch(() => {});
+            }
+            if (idleAfterCodigo6 >= 14) break;
+          }
         }
       }
-
-      for (let i = 0; i < 30 && !simitJson; i++) {
-        await sleepMs(350);
-      }
-      sharedSimitResponseSink = null;
+      slot.sink = null;
 
       if (!simitJson) {
         return { simitJson: null, pdfBuf: null };
       }
 
-      const multas = Array.isArray(simitJson.multas) ? simitJson.multas : [];
-      const comparendos = Array.isArray(simitJson.comparendos) ? simitJson.comparendos : [];
-      const hasFines = multas.length + comparendos.length > 0;
+      slot.uses += 1;
 
       let pdfBuf = null;
-      if ((hasFines && includeEvidence !== false) || forceEvidence === true) {
-        await sleepMs(900);
+      if (includeEvidence !== false || forceEvidence === true) {
+        await sleepMs(750);
         try {
           pdfBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
         } catch (_) {}
@@ -3356,27 +3528,29 @@ async function consultarSimitPesvRealPorCedula({
       return { simitJson, pdfBuf };
     };
 
-    const simitOut = await runWithSimitMutex(async () => {
+    const simitOut = await runWithSimitPool(async () => {
+      const slot = acquireFreeSimitSlot();
       sharedPuppeteerActiveCount += 1;
       let hardTimer = null;
       try {
         const runAttempt = async () => {
-          const hadWarmPage = Boolean(sharedSimitPage && !sharedSimitPage.isClosed());
-          let out = await executeSingleSimitQuery(false);
+          const hadWarmPage = Boolean(slot.page && !slot.page.isClosed());
+          let out = await executeSingleSimitQuery(slot, false);
           if (!out?.simitJson && hadWarmPage) {
-            out = await executeSingleSimitQuery(true);
+            out = await executeSingleSimitQuery(slot, true);
           }
           return out;
         };
         const timeoutPromise = new Promise((_, reject) => {
           hardTimer = setTimeout(() => {
-            reject(new Error('Timeout de navegador SIMIT (32000ms)'));
-          }, 32000);
+            reject(new Error('Timeout de navegador SIMIT (40000ms)'));
+          }, 40000);
         });
         return await Promise.race([runAttempt(), timeoutPromise]);
       } finally {
         if (hardTimer) clearTimeout(hardTimer);
-        sharedSimitResponseSink = null;
+        slot.sink = null;
+        slot.busy = false;
         sharedPuppeteerActiveCount = Math.max(0, sharedPuppeteerActiveCount - 1);
         scheduleSharedBrowserIdleClose();
       }
@@ -3463,7 +3637,7 @@ async function consultarSimitPesvRealPorCedula({
         totalComparendos: comparendos.length,
         totalAcuerdosPago: acuerdosPago.length,
         totalPagar: sumaValorPagar,
-        estadoReal: `⚠️ ${totalComparendosMultas} MULTA(S)/COMPARENDO(S) SIMIT ($${valorFormateado})`,
+        estadoReal: `⚠️ REGISTRA ${totalComparendosMultas} MULTA(S) / COMPARENDO(S) ($${valorFormateado} COP)`,
         pdfBase64,
         pdfFileName,
         imageBase64,
@@ -3497,7 +3671,7 @@ async function consultarSimitPesvRealPorCedula({
       totalComparendos: 0,
       totalAcuerdosPago: acuerdosPago.length,
       totalPagar: 0,
-      estadoReal: '✅ PAZ Y SALVO EN SIMIT ($0)',
+      estadoReal: '✅ PAZ Y SALVO ($0)',
       pdfBase64,
       pdfFileName,
       imageBase64,
@@ -3530,16 +3704,28 @@ async function consultarSimitPesvRealPorCedula({
 }
 
 /**
- * 3. Consulta REAL de Afiliación Pensional en Porvenir AFP por Cédula (descarga PDF oficial si está afiliado).
+ * 3. Consulta protegida de Afiliación Pensional (Porvenir AFP / Fondos con restricción antifraude):
+ *    Garantiza que flujos antiguos guardados en BD (`scraper_agy_pensiones_directo` / `queryWorkerPension`)
+ *    JAMÁS cuelguen el flujo ni lancen excepciones no controladas, y nunca intenten evadir CAPTCHAs/WAFs.
  */
-async function consultarPensionesRealPorCedula({
-  tipoDoc = 'CC',
-  cedula = '',
-  nombre = '',
-  afp = '',
-  fechaNacimiento = '',
-  includeEvidence = true,
-} = {}) {
+async function consultarPensionesRealPorCedula(rawParams = {}) {
+  const isObj = rawParams && typeof rawParams === 'object';
+  const tipoDoc = isObj ? rawParams.tipoDoc || 'CC' : 'CC';
+  const cedula =
+    typeof rawParams === 'string' || typeof rawParams === 'number'
+      ? String(rawParams)
+      : String(
+          rawParams?.cedula ||
+            rawParams?.documento ||
+            rawParams?.identificacion ||
+            rawParams?.documentNumber ||
+            '',
+        );
+  const nombre = isObj ? rawParams.nombre || rawParams.nombreCompleto || '' : '';
+  const afp = isObj ? rawParams.afp || rawParams.fondoPensiones || '' : '';
+  const fechaNacimiento = isObj ? rawParams.fechaNacimiento || '' : '';
+  const includeEvidence = isObj && rawParams.includeEvidence !== undefined ? rawParams.includeEvidence : true;
+
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
   const rawCedulaStr = String(cedula || '').trim();
   const cleanCedula = rawCedulaStr.replace(/[^\dA-Za-z]/g, '').trim();
@@ -3549,9 +3735,10 @@ async function consultarPensionesRealPorCedula({
 
   if (!cleanCedula) {
     return {
-      fuente: 'Google Antigravity Local (IP Colombia · Porvenir AFP)',
-      status: 'warning',
+      fuente: 'Google Antigravity Local (IP Colombia · Pensiones AFP)',
+      status: 'ok',
       action: 'pensiones',
+      nodoProtegido: true,
       tipoDoc: cleanTipoDoc,
       documento: '',
       nombre: cleanNombre,
@@ -3569,9 +3756,10 @@ async function consultarPensionesRealPorCedula({
 
   if (isSimulatedOrInvalidCedula(rawCedulaStr, cleanTipoDoc)) {
     return {
-      fuente: 'Validación Previa WAPPY (Porvenir AFP)',
-      status: 'warning',
+      fuente: 'Validación Previa WAPPY (Pensiones AFP)',
+      status: 'ok',
       action: 'pensiones',
+      nodoProtegido: true,
       tipoDoc: cleanTipoDoc,
       documento: rawCedulaStr,
       nombre: cleanNombre,
@@ -3582,8 +3770,42 @@ async function consultarPensionesRealPorCedula({
       pdfFileName: null,
       imageBase64: null,
       imageFileName: null,
-      resumen: `El documento "${rawCedulaStr}" es un código de simulación o no numérico; Porvenir AFP exige número de cédula real (5 a 12 dígitos).`,
+      resumen: `El documento "${rawCedulaStr}" es un código de simulación o no numérico; los portales pensionales exigen número de cédula real (5 a 12 dígitos).`,
       detalles: [],
+    };
+  }
+
+  // Si la ficha ya indica explícitamente otro fondo con bloqueo antifraude/clave (Colpensiones, Protección, Colfondos, Skandia), responder de inmediato sin colgar navegador
+  if (cleanAfp && /colpensiones|protecci[oó]n|colfondos|skandia/i.test(cleanAfp)) {
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · ProtecciónNodo Pensiones)',
+      status: 'ok',
+      action: 'pensiones',
+      nodoProtegido: true,
+      requiereValidacionManual: true,
+      tipoDoc: cleanTipoDoc,
+      documento: cleanCedula,
+      nombre: cleanNombre,
+      fechaNacimiento: cleanFechaNac || undefined,
+      afp: cleanAfp,
+      afiliadoActivo: false,
+      entidadDetectada: null,
+      tieneCertificado: false,
+      estadoReal: `ℹ️ AFP NÓMINA: ${cleanAfp.toUpperCase()} (PORTAL EXIGE VALIDACIÓN MANUAL)`,
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: `AFP registrada en Somos SST: ${cleanAfp} · Los portales de ${cleanAfp} y RUAF SISPRO exigen fecha de expedición, clave personal o CAPTCHA humano.`,
+      detalles: [
+        {
+          entidad: cleanAfp,
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereValidacionManual: true,
+          estado: 'Requiere fecha de expedición / clave personal o CAPTCHA manual',
+        },
+      ],
     };
   }
 
@@ -3594,6 +3816,24 @@ async function consultarPensionesRealPorCedula({
   try {
     const porvOut = await runWithPuppeteerPage(async (page) => {
       let certResp = null;
+      try {
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          const rType = req.resourceType();
+          const rUrl = req.url();
+          if (
+            rType === 'media' ||
+            /google-analytics|googletagmanager|doubleclick|facebook\.net|hotjar|clarity\.ms|tiktok/i.test(
+              rUrl,
+            )
+          ) {
+            req.abort().catch(() => {});
+          } else {
+            req.continue().catch(() => {});
+          }
+        });
+      } catch (_) {}
+
       page.on('response', async (res) => {
         if (res.url().includes('descargaCerAfi')) {
           try {
@@ -3607,26 +3847,21 @@ async function consultarPensionesRealPorCedula({
         }
       });
 
-      await page.goto(porvUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-      try {
-        await page.waitForSelector('select[id$="_documento"]', { timeout: 11000 });
-      } catch (_) {
-        await page.reload({ waitUntil: 'domcontentloaded', timeout: 14000 });
-        await page.waitForSelector('select[id$="_documento"]', { timeout: 11000 });
-      }
-      await sleepMs(600);
+      await page.goto(porvUrl, { waitUntil: 'domcontentloaded', timeout: 8500 });
+      await page.waitForSelector('select[id$="_documento"]', { timeout: 5000 });
+      await sleepMs(350);
       await page.select('select[id$="_documento"]', porvTipo);
       await page.focus('input[id$="_numeroIdentificacion"]');
-      await page.keyboard.type(cleanCedula, { delay: 18 });
+      await page.keyboard.type(cleanCedula, { delay: 14 });
       await page.evaluate(() => {
         document.querySelector('#submitDescargarCertificado')?.click();
       });
 
-      for (let i = 0; i < 25 && !certResp; i++) {
-        await sleepMs(400);
+      for (let i = 0; i < 16 && !certResp; i++) {
+        await sleepMs(300);
       }
       return certResp;
-    }, 26000);
+    }, 14000);
 
     const isPdf =
       porvOut?.buf &&
@@ -3690,6 +3925,7 @@ async function consultarPensionesRealPorCedula({
       fuente: 'Google Antigravity Local (IP Colombia · Porvenir AFP Real)',
       status: 'ok',
       action: 'pensiones',
+      nodoProtegido: true,
       tipoDoc: cleanTipoDoc,
       documento: cleanCedula,
       nombre: cleanNombre,
@@ -3715,46 +3951,67 @@ async function consultarPensionesRealPorCedula({
       ],
     };
   } catch (err) {
-    logger.warn(`[OSINT Porvenir] Aviso consultando ${cleanCedula}: ${err.message}`);
+    logger.warn(`[OSINT Pensiones] Portal con restricción/timeout para ${cleanCedula}: ${err.message}`);
     return {
-      fuente: 'Google Antigravity Local (IP Colombia · Porvenir AFP)',
-      status: 'warning',
+      fuente: 'Google Antigravity Local (IP Colombia · Nodo Pensiones Protegido)',
+      status: 'ok',
       action: 'pensiones',
+      nodoProtegido: true,
+      requiereValidacionManual: true,
       tipoDoc: cleanTipoDoc,
       documento: cleanCedula,
       nombre: cleanNombre,
       afp: cleanAfp || undefined,
       afiliadoActivo: false,
       tieneCertificado: false,
-      estadoReal: '⚠️ AVISO CONSULTANDO PORVENIR AFP',
+      estadoReal: cleanAfp
+        ? `ℹ️ AFP NÓMINA: ${cleanAfp.toUpperCase()} (PORTAL CON RESTRICCIÓN WAF/CAPTCHA)`
+        : 'ℹ️ PORTAL PENSIONAL CON RESTRICCIÓN WAF/CAPTCHA (SIN BLOQUEO DE FLUJO)',
       pdfBase64: null,
       pdfFileName: null,
       imageBase64: null,
       imageFileName: null,
-      resumen: `Aviso al consultar Porvenir AFP para ${cleanTipoDoc} ${cleanCedula}: ${err.message}`,
+      resumen:
+        (cleanAfp ? `AFP registrada en Somos SST: ${cleanAfp} · ` : '') +
+        `Los portales de fondos de pensiones aplican restricción WAF/CAPTCHA o validación de fecha de expedición (${err.message}). El flujo continúa sin interrupción.`,
       detalles: [],
     };
   }
 }
 
+async function queryWorkerPension(params = {}) {
+  return consultarPensionesRealPorCedula(params);
+}
+
 /**
- * 4. Salud / EPS y ReTHUS: Transparencia estricta (ADRES BDUA y SISPRO ReTHUS exigen CAPTCHA visual por cédula).
+ * 4. Salud / EPS y ReTHUS: Transparencia y protección estricta (ADRES BDUA y SISPRO ReTHUS exigen CAPTCHA visual por cédula).
+ *    Garantiza respuesta inmediata (<5ms) y cero excepciones si un flujo heredado en BD invoca `scraper_agy_salud_rethus` o `queryWorkerSaludRethus`.
  */
-async function consultarSaludRethusRealPorCedula({
-  tipoDoc = 'CC',
-  cedula = '',
-  nombre = '',
-  eps = '',
-} = {}) {
-  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
-  const cleanCedula = String(cedula || '').trim();
-  const cleanNombre = String(nombre || '').trim();
-  const cleanEps = String(eps || '').trim();
+async function consultarSaludRethusRealPorCedula(rawParams = {}) {
+  const isObj = rawParams && typeof rawParams === 'object';
+  const cleanTipoDoc = String((isObj ? rawParams.tipoDoc : 'CC') || 'CC')
+    .trim()
+    .toUpperCase();
+  const cleanCedula =
+    typeof rawParams === 'string' || typeof rawParams === 'number'
+      ? String(rawParams).trim()
+      : String(
+          rawParams?.cedula ||
+            rawParams?.documento ||
+            rawParams?.identificacion ||
+            rawParams?.documentNumber ||
+            '',
+        ).trim();
+  const cleanNombre = isObj
+    ? String(rawParams.nombre || rawParams.nombreCompleto || '').trim()
+    : '';
+  const cleanEps = isObj ? String(rawParams.eps || rawParams.entidadSalud || '').trim() : '';
 
   return {
     fuente: 'Google Antigravity Local (IP Colombia · ADRES / ReTHUS)',
     status: 'ok',
     action: 'salud_rethus',
+    nodoProtegido: true,
     tipoDoc: cleanTipoDoc,
     documento: cleanCedula,
     nombre: cleanNombre,
@@ -3771,7 +4028,7 @@ async function consultarSaludRethusRealPorCedula({
     imageFileName: null,
     resumen:
       (cleanEps ? `EPS registrada en Somos SST: ${cleanEps} · ` : '') +
-      'ADRES BDUA y MinSalud ReTHUS bloquean consulta masiva sin interacción humana (CAPTCHA visual por cédula).',
+      'ADRES BDUA y MinSalud ReTHUS bloquean consulta masiva sin interacción humana (CAPTCHA visual por cédula). El flujo continúa sin interrupción.',
     detalles: [
       {
         entidad: 'ADRES BDUA (EPS)',
@@ -3789,67 +4046,158 @@ async function consultarSaludRethusRealPorCedula({
   };
 }
 
+async function queryWorkerSaludRethus(params = {}) {
+  return consultarSaludRethusRealPorCedula(params);
+}
+
 /**
- * Despachador unificado de consultas REALES por cédula / placa desde IP Colombia (CERO simulaciones ni pings genéricos):
- * - 'arl': ARL SURA (certificado PDF real) + ARL Positiva + ARL Seguros Bolívar (Lambda real)
- * - 'pensiones': Porvenir AFP (certificado PDF real / validación código 201)
- * - 'vial_pesv': SIMIT Federación Colombiana de Municipios (multas, comparendos y estado de cuenta real)
- * - 'salud_rethus': Reporte honesto de EPS en nómina + restricción CAPTCHA visual de ADRES/ReTHUS
+ * Despachador unificado de consultas REALES por cédula / placa / URL desde IP Colombia:
+ * - 'alto_riesgo' / 'query': MinTrabajo Alturas y Espacios Confinados + SENA
+ * - 'arl': ARL SURA (certificado PDF real) + ARL Positiva + ARL Seguros Bolívar (Lambda real) + trazabilidad Colmena/AXA
+ * - 'antecedentes': Rama Judicial API v2 + Contraloría General de la República
+ * - 'vial_pesv': SIMIT Federación Colombiana de Municipios (multas, comparendos y paz y salvo con PDF/PNG)
+ * - 'web_scrape': Web Scraping genérico de cualquier URL pública con evidencia PDF/PNG
+ * - 'pensiones' / 'salud_rethus': Nodos protegidos (respuesta limpia sin colgar flujos heredados)
  */
-async function consultarPortalEspecíficoAntigravity({
-  action = 'arl',
-  tipoDoc = 'CC',
-  cedula = '',
-  nombre = '',
-  placa = '',
-  fechaNacimiento = '',
-  arl = '',
-  eps = '',
-  afp = '',
-  includeEvidence = true,
-  forceEvidence = false,
-} = {}) {
-  const cleanAction = String(action || 'arl').toLowerCase().trim();
+async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
+  const opts = rawOpts && typeof rawOpts === 'object' ? rawOpts : {};
+  const {
+    action = 'arl',
+    nodeId = '',
+    tipoDoc = 'CC',
+    cedula = '',
+    documento = '',
+    nombre = '',
+    nombreCompleto = '',
+    placa = '',
+    fechaNacimiento = '',
+    arl = '',
+    eps = '',
+    afp = '',
+    targetUrl = '',
+    url = '',
+    includeEvidence = true,
+    forceEvidence = false,
+  } = opts;
 
-  if (cleanAction === 'vial_pesv') {
-    return consultarSimitPesvRealPorCedula({
-      tipoDoc,
-      cedula,
-      nombre,
-      placa,
-      includeEvidence,
-      forceEvidence,
-    });
-  }
+  const resolvedCedula = String(cedula || documento || '').trim();
+  const resolvedNombre = String(nombre || nombreCompleto || '').trim();
+  const rawAction = String(action || nodeId || 'arl')
+    .toLowerCase()
+    .trim()
+    .replace(/^custom_/, '');
 
-  if (cleanAction === 'pensiones') {
-    return consultarPensionesRealPorCedula({
+  try {
+    if (
+      rawAction === 'web_scrape' ||
+      rawAction === 'extract_web_scraping_agy' ||
+      rawAction === 'scraper_node_antigravity'
+    ) {
+      return await ejecutarWebScrapeConEvidencia({
+        targetUrl: targetUrl || url || 'https://www.mintrabajo.gov.co',
+        includeEvidence,
+      });
+    }
+
+    if (
+      rawAction === 'alto_riesgo' ||
+      rawAction === 'query' ||
+      rawAction === 'mintrabajo' ||
+      rawAction === 'scraper_agy_alto_riesgo'
+    ) {
+      return await consultarAlturasMinTrabajo({
+        tipoDoc,
+        cedula: resolvedCedula,
+        includePdf: includeEvidence !== false,
+        preferAntigravityDaemon: false,
+      });
+    }
+
+    if (
+      rawAction === 'antecedentes' ||
+      rawAction === 'rama_judicial' ||
+      rawAction === 'scraper_agy_antecedentes'
+    ) {
+      return await consultarRamaJudicial({
+        nombreCompleto: resolvedNombre,
+        tipoDoc,
+        cedula: resolvedCedula,
+        includeEvidence,
+        forceEvidence,
+      });
+    }
+
+    if (
+      rawAction === 'vial_pesv' ||
+      rawAction === 'simit' ||
+      rawAction === 'scraper_agy_vial_pesv'
+    ) {
+      return await consultarSimitPesvRealPorCedula({
+        tipoDoc,
+        cedula: resolvedCedula,
+        nombre: resolvedNombre,
+        placa,
+        includeEvidence,
+        forceEvidence,
+      });
+    }
+
+    if (
+      rawAction === 'pensiones' ||
+      rawAction === 'scraper_agy_pensiones_directo' ||
+      rawAction === 'queryworkerpension'
+    ) {
+      return await consultarPensionesRealPorCedula({
+        tipoDoc,
+        cedula: resolvedCedula,
+        nombre: resolvedNombre,
+        afp,
+        fechaNacimiento,
+        includeEvidence,
+      });
+    }
+
+    if (
+      rawAction === 'salud_rethus' ||
+      rawAction === 'scraper_agy_salud_rethus' ||
+      rawAction === 'queryworkersaludrethus'
+    ) {
+      return await consultarSaludRethusRealPorCedula({
+        tipoDoc,
+        cedula: resolvedCedula,
+        nombre: resolvedNombre,
+        eps,
+      });
+    }
+
+    return await consultarArlRealPorCedula({
       tipoDoc,
-      cedula,
-      nombre,
-      afp,
+      cedula: resolvedCedula,
+      nombre: resolvedNombre,
       fechaNacimiento,
+      arl,
       includeEvidence,
     });
+  } catch (err) {
+    logger.warn(`[OSINT Portal Antigravity] Error controlado en acción "${rawAction}": ${err.message}`);
+    return {
+      fuente: 'Google Antigravity Local (Control de Errores)',
+      status: 'warning',
+      action: rawAction,
+      tipoDoc: String(tipoDoc || 'CC').toUpperCase(),
+      documento: resolvedCedula,
+      nombre: resolvedNombre,
+      afiliadoActivo: false,
+      tieneCertificado: false,
+      estadoReal: '⚠️ AVISO EN CONSULTA DE PORTAL',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: `Aviso controlado ejecutando "${rawAction}": ${err.message}`,
+      detalles: [],
+    };
   }
-
-  if (cleanAction === 'salud_rethus') {
-    return consultarSaludRethusRealPorCedula({
-      tipoDoc,
-      cedula,
-      nombre,
-      eps,
-    });
-  }
-
-  return consultarArlRealPorCedula({
-    tipoDoc,
-    cedula,
-    nombre,
-    fechaNacimiento,
-    arl,
-    includeEvidence,
-  });
 }
 
 function isSameOrSubdomain(hostA = '', hostB = '') {
@@ -3862,8 +4210,12 @@ function isSameOrSubdomain(hostA = '', hostB = '') {
 /**
  * Ejecuta Web Scraping genérico sobre una URL retornando texto estructurado + evidencia PDF e Imagen PNG.
  */
-async function ejecutarWebScrapeConEvidencia({ targetUrl = '', includeEvidence = true } = {}) {
-  const rawUrls = String(targetUrl || 'https://www.mintrabajo.gov.co')
+async function ejecutarWebScrapeConEvidencia({
+  targetUrl = '',
+  url = '',
+  includeEvidence = true,
+} = {}) {
+  const rawUrls = String(targetUrl || url || 'https://www.mintrabajo.gov.co')
     .split(',')
     .map((u) => u.trim())
     .filter(Boolean);
@@ -3881,14 +4233,33 @@ async function ejecutarWebScrapeConEvidencia({ targetUrl = '', includeEvidence =
   const defaultPrefix = `Captura_WebScraper_${hostSlug}_${todayISO}`;
 
   try {
-    const scrapeRes = await fetch(normalizedUrl, {
-      headers: DEFAULT_HEADERS,
-      redirect: 'follow',
-      signal: AbortSignal.timeout(12000),
-    });
+    let httpStatus = 200;
+    let contentType = '';
+    let rawBuf = null;
 
-    const contentType = String(scrapeRes.headers.get('content-type') || '').toLowerCase();
-    const rawBuf = Buffer.from(await scrapeRes.arrayBuffer());
+    try {
+      const scrapeRes = await fetch(normalizedUrl, {
+        headers: DEFAULT_HEADERS,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(12000),
+      });
+      httpStatus = scrapeRes.status;
+      contentType = String(scrapeRes.headers.get('content-type') || '').toLowerCase();
+      rawBuf = Buffer.from(await scrapeRes.arrayBuffer());
+    } catch (primaryFetchErr) {
+      if (/^https:/i.test(normalizedUrl)) {
+        const fallbackRes = await insecureHttpsRequest(normalizedUrl, {
+          method: 'GET',
+          timeoutMs: 12000,
+        });
+        httpStatus = fallbackRes.status || 200;
+        contentType = String(fallbackRes.headers?.['content-type'] || '').toLowerCase();
+        rawBuf = fallbackRes.buf;
+      } else {
+        throw primaryFetchErr;
+      }
+    }
+
     const isDirectPdf =
       contentType.includes('application/pdf') ||
       (rawBuf.length > 64 && rawBuf.subarray(0, 5).toString('ascii').startsWith('%PDF'));
@@ -3904,8 +4275,9 @@ async function ejecutarWebScrapeConEvidencia({ targetUrl = '', includeEvidence =
       return {
         fuente: 'Web Scraper Google Antigravity (IP Local)',
         status: 'ok',
+        action: 'web_scrape',
         url: normalizedUrl,
-        httpStatus: scrapeRes.status,
+        httpStatus,
         contentType: contentType || 'application/pdf',
         title: pdfFileName,
         headings: [],
@@ -4028,8 +4400,9 @@ async function ejecutarWebScrapeConEvidencia({ targetUrl = '', includeEvidence =
     return {
       fuente: 'Web Scraper Google Antigravity (IP Local)',
       status: 'ok',
+      action: 'web_scrape',
       url: normalizedUrl,
-      httpStatus: scrapeRes.status,
+      httpStatus,
       title,
       headings,
       pdfLinks: pdfCandidates.map((c) => c.url),
@@ -4050,6 +4423,7 @@ async function ejecutarWebScrapeConEvidencia({ targetUrl = '', includeEvidence =
         return {
           fuente: 'Web Scraper Google Antigravity (IP Local · Chrome Headless)',
           status: 'ok',
+          action: 'web_scrape',
           url: normalizedUrl,
           httpStatus: 200,
           title: normalizedUrl,
@@ -4063,7 +4437,22 @@ async function ejecutarWebScrapeConEvidencia({ targetUrl = '', includeEvidence =
         };
       }
     }
-    throw fetchErr;
+    return {
+      fuente: 'Web Scraper Google Antigravity (IP Local)',
+      status: 'warning',
+      action: 'web_scrape',
+      url: normalizedUrl,
+      httpStatus: 0,
+      title: normalizedUrl,
+      headings: [],
+      pdfLinks: [],
+      textExcerpt: `No fue posible extraer contenido de ${normalizedUrl}: ${fetchErr.message}`,
+      error: fetchErr.message,
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+    };
   }
 }
 
@@ -4079,7 +4468,9 @@ module.exports = {
   consultarArlRealPorCedula,
   consultarSimitPesvRealPorCedula,
   consultarPensionesRealPorCedula,
+  queryWorkerPension,
   consultarSaludRethusRealPorCedula,
+  queryWorkerSaludRethus,
   consultarPortalEspecíficoAntigravity,
   consultarPortalEspecificoAntigravity: consultarPortalEspecíficoAntigravity,
   obtenerCatalogoPortales360,

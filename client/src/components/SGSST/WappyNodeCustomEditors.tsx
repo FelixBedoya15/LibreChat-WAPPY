@@ -43,6 +43,7 @@ import {
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import {
   AI_ENGINE_MODELS,
+  EXTRACTOR_NODES,
   SKILL_RULE_SUBAGENT_NODES,
   WAPPY_AGENT_AVATAR_ROTATION,
   getRotatedAgentAvatar,
@@ -677,16 +678,16 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             />
           </div>
 
-          {nodeLiveInspectorData.records.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
+          {(nodeLiveInspectorData?.records || []).length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <div className="relative min-w-0 flex-1 sm:flex-none">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={liveRecordSearch}
                   onChange={(e) => setLiveRecordSearch(e.target.value)}
                   placeholder="Buscar registro real..."
-                  className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 w-52"
+                  className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 w-full sm:w-52"
                 />
               </div>
               {selectedRecordIds.length > 0 && (
@@ -815,20 +816,23 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
      ═════════════════════════════════════════════════════════════════════════ */
   const renderReportHistorySection = () => {
     if (!moduleMeta.reportTags || moduleMeta.reportTags.length === 0) return null;
+    const safeConversations = Array.isArray(nodeReportHistory?.conversations)
+      ? nodeReportHistory.conversations
+      : [];
     return (
-      <div className="p-3.5 rounded-2xl border border-teal-300/80 dark:border-teal-800/80 bg-teal-50/35 dark:bg-teal-950/20 space-y-2.5">
+      <div className="p-3.5 rounded-2xl border border-teal-300/80 dark:border-teal-800/80 bg-teal-50/35 dark:bg-teal-950/20 space-y-2.5 min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-            <div>
-              <span className="text-xs font-black uppercase text-teal-950 dark:text-teal-200">
+            <div className="min-w-0">
+              <span className="text-xs font-black uppercase text-teal-950 dark:text-teal-200 break-words">
                 {isCompanyNode
-                  ? `📜 Historial de Informes SG-SST de «${resolvedCompanyFull}» (${nodeReportHistory.conversations.length})`
+                  ? `📜 Historial de Informes SG-SST de «${resolvedCompanyFull}» (${safeConversations.length})`
                   : `📜 Historial de Informes de «${resolvedNodeDisplayTitle}»${
                       resolvedCompanyName && !resolvedNodeDisplayTitle.includes(resolvedCompanyName)
                         ? ` — ${resolvedCompanyName}`
                         : ''
-                    } (${nodeReportHistory.conversations.length})`}
+                    } (${safeConversations.length})`}
               </span>
               <p className="text-[10.5px] text-slate-600 dark:text-slate-400">
                 Puedes incluir el último informe generado en <strong>{resolvedCompanyFull}</strong> o seleccionar informes anteriores específicos.
@@ -855,9 +859,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           />
         </div>
 
-        {nodeReportHistory.conversations.length > 0 && (
+        {safeConversations.length > 0 && (
           <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-            {nodeReportHistory.conversations.slice(0, 10).map((rep) => {
+            {safeConversations.slice(0, 10).map((rep) => {
               const isRepSelected = selectedReportIds.includes(rep.conversationId);
               const isPreviewing = nodeReportHistory.previewConvId === rep.conversationId;
               return (
@@ -1081,8 +1085,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   if (activeNode.shape === 'trigger') {
     // 1.1 CRON PROGRAMADO / DISPARADOR POR HORARIO (Reemplaza el bloque suelto de la Imagen 3)
     if (cleanId.includes('schedule') || cleanId.includes('cron')) {
-      const formattedTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      const selectedDayNames = WEEK_DAYS.filter((d) => daysOfWeek.includes(d.id))
+      const safeDays = Array.isArray(daysOfWeek) ? daysOfWeek : [1];
+      const formattedTime = `${String(hour ?? 8).padStart(2, '0')}:${String(minute ?? 0).padStart(2, '0')}`;
+      const selectedDayNames = WEEK_DAYS.filter((d) => safeDays.includes(d.id))
         .map((d) => d.name)
         .join(', ');
 
@@ -1810,12 +1815,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     const webhookUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club'}/api/sgsst/automatizaciones/webhook`;
     return (
       <div className="space-y-3">
-        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
-          <div>
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2 min-w-0">
+          <div className="min-w-0 flex-1">
             <span className="text-[10.5px] font-extrabold uppercase text-slate-500">
               🔗 Endpoint Webhook POST para Sistemas Externos (ERP / Nómina / ARL / Formularios):
             </span>
-            <div className="font-mono text-xs font-bold text-slate-900 dark:text-[#C7F303] mt-0.5">
+            <div className="font-mono text-xs font-bold text-slate-900 dark:text-[#C7F303] mt-0.5 break-all">
               POST {webhookUrl}
             </div>
           </div>
@@ -2486,7 +2491,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 })}
               </div>
 
-              <div className="relative min-w-[260px] flex-1 max-w-md">
+              <div className="relative min-w-0 sm:min-w-[220px] flex-1 max-w-md w-full">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -3341,9 +3346,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   }
 
   // NODOS DE WEB SCRAPING CON ANTIGRAVITY, BÚSQUEDA WEB, SKILLS, SUB-AGENTES Y REGLAS (Sin muro de pastillas)
-  const catalogScraperDef = SKILL_RULE_SUBAGENT_NODES.find(
+  const catalogScraperDef = (SKILL_RULE_SUBAGENT_NODES.find(
     (sn) => sn.id === cleanId || sn.id === activeNode.nodeId,
-  );
+  ) ||
+    EXTRACTOR_NODES.find(
+      (en) => en.id === cleanId || en.id === activeNode.nodeId,
+    )) as any;
   const defaultCatalogEngine =
     catalogScraperDef?.scriptEngine === 'chrome_devtools_mcp'
       ? 'chrome_mcp'
@@ -3361,12 +3369,17 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     (activeNode.customNodeType === 'web_scraper' ||
       rawId.includes('scraping') ||
       rawId.includes('web_scraper') ||
-      rawId.includes('scraper_agy_'));
+      rawId.includes('scraper_agy_') ||
+      rawId.includes('scraper_node') ||
+      cleanId.includes('scraper_node'));
   const isWebSearchNode =
     !isSkillNode &&
     !isRuleNode &&
     !isSubagentCustomNode &&
-    (activeNode.customNodeType === 'web_search' || rawId.includes('web_search'));
+    (activeNode.customNodeType === 'web_search' ||
+      rawId.includes('web_search') ||
+      rawId.includes('search_node') ||
+      cleanId.includes('search_node'));
 
   if (isWebScraperNode) {
     return (
@@ -4323,7 +4336,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                           : cleanId === 'google_flow'
                             ? '🎬 Escena / Prompt Visual para Google Flow (Veo / Imagen)'
                             : cleanId.includes('antigravity')
-                              ? '💻Ruta / Comando o Tarea Delegada en Google Antigravity'
+                              ? '💻 Ruta / Comando o Tarea Delegada en Google Antigravity'
                               : '🔗 Endpoint URL o Parámetro de Consulta';
 
     const paramPlaceholder =
@@ -4607,7 +4620,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
         {/* Añadir Columna Personalizada + Switch Modo Quirúrgico */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-md">
+          <div className="flex items-center gap-2 flex-1 min-w-0 sm:min-w-[220px] max-w-md w-full">
             <input
               type="text"
               value={customFieldInput}
