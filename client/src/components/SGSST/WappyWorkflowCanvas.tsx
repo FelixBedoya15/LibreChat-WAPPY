@@ -2060,8 +2060,17 @@ export default function WappyWorkflowCanvas({
     dropPos?: { x: number; y: number },
   ) => {
     if (!onChange || readOnly) return;
-    const prevCustom = workflowNodes?.canvasLayout?.customNodes || [];
     const baseKey = nodeData.key || `custom_${nodeData.nodeType}_${Date.now()}`;
+    if (
+      baseKey.includes('scraper_agy_pensiones_directo') ||
+      baseKey.includes('scraper_agy_salud_rethus')
+    ) {
+      setConstructionNotice(
+        `🚧 «${nodeData.title || baseKey}» se encuentra en Construcción y está temporalmente bloqueado hasta habilitar su conector oficial.`,
+      );
+      return;
+    }
+    const prevCustom = workflowNodes?.canvasLayout?.customNodes || [];
     const alreadyExists = prevCustom.find((c) => c.key === baseKey);
     if (alreadyExists) {
       setActiveConfigNodeKey(alreadyExists.key);
@@ -4277,16 +4286,27 @@ export default function WappyWorkflowCanvas({
                     return nType === selectedSkillFilter;
                   })
                   .map((item) => {
-                    const isAlreadyOnCanvas = (workflowNodes?.canvasLayout?.customNodes || []).some(
-                      (c) => c.key === item.customNodePayload.key,
+                    const isItemUnderConstruction = Boolean(
+                      (item as any).defaultConstruction ||
+                        item.id === 'scraper_agy_pensiones_directo' ||
+                        item.id === 'scraper_agy_salud_rethus',
                     );
+                    const isAlreadyOnCanvas =
+                      !isItemUnderConstruction &&
+                      (workflowNodes?.canvasLayout?.customNodes || []).some(
+                        (c) => c.key === item.customNodePayload.key,
+                      );
                     const isInspectingThisCustom =
-                      activeConfigNodeKey === item.customNodePayload.key;
+                      isAlreadyOnCanvas && activeConfigNodeKey === item.customNodePayload.key;
                     return (
                       <div
                         key={item.id}
-                        draggable
+                        draggable={!isItemUnderConstruction}
                         onDragStart={(e) => {
+                          if (isItemUnderConstruction) {
+                            e.preventDefault();
+                            return;
+                          }
                           e.dataTransfer.setData(
                             'application/wappy-flow-node',
                             JSON.stringify({
@@ -4296,20 +4316,36 @@ export default function WappyWorkflowCanvas({
                           );
                         }}
                         onClick={() => {
+                          if (isItemUnderConstruction) {
+                            setConstructionNotice(
+                              `🚧 «${item.label}» se encuentra en modo Construcción: el nodo está temporalmente bloqueado hasta habilitar su conector completo.`,
+                            );
+                            return;
+                          }
                           if (isAlreadyOnCanvas) {
                             handleRemoveCustomNode(item.customNodePayload.key);
                           } else {
                             handleAddCustomNodeToCanvas(item.customNodePayload);
                           }
                         }}
-                        title={`${item.label} — Haz clic o arrastra al lienzo (${item.promptHint})`}
-                        className="group/tile cursor-grab active:cursor-grabbing flex flex-col items-center w-[96px] shrink-0 select-none"
+                        title={
+                          isItemUnderConstruction
+                            ? `🚧 ${item.label} — Nodo en Construcción (No seleccionable)`
+                            : `${item.label} — Haz clic o arrastra al lienzo (${item.promptHint})`
+                        }
+                        className={`group/tile flex flex-col items-center w-[96px] shrink-0 select-none ${
+                          isItemUnderConstruction
+                            ? 'cursor-not-allowed opacity-65'
+                            : 'cursor-grab active:cursor-grabbing'
+                        }`}
                       >
                         <div
                           className={`relative w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all duration-150 shadow-sm ${
-                            isAlreadyOnCanvas
-                              ? 'bg-white dark:bg-slate-800 border-purple-600 dark:border-[#C7F303] ring-2 ring-purple-500/25 dark:ring-[#C7F303]/25'
-                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400 group-hover/tile:-translate-y-0.5 group-hover/tile:shadow-md'
+                            isItemUnderConstruction
+                              ? 'bg-amber-50/40 dark:bg-amber-950/20 border-dashed border-amber-400/90 dark:border-amber-600/80'
+                              : isAlreadyOnCanvas
+                                ? 'bg-white dark:bg-slate-800 border-purple-600 dark:border-[#C7F303] ring-2 ring-purple-500/25 dark:ring-[#C7F303]/25'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-purple-400 group-hover/tile:-translate-y-0.5 group-hover/tile:shadow-md'
                           }`}
                         >
                           {renderOfficialNodeSvg(
@@ -4326,31 +4362,48 @@ export default function WappyWorkflowCanvas({
                                       : 'web_search',
                             'w-7 h-7',
                           )}
-                          {isAlreadyOnCanvas && (
-                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-purple-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center shadow">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          {isItemUnderConstruction ? (
+                            <span
+                              className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow"
+                              title="Nodo en Construcción (No seleccionable)"
+                            >
+                              <Lock className="w-2.5 h-2.5 stroke-[2.5]" />
                             </span>
+                          ) : (
+                            isAlreadyOnCanvas && (
+                              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-purple-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center shadow">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </span>
+                            )
                           )}
                         </div>
                         <span className="mt-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 text-center leading-tight line-clamp-2">
                           {item.shortLabel}
                         </span>
-                        <span className="mt-0.5 text-[8.5px] font-extrabold text-purple-600 dark:text-purple-400 truncate max-w-full">
-                          {item.badge}
-                        </span>
-                        {isAlreadyOnCanvas && (
-                          <div className="mt-1 py-0.5 px-1" onClick={(e) => e.stopPropagation()}>
-                            <ExpandableButton
-                              type="button"
-                              size="sm"
-                              variant="purple"
-                              isActive={isInspectingThisCustom}
-                              icon={<Sliders className="w-3 h-3" />}
-                              label="Configurar"
-                              title="Configurar este nodo y ver su Estado en Vivo"
-                              onClick={() => openNodeConfigInspector(item.customNodePayload.key)}
-                            />
-                          </div>
+                        {isItemUnderConstruction ? (
+                          <span className="mt-0.5 px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[8px] font-extrabold uppercase tracking-tight">
+                            🚧 En Constr.
+                          </span>
+                        ) : (
+                          <>
+                            <span className="mt-0.5 text-[8.5px] font-extrabold text-purple-600 dark:text-purple-400 truncate max-w-full">
+                              {item.badge}
+                            </span>
+                            {isAlreadyOnCanvas && (
+                              <div className="mt-1 py-0.5 px-1" onClick={(e) => e.stopPropagation()}>
+                                <ExpandableButton
+                                  type="button"
+                                  size="sm"
+                                  variant="purple"
+                                  isActive={isInspectingThisCustom}
+                                  icon={<Sliders className="w-3 h-3" />}
+                                  label="Configurar"
+                                  title="Configurar este nodo y ver su Estado en Vivo"
+                                  onClick={() => openNodeConfigInspector(item.customNodePayload.key)}
+                                />
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );

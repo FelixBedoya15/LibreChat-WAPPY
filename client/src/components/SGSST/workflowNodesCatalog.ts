@@ -636,27 +636,29 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'scraper_agy_pensiones_directo',
-    label: '🏦 Fondos de Pensiones Directos — Sin RUAF (vía Antigravity)',
+    label: '🏦 Fondos de Pensiones Directos — Sin RUAF (En Construcción)',
     shortLabel: 'Pensiones Directo',
-    badge: '5 Fondos Directos AGY',
+    badge: 'En Construcción',
+    defaultConstruction: true,
     description:
       'Consulta por Cédula directamente en los 5 fondos de pensiones de Colombia (Porvenir, Protección Certifácil, Colfondos, Skandia y Colpensiones, sin pasar por RUAF) vía Google Antigravity.',
     category: 'extractor',
     toolHint:
       'Consultar afiliación pensional por Cédula directamente en Porvenir, Protección, Colfondos, Skandia y Colpensiones vía Google Antigravity (sin RUAF)',
-    badgeColor: 'bg-teal-50 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 border-teal-300 dark:border-teal-800',
+    badgeColor: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300 dark:border-amber-800',
   },
   {
     id: 'scraper_agy_salud_rethus',
-    label: '🏥 Salud EPS (ADRES) y ReTHUS por Cédula (vía Antigravity)',
+    label: '🏥 Salud EPS (ADRES) y ReTHUS por Cédula (En Construcción)',
     shortLabel: 'ADRES EPS & ReTHUS',
-    badge: 'ADRES + SISPRO AGY',
+    badge: 'En Construcción',
+    defaultConstruction: true,
     description:
       'Verifica por Cédula la EPS activa en ADRES (BDUA) y el registro profesional en Salud / SST en ReTHUS (SISPRO) vía Google Antigravity.',
     category: 'extractor',
     toolHint:
       'Consultar por Cédula vía Google Antigravity la afiliación EPS en ADRES (https://www.adres.gov.co/consulte-su-eps) y el registro en ReTHUS SISPRO (https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx)',
-    badgeColor: 'bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-300 dark:border-cyan-800',
+    badgeColor: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300 dark:border-amber-800',
   },
   {
     id: 'scraper_agy_vial_pesv',
@@ -709,6 +711,7 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   targetUrl?: string;
   scriptEngine?: 'python_bs4_playwright' | 'node_cheerio_puppeteer' | 'chrome_devtools_mcp' | 'custom_script';
   scriptCode?: string;
+  defaultConstruction?: boolean;
 }> = [
   // 🧩 SKILLS
   {
@@ -1103,9 +1106,10 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   {
     id: 'scraper_agy_pensiones_directo',
     nodeType: 'web_scraper',
-    label: '🏦 Nodo AGY: Fondos de Pensiones Directos — Sin RUAF (Porvenir, Protección, Colfondos, Skandia, Colpensiones)',
+    label: '🏦 Nodo AGY: Fondos de Pensiones Directos — Sin RUAF (En Construcción)',
     shortLabel: 'Pensiones Directo',
-    subtitle: '5 Fondos Sin RUAF (AGY)',
+    subtitle: 'En Construcción',
+    defaultConstruction: true,
     content:
       'Consulta afiliación pensional por Cédula directamente en los 5 fondos de pensiones de Colombia (Porvenir, Protección Certifácil, Colfondos, Skandia y Colpensiones, sin usar RUAF) vía Google Antigravity.',
     targetUrl:
@@ -1123,9 +1127,10 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   {
     id: 'scraper_agy_salud_rethus',
     nodeType: 'web_scraper',
-    label: '🏥 Nodo AGY: Salud EPS (ADRES) y Talento Humano en Salud (ReTHUS SISPRO)',
+    label: '🏥 Nodo AGY: Salud EPS (ADRES) y Talento Humano en Salud ReTHUS (En Construcción)',
     shortLabel: 'ADRES EPS & ReTHUS',
-    subtitle: 'EPS + ReTHUS (AGY)',
+    subtitle: 'En Construcción',
+    defaultConstruction: true,
     content:
       'Consulta por Cédula vía Google Antigravity la afiliación EPS activa en ADRES (BDUA) y la inscripción/vigencia profesional en ReTHUS (SISPRO MinSalud).',
     targetUrl:
@@ -1186,7 +1191,9 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
 export function normalizeExtractorsList(nodes?: Partial<WorkflowNodesConfig> | null): string[] {
   if (Array.isArray(nodes?.extractors)) {
     const valid = nodes!.extractors!.filter(
-      (id) => EXTRACTOR_NODES.some((e) => e.id === id) || HITO_APP_NODES.some((h) => h.id === id),
+      (id) =>
+        EXTRACTOR_NODES.some((e) => e.id === id && !e.defaultConstruction) ||
+        HITO_APP_NODES.some((h) => h.id === id && !h.defaultConstruction),
     );
     return Array.from(new Set(valid));
   }
@@ -7797,8 +7804,8 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     reportTags: ['sgsst-seguridad-social'],
   },
   scraper_agy_pensiones_directo: {
-    moduleTitle: '🏦 Scraper Antigravity · Fondos de Pensiones Directos por Cédula — Sin RUAF',
-    moduleBadge: 'AGY · 5 Fondos Pensión',
+    moduleTitle: '🏦 Scraper Antigravity · Fondos de Pensiones Directos (En Construcción)',
+    moduleBadge: '🚧 En Construcción',
     fieldsLabel: 'Páginas Oficiales Directas de Fondos de Pensiones (Sin RUAF) a Consultar por Cédula',
     fields: [
       'Porvenir (Certificado de Afiliación Directo): https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion',
@@ -7837,8 +7844,8 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     reportTags: ['sgsst-seguridad-social'],
   },
   scraper_agy_salud_rethus: {
-    moduleTitle: '🏥 Scraper Antigravity · Salud EPS (ADRES) y Talento Humano en Salud (ReTHUS SISPRO)',
-    moduleBadge: 'AGY · ADRES & ReTHUS',
+    moduleTitle: '🏥 Scraper Antigravity · Salud EPS (ADRES) y ReTHUS (En Construcción)',
+    moduleBadge: '🚧 En Construcción',
     fieldsLabel: 'Portales de Salud y Registro Profesional a Consultar por Cédula vía Google Antigravity',
     fields: [
       'ADRES — BDUA (Consulta de EPS Activa por Cédula): https://www.adres.gov.co/consulte-su-eps',
