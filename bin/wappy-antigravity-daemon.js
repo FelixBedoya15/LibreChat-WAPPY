@@ -5071,49 +5071,27 @@ function startSseWorker(cliArgs) {
                                   arl: parsedData.arl,
                                   eps: parsedData.eps,
                                   afp: parsedData.afp,
-                                  includeEvidence: Boolean(parsedData.includeEvidence),
+                                  includeEvidence: parsedData.includeEvidence !== false,
+                                  forceEvidence: Boolean(parsedData.forceEvidence),
                                 });
                               } else {
-                                const fallbackUrlMap = {
-                                  arl: 'https://www.arlsura.com/afiliacion/verificar.php',
-                                  pensiones: 'https://sede.colpensiones.gov.co/tramite/updInfo/72/',
-                                  salud_rethus: 'https://www.adres.gov.co/consulte-su-eps',
-                                  vial_pesv: 'https://www.fcm.org.co/simit/#/home-public',
-                                };
-                                const targetPortal = fallbackUrlMap[reqAction] || fallbackUrlMap.arl;
-                                let evid = { pdfBase64: null, pdfFileName: null, imageBase64: null, imageFileName: null };
-                                if (parsedData.includeEvidence === true) {
-                                  const now = Date.now();
-                                  let cached = daemonPortalScreenshotCache.get(targetPortal);
-                                  if (!cached || now > cached.expiresAt) {
-                                    const snap = await captureWebOrHtmlEvidence({
-                                      url: targetPortal,
-                                      filePrefix: `Constancia_${reqAction}`,
-                                      timeoutMs: 10000,
-                                    });
-                                    cached = { ...snap, expiresAt: now + 60000 };
-                                    daemonPortalScreenshotCache.set(targetPortal, cached);
-                                  }
-                                  const todayISO = new Date().toISOString().split('T')[0];
-                                  const stem = `Constancia_${sanitizeDaemonFileStem(reqAction)}_${sanitizeDaemonFileStem(parsedData.cedula || parsedData.placa || 'Portal')}_${todayISO}`;
-                                  evid = {
-                                    pdfBase64: cached.pdfBase64 || null,
-                                    pdfFileName: cached.pdfBase64 ? `${stem}.pdf` : null,
-                                    imageBase64: cached.imageBase64 || null,
-                                    imageFileName: cached.imageBase64 ? `${stem}.png` : null,
-                                  };
-                                }
                                 result = {
                                   fuente: 'Google Antigravity Local (IP Colombia)',
-                                  status: 'ok',
+                                  status: 'warning',
                                   action: reqAction,
                                   tipoDoc: parsedData.tipoDoc || 'CC',
                                   documento: parsedData.cedula || '',
                                   nombre: parsedData.nombre || '',
                                   placa: parsedData.placa || '',
-                                  ...evid,
-                                  resumen: `Verificación desde IP Local en ${reqAction}`,
-                                  detalles: [{ entidad: reqAction.toUpperCase(), url: targetPortal, reachable: true, httpStatus: 200, latencyMs: 120 }],
+                                  afiliadoActivo: false,
+                                  tieneCertificado: false,
+                                  estadoReal: '⚠️ SERVICIO OSINT LOCAL NO DISPONIBLE EN ESTE DIRECTORIO',
+                                  pdfBase64: null,
+                                  pdfFileName: null,
+                                  imageBase64: null,
+                                  imageFileName: null,
+                                  resumen: `No se encontró osintWorkerService.js local para ejecutar consulta real por cédula en ${reqAction}.`,
+                                  detalles: [],
                                 };
                               }
                             } else if (reqAction === 'pc_folder') {

@@ -264,47 +264,23 @@ function saveScraperEvidenceFiles({
 }
 
 /**
- * Construye el bloque de instrucción obligatoria para el Agente IA con las URLs reales de certificados/soportes.
+ * Construye el bloque de instrucción obligatoria para el Agente IA sobre certificados/soportes descargados,
+ * aplicando CERO RUIDO VISUAL (sin inyectar URLs ni imágenes dentro del mensaje o tablas Markdown).
  */
 function buildScraperEvidencesPromptBlock(evidences = []) {
   if (!Array.isArray(evidences) || evidences.length === 0) return '';
-  const evLines = evidences.map((ev, idx) => {
-    const parts = [
-      `  ${idx + 1}. Persona/Registro: "${ev.workerName || 'Registro'}" (Cédula/ID: ${ev.cedula || 'N/A'}) — Soporte: "${ev.title || 'Certificado / Constancia Oficial'}" (${ev.portal || 'Portal Oficial'})`,
-    ];
-    if (ev.pdfDownloadUrl) parts.push(`     • pdfDownloadUrl: ${ev.pdfDownloadUrl}`);
-    if (ev.pdfUrl) parts.push(`     • pdfUrl: ${ev.pdfUrl}`);
-    if (ev.imageUrl) parts.push(`     • imageUrl: ${ev.imageUrl}`);
-    return parts.join('\n');
-  });
-  return (
-    `\n📎 [LISTADO EXACTO DE CERTIFICADOS Y EVIDENCIAS DESCARGADOS EN VIVO (${evidences.length})]:\n` +
-    `${evLines.join('\n')}\n\n` +
-    `REGLA OBLIGATORIA DE EVIDENCIAS DE SCRAPING: Cuando presentes la tabla de resultados, incluye SIEMPRE una columna \`Certificado / Soporte\` copiando EXACTAMENTE los enlaces Markdown \`[📄 Descargar PDF](<pdfDownloadUrl>)\` y \`[🖼️ Ver Certificado](<imageUrl>)\` para cada persona o registro que tenga certificado/soporte disponible, y debajo de la tabla incluye la imagen Markdown \`![Certificado <Nombre>](<imageUrl>)\` sin modificar ni abreviar la URL.\n`
+  const evLines = evidences.map(
+    (ev, idx) =>
+      `  ${idx + 1}. Persona/Registro: "${ev.workerName || 'Registro'}" (Cédula/ID: ${ev.cedula || 'N/A'}) — Soporte descargado: "${ev.title || 'Certificado / Constancia Oficial'}" (${ev.portal || 'Portal Oficial'})`,
   );
-}
-
-/**
- * Respaldo determinístico de Markdown en caso de que el modelo IA omita los enlaces de evidencia en su texto final.
- */
-function buildScraperEvidencesFallbackMarkdown(evidences = []) {
-  if (!Array.isArray(evidences) || evidences.length === 0) return '';
-  const lines = ['', '---', '### 📎 Certificados y Soportes Oficiales Descargados:'];
-  evidences.forEach((ev, idx) => {
-    const links = [
-      ev.pdfDownloadUrl ? `[📄 Descargar PDF](${ev.pdfDownloadUrl})` : null,
-      ev.imageUrl ? `[🖼️ Ver Certificado](${ev.imageUrl})` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
-    lines.push(
-      `- **${idx + 1}. ${ev.workerName || 'Colaborador'} (CC \`${ev.cedula || 'N/A'}\`)** — *${ev.title || 'Certificado Oficial'}* (${ev.portal || 'Portal Oficial'}): ${links}`,
-    );
-    if (ev.imageUrl) {
-      lines.push(`![Certificado ${ev.workerName || ev.cedula}](${ev.imageUrl})`);
-    }
-  });
-  return lines.join('\n');
+  return (
+    `\n📎 [REGISTROS CON CERTIFICADO / SOPORTE OFICIAL DESCARGADO EN ARCHIVOS (${evidences.length})]:\n` +
+    `${evLines.join('\n')}\n\n` +
+    `🚨 REGLA ESTRICTA CERO RUIDO VISUAL EN CERTIFICADOS:\n` +
+    `- Tienes TERMINANTEMENTE PROHIBIDO incluir URLs, rutas \`/api/...\`, enlaces Markdown \`[Descargar PDF](...)\` o imágenes \`![...](...)\` dentro de tu respuesta o tablas Markdown.\n` +
+    `- Si incluyes una columna de soporte/certificado en tu tabla, escribe ÚNICAMENTE texto limpio y corto como \`✅ Descargado (ver archivos)\` (solo para quienes aparecen en el listado de arriba) o \`Sin certificado\` (para quienes no tienen soporte).\n` +
+    `- Indícale brevemente al usuario en 1 sola línea que los archivos PDF/PNG descargados están listos para abrir o descargar en el apartado separado **"Certificados y Archivos Descargados"**.\n`
+  );
 }
 
 /**
@@ -1196,12 +1172,6 @@ async function runAutomation(automation, isManual = false) {
     }
     if (!resultText) {
       resultText = '(Ejecución completada por el agente. Documento generado disponible en el chat)';
-    }
-    if (
-      runCapturedEvidences.length > 0 &&
-      !resultText.includes('/api/sgsst/automatizaciones/evidencias/')
-    ) {
-      resultText = `${resultText}\n${buildScraperEvidencesFallbackMarkdown(runCapturedEvidences)}`;
     }
 
     // 10. Update Log and Automation to SUCCESS immediately in MongoDB
@@ -2174,12 +2144,9 @@ async function executeRealAntigravityScraperVerification({
       );
     }
 
-    const webCertLinks = [
-      savedWebEv.pdfDownloadUrl ? `[📄 Descargar PDF](${savedWebEv.pdfDownloadUrl})` : null,
-      savedWebEv.imageUrl ? `[🖼️ Ver Captura](${savedWebEv.imageUrl})` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
+    const webCertStatus = savedWebEv.hasEvidence
+      ? '📎 Descargado (ver panel de archivos)'
+      : 'Sin certificado';
 
     const durationMs = Math.max(1, Date.now() - t0);
     if (scrapeRes?.error) {
@@ -2197,7 +2164,7 @@ async function executeRealAntigravityScraperVerification({
       `- **URL Consultada:** \`${scrapeRes?.url || targetUrl}\``,
       `- **Título Extraído:** ${scrapeRes?.title || 'N/A'}`,
       `- **Tiempo Real HTTP:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
-      webCertLinks ? `- **Certificado / Captura Descargada:** ${webCertLinks}` : null,
+      savedWebEv.hasEvidence ? `- **Certificado / Captura Descargada:** 📎 Sí (en archivos descargados)` : null,
       '',
       `### 📄 Contenido Extraído de la Página:`,
       scrapeRes?.textExcerpt
@@ -2205,14 +2172,11 @@ async function executeRealAntigravityScraperVerification({
         : `> ${scrapeRes?.error || 'Sin contenido extraído.'}`,
     ].filter((l) => l !== null);
 
-    if (savedWebEv.hasEvidence) {
-      lines.push('', '### 📎 Vista Previa de Certificados / Soportes Extraídos:');
-      if (webCertLinks) {
-        lines.push(`- **Soporte Oficial (${scrapeRes?.title || targetUrl}):** ${webCertLinks}`);
-      }
-      if (savedWebEv.imageUrl) {
-        lines.push(`![Captura Web](${savedWebEv.imageUrl})`);
-      }
+    if (genericEvidences.length > 0) {
+      lines.push(
+        '',
+        `> 📎 **${genericEvidences.length} certificado(s)/archivo(s) oficial(es) descargado(s):** Disponibles para ver y descargar en el campo separado **"Certificados y Archivos Descargados"**.`,
+      );
     }
 
     return {
@@ -2233,7 +2197,7 @@ async function executeRealAntigravityScraperVerification({
           titulo: scrapeRes?.title || 'N/A',
           fuente: scrapeRes?.fuente || 'Web Scraper Google Antigravity',
           estado: scrapeRes?.status || 'ok',
-          certificado: webCertLinks || 'Sin soporte',
+          certificado: webCertStatus,
           pdfUrl: savedWebEv.pdfUrl || null,
           pdfDownloadUrl: savedWebEv.pdfDownloadUrl || null,
           imageUrl: savedWebEv.imageUrl || null,
@@ -2650,8 +2614,8 @@ async function executeRealAntigravityScraperVerification({
         imageDownloadUrl: null,
         pdfFileName: null,
         imageFileName: null,
-        certificado: 'Sin soporte',
-        certificadoTabla: 'Sin soporte',
+        certificado: 'Sin certificado',
+        certificadoTabla: 'Sin certificado',
       };
     }
 
@@ -2673,8 +2637,8 @@ async function executeRealAntigravityScraperVerification({
         imageDownloadUrl: null,
         pdfFileName: null,
         imageFileName: null,
-        certificado: 'Sin soporte',
-        certificadoTabla: 'Sin soporte',
+        certificado: 'Sin certificado',
+        certificadoTabla: 'Sin certificado',
       };
     }
 
@@ -2696,20 +2660,6 @@ async function executeRealAntigravityScraperVerification({
       imageLocalPath: saved.imageLocalPath || null,
     });
 
-    const compactLinks = [
-      saved.pdfDownloadUrl ? `[📄 PDF](${saved.pdfDownloadUrl})` : null,
-      saved.imageUrl ? `[🖼️ Imagen](${saved.imageUrl})` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
-
-    const tableLinks = [
-      saved.pdfDownloadUrl ? `[📄 Descargar PDF](${saved.pdfDownloadUrl})` : null,
-      saved.imageUrl ? `[🖼️ Ver Certificado](${saved.imageUrl})` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
-
     return {
       pdfUrl: saved.pdfUrl || null,
       pdfDownloadUrl: saved.pdfDownloadUrl || null,
@@ -2717,20 +2667,31 @@ async function executeRealAntigravityScraperVerification({
       imageDownloadUrl: saved.imageDownloadUrl || null,
       pdfFileName: saved.pdfFileName || null,
       imageFileName: saved.imageFileName || null,
-      certificado: compactLinks || 'Sin soporte',
-      certificadoTabla: tableLinks || 'Sin soporte',
+      certificado: '📎 Descargado (ver panel de archivos)',
+      certificadoTabla: '📎 Sí (en archivos descargados)',
     };
   };
 
-  const batchSize = 6;
-  for (let i = 0; i < validTargets.length; i += batchSize) {
-    const batch = validTargets.slice(i, i + batchSize);
+  const effectiveBatchSize =
+    specificPortalAction === 'vial_pesv' || specificPortalAction === 'pensiones' ? 3 : 6;
+  for (let i = 0; i < validTargets.length; i += effectiveBatchSize) {
+    const batch = validTargets.slice(i, i + effectiveBatchSize);
     const batchResults = await Promise.all(
       batch.map(async (target, batchIdx) => {
         try {
           if (specificPortalAction) {
-            const shouldIncludePortalEvidence = i === 0 && batchIdx < 3;
-            const portalTimeoutMs = shouldIncludePortalEvidence ? 35000 : 20000;
+            const shouldIncludePortalEvidence =
+              specificPortalAction === 'arl' ||
+              specificPortalAction === 'pensiones' ||
+              specificPortalAction === 'vial_pesv'
+                ? true
+                : i < 12;
+            const portalTimeoutMs =
+              specificPortalAction === 'vial_pesv' || specificPortalAction === 'pensiones'
+                ? 45000
+                : shouldIncludePortalEvidence
+                  ? 35000
+                  : 25000;
             let portalRes = null;
             if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
               portalRes = await global
@@ -2770,6 +2731,8 @@ async function executeRealAntigravityScraperVerification({
           }
 
           if (isAntecedentes && !isAltoRiesgo) {
+            const shouldIncludeAntecedentesEvidence =
+              i < 10 || explicitCedulas.includes(target.cleanCedula);
             const forceFirstEvidence = i === 0 && batchIdx === 0;
             let rjRes = null;
             if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
@@ -2780,7 +2743,7 @@ async function executeRealAntigravityScraperVerification({
                   tipoDoc: 'CC',
                   cedula: target.cleanCedula,
                   nombre: target.nombre,
-                  includeEvidence: true,
+                  includeEvidence: shouldIncludeAntecedentesEvidence,
                   forceEvidence: forceFirstEvidence,
                   antigravityMode,
                 })
@@ -2791,7 +2754,7 @@ async function executeRealAntigravityScraperVerification({
                 nombreCompleto: target.nombre,
                 cedula: target.cleanCedula,
                 tipoDoc: 'CC',
-                includeEvidence: true,
+                includeEvidence: shouldIncludeAntecedentesEvidence,
                 forceEvidence: forceFirstEvidence,
               }).catch(() => null);
             }
@@ -2813,7 +2776,7 @@ async function executeRealAntigravityScraperVerification({
               nombreCompleto: target.nombre,
               cedula: target.cleanCedula,
               tipoDoc: 'CC',
-              includeEvidence: true,
+              includeEvidence: i < 10 || explicitCedulas.includes(target.cleanCedula),
             }).catch(() => null);
           }
           return { target, mtRes, rjRes };
@@ -2839,18 +2802,33 @@ async function executeRealAntigravityScraperVerification({
         if (String(pRes?.fuente || '').includes('Antigravity')) {
           relayUsedCount++;
         }
-        const isOk = pRes.status === 'ok';
-        if (isOk) verifiedWithCoursesCount++;
+        const hasPositiveRecord = Boolean(
+          pRes.afiliadoActivo || pRes.tieneCertificado || pRes.tieneHallazgo || pRes.pdfBase64,
+        );
+        if (hasPositiveRecord) verifiedWithCoursesCount++;
         else verifiedNoCoursesCount++;
-        const estadoStr = isOk ? '✅ VERIFICADO EN PORTAL' : `⚠️ ${pRes.error || 'ADVERTENCIA'}`;
-        const detalleStr = pRes.resumen || pRes.error || 'Verificación completada.';
-        const fuenteStr = pRes.fuente || 'Google Antigravity';
+
+        const estadoStr =
+          pRes.estadoReal ||
+          (pRes.afiliadoActivo
+            ? '✅ AFILIADO ACTIVO'
+            : pRes.error
+              ? `⚠️ ${pRes.error}`
+              : '⚪ CONSULTADO SIN REGISTRO ACTIVO');
+        const detalleStr = pRes.resumen || pRes.error || 'Consulta completada en portal oficial.';
+        const fuenteStr = pRes.entidadDetectada
+          ? `${pRes.entidadDetectada} (vía Google Antigravity)`
+          : pRes.fuente || 'Google Antigravity';
+        const certTitle = pRes.entidadDetectada
+          ? `Certificado Oficial — ${pRes.entidadDetectada}`
+          : pRes.tituloCertificado || 'Certificado / Constancia Oficial';
+
         const evMeta = persistAndAttachRowEvidence({
           primaryRes: pRes,
           secondaryRes: null,
           target,
           fuenteStr,
-          title: pRes?.action ? `Constancia Portal Oficial (${String(pRes.action).toUpperCase()})` : 'Certificado / Constancia Oficial',
+          title: certTitle,
         });
         verificationRows.push({
           nombre: target.nombre,
@@ -2867,7 +2845,13 @@ async function executeRealAntigravityScraperVerification({
           ...evMeta,
         });
         addLog(
-          isOk ? 'success' : pRes.status === 'error' ? 'error' : 'warn',
+          pRes.status === 'error' || pRes.error
+            ? 'error'
+            : pRes.tieneHallazgo
+              ? 'warn'
+              : hasPositiveRecord
+                ? 'success'
+                : 'info',
           `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleStr}`,
         );
@@ -2879,22 +2863,30 @@ async function executeRealAntigravityScraperVerification({
         if (String(rjRes?.fuente || '').includes('Antigravity')) {
           relayUsedCount++;
         }
-        const hasProcs = Number(rjRes?.totalProcesos || 0) > 0;
+        const hasProcs =
+          Boolean(rjRes?.tieneHallazgo) || Number(rjRes?.totalProcesos || 0) > 0;
         if (!rjRes?.error) verifiedWithCoursesCount++;
         else verifiedNoCoursesCount++;
-        const estadoStr = rjRes.error
-          ? `⚠️ ${rjRes.status || 'SIN CONEXIÓN'}`
-          : hasProcs
-            ? `⚠️ ${rjRes.totalProcesos} PROCESO(S) JUDICIAL(ES)`
-            : '✅ SIN PROCESOS ACTIVOS';
+        const estadoStr =
+          rjRes.estadoReal ||
+          (rjRes.error
+            ? `⚠️ ${rjRes.status || 'SIN CONEXIÓN'}`
+            : hasProcs
+              ? `⚠️ ${rjRes.totalProcesos} PROCESO(S) EN RAMA JUDICIAL`
+              : '✅ SIN ANTECEDENTES JUDICIALES NI FISCALES');
         const detalleStr = rjRes.resumen || rjRes.error || 'Verificado en Rama Judicial API v2.';
-        const fuenteStr = rjRes.fuente || 'Rama Judicial';
+        const fuenteStr = rjRes.entidadDetectada
+          ? `${rjRes.entidadDetectada} (vía Google Antigravity)`
+          : rjRes.fuente || 'Rama Judicial';
+        const rjCertTitle = rjRes.entidadDetectada
+          ? `Certificado Oficial — ${rjRes.entidadDetectada}`
+          : rjRes.tituloCertificado || 'Constancia de Consulta Rama Judicial / Antecedentes';
         const evMeta = persistAndAttachRowEvidence({
           primaryRes: rjRes,
           secondaryRes: null,
           target,
           fuenteStr,
-          title: 'Constancia de Consulta Rama Judicial / Antecedentes',
+          title: rjCertTitle,
         });
         verificationRows.push({
           nombre: target.nombre,
@@ -3072,8 +3064,8 @@ async function executeRealAntigravityScraperVerification({
       imageDownloadUrl: null,
       pdfFileName: null,
       imageFileName: null,
-      certificado: 'Sin soporte',
-      certificadoTabla: 'Sin soporte',
+      certificado: 'Sin certificado',
+      certificadoTabla: 'Sin certificado',
     });
     addLog(
       'warn',
@@ -3145,7 +3137,7 @@ async function executeRealAntigravityScraperVerification({
 
   verificationRows.forEach((row, idx) => {
     tableLines.push(
-      `| ${idx + 1} | **${row.nombre}** | \`${row.documento}\` | ${row.cargo} | ${row.estado} | ${row.detalle} | ${row.certificadoTabla || 'Sin soporte'} |`,
+      `| ${idx + 1} | **${row.nombre}** | \`${row.documento}\` | ${row.cargo} | ${row.estado} | ${row.detalle} | ${row.certificadoTabla || 'Sin certificado'} |`,
     );
   });
 
@@ -3156,21 +3148,10 @@ async function executeRealAntigravityScraperVerification({
   }
 
   if (evidences.length > 0) {
-    tableLines.push('', '### 📎 Vista Previa de Certificados / Soportes Extraídos:');
-    evidences.forEach((ev, idx) => {
-      const evLinks = [
-        ev.pdfDownloadUrl ? `[📄 Descargar PDF](${ev.pdfDownloadUrl})` : null,
-        ev.imageUrl ? `[🖼️ Ver Certificado](${ev.imageUrl})` : null,
-      ]
-        .filter(Boolean)
-        .join(' · ');
-      tableLines.push(
-        `- **${idx + 1}. ${ev.workerName} (CC \`${ev.cedula}\`)** — *${ev.title}* (${ev.portal}): ${evLinks}`,
-      );
-      if (ev.imageUrl) {
-        tableLines.push(`![Certificado de ${ev.workerName} (${ev.cedula})](${ev.imageUrl || ''})`);
-      }
-    });
+    tableLines.push(
+      '',
+      `> 📎 **${evidences.length} certificado(s)/archivo(s) oficial(es) descargado(s):** Disponibles para ver y descargar en el campo separado **"Certificados y Archivos Descargados"**.`,
+    );
   }
 
   if (chatDispatchRes?.completedSync && chatDispatchRes?.content) {
@@ -3194,7 +3175,7 @@ async function executeRealAntigravityScraperVerification({
     placa: r.placa || '',
     estadoPortal: r.estado,
     detalleOficial: r.detalle,
-    certificado: r.certificado || 'Sin soporte',
+    certificado: r.certificado || 'Sin certificado',
     fuente: r.fuente,
     pdfUrl: r.pdfUrl || null,
     pdfDownloadUrl: r.pdfDownloadUrl || null,
@@ -4698,12 +4679,6 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           upstreamSteps
             .map((n) => `#### 🔹 Paso #${n.stepIndex}: ${n.title}\n${n.outputPreview}`)
             .join('\n\n');
-      }
-      if (
-        upstreamEvidences.length > 0 &&
-        !agentResponseText.includes('/api/sgsst/automatizaciones/evidencias/')
-      ) {
-        agentResponseText = `${agentResponseText}\n${buildScraperEvidencesFallbackMarkdown(upstreamEvidences)}`;
       }
 
       agentOutputs.push({

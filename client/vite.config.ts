@@ -62,13 +62,28 @@ export default defineConfig(({ command }) => ({
         navigateFallbackDenylist: [/^\/oauth/, /^\/api/, /^\/download/],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith('/assets/'),
-            handler: 'StaleWhileRevalidate',
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/assets/') && /\.(js|css|mjs)$/i.test(url.pathname),
+            handler: 'NetworkFirst',
             options: {
-              cacheName: 'wappy-assets-cache',
+              cacheName: 'wappy-assets-v2',
+              networkTimeoutSeconds: 4,
               expiration: {
                 maxEntries: 120,
-                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days fallback offline
+              },
+            },
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/assets/') && !/\.(js|css|mjs)$/i.test(url.pathname),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'wappy-assets-media-v2',
+              networkTimeoutSeconds: 4,
+              expiration: {
+                maxEntries: 120,
+                maxAgeSeconds: 14 * 24 * 60 * 60, // 14 days
               },
             },
           },

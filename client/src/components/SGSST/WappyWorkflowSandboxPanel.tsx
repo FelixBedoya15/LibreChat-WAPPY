@@ -32,6 +32,10 @@ import {
   Eye,
   Image as ImageIcon,
   ZoomIn,
+  Search,
+  LayoutGrid,
+  List,
+  Paperclip,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import { getRotatedAgentAvatar } from './workflowNodesCatalog';
@@ -434,9 +438,113 @@ export function collectUniqueScraperEvidences(
         if (extracted) upsertEvidence(extracted, st.title);
       });
     }
+    if (
+      typeof st?.outputPreview === 'string' &&
+      st.outputPreview.includes('/api/sgsst/automatizaciones/evidencias/')
+    ) {
+      const previewRowEv = extractEvidenceFromRow(
+        { certificado: st.outputPreview, portal: st.title },
+        st.title,
+      );
+      if (previewRowEv) upsertEvidence(previewRowEv, st.title);
+    }
   });
 
   return Array.from(byKey.values());
+}
+
+/**
+ * Limpia defensivamente imágenes y bloques sueltos de evidencias `/api/sgsst/automatizaciones/evidencias/...`
+ * dentro del mensaje ejecutivo del Agente IA cuando ya se muestran en el Campo Aparte / Pestaña Archivos.
+ */
+function stripNoiseEvidencesFromAgentResponse(content: string): string {
+  const safe = String(content || '');
+  if (!safe || !safe.includes('/api/sgsst/automatizaciones/evidencias/')) {
+    return safe;
+  }
+
+  // Si viene como HTML pre-renderizado
+  if (
+    safe.trim().startsWith('<') &&
+    (safe.includes('<div') || safe.includes('<p') || safe.includes('<table') || safe.includes('<h'))
+  ) {
+    return safe
+      .replace(
+        /<img\b[^>]*src="[^"]*\/api\/sgsst\/automatizaciones\/evidencias\/[^"]*"[^>]*>/gi,
+        '',
+      )
+      .replace(
+        /<p[^>]*>\s*(?:<a\b[^>]*href="[^"]*\/api\/sgsst\/automatizaciones\/evidencias\/[^"]*"[^>]*>[\s\S]*?<\/a>\s*[|·\s]*)+<\/p>/gi,
+        '',
+      );
+  }
+
+  // Limpieza sobre Markdown
+  const cleanedLines: string[] = [];
+  const rawLines = safe.split('\n');
+
+  for (const rawLine of rawLines) {
+    const trimmed = rawLine.trim();
+
+    // 1. Omitir líneas que sean únicamente una imagen Markdown de evidencia
+    if (
+      /^!\[[^\]]*\]\([^)]*\/api\/sgsst\/automatizaciones\/evidencias\/[^)]+\)\s*$/i.test(trimmed)
+    ) {
+      continue;
+    }
+
+    // 2. Omitir líneas de viñeta o párrafo que solo contengan enlaces/imágenes de descarga de evidencias
+    if (
+      trimmed.includes('/api/sgsst/automatizaciones/evidencias/') &&
+      !trimmed.startsWith('|')
+    ) {
+      const strippedLinks = trimmed
+        .replace(/^[-*•>\d.)\s]+/, '')
+        .replace(/!\[[^\]]*\]\([^)]*\/api\/sgsst\/automatizaciones\/evidencias\/[^)]+\)/gi, '')
+        .replace(/\[[^\]]*\]\([^)]*\/api\/sgsst\/automatizaciones\/evidencias\/[^)]+\)/gi, '')
+        .replace(/[|·—–\-:\s]+/g, '')
+        .trim();
+      if (!strippedLinks) {
+        continue;
+      }
+    }
+
+    // 3. Quitar imágenes Markdown incrustadas dentro de celdas de tabla o párrafos y enlaces redundantes a evidencias
+    let lineOut = rawLine.replace(
+      /!\[[^\]]*\]\([^)]*\/api\/sgsst\/automatizaciones\/evidencias\/[^)]+\)/gi,
+      '',
+    );
+    if (lineOut.trim().startsWith('|') && lineOut.includes('/api/sgsst/automatizaciones/evidencias/')) {
+      lineOut = lineOut
+        .replace(
+          /\[([^\]]*)\]\([^)]*\/api\/sgsst\/automatizaciones\/evidencias\/[^)]+\)/gi,
+          '',
+        )
+        .replace(/\|\s*[·|]+\s*\|/g, '| — |');
+    }
+
+    cleanedLines.push(lineOut);
+  }
+
+  // Omitir encabezados huérfanos al final si su contenido eran solo imágenes de certificados
+  while (cleanedLines.length > 0) {
+    const last = cleanedLines[cleanedLines.length - 1].trim();
+    if (!last) {
+      cleanedLines.pop();
+      continue;
+    }
+    if (
+      /^#{1,4}\s*.*(certificados?|evidencias?|soportes?|galer[ií]a|archivos?\s+descargados?).*$/i.test(
+        last,
+      )
+    ) {
+      cleanedLines.pop();
+      continue;
+    }
+    break;
+  }
+
+  return cleanedLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function escapeHtmlAttr(val: string): string {
@@ -772,7 +880,14 @@ export default function WappyWorkflowSandboxPanel({
   activeStepTitle = '',
   onOpenEvidence,
 }: WappyWorkflowSandboxPanelProps) {
-  const [activeTab, setActiveTab] = useState<'response' | 'trace' | 'outputs' | 'mock'>('response');
+  const [activeTab, setActiveTab] = useState<'response' | 'files' | 'trace' | 'outputs' | 'mock'>(
+    'response',
+  );
+  const [responseEvidenceLayout, setResponseEvidenceLayout] = useState<'compact' | 'cards'>(
+    'compact',
+  );
+  const [filesTabLayout, setFilesTabLayout] = useState<'cards' | 'compact'>('cards');
+  const [evidenceSearchQuery, setEvidenceSearchQuery] = useState<string>('');
   const [showRawMarkdown, setShowRawMarkdown] = useState<boolean>(false);
   const [showCustomMockBox, setShowCustomMockBox] = useState<boolean>(false);
   const [selectedAgentIdx, setSelectedAgentIdx] = useState<number>(-1); // -1 = Consolidada
@@ -800,13 +915,31 @@ export default function WappyWorkflowSandboxPanel({
       ...nodeTrace,
       ...(Array.isArray(liveSteps) ? liveSteps : []),
     ];
-    const topEvidences = Array.isArray(result?.evidences)
-      ? result!.evidences
+    const topEvidences: ScraperCapturedEvidence[] = Array.isArray(result?.evidences)
+      ? [...result!.evidences!]
       : Array.isArray((result as any)?.capturedEvidences)
-        ? (result as any).capturedEvidences
-        : null;
+        ? [...(result as any).capturedEvidences]
+        : [];
+
+    // Respaldo adicional si finalResponseMarkdown contiene rutas de evidencias no listadas aún
+    const rawFinalMd = String(result?.finalResponseMarkdown || '');
+    if (rawFinalMd.includes('/api/sgsst/automatizaciones/evidencias/')) {
+      const fallbackEv = extractEvidenceFromRow({ certificado: rawFinalMd });
+      if (fallbackEv) topEvidences.push(fallbackEv);
+    }
+
     return collectUniqueScraperEvidences(combinedSteps, topEvidences);
   }, [nodeTrace, liveSteps, result]);
+
+  const filteredEvidences = useMemo<ScraperCapturedEvidence[]>(() => {
+    const q = evidenceSearchQuery.trim().toLowerCase();
+    if (!q) return capturedEvidences;
+    return capturedEvidences.filter((ev) =>
+      [ev.workerName, ev.cedula, ev.portal, ev.title, ev.cargo, ev.pdfFileName, ev.imageFileName]
+        .filter(Boolean)
+        .some((val) => String(val).toLowerCase().includes(q)),
+    );
+  }, [capturedEvidences, evidenceSearchQuery]);
 
   const agentOutputs = useMemo<SandboxAgentOutput[]>(() => {
     if (!result) return [];
@@ -1111,28 +1244,38 @@ export default function WappyWorkflowSandboxPanel({
         )}
       </div>
 
-      {/* ─── 3. BARRA DE LAS 4 PESTAÑAS DEL ESCENARIO DE DESARROLLO ─── */}
+      {/* ─── 3. BARRA DE PESTAÑAS DEL ESCENARIO DE DESARROLLO ─── */}
       <div className="relative z-10 px-4 pt-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
         {[
           {
             id: 'response' as const,
-            label: '✨ 1. Respuesta Final del Flujo (Vista Previa)',
+            label: '✨ 1. Respuesta Final del Flujo',
             badge: agentOutputs.length > 1 ? `${agentOutputs.length} Agentes IA` : 'Consolidada',
+            highlightBadge: false,
+          },
+          {
+            id: 'files' as const,
+            label: '📎 Archivos / Certificados',
+            badge: `${capturedEvidences.length}`,
+            highlightBadge: capturedEvidences.length > 0,
           },
           {
             id: 'trace' as const,
             label: `🔗 2. Traza Nodo por Nodo (${nodeTrace.length} pasos)`,
             badge: `${nodeTrace.length}`,
+            highlightBadge: false,
           },
           {
             id: 'outputs' as const,
             label: '🛡️ 3. Salidas Interceptadas (Sin Enviar)',
             badge: '0 Enviadas',
+            highlightBadge: false,
           },
           {
             id: 'mock' as const,
             label: '🧪 4. Entrada de Prueba (Mock)',
             badge: mockTriggerInput.trim() ? 'Mock Activo' : 'BD en Vivo',
+            highlightBadge: false,
           },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
@@ -1141,18 +1284,22 @@ export default function WappyWorkflowSandboxPanel({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-2 rounded-t-xl text-xs font-extrabold transition flex items-center gap-2 border-b-2 ${
+              className={`px-3 py-2 rounded-t-xl text-xs font-extrabold transition flex items-center gap-2 border-b-2 cursor-pointer ${
                 isActive
                   ? 'border-emerald-500 dark:border-[#C7F303] text-emerald-700 dark:text-[#C7F303] bg-emerald-500/10 dark:bg-[#C7F303]/10'
-                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  : tab.highlightBadge
+                    ? 'border-transparent text-teal-700 dark:text-teal-300 bg-teal-500/5 hover:bg-teal-500/10'
+                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <span>{tab.label}</span>
               <span
-                className={`px-1.5 py-0.2 rounded-lg text-[9.5px] font-black ${
-                  isActive
-                    ? 'bg-emerald-500/20 text-emerald-800 dark:text-[#C7F303]'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                className={`px-1.5 py-0.5 rounded-lg text-[9.5px] font-black transition ${
+                  tab.highlightBadge
+                    ? 'bg-[#C7F303] text-[#0E1300] ring-1 ring-emerald-500/40 shadow-2xs'
+                    : isActive
+                      ? 'bg-emerald-500/20 text-emerald-800 dark:text-[#C7F303]'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}
               >
                 {tab.badge}
@@ -1278,7 +1425,7 @@ export default function WappyWorkflowSandboxPanel({
         )}
 
         {/* Estado inicial sin probar aún */}
-        {!running && !result && !error && activeTab !== 'mock' && (
+        {!running && !result && !error && activeTab !== 'mock' && activeTab !== 'files' && (
           <div className="py-8 px-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center text-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-[#C7F303]">
               <Play className="w-6 h-6 fill-current" />
@@ -1322,146 +1469,280 @@ export default function WappyWorkflowSandboxPanel({
               </div>
             </div>
 
-            {/* ─── GALERÍA DESTACADA DE CERTIFICADOS Y EVIDENCIAS OFICIALES CAPTURADAS (PDF / IMAGEN) ─── */}
+            {/* ─── CAMPO APARTE DEDICADO: CERTIFICADOS Y ARCHIVOS DESCARGADOS (FUERA DEL MENSAJE DEL AGENTE IA) ─── */}
             {capturedEvidences.length > 0 && (
-              <div className="rounded-2xl border-2 border-[#0D9488]/60 dark:border-teal-400/50 bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-transparent p-3.5 sm:p-4 space-y-3 min-w-0 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
+              <div
+                id="wappy-sandbox-evidences-box"
+                className="rounded-2xl border-2 border-[#0D9488]/60 dark:border-teal-400/50 bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-transparent p-3.5 sm:p-4 space-y-3 min-w-0 max-w-full shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
-                      <ShieldCheck className="w-4 h-4" />
+                      <Paperclip className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                       <h4 className="text-xs sm:text-sm font-black text-teal-900 dark:text-teal-200 truncate">
-                        📎 Certificados y Evidencias Oficiales Capturadas (PDF / Imagen)
+                        📎 Certificados y Archivos Descargados ({capturedEvidences.length})
                       </h4>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                        Soportes descargados en tiempo real por los nodos de Web Scraping. Haz clic sobre cualquier miniatura para abrir el visor HD o descargar el PDF oficial.
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                        Campo aparte para abrir o descargar soportes sin saturar el mensaje ejecutivo del Agente IA.
                       </p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 rounded-xl text-[10.5px] font-black bg-teal-500/15 border border-teal-500/30 text-teal-800 dark:text-[#C7F303] shrink-0">
-                    {capturedEvidences.length}{' '}
-                    {capturedEvidences.length === 1 ? 'Certificado Capturado' : 'Certificados Capturados'}
-                  </span>
+
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {/* Selector Vista Compacta de Filas vs Vista de Tarjetas con Miniatura */}
+                    <div className="inline-flex items-center gap-0.5 p-0.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-teal-500/30">
+                      <button
+                        type="button"
+                        onClick={() => setResponseEvidenceLayout('compact')}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1 transition cursor-pointer ${
+                          responseEvidenceLayout === 'compact'
+                            ? 'bg-teal-500/15 text-teal-800 dark:text-[#C7F303] border border-teal-500/30'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                        title="Vista compacta de filas (ideal cuando hay varios certificados)"
+                      >
+                        <List className="w-3.5 h-3.5 shrink-0" />
+                        <span>Filas</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setResponseEvidenceLayout('cards')}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1 transition cursor-pointer ${
+                          responseEvidenceLayout === 'cards'
+                            ? 'bg-teal-500/15 text-teal-800 dark:text-[#C7F303] border border-teal-500/30'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                        title="Vista de tarjetas con miniatura grande"
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+                        <span>Tarjetas</span>
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('files')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-800 dark:text-[#C7F303] text-[10.5px] font-black transition cursor-pointer"
+                      title="Abrir todos los certificados y archivos en su pestaña dedicada"
+                    >
+                      <span>Ver todos en pestaña Archivos ({capturedEvidences.length})</span>
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
-                  {capturedEvidences.map((ev, evIdx) => {
-                    const dlHref =
-                      ev.pdfDownloadUrl || ev.pdfUrl || ev.imageDownloadUrl || ev.imageUrl || '#';
-                    const dlName = ev.pdfFileName || ev.imageFileName || true;
-                    return (
-                      <div
-                        key={`gal_ev_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
-                        className="group/evcard rounded-2xl border border-teal-500/30 bg-white/95 dark:bg-slate-900/95 p-3 flex flex-col justify-between gap-2.5 shadow-xs hover:border-teal-500/60 hover:shadow-md transition-all min-w-0"
-                      >
-                        <div className="space-y-2.5 min-w-0">
-                          {/* Miniatura clicable HD de la imagen del certificado o tarjeta previa PDF */}
-                          {ev.imageUrl ? (
-                            <button
-                              type="button"
-                              onClick={() => onOpenEvidence?.(ev, 'image')}
-                              className="group/thumb relative w-full h-40 sm:h-44 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 cursor-zoom-in block text-left"
-                              title="Haz clic para abrir el Certificado en pantalla ampliada (HD)"
-                            >
-                              <img
-                                src={ev.imageUrl}
-                                alt={ev.title || ev.workerName || 'Certificado Oficial'}
-                                className="w-full h-full object-cover object-top transition-transform duration-300 group-hover/thumb:scale-105 bg-white"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                              <span className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-slate-950/80 text-white text-[10px] font-extrabold flex items-center gap-1 backdrop-blur-xs opacity-90 group-hover/thumb:opacity-100 transition-opacity">
-                                <ZoomIn className="w-3 h-3 text-[#C7F303]" />
-                                Ver Certificado HD
-                              </span>
-                              {ev.pdfUrl && (
-                                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-emerald-600/90 text-white text-[9.5px] font-black shadow-xs">
-                                  PDF + PNG
-                                </span>
-                              )}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => onOpenEvidence?.(ev, 'pdf')}
-                              className="w-full h-40 sm:h-44 rounded-xl border border-dashed border-teal-500/40 bg-teal-500/5 hover:bg-teal-500/10 flex flex-col items-center justify-center gap-2 p-3 text-center cursor-pointer transition-colors"
-                              title="Haz clic para abrir el Visor de PDF Oficial"
-                            >
-                              <div className="w-11 h-11 rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-600 dark:text-teal-300 flex items-center justify-center">
+                {responseEvidenceLayout === 'compact' ? (
+                  /* ─── VISTA COMPACTA DE FILAS (Súper limpia y escaneable sin ocupar media pantalla) ─── */
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 max-h-[270px] overflow-y-auto pr-0.5 min-w-0">
+                    {capturedEvidences.map((ev, evIdx) => {
+                      const dlHref =
+                        ev.pdfDownloadUrl ||
+                        ev.pdfUrl ||
+                        ev.imageDownloadUrl ||
+                        ev.imageUrl ||
+                        '#';
+                      const dlName = ev.pdfFileName || ev.imageFileName || true;
+                      return (
+                        <div
+                          key={`comp_ev_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
+                          className="rounded-xl border border-teal-500/30 bg-white/95 dark:bg-slate-900/95 p-2.5 flex items-center justify-between gap-2.5 hover:border-teal-500/60 transition min-w-0"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            {ev.imageUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'image')}
+                                className="w-11 h-11 rounded-lg overflow-hidden border border-teal-500/30 bg-slate-100 dark:bg-slate-800 shrink-0 cursor-zoom-in"
+                                title="Ampliar certificado en HD"
+                              >
+                                <img
+                                  src={ev.imageUrl}
+                                  alt={ev.workerName || ev.title || 'Certificado'}
+                                  className="w-full h-full object-cover object-top bg-white"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                                className="w-11 h-11 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-300 flex items-center justify-center shrink-0 cursor-pointer"
+                                title="Abrir visor PDF"
+                              >
                                 <FileText className="w-5 h-5" />
-                              </div>
-                              <div className="text-xs font-extrabold text-teal-800 dark:text-teal-200 line-clamp-2">
-                                {ev.pdfFileName || ev.title || 'Certificado PDF Oficial'}
-                              </div>
-                              <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1">
-                                <Eye className="w-3 h-3" /> Clic para previsualizar PDF
-                              </span>
-                            </button>
-                          )}
-
-                          {/* Metadatos del Colaborador y Portal */}
-                          <div className="space-y-1 min-w-0">
-                            <div className="text-xs font-black text-slate-900 dark:text-white truncate">
-                              {ev.workerName || 'Colaborador / Registro Verificado'}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                              {ev.cedula && (
-                                <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-700 dark:text-slate-300">
-                                  CC {ev.cedula}
-                                </span>
-                              )}
-                              {ev.portal && (
-                                <span className="px-2 py-0.5 rounded-lg bg-teal-500/10 border border-teal-500/30 font-extrabold text-teal-700 dark:text-teal-300 truncate max-w-full">
-                                  🏛️ {ev.portal}
-                                </span>
-                              )}
-                            </div>
-                            {ev.title && (
-                              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 line-clamp-2 leading-snug">
-                                {ev.title}
-                              </p>
+                              </button>
                             )}
+
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                {ev.workerName || 'Colaborador / Registro Verificado'}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1 mt-0.5 text-[10px]">
+                                {ev.cedula && (
+                                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                                    CC {ev.cedula}
+                                  </span>
+                                )}
+                                <span className="px-1.5 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/30 font-extrabold text-teal-700 dark:text-teal-300 truncate max-w-[180px]">
+                                  🏛️ {ev.portal || ev.title || 'Portal Oficial'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                            <button
+                              type="button"
+                              onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition"
+                              title="Ver certificado en pantalla ampliada"
+                            >
+                              <span>🖼️ Ver</span>
+                            </button>
+                            {ev.pdfUrl && (
+                              <a
+                                href={ev.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition"
+                                title="Abrir PDF en pestaña nueva"
+                              >
+                                <span>📄 PDF</span>
+                              </a>
+                            )}
+                            <a
+                              href={dlHref}
+                              download={dlName}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition"
+                              title="Descargar archivo oficial"
+                            >
+                              <span>⬇️ Descargar</span>
+                            </a>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* ─── VISTA DE TARJETAS CON MINIATURA GRANDE ─── */
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
+                    {capturedEvidences.map((ev, evIdx) => {
+                      const dlHref =
+                        ev.pdfDownloadUrl ||
+                        ev.pdfUrl ||
+                        ev.imageDownloadUrl ||
+                        ev.imageUrl ||
+                        '#';
+                      const dlName = ev.pdfFileName || ev.imageFileName || true;
+                      return (
+                        <div
+                          key={`gal_ev_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
+                          className="group/evcard rounded-2xl border border-teal-500/30 bg-white/95 dark:bg-slate-900/95 p-3 flex flex-col justify-between gap-2.5 shadow-xs hover:border-teal-500/60 hover:shadow-md transition-all min-w-0"
+                        >
+                          <div className="space-y-2.5 min-w-0">
+                            {ev.imageUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'image')}
+                                className="group/thumb relative w-full h-36 sm:h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 cursor-zoom-in block text-left"
+                                title="Haz clic para abrir el Certificado en pantalla ampliada (HD)"
+                              >
+                                <img
+                                  src={ev.imageUrl}
+                                  alt={ev.title || ev.workerName || 'Certificado Oficial'}
+                                  className="w-full h-full object-cover object-top transition-transform duration-300 group-hover/thumb:scale-105 bg-white"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                                <span className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-slate-950/80 text-white text-[10px] font-extrabold flex items-center gap-1 backdrop-blur-xs opacity-90 group-hover/thumb:opacity-100 transition-opacity">
+                                  <ZoomIn className="w-3 h-3 text-[#C7F303]" />
+                                  Ver Certificado HD
+                                </span>
+                                {ev.pdfUrl && (
+                                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-emerald-600/90 text-white text-[9.5px] font-black shadow-xs">
+                                    PDF + PNG
+                                  </span>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                                className="w-full h-36 sm:h-40 rounded-xl border border-dashed border-teal-500/40 bg-teal-500/5 hover:bg-teal-500/10 flex flex-col items-center justify-center gap-2 p-3 text-center cursor-pointer transition-colors"
+                                title="Haz clic para abrir el Visor de PDF Oficial"
+                              >
+                                <div className="w-10 h-10 rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-600 dark:text-teal-300 flex items-center justify-center">
+                                  <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="text-xs font-extrabold text-teal-800 dark:text-teal-200 line-clamp-2">
+                                  {ev.pdfFileName || ev.title || 'Certificado PDF Oficial'}
+                                </div>
+                                <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                                  <Eye className="w-3 h-3" /> Clic para previsualizar PDF
+                                </span>
+                              </button>
+                            )}
 
-                        {/* Botones de acción directa WAPPY (bordes /30 y fondos /10 semánticos) */}
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition-all"
-                          >
-                            <Eye className="w-3.5 h-3.5 shrink-0" />
-                            Ver Certificado
-                          </button>
+                            <div className="space-y-1 min-w-0">
+                              <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                {ev.workerName || 'Colaborador / Registro Verificado'}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                {ev.cedula && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-700 dark:text-slate-300">
+                                    CC {ev.cedula}
+                                  </span>
+                                )}
+                                {ev.portal && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-teal-500/10 border border-teal-500/30 font-extrabold text-teal-700 dark:text-teal-300 truncate max-w-full">
+                                    🏛️ {ev.portal}
+                                  </span>
+                                )}
+                              </div>
+                              {ev.title && (
+                                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 line-clamp-2 leading-snug">
+                                  {ev.title}
+                                </p>
+                              )}
+                            </div>
+                          </div>
 
-                          {ev.pdfUrl && (
-                            <a
-                              href={ev.pdfUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition-all"
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition-all"
                             >
-                              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                              Ver PDF
+                              <span>🖼️ Ver</span>
+                            </button>
+                            {ev.pdfUrl && (
+                              <a
+                                href={ev.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition-all"
+                              >
+                                <span>📄 PDF</span>
+                              </a>
+                            )}
+                            <a
+                              href={dlHref}
+                              download={dlName}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all"
+                            >
+                              <span>⬇️ Descargar</span>
                             </a>
-                          )}
-
-                          <a
-                            href={dlHref}
-                            download={dlName}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all"
-                          >
-                            <Download className="w-3.5 h-3.5 shrink-0" />
-                            {ev.pdfUrl || ev.pdfDownloadUrl ? 'Descargar PDF' : 'Descargar'}
-                          </a>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1549,25 +1830,41 @@ export default function WappyWorkflowSandboxPanel({
               </div>
             )}
 
-            {/* Visor de la Respuesta (Consolidada o del Agente seleccionado) */}
+            {/* Visor de la Respuesta Ejecutiva (Consolidada o del Agente seleccionado, libre de ruido de certificados) */}
             {(() => {
               const selectedAgent =
                 selectedAgentIdx >= 0 && agentOutputs[selectedAgentIdx]
                   ? agentOutputs[selectedAgentIdx]
                   : null;
-              const activeMarkdown = selectedAgent
+              const rawActiveMarkdown = selectedAgent
                 ? selectedAgent.responseMarkdown || finalMarkdown
                 : finalMarkdown;
+              const activeMarkdown =
+                capturedEvidences.length > 0
+                  ? stripNoiseEvidencesFromAgentResponse(rawActiveMarkdown)
+                  : rawActiveMarkdown;
               const activeHtml = selectedAgent
                 ? activeMarkdown
                   ? renderWorkflowMarkdownToInteractiveHtml(activeMarkdown)
                   : selectedAgent.responseHtml?.trim()
-                    ? renderWorkflowMarkdownToInteractiveHtml(selectedAgent.responseHtml)
+                    ? renderWorkflowMarkdownToInteractiveHtml(
+                        capturedEvidences.length > 0
+                          ? stripNoiseEvidencesFromAgentResponse(selectedAgent.responseHtml)
+                          : selectedAgent.responseHtml,
+                      )
                     : '<p>Sin respuesta disponible.</p>'
-                : finalHtml;
+                : activeMarkdown
+                  ? renderWorkflowMarkdownToInteractiveHtml(activeMarkdown)
+                  : result?.finalResponseHtml?.trim()
+                    ? renderWorkflowMarkdownToInteractiveHtml(
+                        capturedEvidences.length > 0
+                          ? stripNoiseEvidencesFromAgentResponse(result.finalResponseHtml)
+                          : result.finalResponseHtml,
+                      )
+                    : '<p>Sin respuesta disponible.</p>';
 
               return (
-                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 sm:p-5 shadow-inner max-h-[520px] overflow-y-auto min-w-0">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 sm:p-5 shadow-inner max-h-[520px] overflow-y-auto min-w-0 max-w-full">
                   {showRawMarkdown ? (
                     <pre className="text-xs font-mono whitespace-pre-wrap break-words text-slate-800 dark:text-slate-200 leading-relaxed">
                       {activeMarkdown || 'Sin respuesta disponible.'}
@@ -1584,6 +1881,327 @@ export default function WappyWorkflowSandboxPanel({
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* ─── PESTAÑA DEDICADA: ARCHIVOS / CERTIFICADOS DESCARGADOS ─── */}
+        {!running && activeTab === 'files' && (
+          <div className="space-y-3 min-w-0 max-w-full">
+            {capturedEvidences.length === 0 ? (
+              <div className="py-10 px-4 rounded-2xl border border-dashed border-teal-500/40 bg-teal-500/5 flex flex-col items-center justify-center text-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-300">
+                  <Paperclip className="w-6 h-6" />
+                </div>
+                <div className="max-w-lg space-y-1">
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                    Aún no hay certificados o archivos descargados en esta corrida
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Cuando tu flujo ejecute nodos de Web Scraping oficial (como <strong>MinTrabajo Alturas y Confinados</strong>, <strong>SENA SOFIA Plus</strong>, <strong>ARL</strong>, <strong>Contraloría</strong>, <strong>Procuraduría</strong>, <strong>SIMIT</strong> o <strong>Porvenir</strong>) y encuentre certificados vigentes, aparecerán aquí separados del mensaje del Agente IA listos para ver en HD o descargar en PDF.
+                  </p>
+                </div>
+                {!result && (
+                  <ExpandableButton
+                    size="sm"
+                    variant="emerald"
+                    icon={<Play className="w-3.5 h-3.5 fill-current" />}
+                    label="Dar Play al Flujo para Buscar Certificados"
+                    onClick={onRunSimulation}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 min-w-0 max-w-full">
+                {/* Barra superior de la pestaña Archivos: Resumen + Buscador rápido (> 4 ítems) + Selector Galería/Lista */}
+                <div className="rounded-2xl border border-teal-500/35 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent p-3.5 flex flex-wrap items-center justify-between gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs sm:text-sm font-black text-teal-900 dark:text-teal-200 truncate">
+                        📎 {capturedEvidences.length}{' '}
+                        {capturedEvidences.length === 1
+                          ? 'Certificado / Archivo Oficial Descargado'
+                          : 'Certificados y Archivos Oficiales Descargados'}
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                        Haz clic en cualquier certificado para abrir el visor HD/PDF o descargarlo directamente a tu equipo.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {(capturedEvidences.length > 4 || evidenceSearchQuery.trim() !== '') && (
+                      <div className="relative min-w-[210px] sm:min-w-[250px]">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={evidenceSearchQuery}
+                          onChange={(e) => setEvidenceSearchQuery(e.target.value)}
+                          placeholder="Buscar por nombre, CC o entidad..."
+                          className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-teal-500/30 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                        />
+                        {evidenceSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setEvidenceSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="inline-flex items-center gap-0.5 p-0.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-teal-500/30">
+                      <button
+                        type="button"
+                        onClick={() => setFilesTabLayout('cards')}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1 transition cursor-pointer ${
+                          filesTabLayout === 'cards'
+                            ? 'bg-teal-500/15 text-teal-800 dark:text-[#C7F303] border border-teal-500/30'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+                        <span>Galería</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilesTabLayout('compact')}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1 transition cursor-pointer ${
+                          filesTabLayout === 'compact'
+                            ? 'bg-teal-500/15 text-teal-800 dark:text-[#C7F303] border border-teal-500/30'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <List className="w-3.5 h-3.5 shrink-0" />
+                        <span>Lista</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {filteredEvidences.length === 0 ? (
+                  <div className="p-6 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
+                    Ningún certificado coincide con la búsqueda «{evidenceSearchQuery}».
+                  </div>
+                ) : filesTabLayout === 'compact' ? (
+                  <div className="space-y-2 min-w-0">
+                    {filteredEvidences.map((ev, evIdx) => {
+                      const dlHref =
+                        ev.pdfDownloadUrl ||
+                        ev.pdfUrl ||
+                        ev.imageDownloadUrl ||
+                        ev.imageUrl ||
+                        '#';
+                      const dlName = ev.pdfFileName || ev.imageFileName || true;
+                      return (
+                        <div
+                          key={`files_row_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
+                          className="rounded-2xl border border-teal-500/30 bg-white dark:bg-slate-950 p-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 hover:border-teal-500/60 transition min-w-0"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            {ev.imageUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'image')}
+                                className="w-12 h-12 rounded-xl overflow-hidden border border-teal-500/30 bg-slate-100 dark:bg-slate-800 shrink-0 cursor-zoom-in"
+                                title="Ver certificado en HD"
+                              >
+                                <img
+                                  src={ev.imageUrl}
+                                  alt={ev.workerName || ev.title || 'Certificado'}
+                                  className="w-full h-full object-cover object-top bg-white"
+                                />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                                className="w-12 h-12 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-300 flex items-center justify-center shrink-0 cursor-pointer"
+                                title="Abrir visor PDF"
+                              >
+                                <FileText className="w-5 h-5" />
+                              </button>
+                            )}
+
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
+                                {ev.workerName || 'Colaborador / Registro Verificado'}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10.5px]">
+                                {ev.cedula && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-700 dark:text-slate-300">
+                                    CC {ev.cedula}
+                                  </span>
+                                )}
+                                {ev.portal && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-teal-500/10 border border-teal-500/30 font-extrabold text-teal-700 dark:text-teal-300 truncate max-w-[260px]">
+                                    🏛️ {ev.portal}
+                                  </span>
+                                )}
+                                {ev.title && (
+                                  <span className="text-slate-500 dark:text-slate-400 font-semibold truncate max-w-[300px]">
+                                    · {ev.title}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition"
+                            >
+                              <span>🖼️ Ver Certificado</span>
+                            </button>
+                            {ev.pdfUrl && (
+                              <a
+                                href={ev.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition"
+                              >
+                                <span>📄 Abrir PDF</span>
+                              </a>
+                            )}
+                            <a
+                              href={dlHref}
+                              download={dlName}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition"
+                            >
+                              <span>
+                                {ev.pdfUrl || ev.pdfDownloadUrl ? '⬇️ Descargar PDF' : '⬇️ Descargar'}
+                              </span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
+                    {filteredEvidences.map((ev, evIdx) => {
+                      const dlHref =
+                        ev.pdfDownloadUrl ||
+                        ev.pdfUrl ||
+                        ev.imageDownloadUrl ||
+                        ev.imageUrl ||
+                        '#';
+                      const dlName = ev.pdfFileName || ev.imageFileName || true;
+                      return (
+                        <div
+                          key={`files_card_${evIdx}_${ev.pdfUrl || ev.imageUrl || evIdx}`}
+                          className="group/evcard rounded-2xl border border-teal-500/30 bg-white dark:bg-slate-950 p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-teal-500/60 hover:shadow-md transition-all min-w-0"
+                        >
+                          <div className="space-y-2.5 min-w-0">
+                            {ev.imageUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'image')}
+                                className="group/thumb relative w-full h-44 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 cursor-zoom-in block text-left"
+                                title="Haz clic para abrir el Certificado en pantalla ampliada (HD)"
+                              >
+                                <img
+                                  src={ev.imageUrl}
+                                  alt={ev.title || ev.workerName || 'Certificado Oficial'}
+                                  className="w-full h-full object-cover object-top transition-transform duration-300 group-hover/thumb:scale-105 bg-white"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                                <span className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-slate-950/80 text-white text-[10px] font-extrabold flex items-center gap-1 backdrop-blur-xs opacity-90 group-hover/thumb:opacity-100 transition-opacity">
+                                  <ZoomIn className="w-3 h-3 text-[#C7F303]" />
+                                  Ver Certificado HD
+                                </span>
+                                {ev.pdfUrl && (
+                                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-emerald-600/90 text-white text-[9.5px] font-black shadow-xs">
+                                    PDF + PNG
+                                  </span>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onOpenEvidence?.(ev, 'pdf')}
+                                className="w-full h-44 rounded-xl border border-dashed border-teal-500/40 bg-teal-500/5 hover:bg-teal-500/10 flex flex-col items-center justify-center gap-2 p-3 text-center cursor-pointer transition-colors"
+                                title="Haz clic para abrir el Visor de PDF Oficial"
+                              >
+                                <div className="w-11 h-11 rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-600 dark:text-teal-300 flex items-center justify-center">
+                                  <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="text-xs font-extrabold text-teal-800 dark:text-teal-200 line-clamp-2">
+                                  {ev.pdfFileName || ev.title || 'Certificado PDF Oficial'}
+                                </div>
+                                <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                                  <Eye className="w-3 h-3" /> Clic para previsualizar PDF
+                                </span>
+                              </button>
+                            )}
+
+                            <div className="space-y-1 min-w-0">
+                              <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
+                                {ev.workerName || 'Colaborador / Registro Verificado'}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                {ev.cedula && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-700 dark:text-slate-300">
+                                    CC {ev.cedula}
+                                  </span>
+                                )}
+                                {ev.portal && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-teal-500/10 border border-teal-500/30 font-extrabold text-teal-700 dark:text-teal-300 truncate max-w-full">
+                                    🏛️ {ev.portal}
+                                  </span>
+                                )}
+                              </div>
+                              {ev.title && (
+                                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 line-clamp-2 leading-snug">
+                                  {ev.title}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => onOpenEvidence?.(ev, ev.imageUrl ? 'image' : 'pdf')}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 text-[10.5px] font-extrabold cursor-pointer transition-all"
+                            >
+                              <span>🖼️ Ver Certificado</span>
+                            </button>
+                            {ev.pdfUrl && (
+                              <a
+                                href={ev.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 text-[10.5px] font-extrabold no-underline transition-all"
+                              >
+                                <span>📄 Abrir PDF</span>
+                              </a>
+                            )}
+                            <a
+                              href={dlHref}
+                              download={dlName}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 text-[10.5px] font-extrabold no-underline transition-all"
+                            >
+                              <span>
+                                {ev.pdfUrl || ev.pdfDownloadUrl ? '⬇️ Descargar PDF' : '⬇️ Descargar'}
+                              </span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

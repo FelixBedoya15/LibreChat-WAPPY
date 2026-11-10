@@ -1,9 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const https = require('https');
+const zlib = require('zlib');
 const { execFile, spawn } = require('child_process');
 const { promisify } = require('util');
 const { pathToFileURL } = require('url');
+
+let pdfParse = null;
+try {
+  pdfParse = require('pdf-parse');
+} catch (_) {}
 
 const execFileAsync = promisify(execFile);
 
@@ -1916,8 +1923,494 @@ async function investigarTrabajador360({
   };
 }
 
+function createAsyncSemaphore(maxConcurrent = 4) {
+  let active = 0;
+  const waitQueue = [];
+  return async function runWithSlot(fn) {
+    if (active < maxConcurrent) {
+      active += 1;
+    } else {
+      await new Promise((resolve) => waitQueue.push(resolve));
+    }
+    try {
+      return await fn();
+    } finally {
+      const next = waitQueue.shift();
+      if (next) {
+        next();
+      } else {
+        active = Math.max(0, active - 1);
+      }
+    }
+  };
+}
+
+const runWithArlHttpSlot = createAsyncSemaphore(6);
+const runWithContraloriaSlot = createAsyncSemaphore(4);
+const runWithPuppeteerSlot = createAsyncSemaphore(2);
+const runWithSimitMutex = createAsyncSemaphore(1);
+
+let sharedPuppeteerBrowser = null;
+let sharedPuppeteerLaunchPromise = null;
+let sharedPuppeteerActiveCount = 0;
+let sharedPuppeteerIdleTimer = null;
+let sharedSimitPage = null;
+let sharedSimitResponseSink = null;
+
+function scheduleSharedBrowserIdleClose() {
+  if (sharedPuppeteerIdleTimer) {
+    clearTimeout(sharedPuppeteerIdleTimer);
+    sharedPuppeteerIdleTimer = null;
+  }
+  if (sharedPuppeteerActiveCount === 0 && sharedPuppeteerBrowser) {
+    sharedPuppeteerIdleTimer = setTimeout(() => {
+      if (sharedPuppeteerActiveCount === 0 && sharedPuppeteerBrowser) {
+        const sp = sharedSimitPage;
+        sharedSimitPage = null;
+        sharedSimitResponseSink = null;
+        if (sp) {
+          sp.close().catch(() => {});
+        }
+        const b = sharedPuppeteerBrowser;
+        sharedPuppeteerBrowser = null;
+        b.close().catch(() => {});
+      }
+    }, 45000);
+    if (typeof sharedPuppeteerIdleTimer.unref === 'function') {
+      sharedPuppeteerIdleTimer.unref();
+    }
+  }
+}
+
+async function getSharedBrowser() {
+  if (sharedPuppeteerIdleTimer) {
+    clearTimeout(sharedPuppeteerIdleTimer);
+    sharedPuppeteerIdleTimer = null;
+  }
+  if (sharedPuppeteerBrowser && sharedPuppeteerBrowser.isConnected()) {
+    return sharedPuppeteerBrowser;
+  }
+  if (sharedPuppeteerLaunchPromise) {
+    return sharedPuppeteerLaunchPromise;
+  }
+
+  sharedPuppeteerLaunchPromise = (async () => {
+    let puppeteerMod = null;
+    try {
+      puppeteerMod = require('puppeteer');
+    } catch (_) {
+      try {
+        puppeteerMod = require('puppeteer-core');
+      } catch (__) {}
+    }
+    if (!puppeteerMod || typeof puppeteerMod.launch !== 'function') {
+      throw new Error('Puppeteer no está disponible en este entorno.');
+    }
+    const chromeBin = resolveChromeBinaryPath();
+    const launchOpts = {
+      headless: 'new',
+      protocolTimeout: 20000,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--ignore-certificate-errors',
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1280,900',
+      ],
+    };
+    if (chromeBin) {
+      launchOpts.executablePath = chromeBin;
+    }
+    const browser = await puppeteerMod.launch(launchOpts);
+    browser.on('disconnected', () => {
+      if (sharedPuppeteerBrowser === browser) {
+        sharedPuppeteerBrowser = null;
+      }
+    });
+    sharedPuppeteerBrowser = browser;
+    return browser;
+  })();
+
+  try {
+    return await sharedPuppeteerLaunchPromise;
+  } finally {
+    sharedPuppeteerLaunchPromise = null;
+  }
+}
+
+async function runWithPuppeteerPage(fn, timeoutMs = 18000) {
+  return runWithPuppeteerSlot(async () => {
+    sharedPuppeteerActiveCount += 1;
+    let page = null;
+    let hardTimer = null;
+    try {
+      const browser = await getSharedBrowser();
+      page = await browser.newPage();
+      await page.setViewport({ width: 1280, height: 900 });
+      await page.setUserAgent(DEFAULT_HEADERS['User-Agent']);
+
+      const timeoutPromise = new Promise((_, reject) => {
+        hardTimer = setTimeout(() => {
+          reject(new Error(`Timeout de navegador (${timeoutMs}ms)`));
+        }, timeoutMs);
+      });
+
+      return await Promise.race([fn(page), timeoutPromise]);
+    } finally {
+      if (hardTimer) clearTimeout(hardTimer);
+      if (page) {
+        await page.close().catch(() => {});
+      }
+      sharedPuppeteerActiveCount = Math.max(0, sharedPuppeteerActiveCount - 1);
+      scheduleSharedBrowserIdleClose();
+    }
+  });
+}
+
+function mergeRawCookieHeader(setCookieHeader, existingCookie = '') {
+  const map = new Map();
+  if (existingCookie) {
+    existingCookie.split(';').forEach((pair) => {
+      const idx = pair.indexOf('=');
+      if (idx > 0) {
+        const k = pair.slice(0, idx).trim();
+        const v = pair.slice(idx + 1).trim();
+        if (k) map.set(k, v);
+      }
+    });
+  }
+  const rawArr = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : setCookieHeader
+      ? [setCookieHeader]
+      : [];
+  for (const raw of rawArr) {
+    const first = String(raw || '').split(';')[0];
+    const idx = first.indexOf('=');
+    if (idx > 0) {
+      const k = first.slice(0, idx).trim();
+      const v = first.slice(idx + 1).trim();
+      if (k) map.set(k, v);
+    }
+  }
+  return Array.from(map.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join('; ');
+}
+
+function insecureHttpsRequest(
+  urlStr,
+  {
+    method = 'GET',
+    headers = {},
+    body = null,
+    cookieHeader = '',
+    timeoutMs = 12000,
+    followRedirects = true,
+    maxRedirects = 3,
+  } = {},
+) {
+  return new Promise((resolve, reject) => {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(urlStr);
+    } catch (err) {
+      return reject(err);
+    }
+
+    const bodyBuf =
+      body == null ? null : Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8');
+    const reqHeaders = {
+      'User-Agent': DEFAULT_HEADERS['User-Agent'],
+      Accept: '*/*',
+      'Accept-Language': DEFAULT_HEADERS['Accept-Language'],
+      ...headers,
+    };
+    if (cookieHeader && !reqHeaders.Cookie && !reqHeaders.cookie) {
+      reqHeaders.Cookie = cookieHeader;
+    }
+    if (bodyBuf && reqHeaders['Content-Length'] === undefined) {
+      reqHeaders['Content-Length'] = bodyBuf.length;
+    }
+
+    let finished = false;
+    const req = https.request(
+      {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 443,
+        path: `${parsedUrl.pathname}${parsedUrl.search}`,
+        method,
+        headers: reqHeaders,
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        const nextCookie = mergeRawCookieHeader(res.headers['set-cookie'], cookieHeader);
+        const status = res.statusCode || 0;
+        const loc = res.headers.location;
+        if (
+          followRedirects &&
+          maxRedirects > 0 &&
+          loc &&
+          [301, 302, 303, 307, 308].includes(status)
+        ) {
+          res.resume();
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          const nextUrl = new URL(loc, parsedUrl.href).href;
+          const nextMethod = status === 303 ? 'GET' : method;
+          const nextBody = status === 303 ? null : bodyBuf;
+          const redirectHeaders = { ...headers };
+          if (status === 303) {
+            delete redirectHeaders['Content-Type'];
+            delete redirectHeaders['Content-Length'];
+          }
+          insecureHttpsRequest(nextUrl, {
+            method: nextMethod,
+            headers: redirectHeaders,
+            body: nextBody,
+            cookieHeader: nextCookie,
+            timeoutMs,
+            followRedirects: true,
+            maxRedirects: maxRedirects - 1,
+          }).then(resolve, reject);
+          return;
+        }
+
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          resolve({
+            status,
+            headers: res.headers,
+            buf: Buffer.concat(chunks),
+            cookieHeader: nextCookie,
+          });
+        });
+        res.on('error', (err) => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          reject(err);
+        });
+      },
+    );
+
+    const timer = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      req.destroy(new Error(`Timeout HTTPS (${timeoutMs}ms) en ${parsedUrl.hostname}`));
+      reject(new Error(`Timeout HTTPS (${timeoutMs}ms) en ${parsedUrl.hostname}`));
+    }, timeoutMs);
+
+    req.on('error', (err) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    if (bodyBuf) req.write(bodyBuf);
+    req.end();
+  });
+}
+
+function toBirthDateDmySlash(cleanFechaNac = '') {
+  if (!cleanFechaNac) return '';
+  const isoM = String(cleanFechaNac).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoM) return `${isoM[3]}/${isoM[2]}/${isoM[1]}`;
+  const dmyM = String(cleanFechaNac).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (dmyM) return cleanFechaNac;
+  return '';
+}
+
+async function extractTextFromPdfBuffer(pdfBuf) {
+  if (!pdfBuf || pdfBuf.length < 64) return '';
+  if (typeof pdfParse === 'function') {
+    try {
+      const parsed = await pdfParse(pdfBuf);
+      if (parsed?.text && parsed.text.trim()) {
+        return parsed.text.replace(/\s+/g, ' ').trim();
+      }
+    } catch (_) {}
+  }
+  const tjLiterals = [];
+  const inflatedChunks = [];
+  let idx = 0;
+  while ((idx = pdfBuf.indexOf('stream', idx)) !== -1) {
+    // Evitar coincidencia dentro de "endstream"
+    if (idx >= 3 && pdfBuf.subarray(idx - 3, idx).toString('ascii') === 'end') {
+      idx += 6;
+      continue;
+    }
+    let start = idx + 6;
+    if (pdfBuf[start] === 13 && pdfBuf[start + 1] === 10) start += 2;
+    else if (pdfBuf[start] === 10) start += 1;
+    const end = pdfBuf.indexOf('endstream', start);
+    if (end > start) {
+      let sub = pdfBuf.subarray(start, end);
+      while (sub.length > 0 && (sub[sub.length - 1] === 10 || sub[sub.length - 1] === 13)) {
+        sub = sub.subarray(0, sub.length - 1);
+      }
+      try {
+        const inf = zlib.inflateSync(sub).toString('latin1');
+        inflatedChunks.push(inf);
+        for (const m of inf.matchAll(/\(([^()\\]*(?:\\.[^()\\]*)*)\)\s*Tj/g)) {
+          if (m[1]) tjLiterals.push(m[1]);
+        }
+        for (const m of inf.matchAll(/\[([\s\S]*?)\]\s*TJ/g)) {
+          const inner = m[1] || '';
+          const parts = Array.from(inner.matchAll(/\(([^()\\]*(?:\\.[^()\\]*)*)\)/g)).map(
+            (x) => x[1],
+          );
+          if (parts.length) tjLiterals.push(parts.join(''));
+        }
+      } catch (_) {}
+    }
+    idx = end > start ? end + 9 : idx + 6;
+  }
+  return `${tjLiterals.join(' ')} ${inflatedChunks.join(' ')}`.replace(/\s+/g, ' ').trim();
+}
+
 /**
- * Wrapper unificado de Rama Judicial / Antecedentes (acepta string u objeto `{ nombreCompleto, nombre, includeEvidence, forceEvidence }`).
+ * Consulta real de Certificado Oficial de Antecedentes Fiscales en la Contraloría General de la República (PDF real).
+ */
+async function consultarContraloriaFiscalPorCedula({
+  tipoDoc = 'CC',
+  cedula = '',
+  includePdf = true,
+} = {}) {
+  const cleanCedula = String(cedula || '').replace(/[^\d]/g, '').trim();
+  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
+  if (!cleanCedula || cleanCedula.length < 5) {
+    return {
+      ok: false,
+      consultado: false,
+      sinResponsabilidadFiscal: false,
+      reportadoFiscal: false,
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+    };
+  }
+
+  const contraloriaUrl =
+    'https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx';
+  const tipoMap = { CC: 'CC', CE: 'CE', TI: 'TI', PA: 'PA', PEP: 'PEP', PPT: 'PPT', NIT: 'NI' };
+  const ddlTipo = tipoMap[cleanTipoDoc] || 'CC';
+
+  return runWithContraloriaSlot(async () => {
+    try {
+      const getRes = await insecureHttpsRequest(contraloriaUrl, {
+        method: 'GET',
+        timeoutMs: 12000,
+      });
+      const htmlForm = getRes.buf.toString('utf8');
+      const viewState = extractHiddenInput(htmlForm, '__VIEWSTATE');
+      const viewStateGen = extractHiddenInput(htmlForm, '__VIEWSTATEGENERATOR');
+      const eventValidation = extractHiddenInput(htmlForm, '__EVENTVALIDATION');
+      if (!viewState) {
+        return {
+          ok: false,
+          consultado: false,
+          error: 'No se obtuvo __VIEWSTATE en Contraloría.',
+          pdfBase64: null,
+          pdfFileName: null,
+          imageBase64: null,
+          imageFileName: null,
+        };
+      }
+
+      const postBody = new URLSearchParams({
+        __VIEWSTATE: viewState,
+        __VIEWSTATEGENERATOR: viewStateGen,
+        __EVENTVALIDATION: eventValidation,
+        'ctl00$MainContent$ddlTipoDocumento': ddlTipo,
+        'ctl00$MainContent$txtNumeroDocumento': cleanCedula,
+        'ctl00$MainContent$btnBuscar': 'Buscar',
+      }).toString();
+
+      const postRes = await insecureHttpsRequest(contraloriaUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Referer: contraloriaUrl,
+        },
+        cookieHeader: getRes.cookieHeader,
+        body: postBody,
+        timeoutMs: 14000,
+      });
+
+      const isPdf =
+        postRes.buf.length > 500 && postRes.buf.subarray(0, 5).toString('ascii').startsWith('%PDF');
+      if (!isPdf) {
+        return {
+          ok: false,
+          consultado: true,
+          error: 'Contraloría no retornó PDF directo (posible validación adicional).',
+          pdfBase64: null,
+          pdfFileName: null,
+          imageBase64: null,
+          imageFileName: null,
+        };
+      }
+
+      const pdfText = await extractTextFromPdfBuffer(postRes.buf);
+      const normPdfText = pdfText
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+      const sinResponsabilidadFiscal =
+        normPdfText.includes('NO SE ENCUENTRA REPORTADO COMO RESPONSABLE FISCAL') ||
+        normPdfText.includes('NO SE ENCUENTRA REPORTADA COMO RESPONSABLE FISCAL') ||
+        !normPdfText.includes('REPORTADO COMO RESPONSABLE FISCAL');
+      const reportadoFiscal =
+        !sinResponsabilidadFiscal && normPdfText.includes('REPORTADO COMO RESPONSABLE FISCAL');
+
+      let pdfBase64 = null;
+      let pdfFileName = null;
+      let imageBase64 = null;
+      let imageFileName = null;
+
+      if (includePdf !== false) {
+        pdfBase64 = postRes.buf.toString('base64');
+        pdfFileName = `Certificado_Contraloria_${cleanCedula}.pdf`;
+        imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+        imageFileName = imageBase64 ? `Certificado_Contraloria_${cleanCedula}.png` : null;
+      }
+
+      return {
+        ok: true,
+        consultado: true,
+        sinResponsabilidadFiscal,
+        reportadoFiscal,
+        pdfBase64,
+        pdfFileName,
+        imageBase64,
+        imageFileName,
+      };
+    } catch (err) {
+      logger.warn(`[OSINT Contraloría] Aviso consultando ${cleanCedula}: ${err.message}`);
+      return {
+        ok: false,
+        consultado: false,
+        error: err.message,
+        pdfBase64: null,
+        pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
+      };
+    }
+  });
+}
+
+/**
+ * Wrapper unificado de Rama Judicial + Contraloría General (Antecedentes Judiciales y Fiscales Reales).
  */
 async function consultarRamaJudicial(params = '') {
   const isObj = params && typeof params === 'object';
@@ -1930,22 +2423,31 @@ async function consultarRamaJudicial(params = '') {
   const cleanTipoDoc = isObj ? String(params.tipoDoc || 'CC').trim().toUpperCase() : 'CC';
   const cleanCedula = isObj ? String(params.cedula || '').trim() : '';
 
-  const rj = await consultarRamaJudicialPorNombre(cleanNombre);
-  const resumen = rj.ok
-    ? rj.totalProcesos > 0
-      ? `Registra ${rj.totalProcesos} proceso(s) en Rama Judicial (${rj.procesos
-          .slice(0, 2)
-          .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
-          .join('; ')})`
-      : `Sin procesos judiciales activos para "${cleanNombre}" en Rama Judicial API v2`
-    : rj.aviso || `Consulta judicial verificada para "${cleanNombre || 'S/N'}"`;
+  const [rj, contraloria] = await Promise.all([
+    cleanNombre && cleanNombre.length >= 4
+      ? consultarRamaJudicialPorNombre(cleanNombre)
+      : Promise.resolve({
+          ok: false,
+          consultado: false,
+          nombreConsultado: cleanNombre,
+          totalProcesos: 0,
+          procesos: [],
+        }),
+    /^\d{5,15}$/.test(cleanCedula.replace(/[^\d]/g, ''))
+      ? consultarContraloriaFiscalPorCedula({
+          tipoDoc: cleanTipoDoc,
+          cedula: cleanCedula,
+          includePdf: includeEvidence !== false,
+        })
+      : Promise.resolve(null),
+  ]);
 
-  let pdfBase64 = null;
-  let pdfFileName = null;
-  let imageBase64 = null;
-  let imageFileName = null;
+  let pdfBase64 = contraloria?.pdfBase64 || null;
+  let pdfFileName = contraloria?.pdfFileName || null;
+  let imageBase64 = contraloria?.imageBase64 || null;
+  let imageFileName = contraloria?.imageFileName || null;
 
-  if (rj.ok && (rj.totalProcesos > 0 || forceEvidence) && includeEvidence !== false) {
+  if (!pdfBase64 && rj.ok && (rj.totalProcesos > 0 || forceEvidence) && includeEvidence !== false) {
     try {
       const todayISO = new Date().toISOString().split('T')[0];
       const subjectTag = sanitizeFileStem(cleanCedula || cleanNombre || 'Ciudadano', 'Ciudadano').slice(0, 40);
@@ -1966,72 +2468,1178 @@ async function consultarRamaJudicial(params = '') {
     }
   }
 
+  const totalProcesos = Number(rj.totalProcesos || 0);
+  const reportadoFiscal = Boolean(contraloria?.reportadoFiscal);
+  let estadoReal = '⚠️ CONSULTA PARCIAL DE ANTECEDENTES';
+  if (reportadoFiscal) {
+    estadoReal = '⚠️ REPORTADO EN CONTRALORÍA FISCAL';
+  } else if (totalProcesos > 0) {
+    estadoReal = `⚠️ ${totalProcesos} PROCESO(S) EN RAMA JUDICIAL`;
+  } else if (rj.ok && contraloria?.ok) {
+    estadoReal = '✅ SIN ANTECEDENTES JUDICIALES NI FISCALES';
+  } else if (contraloria?.ok) {
+    estadoReal = '✅ SIN ANTECEDENTES FISCALES (CONTRALORÍA)';
+  } else if (rj.ok) {
+    estadoReal = '✅ SIN PROCESOS JUDICIALES ACTIVOS';
+  }
+
+  const partesResumen = [];
+  if (rj.ok) {
+    partesResumen.push(
+      totalProcesos > 0
+        ? `Rama Judicial: ${totalProcesos} proceso(s) (${rj.procesos
+            .slice(0, 2)
+            .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
+            .join('; ')})`
+        : `Rama Judicial: 0 procesos activos para "${cleanNombre}"`,
+    );
+  } else if (rj.aviso) {
+    partesResumen.push(rj.aviso);
+  }
+  if (contraloria?.ok) {
+    partesResumen.push(
+      reportadoFiscal
+        ? `Contraloría General (${cleanTipoDoc} ${cleanCedula}): REPORTADO como responsable fiscal`
+        : `Contraloría General (${cleanTipoDoc} ${cleanCedula}): NO reportado como responsable fiscal (certificado PDF oficial descargado)`,
+    );
+  }
+
+  const resumen =
+    partesResumen.join(' · ') ||
+    `Consulta de antecedentes ejecutada para ${cleanNombre || `${cleanTipoDoc} ${cleanCedula}`}`;
+
   return {
     ...rj,
+    ok: Boolean(rj.ok || contraloria?.ok),
+    documento: cleanCedula || undefined,
+    tipoDoc: cleanTipoDoc,
+    contraloria: contraloria
+      ? {
+          ok: contraloria.ok,
+          sinResponsabilidadFiscal: contraloria.sinResponsabilidadFiscal,
+          reportadoFiscal: contraloria.reportadoFiscal,
+        }
+      : null,
+    afiliadoActivo: totalProcesos === 0 && !reportadoFiscal && Boolean(rj.ok || contraloria?.ok),
+    tieneHallazgo: totalProcesos > 0 || reportadoFiscal,
+    tieneCertificado: Boolean(pdfBase64),
+    estadoReal,
     pdfBase64,
     pdfFileName,
     imageBase64,
     imageFileName,
-    fuente: 'Google Antigravity Local (IP Colombia · Rama Judicial / Antecedentes)',
-    status: rj.ok ? 'ok' : 'warning',
+    fuente:
+      'Google Antigravity Local (IP Colombia · Rama Judicial API v2 + Contraloría General)',
+    status: rj.ok || contraloria?.ok ? 'ok' : 'warning',
     resumen,
   };
 }
 
-async function probeSinglePortalTarget(p) {
-  let lastErrorMsg = '';
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const tStart = Date.now();
+/**
+ * 1. Consulta REAL por cédula en ARL SURA (HTTP directo + PDF real), ARL Positiva (API directa)
+ *    y ARL Seguros Bolívar (Puppeteer con interceptación Lambda cuando hay fechaNacimiento o ARL Bolívar).
+ */
+async function consultarArlRealPorCedula({
+  tipoDoc = 'CC',
+  cedula = '',
+  nombre = '',
+  fechaNacimiento = '',
+  arl = '',
+  includeEvidence = true,
+} = {}) {
+  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
+  const cleanCedula = String(cedula || '').replace(/[^\dA-Za-z]/g, '').trim();
+  const cleanNombre = String(nombre || '').trim();
+  const cleanFechaNac = formatCleanFechaNacimiento(fechaNacimiento);
+  const cleanArl = String(arl || '').trim();
+
+  if (!cleanCedula) {
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · ARL Real)',
+      status: 'warning',
+      action: 'arl',
+      tipoDoc: cleanTipoDoc,
+      documento: '',
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneCertificado: false,
+      estadoReal: '⚠️ DOCUMENTO VACÍO',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: 'No se suministró número de documento para consultar afiliación ARL.',
+      detalles: [],
+    };
+  }
+
+  const detalles = [];
+  const consultasTexto = [];
+  let afiliadoActivo = false;
+  let entidadDetectada = '';
+  let empleadorDetalle = '';
+  let historialRetirado = false;
+  let bolivarRetiroEmpresa = '';
+  let bolivarRetiroFechaFin = '';
+  let pdfBase64 = null;
+  let pdfFileName = null;
+  let imageBase64 = null;
+  let imageFileName = null;
+
+  // 1) ARL SURA + ARL Positiva bajo semáforo HTTP ligero (~200-350ms, CERO navegador)
+  await runWithArlHttpSlot(async () => {
+    const suraTipoMap = { CC: 'C', CE: 'E', TI: 'T', PA: 'P', PPT: 'X', NIT: 'N', PE: 'P' };
+    const suraTipo = suraTipoMap[cleanTipoDoc] || 'C';
+    const suraUrl = 'https://www.arlsura.com/index.php/com-es-afiliado?tmpl=component';
+
+    // 1.A — ARL SURA
     try {
-      const res = await fetch(p.url, {
-        method: 'GET',
-        headers: DEFAULT_HEADERS,
-        redirect: 'manual',
-        signal: AbortSignal.timeout(attempt === 1 ? 4500 : 5500),
+      const t0 = Date.now();
+      const suraFormBody = new URLSearchParams({
+        tipo_consulta: 'persona',
+        tipo_doc: suraTipo,
+        numero_doc: cleanCedula,
+        tipo: '2',
+      }).toString();
+
+      const r1 = await insecureHttpsRequest(suraUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Referer: suraUrl,
+        },
+        body: suraFormBody,
+        timeoutMs: 12000,
       });
-      const latencyMs = Date.now() - tStart;
-      await res.body?.cancel?.().catch(() => {});
-      const reachable = res.ok || (res.status >= 200 && res.status < 400);
-      if (reachable || attempt >= 2) {
-        return {
-          entidad: p.nombre,
-          url: p.url,
-          reachable,
-          httpStatus: res.status,
+      const html1 = r1.buf.toString('utf8');
+      const latencyMs = Date.now() - t0;
+      const isNoAfiliadoSura = /no\s+se\s+encuentra\s+afiliad/i.test(html1);
+      const isAfiliadoSura = !isNoAfiliadoSura && /se\s+encuentra\s+afiliad/i.test(html1);
+
+      if (isAfiliadoSura) {
+        afiliadoActivo = true;
+        entidadDetectada = 'ARL SURA';
+        consultasTexto.push('ARL SURA: Afiliado activo');
+        detalles.push({
+          entidad: 'ARL SURA',
+          url: suraUrl,
+          consultadoPorCedula: true,
+          afiliadoActivo: true,
+          estado: 'AFILIADO ACTIVO',
           latencyMs,
-        };
+        });
+
+        if (includeEvidence !== false) {
+          const formBlockMatch = html1.match(/<form[^>]*id=["']frm_cert["'][^>]*>([\s\S]*?)<\/form>/i);
+          if (formBlockMatch) {
+            const certParams = new URLSearchParams();
+            for (const inpMatch of formBlockMatch[1].matchAll(/<input\b([^>]*)>/gi)) {
+              const attrs = inpMatch[1] || '';
+              const nameM = attrs.match(/\bname=["']([^"']+)["']/i);
+              const valM = attrs.match(/\bvalue=["']([^"']*)["']/i);
+              if (nameM && nameM[1]) {
+                certParams.set(nameM[1], decodeHtmlEntities(valM ? valM[1] : ''));
+              }
+            }
+            if (!certParams.has('certificado')) {
+              certParams.set('certificado', 'Descargar Certificado');
+            }
+            const rCert = await insecureHttpsRequest(suraUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Referer: suraUrl,
+              },
+              cookieHeader: r1.cookieHeader,
+              body: certParams.toString(),
+              timeoutMs: 15000,
+            });
+            if (rCert.buf.length > 500 && rCert.buf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
+              pdfBase64 = rCert.buf.toString('base64');
+              pdfFileName = `Certificado_ARL_SURA_${cleanCedula}.pdf`;
+            }
+          }
+        }
+      } else {
+        consultasTexto.push('ARL SURA: No afiliado');
+        detalles.push({
+          entidad: 'ARL SURA',
+          url: suraUrl,
+          consultadoPorCedula: true,
+          afiliadoActivo: false,
+          estado: 'No afiliado',
+          latencyMs,
+        });
       }
-    } catch (err) {
-      lastErrorMsg = err.message;
-      if (attempt >= 2) {
-        return {
-          entidad: p.nombre,
-          url: p.url,
-          reachable: false,
-          httpStatus: 0,
-          latencyMs: Date.now() - tStart,
-          error: lastErrorMsg,
-        };
+    } catch (suraErr) {
+      consultasTexto.push(`ARL SURA: Error (${suraErr.message})`);
+      detalles.push({
+        entidad: 'ARL SURA',
+        url: suraUrl,
+        consultadoPorCedula: false,
+        afiliadoActivo: false,
+        error: suraErr.message,
+      });
+    }
+
+    // 1.B — ARL Positiva (solo si no salió activo en SURA)
+    if (!afiliadoActivo) {
+      const posUrl = `https://gal-back.linktic.com/afiliaciones/certificates/certificateWorkerByEmployer?tipoDoc=${encodeURIComponent(cleanTipoDoc)}&idAfiliado=${encodeURIComponent(cleanCedula)}`;
+      try {
+        const t0 = Date.now();
+        const rPos = await insecureHttpsRequest(posUrl, {
+          method: 'GET',
+          headers: { Accept: 'application/json, application/pdf, */*' },
+          timeoutMs: 12000,
+        });
+        const latencyMs = Date.now() - t0;
+        const isPosPdf =
+          rPos.buf.length > 500 && rPos.buf.subarray(0, 5).toString('ascii').startsWith('%PDF');
+        const posText = isPosPdf ? '' : rPos.buf.toString('utf8');
+
+        if (rPos.status === 200 && isPosPdf) {
+          afiliadoActivo = true;
+          entidadDetectada = 'ARL Positiva';
+          consultasTexto.push('ARL Positiva: Afiliado activo');
+          detalles.push({
+            entidad: 'ARL Positiva',
+            url: posUrl,
+            consultadoPorCedula: true,
+            afiliadoActivo: true,
+            estado: 'AFILIADO ACTIVO',
+            latencyMs,
+          });
+          if (includeEvidence !== false) {
+            pdfBase64 = rPos.buf.toString('base64');
+            pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
+          }
+        } else if (
+          rPos.status === 200 &&
+          !/AFFILIATION_NOT_FOUND|no\s+se\s+encuentra/i.test(posText)
+        ) {
+          let posJson = null;
+          try {
+            posJson = JSON.parse(posText);
+          } catch (_) {}
+          if (posJson && !posJson.error) {
+            afiliadoActivo = true;
+            entidadDetectada = 'ARL Positiva';
+            empleadorDetalle = String(
+              posJson.razonSocial || posJson.empleador || posJson.empresa || '',
+            ).trim();
+            consultasTexto.push(
+              `ARL Positiva: Afiliado activo${empleadorDetalle ? ` (${empleadorDetalle})` : ''}`,
+            );
+            detalles.push({
+              entidad: 'ARL Positiva',
+              url: posUrl,
+              consultadoPorCedula: true,
+              afiliadoActivo: true,
+              estado: 'AFILIADO ACTIVO',
+              empleador: empleadorDetalle || undefined,
+              latencyMs,
+            });
+          } else {
+            consultasTexto.push('ARL Positiva: No afiliado');
+            detalles.push({
+              entidad: 'ARL Positiva',
+              url: posUrl,
+              consultadoPorCedula: true,
+              afiliadoActivo: false,
+              estado: 'No afiliado',
+              latencyMs,
+            });
+          }
+        } else {
+          consultasTexto.push('ARL Positiva: No afiliado');
+          detalles.push({
+            entidad: 'ARL Positiva',
+            url: posUrl,
+            consultadoPorCedula: true,
+            afiliadoActivo: false,
+            estado: 'No afiliado',
+            latencyMs,
+          });
+        }
+      } catch (posErr) {
+        consultasTexto.push(`ARL Positiva: Error (${posErr.message})`);
+        detalles.push({
+          entidad: 'ARL Positiva',
+          url: posUrl,
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          error: posErr.message,
+        });
       }
     }
-    await sleepMs(400);
+  });
+
+  // Convertir PDF oficial de SURA o Positiva a PNG fuera del slot HTTP
+  if (pdfBase64 && !imageBase64) {
+    imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+    if (imageBase64 && pdfFileName) {
+      imageFileName = pdfFileName.replace(/\.pdf$/i, '.png');
+    }
   }
+
+  // 2) ARL Seguros Bolívar (solo si no salió activo en SURA ni Positiva, y tiene fechaNacimiento o su ARL dice Bolívar)
+  const mentionsBolivar = /bol[ií]var/i.test(cleanArl);
+  const fechaNacDmy = toBirthDateDmySlash(cleanFechaNac);
+  if (!afiliadoActivo && (fechaNacDmy || mentionsBolivar)) {
+    if (!fechaNacDmy) {
+      consultasTexto.push('ARL Bolívar: Requiere Fecha de Nacimiento para consultar');
+      detalles.push({
+        entidad: 'ARL Seguros Bolívar',
+        url: 'https://www.segurosbolivar.com/arl',
+        consultadoPorCedula: false,
+        afiliadoActivo: false,
+        estado: 'Falta Fecha de Nacimiento',
+      });
+    } else {
+      try {
+        const t0 = Date.now();
+        const bolResult = await runWithPuppeteerPage(async (page) => {
+          let interceptedJson = null;
+          page.on('response', async (res) => {
+            const u = res.url();
+            if (
+              (u.includes('arl/lambda') || u.includes('operaciones')) &&
+              res.request().method() !== 'OPTIONS'
+            ) {
+              try {
+                interceptedJson = await res.json();
+              } catch (_) {}
+            }
+          });
+
+          await page.goto('https://www.segurosbolivar.com/arl', {
+            waitUntil: 'domcontentloaded',
+            timeout: 14000,
+          });
+          await page.waitForSelector('#arl-numero-documento', { timeout: 8000 });
+          await page
+            .waitForSelector('mat-checkbox.mat-checkbox-checked', { timeout: 6000 })
+            .catch(() => {});
+          await sleepMs(600);
+
+          if (cleanTipoDoc !== 'CC') {
+            const optRegexMap = {
+              CE: 'extranjer',
+              PA: 'pasaporte',
+              PPT: 'protecci',
+              TI: 'identidad',
+            };
+            const targetOptPattern = optRegexMap[cleanTipoDoc];
+            if (targetOptPattern) {
+              await page.evaluate(() => {
+                document.querySelector('mat-select')?.click();
+              });
+              await sleepMs(350);
+              await page.evaluate((pat) => {
+                const re = new RegExp(pat, 'i');
+                const opt = Array.from(document.querySelectorAll('mat-option')).find((o) =>
+                  re.test(o.innerText || ''),
+                );
+                if (opt) opt.click();
+              }, targetOptPattern);
+              await sleepMs(250);
+            }
+          }
+
+          await page.focus('#arl-numero-documento');
+          await page.keyboard.type(cleanCedula, { delay: 16 });
+          await page.focus('#calendarId');
+          await page.keyboard.type(fechaNacDmy, { delay: 16 });
+          await page.keyboard.press('Tab');
+          await sleepMs(300);
+
+          // Verificar que hidratación SSR no haya limpiado los campos antes de enviar
+          const docFilled = await page.evaluate(
+            () => (document.querySelector('#arl-numero-documento')?.value || '').trim().length > 0,
+          );
+          if (!docFilled) {
+            await page.focus('#arl-numero-documento');
+            await page.keyboard.type(cleanCedula, { delay: 16 });
+            await page.focus('#calendarId');
+            await page.keyboard.type(fechaNacDmy, { delay: 16 });
+            await page.keyboard.press('Tab');
+            await sleepMs(250);
+          }
+
+          await page.evaluate(() => {
+            const mc = document.querySelector('mat-checkbox');
+            if (mc && !mc.classList.contains('mat-checkbox-checked')) {
+              document.querySelector('#mat-checkbox-1-input')?.click();
+            }
+            const cBtn = Array.from(document.querySelectorAll('button')).find(
+              (b) => (b.innerText || '').trim() === 'Consultar',
+            );
+            if (cBtn) cBtn.click();
+          });
+
+          for (let i = 0; i < 24 && !interceptedJson; i++) {
+            await sleepMs(350);
+          }
+
+          let bolPdfBuf = null;
+          const empresas = Array.isArray(interceptedJson?.result?.data?.empresas)
+            ? interceptedJson.result.data.empresas
+            : [];
+          const hasActiveInBolivar = empresas.some(
+            (emp) =>
+              Array.isArray(emp.afiliaciones) &&
+              emp.afiliaciones.some((af) =>
+                ['ACT', 'VIG', 'ACTIVO', 'VIGENTE'].includes(
+                  String(af?.estado || '').toUpperCase().trim(),
+                ),
+              ),
+          );
+          if (hasActiveInBolivar && includeEvidence !== false) {
+            await sleepMs(800);
+            try {
+              bolPdfBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
+            } catch (_) {}
+          }
+          return { interceptedJson, bolPdfBuf };
+        }, 22000);
+
+        const latencyMs = Date.now() - t0;
+        const empresas = Array.isArray(bolResult?.interceptedJson?.result?.data?.empresas)
+          ? bolResult.interceptedJson.result.data.empresas
+          : [];
+
+        let activeEmp = null;
+        let retiredEmp = null;
+        let retiredAf = null;
+
+        for (const emp of empresas) {
+          const afs = Array.isArray(emp?.afiliaciones) ? emp.afiliaciones : [];
+          for (const af of afs) {
+            const est = String(af?.estado || '').toUpperCase().trim();
+            if (['ACT', 'VIG', 'ACTIVO', 'VIGENTE'].includes(est)) {
+              activeEmp = emp;
+              break;
+            }
+            if (!retiredEmp && (est === 'RET' || est.startsWith('RET'))) {
+              retiredEmp = emp;
+              retiredAf = af;
+            }
+          }
+          if (activeEmp) break;
+        }
+
+        if (activeEmp) {
+          afiliadoActivo = true;
+          entidadDetectada = 'ARL Seguros Bolívar';
+          empleadorDetalle = String(activeEmp.nombreEmpresa || '').trim();
+          consultasTexto.push(
+            `ARL Bolívar: Afiliado activo${empleadorDetalle ? ` (${empleadorDetalle})` : ''}`,
+          );
+          detalles.push({
+            entidad: 'ARL Seguros Bolívar',
+            url: 'https://www.segurosbolivar.com/arl',
+            consultadoPorCedula: true,
+            afiliadoActivo: true,
+            estado: 'AFILIADO ACTIVO',
+            empleador: empleadorDetalle || undefined,
+            latencyMs,
+          });
+          if (
+            includeEvidence !== false &&
+            bolResult.bolPdfBuf &&
+            bolResult.bolPdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')
+          ) {
+            pdfBase64 = bolResult.bolPdfBuf.toString('base64');
+            pdfFileName = `Certificado_ARL_Bolivar_${cleanCedula}.pdf`;
+            imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+            imageFileName = imageBase64 ? `Certificado_ARL_Bolivar_${cleanCedula}.png` : null;
+          }
+        } else if (retiredEmp) {
+          historialRetirado = true;
+          bolivarRetiroEmpresa = String(retiredEmp.nombreEmpresa || 'Empresa anterior').trim();
+          bolivarRetiroFechaFin = String(retiredAf?.fechaFinCobertura || '').slice(0, 10);
+          consultasTexto.push(
+            `ARL Bolívar: Retirado (${bolivarRetiroEmpresa}${bolivarRetiroFechaFin ? `, fin: ${bolivarRetiroFechaFin}` : ''})`,
+          );
+          detalles.push({
+            entidad: 'ARL Seguros Bolívar',
+            url: 'https://www.segurosbolivar.com/arl',
+            consultadoPorCedula: true,
+            afiliadoActivo: false,
+            estado: 'RET',
+            empleador: bolivarRetiroEmpresa,
+            fechaFinCobertura: bolivarRetiroFechaFin || undefined,
+            latencyMs,
+          });
+        } else {
+          consultasTexto.push('ARL Bolívar: No afiliado');
+          detalles.push({
+            entidad: 'ARL Seguros Bolívar',
+            url: 'https://www.segurosbolivar.com/arl',
+            consultadoPorCedula: true,
+            afiliadoActivo: false,
+            estado: 'No afiliado',
+            latencyMs,
+          });
+        }
+      } catch (bolErr) {
+        logger.warn(`[OSINT ARL Bolívar] Aviso consultando ${cleanCedula}: ${bolErr.message}`);
+        consultasTexto.push(`ARL Bolívar: Aviso (${bolErr.message})`);
+        detalles.push({
+          entidad: 'ARL Seguros Bolívar',
+          url: 'https://www.segurosbolivar.com/arl',
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          error: bolErr.message,
+        });
+      }
+    }
+  }
+
+  let estadoReal = '';
+  let resumen = '';
+
+  if (afiliadoActivo) {
+    const labelEntidad =
+      entidadDetectada === 'ARL Seguros Bolívar' ? 'ARL BOLÍVAR' : entidadDetectada.toUpperCase();
+    estadoReal = `✅ AFILIADO ACTIVO EN ${labelEntidad}`;
+    const normDet = entidadDetectada.toLowerCase();
+    const normNomina = cleanArl.toLowerCase().replace(/^arl\s+/i, '').trim();
+    const mismatchNote =
+      normNomina && !normDet.includes(normNomina.slice(0, 5))
+        ? ` · Nota: en ficha figura "${cleanArl}"`
+        : '';
+    resumen = `Confirmado afiliado activo en ${entidadDetectada}${empleadorDetalle ? ` (${empleadorDetalle})` : ''}${pdfBase64 ? ' · Certificado oficial descargado' : ''}${mismatchNote}`;
+  } else {
+    // PROHIBIDO devolver PDF/PNG falso cuando no hay afiliación activa
+    pdfBase64 = null;
+    pdfFileName = null;
+    imageBase64 = null;
+    imageFileName = null;
+
+    if (historialRetirado) {
+      estadoReal = '⚪ RETIRADO EN ARL BOLÍVAR (SIN ARL ACTIVA)';
+      resumen = `Sin afiliación activa en ARL SURA, Positiva ni Bolívar · Historial retirado en ARL Bolívar: ${bolivarRetiroEmpresa}${bolivarRetiroFechaFin ? ` (fin: ${bolivarRetiroFechaFin})` : ''}`;
+    } else if (/colmena|axa|colpatria|equidad|aurora/i.test(cleanArl)) {
+      estadoReal = `⚪ NO EN SURA/POSITIVA (Nómina: ${cleanArl})`;
+      resumen = `${consultasTexto.join(' · ')} · En Somos SST figura "${cleanArl}" (portal empresarial requiere clave/validación privada)`;
+    } else {
+      estadoReal = '❌ SIN AFILIACIÓN EN SURA / POSITIVA';
+      resumen = `${consultasTexto.join(' · ')}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
+    }
+  }
+
   return {
-    entidad: p.nombre,
-    url: p.url,
-    reachable: false,
-    httpStatus: 0,
-    latencyMs: 0,
-    error: lastErrorMsg || 'Timeout',
+    fuente: 'Google Antigravity Local (IP Colombia · Consulta Real ARL por Cédula)',
+    status: 'ok',
+    action: 'arl',
+    tipoDoc: cleanTipoDoc,
+    documento: cleanCedula,
+    nombre: cleanNombre,
+    fechaNacimiento: cleanFechaNac || undefined,
+    arl: cleanArl || undefined,
+    afiliadoActivo,
+    entidadDetectada: entidadDetectada || null,
+    empleador: empleadorDetalle || null,
+    historialRetirado,
+    tieneCertificado: Boolean(pdfBase64),
+    estadoReal,
+    pdfBase64,
+    pdfFileName,
+    imageBase64,
+    imageFileName,
+    resumen,
+    detalles,
   };
 }
 
 /**
- * Verificación HTTP en tiempo real desde IP Colombia contra portales oficiales específicos:
- * - 'arl': 5 ARL (SURA, Positiva, Colmena, AXA Colpatria, Bolívar) + RUAF SISPRO
- * - 'pensiones': 5 Fondos de Pensiones (Colpensiones, Porvenir, Protección, Colfondos, Skandia)
- * - 'salud_rethus': ADRES BDUA + SISPRO ReTHUS
- * - 'vial_pesv': SIMIT FCM + RUNT 2.0 (Licencia / SOAT / RTM)
+ * 2. Consulta REAL de SIMIT (Comparendos, Multas y Acuerdos de Pago) por Cédula o Placa.
+ */
+async function consultarSimitPesvRealPorCedula({
+  tipoDoc = 'CC',
+  cedula = '',
+  nombre = '',
+  placa = '',
+  includeEvidence = true,
+  forceEvidence = false,
+} = {}) {
+  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
+  const cleanCedula = String(cedula || '').replace(/[^\dA-Za-z]/g, '').trim();
+  const cleanPlaca = String(placa || '').replace(/[^A-Za-z0-9]/g, '').trim().toUpperCase();
+  const cleanNombre = String(nombre || '').trim();
+  const queryKey = cleanPlaca || cleanCedula;
+
+  if (!queryKey) {
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · SIMIT FCM)',
+      status: 'warning',
+      action: 'vial_pesv',
+      tipoDoc: cleanTipoDoc,
+      documento: cleanCedula,
+      placa: cleanPlaca,
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneHallazgo: false,
+      tieneCertificado: false,
+      estadoReal: '⚠️ SIN CÉDULA NI PLACA PARA SIMIT',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: 'Se requiere número de documento o placa para consultar estado de cuenta en SIMIT.',
+      detalles: [],
+    };
+  }
+
+  try {
+    const executeSingleSimitQuery = async (forceFreshPage = false) => {
+      if (forceFreshPage && sharedSimitPage) {
+        const stale = sharedSimitPage;
+        sharedSimitPage = null;
+        sharedSimitResponseSink = null;
+        await stale.close().catch(() => {});
+      }
+
+      if (!sharedSimitPage || sharedSimitPage.isClosed()) {
+        const browser = await getSharedBrowser();
+        const freshPage = await browser.newPage();
+        await freshPage.setViewport({ width: 1280, height: 900 });
+        await freshPage.setUserAgent(DEFAULT_HEADERS['User-Agent']);
+        freshPage.on('close', () => {
+          if (sharedSimitPage === freshPage) {
+            sharedSimitPage = null;
+            sharedSimitResponseSink = null;
+          }
+        });
+        freshPage.on('response', async (res) => {
+          if (
+            res.url().includes('/estadocuenta/consulta') &&
+            res.request().method() === 'POST'
+          ) {
+            try {
+              const parsed = await res.json();
+              if (parsed && parsed.codigo !== 6 && typeof sharedSimitResponseSink === 'function') {
+                sharedSimitResponseSink(parsed);
+              }
+            } catch (_) {}
+          }
+        });
+
+        await freshPage.goto('https://www.fcm.org.co/simit/#/home-public', {
+          waitUntil: 'domcontentloaded',
+          timeout: 14000,
+        });
+        await freshPage.waitForSelector('#txtBusqueda', { timeout: 10000 });
+
+        // Esperar ~1.6s por si #whcModal abre al cargar; si abre, esperar su cierre natural (sin desperdiciar 16s si no abrió)
+        let sawWhcOpen = false;
+        for (let w = 0; w < 30; w++) {
+          const st = await freshPage.evaluate(() => {
+            let hasWhc = false;
+            try {
+              hasWhc = Boolean(
+                window.sessionStorage && window.sessionStorage.getItem('whcQuestions'),
+              );
+            } catch (_) {}
+            const whcOpen = Boolean(document.querySelector('#whcModal.show'));
+            return { hasWhc, whcOpen };
+          });
+          if (st.whcOpen) sawWhcOpen = true;
+          if (!st.whcOpen && (st.hasWhc || sawWhcOpen || w >= 4)) break;
+          await sleepMs(400);
+        }
+
+        await freshPage.evaluate(() => {
+          document
+            .querySelectorAll('#modalInformation .close, .modal.show button.close')
+            .forEach((btn) => {
+              const modal = btn.closest('.modal');
+              if (!modal || modal.id !== 'whcModal') {
+                btn.click();
+              }
+            });
+        });
+        await sleepMs(600);
+        sharedSimitPage = freshPage;
+      }
+
+      const page = sharedSimitPage;
+      let simitJson = null;
+      sharedSimitResponseSink = (payload) => {
+        simitJson = payload;
+      };
+
+      // Cerrar cualquier modal informativo residual y limpiar #txtBusqueda antes de escribir
+      await page.evaluate(() => {
+        document
+          .querySelectorAll('#modalInformation .close, .modal.show button.close')
+          .forEach((btn) => {
+            const modal = btn.closest('.modal');
+            if (!modal || modal.id !== 'whcModal') {
+              btn.click();
+            }
+          });
+        const inp = document.querySelector('#txtBusqueda');
+        if (inp) {
+          inp.value = '';
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+      await sleepMs(150);
+
+      await page.click('#txtBusqueda');
+      await page.type('#txtBusqueda', queryKey, { delay: 25 });
+
+      const hasHomeConsultar = await page.$('#consultar');
+      if (hasHomeConsultar) {
+        await page.click('#consultar');
+      } else {
+        const hasSearchIconBtn = await page.$('#btnNumDocPlaca');
+        if (hasSearchIconBtn) {
+          await page.click('#btnNumDocPlaca');
+        } else {
+          await page.keyboard.press('Enter');
+        }
+      }
+
+      for (let i = 0; i < 30 && !simitJson; i++) {
+        await sleepMs(350);
+      }
+      sharedSimitResponseSink = null;
+
+      if (!simitJson) {
+        return { simitJson: null, pdfBuf: null };
+      }
+
+      const multas = Array.isArray(simitJson.multas) ? simitJson.multas : [];
+      const comparendos = Array.isArray(simitJson.comparendos) ? simitJson.comparendos : [];
+      const hasFines = multas.length + comparendos.length > 0;
+
+      let pdfBuf = null;
+      if ((hasFines && includeEvidence !== false) || forceEvidence === true) {
+        await sleepMs(900);
+        try {
+          pdfBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
+        } catch (_) {}
+      }
+
+      return { simitJson, pdfBuf };
+    };
+
+    const simitOut = await runWithSimitMutex(async () => {
+      sharedPuppeteerActiveCount += 1;
+      let hardTimer = null;
+      try {
+        const runAttempt = async () => {
+          const hadWarmPage = Boolean(sharedSimitPage && !sharedSimitPage.isClosed());
+          let out = await executeSingleSimitQuery(false);
+          if (!out?.simitJson && hadWarmPage) {
+            out = await executeSingleSimitQuery(true);
+          }
+          return out;
+        };
+        const timeoutPromise = new Promise((_, reject) => {
+          hardTimer = setTimeout(() => {
+            reject(new Error('Timeout de navegador SIMIT (32000ms)'));
+          }, 32000);
+        });
+        return await Promise.race([runAttempt(), timeoutPromise]);
+      } finally {
+        if (hardTimer) clearTimeout(hardTimer);
+        sharedSimitResponseSink = null;
+        sharedPuppeteerActiveCount = Math.max(0, sharedPuppeteerActiveCount - 1);
+        scheduleSharedBrowserIdleClose();
+      }
+    });
+
+    if (!simitOut?.simitJson) {
+      return {
+        fuente: 'Google Antigravity Local (IP Colombia · SIMIT FCM)',
+        status: 'warning',
+        action: 'vial_pesv',
+        tipoDoc: cleanTipoDoc,
+        documento: cleanCedula,
+        placa: cleanPlaca,
+        nombre: cleanNombre,
+        afiliadoActivo: false,
+        tieneHallazgo: false,
+        tieneCertificado: false,
+        estadoReal: '⚠️ SIMIT EN VALIDACIÓN DE SEGURIDAD (REINTENTAR)',
+        pdfBase64: null,
+        pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
+        resumen: `El microservicio de estado de cuenta SIMIT tardó en responder la validación de seguridad para ${cleanPlaca ? `Placa ${cleanPlaca}` : `${cleanTipoDoc} ${cleanCedula}`}.`,
+        detalles: [],
+      };
+    }
+
+    const { simitJson, pdfBuf } = simitOut;
+    const multas = Array.isArray(simitJson.multas) ? simitJson.multas : [];
+    const comparendos = Array.isArray(simitJson.comparendos) ? simitJson.comparendos : [];
+    const acuerdosPago = Array.isArray(simitJson.acuerdosPago) ? simitJson.acuerdosPago : [];
+    const todosItems = [...multas, ...comparendos];
+    const totalComparendosMultas = todosItems.length;
+    const sumaValorPagar =
+      simitJson.totalGeneral != null
+        ? Number(simitJson.totalGeneral)
+        : todosItems.reduce((acc, item) => acc + Number(item?.valorPagar || item?.valor || 0), 0);
+    const valorFormateado = new Intl.NumberFormat('es-CO').format(Math.round(sumaValorPagar));
+
+    let pdfBase64 = null;
+    let pdfFileName = null;
+    let imageBase64 = null;
+    let imageFileName = null;
+
+    if (
+      pdfBuf &&
+      pdfBuf.length > 500 &&
+      pdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')
+    ) {
+      pdfBase64 = pdfBuf.toString('base64');
+      const safeTag = sanitizeFileStem(queryKey, 'SIMIT');
+      pdfFileName = `EstadoCuenta_SIMIT_${safeTag}.pdf`;
+      imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+      imageFileName = imageBase64 ? `EstadoCuenta_SIMIT_${safeTag}.png` : null;
+    }
+
+    if (totalComparendosMultas > 0) {
+      const detalleInfracciones = todosItems
+        .slice(0, 4)
+        .map((it) => {
+          const cod = it?.infracciones?.[0]?.codigoInfraccion || 'Infracción';
+          const pl = it?.placa ? `Placa ${it.placa}` : '';
+          const org = it?.organismoTransito || it?.departamento || '';
+          const valItem = new Intl.NumberFormat('es-CO').format(
+            Math.round(Number(it?.valorPagar || it?.valor || 0)),
+          );
+          const est = it?.estadoCartera || it?.estadoComparendo || '';
+          return [cod, pl, org, `$${valItem}`, est].filter(Boolean).join(' · ');
+        })
+        .join(' | ');
+
+      return {
+        fuente: 'Google Antigravity Local (IP Colombia · SIMIT Federación Colombiana de Municipios)',
+        status: 'ok',
+        action: 'vial_pesv',
+        tipoDoc: cleanTipoDoc,
+        documento: cleanCedula,
+        placa: cleanPlaca,
+        nombre: cleanNombre,
+        afiliadoActivo: false,
+        tieneHallazgo: true,
+        tieneCertificado: Boolean(pdfBase64),
+        totalMultas: multas.length,
+        totalComparendos: comparendos.length,
+        totalAcuerdosPago: acuerdosPago.length,
+        totalPagar: sumaValorPagar,
+        estadoReal: `⚠️ ${totalComparendosMultas} MULTA(S)/COMPARENDO(S) SIMIT ($${valorFormateado})`,
+        pdfBase64,
+        pdfFileName,
+        imageBase64,
+        imageFileName,
+        resumen: `Registra ${multas.length} multa(s) y ${comparendos.length} comparendo(s) en SIMIT por total $${valorFormateado} COP [${detalleInfracciones}]`,
+        detalles: todosItems.slice(0, 10).map((it) => ({
+          entidad: 'SIMIT FCM',
+          numero: it?.numeroComparendo || it?.numeroResolucion || '',
+          placa: it?.placa || '',
+          infraccion: it?.infracciones?.[0]?.codigoInfraccion || '',
+          descripcion: it?.infracciones?.[0]?.descripcionInfraccion || '',
+          organismoTransito: it?.organismoTransito || '',
+          estadoCartera: it?.estadoCartera || it?.estadoComparendo || '',
+          valorPagar: Number(it?.valorPagar || it?.valor || 0),
+        })),
+      };
+    }
+
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · SIMIT Federación Colombiana de Municipios)',
+      status: 'ok',
+      action: 'vial_pesv',
+      tipoDoc: cleanTipoDoc,
+      documento: cleanCedula,
+      placa: cleanPlaca,
+      nombre: cleanNombre,
+      afiliadoActivo: true,
+      tieneHallazgo: false,
+      tieneCertificado: Boolean(pdfBase64),
+      totalMultas: 0,
+      totalComparendos: 0,
+      totalAcuerdosPago: acuerdosPago.length,
+      totalPagar: 0,
+      estadoReal: '✅ PAZ Y SALVO EN SIMIT ($0)',
+      pdfBase64,
+      pdfFileName,
+      imageBase64,
+      imageFileName,
+      resumen: `0 comparendos, 0 multas y ${acuerdosPago.length} acuerdo(s) pendientes en SIMIT Federación Colombiana de Municipios para ${cleanPlaca ? `Placa ${cleanPlaca}` : `${cleanTipoDoc} ${cleanCedula}`}`,
+      detalles: [],
+    };
+  } catch (err) {
+    logger.warn(`[OSINT SIMIT] Aviso consultando ${queryKey}: ${err.message}`);
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · SIMIT FCM)',
+      status: 'warning',
+      action: 'vial_pesv',
+      tipoDoc: cleanTipoDoc,
+      documento: cleanCedula,
+      placa: cleanPlaca,
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneHallazgo: false,
+      tieneCertificado: false,
+      estadoReal: '⚠️ ERROR CONSULTANDO SIMIT',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: `Aviso al consultar SIMIT para ${queryKey}: ${err.message}`,
+      detalles: [],
+    };
+  }
+}
+
+/**
+ * 3. Consulta REAL de Afiliación Pensional en Porvenir AFP por Cédula (descarga PDF oficial si está afiliado).
+ */
+async function consultarPensionesRealPorCedula({
+  tipoDoc = 'CC',
+  cedula = '',
+  nombre = '',
+  afp = '',
+  fechaNacimiento = '',
+  includeEvidence = true,
+} = {}) {
+  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
+  const cleanCedula = String(cedula || '').replace(/[^\dA-Za-z]/g, '').trim();
+  const cleanNombre = String(nombre || '').trim();
+  const cleanAfp = String(afp || '').trim();
+  const cleanFechaNac = formatCleanFechaNacimiento(fechaNacimiento);
+
+  if (!cleanCedula) {
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · Porvenir AFP)',
+      status: 'warning',
+      action: 'pensiones',
+      tipoDoc: cleanTipoDoc,
+      documento: '',
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneCertificado: false,
+      estadoReal: '⚠️ DOCUMENTO VACÍO',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: 'No se suministró número de documento para consultar fondo de pensiones.',
+      detalles: [],
+    };
+  }
+
+  const porvUrl =
+    'https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion';
+  const porvTipo = ['CC', 'CE', 'TI'].includes(cleanTipoDoc) ? cleanTipoDoc : 'CC';
+
+  try {
+    const porvOut = await runWithPuppeteerPage(async (page) => {
+      let certResp = null;
+      page.on('response', async (res) => {
+        if (res.url().includes('descargaCerAfi')) {
+          try {
+            const buf = await res.buffer();
+            certResp = {
+              status: res.status(),
+              ct: String(res.headers()['content-type'] || '').toLowerCase(),
+              buf,
+            };
+          } catch (_) {}
+        }
+      });
+
+      await page.goto(porvUrl, { waitUntil: 'domcontentloaded', timeout: 14000 });
+      await page.waitForSelector('select[id$="_documento"]', { timeout: 9000 });
+      await sleepMs(600);
+      await page.select('select[id$="_documento"]', porvTipo);
+      await page.focus('input[id$="_numeroIdentificacion"]');
+      await page.keyboard.type(cleanCedula, { delay: 18 });
+      await page.evaluate(() => {
+        document.querySelector('#submitDescargarCertificado')?.click();
+      });
+
+      for (let i = 0; i < 25 && !certResp; i++) {
+        await sleepMs(400);
+      }
+      return certResp;
+    }, 18000);
+
+    const isPdf =
+      porvOut?.buf &&
+      porvOut.buf.length > 500 &&
+      (porvOut.ct.includes('pdf') || porvOut.buf.subarray(0, 5).toString('ascii').startsWith('%PDF'));
+
+    if (isPdf) {
+      let pdfBase64 = null;
+      let pdfFileName = null;
+      let imageBase64 = null;
+      let imageFileName = null;
+      if (includeEvidence !== false) {
+        pdfBase64 = porvOut.buf.toString('base64');
+        pdfFileName = `Certificado_Porvenir_${cleanCedula}.pdf`;
+        imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+        imageFileName = imageBase64 ? `Certificado_Porvenir_${cleanCedula}.png` : null;
+      }
+      const mismatchNote =
+        cleanAfp && !/porvenir/i.test(cleanAfp) ? ` · Nota: en ficha figura "${cleanAfp}"` : '';
+      return {
+        fuente: 'Google Antigravity Local (IP Colombia · Porvenir AFP Real)',
+        status: 'ok',
+        action: 'pensiones',
+        tipoDoc: cleanTipoDoc,
+        documento: cleanCedula,
+        nombre: cleanNombre,
+        fechaNacimiento: cleanFechaNac || undefined,
+        afp: cleanAfp || undefined,
+        afiliadoActivo: true,
+        entidadDetectada: 'Porvenir AFP',
+        tieneCertificado: Boolean(pdfBase64),
+        estadoReal: '✅ AFILIADO ACTIVO EN PORVENIR AFP',
+        pdfBase64,
+        pdfFileName,
+        imageBase64,
+        imageFileName,
+        resumen: `Confirmado afiliado activo en Porvenir AFP para ${cleanTipoDoc} ${cleanCedula}${pdfBase64 ? ' · Certificado oficial descargado' : ''}${mismatchNote}`,
+        detalles: [
+          {
+            entidad: 'Porvenir AFP',
+            url: porvUrl,
+            consultadoPorCedula: true,
+            afiliadoActivo: true,
+            estado: 'AFILIADO ACTIVO',
+          },
+        ],
+      };
+    }
+
+    const estadoReal =
+      cleanAfp && !/porvenir/i.test(cleanAfp)
+        ? `⚪ NO EN PORVENIR (Nómina: ${cleanAfp})`
+        : '❌ NO AFILIADO EN PORVENIR AFP';
+    const resumen =
+      `Consultado en Porvenir AFP: No registra afiliación para ${cleanTipoDoc} ${cleanCedula}` +
+      (cleanAfp
+        ? ` · En Somos SST figura "${cleanAfp}" (Colpensiones/Protección/Colfondos exigen fecha de expedición o clave personal)`
+        : '');
+
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · Porvenir AFP Real)',
+      status: 'ok',
+      action: 'pensiones',
+      tipoDoc: cleanTipoDoc,
+      documento: cleanCedula,
+      nombre: cleanNombre,
+      fechaNacimiento: cleanFechaNac || undefined,
+      afp: cleanAfp || undefined,
+      afiliadoActivo: false,
+      entidadDetectada: null,
+      tieneCertificado: false,
+      estadoReal,
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen,
+      detalles: [
+        {
+          entidad: 'Porvenir AFP',
+          url: porvUrl,
+          consultadoPorCedula: true,
+          afiliadoActivo: false,
+          estado: 'No afiliado (código 201)',
+        },
+      ],
+    };
+  } catch (err) {
+    logger.warn(`[OSINT Porvenir] Aviso consultando ${cleanCedula}: ${err.message}`);
+    return {
+      fuente: 'Google Antigravity Local (IP Colombia · Porvenir AFP)',
+      status: 'warning',
+      action: 'pensiones',
+      tipoDoc: cleanTipoDoc,
+      documento: cleanCedula,
+      nombre: cleanNombre,
+      afp: cleanAfp || undefined,
+      afiliadoActivo: false,
+      tieneCertificado: false,
+      estadoReal: '⚠️ AVISO CONSULTANDO PORVENIR AFP',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: `Aviso al consultar Porvenir AFP para ${cleanTipoDoc} ${cleanCedula}: ${err.message}`,
+      detalles: [],
+    };
+  }
+}
+
+/**
+ * 4. Salud / EPS y ReTHUS: Transparencia estricta (ADRES BDUA y SISPRO ReTHUS exigen CAPTCHA visual por cédula).
+ */
+async function consultarSaludRethusRealPorCedula({
+  tipoDoc = 'CC',
+  cedula = '',
+  nombre = '',
+  eps = '',
+} = {}) {
+  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
+  const cleanCedula = String(cedula || '').trim();
+  const cleanNombre = String(nombre || '').trim();
+  const cleanEps = String(eps || '').trim();
+
+  return {
+    fuente: 'Google Antigravity Local (IP Colombia · ADRES / ReTHUS)',
+    status: 'ok',
+    action: 'salud_rethus',
+    tipoDoc: cleanTipoDoc,
+    documento: cleanCedula,
+    nombre: cleanNombre,
+    eps: cleanEps || undefined,
+    afiliadoActivo: false,
+    tieneCertificado: false,
+    requiereCaptchaManual: true,
+    estadoReal: cleanEps
+      ? `ℹ️ EPS NÓMINA: ${cleanEps.toUpperCase()} (ADRES CON CAPTCHA)`
+      : '⚠️ PORTAL ADRES/RETHUS EXIGE CAPTCHA MANUAL',
+    pdfBase64: null,
+    pdfFileName: null,
+    imageBase64: null,
+    imageFileName: null,
+    resumen:
+      (cleanEps ? `EPS registrada en Somos SST: ${cleanEps} · ` : '') +
+      'ADRES BDUA y MinSalud ReTHUS bloquean consulta masiva sin interacción humana (CAPTCHA visual por cédula).',
+    detalles: [
+      {
+        entidad: 'ADRES BDUA (EPS)',
+        url: 'https://www.adres.gov.co/consulte-su-eps',
+        requiereCaptchaManual: true,
+        estado: 'Requiere CAPTCHA visual manual (RadCaptcha)',
+      },
+      {
+        entidad: 'MinSalud SISPRO ReTHUS',
+        url: 'https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
+        requiereCaptchaManual: true,
+        estado: 'Requiere CAPTCHA visual manual (imgCaptcha)',
+      },
+    ],
+  };
+}
+
+/**
+ * Despachador unificado de consultas REALES por cédula / placa desde IP Colombia (CERO simulaciones ni pings genéricos):
+ * - 'arl': ARL SURA (certificado PDF real) + ARL Positiva + ARL Seguros Bolívar (Lambda real)
+ * - 'pensiones': Porvenir AFP (certificado PDF real / validación código 201)
+ * - 'vial_pesv': SIMIT Federación Colombiana de Municipios (multas, comparendos y estado de cuenta real)
+ * - 'salud_rethus': Reporte honesto de EPS en nómina + restricción CAPTCHA visual de ADRES/ReTHUS
  */
 async function consultarPortalEspecíficoAntigravity({
   action = 'arl',
@@ -2043,183 +3651,50 @@ async function consultarPortalEspecíficoAntigravity({
   arl = '',
   eps = '',
   afp = '',
-  includeEvidence = false,
+  includeEvidence = true,
+  forceEvidence = false,
 } = {}) {
   const cleanAction = String(action || 'arl').toLowerCase().trim();
-  const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
-  const cleanCedula = String(cedula || '').trim();
-  const cleanNombre = String(nombre || '').trim();
-  const cleanPlaca = String(placa || '').trim().toUpperCase();
-  const cleanFechaNac = formatCleanFechaNacimiento(fechaNacimiento);
-  const cleanArl = String(arl || '').trim();
-  const cleanEps = String(eps || '').trim();
-  const cleanAfp = String(afp || '').trim();
 
-  const portalMap = {
-    arl: [
-      { nombre: 'ARL SURA', url: 'https://www.arlsura.com/afiliacion/verificar.php' },
-      { nombre: 'ARL Positiva', url: 'https://www.positivaenlinea.gov.co/nuevo/' },
-      { nombre: 'ARL Colmena', url: 'https://afiliacionarl.colmenaseguros.com/' },
-      { nombre: 'ARL AXA Colpatria', url: 'https://arl.axacolpatria.co/' },
-      { nombre: 'ARL Seguros Bolívar', url: 'https://www.segurosbolivar.com/arl' },
-    ],
-    pensiones: [
-      { nombre: 'Colpensiones RPM', url: 'https://sede.colpensiones.gov.co/tramite/updInfo/72/' },
-      { nombre: 'Porvenir AFP', url: 'https://www.porvenir.com.co/' },
-      { nombre: 'Protección AFP', url: 'https://www.proteccion.com/' },
-      { nombre: 'Colfondos AFP', url: 'https://www.colfondos.com.co/' },
-      { nombre: 'Skandia AFP', url: 'https://www.skandia.co/' },
-    ],
-    salud_rethus: [
-      { nombre: 'ADRES BDUA (EPS)', url: 'https://www.adres.gov.co/consulte-su-eps' },
-      {
-        nombre: 'MinSalud SISPRO ReTHUS',
-        url: 'https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
-      },
-      { nombre: 'RUAF SISPRO', url: 'https://ruaf.sispro.gov.co/Default.aspx' },
-    ],
-    vial_pesv: [
-      { nombre: 'SIMIT FCM (Comparendos)', url: 'https://www.fcm.org.co/simit/#/home-public' },
-      { nombre: 'RUNT 2.0 (Conductores)', url: 'https://www.runt.gov.co/consultaCiudadana/#/consultaPersona' },
-      { nombre: 'RUNT 2.0 (Vehículos SOAT/RTM)', url: 'https://www.runt.gov.co/consultaCiudadana/#/consultaVehiculo' },
-    ],
-  };
-
-  const targets = portalMap[cleanAction] || portalMap.arl;
-  const nowProbe = Date.now();
-  const cachedProbe = portalProbeCache.get(cleanAction);
-  let baseDetalles = null;
-
-  if (cachedProbe && nowProbe < cachedProbe.expiresAt) {
-    baseDetalles = cachedProbe.detalles;
-  } else if (portalProbeInFlight.has(cleanAction)) {
-    baseDetalles = await portalProbeInFlight.get(cleanAction);
-  } else {
-    const probePromise = Promise.all(targets.map((p) => probeSinglePortalTarget(p)));
-    portalProbeInFlight.set(cleanAction, probePromise);
-    try {
-      baseDetalles = await probePromise;
-      if (Array.isArray(baseDetalles) && baseDetalles.some((d) => d.reachable)) {
-        portalProbeCache.set(cleanAction, {
-          detalles: baseDetalles,
-          expiresAt: Date.now() + 45000,
-        });
-      }
-    } finally {
-      portalProbeInFlight.delete(cleanAction);
-    }
+  if (cleanAction === 'vial_pesv') {
+    return consultarSimitPesvRealPorCedula({
+      tipoDoc,
+      cedula,
+      nombre,
+      placa,
+      includeEvidence,
+      forceEvidence,
+    });
   }
 
-  const detalles = (baseDetalles || []).map((d) => ({ ...d }));
-
-  const okPortals = detalles.filter((d) => d.reachable);
-  const labelMap = {
-    arl: '5 ARL Oficiales (SURA, Positiva, Colmena, AXA, Bolívar)',
-    pensiones: '5 Fondos de Pensiones (Colpensiones, Porvenir, Protección, Colfondos, Skandia)',
-    salud_rethus: 'ADRES BDUA (EPS) + MinSalud ReTHUS + RUAF',
-    vial_pesv: 'SIMIT Comparendos + RUNT 2.0 (Licencia / SOAT / RTM)',
-  };
-
-  const docTag = `${cleanTipoDoc} ${cleanCedula || 'S/D'}${cleanFechaNac ? ` · F. Nac: ${cleanFechaNac}` : ''}${cleanPlaca ? ` · Placa ${cleanPlaca}` : ''}`;
-  const portalsSummary = detalles
-    .map((d) => `${d.entidad}: ${d.reachable ? `HTTP ${d.httpStatus} (${d.latencyMs}ms)` : 'Timeout/Captcha'}`)
-    .join(' · ');
-
-  let nominaPrefix = '';
-  if (cleanAction === 'arl' && cleanArl) {
-    nominaPrefix = `ARL registrada en nómina: ${cleanArl} · `;
-  } else if (cleanAction === 'salud_rethus' && cleanEps) {
-    nominaPrefix = `EPS registrada en nómina: ${cleanEps} · `;
-  } else if (cleanAction === 'pensiones' && cleanAfp) {
-    nominaPrefix = `AFP registrada en nómina: ${cleanAfp} · `;
-  } else if (cleanArl || cleanEps || cleanAfp) {
-    nominaPrefix = `${[
-      cleanArl ? `ARL nómina: ${cleanArl}` : '',
-      cleanEps ? `EPS nómina: ${cleanEps}` : '',
-      cleanAfp ? `AFP nómina: ${cleanAfp}` : '',
-    ]
-      .filter(Boolean)
-      .join(' / ')} · `;
+  if (cleanAction === 'pensiones') {
+    return consultarPensionesRealPorCedula({
+      tipoDoc,
+      cedula,
+      nombre,
+      afp,
+      fechaNacimiento,
+      includeEvidence,
+    });
   }
 
-  const requiresBirthDateNote =
-    !cleanFechaNac &&
-    ((cleanAction === 'arl' && /colmena/i.test(cleanArl)) || cleanAction === 'pensiones')
-      ? ' · Nota: ARL Colmena / Colpensiones requieren Fecha de Nacimiento en la ficha del trabajador para descarga directa de carné/certificado individual'
-      : '';
-
-  const resumen = `${nominaPrefix}Verificación desde IP Local para ${docTag}${cleanNombre ? ` (${cleanNombre})` : ''} en ${labelMap[cleanAction] || cleanAction} -> ${okPortals.length}/${detalles.length} portales en línea [${portalsSummary}]${requiresBirthDateNote}`;
-
-  let pdfBase64 = null;
-  let pdfFileName = null;
-  let imageBase64 = null;
-  let imageFileName = null;
-
-  if (includeEvidence === true && okPortals.length > 0) {
-    try {
-      const primary = okPortals[0];
-      const todayISO = new Date().toISOString().split('T')[0];
-      const actionTagMap = {
-        arl: 'ARL',
-        pensiones: 'Pensiones',
-        salud_rethus: 'Salud_ReTHUS',
-        vial_pesv: 'PESV_Vial',
-      };
-      const actionTag = actionTagMap[cleanAction] || sanitizeFileStem(cleanAction, 'Portal');
-      const subjectTag = sanitizeFileStem(cleanCedula || cleanPlaca || 'Verificacion', 'Verificacion').slice(0, 32);
-      const prefix = `Constancia_${actionTag}_${subjectTag}_${todayISO}`;
-
-      const htmlContent = buildPortalVerificationEvidenceHtml({
-        label: labelMap[cleanAction] || cleanAction,
-        tipoDoc: cleanTipoDoc,
-        cedula: cleanCedula,
-        nombre: cleanNombre,
-        placa: cleanPlaca,
-        fechaNacimiento: cleanFechaNac,
-        arl: cleanArl,
-        eps: cleanEps,
-        afp: cleanAfp,
-        detalles,
-        okCount: okPortals.length,
-        primaryPortalScreenshotBase64: '',
-        primaryPortalName: primary.entidad,
-        primaryPortalUrl: primary.url,
-      });
-
-      const evid = await captureWebOrHtmlEvidence({
-        htmlContent,
-        filePrefix: prefix,
-        timeoutMs: 8500,
-      });
-
-      pdfBase64 = evid.pdfBase64 || null;
-      pdfFileName = pdfBase64 ? `${prefix}.pdf` : null;
-      imageBase64 = evid.imageBase64 || null;
-      imageFileName = imageBase64 ? `${prefix}.png` : null;
-    } catch (evErr) {
-      logger.warn(`[OSINT Portal ${cleanAction}] Aviso capturando evidencia PDF/PNG: ${evErr.message}`);
-    }
+  if (cleanAction === 'salud_rethus') {
+    return consultarSaludRethusRealPorCedula({
+      tipoDoc,
+      cedula,
+      nombre,
+      eps,
+    });
   }
 
-  return {
-    fuente: 'Google Antigravity Local (IP Colombia)',
-    status: okPortals.length > 0 ? 'ok' : 'warning',
-    action: cleanAction,
-    tipoDoc: cleanTipoDoc,
-    documento: cleanCedula,
-    nombre: cleanNombre,
-    placa: cleanPlaca,
-    fechaNacimiento: cleanFechaNac || undefined,
-    arl: cleanArl || undefined,
-    eps: cleanEps || undefined,
-    afp: cleanAfp || undefined,
-    pdfBase64,
-    pdfFileName,
-    imageBase64,
-    imageFileName,
-    resumen,
-    detalles,
-  };
+  return consultarArlRealPorCedula({
+    tipoDoc,
+    cedula,
+    nombre,
+    fechaNacimiento,
+    arl,
+    includeEvidence,
+  });
 }
 
 function isSameOrSubdomain(hostA = '', hostB = '') {
@@ -2444,7 +3919,12 @@ module.exports = {
   consultarAlturasMinTrabajo,
   descargarPdfConstanciaMinTrabajo,
   consultarRamaJudicialPorNombre,
+  consultarContraloriaFiscalPorCedula,
   consultarRamaJudicial,
+  consultarArlRealPorCedula,
+  consultarSimitPesvRealPorCedula,
+  consultarPensionesRealPorCedula,
+  consultarSaludRethusRealPorCedula,
   consultarPortalEspecíficoAntigravity,
   consultarPortalEspecificoAntigravity: consultarPortalEspecíficoAntigravity,
   obtenerCatalogoPortales360,
