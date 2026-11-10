@@ -1389,6 +1389,57 @@ async function runAutomation(automation, isManual = false) {
     console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
 
     // 11. Optional Post-Processing Tasks (Completely Non-Blocking in background)
+    const configuredOutputs = Array.isArray(automation.workflowNodes?.outputs)
+      ? automation.workflowNodes.outputs
+      : ['email_report'];
+    const postNodeConfigs = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
+    const postLogicNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.logicNodes)
+      ? automation.workflowNodes.canvasLayout.logicNodes
+      : [];
+    const postEdges = Array.isArray(automation.workflowNodes?.canvasLayout?.edges)
+      ? automation.workflowNodes.canvasLayout.edges
+      : [];
+
+    // Evaluar condición lógica real (if_router) y aprobación humana (human_approval) para que Ejecución Real y Sandbox sean 100% coherentes
+    const hasCriticalSignalInResult =
+      /⚠️|❌|🚨|vencid[oa]|cr[ií]tic[oa]|multa|comparendo|incumpl|brecha|riesgo\s+alto|no\s+cumple|sin\s+registro|sin\s+afiliaci[oó]n/i.test(
+        resultText,
+      );
+    let ifConditionPassed = hasCriticalSignalInResult;
+    if (automation.workflowNodes?.includeIfNode) {
+      const ifCfg = postNodeConfigs.if_router || postNodeConfigs.if_condition || {};
+      const condType = String(ifCfg.ifConditionType || 'critical_findings');
+      const expr = String(ifCfg.ifRuleExpression || '').trim();
+      if (condType === 'keyword_match' && expr) {
+        ifConditionPassed = resultText.toLowerCase().includes(expr.toLowerCase());
+      } else if (condType === 'numeric_threshold' && expr) {
+        const thresholdNum = Number(expr.replace(/[^\d.-]/g, '')) || 1;
+        ifConditionPassed = cleanRunEvidenceFiles.length >= thresholdNum || hasCriticalSignalInResult;
+      }
+    }
+
+    const isOutputAllowedByIfBranch = (outNodeId) => {
+      if (!automation.workflowNodes?.includeIfNode) return true;
+      const outKey = `out_${outNodeId}`;
+      const explicitIfEdges = postEdges.filter(
+        (ed) =>
+          (ed.from === 'if_router' || ed.from === 'if_condition') &&
+          (ed.to === outKey || ed.to === outNodeId),
+      );
+      if (explicitIfEdges.length > 0) {
+        return explicitIfEdges.some((ed) => {
+          if (ed.kind === 'branch_false' || ed.label === 'no') return !ifConditionPassed;
+          return ifConditionPassed;
+        });
+      }
+      return true;
+    };
+
+    const humanApprovalNode = postLogicNodes.find((ln) => ln && ln.logicType === 'human_approval');
+    const humanApprovalCfg = humanApprovalNode
+      ? postNodeConfigs[humanApprovalNode.key] || postNodeConfigs.human_approval || {}
+      : null;
+
     setImmediate(async () => {
       // Background tagging
       if (generatedConvoId) {
@@ -1405,13 +1456,29 @@ async function runAutomation(automation, isManual = false) {
         }
       }
 
-      const configuredOutputs = Array.isArray(automation.workflowNodes?.outputs)
-        ? automation.workflowNodes.outputs
-        : ['email_report'];
       const compLabel = automationCompany?.companyName || 'Somos SST';
 
+      if (humanApprovalNode) {
+        try {
+          const approver = String(humanApprovalCfg?.approverEmail || '').trim();
+          await Notification.create({
+            user: automation.user,
+            companyId: automation.companyId || null,
+            title: `🛑 Revisión Humana Solicitada: ${automation.name} (${compLabel})`,
+            body: `El flujo incluye nodo de Aprobación Humana${approver ? ` (${approver})` : ''}. Revisa la bitácora generada en /tareas.`,
+            type: 'system_update',
+            read: false,
+          });
+        } catch (_) {}
+      }
+
       // 11A. Notificación Directa en WAPPY + Chat de Tenshi (cuando wappy_notification está activo)
-      if (configuredOutputs.includes('wappy_notification')) {
+      const notifCfg = postNodeConfigs.out_wappy_notification || postNodeConfigs.wappy_notification || {};
+      if (
+        configuredOutputs.includes('wappy_notification') &&
+        isOutputAllowedByIfBranch('wappy_notification') &&
+        (!notifCfg.onlyOnCriticalAlerts || hasCriticalSignalInResult)
+      ) {
         try {
           const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 260);
           await Notification.create({
@@ -1437,8 +1504,10 @@ async function runAutomation(automation, isManual = false) {
 
       // 11B. Envío de Bitácora Final a Google Antigravity (PC Local o Cloud 24/7)
       if (
-        configuredOutputs.includes('antigravity_local_report') ||
-        configuredOutputs.includes('antigravity_cloud_report')
+        (configuredOutputs.includes('antigravity_local_report') &&
+          isOutputAllowedByIfBranch('antigravity_local_report')) ||
+        (configuredOutputs.includes('antigravity_cloud_report') &&
+          isOutputAllowedByIfBranch('antigravity_cloud_report'))
       ) {
         try {
           const targetEnv = configuredOutputs.includes('antigravity_cloud_report')
@@ -1474,12 +1543,14 @@ async function runAutomation(automation, isManual = false) {
       }
 
       // 11C. Creación/Actualización de Documento en el Editor en Vivo WAPPY (canvas_doc)
-      if (configuredOutputs.includes('canvas_doc')) {
+      if (configuredOutputs.includes('canvas_doc') && isOutputAllowedByIfBranch('canvas_doc')) {
         try {
           const LiveDocumentModel =
             mongoose.models.LiveDocument || require('~/models/LiveDocument');
           if (LiveDocumentModel) {
-            const docTitle = `📄 Informe Automatizado: ${automation.name} (${compLabel})`;
+            const docCfg = postNodeConfigs.out_canvas_doc || postNodeConfigs.canvas_doc || {};
+            const customDocTitle = String(docCfg.documentTitle || '').trim();
+            const docTitle = customDocTitle || `📄 Informe Automatizado: ${automation.name} (${compLabel})`;
             const htmlContent = formatMarkdownToEmailHtml(resultText) || `<p>${resultText}</p>`;
             const validCompanyObjId =
               targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
@@ -1510,10 +1581,9 @@ async function runAutomation(automation, isManual = false) {
       }
 
       // 11D. Creación de Actividad en el Centro de Control en cualquiera de sus Etapas (acpm_task)
-      if (configuredOutputs.includes('acpm_task')) {
+      if (configuredOutputs.includes('acpm_task') && isOutputAllowedByIfBranch('acpm_task')) {
         try {
-          const allNodeConfigs = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
-          const acpmCfg = allNodeConfigs.out_acpm_task || allNodeConfigs.acpm_task || {};
+          const acpmCfg = postNodeConfigs.out_acpm_task || postNodeConfigs.acpm_task || {};
           const rawStage = String(acpmCfg.kanbanStatus || 'todo').trim();
           const validStage =
             rawStage === 'urgent'
@@ -1560,8 +1630,14 @@ async function runAutomation(automation, isManual = false) {
       }
     });
 
-    // 12. Send Email Notification to configured recipients (Completely Non-blocking)
-    if (Array.isArray(automation.emails) && automation.emails.length > 0) {
+    // 12. Send Email Notification ONLY when email_report output node is active, If-branch allows it, and onlyOnCriticalAlerts is satisfied
+    const emailCfg = postNodeConfigs.out_email_report || postNodeConfigs.email_report || {};
+    const shouldSendEmailReport =
+      configuredOutputs.includes('email_report') &&
+      isOutputAllowedByIfBranch('email_report') &&
+      (!emailCfg.onlyOnCriticalAlerts || hasCriticalSignalInResult);
+
+    if (shouldSendEmailReport && Array.isArray(automation.emails) && automation.emails.length > 0) {
       setImmediate(async () => {
         try {
           let companyName = 'Mi Empresa';
@@ -1644,12 +1720,17 @@ async function runAutomation(automation, isManual = false) {
               `;
             }
 
+            const customEmailSubject = String(emailCfg.emailSubject || '').trim();
+            const resolvedEmailSubject = customEmailSubject
+              ? `${customEmailSubject} (${companyName})`
+              : `📊 Reporte Automático SGSST: ${automation.name} - ${companyName}`;
+
             for (const recipient of validEmails) {
               console.log(`[AutomationScheduler] Sending report email to ${recipient} for "${automation.name}" (${emailAttachments.length} attachment(s))`);
               sendEmail({
                 email: recipient,
                 from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
-                subject: `📊 Reporte Automático SGSST: ${automation.name} - ${companyName}`,
+                subject: resolvedEmailSubject,
                 payload: {
                   taskName: automation.name,
                   agentName: automation.agentName || agent.name || 'Agente Experto',

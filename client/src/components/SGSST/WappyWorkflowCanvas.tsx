@@ -2368,10 +2368,41 @@ export default function WappyWorkflowCanvas({
     }
   };
 
-  // Cargar automáticamente el Historial de Informes en vivo (/api/sgsst/diagnostico/report-history) cuando se selecciona un nodo de Aplicativo SST
+  const visualNodesRef = useRef(visualNodes);
+  visualNodesRef.current = visualNodes;
+  const wiresRef = useRef(wires);
+  wiresRef.current = wires;
+  const connectedExecutionPlanRef = useRef(connectedExecutionPlan);
+  connectedExecutionPlanRef.current = connectedExecutionPlan;
+
+  const activeNodeIdentity = useMemo(() => {
+    if (!activeConfigNodeKey) return '';
+    const n = visualNodes.find((vn) => vn.key === activeConfigNodeKey);
+    return n ? `${n.key}::${n.nodeId || ''}::${n.shape || ''}::${n.customNodeType || ''}` : '';
+  }, [activeConfigNodeKey, visualNodes]);
+
+  const upstreamTopologySignature = useMemo(() => {
+    const wireSig = wires.map((w) => `${w.sourceKey}->${w.targetKey}:${w.isSub ? 1 : 0}`).join('|');
+    const planSig = connectedExecutionPlan.map((p) => p.nodeKey).join('>');
+    const extSig = visualNodes
+      .filter((vn) => vn.shape === 'square_extractor')
+      .map((vn) => `${vn.key}:${vn.nodeId}`)
+      .join(',');
+    return `${wireSig}||${planSig}||${extSig}`;
+  }, [wires, connectedExecutionPlan, visualNodes]);
+
+  // Limpiar buscadores internos únicamente cuando el usuario cambia de nodo seleccionado
   useEffect(() => {
     setFieldSearchQuery('');
-    if (!activeConfigNodeKey || readOnly) {
+    setLiveRecordSearch('');
+    setNdvSelectedUpstreamKey('auto');
+    setNdvInputSearch('');
+    setNdvOutputSearch('');
+  }, [activeConfigNodeKey]);
+
+  // Cargar automáticamente el Historial de Informes en vivo (/api/sgsst/diagnostico/report-history) cuando se selecciona un nodo de Aplicativo SST
+  useEffect(() => {
+    if (!activeConfigNodeKey || readOnly || !activeNodeIdentity) {
       setNodeReportHistory({
         loading: false,
         conversations: [],
@@ -2383,7 +2414,7 @@ export default function WappyWorkflowCanvas({
       return;
     }
 
-    const activeNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
+    const activeNode = visualNodesRef.current.find((n) => n.key === activeConfigNodeKey);
     if (!activeNode) return;
 
     const meta = getNodeModuleMetadata(activeNode.nodeId, activeNode.shape);
@@ -2432,7 +2463,7 @@ export default function WappyWorkflowCanvas({
     return () => {
       cancelled = true;
     };
-  }, [activeConfigNodeKey, readOnly, visualNodes]);
+  }, [activeConfigNodeKey, activeNodeIdentity, readOnly]);
 
   // Seleccionar un nodo en el inspector inferior y desplazar suavemente al panel de configuración
   const openNodeConfigInspector = useCallback((targetKey: string) => {
@@ -2449,11 +2480,7 @@ export default function WappyWorkflowCanvas({
 
   // Cargar automáticamente el Inspector de Datos y Resultados Reales en Vivo (/api/sgsst/automatizaciones/node-live-inspector)
   useEffect(() => {
-    setLiveRecordSearch('');
-    setNdvSelectedUpstreamKey('auto');
-    setNdvInputSearch('');
-    setNdvOutputSearch('');
-    if (!activeConfigNodeKey || readOnly) {
+    if (!activeConfigNodeKey || readOnly || !activeNodeIdentity) {
       setNodeLiveInspectorData({
         loading: false,
         supported: false,
@@ -2468,7 +2495,11 @@ export default function WappyWorkflowCanvas({
       return;
     }
 
-    const activeNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
+    const currentVisualNodes = visualNodesRef.current;
+    const currentWires = wiresRef.current;
+    const currentPlan = connectedExecutionPlanRef.current;
+
+    const activeNode = currentVisualNodes.find((n) => n.key === activeConfigNodeKey);
     if (!activeNode) return;
 
     const rawId = (activeNode.nodeId || '').trim();
@@ -2581,14 +2612,14 @@ export default function WappyWorkflowCanvas({
     }
 
     // Pre-cargar datos en vivo de los nodos anteriores (Upstream) para nutrir la columna izquierda `📥 INPUT` estilo n8n
-    const activePlanIdx = connectedExecutionPlan.findIndex((p) => p.nodeKey === activeNode.key);
+    const activePlanIdx = currentPlan.findIndex((p) => p.nodeKey === activeNode.key);
     const upstreamKeys = new Set<string>();
-    wires.forEach((w) => {
+    currentWires.forEach((w) => {
       if (!w.isSub && w.targetKey === activeNode.key) upstreamKeys.add(w.sourceKey);
       if (w.isSub && w.sourceKey === activeNode.key) upstreamKeys.add(w.targetKey);
       if (w.isSub && w.targetKey === activeNode.key) {
         upstreamKeys.add(w.sourceKey);
-        wires.forEach((mw) => {
+        currentWires.forEach((mw) => {
           if (!mw.isSub && mw.targetKey === w.sourceKey) {
             upstreamKeys.add(mw.sourceKey);
           }
@@ -2596,15 +2627,15 @@ export default function WappyWorkflowCanvas({
       }
     });
     if (activePlanIdx > 0) {
-      connectedExecutionPlan.slice(0, activePlanIdx).forEach((st) => upstreamKeys.add(st.nodeKey));
+      currentPlan.slice(0, activePlanIdx).forEach((st) => upstreamKeys.add(st.nodeKey));
     }
     if (activeNode.shape !== 'trigger') {
-      visualNodes
+      currentVisualNodes
         .filter((vn) => vn.shape === 'square_extractor')
         .forEach((extNode) => upstreamKeys.add(extNode.key));
     }
     upstreamKeys.forEach((uKey) => {
-      const uNode = visualNodes.find((n) => n.key === uKey);
+      const uNode = currentVisualNodes.find((n) => n.key === uKey);
       if (!uNode || uNode.shape === 'trigger' || uNode.shape === 'if' || uNode.shape === 'logic') {
         return;
       }
@@ -2643,7 +2674,7 @@ export default function WappyWorkflowCanvas({
     return () => {
       cancelled = true;
     };
-  }, [activeConfigNodeKey, readOnly, visualNodes, connectedExecutionPlan, wires]);
+  }, [activeConfigNodeKey, activeNodeIdentity, upstreamTopologySignature, readOnly]);
 
   // Extrae los pares { field, value } reales de un registro de MongoDB para la Vista Previa Quirúrgica en Vivo
   const resolveRecordSurgicalPreview = useCallback(

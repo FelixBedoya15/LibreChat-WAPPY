@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { 
   Play, 
@@ -217,6 +217,11 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const [previewLogEvidence, setPreviewLogEvidence] = useState<ScraperCapturedEvidence | null>(null);
   const [previewLogEvidenceMode, setPreviewLogEvidenceMode] = useState<'image' | 'pdf'>('image');
   const [disabledSgsstApps, setDisabledSgsstApps] = useState<string[]>([]);
+  const disabledSgsstAppsRef = useRef<string[]>([]);
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+  const hasLoadedPresetsOnceRef = useRef(false);
+  const hasLoadedLogsOnceRef = useRef(false);
 
   const handleOpenLogEvidence = useCallback(
     (ev: ScraperCapturedEvidence, preferredMode?: 'image' | 'pdf') => {
@@ -270,23 +275,25 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     };
   }, [isAgentOpen, isFreqOpen, isDayOpen]);
 
-  // Fetch all automations
-  const fetchAutomations = useCallback(async () => {
-    setLoading(true);
+  // Fetch all automations (stable identity — zero re-render loops)
+  const fetchAutomations = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
       const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
       const res = await axios.get(`/api/sgsst/automatizaciones${q}`);
-      setAutomations(res.data || []);
+      setAutomations(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
-      showToast({
+      showToastRef.current({
         message: 'Error al cargar las automatizaciones.',
-        status: 'error'
+        status: 'error',
       });
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, []);
 
   const mapCatalogPresetsToAutomations = useCallback(
     (disabledList: string[]): Automation[] =>
@@ -319,61 +326,74 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     [],
   );
 
-  // Fetch system preset workflows (sanitizing any legacy blocked `En Construcción` nodes)
-  const fetchPresets = useCallback(async () => {
-    setPresetsLoading(true);
-    try {
-      const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
-      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
-      const [res, cfgRes] = await Promise.all([
-        axios.get(`/api/sgsst/automatizaciones/presets${q}`),
-        axios.get('/api/sgsst/config').catch(() => ({ data: null })),
-      ]);
-      const nextDisabled = Array.isArray(cfgRes?.data?.disabledApps)
-        ? cfgRes.data.disabledApps
-        : disabledSgsstApps;
-      if (Array.isArray(cfgRes?.data?.disabledApps)) {
-        setDisabledSgsstApps(cfgRes.data.disabledApps);
+  // Fetch system preset workflows (stable identity — reads disabledSgsstAppsRef to prevent infinite useEffect loops)
+  const fetchPresets = useCallback(
+    async (silent = false) => {
+      if (!silent && !hasLoadedPresetsOnceRef.current) {
+        setPresetsLoading(true);
       }
-      const rawPresets: Automation[] = Array.isArray(res.data) ? res.data : [];
-      if (rawPresets.length === 0) {
-        setPresets(mapCatalogPresetsToAutomations(nextDisabled));
-      } else {
-        setPresets(
-          rawPresets.map((p) => ({
-            ...p,
-            workflowNodes: sanitizeWorkflowNodesForActiveUse(p.workflowNodes, nextDisabled),
-          })),
-        );
+      try {
+        const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+        const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+        const [res, cfgRes] = await Promise.all([
+          axios.get(`/api/sgsst/automatizaciones/presets${q}`),
+          axios.get('/api/sgsst/config').catch(() => ({ data: null })),
+        ]);
+        let nextDisabled = disabledSgsstAppsRef.current;
+        if (Array.isArray(cfgRes?.data?.disabledApps)) {
+          const incoming = cfgRes.data.disabledApps as string[];
+          nextDisabled = incoming;
+          if (JSON.stringify(disabledSgsstAppsRef.current) !== JSON.stringify(incoming)) {
+            disabledSgsstAppsRef.current = incoming;
+            setDisabledSgsstApps(incoming);
+          }
+        }
+        const rawPresets: Automation[] = Array.isArray(res.data) ? res.data : [];
+        if (rawPresets.length === 0) {
+          setPresets(mapCatalogPresetsToAutomations(nextDisabled));
+        } else {
+          setPresets(
+            rawPresets.map((p) => ({
+              ...p,
+              workflowNodes: sanitizeWorkflowNodesForActiveUse(p.workflowNodes, nextDisabled),
+            })),
+          );
+        }
+        hasLoadedPresetsOnceRef.current = true;
+      } catch (err: any) {
+        setPresets(mapCatalogPresetsToAutomations(disabledSgsstAppsRef.current));
+        hasLoadedPresetsOnceRef.current = true;
+        showToastRef.current({
+          message: 'Error al cargar el catálogo de tareas preestablecidas.',
+          status: 'error',
+        });
+      } finally {
+        setPresetsLoading(false);
       }
-    } catch (err: any) {
-      setPresets(mapCatalogPresetsToAutomations(disabledSgsstApps));
-      showToast({
-        message: 'Error al cargar el catálogo de tareas preestablecidas.',
-        status: 'error'
-      });
-    } finally {
-      setPresetsLoading(false);
-    }
-  }, [showToast, disabledSgsstApps, mapCatalogPresetsToAutomations]);
+    },
+    [mapCatalogPresetsToAutomations],
+  );
 
-  // Fetch execution logs
-  const fetchLogs = useCallback(async () => {
-    setLogsLoading(true);
+  // Fetch execution logs (stable identity — zero re-render loops)
+  const fetchLogs = useCallback(async (silent = false) => {
+    if (!silent && !hasLoadedLogsOnceRef.current) {
+      setLogsLoading(true);
+    }
     try {
       const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
       const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
       const res = await axios.get(`/api/sgsst/automatizaciones/logs${q}`);
-      setLogs(res.data || []);
+      setLogs(Array.isArray(res.data) ? res.data : []);
+      hasLoadedLogsOnceRef.current = true;
     } catch (err: any) {
-      showToast({
+      showToastRef.current({
         message: 'Error al cargar el historial de ejecuciones.',
-        status: 'error'
+        status: 'error',
       });
     } finally {
       setLogsLoading(false);
     }
-  }, [showToast]);
+  }, []);
 
   // Fetch user plan and automation limits
   const loadPlanLimit = useCallback(async () => {
@@ -403,10 +423,11 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   }, [automations]);
 
   useEffect(() => {
-    fetchAutomations();
-    fetchPresets();
+    fetchAutomations(false);
+    fetchPresets(false);
     loadPlanLimit();
-  }, [fetchAutomations, fetchPresets, loadPlanLimit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Refresco silencioso en tiempo real cuando Tenshi o un agente crea/activa/desactiva/edita/elimina tareas o se cambia de empresa
   useEffect(() => {
@@ -420,19 +441,26 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           axios.get(`/api/sgsst/automatizaciones/presets${q}`),
         ]);
         if (autoRes.status === 'fulfilled') {
-          setAutomations(autoRes.value.data || []);
+          setAutomations(Array.isArray(autoRes.value.data) ? autoRes.value.data : []);
         }
         if (logsRes.status === 'fulfilled') {
-          setLogs(logsRes.value.data || []);
+          setLogs(Array.isArray(logsRes.value.data) ? logsRes.value.data : []);
+          hasLoadedLogsOnceRef.current = true;
         }
         if (presetsRes.status === 'fulfilled') {
           const rawP = Array.isArray(presetsRes.value.data) ? presetsRes.value.data : [];
           setPresets(
-            rawP.map((p: Automation) => ({
-              ...p,
-              workflowNodes: sanitizeWorkflowNodesForActiveUse(p.workflowNodes, disabledSgsstApps),
-            })),
+            rawP.length > 0
+              ? rawP.map((p: Automation) => ({
+                  ...p,
+                  workflowNodes: sanitizeWorkflowNodesForActiveUse(
+                    p.workflowNodes,
+                    disabledSgsstAppsRef.current,
+                  ),
+                }))
+              : mapCatalogPresetsToAutomations(disabledSgsstAppsRef.current),
           );
+          hasLoadedPresetsOnceRef.current = true;
         }
       } catch (_) {}
     };
@@ -448,38 +476,56 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       window.removeEventListener('wappy-company-updated', handleSilentReload);
       window.removeEventListener('wappy-automatizaciones-updated', handleSilentReload);
     };
-  }, [activeTab]);
+  }, [mapCatalogPresetsToAutomations]);
 
   useEffect(() => {
     if (activeTab === 'logs') {
-      fetchLogs();
+      fetchLogs(hasLoadedLogsOnceRef.current);
     } else if (activeTab === 'presets') {
-      fetchPresets();
+      if (!hasLoadedPresetsOnceRef.current) {
+        fetchPresets(false);
+      }
     }
   }, [activeTab, fetchLogs, fetchPresets]);
 
-  // Auto-polling cuando hay tareas en estado 'running'
+  // Auto-polling silencioso únicamente cuando hay tareas realmente en ejecución reciente (<15 min)
+  const hasActiveRunningJob = useMemo(() => {
+    const nowMs = Date.now();
+    return (
+      automations.some((a) => a.lastRunStatus === 'running') ||
+      logs.some(
+        (l) =>
+          l.status === 'running' &&
+          (!l.runAt || nowMs - new Date(l.runAt).getTime() < 15 * 60 * 1000),
+      )
+    );
+  }, [automations, logs]);
+
   useEffect(() => {
-    const hasRunning = automations.some(a => a.lastRunStatus === 'running') || logs.some(l => l.status === 'running');
-    if (!hasRunning) return;
+    if (!hasActiveRunningJob) return;
 
     const interval = setInterval(async () => {
-      // No consultar el servidor si la pestaña del navegador no está visible
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         return;
       }
       try {
-        const res = await axios.get('/api/sgsst/automatizaciones');
-        setAutomations(res.data || []);
+        const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+        const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+        const res = await axios.get(`/api/sgsst/automatizaciones${q}`);
+        if (Array.isArray(res.data)) {
+          setAutomations(res.data);
+        }
         if (activeTab === 'logs') {
-          const logsRes = await axios.get('/api/sgsst/automatizaciones/logs');
-          setLogs(logsRes.data || []);
+          const logsRes = await axios.get(`/api/sgsst/automatizaciones/logs${q}`);
+          if (Array.isArray(logsRes.data)) {
+            setLogs(logsRes.data);
+          }
         }
       } catch (err) {}
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [automations, logs, activeTab]);
+  }, [hasActiveRunningJob, activeTab]);
 
   // Calculate dynamic stats
   const stats = useMemo(() => {
