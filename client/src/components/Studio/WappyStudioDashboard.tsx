@@ -950,6 +950,48 @@ export interface AntigravityEffectItem {
 
 export const ANTIGRAVITY_EFFECTS_CATALOG: AntigravityEffectItem[] = [
   {
+    id: 'n8n-workflow-wappy',
+    label: 'Lienzo Nodos n8n WAPPY (Cron ➔ Tenshi IA ➔ Gmail)',
+    category: 'Elementos SST',
+    description: 'Cámara 3D sobre lienzo n8n con cables Bezier encendiéndose e integración de nodos.',
+  },
+  {
+    id: 'visor-normativo-real',
+    label: 'Visor Norma Real SST (Resaltador Flúor + Sello)',
+    category: 'Elementos SST',
+    description: 'Documento legal real (Decreto 1072 / Res. 0312) con zoom, resaltador flúor #C7F303 y sello.',
+  },
+  {
+    id: 'flow-split-before-after',
+    label: 'Split-Screen Antes vs Después (Transformación IA)',
+    category: 'Transiciones Reels',
+    description: 'Pantalla dividida Caos Manual vs. Automatización WAPPY con haz láser esmeralda.',
+  },
+  {
+    id: 'suri-voice-live-hud',
+    label: 'Consola de Voz Suri 3D + Onda Reactiva 24kHz',
+    category: '3D & Avatares',
+    description: 'Avatar Suri/Tenshi 3D con espectrograma de 32 barras reactivas a la voz y transcripción.',
+  },
+  {
+    id: 'cuadricula-50-ia',
+    label: 'Cuadrícula +50 Herramientas IA + Anillo de Ahorro',
+    category: 'Elementos SST',
+    description: 'Mosaico 3D de herramientas IA convergiendo en el ecosistema WAPPY con anillo de ahorro.',
+  },
+  {
+    id: 'iphone-16-dynamic-island',
+    label: 'Mockup iPhone 16 Pro + Dynamic Island Activa',
+    category: 'Elementos SST',
+    description: 'Chasis 3D de iPhone 16 Pro con Dynamic Island reactiva a la voz y alertas SST en vivo.',
+  },
+  {
+    id: 'hero-cover-2s-xl',
+    label: 'Portada Hero 2.0s Modo Móvil XL (88px-108px)',
+    category: 'Sonido & Portada',
+    description: 'Portada de enganche 0.0s-2.0s con tipografía XL (88px-108px) optimizada para pantallas de celular.',
+  },
+  {
     id: '19-cover-2s',
     label: '19 Portada Magnética (2s)',
     category: 'Sonido & Portada',
@@ -1052,6 +1094,8 @@ export const ANTIGRAVITY_EFFECTS_CATALOG: AntigravityEffectItem[] = [
     description: 'Diseño sonoro sincronizado: whoosh en transiciones, pop en tarjetas y ding en checks.',
   },
 ];
+
+export const STUDIO_VIDEO_EFFECTS_CATALOG = ANTIGRAVITY_EFFECTS_CATALOG;
 
 export const ANTIGRAVITY_ART_DIRECTIONS = [
   {
@@ -7281,20 +7325,20 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   const buildAntigravityCloudPrompt = (keyOverride?: string) => {
     const activeKey = (keyOverride || antigravityBridgeKey || '').trim() || 'PEGA_TU_CLAVE_AQUI';
-    return `Hola Antigravity, conecta mi cuenta oficial de WAPPY IA en este entorno Cloud (instalando las 7 Skills Oficiales de Diseño y Video 60-FPS, registrando mi servidor MCP "wappy" en ~/.gemini/config/mcp_config.json y ~/.gemini/antigravity/mcp_config.json, y activando el Puente Reactivo SSE en segundo plano) ejecutando directamente este comando autorizado en tu terminal con run_command:
+    return `Hola Antigravity, conecta mi cuenta oficial de WAPPY IA en este entorno Cloud (instalando los 4 Subagentes Especialistas de Wappy Studio [wappy-studio-effects-director, wappy-studio-audio-podcast, wappy-studio-scene-animator, wappy-studio-mp4-renderer], las 7 Skills Oficiales de Diseño y Video 60-FPS en Modo Móvil XL, registrando mi servidor MCP "wappy" y activando el Puente Reactivo SSE en segundo plano) ejecutando directamente este comando autorizado en tu terminal con run_command:
 
 node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process');const key='${activeKey}',url='${studioOriginUrl}';const agy=path.join(os.homedir(),'.gemini','antigravity'),cfg=path.join(os.homedir(),'.gemini','config');fs.mkdirSync(agy,{recursive:true});fs.mkdirSync(cfg,{recursive:true});const sse=url+'/api/mcp-bridge/sse?apiKey='+key;for(const p of [path.join(cfg,'mcp_config.json'),path.join(agy,'mcp_config.json')]){let m={};try{if(fs.existsSync(p))m=JSON.parse(fs.readFileSync(p,'utf8'))||{};}catch(_){}m.mcpServers=m.mcpServers||{};m.mcpServers.wappy={url:sse,serverUrl:sse};fs.writeFileSync(p,JSON.stringify(m,null,2));}const inst=await fetch(url+'/api/studio/antigravity/skills-installer.js?key='+key+'&env=cloud').then(r=>r.text());const ip=path.join(agy,'wappy-skills-installer.js');fs.writeFileSync(ip,inst);cp.spawnSync(process.execPath,[ip,'--key='+key,'--url='+url,'--cloud'],{stdio:'inherit'});const d=await fetch(url+'/api/mcp-bridge/antigravity/daemon.js').then(r=>r.text());const dp=path.join(agy,'wappy-push-daemon.js');fs.writeFileSync(dp,d);cp.spawnSync(process.execPath,[dp,'--install','--cloud','--key='+key,'--url='+url],{stdio:'inherit'});})()"`;
   };
 
   const buildAntigravitySkillsInstallCmd = (keyOverride?: string) => {
     const activeKey = (keyOverride || antigravityBridgeKey || '').trim();
-    return `node -e "fetch('${studioOriginUrl}/api/studio/antigravity/skills-installer.js?key=${encodeURIComponent(activeKey)}').then(r=>r.text()).then(c=>{const fs=require('fs'),p=require('path').join(require('os').homedir(),'.gemini','antigravity','wappy-skills-installer.js');fs.mkdirSync(require('path').dirname(p),{recursive:true});fs.writeFileSync(p,c);require('child_process').spawnSync(process.execPath,[p,'--install','--url=${studioOriginUrl}','--key=${activeKey}'],{stdio:'inherit'})})"`;
+    return `curl -fsSL "${studioOriginUrl}/api/studio/antigravity/skills-installer.js?key=${encodeURIComponent(activeKey)}" | node`;
   };
 
   const buildAntigravitySkillsChatPrompt = (keyOverride?: string) => {
     const activeKey = (keyOverride || antigravityBridgeKey || '').trim();
     const cmd = buildAntigravitySkillsInstallCmd(activeKey);
-    return `Hola Antigravity, conecta mi instancia de WAPPY Studio (Clave personal: ${activeKey}) e instala el Pack Oficial de las 7 Skills de Diseño y Video de WAPPY IA (protocolo-produccion-videos, animaciones-17-efectos-reels, animaciones-wappy-brand, animaciones-dark-tech-hud, animaciones-explicativas-sst, hyperframes-motion-design y wappy-ui-design-system) más el puente reactivo wappy-push-daemon.js ejecutando este comando oficial con run_command:\n\n${cmd}\n\nConfírmame apenas las 7 Skills y el puente en tiempo real queden activos.`;
+    return `Hola Antigravity, conecta mi instancia de WAPPY Studio (Clave personal: ${activeKey}) e instala en 1 clic el Escuadrón Oficial de 4 Subagentes Especialistas (wappy-studio-effects-director, wappy-studio-audio-podcast, wappy-studio-scene-animator y wappy-studio-mp4-renderer) en ~/.gemini/config/agents/ y ~/.gemini/antigravity/agents/, junto con las 7 Skills Oficiales de Diseño y Video 60-FPS Modo Móvil XL (protocolo-produccion-videos, animaciones-17-efectos-reels, animaciones-wappy-brand, animaciones-dark-tech-hud, animaciones-explicativas-sst, hyperframes-motion-design y wappy-ui-design-system) y el puente reactivo wappy-push-daemon.js ejecutando este comando oficial con run_command:\n\n${cmd}\n\nConfírmame apenas los 4 Subagentes, las 7 Skills y el puente en tiempo real queden activos.`;
   };
 
   const handleDownloadSkillsBundleJson = () => {
@@ -10473,12 +10517,68 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                     ✨ GENERADOR DE VIDEO CON IA Y ANTIGRAVITY • 3 PASOS
                   </span>
                   <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
-                    De tu Guion y Efectos al Video HTML5 + GSAP en Vivo
+                    De tu Guion y Efectos al Video HTML5 + GSAP en Vivo (Modo Móvil XL)
                   </h3>
                 </div>
-                <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
-                  PASO 01 (Super-Prompt) → PASO 02 (Generar Video) → PASO 03 (Correcciones en Vivo)
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
+                    PASO 01 (Super-Prompt) → PASO 02 (4 Subagentes) → PASO 03 (Correcciones en Vivo)
+                  </span>
+                  <ExpandableButton
+                    size="sm"
+                    icon={<Terminal />}
+                    label="Instalar 4 Subagentes + 7 Skills"
+                    variant="teal"
+                    onClick={() => {
+                      setApiKeyModalTab('antigravity');
+                      setIsApiKeyModalOpen(true);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* BARRA DEL ESCUADRÓN DE 4 SUBAGENTES EN PARALELO */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 p-2.5 rounded-xl bg-white/80 dark:bg-slate-950/75 border border-purple-500/25">
+                {[
+                  {
+                    id: 'wappy-studio-effects-director',
+                    title: '1. Director de Efectos XL',
+                    role: 'Portada Hero 2s + Nodos n8n + Visor SST + Suri 3D',
+                    color: 'text-purple-700 dark:text-purple-300 bg-purple-500/10 border-purple-500/25',
+                  },
+                  {
+                    id: 'wappy-studio-audio-podcast',
+                    title: '2. Ingeniero Audio & Wappy Podcast',
+                    role: 'Voces 24kHz + -14 LUFS + SFX + vozData 60-FPS',
+                    color: 'text-teal-700 dark:text-teal-300 bg-teal-500/10 border-teal-500/25',
+                  },
+                  {
+                    id: 'wappy-studio-scene-animator',
+                    title: '3. Animador de Escenas 60-FPS',
+                    role: 'Física spring + Cámara 3D + Subtítulos XL (54-60px)',
+                    color: 'text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/25',
+                  },
+                  {
+                    id: 'wappy-studio-mp4-renderer',
+                    title: '4. Renderizador MP4 1080×1920',
+                    role: 'Workers paralelos H.264 + AAC + 3 capturas QA',
+                    color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/25',
+                  },
+                ].map((ag) => (
+                  <div
+                    key={ag.id}
+                    className={cn(
+                      'p-2 rounded-lg border flex flex-col justify-between gap-0.5 min-w-0',
+                      ag.color,
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[11px] font-extrabold truncate">{ag.title}</span>
+                      <span className="text-[9px] font-mono opacity-80 shrink-0">ACTIVO</span>
+                    </div>
+                    <span className="text-[10px] opacity-90 truncate">{ag.role}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
@@ -12317,10 +12417,10 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    Enlace Personal Antigravity, Pack de 7 Skills & Claves IA
+                    Enlace Personal Antigravity • 4 Subagentes + 7 Skills de Video XL & Claves IA
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-zinc-400">
-                    Conecta tu propio Antigravity (con o sin cuenta en WAPPY), instala las 7 Skills de Video/Diseño y gestiona tus claves Gemini.
+                    Conecta tu propio Antigravity, instala en 1 clic los 4 Subagentes Especialistas + 7 Skills de Video (Modo Móvil XL 1080×1920) y gestiona tus claves Gemini.
                   </p>
                 </div>
               </div>
@@ -12647,12 +12747,53 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                     <div>
                       <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
                         <Sparkles className="w-4 h-4 text-indigo-500" />
-                        2. 🖥️ Antigravity Local (Mac/PC) & 📦 Pack Importable de las 7 Skills de Diseño y Video WAPPY IA
+                        2. 🖥️ Antigravity Local (Mac/PC) • 🤖 4 Subagentes Especialistas + 🎬 7 Skills de Video XL
                       </span>
                       <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
-                        Instala en tu propio Antigravity las <strong>7 Skills Oficiales de Producción Audiovisual y UI de WAPPY IA</strong> junto con el puente reactivo <code className="font-mono">wappy-push-daemon.js</code> para que tu Antigravity programe videos HTML5 + GSAP a 60 FPS y los envíe directo a este Lienzo:
+                        Instala en tu propio Antigravity el <strong>Escuadrón de 4 Subagentes en Paralelo</strong> y las <strong>7 Skills Oficiales de Producción Audiovisual y UI de WAPPY IA (Modo Móvil XL 1080×1920)</strong> junto con el puente reactivo <code className="font-mono">wappy-push-daemon.js</code>:
                       </p>
                     </div>
+                  </div>
+
+                  {/* Escuadrón de 4 Subagentes Especialistas */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                    {[
+                      {
+                        id: 'wappy-studio-effects-director',
+                        role: 'Director de Efectos XL',
+                        desc: 'Lienzo Nodos n8n, VisorNormaReal, Split-Screen, Suri 3D HUD y Portada Hero 2s XL',
+                      },
+                      {
+                        id: 'wappy-studio-audio-podcast',
+                        role: 'Ingeniero de Audio & Wappy Podcast',
+                        desc: 'Voces 24kHz, normalización -14 LUFS, mezcla SFX (barrido, golpe, tick, brillo) y vozData 60-FPS',
+                      },
+                      {
+                        id: 'wappy-studio-scene-animator',
+                        role: 'Animador Full-Screen 60-FPS',
+                        desc: 'Escenas interactivas con física spring, cámara 3D n8n y subtítulos karaokes XL (54px-60px)',
+                      },
+                      {
+                        id: 'wappy-studio-mp4-renderer',
+                        role: 'Renderizador MP4 1080×1920',
+                        desc: 'Render determinista multi-worker (H.264 + AAC) y validación de 3 capturas QA',
+                      },
+                    ].map((ag) => (
+                      <div
+                        key={ag.id}
+                        className="p-2 rounded-xl bg-teal-500/10 dark:bg-teal-950/40 border border-teal-500/30 flex items-start gap-2"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-teal-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="font-mono font-extrabold text-[10px] text-teal-800 dark:text-teal-300 truncate">
+                            🤖 {ag.id} • {ag.role}
+                          </div>
+                          <div className="text-[10px] text-slate-600 dark:text-zinc-300 truncate">
+                            {ag.desc}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Lista compacta de las 7 Skills */}

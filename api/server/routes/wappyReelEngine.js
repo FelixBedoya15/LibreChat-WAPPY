@@ -4,10 +4,15 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Orden de los 7 Arquetipos Cinéticos Oficiales de Antigravity (Skills: animaciones-17-efectos-reels + animaciones-dark-tech-hud + animaciones-wappy-brand)
+ * Orden de los 12 Arquetipos Cinéticos Oficiales de Antigravity (Skills: animaciones-17-efectos-reels + animaciones-dark-tech-hud + animaciones-wappy-brand + animaciones-explicativas-sst)
  */
 const ARCHETYPE_ROTATION = [
   'hook-vs-wall',
+  'wappy-n8n-workflow',
+  'visor-normativo-real',
+  'flow-split-before-after',
+  'suri-voice-live-hud',
+  'cuadricula-50-herramientas',
   'iphone-split-showcase',
   'signature-pad-live',
   'chart-grow-math',
@@ -17,26 +22,37 @@ const ARCHETYPE_ROTATION = [
 ];
 
 /**
- * Mapea los identificadores de efectos de la skill `animaciones-17-efectos-reels`
- * a los 7 Arquetipos Cinéticos de Antigravity.
+ * Mapea los identificadores de efectos de las 7 Skills Oficiales
+ * a los 12 Arquetipos Cinéticos de Antigravity (Modo Móvil XL).
  */
 function resolveArchetypeFromEffect(effectId, idx = 0, isFirst = false, isLast = false) {
   const clean = String(effectId || '').toLowerCase().trim();
   if (ARCHETYPE_ROTATION.includes(clean)) return clean;
 
-  if (/hook|wall|06|headline|19|cover|portada|vs|14|corte/.test(clean)) return 'hook-vs-wall';
+  if (/n8n|workflow|flujo|automatiza|cron|nodo|pipeline/.test(clean)) return 'wappy-n8n-workflow';
+  if (/visor|normativo-real|decreto|1072|0312|resaltador|fluor|flúor|alucinacion|norma/.test(clean)) return 'visor-normativo-real';
+  if (/flow-split|before-after|antes-despues|antes.*despu|split-before|transformacion|cambio|bento/.test(clean)) return 'flow-split-before-after';
+  if (/suri|voice-live|podcast|24khz|consola-voz|onda-reactiva/.test(clean)) return 'suri-voice-live-hud';
+  if (/cuadricula|50-ia|50-herramientas|ecosistema|ahorro|matriz-50/.test(clean)) return 'cuadricula-50-herramientas';
+
+  if (/hook|wall|06|08-headline|headline|19|cover|hero-cover|portada|vs|14|corte/.test(clean)) return 'hook-vs-wall';
   if (/phone|05|iphone|mockup|island|16|green/.test(clean)) return 'iphone-split-showcase';
-  if (/check|13|firma|signature|09|doodle|17|paper|visor|normativo|expediente/.test(clean)) return 'signature-pad-live';
-  if (/chart|08|grow|math|04|reticula|digital-zoom|kpi/.test(clean)) return 'chart-grow-math';
+  if (/check|13|firma|signature|09-doodle|doodle|17|paper|expediente/.test(clean)) return 'signature-pad-live';
+  if (/chart|08|09-chart|grow|math|04|reticula|digital-zoom|kpi/.test(clean)) return 'chart-grow-math';
   if (/orbit|01|pentagon|gtc|11|giro|07|zoom-through|18|vertigo|dolly/.test(clean)) return 'pentagon-orbital';
   if (/ui-world|03|grid|tenshi|10|glass|cristal|02|frame/.test(clean)) return 'tenshi-specialists-grid';
   if (/couch|12|cta|bubble|15|zoom-out|avatar|felix|sfx/.test(clean)) {
-    return isFirst ? 'hook-vs-wall' : isLast ? 'cta-viral-bubbles' : 'iphone-split-showcase';
+    return isFirst ? 'hook-vs-wall' : isLast ? 'cta-viral-bubbles' : 'suri-voice-live-hud';
   }
 
   if (isFirst) return 'hook-vs-wall';
   if (isLast) return 'cta-viral-bubbles';
   const midArchetypes = [
+    'wappy-n8n-workflow',
+    'visor-normativo-real',
+    'flow-split-before-after',
+    'suri-voice-live-hud',
+    'cuadricula-50-herramientas',
     'iphone-split-showcase',
     'signature-pad-live',
     'chart-grow-math',
@@ -312,8 +328,60 @@ function renderWappySvgIcon(kind = 'escudo', color = '#c7f303', size = 40) {
 }
 
 /**
+ * Renderiza los Logos Oficiales Vectoriales SVG del Ecosistema WAPPY IA & Google Antigravity
+ * (Antigravity, NotebookLM, WAPPY IA, Google Flow, Suri/Tenshi, Gemini) en tamaño Móvil XL.
+ */
+function renderOfficialBrandLogoSvg(brand = 'wappy', size = 34) {
+  const b = String(brand || '').toLowerCase();
+  if (b.includes('antigravity') || b.includes('agy')) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(34,211,238,0.55));">
+      <circle cx="32" cy="32" r="28" fill="rgba(12,25,46,0.92)" stroke="#22d3ee" stroke-width="3.2"/>
+      <ellipse cx="32" cy="32" rx="24" ry="10" transform="rotate(-24 32 32)" stroke="#c7f303" stroke-width="2.6" stroke-dasharray="5 3"/>
+      <path d="M32 13 L46 47 H38.5 L35.5 39 H28.5 L25.5 47 H18 L32 13 Z M30.2 33 H33.8 L32 27.5 L30.2 33 Z" fill="#ffffff"/>
+      <circle cx="48" cy="18" r="4" fill="#c7f303"/>
+    </svg>`;
+  }
+  if (b.includes('notebook')) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(74,222,128,0.55));">
+      <rect x="8" y="8" width="48" height="48" rx="14" fill="rgba(13,148,136,0.28)" stroke="#4ade80" stroke-width="3.2"/>
+      <path d="M18 36 C22 20, 28 20, 32 32 C36 44, 42 44, 46 26" stroke="#c7f303" stroke-width="4.2" stroke-linecap="round" fill="none"/>
+      <line x1="18" y1="20" x2="34" y2="20" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="18" y1="46" x2="44" y2="46" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+    </svg>`;
+  }
+  if (b.includes('flow') || b.includes('veo')) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(245,158,11,0.55));">
+      <rect x="8" y="8" width="48" height="48" rx="14" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="3.2"/>
+      <polygon points="24,19 47,32 24,45" fill="#c7f303" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>
+      <circle cx="19" cy="22" r="3" fill="#22d3ee"/>
+    </svg>`;
+  }
+  if (b.includes('suri') || b.includes('tenshi') || b.includes('podcast')) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(199,243,3,0.6));">
+      <circle cx="32" cy="32" r="28" fill="rgba(14,19,0,0.92)" stroke="#c7f303" stroke-width="3.2"/>
+      <rect x="26" y="15" width="12" height="22" rx="6" fill="#22d3ee" stroke="#ffffff" stroke-width="2.4"/>
+      <path d="M19 29 C19 37 25 43 32 43 C39 43 45 37 45 29" stroke="#c7f303" stroke-width="3.4" stroke-linecap="round"/>
+      <line x1="32" y1="43" x2="32" y2="50" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>
+      <line x1="24" y1="50" x2="40" y2="50" stroke="#c7f303" stroke-width="3.4" stroke-linecap="round"/>
+    </svg>`;
+  }
+  if (b.includes('gemini')) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(56,189,248,0.65));">
+      <path d="M32 6 C34 22 42 30 58 32 C42 34 34 42 32 58 C30 42 22 34 6 32 C22 30 30 22 32 6 Z" fill="url(#gemGrad)" stroke="#ffffff" stroke-width="2"/>
+      <defs>
+        <linearGradient id="gemGrad" x1="6" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#22d3ee"/>
+          <stop offset="100%" stop-color="#c7f303"/>
+        </linearGradient>
+      </defs>
+    </svg>`;
+  }
+  return `<img src="/assets/brandbook/isotipo_w_favicon.png" alt="WAPPY IA" style="width:${size}px;height:${size}px;border-radius:8px;object-fit:contain;box-shadow:0 0 10px rgba(199,243,3,0.5);">`;
+}
+
+/**
  * Construye un plan de escenas rico e inteligente de forma determinista a partir del guion real del usuario,
- * sin textos hardcodeados ajenos al tema y con iconografía vectorial SVG Duotone.
+ * sin textos hardcodeados ajenos al tema y con iconografía vectorial SVG Duotone + Arquetipos Móvil XL.
  */
 function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
   const companyName = options.companyName || 'WAPPY IA';
@@ -348,6 +416,21 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
     .map((s) => s.trim())
     .filter((s) => s.length > 8);
 
+  const midArchetypesPool = [
+    'wappy-n8n-workflow',
+    'visor-normativo-real',
+    'flow-split-before-after',
+    'suri-voice-live-hud',
+    'cuadricula-50-herramientas',
+    'iphone-split-showcase',
+    'signature-pad-live',
+    'chart-grow-math',
+    'pentagon-orbital',
+    'tenshi-specialists-grid',
+  ];
+
+  let prevArchetype = '';
+
   return beats.map((beat, idx) => {
     const isFirst = idx === 0;
     const isLast = idx === totalBeats - 1 && totalBeats > 1;
@@ -358,24 +441,6 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       stepMeta?.effect ||
       (userEffects.length > 0 ? userEffects[idx % userEffects.length] : '');
 
-    let archetype;
-    if (effectCandidate) {
-      archetype = resolveArchetypeFromEffect(effectCandidate, idx, isFirst, isLast);
-    } else if (isFirst) {
-      archetype = 'hook-vs-wall';
-    } else if (isLast) {
-      archetype = 'cta-viral-bubbles';
-    } else {
-      const midArchetypes = [
-        'iphone-split-showcase',
-        'signature-pad-live',
-        'chart-grow-math',
-        'pentagon-orbital',
-        'tenshi-specialists-grid',
-      ];
-      archetype = midArchetypes[(idx - 1) % midArchetypes.length];
-    }
-
     const rawText = String(
       stepMeta?.narration || stepMeta?.voiceover || stepMeta?.text || beat.text || '',
     )
@@ -384,6 +449,36 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
       .replace(/<[^>]+>/g, '')
       .replace(/\|[^|]+\|/g, '')
       .trim();
+
+    const lowerBeatText = rawText.toLowerCase();
+
+    let archetype;
+    if (effectCandidate) {
+      archetype = resolveArchetypeFromEffect(effectCandidate, idx, isFirst, isLast);
+    } else if (isLast) {
+      archetype = 'cta-viral-bubbles';
+    } else if (/automatiza|n8n|cron|flujo|correo|whatsapp|alerta\s+autom/i.test(lowerBeatText)) {
+      archetype = 'wappy-n8n-workflow';
+    } else if (/decreto|1072|resoluci[oó]n|0312|norma|ley|gtc\s*45|auditor|alucina/i.test(lowerBeatText)) {
+      archetype = 'visor-normativo-real';
+    } else if (/antes|despu[eé]s|manual|papel|excel|transforma|cambio|flow/i.test(lowerBeatText)) {
+      archetype = 'flow-split-before-after';
+    } else if (/voz|habla|suri|podcast|audio|pregunta|tenshi\s+en\s+vivo/i.test(lowerBeatText)) {
+      archetype = 'suri-voice-live-hud';
+    } else if (/50|herramienta|ecosistema|ahorr|tiempo|m[oó]dulo/i.test(lowerBeatText)) {
+      archetype = 'cuadricula-50-herramientas';
+    } else if (isFirst) {
+      archetype = 'hook-vs-wall';
+    } else {
+      archetype = midArchetypesPool[(idx - 1) % midArchetypesPool.length];
+    }
+
+    // Garantizar cero repetición consecutiva de arquetipos
+    if (archetype === prevArchetype && !isLast) {
+      const nextIdx = (midArchetypesPool.indexOf(archetype) + 1 + idx) % midArchetypesPool.length;
+      archetype = midArchetypesPool[nextIdx] || 'wappy-n8n-workflow';
+    }
+    prevArchetype = archetype;
 
     let stepPrefix = '';
     let bodyText = rawText;
@@ -495,6 +590,68 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
     const formulaLeft = isGtc45 ? 'PELIGRO × EXPOSICIÓN' : shortTitle(c0, 'DIAGNÓSTICO IA').toUpperCase().slice(0, 18);
     const formulaMid = isGtc45 ? 'NP = ND × NE' : shortTitle(c1, 'CONTROL EN VIVO').toUpperCase().slice(0, 18);
     const formulaRight = isGtc45 ? 'VALORACIÓN GTC 45' : '100% CUMPLIMIENTO';
+
+    const n8nWorkflow = stepMeta?.n8nWorkflow || {
+      triggerTitle: 'Cron SST ⚡',
+      triggerSub: 'Lun 7:00 AM · Automático',
+      agentTitle: 'Agente IA · Tenshi',
+      agentSub: shortTitle(c0, 'Análisis SG-SST en Vivo'),
+      subNodeLeft: '✦ Google Gemini 3.8',
+      subNodeRight: '🛡️ Memoria ARL / SENA',
+      outputTitle: 'Gmail / WhatsApp ✅',
+      outputSub: shortTitle(c1, 'Reporte y Alerta Enviada'),
+      resultBanner: rawText.slice(0, 86) || 'Flujo autónomo ejecutado en 1.8 segundos con trazabilidad completa.',
+    };
+
+    const normativeDoc = stepMeta?.normativeDoc || {
+      headerCode: isGtc45 ? 'GUÍA TÉCNICA GTC 45 · MATRIZ IPEVR' : 'DECRETO 1072 DE 2015 · RES. 0312 DE 2019',
+      articleTitle: shortTitle(titleHighlight, 'Estándar Obligatorio SG-SST'),
+      clauseBefore: c0.slice(0, 62),
+      clauseHighlight: c1.slice(0, 74) || rawText.slice(0, 74),
+      clauseAfter: c2.slice(0, 62),
+      stampText: 'VERIFICADO SIN ALUCINACIONES',
+      sourceBadge: 'NotebookLM + Biblioteca Legal WAPPY',
+    };
+
+    const splitBeforeAfter = stepMeta?.splitBeforeAfter || {
+      beforeBadge: 'ANTES (GENÉRICO / MANUAL)',
+      beforeTitle: stepMeta?.badCardTitle || (isGtc45 ? 'Matrices en Excel Desactualizadas' : 'Procesos Manuales y Reprocesos'),
+      beforeItems: [
+        stepMeta?.badCardDesc || 'Horas perdidas transcribiendo formatos y evidencia dispersa',
+        'Riesgo de errores humanos y hallazgos en auditoría',
+      ],
+      centerBadge: '⚡ TRANSFORMACIÓN IA',
+      afterBadge: 'AHORA CON WAPPY IA (60 FPS + IA)',
+      afterTitle: stepMeta?.goodCardTitle || `${shortTitle(titleHighlight, companyName)} Automatizado`,
+      afterItems: [
+        stepMeta?.goodCardDesc || rawText.slice(0, 72),
+        c1.slice(0, 68) || 'Cumplimiento verificado en tiempo real con firma digital',
+      ],
+    };
+
+    const suriConsole = stepMeta?.suriConsole || {
+      hostName: 'Suri 3D & Tenshi Live · 24 kHz',
+      statusBadge: 'ON AIR · -14 LUFS · GEMINI LIVE',
+      userPromptBubble: `«¿Cómo aplicamos ${shortTitle(titleHighlight, 'este control SST')} hoy en planta?»`,
+      aiResponseBubble: rawText.slice(0, 96) || c0.slice(0, 84),
+      actionPill: `✓ ${shortTitle(c1, 'Acción ejecutada en WAPPY Cloud')}`,
+    };
+
+    const toolsGrid50 = stepMeta?.toolsGrid50 || {
+      modules: [
+        { code: 'GTC 45', name: 'Matriz IPEVR IA', status: 'ACTIVO' },
+        { code: '0312', name: 'Autoevaluación', status: '100%' },
+        { code: 'PESV', name: 'Seguridad Vial', status: 'LIVE' },
+        { code: 'ATEL', name: 'Investigación IA', status: 'ACTIVO' },
+        { code: 'SGA', name: 'Riesgo Químico', status: 'OK' },
+        { code: 'EPP', name: 'Entregas & Firma', status: 'DIGITAL' },
+        { code: 'LOTO', name: 'Permisos Trabajo', status: 'QR' },
+        { code: 'LMS', name: 'Academia & Quiz', status: '24/7' },
+        { code: 'N8N', name: 'Tareas Crons IA', status: 'AUTO' },
+      ],
+      savingHeadline: '-85% PAPELEO OPERATIVO',
+      savingSub: rawText.slice(0, 78) || '+50 Especialistas y Herramientas IA trabajando 24/7 por tu seguridad.',
+    };
 
     return {
       index: idx + 1,
@@ -612,6 +769,11 @@ function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
             }))
           : defaultGridSpecs,
       cloudTags: normTags,
+      n8nWorkflow,
+      normativeDoc,
+      splitBeforeAfter,
+      suriConsole,
+      toolsGrid50,
       ctaHeader: `${companyName} • ECOSISTEMA INTELIGENTE • SG-SST`,
       ctaInstruction: '👇 Escribe en los comentarios o entra ahora:',
       ctaKeyword: stepMeta?.ctaKeyword || 'SOMOS SST',
@@ -632,7 +794,7 @@ function sIdxOr(i) {
 
 /**
  * Opcionalmente enriquece el plan de escenas con Gemini en formato JSON estructurado,
- * pero manteniendo SIEMPRE los 7 arquetipos cinéticos a 60 FPS de Antigravity.
+ * pero manteniendo SIEMPRE los 12 arquetipos cinéticos a 60 FPS de Antigravity (Modo Móvil XL).
  */
 async function generateCreativeScenePlanWithAi(scriptText, beats, options, aiGeneratorFn) {
   const basePlan = buildSmartScenePlanFromScript(scriptText, beats, options);
@@ -663,8 +825,8 @@ async function generateCreativeScenePlanWithAi(scriptText, beats, options, aiGen
       ? `\nDIRECTRICES DEL SUPER-PROMPT Y USUARIO:\n${String(options.prompt).slice(0, 1800)}\n`
       : '';
 
-    const prompt = `Eres el Director Creativo de Motion Graphics de WAPPY IA y Google Antigravity.
-Para cada uno de los siguientes ${beats.length} beats del guion de locución, genera los textos cortos, específicos y de alto impacto que alimentarán nuestro motor de animación 3D a 60 FPS.
+    const prompt = `Eres el Subagente 01 (Director de Efectos y Coreografía Dinámica XL) de WAPPY IA y Google Antigravity.
+Para cada uno de los siguientes ${beats.length} beats del guion de locución, genera los textos cortos, específicos y de alto impacto (Modo Móvil XL 1080x1920) que alimentarán nuestro motor de animación 3D a 60 FPS.
 - Dirección de Arte: ${options?.theme || 'dark-tech-hud'}
 - Insignia de Portada: ${options?.badgeText || 'CÁPSULA INTERACTIVA WAPPY'}
 - Titular de Portada: ${options?.headlineText || ''}
@@ -674,10 +836,14 @@ ${superPromptContext}
 GUION POR BEATS:
 ${beatsPrompt}
 
+ARQUETIPOS DISPONIBLES (asigna el mejor a cada escena sin repetir 2 seguidos):
+"hook-vs-wall" | "wappy-n8n-workflow" | "visor-normativo-real" | "flow-split-before-after" | "suri-voice-live-hud" | "cuadricula-50-herramientas" | "iphone-split-showcase" | "signature-pad-live" | "chart-grow-math" | "pentagon-orbital" | "tenshi-specialists-grid" | "cta-viral-bubbles"
+
 Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown \`\`\`json) con un arreglo "scenes" de longitud exacta ${beats.length}, donde cada objeto tenga:
 {
+  "archetype": "Uno de los 12 arquetipos anteriores",
   "eyebrow": "TEXTO CORTO EN MAYÚSCULAS (máx 28 caracteres)",
-  "titleBefore": "2 o 3 palabras iniciales del titular gigante (máx 20 caracteres)",
+  "titleBefore": "2 o 3 palabras iniciales del titular gigante XL (máx 20 caracteres)",
   "titleHighlight": "Palabra o concepto clave a resaltar en verde lima/cian (máx 18 caracteres)",
   "highlightStyle": "lime" | "cyan" | "red",
   "badCardTitle": "Título corto del riesgo/error tradicional (máx 26 caracteres)",
@@ -722,10 +888,19 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown \`\`\`json) con un ar
     if (firstBrace !== -1 && lastBrace > firstBrace) {
       const parsed = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
       if (Array.isArray(parsed.scenes) && parsed.scenes.length > 0) {
+        let lastArch = '';
         return basePlan.map((item, idx) => {
           const aiItem = parsed.scenes[idx] || {};
+          let resolvedArch = aiItem.archetype && ARCHETYPE_ROTATION.includes(aiItem.archetype)
+            ? aiItem.archetype
+            : item.archetype;
+          if (resolvedArch === lastArch && idx < basePlan.length - 1) {
+            resolvedArch = item.archetype !== lastArch ? item.archetype : 'wappy-n8n-workflow';
+          }
+          lastArch = resolvedArch;
           return {
             ...item,
+            archetype: resolvedArch,
             eyebrow: aiItem.eyebrow || item.eyebrow,
             titleBefore: aiItem.titleBefore || item.titleBefore,
             titleHighlight: aiItem.titleHighlight || item.titleHighlight,
@@ -781,12 +956,11 @@ Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown \`\`\`json) con un ar
 }
 
 /**
- * Renderiza la Portada Magnética Obligatoria (0.00s – 2.00s, Escena 0)
- * con la arquitectura exacta de WAPPY_IA_Reel_Matriz_IPEVR_GTC45_Oficial:
- * - Avatar 3D de alta resolución del Brandbook (avatar2_mauricio_camisa_cuadros_amarilla.png)
- * - iPhone 3D inclinado con interfaz real de WAPPY IA en vivo (cero emojis 📱)
- * - Titular con cajas inclinadas .hl-red-tilted y .hl-lime-tilted
- * - 3 insignias glass con iconografía SVG Duotone + footer wappy.club · SOMOS SST
+ * Renderiza la Portada Magnética Obligatoria (0.00s – 2.00s, Escena 0) en Modo Móvil XL (1080×1920):
+ * - Tipografía extragrande de impacto (clamp(52px, 8.5vw, 92px))
+ * - Pastilla de gancho en #C7F303 con texto oscuro #0E1300 de alto contraste
+ * - Fila de Logos Oficiales Grandes (Antigravity, NotebookLM, WAPPY IA, Google Flow, Suri/Tenshi)
+ * - Avatar 3D de alta resolución + iPhone 16 Pro 3D inclinado con Dynamic Island e interfaz real en vivo
  */
 function renderMagneticCoverMarkup(scenePlan = [], options = {}) {
   const firstSc = scenePlan[0] || {};
@@ -813,9 +987,9 @@ function renderMagneticCoverMarkup(scenePlan = [], options = {}) {
   return `
     <div class="scene scene-cover" id="scene-0" data-archetype="magnetic-cover-2s" style="opacity:1;visibility:visible;">
       <div class="cover-layout">
-        <div class="cover-top-brand" id="s0-brand">
+        <div class="cover-top-brand-xl" id="s0-brand">
           <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" class="cover-logo-w">
-          <span class="cover-brand-text">${escapeHtml(topPillLabel)}</span>
+          <span class="cover-brand-text-xl">${escapeHtml(topPillLabel)}</span>
         </div>
 
         <div class="cover-title-block" id="s0-title">
@@ -823,6 +997,29 @@ function renderMagneticCoverMarkup(scenePlan = [], options = {}) {
           <div class="cover-t-row">
             <span class="hl-red-tilted">${escapeHtml(redBox.toUpperCase())}</span>
             <span class="hl-lime-tilted">${escapeHtml(limeBox.toUpperCase())}</span>
+          </div>
+        </div>
+
+        <div class="cover-official-logos-strip" id="s0-logos-strip">
+          <div class="official-logo-pill">
+            ${renderOfficialBrandLogoSvg('antigravity', 34)}
+            <span>Antigravity</span>
+          </div>
+          <div class="official-logo-pill">
+            ${renderOfficialBrandLogoSvg('notebooklm', 34)}
+            <span>NotebookLM</span>
+          </div>
+          <div class="official-logo-pill official-logo-pill-lime">
+            ${renderOfficialBrandLogoSvg('wappy', 34)}
+            <span>WAPPY IA</span>
+          </div>
+          <div class="official-logo-pill">
+            ${renderOfficialBrandLogoSvg('flow', 34)}
+            <span>Google Flow</span>
+          </div>
+          <div class="official-logo-pill">
+            ${renderOfficialBrandLogoSvg('suri', 34)}
+            <span>Suri / Tenshi</span>
           </div>
         </div>
 
@@ -878,15 +1075,15 @@ function renderMagneticCoverMarkup(scenePlan = [], options = {}) {
 
         <div class="cover-badges-row" id="s0-badges">
           <div class="cover-glass-badge">
-            <div class="cgb-ico">${renderWappySvgIcon('cerebro_ia', '#c7f303', 32)}</div>
+            <div class="cgb-ico">${renderWappySvgIcon('cerebro_ia', '#c7f303', 36)}</div>
             <span>${escapeHtml(badge1.slice(0, 24))}</span>
           </div>
           <div class="cover-glass-badge">
-            <div class="cgb-ico">${renderWappySvgIcon('firma', '#22d3ee', 32)}</div>
+            <div class="cgb-ico">${renderWappySvgIcon('firma', '#22d3ee', 36)}</div>
             <span>${escapeHtml(badge2.slice(0, 24))}</span>
           </div>
           <div class="cover-glass-badge">
-            <div class="cgb-ico">${renderWappySvgIcon('grafica', '#2dd4bf', 32)}</div>
+            <div class="cgb-ico">${renderWappySvgIcon('grafica', '#2dd4bf', 36)}</div>
             <span>${escapeHtml(badge3.slice(0, 24))}</span>
           </div>
         </div>
@@ -894,14 +1091,14 @@ function renderMagneticCoverMarkup(scenePlan = [], options = {}) {
         <div class="cover-footer-bar" id="s0-footer">
           <span class="cf-domain">🌐 wappy.club</span>
           <span class="cf-sep">•</span>
-          <span class="cf-cta">SOMOS SST</span>
+          <span class="cf-cta">SOMOS SST · MODO MÓVIL XL</span>
         </div>
       </div>
     </div>`;
 }
 
 /**
- * Renderiza el HTML interno de cada escena según su Arquetipo Antigravity
+ * Renderiza el HTML interno de cada escena según su Arquetipo Antigravity (12 Arquetipos Modo Móvil XL)
  */
 function renderSceneMarkup(sc, idx) {
   const num = idx + 1;
@@ -918,6 +1115,255 @@ function renderSceneMarkup(sc, idx) {
         <h1 class="title-hero">${escapeHtml(sc.titleBefore)} <span class="${hlClass}">${escapeHtml(sc.titleHighlight)}</span></h1>
         <p class="sub-hero">${escapeHtml(sc.subtitle)}</p>
       </div>`;
+
+  if (sc.archetype === 'wappy-n8n-workflow') {
+    const wf = sc.n8nWorkflow || {};
+    return `
+    <div class="scene" id="scene-${num}" data-archetype="wappy-n8n-workflow">
+      ${headerHtml}
+      <div class="middle-container">
+        <div class="n8n-canvas-stage hud-glass-pro" id="s${num}-n8n-stage">
+          <div class="n8n-dot-grid"></div>
+          <div class="n8n-top-bar">
+            <span class="n8n-badge-live"><span class="dot-live"></span> WORKFLOW AUTOMATIZADO WAPPY IA</span>
+            <span class="n8n-exec-time">⚡ EJECUCIÓN: 1.4s · 0 ERRORES</span>
+          </div>
+
+          <div class="n8n-nodes-track">
+            <svg class="n8n-bezier-svg" viewBox="0 0 920 420" fill="none">
+              <path id="s${num}-n8n-wire-1" d="M 225 145 C 295 145, 305 145, 365 145" stroke="rgba(199,243,3,0.38)" stroke-width="5" stroke-dasharray="10 6"/>
+              <path id="s${num}-n8n-wire-2" d="M 565 145 C 630 145, 640 145, 700 145" stroke="rgba(34,211,238,0.42)" stroke-width="5" stroke-dasharray="10 6"/>
+              <path id="s${num}-n8n-wire-sub1" d="M 425 225 C 405 280, 340 295, 295 320" stroke="rgba(56,189,248,0.45)" stroke-width="4" stroke-dasharray="7 5"/>
+              <path id="s${num}-n8n-wire-sub2" d="M 505 225 C 525 280, 585 295, 630 320" stroke="rgba(45,212,191,0.45)" stroke-width="4" stroke-dasharray="7 5"/>
+              <circle id="s${num}-n8n-pkt-1" cx="250" cy="145" r="9" fill="#c7f303" filter="drop-shadow(0 0 12px #c7f303)"/>
+              <circle id="s${num}-n8n-pkt-2" cx="590" cy="145" r="9" fill="#22d3ee" filter="drop-shadow(0 0 12px #22d3ee)"/>
+            </svg>
+
+            <div class="n8n-node n8n-node-trigger" id="s${num}-n8n-n1">
+              <div class="n8n-node-ico" style="background:rgba(245,158,11,0.22);border:2.5px solid #f59e0b;">
+                ${renderWappySvgIcon('bolt', '#f59e0b', 42)}
+              </div>
+              <div class="n8n-node-title">${escapeHtml(wf.triggerTitle || 'Cron SST ⚡')}</div>
+              <div class="n8n-node-sub">${escapeHtml(wf.triggerSub || 'Lun 7:00 AM')}</div>
+            </div>
+
+            <div class="n8n-node n8n-node-agent" id="s${num}-n8n-n2">
+              <div class="n8n-node-badge">ORQUESTADOR</div>
+              <div class="n8n-node-ico" style="background:rgba(199,243,3,0.22);border:2.5px solid var(--w-lime);">
+                <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi" style="width:48px;height:48px;object-fit:contain;">
+              </div>
+              <div class="n8n-node-title" style="color:var(--w-lime);">${escapeHtml(wf.agentTitle || 'Agente IA · Tenshi')}</div>
+              <div class="n8n-node-sub">${escapeHtml(wf.agentSub || sc.titleHighlight)}</div>
+            </div>
+
+            <div class="n8n-node n8n-node-output" id="s${num}-n8n-n3">
+              <div class="n8n-node-ico" style="background:rgba(34,197,94,0.22);border:2.5px solid #22c55e;">
+                ${renderWappySvgIcon('check', '#22c55e', 42)}
+              </div>
+              <div class="n8n-node-title">${escapeHtml(wf.outputTitle || 'Gmail / WhatsApp ✅')}</div>
+              <div class="n8n-node-sub">${escapeHtml(wf.outputSub || 'Alerta & Informe PDF')}</div>
+            </div>
+
+            <div class="n8n-subnode n8n-subnode-left" id="s${num}-n8n-sub1">
+              ${renderOfficialBrandLogoSvg('gemini', 28)}
+              <span>${escapeHtml(wf.subNodeLeft || '✦ Google Gemini 3.8')}</span>
+            </div>
+
+            <div class="n8n-subnode n8n-subnode-right" id="s${num}-n8n-sub2">
+              ${renderWappySvgIcon('escudo', '#2dd4bf', 28)}
+              <span>${escapeHtml(wf.subNodeRight || '🛡️ Memoria ARL / SENA')}</span>
+            </div>
+          </div>
+
+          <div class="n8n-result-banner" id="s${num}-n8n-res">
+            <div class="n8n-res-pill">RESULTADO EN VIVO</div>
+            <div class="n8n-res-text">${escapeHtml(wf.resultBanner || sc.goodCardDesc || sc.subtitle)}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (sc.archetype === 'visor-normativo-real') {
+    const nd = sc.normativeDoc || {};
+    return `
+    <div class="scene" id="scene-${num}" data-archetype="visor-normativo-real">
+      ${headerHtml}
+      <div class="middle-container">
+        <div class="norma-sheet-paper" id="s${num}-norma-paper">
+          <div class="norma-paper-header">
+            <div class="norma-seal-ico">${renderOfficialBrandLogoSvg('notebooklm', 42)}</div>
+            <div class="norma-header-meta">
+              <div class="norma-code-tag">${escapeHtml(nd.headerCode || 'DECRETO 1072 DE 2015 · RES. 0312 DE 2019')}</div>
+              <div class="norma-doc-title">${escapeHtml(nd.articleTitle || sc.titleHighlight)}</div>
+            </div>
+            <div class="norma-official-pill">OFICIAL COLOMBIA</div>
+          </div>
+
+          <div class="norma-paper-body">
+            <p class="norma-paragraph">
+              <span class="norma-txt-muted">«${escapeHtml(nd.clauseBefore || sc.badCardDesc)} — </span>
+              <span class="norma-fluor-wrap">
+                <span class="norma-fluor-bg" id="s${num}-hl-bar"></span>
+                <strong class="norma-fluor-text">${escapeHtml(nd.clauseHighlight || sc.goodCardDesc || sc.subtitle)}</strong>
+              </span>
+              <span class="norma-txt-muted"> — ${escapeHtml(nd.clauseAfter || 'Cumplimiento técnico obligatorio auditable en WAPPY IA.')}»</span>
+            </p>
+          </div>
+
+          <div class="norma-paper-footer">
+            <div class="norma-source-tag">
+              ${renderOfficialBrandLogoSvg('wappy', 28)}
+              <span>Fuente: ${escapeHtml(nd.sourceBadge || 'NotebookLM + Biblioteca Legal WAPPY')}</span>
+            </div>
+            <div class="norma-verified-stamp" id="s${num}-stamp">
+              ✓ ${escapeHtml(nd.stampText || 'VERIFICADO SIN ALUCINACIONES')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (sc.archetype === 'flow-split-before-after') {
+    const sp = sc.splitBeforeAfter || {};
+    const bItems = Array.isArray(sp.beforeItems) && sp.beforeItems.length > 0
+      ? sp.beforeItems
+      : [sc.badCardDesc || 'Semanas de reprocesos manuales', 'Riesgo de multas e incumplimiento'];
+    const aItems = Array.isArray(sp.afterItems) && sp.afterItems.length > 0
+      ? sp.afterItems
+      : [sc.goodCardDesc || sc.subtitle, 'Evidencia digital firmada en segundos'];
+    return `
+    <div class="scene" id="scene-${num}" data-archetype="flow-split-before-after">
+      ${headerHtml}
+      <div class="middle-container">
+        <div class="flow-split-wrapper">
+          <div class="flow-panel flow-panel-before" id="s${num}-split-top">
+            <div class="flow-panel-top">
+              <span class="flow-tag-bad">❌ ${escapeHtml(sp.beforeBadge || 'ANTES (GENÉRICO / MANUAL)')}</span>
+              <span class="flow-time-bad">LENTO · RIESGO ALTO</span>
+            </div>
+            <h3 class="flow-panel-title">${escapeHtml(sp.beforeTitle || sc.badCardTitle)}</h3>
+            <div class="flow-bullet-list">
+              ${bItems.map((it) => `<div class="flow-bullet-item flow-bullet-bad"><span>✕</span><span>${escapeHtml(it)}</span></div>`).join('')}
+            </div>
+          </div>
+
+          <div class="flow-center-divider" id="s${num}-split-badge">
+            ${renderOfficialBrandLogoSvg('flow', 34)}
+            <span>${escapeHtml(sp.centerBadge || '⚡ TRANSFORMACIÓN IA')}</span>
+          </div>
+
+          <div class="flow-panel flow-panel-after" id="s${num}-split-bot">
+            <div class="corner-bracket cb-tl"></div><div class="corner-bracket cb-tr"></div>
+            <div class="corner-bracket cb-bl"></div><div class="corner-bracket cb-br"></div>
+            <div class="flow-panel-top">
+              <span class="flow-tag-good">✅ ${escapeHtml(sp.afterBadge || 'AHORA CON WAPPY IA (60 FPS + IA)')}</span>
+              <span class="flow-time-good">10X MÁS RÁPIDO</span>
+            </div>
+            <h3 class="flow-panel-title" style="color:var(--w-lime);">${escapeHtml(sp.afterTitle || sc.goodCardTitle)}</h3>
+            <div class="flow-bullet-list">
+              ${aItems.map((it) => `<div class="flow-bullet-item flow-bullet-good"><span>✓</span><span>${escapeHtml(it)}</span></div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (sc.archetype === 'suri-voice-live-hud') {
+    const sr = sc.suriConsole || {};
+    const waveBars = Array.from({ length: 18 })
+      .map((_, wIdx) => `<div class="suri-wave-bar" id="s${num}-swb-${wIdx + 1}"></div>`)
+      .join('');
+    return `
+    <div class="scene" id="scene-${num}" data-archetype="suri-voice-live-hud">
+      ${headerHtml}
+      <div class="middle-container">
+        <div class="suri-console-card hud-glass-pro" id="s${num}-suri-card">
+          <div class="suri-console-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+              ${renderOfficialBrandLogoSvg('suri', 38)}
+              <div>
+                <div class="suri-host-title">${escapeHtml(sr.hostName || 'Suri 3D & Tenshi Live · 24 kHz')}</div>
+                <div class="suri-host-sub">COPILOTO DE VOZ EN TIEMPO REAL · WAPPY PODCAST</div>
+              </div>
+            </div>
+            <span class="suri-onair-pill"><span class="dot-live"></span> ${escapeHtml(sr.statusBadge || 'ON AIR · 24 KHZ')}</span>
+          </div>
+
+          <div class="suri-stage-center">
+            <div class="suri-avatar-orb-wrap">
+              <div class="suri-pulse-ring" id="s${num}-suri-ring"></div>
+              <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Suri Tenshi 3D" class="suri-center-img">
+            </div>
+            <div class="suri-waveform-box" id="s${num}-suri-eq">
+              ${waveBars}
+            </div>
+          </div>
+
+          <div class="suri-dialog-stack">
+            <div class="suri-bubble suri-bubble-user" id="s${num}-bub-user">
+              <span class="suri-bub-tag">TÚ (VOZ EN VIVO):</span>
+              <p>${escapeHtml(sr.userPromptBubble || `«Necesito validar ${sc.titleHighlight} en terreno ahora mismo»`)}</p>
+            </div>
+            <div class="suri-bubble suri-bubble-ai" id="s${num}-bub-ai">
+              <span class="suri-bub-tag" style="color:#0e1300;background:var(--w-lime);">RESPUESTA TENSHI 24KHZ:</span>
+              <p>${escapeHtml(sr.aiResponseBubble || sc.goodCardDesc || sc.subtitle)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (sc.archetype === 'cuadricula-50-herramientas') {
+    const tg = sc.toolsGrid50 || {};
+    const mods = Array.isArray(tg.modules) && tg.modules.length >= 9
+      ? tg.modules.slice(0, 9)
+      : [
+          { code: 'GTC 45', name: 'Matriz IPEVR IA', status: 'ACTIVO' },
+          { code: '0312', name: 'Autoevaluación', status: '100%' },
+          { code: 'PESV', name: 'Seguridad Vial', status: 'LIVE' },
+          { code: 'ATEL', name: 'Investigación IA', status: 'ACTIVO' },
+          { code: 'SGA', name: 'Riesgo Químico', status: 'OK' },
+          { code: 'EPP', name: 'Entregas & Firma', status: 'DIGITAL' },
+          { code: 'LOTO', name: 'Permisos Trabajo', status: 'QR' },
+          { code: 'LMS', name: 'Academia & Quiz', status: '24/7' },
+          { code: 'N8N', name: 'Tareas Crons IA', status: 'AUTO' },
+        ];
+    const cellsHtml = mods
+      .map(
+        (m, mIdx) => `
+          <div class="tools50-cell hud-glass-pro" id="s${num}-mcell-${mIdx + 1}">
+            <div class="tools50-cell-top">
+              <span class="tools50-code">${escapeHtml(m.code)}</span>
+              <span class="tools50-status">${escapeHtml(m.status)}</span>
+            </div>
+            <div class="tools50-name">${escapeHtml(m.name)}</div>
+          </div>`,
+      )
+      .join('');
+
+    return `
+    <div class="scene" id="scene-${num}" data-archetype="cuadricula-50-herramientas">
+      ${headerHtml}
+      <div class="middle-container">
+        <div class="tools50-wrapper">
+          <div class="tools50-grid">
+            ${cellsHtml}
+          </div>
+          <div class="tools50-saving-card hud-glass-pro" id="s${num}-save-card">
+            <div class="tools50-ring-badge">-85%</div>
+            <div class="tools50-saving-info">
+              <div class="tools50-saving-title">${escapeHtml(tg.savingHeadline || '-85% PAPELEO OPERATIVO CON +50 HERRAMIENTAS IA')}</div>
+              <div class="tools50-saving-sub">${escapeHtml(tg.savingSub || sc.goodCardDesc || sc.subtitle)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
 
   if (sc.archetype === 'hook-vs-wall') {
     const pillsHtml = (sc.wallPills || [])
@@ -1464,6 +1910,9 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
     num: 0,
     id: '#scene-0',
     archetype: 'magnetic-cover-2s',
+    eyebrow: 'PORTADA HERO XL · 2.0S',
+    headline: String(scenePlan[0]?.headline || 'AUTOMATIZACIÓN IA SG-SST'),
+    subheadline: String(scenePlan[0]?.subheadline || ''),
     start: 0,
     end: coverDur,
     isLast: false,
@@ -1483,6 +1932,9 @@ function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) 
       num: idx + 1,
       id: `#scene-${idx + 1}`,
       archetype: sc.archetype,
+      eyebrow: String(sc.eyebrow || `ESCENA 0${idx + 1}`),
+      headline: String(sc.headline || ''),
+      subheadline: String(sc.subheadline || ''),
       start: mappedStart,
       end: mappedEnd,
       isLast: idx === scenePlan.length - 1,
@@ -1663,40 +2115,40 @@ html, body {
   box-shadow: 0 0 12px var(--w-lime);
 }
 .title-hero {
-  font-size: 64px; font-weight: 900; line-height: 1.06;
+  font-size: clamp(54px, 7.2vw, 84px); font-weight: 900; line-height: 1.04;
   letter-spacing: -0.03em; color: #ffffff;
-  max-width: min(1360px, 100%);
-  text-shadow: 0 4px 22px rgba(0,0,0,0.85);
+  max-width: min(1360px, 96%);
+  text-shadow: 0 6px 26px rgba(0,0,0,0.88);
 }
 .hl-lime {
   display: inline-block; position: relative;
   background: var(--w-lime); color: #0e1300;
-  padding: 3px 18px; border-radius: 18px;
+  padding: 4px 20px; border-radius: 18px;
   box-shadow: 0 0 35px rgba(199, 243, 3, 0.65);
 }
 .hl-cyan {
   display: inline-block; position: relative;
   background: linear-gradient(90deg, #06b6d4, #22d3ee); color: #020409;
-  padding: 3px 18px; border-radius: 18px;
+  padding: 4px 20px; border-radius: 18px;
   box-shadow: 0 0 35px rgba(34, 211, 238, 0.65);
 }
 .hl-red {
   display: inline-block; position: relative;
   background: linear-gradient(90deg, #ef4444, #f97316); color: #ffffff;
-  padding: 3px 18px; border-radius: 18px;
+  padding: 4px 20px; border-radius: 18px;
   box-shadow: 0 0 35px rgba(239, 68, 68, 0.65);
 }
 .sub-hero {
-  font-size: 28px; font-weight: 700; line-height: 1.24;
+  font-size: 31px; font-weight: 700; line-height: 1.24;
   color: #e2e8f0; margin-top: 10px;
-  max-width: min(1260px, 100%);
+  max-width: min(1260px, 95%);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   text-shadow: 0 2px 12px rgba(0,0,0,0.7);
 }
 
-/* TERCIO MEDIO — ESCENARIO DINÁMICO 60 FPS */
+/* TERCIO MEDIO — ESCENARIO DINÁMICO 60 FPS MÓVIL XL */
 .middle-container {
-  position: absolute; top: 265px; left: 40px; right: 40px; height: 845px;
+  position: absolute; top: 270px; left: 32px; right: 32px; height: 910px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   z-index: 15;
 }
@@ -1715,6 +2167,245 @@ html, body {
 .cb-tr { top: -2px; right: -2px; border-top: 3.5px solid; border-right: 3.5px solid; border-top-right-radius: 10px; }
 .cb-bl { bottom: -2px; left: -2px; border-bottom: 3.5px solid; border-left: 3.5px solid; border-bottom-left-radius: 10px; }
 .cb-br { bottom: -2px; right: -2px; border-bottom: 3.5px solid; border-right: 3.5px solid; border-bottom-right-radius: 10px; }
+
+/* ARQUETIPO ESTRELLA 1: LIENZO NODOS N8N WAPPY (wappy-n8n-workflow) */
+.n8n-canvas-stage {
+  width: 96%; height: 780px; padding: 26px 28px; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: space-between;
+  border: 2.5px solid rgba(199, 243, 3, 0.55);
+}
+.n8n-dot-grid {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(34, 211, 238, 0.28) 2px, transparent 2px);
+  background-size: 28px 28px; opacity: 0.65; pointer-events: none;
+}
+.n8n-top-bar {
+  position: relative; z-index: 4; display: flex; align-items: center; justify-content: space-between;
+}
+.n8n-badge-live {
+  display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px; border-radius: 999px;
+  background: rgba(14, 19, 0, 0.92); border: 2px solid var(--w-lime);
+  font-family: var(--mono); font-size: 18px; font-weight: 900; color: var(--w-lime);
+}
+.n8n-exec-time {
+  font-family: var(--mono); font-size: 18px; font-weight: 800; color: #4ade80;
+  background: rgba(34, 197, 94, 0.16); border: 1.5px solid #22c55e; padding: 6px 18px; border-radius: 999px;
+}
+.n8n-nodes-track {
+  position: relative; z-index: 4; width: 100%; height: 430px;
+}
+.n8n-bezier-svg {
+  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;
+}
+.n8n-node {
+  position: absolute; width: 250px; padding: 18px 16px; border-radius: 24px;
+  background: rgba(7, 13, 28, 0.96); border: 2.5px solid rgba(255,255,255,0.28);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.85);
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; z-index: 3;
+}
+.n8n-node-trigger { top: 45px; left: 10px; border-color: #f59e0b; }
+.n8n-node-agent {
+  top: 28px; left: 50%; transform: translateX(-50%); width: 280px;
+  border: 3px solid var(--w-lime); box-shadow: 0 0 42px rgba(199,243,3,0.35);
+}
+.n8n-node-output { top: 45px; right: 10px; border-color: #22c55e; }
+.n8n-node-badge {
+  font-family: var(--mono); font-size: 13px; font-weight: 900; background: var(--w-lime); color: #0e1300;
+  padding: 2px 12px; border-radius: 999px;
+}
+.n8n-node-ico {
+  width: 68px; height: 68px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+}
+.n8n-node-title { font-size: 24px; font-weight: 900; color: #fff; line-height: 1.1; }
+.n8n-node-sub { font-size: 18px; font-weight: 700; color: #cbd5e1; }
+.n8n-subnode {
+  position: absolute; bottom: 22px; padding: 12px 22px; border-radius: 18px;
+  background: rgba(12, 25, 46, 0.95); border: 2px solid var(--w-cyan-bright);
+  display: inline-flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 19px; font-weight: 800; color: #fff; z-index: 3;
+}
+.n8n-subnode-left { left: 95px; }
+.n8n-subnode-right { right: 95px; border-color: var(--w-teal-bright); }
+.n8n-result-banner {
+  position: relative; z-index: 4; padding: 20px 26px; border-radius: 22px;
+  background: linear-gradient(90deg, rgba(199,243,3,0.22), rgba(13,148,136,0.25));
+  border: 2.5px solid var(--w-lime); display: flex; align-items: center; gap: 18px;
+}
+.n8n-res-pill {
+  padding: 8px 18px; border-radius: 999px; background: var(--w-lime); color: #0e1300;
+  font-family: var(--mono); font-size: 18px; font-weight: 900; flex-shrink: 0;
+}
+.n8n-res-text { font-size: 24px; font-weight: 800; color: #fff; line-height: 1.2; text-align: left; }
+
+/* ARQUETIPO ESTRELLA 2: VISOR DE NORMA REAL SST (visor-normativo-real) */
+.norma-sheet-paper {
+  width: 95%; padding: 34px 38px; border-radius: 30px;
+  background: #f6f5ef; color: #0e1300;
+  border: 4px solid #0d9488;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.9), 0 0 45px rgba(13,148,136,0.35);
+  display: flex; flex-direction: column; gap: 24px; position: relative;
+}
+.norma-paper-header {
+  display: flex; align-items: center; gap: 18px; border-bottom: 3px solid rgba(13,148,136,0.28); padding-bottom: 18px;
+}
+.norma-header-meta { flex: 1; text-align: left; }
+.norma-code-tag {
+  font-family: var(--mono); font-size: 20px; font-weight: 900; color: #0d9488; letter-spacing: 0.06em;
+}
+.norma-doc-title { font-size: 34px; font-weight: 900; color: #0e1300; line-height: 1.1; }
+.norma-official-pill {
+  padding: 8px 20px; border-radius: 999px; background: #0e1300; color: var(--w-lime);
+  font-family: var(--mono); font-size: 17px; font-weight: 900;
+}
+.norma-paper-body {
+  background: #ffffff; border: 2px solid #cbd5e1; border-radius: 22px; padding: 28px 30px;
+  text-align: left; box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+}
+.norma-paragraph { font-size: 31px; font-weight: 700; line-height: 1.38; color: #1e293b; }
+.norma-txt-muted { color: #475569; }
+.norma-fluor-wrap { position: relative; display: inline; }
+.norma-fluor-bg {
+  position: absolute; left: 0; bottom: 0; top: 0; width: 0%;
+  background: #c7f303; border-radius: 8px; z-index: 1; pointer-events: none;
+  box-shadow: 0 0 18px rgba(199,243,3,0.65);
+}
+.norma-fluor-text { position: relative; z-index: 2; font-weight: 900; color: #0e1300; padding: 0 6px; }
+.norma-paper-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.norma-source-tag {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 19px; font-weight: 800; color: #0f172a;
+}
+.norma-verified-stamp {
+  padding: 12px 26px; border-radius: 16px;
+  background: #16a34a; color: #ffffff; border: 3px solid #0e1300;
+  font-family: var(--mono); font-size: 22px; font-weight: 900; letter-spacing: 0.05em;
+  box-shadow: 0 10px 25px rgba(22,163,74,0.45);
+}
+
+/* ARQUETIPO ESTRELLA 3: SPLIT-SCREEN ANTES VS DESPUÉS (flow-split-before-after) */
+.flow-split-wrapper {
+  width: 96%; display: flex; flex-direction: column; gap: 18px; position: relative;
+}
+.flow-panel {
+  padding: 26px 32px; border-radius: 28px; display: flex; flex-direction: column; gap: 14px; position: relative;
+}
+.flow-panel-before {
+  background: linear-gradient(135deg, rgba(239,68,68,0.26) 0%, rgba(15,10,20,0.96) 100%);
+  border: 2.5px solid #ef4444; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+}
+.flow-panel-after {
+  background: linear-gradient(135deg, rgba(199,243,3,0.22) 0%, rgba(7,18,28,0.96) 100%);
+  border: 3px solid var(--w-lime); box-shadow: 0 20px 50px rgba(0,0,0,0.85), 0 0 42px rgba(199,243,3,0.32);
+}
+.flow-panel-top { display: flex; align-items: center; justify-content: space-between; }
+.flow-tag-bad {
+  padding: 6px 18px; border-radius: 999px; background: rgba(239,68,68,0.25); border: 1.5px solid #ef4444;
+  font-family: var(--mono); font-size: 19px; font-weight: 900; color: #fca5a5;
+}
+.flow-time-bad { font-family: var(--mono); font-size: 18px; font-weight: 800; color: #f87171; }
+.flow-tag-good {
+  padding: 6px 18px; border-radius: 999px; background: var(--w-lime); color: #0e1300;
+  font-family: var(--mono); font-size: 19px; font-weight: 900;
+}
+.flow-time-good { font-family: var(--mono); font-size: 18px; font-weight: 900; color: var(--w-lime); }
+.flow-panel-title { font-size: 36px; font-weight: 900; color: #fff; text-align: left; line-height: 1.1; }
+.flow-bullet-list { display: flex; flex-direction: column; gap: 10px; }
+.flow-bullet-item {
+  display: flex; align-items: center; gap: 14px; font-size: 25px; font-weight: 700; text-align: left;
+}
+.flow-bullet-bad { color: #fecaca; }
+.flow-bullet-good { color: #f8fafc; }
+.flow-center-divider {
+  align-self: center; margin: -12px 0; z-index: 25;
+  padding: 10px 30px; border-radius: 999px;
+  background: #0e1300; border: 3px solid var(--w-lime);
+  box-shadow: 0 0 32px rgba(199,243,3,0.75);
+  display: inline-flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 22px; font-weight: 900; color: var(--w-lime);
+}
+
+/* ARQUETIPO ESTRELLA 4: CONSOLA DE VOZ SURI 3D / TENSHI LIVE 24KHZ (suri-voice-live-hud) */
+.suri-console-card {
+  width: 96%; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px;
+  border: 2.5px solid var(--w-cyan-bright);
+}
+.suri-console-header { display: flex; align-items: center; justify-content: space-between; }
+.suri-host-title { font-size: 30px; font-weight: 900; color: #fff; text-align: left; }
+.suri-host-sub { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--w-cyan-bright); text-align: left; }
+.suri-onair-pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 999px;
+  background: rgba(199,243,3,0.18); border: 2px solid var(--w-lime);
+  font-family: var(--mono); font-size: 18px; font-weight: 900; color: var(--w-lime);
+}
+.suri-stage-center {
+  display: flex; align-items: center; justify-content: center; gap: 34px; padding: 14px 0;
+}
+.suri-avatar-orb-wrap {
+  position: relative; width: 170px; height: 170px; display: flex; align-items: center; justify-content: center;
+}
+.suri-pulse-ring {
+  position: absolute; inset: -10px; border-radius: 50%;
+  border: 4px solid var(--w-lime); box-shadow: 0 0 38px rgba(199,243,3,0.65);
+}
+.suri-center-img { width: 155px; height: 155px; object-fit: contain; position: relative; z-index: 2; }
+.suri-waveform-box {
+  flex: 1; height: 120px; background: rgba(3,8,18,0.9); border: 2px solid rgba(34,211,238,0.4);
+  border-radius: 22px; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.suri-wave-bar {
+  flex: 1; height: 30%; border-radius: 999px;
+  background: linear-gradient(180deg, var(--w-lime) 0%, var(--w-cyan-bright) 100%);
+  box-shadow: 0 0 12px rgba(199,243,3,0.45);
+}
+.suri-dialog-stack { display: flex; flex-direction: column; gap: 16px; }
+.suri-bubble {
+  padding: 20px 26px; border-radius: 24px; text-align: left; display: flex; flex-direction: column; gap: 8px;
+}
+.suri-bubble-user {
+  background: rgba(15,23,42,0.95); border: 2px solid rgba(34,211,238,0.55);
+}
+.suri-bubble-ai {
+  background: linear-gradient(135deg, rgba(199,243,3,0.22), rgba(13,148,136,0.28));
+  border: 2.5px solid var(--w-lime);
+}
+.suri-bub-tag {
+  align-self: flex-start; padding: 4px 14px; border-radius: 999px;
+  background: rgba(34,211,238,0.22); color: var(--w-cyan-bright);
+  font-family: var(--mono); font-size: 16px; font-weight: 900;
+}
+.suri-bubble p { font-size: 26px; font-weight: 800; color: #ffffff; line-height: 1.25; }
+
+/* ARQUETIPO ESTRELLA 5: CUADRÍCULA +50 HERRAMIENTAS IA (cuadricula-50-herramientas) */
+.tools50-wrapper { width: 96%; display: flex; flex-direction: column; gap: 22px; }
+.tools50-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.tools50-cell {
+  padding: 20px 22px; border-radius: 22px; display: flex; flex-direction: column; gap: 8px;
+  border: 2px solid rgba(34,211,238,0.45); text-align: left;
+}
+.tools50-cell-top { display: flex; align-items: center; justify-content: space-between; }
+.tools50-code { font-family: var(--mono); font-size: 22px; font-weight: 900; color: var(--w-lime); }
+.tools50-status {
+  padding: 3px 10px; border-radius: 999px; background: rgba(34,197,94,0.22); border: 1px solid #22c55e;
+  font-family: var(--mono); font-size: 14px; font-weight: 900; color: #4ade80;
+}
+.tools50-name { font-size: 24px; font-weight: 800; color: #ffffff; }
+.tools50-saving-card {
+  padding: 24px 30px; border-radius: 28px; border: 3px solid var(--w-lime);
+  background: linear-gradient(135deg, rgba(199,243,3,0.24), rgba(7,13,28,0.96));
+  display: flex; align-items: center; gap: 24px;
+}
+.tools50-ring-badge {
+  width: 112px; height: 112px; border-radius: 50%; flex-shrink: 0;
+  background: var(--w-lime); color: #0e1300; border: 4px solid #ffffff;
+  font-family: var(--mono); font-size: 34px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 35px rgba(199,243,3,0.75);
+}
+.tools50-saving-info { text-align: left; }
+.tools50-saving-title { font-size: 32px; font-weight: 900; color: var(--w-lime); line-height: 1.1; }
+.tools50-saving-sub { font-size: 23px; font-weight: 700; color: #f1f5f9; margin-top: 6px; }
 
 /* ARQUETIPO 1: HOOK VS + HEADLINE WALL */
 .hook-box {
@@ -2080,7 +2771,18 @@ html, body {
   background: rgba(7, 13, 28, 0.94); border: 2px solid var(--w-lime);
   box-shadow: 0 0 28px rgba(199, 243, 3, 0.35);
 }
-.cover-logo-w { width: 32px; height: 32px; border-radius: 8px; object-fit: contain; }
+.cover-top-brand-xl {
+  background: var(--w-lime);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 12px 36px rgba(199, 243, 3, 0.55);
+  padding: 12px 32px;
+}
+.cover-top-brand-xl .cover-brand-text {
+  color: #0e1300;
+  font-size: 22px;
+  font-weight: 900;
+}
+.cover-logo-w { width: 34px; height: 34px; border-radius: 8px; object-fit: contain; }
 .cover-brand-text {
   font-family: var(--mono); font-size: 20px; font-weight: 900;
   color: var(--w-lime); letter-spacing: 0.08em; text-transform: uppercase;
@@ -2089,7 +2791,7 @@ html, body {
   display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
 }
 .cover-t-line1 {
-  font-size: 54px; font-weight: 900; color: #ffffff; letter-spacing: -0.03em;
+  font-size: clamp(52px, 8.5vw, 92px); font-weight: 900; color: #ffffff; letter-spacing: -0.03em;
   text-shadow: 0 6px 24px rgba(0,0,0,0.85); line-height: 1.02;
 }
 .cover-t-row {
@@ -2098,21 +2800,39 @@ html, body {
 .hl-red-tilted {
   display: inline-block; padding: 6px 24px; border-radius: 18px;
   background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff;
-  font-size: 54px; font-weight: 900; border: 2.5px solid #fca5a5;
+  font-size: clamp(46px, 7.2vw, 76px); font-weight: 900; border: 2.5px solid #fca5a5;
   transform: rotate(-1.5deg); box-shadow: 0 12px 32px rgba(239, 68, 68, 0.55);
 }
 .hl-lime-tilted {
   display: inline-block; padding: 6px 24px; border-radius: 18px;
   background: var(--w-lime); color: #0e1300;
-  font-size: 54px; font-weight: 900; border: 2.5px solid #ffffff;
+  font-size: clamp(46px, 7.2vw, 76px); font-weight: 900; border: 2.5px solid #ffffff;
   transform: rotate(1.2deg); box-shadow: 0 12px 36px rgba(199, 243, 3, 0.65);
+}
+.cover-official-logos-strip {
+  width: min(1000px, 100%);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px;
+  margin-top: 2px;
+}
+.official-logo-pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 18px; border-radius: 999px;
+  background: rgba(7, 13, 28, 0.94); border: 1.8px solid rgba(34, 211, 238, 0.5);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.65);
+  font-family: var(--mono); font-size: 16px; font-weight: 900; color: #f8fafc;
+}
+.official-logo-pill-highlight {
+  background: rgba(199, 243, 3, 0.18);
+  border-color: var(--w-lime);
+  color: var(--w-lime);
+  box-shadow: 0 0 24px rgba(199, 243, 3, 0.35);
 }
 .cover-hero-stage {
   width: min(1000px, 100%); display: flex; align-items: center; justify-content: center; gap: 28px;
-  margin: 6px 0;
+  margin: 4px 0;
 }
 .cover-avatar-card {
-  position: relative; width: 410px; height: 520px;
+  position: relative; width: 400px; height: 490px;
   border-radius: 34px; background: radial-gradient(circle at 50% 38%, rgba(34,211,238,0.26), rgba(7,13,28,0.95) 72%);
   border: 2.5px solid rgba(199, 243, 3, 0.78);
   box-shadow: 0 28px 65px rgba(0,0,0,0.88), 0 0 42px rgba(199, 243, 3, 0.28);
@@ -2139,7 +2859,7 @@ html, body {
   box-shadow: 0 0 10px var(--w-lime);
 }
 .cover-iphone-tilted {
-  width: 350px; height: 540px; border-radius: 44px;
+  width: 345px; height: 505px; border-radius: 44px;
   background: #050a14; border: 4.5px solid #38bdf8;
   box-shadow: 0 32px 75px rgba(0,0,0,0.92), 0 0 42px rgba(34, 211, 238, 0.38);
   position: relative; overflow: hidden; padding: 14px 12px;
@@ -2226,6 +2946,57 @@ html, body {
 }
 .pill-svg-wrap { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
+/* MEGA-DOCK SUPERIOR DE ECOSISTEMA WAPPY (MODO MÓVIL XL) */
+#wappy-mega-dock {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 6px 20px; border-radius: 999px;
+  background: rgba(5, 10, 22, 0.92); border: 1.8px solid rgba(199, 243, 3, 0.6);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.78), 0 0 20px rgba(199, 243, 3, 0.22);
+  z-index: 42; pointer-events: none;
+}
+.mdock-pill {
+  font-family: var(--mono); font-size: 13px; font-weight: 900;
+  color: var(--w-lime); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.mdock-sep { color: rgba(255,255,255,0.28); font-weight: 900; }
+.mdock-arch {
+  font-family: var(--mono); font-size: 13px; font-weight: 800;
+  color: #38bdf8; letter-spacing: 0.04em;
+}
+
+/* SUBTÍTULOS KARAOKE MÓVIL XL (#sub-box) */
+#wappy-live-sub-overlay {
+  position: absolute; left: 36px; right: 320px; bottom: 32px;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 32; pointer-events: none;
+}
+#sub-box {
+  background: rgba(5, 10, 22, 0.92);
+  border: 2px solid rgba(34, 211, 238, 0.55);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.88);
+  border-radius: 24px;
+  padding: 14px 24px;
+  font-size: clamp(24px, 4.8vw, 44px);
+  font-weight: 900;
+  line-height: 1.15;
+  color: #ffffff;
+  text-align: center;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
+  max-width: 100%;
+  transition: opacity 0.18s ease;
+}
+.sub-word {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  color: #e2e8f0;
+}
+.sub-word.active {
+  background: var(--w-lime);
+  color: #0e1300;
+  box-shadow: 0 0 18px rgba(199, 243, 3, 0.65);
+  transform: scale(1.06);
+}
+
 /* ESQUINA SEGURA INFERIOR DERECHA — AVATAR 3D PRESENTADOR (NUNCA TAPA EL CENTRO NI USA FILLRECT) */
 #avatar-host-container {
   position: absolute;
@@ -2311,6 +3082,12 @@ ${customCssBlock}
       </div>
       <div class="hud-top-right">WAPPY.CLUB</div>
     </div>
+    <div id="wappy-mega-dock">
+      <span class="dot-live"></span>
+      <span class="mdock-pill" id="mdock-scene-label">PORTADA HERO XL</span>
+      <span class="mdock-sep">·</span>
+      <span class="mdock-arch" id="mdock-arch-label">MODO MÓVIL XL 60 FPS</span>
+    </div>
     <div class="scanline-beam" id="scanline"></div>
 
     <div class="eq-container">
@@ -2340,6 +3117,10 @@ ${customCssBlock}
     </div>
 
     ${scenesMarkup}
+
+    <div id="wappy-live-sub-overlay">
+      <div id="sub-box"></div>
+    </div>
 
     <div id="avatar-host-container"></div>
   </div>
@@ -2376,6 +3157,49 @@ ${voxelAvatarJs}
 
   var STAGE_W = ${stageW};
   var STAGE_H = ${stageH};
+
+  // Sintetizador WebAudio para efectos de sonido discretos (-16 dB) en transiciones de escena
+  var sfxCtx = null;
+  var lastSfxSceneIdx = -1;
+  function playWappySfx(kind) {
+    if (!window.__wappyVoicePlaying) return;
+    try {
+      var AudioContextCls = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCls) return;
+      if (!sfxCtx) sfxCtx = new AudioContextCls();
+      if (sfxCtx.state === 'suspended') sfxCtx.resume();
+      var now = sfxCtx.currentTime;
+      var osc = sfxCtx.createOscillator();
+      var gain = sfxCtx.createGain();
+      osc.connect(gain);
+      gain.connect(sfxCtx.destination);
+      if (kind === 'barrido') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(190, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.14);
+        gain.gain.setValueAtTime(0.045, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      } else if (kind === 'golpe-corto') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(125, now);
+        osc.frequency.exponentialRampToValueAtTime(48, now + 0.12);
+        gain.gain.setValueAtTime(0.065, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+        osc.start(now);
+        osc.stop(now + 0.14);
+      } else {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.06);
+        gain.gain.setValueAtTime(0.03, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+    } catch (e) {}
+  }
 
   // Constelación de partículas conectadas estilo WAPPY_IA_Plataforma_40s_SinSubtitulos
   var pCanvas = document.getElementById('particles-canvas');
@@ -2471,6 +3295,7 @@ ${voxelAvatarJs}
   var TOTAL_DUR = ${totalDur};
   var scenes = ${scenesTimingJson};
   var vozData = window.VOZ || [];
+  var wordTimings = window.__wappyWordTimings || [];
 
   // Inicializar Avatar 3D de Alta Resolución del Brandbook en #avatar-host-container (CERO muñecos 2D fillRect)
   var avatarHost = document.getElementById('avatar-host-container');
@@ -2566,7 +3391,6 @@ ${voxelAvatarJs}
   function updateAvatarAt(t, activeSceneIdx) {
     if (!avatarHost) return;
     var coverEnd = scenes[0] && scenes[0].archetype === 'magnetic-cover-2s' ? scenes[0].end : 0;
-    // Durante la Portada Magnética (0..coverEnd) el Avatar grande ya está en el escenario central (#scene-0)
     if (t < coverEnd - 0.18) {
       avatarHost.style.opacity = '0';
       return;
@@ -2597,6 +3421,80 @@ ${voxelAvatarJs}
       imgTalkEl.style.opacity = isPointing ? '0' : '1';
       imgPointEl.style.opacity = isPointing ? '1' : '0';
     }
+  }
+
+  function updateMegaDockAndKaraoke(t, activeSceneIdx) {
+    var sc = scenes[activeSceneIdx] || scenes[0];
+    var mdScene = document.getElementById('mdock-scene-label');
+    var mdArch = document.getElementById('mdock-arch-label');
+    if (mdScene && sc) {
+      mdScene.textContent = sc.eyebrow || ('ESCENA 0' + sc.num);
+    }
+    if (mdArch && sc) {
+      mdArch.textContent = String(sc.archetype || 'MODO MÓVIL XL').toUpperCase();
+    }
+    if (activeSceneIdx !== lastSfxSceneIdx) {
+      if (lastSfxSceneIdx >= 0) {
+        playWappySfx(activeSceneIdx % 2 === 1 ? 'barrido' : 'golpe-corto');
+      }
+      lastSfxSceneIdx = activeSceneIdx;
+    }
+
+    var subBox = document.getElementById('sub-box');
+    if (!subBox) return;
+    if (!sc || sc.archetype === 'magnetic-cover-2s') {
+      subBox.style.opacity = '0';
+      return;
+    }
+
+    // Si hay wordTimings reales sincronizados, renderizar ventana de 5 palabras con karaoke activo
+    if (wordTimings && wordTimings.length > 0) {
+      var activeWIdx = -1;
+      for (var wi = 0; wi < wordTimings.length; wi++) {
+        var wt = wordTimings[wi];
+        var ws = Number(wt.start !== undefined ? wt.start : wt.startSec) || 0;
+        var we = Number(wt.end !== undefined ? wt.end : wt.endSec) || (ws + 0.35);
+        if (t >= ws && t <= we + 0.15) {
+          activeWIdx = wi;
+          break;
+        }
+      }
+      if (activeWIdx >= 0) {
+        var chunkStart = Math.floor(activeWIdx / 5) * 5;
+        var chunkEnd = Math.min(wordTimings.length, chunkStart + 5);
+        var htmlWords = [];
+        for (var k = chunkStart; k < chunkEnd; k++) {
+          var wTxt = String(wordTimings[k].word || wordTimings[k].text || '').trim();
+          if (!wTxt) continue;
+          var cls = k === activeWIdx ? 'sub-word active' : 'sub-word';
+          htmlWords.push('<span class="' + cls + '">' + wTxt + '</span>');
+        }
+        subBox.innerHTML = htmlWords.join(' ');
+        subBox.style.opacity = '1';
+        return;
+      }
+    }
+
+    // Fallback determinista de karaoke por frase de la escena activa
+    var phrase = String(sc.subheadline || sc.headline || '').trim();
+    if (!phrase) {
+      subBox.style.opacity = '0';
+      return;
+    }
+    var words = phrase.split(/\\s+/).filter(Boolean).slice(0, 7);
+    if (!words.length) {
+      subBox.style.opacity = '0';
+      return;
+    }
+    var scDur = Math.max(0.5, (sc.end || TOTAL_DUR) - (sc.start || 0));
+    var relP = clamp((t - (sc.start || 0)) / scDur, 0, 0.999);
+    var actIdx = Math.min(words.length - 1, Math.floor(relP * words.length));
+    var outHtml = [];
+    for (var j = 0; j < words.length; j++) {
+      outHtml.push('<span class="sub-word' + (j === actIdx ? ' active' : '') + '">' + words[j] + '</span>');
+    }
+    subBox.innerHTML = outHtml.join(' ');
+    subBox.style.opacity = '1';
   }
 
   function renderFrame(t) {
@@ -2670,7 +3568,7 @@ ${voxelAvatarJs}
           sceneScale = lerp(0.94, 1.0, inP);
         } else if (!sc.isLast && safeT > sc.end - 0.34) {
           var outP = E.in3((safeT - (sc.end - 0.34)) / 0.34);
-          sceneScale = 1 + outP * (sc.archetype === 'magnetic-cover-2s' ? 0.55 : 0.28); // Transición Zoom-Through
+          sceneScale = 1 + outP * (sc.archetype === 'magnetic-cover-2s' ? 0.55 : 0.28);
           op = 1 - outP;
         }
         el.style.opacity = clamp(op).toFixed(3);
@@ -2698,7 +3596,131 @@ ${voxelAvatarJs}
           hBox.style.transform = 'translateY(' + ((1 - E.spring(pH)) * -42).toFixed(1) + 'px)';
         }
 
-        if (sc.archetype === 'hook-vs-wall') {
+        if (sc.archetype === 'wappy-n8n-workflow') {
+          var n8nCam = document.getElementById('s' + num + '-n8n-cam');
+          var n8nTerm = document.getElementById('s' + num + '-n8n-term');
+          if (n8nCam) {
+            var panX = Math.sin(dt * 1.1) * 14;
+            var tiltX = 4 + Math.cos(dt * 0.9) * 2.5;
+            n8nCam.style.transform = 'rotateX(' + tiltX.toFixed(2) + 'deg) translateX(' + panX.toFixed(1) + 'px)';
+          }
+          for (var ndI = 1; ndI <= 3; ndI++) {
+            var ndEl = document.getElementById('s' + num + '-n8n-node-' + ndI);
+            if (ndEl) {
+              var pNd = clamp((dt - (0.08 + (ndI - 1) * 0.22)) / 0.48);
+              var spNd = E.spring(pNd);
+              ndEl.style.opacity = clamp(pNd * 2.2).toFixed(2);
+              ndEl.style.transform = 'translateY(' + ((1 - spNd) * 55).toFixed(1) + 'px) scale(' + spNd.toFixed(3) + ')';
+            }
+          }
+          var wire1 = document.getElementById('s' + num + '-n8n-wire-1');
+          var wire2 = document.getElementById('s' + num + '-n8n-wire-2');
+          if (wire1) wire1.style.strokeDashoffset = '-' + (safeT * 64).toFixed(1);
+          if (wire2) wire2.style.strokeDashoffset = '-' + (safeT * 64).toFixed(1);
+          if (n8nTerm) {
+            var pTm = clamp((dt - 0.45) / 0.50);
+            n8nTerm.style.opacity = clamp(pTm * 2.2).toFixed(2);
+            n8nTerm.style.transform = 'translateY(' + ((1 - E.spring(pTm)) * 35).toFixed(1) + 'px)';
+          }
+        }
+
+        else if (sc.archetype === 'visor-normativo-real') {
+          var sheetEl = document.getElementById('s' + num + '-norma-sheet');
+          var hl1 = document.getElementById('s' + num + '-norma-hl-1');
+          var hl2 = document.getElementById('s' + num + '-norma-hl-2');
+          var stampEl = document.getElementById('s' + num + '-norma-stamp');
+          var callEl = document.getElementById('s' + num + '-norma-callout');
+          if (sheetEl) {
+            var pSh = clamp(dt / 0.50);
+            sheetEl.style.opacity = clamp(pSh * 2.2).toFixed(2);
+            sheetEl.style.transform = 'rotate(-0.8deg) scale(' + lerp(0.92, 1.0, E.spring(pSh)).toFixed(3) + ')';
+          }
+          if (hl1) {
+            var pHl1 = E.out3(clamp((dt - 0.35) / 0.65));
+            hl1.style.backgroundSize = (pHl1 * 100).toFixed(1) + '% 100%';
+          }
+          if (hl2) {
+            var pHl2 = E.out3(clamp((dt - 0.85) / 0.65));
+            hl2.style.backgroundSize = (pHl2 * 100).toFixed(1) + '% 100%';
+          }
+          if (stampEl) {
+            var pSt = clamp((dt - 0.55) / 0.42);
+            stampEl.style.opacity = clamp(pSt * 2.2).toFixed(2);
+            stampEl.style.transform = 'rotate(-4deg) scale(' + lerp(1.45, 1.0, E.spring(pSt)).toFixed(3) + ')';
+          }
+          if (callEl) {
+            var pCl = clamp((dt - 0.42) / 0.48);
+            callEl.style.opacity = clamp(pCl * 2.2).toFixed(2);
+            callEl.style.transform = 'translateY(' + ((1 - E.spring(pCl)) * 38).toFixed(1) + 'px)';
+          }
+        }
+
+        else if (sc.archetype === 'flow-split-before-after') {
+          var bPanel = document.getElementById('s' + num + '-split-before');
+          var aPanel = document.getElementById('s' + num + '-split-after');
+          var mPill = document.getElementById('s' + num + '-split-metric');
+          var pBp = clamp((dt - 0.08) / 0.50);
+          var pAp = clamp((dt - 0.32) / 0.54);
+          if (bPanel) {
+            bPanel.style.opacity = clamp(pBp * 2.2).toFixed(2);
+            bPanel.style.transform = 'translateX(' + ((1 - E.spring(pBp)) * -280).toFixed(1) + 'px)';
+          }
+          if (aPanel) {
+            aPanel.style.opacity = clamp(pAp * 2.2).toFixed(2);
+            aPanel.style.transform = 'translateX(' + ((1 - E.spring(pAp)) * 280).toFixed(1) + 'px)';
+          }
+          if (mPill) {
+            var pMp = clamp((dt - 0.52) / 0.45);
+            mPill.style.opacity = clamp(pMp * 2.2).toFixed(2);
+            mPill.style.transform = 'scale(' + E.spring(pMp).toFixed(3) + ')';
+          }
+        }
+
+        else if (sc.archetype === 'suri-voice-live-hud') {
+          var sCard = document.getElementById('s' + num + '-suri-card');
+          var sPrompts = document.getElementById('s' + num + '-suri-prompts');
+          if (sCard) {
+            var pSc2 = clamp(dt / 0.52);
+            sCard.style.opacity = clamp(pSc2 * 2.2).toFixed(2);
+            sCard.style.transform = 'scale(' + E.spring(pSc2).toFixed(3) + ')';
+          }
+          for (var wvI = 1; wvI <= 24; wvI++) {
+            var wvBar = document.getElementById('s' + num + '-swbar-' + wvI);
+            if (wvBar) {
+              var waveH = 18 + (nv * 74) * Math.abs(Math.sin(safeT * 12 + wvI * 0.55));
+              wvBar.style.height = Math.min(98, waveH).toFixed(1) + '%';
+            }
+          }
+          if (sPrompts) {
+            var pPr = clamp((dt - 0.35) / 0.48);
+            sPrompts.style.opacity = clamp(pPr * 2.2).toFixed(2);
+            sPrompts.style.transform = 'translateY(' + ((1 - E.spring(pPr)) * 36).toFixed(1) + 'px)';
+          }
+        }
+
+        else if (sc.archetype === 'cuadricula-50-herramientas') {
+          var g50 = document.getElementById('s' + num + '-tools-grid');
+          var r50 = document.getElementById('s' + num + '-tools-ring');
+          if (g50) {
+            var pG50 = clamp(dt / 0.50);
+            g50.style.opacity = clamp(pG50 * 2.2).toFixed(2);
+          }
+          for (var tcI = 1; tcI <= 9; tcI++) {
+            var tcEl = document.getElementById('s' + num + '-tchip-' + tcI);
+            if (tcEl) {
+              var pTc = clamp((dt - (0.06 + tcI * 0.05)) / 0.42);
+              tcEl.style.opacity = clamp(pTc * 2.2).toFixed(2);
+              tcEl.style.transform = 'scale(' + E.spring(pTc).toFixed(3) + ')';
+            }
+          }
+          if (r50) {
+            var pR50 = clamp((dt - 0.35) / 0.52);
+            r50.style.opacity = clamp(pR50 * 2.2).toFixed(2);
+            r50.style.transform = 'translateY(' + ((1 - E.spring(pR50)) * 35).toFixed(1) + 'px)';
+          }
+        }
+
+        else if (sc.archetype === 'hook-vs-wall') {
           var c1 = document.getElementById('s' + num + '-card-1');
           var c2 = document.getElementById('s' + num + '-card-2');
           var trk = document.getElementById('s' + num + '-track');
@@ -2911,13 +3933,18 @@ ${voxelAvatarJs}
       }
     }
 
-    // 7. Actualizar Avatar 3D Minecraft Voxel en el tercio inferior
+    // 7. Actualizar Mega-Dock Superior y Subtítulos Karaoke Móvil XL
+    updateMegaDockAndKaraoke(safeT, activeSceneIdx);
+
+    // 8. Actualizar Avatar 3D Minecraft Voxel en el tercio inferior
     updateAvatarAt(safeT, activeSceneIdx);
   }
 
   window.renderFrame = renderFrame;
   window.render = renderFrame;
   window.__render = renderFrame;
+  window.seekTo = renderFrame;
+  window.__wappySeekTo = renderFrame;
   window.__wappyFitViewport = fitStageToViewport;
   window.__wappyRenderTick = function(timeSec, totalDurOverride) {
     if (typeof totalDurOverride === 'number' && totalDurOverride > 1) {
@@ -2983,6 +4010,7 @@ ${voxelAvatarJs}
 module.exports = {
   ARCHETYPE_ROTATION,
   resolveArchetypeFromEffect,
+  renderOfficialBrandLogoSvg,
   alignTimelineMapWithWavBuffer,
   buildSmartScenePlanFromScript,
   generateCreativeScenePlanWithAi,

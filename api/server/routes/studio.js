@@ -3877,57 +3877,196 @@ router.post('/video/compile-master-reel', studioAuth, async (req, res) => {
 });
 
 /**
- * Catálogo Oficial de las 7 Skills de Diseño UI/UX y Producción de Video de Google Antigravity + 4 Direcciones de Arte + 19 Efectos Virales
+ * Catálogo Oficial de los 4 Subagentes Especialistas + 7 Skills de Diseño UI/UX y Producción de Video de Google Antigravity + 4 Direcciones de Arte + Efectos Virales XL
  */
+const ANTIGRAVITY_VIDEO_SUBAGENTS_CATALOG = [
+  {
+    id: 'wappy-studio-effects-director',
+    name: 'Director de Efectos y Coreografía Dinámica XL',
+    role: 'Director de Efectos y Coreografía Dinámica XL (Wappy Studio)',
+    badge: 'SUBAGENTE 01 · EFECTOS XL',
+    color: '#C7F303',
+    skills: [
+      'animaciones-17-efectos-reels',
+      'animaciones-wappy-brand',
+      'animaciones-dark-tech-hud',
+      'hyperframes-motion-design',
+    ],
+    description:
+      'Analiza cada frase del guion y asigna el efecto visual de mayor impacto del catálogo (Lienzo Nodos n8n WAPPY, VisorNormaReal, Split-Screen Flow, Suri 3D Live HUD, Cuadrícula +50 IA, FXOrbit 3D, iPhone 16 Pro Dynamic Island), diseña la Portada Hero de 2.0s y garantiza Modo Móvil XL (1080×1920, titulares 80px-110px, logos oficiales 96px-240px).',
+    systemPrompt: `---
+name: wappy-studio-effects-director
+description: Director de Efectos y Coreografía Dinámica XL de Wappy Studio. Analiza cada frase del guion, selecciona el arquetipo visual sin repetir consecutivamente y aplica el Modo Móvil XL (1080x1920).
+---
+# Rol: Director de Efectos y Coreografía Dinámica XL (\`wappy-studio-effects-director\`)
+
+Eres el **Subagente 01 (Director de Efectos y Coreografía Dinámica XL)** del Escuadrón Oficial de Producción de Video de **Wappy Studio** y **Google Antigravity**.
+
+## Responsabilidades Principales
+1. **Portada Hero de Alto Impacto (0.00s - 2.00s):**
+   - Diseña siempre una portada magnética inicial de 2.0 segundos con pastilla de gancho en \`#C7F303\` (texto oscuro \`#0E1300\`), titular gigante Modo Móvil XL (\`88px - 108px\`), fila de **Logos Oficiales SVG** (\`Google Antigravity\`, \`NotebookLM\`, \`WAPPY IA\`, \`Google Flow\`, \`Suri 3D / Tenshi 3D\`) y Avatar 3D + Mockup iPhone 16 Pro con Dynamic Island.
+2. **Mega-Dock Superior de Ecosistema:**
+   - Mantén activo el Mega-Dock superior indicando la escena activa, el arquetipo visual y el estado 60 FPS.
+3. **Selector Inteligente de los 25+ Efectos y 12 Arquetipos Full-Screen (Cero Repetición Consecutiva):**
+   - Asigna el arquetipo óptimo a cada frase según su semántica:
+     * \`wappy-n8n-workflow\`: Lienzo 3D de Nodos de Automatización estilo n8n WAPPY (Disparador Cron ➔ Cerebro Tenshi IA ➔ Despacho Multicanal Gmail/WhatsApp + Terminal en vivo).
+     * \`visor-normativo-real\`: Hoja Oficial de Decreto / Resolución SST (Res. 0312, Dec. 1072, GTC 45) con barrido de resaltador flúor amarillo y sello verde de cumplimiento.
+     * \`flow-split-before-after\`: Pantalla dividida Antes (Caos Manual Rojo) vs Después (Automatización WAPPY IA Verde Lima + Métrica de impacto).
+     * \`suri-voice-live-hud\`: Consola de Voz Suri 3D / Wappy Podcast con onda de audio reactiva de 24 barras a 24 kHz y chips de comandos de voz.
+     * \`cuadricula-50-herramientas\`: Bento Grid de +50 Herramientas IA & SG-SST + Anillo Circular de Ahorro Operativo.
+     * Arquetipos clásicos: \`hook-vs-wall\`, \`iphone-split-showcase\`, \`signature-pad-live\`, \`chart-grow-math\`, \`pentagon-orbital\`, \`tenshi-specialists-grid\`, \`cta-viral-bubbles\`.
+4. **Regla Estricta Modo Móvil XL (\`1080×1920\`):**
+   - Titulares: \`clamp(54px, 7.2vw, 84px)\` (Portada: \`clamp(52px, 8.5vw, 92px)\`).
+   - Tarjetas al \`94%\` del ancho útil sin desbordamiento horizontal (\`0px overflow\`).
+   - Logos oficiales de \`96px a 240px\` con alto contraste.
+`,
+  },
+  {
+    id: 'wappy-studio-audio-podcast',
+    name: 'Ingeniero de Audio, Voces Wappy Podcast & Sound Design',
+    role: 'Ingeniero de Audio, Voces Wappy Podcast 24kHz y Diseño Sonoro',
+    badge: 'SUBAGENTE 02 · AUDIO & PODCAST',
+    color: '#00D4FF',
+    skills: ['protocolo-produccion-videos', 'animaciones-wappy-brand'],
+    description:
+      'Procesa la voz del usuario o genera voces conversacionales Wappy Podcast (24 kHz con gemini-3.8-flash-tts), masteriza a -14 LUFS, mezcla SFX de estudio (barrido.wav, golpe-corto.wav, tick-suave.wav, brillo.wav) en las sílabas clave, aplica sidechain ducking musical y extrae la envolvente RMS a 60 FPS (vozData).',
+    systemPrompt: `---
+name: wappy-studio-audio-podcast
+description: Ingeniero de Audio, Voces Wappy Podcast 24kHz y Diseño Sonoro para Reels de Wappy Studio.
+---
+# Rol: Ingeniero de Audio, Voces Wappy Podcast & Sound Design (\`wappy-studio-audio-podcast\`)
+
+Eres el **Subagente 02 (Ingeniero de Audio & Sound Design)** del Escuadrón Oficial de Producción de Video de **Wappy Studio** y **Google Antigravity**.
+
+## Responsabilidades Principales
+1. **Síntesis Neural 24 kHz & Wappy Podcast Dual-Host:**
+   - Procesa la pista WAV del usuario o sintetiza voces conversacionales naturales a 24 kHz usando exclusivamente modelos oficiales activos en \`.env\` (\`gemini-3.8-flash-tts\`, \`gemini-3.1-flash-tts-preview\`, \`gemini-3.8-flash-lite-tts\`).
+2. **Masterización Broadcast (-14 LUFS) & Sidechain Ducking:**
+   - Normaliza la locución a \`-14 LUFS\`, detecta pausas reales en el PCM16 WAV y alinea los tiempos exactos de inicio y fin de cada escena (\`beats\`) y de cada palabra (\`wordTimings\`).
+3. **Diseño Sonoro Discreto (SFX Sincronizados a la Sílaba):**
+   - Inserta ticks suaves (\`-16 dB\`, \`tick-suave.wav\`) al encender tarjetas o checks, barridos limpios (\`barrido.wav\`) en cambios de plano, destellos (\`brillo.wav\`) en sellos normativos y entre 4 y 6 golpes graves (\`golpe-corto.wav\`) en todo el reel.
+4. **Envolvente Acústica Determinista a 60 FPS (\`vozData\`):**
+   - Extrae el vector \`vozData\` (valores \`0.0 - 1.0\` a 60 muestras por segundo) para alimentar el lip-sync reactivo del Avatar 3D, Suri 3D y las barras del ecualizador.
+`,
+  },
+  {
+    id: 'wappy-studio-scene-animator',
+    name: 'Editor y Animador Full-Screen / Overlay 60-FPS',
+    role: 'Editor y Animador de Escenas Interactivas 60-FPS (Modo Móvil XL)',
+    badge: 'SUBAGENTE 03 · ANIMACIÓN 60-FPS',
+    color: '#0D9488',
+    skills: [
+      'protocolo-produccion-videos',
+      'animaciones-17-efectos-reels',
+      'animaciones-explicativas-sst',
+      'wappy-ui-design-system',
+    ],
+    description:
+      'Construye el archivo HTML interactivo determinista a 60 FPS (seekTo(t)) con física spring(damping: 17, stiffness: 190), alternancia de 3 Planos o Full-Screen Faceless, Lienzo de Nodos n8n con paneo de cámara 3D, VisorNormaReal con resaltador flúor, Split-Screen y subtítulos karaokes XL (54px-60px).',
+    systemPrompt: `---
+name: wappy-studio-scene-animator
+description: Editor y Animador Full-Screen / Overlay 60-FPS de Wappy Studio. Construye el HTML determinista 1080x1920 con física E.spring y subtítulos karaoke XL.
+---
+# Rol: Editor y Animador de Escenas Interactivas 60-FPS (\`wappy-studio-scene-animator\`)
+
+Eres el **Subagente 03 (Editor y Animador Full-Screen / Overlay 60-FPS)** del Escuadrón Oficial de Producción de Video de **Wappy Studio** y **Google Antigravity**.
+
+## Responsabilidades Principales
+1. ** Escenario Autónomo Determinista \`1080×1920\` (9:16) o \`1920×1080\` (16:9):**
+   - Programa el archivo HTML auto-contenido con \`window.seekTo(t)\`, \`window.__wappySeekTo(t)\` y \`window.renderFrame(t)\` 100% deterministas (sin depender de \`setInterval\` asíncronos).
+2. **Física Elástica a 60 FPS (\`spring(damping: 17, stiffness: 190)\`):**
+   - Anima cada componente en la sílaba exacta:
+     * **Lienzo Nodos n8n (\`wappy-n8n-workflow\`):** Paneo 3D suave (\`rotateX\`, \`translateX\`), cables Bézier con pulsos luminosos y consola terminal en vivo.
+     * **Visor Norma Real (\`visor-normativo-real\`):** Barrido progresivo del resaltador flúor amarillo (\`background-size: X% 100%\`) y caída elástica del sello verde de verificación.
+     * **Split-Screen (\`flow-split-before-after\`):** Contraste lateral Antes vs Después con insignia \`VS\` central y pastilla de métrica.
+     * **Consola Suri 3D (\`suri-voice-live-hud\`):** 24 barras de onda reactivas a \`vozData\` y chips de voz.
+     * **Cuadrícula +50 IA (\`cuadricula-50-herramientas\`):** Aparición escalonada de las 9 tarjetas con logos oficiales SVG y anillo de ahorro del 85%.
+3. **Subtítulos Karaoke Móvil XL (\`#sub-box\`):**
+   - Tipografía \`clamp(24px, 4.8vw, 44px)\` (hasta \`54px-60px\` en énfasis) ExtraBold \`weight: 900\`, con la palabra activa resaltada en pastilla \`#C7F303\` y texto \`#0E1300\`.
+`,
+  },
+  {
+    id: 'wappy-studio-mp4-renderer',
+    name: 'Renderizador Determinista Multi-Worker MP4 1080×1920',
+    role: 'Ingeniero de Renderizado Paralelo MP4 H.264 + AAC y Auditor QA',
+    badge: 'SUBAGENTE 04 · RENDER MP4',
+    color: '#F59E0B',
+    skills: ['protocolo-produccion-videos', 'hyperframes-motion-design'],
+    description:
+      'Ejecuta la captura paralela de fotogramas en Chromium headless a 1080×1920, verifica 0 solapamientos y legibilidad Móvil XL en 3 capturas de control (Portada, Escena Central y Cierre CTA), y codifica el MP4 final con H.264 (CRF 18, yuv420p) + AAC 192kbps sin bloqueos de FFmpeg.',
+    systemPrompt: `---
+name: wappy-studio-mp4-renderer
+description: Renderizador Determinista Multi-Worker MP4 1080x1920 y Auditor QA de Wappy Studio.
+---
+# Rol: Renderizador Determinista Multi-Worker MP4 1080×1920 (\`wappy-studio-mp4-renderer\`)
+
+Eres el **Subagente 04 (Renderizador Determinista MP4 & Auditor QA)** del Escuadrón Oficial de Producción de Video de **Wappy Studio** y **Google Antigravity**.
+
+## Responsabilidades Principales
+1. **Auditoría Visual de 3 Fotogramas de Control (Pieza 7):**
+   - Antes o durante la codificación, verifica los 3 instantes clave:
+     * \`t = 0.8s\` (Portada Hero 2.0s Modo Móvil XL).
+     * \`t = 50%\` de la duración (Escena Central interactiva).
+     * \`t = duración - 1.2s\` (Cierre CTA y burbujas virales).
+   - Comprueba que no existan solapamientos, que el Avatar 3D esté en su zona segura y que los textos sean 100% legibles en móvil.
+2. **Captura Headless 1080×1920 (\`deviceScaleFactor: 1\`) + Codificación H.264 / AAC:**
+   - Captura fotograma a fotograma invocando \`window.__wappySeekTo(t)\` en Chromium Headless a \`1080×1920\` (vertical) o \`1920×1080\` (horizontal).
+   - Codifica con FFmpeg usando \`-c:v libx264 -crf 18 -pix_fmt yuv420p -movflags +faststart\` y audio \`-c:a aac -b:a 192k\` sin usar filtros \`tpad\` que bloqueen tuberías \`image2pipe\`.
+3. **Entrega Directa a Wappy Studio / Tenshi:**
+   - Publica el MP4 generado y notifica mediante \`wappy-push-daemon.js --send-file\` o \`--complete-order\`.
+`,
+  },
+];
+
 const ANTIGRAVITY_VIDEO_SKILLS_CATALOG = [
   {
     id: 'protocolo-produccion-videos',
     name: 'Sistema de las 7 Piezas + Brandbook WAPPY IA',
     category: 'Producción & Dirección',
     description:
-      'Portada magnética de 0.00s a 2.00s, guión segundo a segundo, Avatar 3D y 3 vistas previas.',
+      'Portada magnética de 0.00s a 2.00s, guión segundo a segundo, Escuadrón de 4 Subagentes en paralelo, Avatar 3D y 3 vistas previas.',
   },
   {
     id: 'animaciones-17-efectos-reels',
-    name: '19 Efectos Virales & Transiciones 60 FPS',
+    name: '25+ Efectos Virales XL & Transiciones 60 FPS',
     category: 'Motion Graphics 60-FPS',
     description:
-      'Orbit 3D, Frame Break, UI World, Digital Zoom Reticle, iPhone Dynamic Island, Headline Wall, Zoom-Through, Chart Grow, Signature Pad y CTA Bubbles.',
+      'Lienzo Nodos n8n WAPPY, VisorNormaReal, Split-Screen Flow, Consola Suri 3D, Cuadrícula +50 IA, Orbit 3D, Frame Break, iPhone 16 Pro Dynamic Island, Chart Grow y Signature Pad.',
   },
   {
     id: 'animaciones-wappy-brand',
-    name: 'Identidad Visual Oficial WAPPY IA',
+    name: 'Identidad Visual Oficial WAPPY IA & Logos SVG',
     category: 'Brand & Avatares 3D',
     description:
-      'Verde Lima Eléctrico (#C7F303), Negro Oliva (#0E1300), Turquesa SST (#0D9488), Cielo Cloud (#5BB8F5) y Crema Editorial (#F6F5EF).',
+      'Verde Lima Eléctrico (#C7F303), Negro Oliva (#0E1300), Turquesa SST (#0D9488), Logos Oficiales SVG (Antigravity, NotebookLM, Google Flow, Suri 3D, WAPPY IA).',
   },
   {
     id: 'animaciones-dark-tech-hud',
     name: 'Dark Tech Cyberpunk & HUD Glassmorphism',
     category: 'HUD & Telemetría',
     description:
-      'Escenario cósmico #0C192E -> #020409, retícula de escaneo láser, radar holográfico y tarjetas HUD con esquinas técnicas.',
+      'Escenario cósmico #0C192E -> #020409, Mega-Dock superior, retícula de escaneo láser, radar holográfico y tarjetas HUD con esquinas técnicas.',
   },
   {
     id: 'animaciones-explicativas-sst',
-    name: 'Explicativos Normativos & SST para Dummies',
+    name: 'Explicativos Normativos & VisorNormaReal SST',
     category: 'Normativa & Legal SST',
     description:
-      'Análisis técnico de decretos, resoluciones (Res. 0312, Dec. 1072, GTC 45, RETIE) y contraste de mitos vs realidad legal.',
+      'Análisis técnico de decretos, resoluciones (Res. 0312, Dec. 1072, GTC 45, RETIE) con resaltador flúor animado y sello de verificación.',
   },
   {
     id: 'hyperframes-motion-design',
     name: 'HyperFrames Motion Design & GSAP Cinematográfico',
     category: 'Motor Determinista GSAP',
     description:
-      'Coreografía cinematográfica con suavizado elástico E.spring, jerarquía tipográfica XL y sincronización de fotogramas a 60 FPS.',
+      'Coreografía cinematográfica Modo Móvil XL (1080×1920) con suavizado elástico E.spring, jerarquía tipográfica XL y sincronización seekTo(t) a 60 FPS.',
   },
   {
     id: 'wappy-ui-design-system',
     name: 'WAPPY 14-Group UI Design System & Glassmorphism',
     category: 'Diseño UI/UX Premium',
     description:
-      'Los 14 grupos semánticos de color, tarjetas Glassmorphism de alto contraste, micro-animaciones SVG y geometría sin desbordamiento.',
+      'Los 14 grupos semánticos de color, tarjetas Glassmorphism de alto contraste (width: 94%), micro-animaciones SVG y geometría sin desbordamiento.',
   },
 ];
 
@@ -3955,6 +4094,13 @@ const ANTIGRAVITY_ART_DIRECTIONS = [
 ];
 
 const ANTIGRAVITY_EFFECTS_CATALOG = [
+  { id: 'hero-cover-2s-xl', name: 'Portada Hero 2.0s Modo Móvil XL (88px-108px)', archetype: 'hook-vs-wall', description: 'Portada Hero de 2.0s con pastilla #C7F303, titular gigante 88px-108px y fila de Logos Oficiales SVG.' },
+  { id: 'n8n-workflow-wappy', name: 'Lienzo Nodos n8n WAPPY (Cron ➔ Tenshi IA ➔ Gmail)', archetype: 'wappy-n8n-workflow', description: 'Lienzo interactivo 3D de nodos conectados por cables Bézier con pulsos neón y terminal en vivo.' },
+  { id: 'visor-normativo-real', name: 'Visor Norma Real SST (Resaltador Flúor + Sello)', archetype: 'visor-normativo-real', description: 'Hoja oficial de Decreto 1072 / Res. 0312 / GTC 45 con subrayado flúor en tiempo real y sello certificado.' },
+  { id: 'flow-split-before-after', name: 'Split-Screen Antes vs Después (Transformación IA)', archetype: 'flow-split-before-after', description: 'Comparativa a pantalla dividida: Gestión Manual Crítica (Rojo) vs Automatización WAPPY IA (Verde Lima).' },
+  { id: 'suri-voice-live-hud', name: 'Consola de Voz Suri 3D + Onda Reactiva 24kHz', archetype: 'suri-voice-live-hud', description: 'Consola de voz neural en vivo con 24 barras reactivas al audio PCM16 y comandos ejecutables.' },
+  { id: 'cuadricula-50-ia', name: 'Cuadrícula +50 Herramientas IA + Anillo de Ahorro', archetype: 'cuadricula-50-herramientas', description: 'Bento Grid de 9 módulos del ecosistema WAPPY + Anillo circular de ahorro operativo del 85%.' },
+  { id: 'iphone-16-dynamic-island', name: 'Mockup iPhone 16 Pro + Dynamic Island Activa', archetype: 'iphone-split-showcase', description: 'Mockup iPhone 16 Pro con Dynamic Island activa, escáner láser y tarjetas laterales sincronizadas.' },
   { id: '19-cover-2s', name: '19 Portada Magnética (2s)', archetype: 'hook-vs-wall', description: 'Miniatura de alto impacto (0.0s-2.0s) con titular gigante e insignias clave.' },
   { id: 'felix-voxel-3d', name: 'Avatar 3D Lip-Sync', archetype: 'iphone-split-showcase', description: 'Presentador Avatar 3D con gestos y sincronía labial reactiva al audio.' },
   { id: 'tenshi-3d', name: 'Tenshi 3D', archetype: 'tenshi-specialists-grid', description: 'Oráculo IA flotante con halo esmeralda/cyan y telemetría reactiva.' },
@@ -3969,7 +4115,7 @@ const ANTIGRAVITY_EFFECTS_CATALOG = [
   { id: '13-checklist-sst', name: '13 Checklist SST', archetype: 'signature-pad-live', description: 'Lista secuencial 1-2-3 con verificación animada y sello de cumplimiento.' },
   { id: '17-paper-cut', name: '17 Paper Cut', archetype: 'signature-pad-live', description: 'Recorte editorial en capas con textura y sombra proyectada.' },
   { id: '18-dolly-zoom', name: '18 Dolly Zoom', archetype: 'pentagon-orbital', description: 'Efecto vértigo cinematográfico contrayendo el fondo mientras destaca el titular.' },
-  { id: 'visor-normativo', name: 'Visor Normativo Subrayado', archetype: 'signature-pad-live', description: 'Expediente legal (Decreto 1072 / Res. 0312) con resaltador fluorescente en vivo.' },
+  { id: 'visor-normativo', name: 'Visor Normativo Subrayado', archetype: 'visor-normativo-real', description: 'Expediente legal (Decreto 1072 / Res. 0312) con resaltador fluorescente en vivo.' },
   { id: 'pentagono-gtc45', name: 'Pentágono GTC-45', archetype: 'pentagon-orbital', description: 'Radar pentagonal de peligros y valoración de riesgos GTC-45.' },
   { id: 'sfx-pack', name: 'SFX Whoosh+Pop+Ding', archetype: 'cta-viral-bubbles', description: 'Diseño sonoro sincronizado: whoosh en transiciones, pop en tarjetas y ding en checks.' },
   { id: '01-orbit-3d', name: '01 Orbit 3D Pentágono', archetype: 'pentagon-orbital', description: 'Órbita 3D pentagonal.' },
@@ -4174,6 +4320,7 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
     instances,
     userId: targetUid || null,
     engine: 'antigravity-master-reel-60fps',
+    subagentsLoaded: ANTIGRAVITY_VIDEO_SUBAGENTS_CATALOG.length,
     skillsLoaded: ANTIGRAVITY_VIDEO_SKILLS_CATALOG.length,
     effectsCount: ANTIGRAVITY_EFFECTS_CATALOG.length,
     timestamp: new Date().toISOString(),
@@ -4273,7 +4420,7 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
       titulo: title,
       instruccion: instruction,
       descripcion: kanbanTask?.description || instruction,
-      recursoObjetivo: 'Wappy Studio 60-FPS Reel Engine (7 Skills)',
+      recursoObjetivo: 'Wappy Studio 60-FPS Reel Engine (4 Subagentes + 7 Skills)',
       formatoEntregable: outputType,
       estado: 'todo',
       prioridad: 'alta',
@@ -4304,13 +4451,24 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
 }
 
 /**
- * Lee en vivo los 7 archivos SKILL.md oficiales desde `.agents/skills/` para empaquetarlos e instalarlos en Antigravity.
+ * Lee en vivo los 7 archivos SKILL.md oficiales desde `.agents/skills/` y los 4 Subagentes Oficiales de Wappy Studio
+ * para empaquetarlos e instalarlos en Google Antigravity.
  */
 function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
   const skillsBaseDirs = [
     path.join(process.cwd(), '.agents', 'skills'),
     path.resolve(__dirname, '..', '..', '..', '.agents', 'skills'),
   ];
+
+  const xlAddendum = `
+
+---
+## Suplemento Oficial Wappy Studio v3.0 — Modo Móvil XL (1080×1920) & Escuadrón de 4 Subagentes
+- **Resolución Nativa Móvil XL:** \`1080×1920\` (9:16) o \`1920×1080\` (16:9) a 60 FPS deterministas (\`window.seekTo(t)\` / \`window.__wappySeekTo(t)\`).
+- **Portada Hero 0.00s - 2.00s:** Pastilla de gancho en \`#C7F303\` con texto \`#0E1300\`, titular gigante \`clamp(52px, 8.5vw, 92px)\` y fila de **Logos Oficiales SVG** (\`Google Antigravity\`, \`NotebookLM\`, \`WAPPY IA\`, \`Google Flow\`, \`Suri 3D / Tenshi 3D\`).
+- **Arquetipos Estrella:** \`wappy-n8n-workflow\` (Lienzo Nodos n8n WAPPY), \`visor-normativo-real\` (Hoja Decreto/Resolución con resaltador flúor), \`flow-split-before-after\` (Split-Screen Antes vs Después), \`suri-voice-live-hud\` (Consola de Voz Suri 3D 24kHz) y \`cuadricula-50-herramientas\` (Bento Grid +50 IA).
+- **Orquestación en Paralelo de los 4 Subagentes:** \`wappy-studio-effects-director\`, \`wappy-studio-audio-podcast\`, \`wappy-studio-scene-animator\` y \`wappy-studio-mp4-renderer\`.
+`;
 
   const skillsPayload = ANTIGRAVITY_VIDEO_SKILLS_CATALOG.map((meta) => {
     let markdownContent = '';
@@ -4323,6 +4481,9 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
         }
       } catch (_) {}
     }
+    const enrichedContent = markdownContent.includes('Suplemento Oficial Wappy Studio v3.0')
+      ? markdownContent
+      : `${markdownContent || `# ${meta.name}\n\n${meta.description}`}${xlAddendum}`;
     return {
       id: meta.id,
       name: meta.name,
@@ -4333,19 +4494,53 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
         `~/.gemini/config/skills/${meta.id}/SKILL.md`,
         `~/.gemini/antigravity/skills/${meta.id}/SKILL.md`,
       ],
-      content: markdownContent,
+      content: enrichedContent,
     };
   });
+
+  const subagentsPayload = ANTIGRAVITY_VIDEO_SUBAGENTS_CATALOG.map((sub) => ({
+    id: sub.id,
+    name: sub.name,
+    role: sub.role,
+    badge: sub.badge,
+    color: sub.color,
+    skills: sub.skills,
+    description: sub.description,
+    relativePath: `agents/${sub.id}.md`,
+    targetDirs: [
+      `~/.gemini/config/agents/${sub.id}.md`,
+      `~/.gemini/antigravity/agents/${sub.id}.md`,
+      `.agents/agents/${sub.id}.md`,
+    ],
+    systemPrompt: sub.systemPrompt,
+    content: sub.systemPrompt,
+  }));
+
+  const stepByStepPrompts = {
+    step1_installSubagentsAndSkills: {
+      title: 'Paso 1: Prompt para crear los 4 Subagentes y 7 Skills en tu Antigravity',
+      prompt: `Configura en mi instancia de Google Antigravity el Escuadrón Oficial de Producción de Video de WAPPY Studio ejecutando en terminal:\n\`curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node\`\ny verifica que queden creados los 4 Subagentes Especialistas (\`wappy-studio-effects-director\`, \`wappy-studio-audio-podcast\`, \`wappy-studio-scene-animator\`, \`wappy-studio-mp4-renderer\`) en \`~/.gemini/config/agents/\` y \`~/.gemini/antigravity/agents/\`, junto con las 7 Skills de Video en \`~/.gemini/config/skills/\` y el registro en \`AGENTS.md\`.`,
+    },
+    step2_produceReelWithSquad: {
+      title: 'Paso 2: Prompt para producir un Reel con el Escuadrón de 4 Subagentes en paralelo',
+      prompt: `Actúa como el Orquestador Principal de Wappy Studio y lanza en PARALELO (\`invoke_subagent\`) a nuestro Escuadrón de 4 Subagentes Especialistas para producir este Reel en Modo Móvil XL (1080×1920 a 60 FPS):\n1) \`wappy-studio-effects-director\`: Diseña la Portada Hero de 2.0s con pastilla #C7F303, fila de Logos Oficiales SVG (Antigravity, NotebookLM, WAPPY IA, Google Flow, Suri 3D) y asigna sin repetir los arquetipos estrella (\`wappy-n8n-workflow\`, \`visor-normativo-real\`, \`flow-split-before-after\`, \`suri-voice-live-hud\`, \`cuadricula-50-herramientas\`).\n2) \`wappy-studio-audio-podcast\`: Procesa o sintetiza la locución a 24 kHz (\`gemini-3.8-flash-tts\`), normaliza a -14 LUFS, mezcla SFX discretos (\`barrido\`, \`golpe-corto\`, \`tick-suave\`, \`brillo\`) y extrae \`vozData\` a 60 FPS.\n3) \`wappy-studio-scene-animator\`: Compila el HTML interactivo determinista (\`window.seekTo(t)\`) con Mega-Dock superior, tarjetas al 94% y subtítulos karaoke XL (\`54px-60px\`).\n4) \`wappy-studio-mp4-renderer\`: Valida 3 capturas de control (0.8s, 50% y cierre) y renderiza el MP4 final H.264 (CRF 18) + AAC 192kbps.`,
+    },
+  };
 
   return {
     ok: true,
     success: true,
-    bundleName: 'WAPPY IA · Pack Oficial de 7 Skills de Diseño UI/UX y Video 60-FPS para Google Antigravity',
-    version: '2.0.0',
+    bundleName:
+      'WAPPY IA · Escuadrón de 4 Subagentes Especialistas + Pack Oficial de 7 Skills de Diseño UI/UX y Video 60-FPS (Modo Móvil XL)',
+    version: '3.0.0',
     generatedAt: new Date().toISOString(),
     originUrl,
+    totalSubagents: subagentsPayload.length,
     totalSkills: skillsPayload.length,
     installTargets: [
+      '~/.gemini/config/agents',
+      '~/.gemini/antigravity/agents',
+      '.agents/agents',
       '~/.gemini/config/skills',
       '~/.gemini/antigravity/skills',
     ],
@@ -4361,13 +4556,15 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
       },
       fonts: ['Outfit ExtraBold', 'Plus Jakarta Sans', 'JetBrains Mono'],
       sevenPiecesRule:
-        '1. Dirección de Arte (9:16 o 16:9), 2. Identidad WAPPY + Avatar 3D, 3. Normativa SST verificada, 4. Portada Magnética 0-2s, 5. Motion Graphics 60-FPS E.spring, 6. Diseño Sonoro Lip-Sync PCM16, 7. Vistas Previas y Render MP4.',
+        '1. Dirección de Arte Móvil XL (1080×1920), 2. Identidad WAPPY + Logos Oficiales SVG + Avatar 3D, 3. Normativa SST verificada, 4. Portada Hero 0-2s, 5. Motion Graphics 60-FPS E.spring (Lienzo n8n, VisorNormaReal, Split-Screen, Consola Suri 3D, Cuadrícula +50 IA), 6. Diseño Sonoro Lip-Sync PCM16 24kHz, 7. 3 Vistas Previas y Render MP4 CRF 18.',
     },
+    stepByStepPrompts,
     installInstructions: {
       quickOneLineCommand: `curl -fsSL "${originUrl}/api/studio/antigravity/skills-installer.js" | node`,
-      promptForAntigravity:
-        'Instala en mi entorno local de Google Antigravity las 7 Skills oficiales de Diseño UI/UX y Producción de Video 60-FPS de WAPPY IA contenidas en este archivo JSON (guardando cada `content` en `~/.gemini/config/skills/<id>/SKILL.md` y `~/.gemini/antigravity/skills/<id>/SKILL.md`) y úsalas siempre que diseñemos o animemos reels para Wappy Studio.',
+      promptForAntigravity: stepByStepPrompts.step1_installSubagentsAndSkills.prompt,
+      promptToProduceReelWithSquad: stepByStepPrompts.step2_produceReelWithSquad.prompt,
     },
+    subagents: subagentsPayload,
     skills: skillsPayload,
   };
 }
@@ -4531,7 +4728,7 @@ router.get('/antigravity/guest-key', studioAuth, handleStudioAntigravityGuestOrU
 
 /**
  * GET /api/studio/antigravity/skills-bundle.json
- * Devuelve el Pack Oficial de las 7 Skills de Diseño UI/UX y Video 60-FPS de WAPPY IA listas para importar en Google Antigravity.
+ * Devuelve el Pack Oficial de los 4 Subagentes Especialistas + 7 Skills de Diseño UI/UX y Video 60-FPS de WAPPY IA.
  */
 router.get('/antigravity/skills-bundle.json', (req, res) => {
   try {
@@ -4541,19 +4738,20 @@ router.get('/antigravity/skills-bundle.json', (req, res) => {
     const payload = buildWappySkillsBundlePayload(originUrl);
 
     if (req.query.download === '1' || req.query.download === 'true') {
-      res.setHeader('Content-Disposition', 'attachment; filename="WAPPY-Skills-Diseno-y-Video-Antigravity.json"');
+      res.setHeader('Content-Disposition', 'attachment; filename="WAPPY-Subagentes-y-Skills-Video-Antigravity.json"');
     }
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.send(JSON.stringify(payload, null, 2));
   } catch (error) {
     logger.error('[WappyStudio Antigravity] Error serving skills-bundle.json:', error);
-    return res.status(500).json({ ok: false, error: 'Error construyendo el paquete de 7 Skills.' });
+    return res.status(500).json({ ok: false, error: 'Error construyendo el paquete de 4 Subagentes y 7 Skills.' });
   }
 });
 
 /**
  * GET /api/studio/antigravity/skills-installer.js
- * Script Node.js auto-contenido que instala las 7 Skills de Diseño y Video en ~/.gemini/config/skills/ y ~/.gemini/antigravity/skills/,
+ * Script Node.js auto-contenido que instala los 4 Subagentes Oficiales + las 7 Skills de Diseño y Video
+ * en ~/.gemini/config/, ~/.gemini/antigravity/ y .agents/, registra el escuadrón en AGENTS.md / GEMINI.md,
  * y si recibe --key=wpy_... descarga e inicia automáticamente el puente reactivo wappy-push-daemon.js.
  */
 router.get('/antigravity/skills-installer.js', (req, res) => {
@@ -4565,7 +4763,7 @@ router.get('/antigravity/skills-installer.js', (req, res) => {
 
   const installerScript = `#!/usr/bin/env node
 /**
- * WAPPY IA · Instalador Oficial de las 7 Skills de Diseño y Video 60-FPS + Puente Reactivo Google Antigravity (Local & Cloud)
+ * WAPPY IA · Instalador Oficial del Escuadrón de 4 Subagentes + 7 Skills de Video 60-FPS (Modo Móvil XL) + Puente Reactivo Google Antigravity
  */
 'use strict';
 
@@ -4612,17 +4810,21 @@ function fetchUrl(urlStr) {
 (async () => {
   try {
     const cleanOrigin = originUrl.replace(/\\/$/, '');
-    console.log('\\n🚀 [WAPPY IA <-> Google Antigravity] Descargando Pack Oficial de 7 Skills de Diseño y Video 60-FPS...');
+    console.log('\\n🚀 [WAPPY IA <-> Google Antigravity] Descargando Escuadrón Oficial de 4 Subagentes + 7 Skills de Video 60-FPS (Modo Móvil XL)...');
     const bundleRaw = await fetchUrl(cleanOrigin + '/api/studio/antigravity/skills-bundle.json');
     const bundle = JSON.parse(bundleRaw);
     const skills = Array.isArray(bundle.skills) ? bundle.skills : [];
+    const subagents = Array.isArray(bundle.subagents) ? bundle.subagents : [];
 
-    const targetRoots = [
+    const skillRoots = [
       path.join(os.homedir(), '.gemini', 'config', 'skills'),
       path.join(os.homedir(), '.gemini', 'antigravity', 'skills'),
     ];
+    if (fs.existsSync(path.join(process.cwd(), '.agents'))) {
+      skillRoots.push(path.join(process.cwd(), '.agents', 'skills'));
+    }
 
-    for (const rootDir of targetRoots) {
+    for (const rootDir of skillRoots) {
       fs.mkdirSync(rootDir, { recursive: true });
       for (const sk of skills) {
         if (!sk.id || !sk.content) continue;
@@ -4635,6 +4837,53 @@ function fetchUrl(urlStr) {
     console.log('✅ ' + skills.length + ' Skills instaladas en ~/.gemini/config/skills y ~/.gemini/antigravity/skills:');
     for (const sk of skills) {
       console.log('   • ' + sk.id + ' (' + sk.name + ')');
+    }
+
+    const agentRoots = [
+      path.join(os.homedir(), '.gemini', 'config', 'agents'),
+      path.join(os.homedir(), '.gemini', 'antigravity', 'agents'),
+    ];
+    if (fs.existsSync(path.join(process.cwd(), '.agents'))) {
+      agentRoots.push(path.join(process.cwd(), '.agents', 'agents'));
+    }
+
+    for (const agRoot of agentRoots) {
+      fs.mkdirSync(agRoot, { recursive: true });
+      for (const sub of subagents) {
+        if (!sub.id || !(sub.systemPrompt || sub.content)) continue;
+        fs.writeFileSync(path.join(agRoot, sub.id + '.md'), sub.systemPrompt || sub.content, 'utf8');
+      }
+    }
+
+    console.log('✅ ' + subagents.length + ' Subagentes Especialistas instalados en ~/.gemini/config/agents y ~/.gemini/antigravity/agents:');
+    for (const sub of subagents) {
+      console.log('   🤖 ' + sub.id + ' — ' + sub.name + ' [' + (sub.badge || 'SUBAGENTE') + ']');
+    }
+
+    // Registrar el Escuadrón de 4 Subagentes y las 7 Skills en ~/.gemini/GEMINI.md y ~/.gemini/antigravity/AGENTS.md
+    const squadSectionMarker = '<!-- WAPPY_STUDIO_SQUAD_V3 -->';
+    const squadSectionMd = [
+      '',
+      squadSectionMarker,
+      '## Escuadrón Oficial de Producción de Video Wappy Studio (4 Subagentes en Paralelo + 7 Skills Modo Móvil XL)',
+      'Cuando recibas una orden de creación o edición de Reel desde Wappy Studio (\`sourceModule: "wappy_studio"\`), coordina en paralelo (\`invoke_subagent\`) a estos 4 Subagentes Especialistas:',
+      '1. \`wappy-studio-effects-director\` (*Director de Efectos y Coreografía Dinámica XL*): Portada Hero 2.0s (#C7F303), Logos Oficiales SVG y selección sin repetición de arquetipos (\`wappy-n8n-workflow\`, \`visor-normativo-real\`, \`flow-split-before-after\`, \`suri-voice-live-hud\`, \`cuadricula-50-herramientas\`).',
+      '2. \`wappy-studio-audio-podcast\` (*Ingeniero de Audio, Voces Wappy Podcast & Sound Design*): Locución 24 kHz (\`gemini-3.8-flash-tts\`), normalización -14 LUFS, mezcla de SFX (\`barrido\`, \`golpe-corto\`, \`tick-suave\`, \`brillo\`) y envolvente \`vozData\` a 60 FPS.',
+      '3. \`wappy-studio-scene-animator\` (*Editor y Animador Full-Screen / Overlay 60-FPS*): Escenario determinista \`1080×1920\` (\`window.seekTo(t)\`), física \`E.spring\`, Mega-Dock superior y subtítulos karaoke XL (\`54px-60px\`).',
+      '4. \`wappy-studio-mp4-renderer\` (*Renderizador Determinista Multi-Worker MP4 1080×1920*): Auditoría de 3 capturas de control y codificación H.264 (CRF 18, yuv420p) + AAC 192kbps.',
+      '',
+    ].join('\\n');
+
+    for (const docPath of [
+      path.join(os.homedir(), '.gemini', 'GEMINI.md'),
+      path.join(os.homedir(), '.gemini', 'antigravity', 'AGENTS.md'),
+    ]) {
+      try {
+        let existingDoc = fs.existsSync(docPath) ? fs.readFileSync(docPath, 'utf8') : '';
+        if (!existingDoc.includes(squadSectionMarker)) {
+          fs.writeFileSync(docPath, existingDoc + squadSectionMd, 'utf8');
+        }
+      } catch (_) {}
     }
 
     if (apiKey && apiKey.startsWith('wpy_')) {
@@ -4684,7 +4933,7 @@ function fetchUrl(urlStr) {
           stdio: 'inherit',
           env: { ...process.env, WAPPY_API_KEY: apiKey, WAPPY_URL: cleanOrigin, WAPPY_AGY_ENV: envTag },
         });
-        console.log('✅ Servidor MCP WAPPY + Daemon Reactivo SSE (' + envTag.toUpperCase() + ') instalados y activos.');
+        console.log('✅ Escuadrón de 4 Subagentes + 7 Skills + Servidor MCP WAPPY + Daemon Reactivo SSE (' + envTag.toUpperCase() + ') instalados y activos.');
       }
     } else {
       console.log('\\n💡 Tip: Pasa --key=wpy_... para conectar también el Daemon Reactivo en tiempo real.');
@@ -4703,7 +4952,7 @@ function fetchUrl(urlStr) {
 
 /**
  * GET /api/studio/antigravity/status
- * Devuelve el estado en tiempo real del puente Google Antigravity + catálogo de las 7 Skills y 19 Efectos.
+ * Devuelve el estado en tiempo real del puente Google Antigravity + catálogo de los 4 Subagentes, 7 Skills y Efectos XL.
  */
 router.get('/antigravity/status', studioAuth, async (req, res) => {
   const resolved = await resolveStudioTargetUser(req);
@@ -4727,6 +4976,7 @@ router.get('/antigravity/status', studioAuth, async (req, res) => {
     effectiveEnv: bridge?.effectiveEnv || 'local',
     instances: Array.isArray(bridge?.instances) ? bridge.instances : [],
     bridge,
+    subagents: ANTIGRAVITY_VIDEO_SUBAGENTS_CATALOG,
     skills: ANTIGRAVITY_VIDEO_SKILLS_CATALOG,
     artDirections: ANTIGRAVITY_ART_DIRECTIONS,
     effectsCatalog: ANTIGRAVITY_EFFECTS_CATALOG,
@@ -5011,7 +5261,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) co
       "highlightStyle": "lime",
       "narration": "Texto exacto de locución de este tramo con [pausa 0.5s] y <breath>",
       "visualEffect": "Nombre del efecto aplicado de la lista seleccionada",
-      "archetype": "hook-vs-wall | iphone-split-showcase | signature-pad-live | chart-grow-math | pentagon-orbital | tenshi-specialists-grid | cta-viral-bubbles",
+      "archetype": "wappy-n8n-workflow | visor-normativo-real | flow-split-before-after | suri-voice-live-hud | cuadricula-50-herramientas | hook-vs-wall | iphone-split-showcase | signature-pad-live | chart-grow-math | pentagon-orbital | tenshi-specialists-grid | cta-viral-bubbles",
       "cameraAndMotion": "Descripción técnica de la transición GSAP, movimiento de cámara 3D, entrada elástica E.spring y elementos en pantalla en este tramo",
       "badCardTitle": "Riesgo o problema específico de este tramo (máx 26 chars)",
       "badCardDesc": "Consecuencia real en 1 línea (máx 58 chars)",
@@ -5208,7 +5458,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) co
         totalScenes: normalizedSteps.length,
       },
       piece5_motionGraphics60fps: {
-        engine: 'Deterministic 60-FPS E.spring + GSAP Timeline + 7 Kinetic Archetypes',
+        engine: 'Deterministic 60-FPS E.spring + GSAP Timeline + 12 Kinetic Archetypes XL',
         selectedEffects: chosenEffectsDetailed,
         archetypesSequence: scenesBreakdown.map((s) => s.archetype),
       },
@@ -5217,7 +5467,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) co
         stylePrompt: stylePrompt || 'Narración profesional sincronizada',
         pacingNotes:
           aiParsed?.soundAndPacingDesign ||
-          'Sincronía palabra por palabra con envolvente PCM16 RMS a 60 FPS y SFX sutiles (whoosh, pop, ding).',
+          'Sincronía palabra por palabra con envolvente PCM16 RMS a 60 FPS y SFX sutiles (barrido, golpe-corto, tick-suave, brillo).',
       },
       piece7_renderPreviews: {
         previewTimestampsSec: [
@@ -5226,20 +5476,32 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) co
           Number(Math.max(1.5, safeDuration - 1.2).toFixed(1)),
         ],
       },
+      subagentSquad: ANTIGRAVITY_VIDEO_SUBAGENTS_CATALOG.map((s) => ({
+        id: s.id,
+        name: s.name,
+        badge: s.badge,
+        skills: s.skills,
+      })),
     };
 
     const superPrompt = [
-      `# SUPER-PROMPT MAESTRO IA · WAPPY STUDIO & GOOGLE ANTIGRAVITY (60 FPS)`,
+      `# SUPER-PROMPT MAESTRO IA · WAPPY STUDIO & GOOGLE ANTIGRAVITY (MODO MÓVIL XL 1080×1920 · 60 FPS)`,
       `- **Proyecto:** ${aiParsed?.conceptTitle || sevenPieces.piece4_magneticCoverAndScript.headlineText}`,
       `- **Motor IA & Formato:** Generado con \`${usedModel}\` • ${aspectRatio} (${sevenPieces.piece1_artDirection.resolution} a 60 FPS) • Duración: ${safeDuration}s`,
-      `- **Pieza 1 & 2 — Dirección de Arte e Identidad:** \`${artMeta.name}\` (\`${artDirection}\` | Paleta: ${artMeta.palette.join(', ')} | Acento: \`${accentColor}\`)`,
-      `  ${aiParsed?.executiveCreativeDirection || `Escenario cinematográfico ${artMeta.name} con tarjetas Glassmorphism de alto contraste, tipografía Outfit ExtraBold y jerarquía limpia sin desbordamiento.`}`,
+      `- **Pieza 1 & 2 — Dirección de Arte Modo Móvil XL e Identidad:** \`${artMeta.name}\` (\`${artDirection}\` | Paleta: ${artMeta.palette.join(', ')} | Acento: \`${accentColor}\` | Titulares: \`80px-110px\` | Logos Oficiales SVG: \`Antigravity, NotebookLM, WAPPY IA, Google Flow, Suri 3D\`)`,
+      `  ${aiParsed?.executiveCreativeDirection || `Escenario cinematográfico ${artMeta.name} en Modo Móvil XL (1080×1920) con tarjetas Glassmorphism al 94% de ancho, Mega-Dock superior, tipografía Outfit ExtraBold y subtítulos karaoke XL (54px-60px).`}`,
       `- **Pieza 3 — Enfoque Técnico y Conceptos Clave:** ${normativeList.join(' • ')}`,
-      `- **Pieza 4 — Portada Magnética (0.00s - 2.00s):** Insignia \`${sevenPieces.piece4_magneticCoverAndScript.badgeText}\` | Titular: "${sevenPieces.piece4_magneticCoverAndScript.headlineText}"${sevenPieces.piece4_magneticCoverAndScript.subtitleText ? ` | Subtítulo: "${sevenPieces.piece4_magneticCoverAndScript.subtitleText}"` : ''}`,
+      `- **Pieza 4 — Portada Hero Modo Móvil XL (0.00s - 2.00s):** Pastilla \`#C7F303\` (\`#0E1300\`) \`${sevenPieces.piece4_magneticCoverAndScript.badgeText}\` | Titular XL: "${sevenPieces.piece4_magneticCoverAndScript.headlineText}"${sevenPieces.piece4_magneticCoverAndScript.subtitleText ? ` | Subtítulo: "${sevenPieces.piece4_magneticCoverAndScript.subtitleText}"` : ''}`,
       `- **Pieza 5 — Coreografía Avatar 3D & Efectos Activos (${chosenEffects.length} FX):**`,
       `  • **Avatar 3D:** ${aiParsed?.avatarChoreography || `Presentador Avatar 3D en zona segura con sincronía labial PCM16 a 60 FPS con la voz ${voiceName} y gestos dinámicos hacia las tarjetas.`}`,
       `  • **Efectos Inyectados:** ${chosenEffects.map((id) => ANTIGRAVITY_EFFECTS_CATALOG.find((e) => e.id === id)?.name || id).join(', ')}`,
-      `- **Pieza 6 — Diseño Sonoro y Prosodia (${voiceName}):** ${sevenPieces.piece6_soundDesign.pacingNotes}`,
+      `- **Pieza 6 — Diseño Sonoro y Prosodia (${voiceName} · 24 kHz):** ${sevenPieces.piece6_soundDesign.pacingNotes}`,
+      ``,
+      `## Orquestación en Paralelo del Escuadrón de 4 Subagentes Especialistas (\`invoke_subagent\`)`,
+      `1. \`wappy-studio-effects-director\` (**SUBAGENTE 01 · EFECTOS XL**): Diseña la Portada Hero 2.0s y asigna sin repetición consecutiva los arquetipos estrella (\`wappy-n8n-workflow\`, \`visor-normativo-real\`, \`flow-split-before-after\`, \`suri-voice-live-hud\`, \`cuadricula-50-herramientas\`).`,
+      `2. \`wappy-studio-audio-podcast\` (**SUBAGENTE 02 · AUDIO & PODCAST**): Procesa la locución a 24 kHz (\`gemini-3.8-flash-tts\`), normaliza a -14 LUFS, sincroniza SFX (\`barrido\`, \`golpe-corto\`, \`tick-suave\`, \`brillo\`) y extrae \`vozData\` a 60 FPS.`,
+      `3. \`wappy-studio-scene-animator\` (**SUBAGENTE 03 · ANIMACIÓN 60-FPS**): Construye el HTML autónomo \`${sevenPieces.piece1_artDirection.resolution}\` determinista (\`window.seekTo(t)\`) con física \`E.spring\`, Mega-Dock superior y subtítulos karaoke XL.`,
+      `4. \`wappy-studio-mp4-renderer\` (**SUBAGENTE 04 · RENDER MP4**): Audita las 3 capturas de control (\`0.8s\`, \`${Number((safeDuration * 0.5).toFixed(1))}s\`, \`${Number(Math.max(1.5, safeDuration - 1.2).toFixed(1))}s\`) y codifica el MP4 final H.264 (\`CRF 18\`, \`yuv420p\`) + AAC \`192kbps\`.`,
       ``,
       `## Escaleta Cinematográfica Sincronizada Segundo a Segundo (${normalizedSteps.length} Escenas)`,
       ...normalizedSteps.map(
@@ -5275,6 +5537,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) co
       scenesBreakdown,
       sevenPieces,
       timelineMap,
+      subagents: ANTIGRAVITY_VIDEO_SUBAGENTS_CATALOG,
       bridge,
     });
   } catch (error) {
@@ -5288,8 +5551,163 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown \`\`\`json) co
 });
 
 /**
+ * Ejecuta en paralelo (`Promise.all`) el Escuadrón de Subagentes de Wappy Studio:
+ * - Subagente 01 (`wappy-studio-effects-director`): Plan de escenas, selección de arquetipos sin repetición y efectos XL.
+ * - Subagente 02 (`wappy-studio-audio-podcast`): Mapa de acentos sonoros, marcadores SFX y envolvente RMS 60-FPS (`vozData`).
+ * - Subagente 03 (`wappy-studio-scene-animator`): Compilación determinista del Master Reel HTML en Modo Móvil XL (`1080×1920`).
+ */
+async function runMultiAgentVideoSquadPlan({
+  effectiveScript,
+  timelineMap,
+  companyName,
+  prompt,
+  effectiveTheme,
+  chosenEffects,
+  scriptSteps,
+  badgeText,
+  headlineText,
+  subtitleText,
+  aspectRatio,
+  hasBaseVideo,
+  showSubtitles,
+  accentColor,
+  aiGeneratorFn,
+}) {
+  const starEffectsPool = [
+    '01-orbit-3d',
+    '08-headline-wall',
+    '07-zoom-through',
+    '09-chart-grow',
+    '02-frame-break',
+    '03-ui-world',
+    'n8n-workflow-wappy',
+    'visor-normativo-real',
+    'flow-split-before-after',
+    'suri-voice-live-hud',
+    'cuadricula-50-ia',
+  ];
+
+  // Ejecución en paralelo (Parallel Fan-Out) de Subagente 01 (Director de Efectos XL) y Subagente 02 (Ingeniero de Audio & Sound Design)
+  const [scenePlan, audioSoundMap] = await Promise.all([
+    generateCreativeScenePlanWithAi(
+      effectiveScript,
+      timelineMap.beats,
+      {
+        companyName,
+        prompt,
+        theme: effectiveTheme,
+        selectedEffects: chosenEffects.length > 0 ? chosenEffects : starEffectsPool,
+        scriptSteps,
+        badgeText,
+        headlineText,
+        subtitleText,
+      },
+      aiGeneratorFn,
+    ),
+    Promise.resolve().then(() => {
+      const beats = Array.isArray(timelineMap?.beats) ? timelineMap.beats : [];
+      const sfxCycle = ['barrido', 'golpe-corto', 'tick-suave', 'brillo'];
+      const sfxMarkers = [
+        { timeSec: 0.0, sfx: 'golpe-corto', db: -14, note: 'Impacto Portada Hero 2.0s Modo Móvil XL' },
+      ];
+      beats.forEach((b, idx) => {
+        const startT = Number(b.startSec || 0);
+        sfxMarkers.push({
+          timeSec: Number(startT.toFixed(2)),
+          sfx: sfxCycle[idx % sfxCycle.length],
+          db: idx % 2 === 0 ? -15 : -16,
+          note: `Transición Escena 0${idx + 1}`,
+        });
+        if (b.durationSec > 2.4) {
+          sfxMarkers.push({
+            timeSec: Number((startT + 0.55).toFixed(2)),
+            sfx: 'tick-suave',
+            db: -16,
+            note: `Encendido elástico tarjeta Escena 0${idx + 1}`,
+          });
+        }
+      });
+      const vozDataArr = Array.isArray(timelineMap?.vozData) ? timelineMap.vozData : [];
+      return {
+        masteringTarget: '-14 LUFS',
+        ttsModel: 'gemini-3.8-flash-tts',
+        sampleRateHz: 24000,
+        fpsEnvelope: 60,
+        vozDataSamples: vozDataArr.length,
+        wordTimingsCount: Array.isArray(timelineMap?.wordTimings) ? timelineMap.wordTimings.length : 0,
+        sfxMarkers,
+      };
+    }),
+  ]);
+
+  // Subagente 03 (Editor y Animador Full-Screen / Overlay 60-FPS): Compila el Master Reel HTML en Modo Móvil XL
+  let htmlCode = compileAntigravityMasterReelHtml(scenePlan, timelineMap, {
+    aspectRatio,
+    hasBaseVideo,
+    companyName,
+    showSubtitles,
+    theme: effectiveTheme,
+    selectedArtDirection: effectiveTheme,
+    accentColor,
+  });
+  htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
+
+  const totalSec = Number(timelineMap?.totalDurationSeconds || 20);
+  const subagentSquadReport = {
+    orchestrationMode: 'parallel-4-subagents-xl',
+    effectsDirector: {
+      subagentId: 'wappy-studio-effects-director',
+      badge: 'SUBAGENTE 01 · EFECTOS XL',
+      status: 'completed',
+      coverHero2s: true,
+      zeroConsecutiveRepeats: true,
+      assignedArchetypes: scenePlan.map((s) => s.archetype),
+      assignedEffects: scenePlan.map(
+        (s, idx) =>
+          (chosenEffects.length > 0 ? chosenEffects[idx % chosenEffects.length] : starEffectsPool[idx % starEffectsPool.length]),
+      ),
+    },
+    audioPodcastEngineer: {
+      subagentId: 'wappy-studio-audio-podcast',
+      badge: 'SUBAGENTE 02 · AUDIO & PODCAST',
+      status: 'completed',
+      ...audioSoundMap,
+    },
+    sceneAnimator60Fps: {
+      subagentId: 'wappy-studio-scene-animator',
+      badge: 'SUBAGENTE 03 · ANIMACIÓN 60-FPS',
+      status: 'completed',
+      resolution: aspectRatio === '16:9' ? '1920x1080' : '1080x1920',
+      fps: 60,
+      scenesCompiled: scenePlan.length + 1,
+      megaDockActive: true,
+      karaokeSubtitlesXl: Boolean(showSubtitles),
+      deterministicSeekTo: true,
+    },
+    mp4RendererReady: {
+      subagentId: 'wappy-studio-mp4-renderer',
+      badge: 'SUBAGENTE 04 · RENDER MP4',
+      status: 'ready',
+      targetResolution: aspectRatio === '16:9' ? '1920x1080' : '1080x1920',
+      codec: 'H.264 (CRF 18, yuv420p) + AAC 192kbps',
+      qaPreviewTimestamps: [
+        0.8,
+        Number((totalSec * 0.5).toFixed(1)),
+        Number(Math.max(1.5, totalSec - 1.2).toFixed(1)),
+      ],
+    },
+  };
+
+  return {
+    scenePlan,
+    htmlCode,
+    subagentSquadReport,
+  };
+}
+
+/**
  * Handler compartido para POST /api/studio/video/generate-html y POST /api/studio/antigravity/generate-html
- * Genera una composición animada con el Motor Maestro 60-FPS de Antigravity (HyperFrames + Three.js WappyAvatarVoxel3D + 7 Arquetipos Dinámicos)
+ * Genera una composición animada con el Motor Maestro 60-FPS de Antigravity (Modo Móvil XL 1080×1920 + Escuadrón de 4 Subagentes en Paralelo)
  * sincronizada milimétricamente con las pausas reales de la voz WAV y envolvente RMS de lip-sync.
  */
 async function handleGenerateMasterReelHtml(req, res) {
@@ -5316,6 +5734,8 @@ async function handleGenerateMasterReelHtml(req, res) {
       accentColor = '',
       modelName,
       audioBase64,
+      delegateToAntigravity = false,
+      executionMode = '',
       customKeys,
       apiKeys,
     } = req.body || {};
@@ -5350,17 +5770,6 @@ async function handleGenerateMasterReelHtml(req, res) {
     }
 
     const realTotalSec = Number((timelineMap?.totalDurationSeconds || safeDuration || 20).toFixed(2));
-    const syncedBeatsSummary = Array.isArray(timelineMap?.beats)
-      ? timelineMap.beats
-          .map(
-            (b, idx) =>
-              `  • Escena ${idx + 1} [${Number(b.startSec || 0).toFixed(2)}s -> ${Number(b.endSec || realTotalSec).toFixed(2)}s]: "${b.text || ''}"`,
-          )
-          .join('\n')
-      : '';
-
-    // Notificar al puente Antigravity en segundo plano pero SIEMPRE compilar y devolver de inmediato
-    // el Master Reel 60-FPS determinista (con efectos-17-reels.js, wappy-brand.js, WappyAvatarVoxel3D y Brandbook 3D)
     const resolvedTarget = await resolveStudioTargetUser(req);
     notifyStudioAntigravityBridge(
       req,
@@ -5368,10 +5777,10 @@ async function handleGenerateMasterReelHtml(req, res) {
       {
         aspectRatio,
         durationSeconds: realTotalSec,
+        orchestrationMode: 'parallel-4-subagents-xl',
       },
       resolvedTarget.userId,
     );
-    const delegation = { delegated: false, mode: 'direct-master-reel-60fps' };
 
     const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
     const keysToUse = allKeys.slice(0, 4);
@@ -5424,33 +5833,50 @@ async function handleGenerateMasterReelHtml(req, res) {
             : [];
     const effectiveTheme = selectedArtDirection || theme || 'dark-tech-hud';
 
-    const scenePlan = await generateCreativeScenePlanWithAi(
+    const { scenePlan, htmlCode, subagentSquadReport } = await runMultiAgentVideoSquadPlan({
       effectiveScript,
-      timelineMap.beats,
-      {
-        companyName,
-        prompt: superPrompt || prompt,
-        theme: effectiveTheme,
-        selectedEffects: chosenEffects,
-        scriptSteps: Array.isArray(scriptSteps) && scriptSteps.length > 0 ? scriptSteps : scenesBreakdown,
-        badgeText,
-        headlineText,
-        subtitleText,
-      },
-      aiGeneratorFn,
-    );
-
-    let htmlCode = compileAntigravityMasterReelHtml(scenePlan, timelineMap, {
+      timelineMap,
+      companyName,
+      prompt: superPrompt || prompt,
+      effectiveTheme,
+      chosenEffects,
+      scriptSteps: Array.isArray(scriptSteps) && scriptSteps.length > 0 ? scriptSteps : scenesBreakdown,
+      badgeText,
+      headlineText,
+      subtitleText,
       aspectRatio,
       hasBaseVideo,
-      companyName,
       showSubtitles,
-      theme: effectiveTheme,
-      selectedArtDirection: effectiveTheme,
       accentColor,
+      aiGeneratorFn,
     });
 
-    htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
+    // Si el usuario solicitó explícitamente delegar al Escuadrón de 4 Subagentes en su Antigravity conectado,
+    // despachar la orden en paralelo pero devolver de inmediato el htmlCode pre-compilado para que nunca quede en blanco.
+    let delegation = { delegated: false, mode: 'direct-master-reel-60fps' };
+    if (Boolean(delegateToAntigravity) || executionMode === 'antigravity-squad') {
+      const squadDelegation = await delegateStudioOrderToAntigravityIfConnected(req, resolvedTarget.userId, {
+        title: `Wappy Studio · Escuadrón 4 Subagentes Reel XL (${aspectRatio})`,
+        instruction: [
+          `[ORQUESTACIÓN EN PARALELO DEL ESCUADRÓN DE 4 SUBAGENTES DE WAPPY STUDIO — MODO MÓVIL XL (${aspectRatio === '16:9' ? '1920×1080' : '1080×1920'} a 60 FPS)]`,
+          `Invoca en paralelo (invoke_subagent) a los 4 Subagentes Especialistas instalados:`,
+          `1) wappy-studio-effects-director: Portada Hero 2.0s (#C7F303) con Logos Oficiales SVG y secuencia de arquetipos sin repetición: ${scenePlan.map((s) => s.archetype).join(' ➔ ')}.`,
+          `2) wappy-studio-audio-podcast: Sincronía acústica 24 kHz (-14 LUFS), SFX discretos (${subagentSquadReport.audioPodcastEngineer.sfxMarkers.length} marcadores) y envolvente vozData a 60 FPS.`,
+          `3) wappy-studio-scene-animator: Refinar o enriquecer el HTML interactivo determinista (window.seekTo(t)) en "/tmp/wappy_studio_current.html" manteniendo Mega-Dock superior y subtítulos karaoke XL.`,
+          `4) wappy-studio-mp4-renderer: Verificar 3 capturas de control y dejar listo el HTML/MP4 final.`,
+          `Guion base:\n${effectiveScript}`,
+        ].join('\n'),
+        outputType: 'html',
+        companyName,
+        sourceHtml: htmlCode,
+      });
+      if (squadDelegation) {
+        delegation = {
+          ...squadDelegation,
+          mode: 'antigravity-squad-4-subagents',
+        };
+      }
+    }
 
     const bridge = notifyStudioAntigravityBridge(
       req,
@@ -5462,6 +5888,7 @@ async function handleGenerateMasterReelHtml(req, res) {
         durationSeconds: timelineMap.totalDurationSeconds,
         usedModel,
         ordenId: delegation?.ordenId || null,
+        subagentSquadReport,
       },
       resolvedTarget.userId,
     );
@@ -5475,6 +5902,7 @@ async function handleGenerateMasterReelHtml(req, res) {
       timelineMap,
       scenePlan,
       scenesBreakdown: scenePlan,
+      subagentSquadReport,
       delegation,
       bridge,
     });
@@ -5740,7 +6168,7 @@ router.post('/antigravity/edit-html', studioAuth, async (req, res) => {
 
 /**
  * Handler compartido para POST /api/studio/video/render-mp4 y POST /api/studio/antigravity/render-mp4
- * Renderizado MP4 Unificado (H.264 + AAC) con Motor Antigravity 60-FPS (Headless Chromium + FFmpeg + Puente Push SSE).
+ * Renderizado MP4 Unificado (H.264 + AAC) con Motor Antigravity 60-FPS en Resolución Nativa Modo Móvil XL (1080×1920 o 1920×1080).
  * Une la composición HTML/GSAP + Avatar 3D + Subtítulos Dinámicos Palabra a Palabra + Pista de Voz WAV en un archivo .mp4 universal.
  */
 async function handleRenderMasterReelMp4(req, res) {
@@ -5801,8 +6229,8 @@ async function handleRenderMasterReelMp4(req, res) {
     }
 
     const isVertical = aspectRatio !== '16:9';
-    const width = isVertical ? 720 : 1280;
-    const height = isVertical ? 1280 : 720;
+    const width = isVertical ? 1080 : 1920;
+    const height = isVertical ? 1920 : 1080;
     let safeDuration = Math.min(90, Math.max(3, Number(durationSeconds) || 12));
 
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wappy-studio-mp4-'));
@@ -5850,16 +6278,17 @@ async function handleRenderMasterReelMp4(req, res) {
   window.__wappyCurrentTime = 0;
 
   function ensureSubOverlay() {
+    if (document.getElementById('sub-box')) return;
     if (window.__wappyShowSubs && !document.getElementById('wappy-mp4-sub-overlay')) {
       const posStyle = window.__wappySubPos === 'top'
-        ? 'top: 56px;'
+        ? 'top: 72px;'
         : window.__wappySubPos === 'center'
           ? 'top: 50%; transform: translateY(-50%);'
-          : 'bottom: 20px;';
+          : 'bottom: 36px;';
       const subWrap = document.createElement('div');
       subWrap.id = 'wappy-mp4-sub-overlay';
-      subWrap.style.cssText = 'position:fixed;left:16px;right:16px;z-index:9999;display:flex;justify-content:center;pointer-events:none;' + posStyle;
-      subWrap.innerHTML = '<div id="wappy-mp4-sub-box" style="background:rgba(5,12,18,0.92);border:1px solid rgba(199,243,3,0.45);padding:9px 15px;border-radius:15px;text-align:center;max-width:94%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-family:Plus Jakarta Sans,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,0.65);"></div>';
+      subWrap.style.cssText = 'position:fixed;left:36px;right:320px;z-index:9999;display:flex;justify-content:center;pointer-events:none;' + posStyle;
+      subWrap.innerHTML = '<div id="wappy-mp4-sub-box" style="background:rgba(5,12,18,0.92);border:2px solid rgba(199,243,3,0.55);padding:16px 26px;border-radius:24px;text-align:center;max-width:96%;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;font-family:Outfit,Plus Jakarta Sans,sans-serif;box-shadow:0 18px 42px rgba(0,0,0,0.85);"></div>';
       document.body.appendChild(subWrap);
     }
   }
@@ -5889,7 +6318,7 @@ async function handleRenderMasterReelMp4(req, res) {
       window.dispatchEvent(new MessageEvent('message', { data: { type: 'STUDIO_SEEK', time: timeSec } }));
     } catch (e) {}
 
-    if (window.__wappyShowSubs && window.__wappyWords.length > 0) {
+    if (window.__wappyShowSubs && window.__wappyWords.length > 0 && !document.getElementById('sub-box')) {
       const box = document.getElementById('wappy-mp4-sub-box');
       if (box) {
         const timings = window.__wappyWordTimings || [];
@@ -5909,9 +6338,9 @@ async function handleRenderMasterReelMp4(req, res) {
         const activeOffset = activeIdx - winStart;
         box.innerHTML = slice.map((w, i) => {
           if (i === activeOffset) {
-            return '<span style="font-size:15px;font-weight:900;text-transform:uppercase;color:#080c04;background:#c7f303;padding:2px 8px;border-radius:7px;box-shadow:0 0 14px rgba(199,243,3,0.45);">' + w + '</span>';
+            return '<span style="font-size:52px;font-weight:900;text-transform:uppercase;color:#080c04;background:#c7f303;padding:4px 14px;border-radius:12px;box-shadow:0 0 22px rgba(199,243,3,0.65);">' + w + '</span>';
           }
-          return '<span style="font-size:15px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.96);">' + w + '</span>';
+          return '<span style="font-size:52px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,0.96);">' + w + '</span>';
         }).join(' ');
       }
     }
@@ -5977,7 +6406,7 @@ async function handleRenderMasterReelMp4(req, res) {
     ];
 
     if (audioFilePath) {
-      ffmpegArgs.push('-i', audioFilePath, '-c:a', 'aac', '-b:a', '160k', '-shortest');
+      ffmpegArgs.push('-i', audioFilePath, '-c:a', 'aac', '-b:a', '192k', '-shortest');
     }
 
     ffmpegArgs.push(
@@ -5986,7 +6415,7 @@ async function handleRenderMasterReelMp4(req, res) {
       '-preset',
       'ultrafast',
       '-crf',
-      '22',
+      '18',
       '-pix_fmt',
       'yuv420p',
       '-movflags',

@@ -9,6 +9,7 @@ import GoogleDriveConnect from './GoogleDriveConnect';
 import OneDriveConnect from './OneDriveConnect';
 import GoogleAIConnect from './GoogleAIConnect';
 import AntigravityMcpConnect from './AntigravityMcpConnect';
+import WappyStudioConnect from './WappyStudioConnect';
 import NotebookLMConnect from './NotebookLMConnect';
 import GoogleFlowConnect from './GoogleFlowConnect';
 
@@ -150,6 +151,12 @@ function IntegrationsTab() {
         <div className="h-px bg-border-light w-full my-1"></div>
         <div className="py-2">
           <AntigravityMcpConnect />
+        </div>
+
+        {/* Wappy Studio & Subagentes de Video - Todos los usuarios */}
+        <div className="h-px bg-border-light w-full my-1"></div>
+        <div className="py-2">
+          <WappyStudioConnect />
         </div>
 
         {/* NotebookLM - Todos los usuarios */}

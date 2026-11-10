@@ -45,7 +45,7 @@ const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hi
 const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
 const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
 const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para el Generador Prioritario de Imágenes
-const DAEMON_VERSION = '2.6.4';
+const DAEMON_VERSION = '2.6.5';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -104,6 +104,7 @@ function ensureDirs() {
     fs.mkdirSync(CONFIG_DIR, { recursive: true });
   } catch (_) {}
   ensureWappyGlobalRule();
+  ensureWappyStudioSubagents();
   ensureWappyProjectPermissions();
 }
 
@@ -299,6 +300,147 @@ function ensureWappyGlobalRule() {
       }
     } else {
       fs.writeFileSync(geminiMdPath, `# Directrices Globales del Usuario\n${ruleBlock}`, 'utf8');
+    }
+  } catch (_) {}
+}
+
+/**
+ * Instala automáticamente en la instancia local de Antigravity los 4 Subagentes Oficiales de Video de Wappy Studio:
+ * - wappy-studio-effects-director
+ * - wappy-studio-audio-podcast
+ * - wappy-studio-scene-animator
+ * - wappy-studio-mp4-renderer
+ */
+function ensureWappyStudioSubagents() {
+  try {
+    const subagents = {
+      'wappy-studio-effects-director.md': [
+        '---',
+        'name: wappy-studio-effects-director',
+        'description: "Director de Efectos y Coreografía Dinámica XL de Wappy Studio: selecciona para cada escena el efecto visual más potente de las 7 Skills, diseña la Portada Hero de 2.0s y exige Modo Móvil XL (1080×1920)."',
+        'subagent: true',
+        'inheritMcp: true',
+        'inheritCustomizations: true',
+        'preloadSkills:',
+        '  - protocolo-produccion-videos',
+        '  - animaciones-17-efectos-reels',
+        '  - animaciones-explicativas-sst',
+        '  - animaciones-wappy-brand',
+        '  - hyperframes-motion-design',
+        '  - wappy-procedural-memory',
+        'tools:',
+        '  - view_file',
+        '  - read_file',
+        '  - edit_file',
+        '  - write_file',
+        '  - run_command',
+        '  - search_web',
+        '  - read_url_content',
+        '  - send_message',
+        '---',
+        '# Rol: Director de Efectos y Coreografía Dinámica XL de Wappy Studio (`wappy-studio-effects-director`)',
+        '',
+        'Eres el **Director de Efectos Visuales y Coreografía Dinámica XL** del Escuadrón Oficial de Video de **Wappy Studio** (`LibreChat-WAPPY`).',
+        '- Seleccionas para cada escena el efecto visual más potente de nuestras 7 Skills (`Lienzo Nodos n8n WAPPY`, `VisorNormaReal`, `Split-Screen Antes/Después`, `Consola Suri 3D Live 24kHz`, `Cuadrícula +50 Herramientas IA`, `FXOrbit 3D`, `iPhone 16 Pro Dynamic Island`, `FX08HeadlineWall`, `ChartGrowFX`).',
+        '- Diseñas la **Portada Hero de 2.0s** (`0.0s–2.0s`) y el **Mega-Dock Superior**.',
+        '- Exiges **Modo Móvil XL (`1080×1920`)** con titulares `80px–110px`, subtítulos karaokes XL `54px–60px`, tarjetas al `94%` de ancho y logos SVG oficiales de `96px–240px`.',
+      ].join('\n'),
+      'wappy-studio-audio-podcast.md': [
+        '---',
+        'name: wappy-studio-audio-podcast',
+        'description: "Ingeniero de Audio, Voces Wappy Podcast 24kHz y Sound Design de Wappy Studio: procesa locución o sintetiza con gemini-3.8-flash-tts, normaliza a -14 LUFS, mezcla SFX y genera el mapa vozData a 60 FPS."',
+        'subagent: true',
+        'inheritMcp: true',
+        'inheritCustomizations: true',
+        'preloadSkills:',
+        '  - protocolo-produccion-videos',
+        '  - verify-ai-models',
+        '  - wappy-procedural-memory',
+        'tools:',
+        '  - view_file',
+        '  - read_file',
+        '  - edit_file',
+        '  - write_file',
+        '  - run_command',
+        '  - send_message',
+        '---',
+        '# Rol: Ingeniero de Audio, Voces Wappy Podcast 24kHz y Sound Design (`wappy-studio-audio-podcast`)',
+        '',
+        'Eres el **Ingeniero de Audio, Síntesis Vocal 24kHz y Diseñador Sonoro** del Escuadrón Oficial de Video de **Wappy Studio** (`LibreChat-WAPPY`).',
+        '- Procesas el audio original del usuario o sintetizas voces conversacionales estilo Wappy Podcast con `gemini-3.8-flash-tts` a `24kHz`.',
+        '- Normalizas a `-14 LUFS`, mezclas SFX de estudio (`barrido.wav`, `golpe-corto.wav`, `tick-suave.wav`, `brillo.wav`) en las transiciones y sílabas clave, aplicas sidechain ducking sobre la música tech y generas el mapa `vozData` a 60 FPS para lip-sync y ondas reactivas.',
+      ].join('\n'),
+      'wappy-studio-scene-animator.md': [
+        '---',
+        'name: wappy-studio-scene-animator',
+        'description: "Editor y Animador Full-Screen / Overlay a 60 FPS (Modo Móvil XL) de Wappy Studio: construye escenas HTML/CSS/Canvas 1080×1920 deterministas con window.seekTo(t) y física spring."',
+        'subagent: true',
+        'inheritMcp: true',
+        'inheritCustomizations: true',
+        'preloadSkills:',
+        '  - protocolo-produccion-videos',
+        '  - animaciones-17-efectos-reels',
+        '  - animaciones-explicativas-sst',
+        '  - animaciones-wappy-brand',
+        '  - hyperframes-motion-design',
+        '  - wappy-procedural-memory',
+        'tools:',
+        '  - view_file',
+        '  - read_file',
+        '  - edit_file',
+        '  - write_file',
+        '  - run_command',
+        '  - send_message',
+        '---',
+        '# Rol: Editor y Animador Full-Screen / Overlay a 60 FPS — Modo Móvil XL (`wappy-studio-scene-animator`)',
+        '',
+        'Eres el **Editor y Animador Principal a 60 FPS (Modo Móvil XL `1080×1920`)** del Escuadrón Oficial de Video de **Wappy Studio** (`LibreChat-WAPPY`).',
+        '- Construyes las escenas HTML/CSS/Canvas a `1080×1920` (60 FPS determinista con `window.seekTo(t)`), física `spring(damping: 17, stiffness: 190)`, alternancia de los 3 Planos (con personaje) o Full-Screen Dinámico (sin personaje), Lienzo de Nodos `n8n` WAPPY con cámara 3D, `VisorNormaReal` con subrayado flúor y subtítulos karaokes XL (`54px–60px`).',
+      ].join('\n'),
+      'wappy-studio-mp4-renderer.md': [
+        '---',
+        'name: wappy-studio-mp4-renderer',
+        'description: "Renderizador Determinista Multi-Worker MP4 1080×1920 y Auditor QA Visual de Wappy Studio: exporta H.264 crf 18 yuv420p + AAC 192k sin tpad bloqueante y extrae 3 capturas de verificación."',
+        'subagent: true',
+        'inheritMcp: true',
+        'inheritCustomizations: true',
+        'preloadSkills:',
+        '  - protocolo-produccion-videos',
+        '  - wappy-procedural-memory',
+        'tools:',
+        '  - view_file',
+        '  - read_file',
+        '  - edit_file',
+        '  - write_file',
+        '  - run_command',
+        '  - send_message',
+        '---',
+        '# Rol: Renderizador Determinista Multi-Worker MP4 `1080×1920` y Auditor QA Visual (`wappy-studio-mp4-renderer`)',
+        '',
+        'Eres el **Ingeniero de Renderizado Determinista Multi-Worker MP4 y Auditor QA Visual** del Escuadrón Oficial de Video de **Wappy Studio** (`LibreChat-WAPPY`).',
+        '- Renderizas el HTML interactivo a MP4 (`1080×1920`, H.264 `crf 18`, `yuv420p` + AAC `192k`) usando workers paralelos en Chromium sin filtros `tpad` que bloqueen FFmpeg, extraes 3 capturas de verificación (Portada 2s, Escena Central y CTA) y entregas el `.html` y `.mp4` a Wappy Studio.',
+      ].join('\n'),
+    };
+
+    const targetDirs = [
+      path.join(CONFIG_DIR, 'agents'),
+      path.join(AGY_DIR, 'agents'),
+    ];
+    const teamAgentsDir = path.join(HOME_DIR, '.gemini', 'teams', 'wappy-dev-agency', 'agents');
+    if (fs.existsSync(path.dirname(teamAgentsDir))) {
+      targetDirs.push(teamAgentsDir);
+    }
+
+    for (const dir of targetDirs) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        for (const [filename, content] of Object.entries(subagents)) {
+          const destFile = path.join(dir, filename);
+          if (!fs.existsSync(destFile)) {
+            fs.writeFileSync(destFile, content + '\n', 'utf8');
+          }
+        }
+      } catch (_) {}
     }
   } catch (_) {}
 }
@@ -3341,10 +3483,36 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
     ];
   } else if (isWappyStudioRenderMp4) {
     executionInstructions = [
-      `INSTRUCCIÓN DE CONFIRMACIÓN DE RENDERIZADO MP4 EN WAPPY STUDIO:`,
-      `1. El motor de Wappy Studio + FFmpeg está ensamblando el archivo .MP4 final a partir del HTML activo ("${STUDIO_CURRENT_HTML_FILE}") y la pista de audio WAV.`,
-      `2. Confirma inmediatamente la orden ejecutando:`,
-      `   node "${helperScript}" --complete-order="${ordenId}" --formato="respuesta" --resultado="Video MP4 renderizado y listo para descarga en Wappy Studio."`,
+      `INSTRUCCIÓN DE RENDERIZADO DETERMINISTA MP4 1080×1920 (MODO MÓVIL XL) EN WAPPY STUDIO:`,
+      `1. El motor de Wappy Studio + FFmpeg (o el subagente 'wappy-studio-mp4-renderer' / 'wappy-video-studio') ensambla el archivo .MP4 final en resolución exacta 1080×1920 (Modo Móvil XL, 60 FPS, H.264 crf 18 yuv420p + AAC 192k) a partir del HTML activo ("${STUDIO_CURRENT_HTML_FILE}") y la pista de audio WAV.`,
+      `2. REGLA CRÍTICA ANTI-BLOQUEO FFMPEG: PROHIBIDO usar filtros 'tpad' bloqueantes en FFmpeg; controla la duración determinísticamente por fotogramas con window.seekTo(t) y '-t <duracion>', y extrae las 3 capturas de verificación (Portada 2s, Escena Central y CTA).`,
+      `3. Confirma inmediatamente la orden ejecutando:`,
+      `   node "${helperScript}" --complete-order="${ordenId}" --formato="respuesta" --resultado="Video MP4 1080×1920 (Modo Móvil XL) renderizado sin tpad y listo para descarga en Wappy Studio."`,
+    ];
+  } else if (isWappyStudioEdit) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE EDICIÓN EN VIVO DE VIDEO WAPPY STUDIO (PASO 03 — MODO MÓVIL XL 1080×1920 + ESCUADRÓN DE SUBAGENTES):`,
+      `1. NO llames herramientas MCP de consulta empresarial.`,
+      `2. Lee el archivo HTML actual del video en "${STUDIO_CURRENT_HTML_FILE}" (que contiene el video actual en pantalla en Wappy Studio).`,
+      `3. Divide la tarea en paralelo usando el Escuadrón de Subagentes de Wappy Studio ('wappy-studio-effects-director' / 'wappy-design-director' para el Blueprint de Efectos XL, 'wappy-studio-audio-podcast' / 'wappy-video-studio' para el Audio & SFX, y 'wappy-studio-scene-animator' / 'wappy-video-studio' para el montaje HTML 1080×1920 a 60 FPS) cuando la edición requiera rediseño de escenas, efectos o audio.`,
+      `4. Aplica obligatoriamente el Modo Móvil XL (1080×1920): Portada Hero durante los primeros 2.0s, Mega-Dock superior, titulares gigantes (80px–110px), subtítulos karaokes XL (54px–60px), tarjetas al 94% de ancho y efectos dinámicos de alto impacto (Lienzo Nodos n8n WAPPY, VisorNormaReal, Split-Screen Flow, Suri 3D Live HUD, Cuadrícula +50 IA, FXOrbit 3D), conservando intactas el resto de escenas, window.seekTo(t) y la duración total del audio.`,
+      `5. Guarda el código HTML editado en "/tmp/wappy_studio_${ordenId}.html" y en "${STUDIO_CURRENT_HTML_FILE}", y completa la orden ejecutando:`,
+      `   node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Edición Modo Móvil XL (1080×1920) aplicada en vivo por Antigravity sobre el video HTML" --contenido-file="/tmp/wappy_studio_${ordenId}.html"`,
+    ];
+  } else if (isWappyStudioOrder) {
+    executionInstructions = [
+      `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO WAPPY STUDIO VIDEO 60-FPS — PASO 02 MODO MÓVIL XL 1080×1920 + ESCUADRÓN DE SUBAGENTES):`,
+      `1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos, dirección de arte y textos ya vienen en la instrucción de arriba).`,
+      `2. ORQUESTACIÓN EN PARALELO CON EL ESCUADRÓN DE SUBAGENTES DE WAPPY STUDIO: Divide la tarea en paralelo usando el Escuadrón de Subagentes de Wappy Studio:`,
+      `   - 'wappy-studio-effects-director' / 'wappy-design-director' para el Blueprint de Efectos XL.`,
+      `   - 'wappy-studio-audio-podcast' / 'wappy-video-studio' para el Audio 24kHz (-14 LUFS), mezcla de SFX (barrido.wav, golpe-corto.wav, tick-suave.wav, brillo.wav) y mapa vozData a 60 FPS.`,
+      `   - 'wappy-studio-scene-animator' / 'wappy-video-studio' para el montaje HTML 1080×1920 a 60 FPS determinista con window.seekTo(t) y física spring(damping: 17, stiffness: 190).`,
+      `3. MODO MÓVIL XL OBLIGATORIO (1080×1920): Desarrolla ÚNICAMENTE la composición de video animado HTML5 + GSAP a 60 FPS ocupando el 100% del viewport dentro de <div id="stage" data-wappy-master-reel="true"> (sin paneles laterales, sin tablas ni dashboards externos al video), exigiendo:`,
+      `   - Portada Hero durante los primeros 2.0s y Mega-Dock superior.`,
+      `   - Titulares gigantes (80px–110px), subtítulos karaokes XL (54px–60px), tarjetas al 94% de ancho y logos SVG oficiales de 96px–240px.`,
+      `   - Efectos dinámicos de alto impacto: Lienzo Nodos n8n WAPPY, VisorNormaReal, Split-Screen Flow, Suri 3D Live HUD, Cuadrícula +50 IA, FXOrbit 3D, iPhone 16 Pro Dynamic Island, FX08HeadlineWall y ChartGrowFX.`,
+      `4. PROHIBIDO reutilizar archivos HTML de órdenes anteriores. Guarda el HTML resultante en "/tmp/wappy_studio_${ordenId}.html" y en "${STUDIO_CURRENT_HTML_FILE}" y completa la orden ejecutando:`,
+      `   node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Video HTML 60-FPS Modo Móvil XL (1080×1920) compilado por el Escuadrón de Wappy Studio en Antigravity" --contenido-file="/tmp/wappy_studio_${ordenId}.html"`,
     ];
   } else if (
     routingProfile.sourceModule === 'sgsst_workflow_antigravity' ||
@@ -3370,23 +3538,6 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `   - formato: "respuesta"`,
       `   - resultado: Tu respuesta en texto plano, clara, directa y bien explicada para el usuario (sin crear archivos ni documentos de ningún tipo).`,
       `   (Respaldo directo: si la herramienta MCP no aparece disponible en esta sesión, ejecuta con run_command: node "${helperScript}" --complete-order="${ordenId}" --formato="respuesta" --resultado="<TU_RESPUESTA_AQUI>")`,
-    ];
-  } else if (isWappyStudioEdit) {
-    executionInstructions = [
-      `INSTRUCCIÓN DE EDICIÓN EN VIVO DE VIDEO WAPPY STUDIO (PASO 03 — EDITAR EL HTML ACTUAL):`,
-      `1. NO llames herramientas MCP de consulta empresarial.`,
-      `2. Lee el archivo HTML actual del video en "${STUDIO_CURRENT_HTML_FILE}" (que contiene el video actual en pantalla en Wappy Studio).`,
-      `3. Aplica sobre ese código HTML exactamente la corrección e indicaciones solicitadas arriba por el usuario, conservando intactas el resto de escenas, animaciones GSAP y la duración total del audio.`,
-      `4. Guarda el código HTML editado en "/tmp/wappy_studio_${ordenId}.html" y en "${STUDIO_CURRENT_HTML_FILE}", y completa la orden ejecutando:`,
-      `   node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Edición aplicada en vivo por Antigravity sobre el video HTML" --contenido-file="/tmp/wappy_studio_${ordenId}.html"`,
-    ];
-  } else if (isHtmlApp && isWappyStudioOrder) {
-    executionInstructions = [
-      `INSTRUCCIÓN DE EJECUCIÓN AUTÓNOMA (MODO WAPPY STUDIO VIDEO 60-FPS — PASO 02 LIENZO DE VIDEO PURO):`,
-      `1. NO llames herramientas MCP de consulta empresarial (toda la escaleta, tiempos, dirección de arte y textos ya vienen en la instrucción de arriba).`,
-      `2. Desarrolla ÚNICAMENTE la composición de video animado HTML5 + GSAP a 60 FPS ocupando el 100% del viewport dentro de <div id="stage" data-wappy-master-reel="true"> (sin paneles laterales, sin tablas ni dashboards externos al video).`,
-      `3. PROHIBIDO reutilizar archivos HTML de órdenes anteriores. Guarda tu nuevo código HTML5 en "/tmp/wappy_studio_${ordenId}.html" y en "${STUDIO_CURRENT_HTML_FILE}" y completa la orden ejecutando:`,
-      `   node "${helperScript}" --complete-order="${ordenId}" --formato="html" --resultado="Video HTML 60-FPS compilado por Antigravity" --contenido-file="/tmp/wappy_studio_${ordenId}.html"`,
     ];
   } else if (isHtmlApp) {
     executionInstructions = [
