@@ -2733,10 +2733,18 @@ async function consultarArlRealPorCedula({
             posJson = JSON.parse(posText);
           } catch (_) {}
           if (posJson && !posJson.error) {
+            const firstPosCert = Array.isArray(posJson.certificados) ? posJson.certificados[0] : null;
+            const posCertId = String(
+              firstPosCert?.certificado || posJson.certificado || posJson.idCertificado || '',
+            ).trim();
             afiliadoActivo = true;
             entidadDetectada = 'ARL Positiva';
             empleadorDetalle = String(
-              posJson.razonSocial || posJson.empleador || posJson.empresa || '',
+              firstPosCert?.nombreEmpresa ||
+                posJson.razonSocial ||
+                posJson.empleador ||
+                posJson.empresa ||
+                '',
             ).trim();
             consultasTexto.push(
               `ARL Positiva: Afiliado activo${empleadorDetalle ? ` (${empleadorDetalle})` : ''}`,
@@ -2750,6 +2758,32 @@ async function consultarArlRealPorCedula({
               empleador: empleadorDetalle || undefined,
               latencyMs,
             });
+            if (includeEvidence !== false && posCertId && /^\d+$/.test(posCertId)) {
+              try {
+                const posB64Res = await insecureHttpsRequest(
+                  `https://gal-back.linktic.com/afiliaciones/certificates/${encodeURIComponent(posCertId)}/base64`,
+                  {
+                    method: 'GET',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                    timeoutMs: 12000,
+                  },
+                );
+                if (posB64Res.status === 200 && posB64Res.buf.length > 200) {
+                  const cleanB64 = posB64Res.buf
+                    .toString('utf8')
+                    .trim()
+                    .replace(/^"+|"+$/g, '');
+                  const decodedPdf = Buffer.from(cleanB64, 'base64');
+                  if (
+                    decodedPdf.length > 500 &&
+                    decodedPdf.subarray(0, 5).toString('ascii').startsWith('%PDF')
+                  ) {
+                    pdfBase64 = decodedPdf.toString('base64');
+                    pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
+                  }
+                }
+              } catch (_) {}
+            }
           } else {
             consultasTexto.push('ARL Positiva: No afiliado');
             detalles.push({
@@ -2793,12 +2827,10 @@ async function consultarArlRealPorCedula({
     }
   }
 
-  // 2) ARL Seguros Bolívar (solo si no salió activo en SURA ni Positiva, y su ARL dice Bolívar o no tiene otra ARL explícita en nómina con fechaNacimiento disponible)
+  // 2) ARL Seguros Bolívar (solo si no salió activo en SURA ni Positiva, y su ARL en nómina indica Bolívar)
   const mentionsBolivar = /bol[ií]var/i.test(cleanArl);
-  const hasNoKnownOtherArl =
-    !cleanArl || /^(por\s*registrar|sin\s*registrar|ninguna|n\/?a|-)$/i.test(cleanArl);
   const fechaNacDmy = toBirthDateDmySlash(cleanFechaNac);
-  if (!afiliadoActivo && (mentionsBolivar || (hasNoKnownOtherArl && fechaNacDmy))) {
+  if (!afiliadoActivo && mentionsBolivar) {
     if (!fechaNacDmy) {
       consultasTexto.push('ARL Bolívar: Requiere Fecha de Nacimiento para consultar');
       detalles.push({
