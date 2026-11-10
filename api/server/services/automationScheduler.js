@@ -2549,8 +2549,18 @@ async function executeRealAntigravityScraperVerification({
   }
 
   const allTargets = Array.from(targetsMap.values());
-  const validTargets = allTargets.filter((t) => t.isNumericValid).slice(0, 300);
-  const nonNumericTargets = allTargets.filter((t) => !t.isNumericValid);
+  const canQueryByNameOnly = Boolean(isAntecedentes && !isAltoRiesgo);
+  const validTargets = allTargets
+    .filter(
+      (t) =>
+        t.isNumericValid ||
+        (canQueryByNameOnly &&
+          t.nombre &&
+          t.nombre.trim().length >= 5 &&
+          !/^(colaborador|trabajador)\b/i.test(t.nombre.trim())),
+    )
+    .slice(0, 300);
+  const nonNumericTargets = allTargets.filter((t) => !validTargets.includes(t));
 
   const specificPortalAction = isArlDirecto
     ? 'arl'
@@ -2731,6 +2741,7 @@ async function executeRealAntigravityScraperVerification({
           }
 
           if (isAntecedentes && !isAltoRiesgo) {
+            const effectiveDocForRj = target.isNumericValid ? target.cleanCedula : target.rawDoc;
             const shouldIncludeAntecedentesEvidence =
               i < 10 || explicitCedulas.includes(target.cleanCedula);
             const forceFirstEvidence = i === 0 && batchIdx === 0;
@@ -2741,7 +2752,7 @@ async function executeRealAntigravityScraperVerification({
                   userId: userIdStr,
                   action: 'antecedentes',
                   tipoDoc: 'CC',
-                  cedula: target.cleanCedula,
+                  cedula: effectiveDocForRj,
                   nombre: target.nombre,
                   includeEvidence: shouldIncludeAntecedentesEvidence,
                   forceEvidence: forceFirstEvidence,
@@ -2752,7 +2763,7 @@ async function executeRealAntigravityScraperVerification({
             if (!rjRes && antigravityMode === 'auto') {
               rjRes = await consultarRamaJudicial({
                 nombreCompleto: target.nombre,
-                cedula: target.cleanCedula,
+                cedula: effectiveDocForRj,
                 tipoDoc: 'CC',
                 includeEvidence: shouldIncludeAntecedentesEvidence,
                 forceEvidence: forceFirstEvidence,
@@ -2888,9 +2899,10 @@ async function executeRealAntigravityScraperVerification({
           fuenteStr,
           title: rjCertTitle,
         });
+        const displayDoc = target.isNumericValid ? target.cleanCedula : target.rawDoc;
         verificationRows.push({
           nombre: target.nombre,
-          documento: target.cleanCedula,
+          documento: displayDoc,
           cargo: target.cargo,
           arl: target.arl || '',
           eps: target.eps || '',
@@ -2904,7 +2916,7 @@ async function executeRealAntigravityScraperVerification({
         });
         addLog(
           rjRes.error ? 'error' : hasProcs ? 'warn' : 'success',
-          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
+          `CC ${displayDoc} (${target.nombre}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleStr}`,
         );
         continue;

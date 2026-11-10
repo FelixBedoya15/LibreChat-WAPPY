@@ -776,6 +776,18 @@ function enrichMinTrabajoResult(baseObj = {}, viaDaemon = false) {
   };
 }
 
+function isSimulatedOrInvalidCedula(rawCedula = '', tipoDoc = 'CC') {
+  const raw = String(rawCedula || '').trim();
+  if (!raw) return true;
+  if (/^(prueba|simula|mock|test|ejemplo|demo|ficticio|temp|n\/a|s\/d)/i.test(raw)) return true;
+  const digits = raw.replace(/\D/g, '');
+  const cleanTipo = String(tipoDoc || 'CC').trim().toUpperCase();
+  if (['CC', 'TI', 'CE', 'NIT', 'PPT', 'PEP'].includes(cleanTipo)) {
+    if (digits.length < 5 || digits.length > 15) return true;
+  }
+  return false;
+}
+
 /**
  * Consulta Certificados de Trabajo en Alturas y Espacios Confinados en MinTrabajo
  * y descarga opcionalmente el PDF e imagen PNG de la constancia más reciente en base64.
@@ -808,6 +820,30 @@ async function consultarAlturasMinTrabajo({
       historialCompleto: [],
       viaAntigravityDaemon: false,
     });
+  }
+
+  if (isSimulatedOrInvalidCedula(cleanCedula, cleanTipoDoc)) {
+    return {
+      encontrado: false,
+      activoEnAlturas: false,
+      activoEnConfinados: false,
+      documento: cleanCedula,
+      tipoDoc: cleanTipoDoc,
+      titular: null,
+      ultimoCertificadoAlturas: null,
+      ultimoCertificadoConfinados: null,
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      historialCompleto: [],
+      cursos: [],
+      viaAntigravityDaemon: false,
+      status: 'warning',
+      estadoReal: '⚪ DOC. DE PRUEBA / NO NUMÉRICO',
+      fuente: 'Validación Previa WAPPY (MinTrabajo)',
+      resumen: `El documento "${cleanCedula}" es un código de simulación o no numérico; el portal de MinTrabajo exige número de identificación real (5 a 12 dígitos).`,
+    };
   }
 
   // 1. Priorizar el Túnel Reactivo de Google Antigravity (wappy-push-daemon en IP Colombia) cuando está conectado
@@ -2513,6 +2549,10 @@ async function consultarRamaJudicial(params = '') {
         ? `Contraloría General (${cleanTipoDoc} ${cleanCedula}): REPORTADO como responsable fiscal`
         : `Contraloría General (${cleanTipoDoc} ${cleanCedula}): NO reportado como responsable fiscal (certificado PDF oficial descargado)`,
     );
+  } else if (cleanCedula && isSimulatedOrInvalidCedula(cleanCedula, cleanTipoDoc)) {
+    partesResumen.push(
+      `Contraloría General omitida (documento "${cleanCedula}" es código de prueba/no numérico)`,
+    );
   }
 
   const resumen =
@@ -2559,7 +2599,8 @@ async function consultarArlRealPorCedula({
   includeEvidence = true,
 } = {}) {
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
-  const cleanCedula = String(cedula || '').replace(/[^\dA-Za-z]/g, '').trim();
+  const rawCedulaStr = String(cedula || '').trim();
+  const cleanCedula = rawCedulaStr.replace(/[^\dA-Za-z]/g, '').trim();
   const cleanNombre = String(nombre || '').trim();
   const cleanFechaNac = formatCleanFechaNacimiento(fechaNacimiento);
   const cleanArl = String(arl || '').trim();
@@ -2580,6 +2621,26 @@ async function consultarArlRealPorCedula({
       imageBase64: null,
       imageFileName: null,
       resumen: 'No se suministró número de documento para consultar afiliación ARL.',
+      detalles: [],
+    };
+  }
+
+  if (isSimulatedOrInvalidCedula(rawCedulaStr, cleanTipoDoc)) {
+    return {
+      fuente: 'Validación Previa WAPPY (ARL)',
+      status: 'warning',
+      action: 'arl',
+      tipoDoc: cleanTipoDoc,
+      documento: rawCedulaStr,
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneCertificado: false,
+      estadoReal: '⚪ DOC. DE PRUEBA / NO NUMÉRICO',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: `El documento "${rawCedulaStr}" es un código de simulación o no numérico; los portales ARL SURA, Positiva y Bolívar exigen número de cédula real (5 a 12 dígitos).`,
       detalles: [],
     };
   }
@@ -3110,7 +3171,8 @@ async function consultarSimitPesvRealPorCedula({
   forceEvidence = false,
 } = {}) {
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
-  const cleanCedula = String(cedula || '').replace(/[^\dA-Za-z]/g, '').trim();
+  const rawCedulaStr = String(cedula || '').trim();
+  const cleanCedula = rawCedulaStr.replace(/[^\dA-Za-z]/g, '').trim();
   const cleanPlaca = String(placa || '').replace(/[^A-Za-z0-9]/g, '').trim().toUpperCase();
   const cleanNombre = String(nombre || '').trim();
   const queryKey = cleanPlaca || cleanCedula;
@@ -3133,6 +3195,28 @@ async function consultarSimitPesvRealPorCedula({
       imageBase64: null,
       imageFileName: null,
       resumen: 'Se requiere número de documento o placa para consultar estado de cuenta en SIMIT.',
+      detalles: [],
+    };
+  }
+
+  if (!cleanPlaca && isSimulatedOrInvalidCedula(rawCedulaStr, cleanTipoDoc)) {
+    return {
+      fuente: 'Validación Previa WAPPY (SIMIT)',
+      status: 'warning',
+      action: 'vial_pesv',
+      tipoDoc: cleanTipoDoc,
+      documento: rawCedulaStr,
+      placa: cleanPlaca,
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneHallazgo: false,
+      tieneCertificado: false,
+      estadoReal: '⚪ DOC. DE PRUEBA / NO NUMÉRICO',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: `El documento "${rawCedulaStr}" es un código de simulación o no numérico y no se suministró placa; SIMIT exige número de cédula real (5 a 12 dígitos) o placa vehicular.`,
       detalles: [],
     };
   }
@@ -3457,7 +3541,8 @@ async function consultarPensionesRealPorCedula({
   includeEvidence = true,
 } = {}) {
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
-  const cleanCedula = String(cedula || '').replace(/[^\dA-Za-z]/g, '').trim();
+  const rawCedulaStr = String(cedula || '').trim();
+  const cleanCedula = rawCedulaStr.replace(/[^\dA-Za-z]/g, '').trim();
   const cleanNombre = String(nombre || '').trim();
   const cleanAfp = String(afp || '').trim();
   const cleanFechaNac = formatCleanFechaNacimiento(fechaNacimiento);
@@ -3478,6 +3563,26 @@ async function consultarPensionesRealPorCedula({
       imageBase64: null,
       imageFileName: null,
       resumen: 'No se suministró número de documento para consultar fondo de pensiones.',
+      detalles: [],
+    };
+  }
+
+  if (isSimulatedOrInvalidCedula(rawCedulaStr, cleanTipoDoc)) {
+    return {
+      fuente: 'Validación Previa WAPPY (Porvenir AFP)',
+      status: 'warning',
+      action: 'pensiones',
+      tipoDoc: cleanTipoDoc,
+      documento: rawCedulaStr,
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneCertificado: false,
+      estadoReal: '⚪ DOC. DE PRUEBA / NO NUMÉRICO',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen: `El documento "${rawCedulaStr}" es un código de simulación o no numérico; Porvenir AFP exige número de cédula real (5 a 12 dígitos).`,
       detalles: [],
     };
   }
