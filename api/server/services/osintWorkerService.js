@@ -158,9 +158,20 @@ async function convertPdfBase64ToPngBase64(pdfBase64) {
 
     if (process.platform === 'darwin') {
       const sipsBin = fs.existsSync('/usr/bin/sips') ? '/usr/bin/sips' : 'sips';
-      await execFileAsync(sipsBin, ['-s', 'format', 'png', pdfPath, '--out', pngPath], {
-        timeout: 6000,
-      });
+      try {
+        await execFileAsync(sipsBin, ['-s', 'format', 'png', pdfPath, '--out', pngPath], {
+          timeout: 6000,
+        });
+      } catch (_) {
+        const qlBin = fs.existsSync('/usr/bin/qlmanage') ? '/usr/bin/qlmanage' : 'qlmanage';
+        await execFileAsync(qlBin, ['-t', '-s', '1200', '-o', tmpDir, pdfPath], {
+          timeout: 6000,
+        }).catch(() => {});
+        const qlOut = `${pdfPath}.png`;
+        if (fs.existsSync(qlOut) && !fs.existsSync(pngPath)) {
+          await fs.promises.rename(qlOut, pngPath).catch(() => {});
+        }
+      }
       if (fs.existsSync(pngPath)) {
         const pngBuf = await fs.promises.readFile(pngPath);
         if (
@@ -2782,10 +2793,12 @@ async function consultarArlRealPorCedula({
     }
   }
 
-  // 2) ARL Seguros Bolívar (solo si no salió activo en SURA ni Positiva, y tiene fechaNacimiento o su ARL dice Bolívar)
+  // 2) ARL Seguros Bolívar (solo si no salió activo en SURA ni Positiva, y su ARL dice Bolívar o no tiene otra ARL explícita en nómina con fechaNacimiento disponible)
   const mentionsBolivar = /bol[ií]var/i.test(cleanArl);
+  const hasNoKnownOtherArl =
+    !cleanArl || /^(por\s*registrar|sin\s*registrar|ninguna|n\/?a|-)$/i.test(cleanArl);
   const fechaNacDmy = toBirthDateDmySlash(cleanFechaNac);
-  if (!afiliadoActivo && (fechaNacDmy || mentionsBolivar)) {
+  if (!afiliadoActivo && (mentionsBolivar || (hasNoKnownOtherArl && fechaNacDmy))) {
     if (!fechaNacDmy) {
       consultasTexto.push('ARL Bolívar: Requiere Fecha de Nacimiento para consultar');
       detalles.push({

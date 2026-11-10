@@ -4876,10 +4876,10 @@ function startSseWorker(cliArgs) {
 
             let lastChunkAt = Date.now();
             watchdog = setInterval(() => {
-              if (Date.now() - lastChunkAt > 45000) {
-                scheduleReconnect(`🔄 Silencio en stream SSE (${keyShort} >45s). Reconectando automáticamente...`, 1500);
+              if (Date.now() - lastChunkAt > 120000) {
+                scheduleReconnect(`🔄 Silencio en stream SSE (${keyShort} >120s). Reconectando automáticamente...`, 1500);
               }
-            }, 15000);
+            }, 20000);
 
             let buffer = '';
             let currentEvent = 'message';
@@ -4935,8 +4935,8 @@ function startSseWorker(cliArgs) {
                                 query: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
                                 alto_riesgo: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
                                 antecedentes: 'https://consultaprocesos.ramajudicial.gov.co/Procesos/NombreRazonSocial',
-                                arl: 'https://ruaf.sispro.gov.co/',
-                                pensiones: 'https://www.colpensiones.gov.co/',
+                                arl: 'https://www.arlsura.com/index.php/com-es-afiliado?tmpl=component',
+                                pensiones: 'https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion',
                                 salud_rethus: 'https://aplicaciones.adres.gov.co/bdua_internet/Pages/ConsultarAfiliadoWeb.aspx',
                                 vial_pesv: 'https://www.fcm.org.co/simit/#/home-public',
                               };
