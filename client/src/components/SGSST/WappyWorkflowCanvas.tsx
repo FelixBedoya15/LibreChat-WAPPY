@@ -784,9 +784,18 @@ export default function WappyWorkflowCanvas({
   const [ndvCenterTab, setNdvCenterTab] = useState<'parameters' | 'settings'>('parameters');
   const [ndvInputView, setNdvInputView] = useState<'schema' | 'table' | 'json'>('table');
   const [ndvOutputTab, setNdvOutputTab] = useState<'output' | 'logs'>('output');
-  const [ndvOutputView, setNdvOutputView] = useState<'table' | 'json' | 'schema' | 'markdown'>(
-    'table',
-  );
+  const [ndvOutputView, setNdvOutputView] = useState<
+    'table' | 'json' | 'schema' | 'markdown' | 'report'
+  >('table');
+  const [selectedLiveReportIdx, setSelectedLiveReportIdx] = useState<number>(0);
+  const [liveInspectorRefreshTick, setLiveInspectorRefreshTick] = useState<number>(0);
+  const pendingOutputIfBranchRef = useRef<'yes' | 'no' | null>(null);
+  const portPointerDownClientRef = useRef<{
+    x: number;
+    y: number;
+    sourceKey: string;
+    portType: string;
+  } | null>(null);
   const [ndvInputSearch, setNdvInputSearch] = useState<string>('');
   const [ndvOutputSearch, setNdvOutputSearch] = useState<string>('');
   const [ndvSelectedUpstreamKey, setNdvSelectedUpstreamKey] = useState<string>('auto');
@@ -929,6 +938,16 @@ export default function WappyWorkflowCanvas({
       data?: Record<string, any>;
       [key: string]: any;
     }>;
+    latestReports?: Array<{
+      id?: string;
+      conversationId?: string;
+      title?: string;
+      createdAt?: string;
+      updatedAt?: string;
+      charCount?: number;
+      preview?: string;
+      html?: string;
+    }>;
   }>({
     loading: false,
     supported: false,
@@ -939,6 +958,7 @@ export default function WappyWorkflowCanvas({
     criticalCount: 0,
     kpis: [],
     records: [],
+    latestReports: [],
   });
   const pointerDownClientRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -1165,7 +1185,7 @@ export default function WappyWorkflowCanvas({
   const visualNodes = useMemo<VisualNodeInstance[]>(() => {
     const list: VisualNodeInstance[] = [];
     const calcStackedY = (count: number, idx: number): number =>
-      count <= 1 ? 84 : 28 + idx * 134;
+      count <= 1 ? 84 : 28 + idx * 156;
     const nodeConfigsMap = workflowNodes?.canvasLayout?.nodeConfigs;
 
     // Precalcular listas activas para alinear etapas de izquierda a derecha sin cruces ni superposiciones
@@ -1186,7 +1206,7 @@ export default function WappyWorkflowCanvas({
             !isNodeIdBlockedInWorkflow(outId, disabledSgsstApps) && Boolean(getNodeDefById(outId)),
         )
       : ['email_report'];
-    const baseOutputs = rawOutputs.length > 0 ? rawOutputs : ['email_report'];
+    const baseOutputs = workflowNodes?.outputs !== undefined ? rawOutputs : ['email_report'];
     const outputs = includeIfNode
       ? baseOutputs
           .map((outId, idx) => ({
@@ -1451,13 +1471,25 @@ export default function WappyWorkflowCanvas({
       });
     });
 
+    // Sanear posiciones heredadas invertidas: si Condición Si/No quedó guardada con X <= X de Hitos (antes de que Hitos pasara a Etapa 4), usar hitoBaseX / ifBaseX limpios
+    const hasLegacyInvertedIfAndHitos =
+      includeIfNode &&
+      hitosList.length > 0 &&
+      Boolean(customPositions['if_router']) &&
+      hitosList.some((hid) => {
+        const hx = customPositions[`tool_hitos_${hid}`]?.x ?? hitoBaseX;
+        return customPositions['if_router'].x <= hx;
+      });
+
     // ETAPA 4. NODOS DE APLICATIVOS / HITOS SOMOS SST (ANTES de Condición Si/No: consultar/auditar/alimentar Hitos 1–8)
     hitosList.forEach((hitoId, idx) => {
       const def = getNodeDefById(hitoId);
       if (!def) return;
       const key = `tool_hitos_${hitoId}`;
       const defaultY = calcStackedY(hitosList.length, idx);
-      const pos = customPositions[key] || { x: hitoBaseX, y: defaultY };
+      const pos = hasLegacyInvertedIfAndHitos
+        ? { x: hitoBaseX, y: defaultY }
+        : customPositions[key] || { x: hitoBaseX, y: defaultY };
       list.push({
         key,
         nodeId: hitoId,
@@ -1494,7 +1526,9 @@ export default function WappyWorkflowCanvas({
     // ETAPA 5. NODO CONDICIONAL SI / NO (Solo si includeIfNode === true, evaluado DESPUÉS de Hitos/Loop/Merge y ANTES de Salidas)
     if (includeIfNode) {
       const defaultIfY = outputs.length >= 3 ? 148 : 84;
-      const ifPos = customPositions['if_router'] || { x: ifBaseX, y: defaultIfY };
+      const ifPos = hasLegacyInvertedIfAndHitos
+        ? { x: ifBaseX, y: defaultIfY }
+        : customPositions['if_router'] || { x: ifBaseX, y: defaultIfY };
       const ifCustomSubtitle =
         (nodeConfigsMap?.['if_router'] as Record<string, any> | undefined)?.ifConditionLabel ||
         '¿Hay hallazgos?';
@@ -1664,18 +1698,27 @@ export default function WappyWorkflowCanvas({
       label?: string;
       labelX?: number;
       labelY?: number;
+      curveBelowY?: number;
     }) => {
       if (removedSet.has(w.id)) return;
       if (!w.isSub && !w.id.startsWith('custom_') && allAutoMainRemoved) return;
+      let computedMidY = Math.round((w.y1 + w.y2) / 2);
       const d = w.isSub
         ? (() => {
             const dy = Math.max(38, Math.abs(w.y2 - w.y1) * 0.52);
             return `M ${w.x1} ${w.y1} C ${w.x1} ${w.y1 + dy}, ${w.x2} ${w.y2 - dy}, ${w.x2} ${w.y2}`;
           })()
-        : (() => {
-            const dx = Math.max(36, Math.abs(w.x2 - w.x1) * 0.48);
-            return `M ${w.x1} ${w.y1} C ${w.x1 + dx} ${w.y1}, ${w.x2 - dx} ${w.y2}, ${w.x2} ${w.y2}`;
-          })();
+        : typeof w.curveBelowY === 'number'
+          ? (() => {
+              const detourY = Math.max(w.curveBelowY, w.y1 + 42, w.y2 + 42);
+              const dx = Math.max(44, Math.abs(w.x2 - w.x1) * 0.34);
+              computedMidY = Math.round(0.125 * w.y1 + 0.75 * detourY + 0.125 * w.y2);
+              return `M ${w.x1} ${w.y1} C ${w.x1 + dx} ${detourY}, ${w.x2 - dx} ${detourY}, ${w.x2} ${w.y2}`;
+            })()
+          : (() => {
+              const dx = Math.max(36, Math.abs(w.x2 - w.x1) * 0.48);
+              return `M ${w.x1} ${w.y1} C ${w.x1 + dx} ${w.y1}, ${w.x2 - dx} ${w.y2}, ${w.x2} ${w.y2}`;
+            })();
       paths.push({
         id: w.id,
         sourceKey: w.sourceKey,
@@ -1685,7 +1728,7 @@ export default function WappyWorkflowCanvas({
         dashed: w.dashed,
         color: w.color,
         midX: Math.round((w.x1 + w.x2) / 2),
-        midY: Math.round((w.y1 + w.y2) / 2),
+        midY: computedMidY,
         label: w.label,
         labelX: w.labelX,
         labelY: w.labelY,
@@ -1792,7 +1835,11 @@ export default function WappyWorkflowCanvas({
         connectStageGroups(upstreamBeforeIf, [ifNode], 'wire_to_if', '#94a3b8');
       }
 
-      if (outputNodes.length > 0) {
+      if (
+        outputNodes.length > 0 ||
+        approvalNodes.length > 0 ||
+        extraAgentNodes.length > 0
+      ) {
         const allOutIds = outputNodes.map((n) => n.nodeId);
         const nodeCfgs = workflowNodes?.canvasLayout?.nodeConfigs;
         const yesOuts: VisualNodeInstance[] = [];
@@ -1813,12 +1860,12 @@ export default function WappyWorkflowCanvas({
         const y1YesPort = ifNode.y + 22;
         const y1NoPort = ifNode.y + 50;
 
-        // Rama SÍ: puede atravesar Aprobación Humana y/o Agente Revisor antes de llegar a las salidas SÍ
+        // Rama SÍ: conecta if_router (sí) -> approvalNodes -> extraAgentNodes incluso cuando yesOuts.length === 0
         const yesIntermediates: VisualNodeInstance[][] = [];
         if (approvalNodes.length > 0) yesIntermediates.push(approvalNodes);
         extraAgentNodes.forEach((ea) => yesIntermediates.push([ea]));
 
-        if (yesIntermediates.length > 0 && yesOuts.length > 0) {
+        if (yesIntermediates.length > 0) {
           const firstStage = yesIntermediates[0];
           firstStage.forEach((dst, sIdx) => {
             pushWire({
@@ -1844,12 +1891,14 @@ export default function WappyWorkflowCanvas({
               '#10b981',
             );
           }
-          connectStageGroups(
-            yesIntermediates[yesIntermediates.length - 1],
-            yesOuts,
-            'wire_yes_out',
-            '#10b981',
-          );
+          if (yesOuts.length > 0) {
+            connectStageGroups(
+              yesIntermediates[yesIntermediates.length - 1],
+              yesOuts,
+              'wire_yes_out',
+              '#10b981',
+            );
+          }
         } else {
           yesOuts.forEach((outNode, yIdx) => {
             pushWire({
@@ -1869,7 +1918,13 @@ export default function WappyWorkflowCanvas({
           });
         }
 
-        // Rama NO: va directo a las salidas silenciosas de cumplimiento
+        // Rama NO: si existen approvalNodes o extraAgentNodes intermedios, traza curva Bezier limpia por debajo sin cruzarlos
+        const allIntermediatesBetween = [...approvalNodes, ...extraAgentNodes];
+        const noDetourBelowY =
+          allIntermediatesBetween.length > 0
+            ? Math.max(...allIntermediatesBetween.map((nd) => nd.y + nd.height + 46)) + 34
+            : undefined;
+
         noOuts.forEach((outNode, nIdx) => {
           pushWire({
             id: `wire_if_${outNode.key}`,
@@ -1884,6 +1939,7 @@ export default function WappyWorkflowCanvas({
             label: nIdx === 0 ? 'no' : undefined,
             labelX: x1Port + 16,
             labelY: y1NoPort + 13,
+            curveBelowY: noDetourBelowY,
           });
         });
       }
@@ -2507,7 +2563,14 @@ export default function WappyWorkflowCanvas({
     if (!onChange || readOnly) return;
     const nextCustom = (workflowNodes?.canvasLayout?.customNodes || []).filter((c) => c.key !== key);
     const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
-      (ed) => ed.from !== key && ed.to !== key,
+      (ed: any) => ed.from !== key && ed.to !== key && ed.source !== key && ed.target !== key,
+    );
+    const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+    const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
+    delete nextPositions[key];
+    delete nextNodeConfigs[key];
+    const nextRemovedWires = (workflowNodes?.canvasLayout?.removedWires || []).filter(
+      (rw) => !rw.includes(key),
     );
     if (activeConfigNodeKey === key) setActiveConfigNodeKey(null);
     onChange({
@@ -2516,6 +2579,9 @@ export default function WappyWorkflowCanvas({
         ...(workflowNodes?.canvasLayout || {}),
         customNodes: nextCustom,
         edges: nextEdges,
+        positions: nextPositions,
+        nodeConfigs: nextNodeConfigs,
+        removedWires: nextRemovedWires,
       },
     });
   };
@@ -2545,7 +2611,14 @@ export default function WappyWorkflowCanvas({
     if (!onChange || readOnly) return;
     const nextLogic = (workflowNodes?.canvasLayout?.logicNodes || []).filter((ln) => ln.key !== key);
     const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
-      (ed) => ed.from !== key && ed.to !== key,
+      (ed: any) => ed.from !== key && ed.to !== key && ed.source !== key && ed.target !== key,
+    );
+    const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+    const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
+    delete nextPositions[key];
+    delete nextNodeConfigs[key];
+    const nextRemovedWires = (workflowNodes?.canvasLayout?.removedWires || []).filter(
+      (rw) => !rw.includes(key),
     );
     if (activeConfigNodeKey === key) setActiveConfigNodeKey(null);
     onChange({
@@ -2554,6 +2627,9 @@ export default function WappyWorkflowCanvas({
         ...(workflowNodes?.canvasLayout || {}),
         logicNodes: nextLogic,
         edges: nextEdges,
+        positions: nextPositions,
+        nodeConfigs: nextNodeConfigs,
+        removedWires: nextRemovedWires,
       },
     });
   };
@@ -2606,7 +2682,14 @@ export default function WappyWorkflowCanvas({
     if (!onChange || readOnly) return;
     const nextExtra = (workflowNodes?.canvasLayout?.extraAgents || []).filter((ea) => ea.key !== key);
     const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
-      (ed) => ed.from !== key && ed.to !== key,
+      (ed: any) => ed.from !== key && ed.to !== key && ed.source !== key && ed.target !== key,
+    );
+    const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+    const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
+    delete nextPositions[key];
+    delete nextNodeConfigs[key];
+    const nextRemovedWires = (workflowNodes?.canvasLayout?.removedWires || []).filter(
+      (rw) => !rw.includes(key),
     );
     if (activeConfigNodeKey === key) setActiveConfigNodeKey(null);
     onChange({
@@ -2615,6 +2698,9 @@ export default function WappyWorkflowCanvas({
         ...(workflowNodes?.canvasLayout || {}),
         extraAgents: nextExtra,
         edges: nextEdges,
+        positions: nextPositions,
+        nodeConfigs: nextNodeConfigs,
+        removedWires: nextRemovedWires,
       },
     });
   };
@@ -2777,6 +2863,52 @@ export default function WappyWorkflowCanvas({
     }
   }, []);
 
+  // Firma de parámetros en vivo del nodo seleccionado para refrescar el inspector con debounce (380ms)
+  const activeNodeLiveCfg = activeConfigNodeKey
+    ? workflowNodes?.canvasLayout?.nodeConfigs?.[activeConfigNodeKey]
+    : undefined;
+  const activeInspectorQueryParamsSig = JSON.stringify({
+    driveFolderName: activeNodeLiveCfg?.driveFolderName || '',
+    fileTypeFilter: activeNodeLiveCfg?.fileTypeFilter || '',
+    maxItems: activeNodeLiveCfg?.maxItems ?? '',
+    sstAppSourceId: activeNodeLiveCfg?.sstAppSourceId || '',
+    emailSubjectFilter: activeNodeLiveCfg?.emailSubjectFilter || '',
+    endpointUrl: activeNodeLiveCfg?.endpointUrl || activeNodeLiveCfg?.targetUrl || '',
+  });
+  const [debouncedInspectorParamsSig, setDebouncedInspectorParamsSig] = useState<string>(
+    activeInspectorQueryParamsSig,
+  );
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedInspectorParamsSig(activeInspectorQueryParamsSig);
+    }, 380);
+    return () => clearTimeout(t);
+  }, [activeInspectorQueryParamsSig]);
+
+  useEffect(() => {
+    setSelectedLiveReportIdx(0);
+  }, [activeConfigNodeKey]);
+
+  const buildLiveInspectorUrl = useCallback(
+    (inspectNodeId: string, cfg?: CanvasNodeConfig) => {
+      const qs = new URLSearchParams();
+      qs.set('nodeId', inspectNodeId);
+      if (cfg?.driveFolderName?.trim()) qs.set('driveFolderName', cfg.driveFolderName.trim());
+      if (cfg?.fileTypeFilter?.trim()) qs.set('fileTypeFilter', cfg.fileTypeFilter.trim());
+      if (typeof cfg?.maxItems === 'number' && Number.isFinite(cfg.maxItems) && cfg.maxItems > 0) {
+        qs.set('maxItems', String(cfg.maxItems));
+      }
+      if (cfg?.sstAppSourceId?.trim()) qs.set('sstAppSourceId', cfg.sstAppSourceId.trim());
+      if (cfg?.emailSubjectFilter?.trim()) {
+        qs.set('emailSubjectFilter', cfg.emailSubjectFilter.trim());
+      }
+      const ep = cfg?.endpointUrl?.trim() || cfg?.targetUrl?.trim();
+      if (ep) qs.set('endpointUrl', ep);
+      return `/api/sgsst/automatizaciones/node-live-inspector?${qs.toString()}`;
+    },
+    [],
+  );
+
   // Cargar automáticamente el Inspector de Datos y Resultados Reales en Vivo (/api/sgsst/automatizaciones/node-live-inspector)
   useEffect(() => {
     if (!activeConfigNodeKey || readOnly || !activeNodeIdentity) {
@@ -2790,6 +2922,7 @@ export default function WappyWorkflowCanvas({
         criticalCount: 0,
         kpis: [],
         records: [],
+        latestReports: [],
       });
       return;
     }
@@ -2814,10 +2947,6 @@ export default function WappyWorkflowCanvas({
       rawId === 'if_node_router' ||
       rawId.startsWith('logic_');
 
-    // Todos los nodos de los 8 Equipos (Disparadores, Extractores, Motores IA, las 4 Memorias,
-    // las 25 Herramientas del Agente, los 50 Aplicativos de los 8 Hitos, las 11 Salidas de Bitácora
-    // y los nodos de Skills/Sub-Agentes/Reglas/Scraping) son inspeccionables en vivo,
-    // excepto únicamente los nodos lógicos puros (if_router, logic_*).
     const isLiveInspectable = Boolean(rawId) && !isPureLogicNode;
 
     if (!isLiveInspectable) {
@@ -2831,6 +2960,7 @@ export default function WappyWorkflowCanvas({
         criticalCount: 0,
         kpis: [],
         records: [],
+        latestReports: [],
       });
     } else {
       setNodeLiveInspectorData((prev) => ({
@@ -2847,6 +2977,8 @@ export default function WappyWorkflowCanvas({
       localStorage.getItem('token') ||
       '';
 
+    const allNodeCfgs = workflowNodes?.canvasLayout?.nodeConfigs || {};
+
     if (isLiveInspectable) {
       const inspectQueryNodeId =
         activeNode.shape === 'custom_node'
@@ -2857,7 +2989,7 @@ export default function WappyWorkflowCanvas({
 
       axios
         .get(
-          `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(inspectQueryNodeId)}`,
+          buildLiveInspectorUrl(inspectQueryNodeId, allNodeCfgs[activeNode.key]),
           token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
         )
         .then((res) => {
@@ -2865,6 +2997,7 @@ export default function WappyWorkflowCanvas({
           const data = res.data || {};
           const recordsList = Array.isArray(data.records) ? data.records : [];
           const kpisList = Array.isArray(data.kpis) ? data.kpis : [];
+          const latestReportsList = Array.isArray(data.latestReports) ? data.latestReports : [];
           const computedCrit =
             typeof data.criticalCount === 'number'
               ? data.criticalCount
@@ -2881,6 +3014,7 @@ export default function WappyWorkflowCanvas({
             criticalCount: computedCrit,
             kpis: kpisList,
             records: recordsList,
+            latestReports: latestReportsList,
           });
           setUpstreamLiveRecordsCache((prev) => ({
             ...prev,
@@ -2906,6 +3040,7 @@ export default function WappyWorkflowCanvas({
             criticalCount: 0,
             kpis: [],
             records: [],
+            latestReports: [],
           });
         });
     }
@@ -2948,7 +3083,7 @@ export default function WappyWorkflowCanvas({
           : uRawId;
       axios
         .get(
-          `/api/sgsst/automatizaciones/node-live-inspector?nodeId=${encodeURIComponent(uInspectId)}`,
+          buildLiveInspectorUrl(uInspectId, allNodeCfgs[uNode.key]),
           token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
         )
         .then((res) => {
@@ -2973,7 +3108,15 @@ export default function WappyWorkflowCanvas({
     return () => {
       cancelled = true;
     };
-  }, [activeConfigNodeKey, activeNodeIdentity, upstreamTopologySignature, readOnly]);
+  }, [
+    activeConfigNodeKey,
+    activeNodeIdentity,
+    upstreamTopologySignature,
+    debouncedInspectorParamsSig,
+    liveInspectorRefreshTick,
+    buildLiveInspectorUrl,
+    readOnly,
+  ]);
 
   // Extrae los pares { field, value } reales de un registro de MongoDB para la Vista Previa Quirúrgica en Vivo
   const resolveRecordSurgicalPreview = useCallback(
@@ -3189,6 +3332,12 @@ export default function WappyWorkflowCanvas({
   ) => {
     if (readOnly) return;
     e.stopPropagation();
+    portPointerDownClientRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      sourceKey,
+      portType,
+    };
     setWiringFrom({
       sourceKey,
       portType,
@@ -3217,14 +3366,19 @@ export default function WappyWorkflowCanvas({
       if (removableKeys.length === 0) return;
 
       const keySet = new Set(removableKeys);
+      const prevTriggers = [...activeTriggers];
+      const prevMemories = [...activeMemories];
       let nextTriggers = [...activeTriggers];
       let nextExtractors = [...activeExtractors];
       let nextMemories = [...activeMemories];
       let nextInputs = [...(workflowNodes.inputs || [])];
       let nextHitos = [...(workflowNodes.hitos || [])];
-      let nextOutputs = Array.isArray(workflowNodes.outputs)
-        ? [...workflowNodes.outputs]
-        : ['email_report'];
+      let nextOutputs =
+        workflowNodes?.outputs !== undefined
+          ? Array.isArray(workflowNodes.outputs)
+            ? [...workflowNodes.outputs]
+            : []
+          : ['email_report'];
       let nextIncludeIf = includeIfNode;
       let nextLogic = [...(workflowNodes?.canvasLayout?.logicNodes || [])];
       let nextExtraAgents = [...(workflowNodes?.canvasLayout?.extraAgents || [])];
@@ -3262,8 +3416,65 @@ export default function WappyWorkflowCanvas({
         }
       });
 
-      const nextEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
-        (ed) => !keySet.has(ed.from) && !keySet.has(ed.to),
+      // Migrar positions y nodeConfigs del siguiente trigger/memoria que pasa a ser índice 0 (trigger_root / sub_memory)
+      const keyRenameMap: Record<string, string> = {};
+      if (
+        prevTriggers.length > 1 &&
+        nextTriggers.length > 0 &&
+        prevTriggers[0] !== nextTriggers[0]
+      ) {
+        const oldSecondTrigKey = `trigger_${nextTriggers[0]}`;
+        keyRenameMap[oldSecondTrigKey] = 'trigger_root';
+        if (nextPositions[oldSecondTrigKey]) {
+          nextPositions['trigger_root'] = nextPositions[oldSecondTrigKey];
+          delete nextPositions[oldSecondTrigKey];
+        }
+        if (nextNodeConfigs[oldSecondTrigKey]) {
+          nextNodeConfigs['trigger_root'] = nextNodeConfigs[oldSecondTrigKey];
+          delete nextNodeConfigs[oldSecondTrigKey];
+        }
+      }
+      if (
+        prevMemories.length > 1 &&
+        nextMemories.length > 0 &&
+        prevMemories[0] !== nextMemories[0]
+      ) {
+        const oldSecondMemKey = `sub_memory_${nextMemories[0]}`;
+        keyRenameMap[oldSecondMemKey] = 'sub_memory';
+        if (nextPositions[oldSecondMemKey]) {
+          nextPositions['sub_memory'] = nextPositions[oldSecondMemKey];
+          delete nextPositions[oldSecondMemKey];
+        }
+        if (nextNodeConfigs[oldSecondMemKey]) {
+          nextNodeConfigs['sub_memory'] = nextNodeConfigs[oldSecondMemKey];
+          delete nextNodeConfigs[oldSecondMemKey];
+        }
+      }
+
+      const nextEdges = (workflowNodes?.canvasLayout?.edges || [])
+        .filter(
+          (ed: any) =>
+            !keySet.has(ed.from) &&
+            !keySet.has(ed.to) &&
+            !keySet.has(ed.source) &&
+            !keySet.has(ed.target),
+        )
+        .map((ed) => {
+          const mappedFrom = keyRenameMap[ed.from] || ed.from;
+          const mappedTo = keyRenameMap[ed.to] || ed.to;
+          if (mappedFrom !== ed.from || mappedTo !== ed.to) {
+            return {
+              ...ed,
+              id: ed.id.startsWith('custom_') ? `custom_${mappedFrom}_${mappedTo}` : ed.id,
+              from: mappedFrom,
+              to: mappedTo,
+            };
+          }
+          return ed;
+        });
+
+      const nextRemovedWires = (workflowNodes?.canvasLayout?.removedWires || []).filter(
+        (rw) => !removableKeys.some((rk) => rw.includes(rk)),
       );
 
       setSelectedNodeKeys((prev) => prev.filter((k) => !keySet.has(k)));
@@ -3287,6 +3498,7 @@ export default function WappyWorkflowCanvas({
           positions: nextPositions,
           nodeConfigs: nextNodeConfigs,
           edges: nextEdges,
+          removedWires: nextRemovedWires,
           logicNodes: nextLogic,
           extraAgents: nextExtraAgents,
           customNodes: nextCustomNodes,
@@ -3460,9 +3672,86 @@ export default function WappyWorkflowCanvas({
       setDraggingNodeKey(null);
     }
     if (wiringFrom) {
+      const portClickMeta = portPointerDownClientRef.current;
+      portPointerDownClientRef.current = null;
+      const wasShortClickOnPort =
+        Boolean(portClickMeta && e) &&
+        Math.hypot(
+          (e?.clientX ?? 0) - (portClickMeta?.x ?? 0),
+          (e?.clientY ?? 0) - (portClickMeta?.y ?? 0),
+        ) < 6;
+
+      if (wasShortClickOnPort && !readOnly) {
+        if (wiringFrom.portType === 'diamond_model') {
+          const isExtraAgentSrc = wiringFrom.sourceKey.startsWith('agent_extra_');
+          setPaletteTab('ai_engine');
+          setActiveConfigNodeKey(isExtraAgentSrc ? wiringFrom.sourceKey : 'sub_model');
+          setWiringFrom(null);
+          return;
+        }
+        if (wiringFrom.portType === 'diamond_memory') {
+          setPaletteTab('memories');
+          setActiveConfigNodeKey('sub_memory');
+          setWiringFrom(null);
+          return;
+        }
+        if (wiringFrom.portType === 'diamond_tool') {
+          setPaletteTab('connectors');
+          setActiveConfigNodeKey(wiringFrom.sourceKey);
+          setWiringFrom(null);
+          return;
+        }
+        if (wiringFrom.portType === 'if_true' || wiringFrom.portType === 'if_false') {
+          pendingOutputIfBranchRef.current = wiringFrom.portType === 'if_true' ? 'yes' : 'no';
+          setPaletteTab('outputs');
+          setWiringFrom(null);
+          return;
+        }
+      }
+
       if (targetNodeKey && targetNodeKey !== wiringFrom.sourceKey && onChange) {
         const sourceNode = visualNodes.find((n) => n.key === wiringFrom.sourceKey);
         const targetNode = visualNodes.find((n) => n.key === targetNodeKey);
+
+        // Si el usuario arrastra desde puerto 'sí' (if_true) o 'no' (if_false) hacia una salida out_* (square_output):
+        // asignar ifBranch ('yes' | 'no') y desbloquear removedWires en lugar de crear cable custom_ duplicado
+        if (
+          (wiringFrom.portType === 'if_true' || wiringFrom.portType === 'if_false') &&
+          targetNode?.shape === 'square_output'
+        ) {
+          const desiredBranch: 'yes' | 'no' = wiringFrom.portType === 'if_true' ? 'yes' : 'no';
+          const prevConfigs = workflowNodes?.canvasLayout?.nodeConfigs || {};
+          const prevRemoved = workflowNodes?.canvasLayout?.removedWires || [];
+          const cleanedRemoved = prevRemoved.filter(
+            (rw) =>
+              rw !== `wire_if_${targetNode.key}` &&
+              !rw.endsWith(`_${targetNode.key}`) &&
+              rw !== '__ALL_AUTO_MAIN__',
+          );
+          const cleanedEdges = (workflowNodes?.canvasLayout?.edges || []).filter(
+            (ed) =>
+              !(ed.from === wiringFrom.sourceKey && ed.to === targetNode.key) &&
+              ed.id !== `custom_${wiringFrom.sourceKey}_${targetNode.key}`,
+          );
+          onChange({
+            ...workflowNodes,
+            canvasLayout: {
+              ...(workflowNodes?.canvasLayout || {}),
+              edges: cleanedEdges,
+              removedWires: cleanedRemoved,
+              nodeConfigs: {
+                ...prevConfigs,
+                [targetNode.key]: {
+                  ...(prevConfigs[targetNode.key] || {}),
+                  ifBranch: desiredBranch,
+                },
+              },
+            },
+          });
+          setWiringFrom(null);
+          return;
+        }
+
         const isDiamondWire = wiringFrom.portType.startsWith('diamond');
         const isTargetSubCircle = Boolean(
           targetNode?.shape.startsWith('circle_') || targetNode?.shape === 'custom_node',
@@ -3518,6 +3807,8 @@ export default function WappyWorkflowCanvas({
 
     if (group === 'trigger') {
       const exists = activeTriggers.includes(nodeId);
+      const oldIdx = activeTriggers.indexOf(nodeId);
+      const removedKey = oldIdx === 0 ? 'trigger_root' : `trigger_${nodeId}`;
       let nextTriggers: string[];
       if (exists) {
         nextTriggers =
@@ -3528,6 +3819,47 @@ export default function WappyWorkflowCanvas({
         nextTriggers = [...activeTriggers, nodeId];
       }
       const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+      const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
+      let nextEdges = [...(workflowNodes?.canvasLayout?.edges || [])];
+      let nextRemovedWires = [...(workflowNodes?.canvasLayout?.removedWires || [])];
+
+      if (exists && activeTriggers.length > 1) {
+        delete nextPositions[removedKey];
+        delete nextNodeConfigs[removedKey];
+        nextEdges = nextEdges.filter(
+          (ed: any) =>
+            ed.from !== removedKey &&
+            ed.to !== removedKey &&
+            ed.source !== removedKey &&
+            ed.target !== removedKey,
+        );
+        nextRemovedWires = nextRemovedWires.filter((rw) => !rw.includes(removedKey));
+
+        if (oldIdx === 0 && nextTriggers.length > 0) {
+          const oldSecondTrigKey = `trigger_${nextTriggers[0]}`;
+          if (nextPositions[oldSecondTrigKey]) {
+            nextPositions['trigger_root'] = nextPositions[oldSecondTrigKey];
+            delete nextPositions[oldSecondTrigKey];
+          }
+          if (nextNodeConfigs[oldSecondTrigKey]) {
+            nextNodeConfigs['trigger_root'] = nextNodeConfigs[oldSecondTrigKey];
+            delete nextNodeConfigs[oldSecondTrigKey];
+          }
+          nextEdges = nextEdges.map((ed) => {
+            const from = ed.from === oldSecondTrigKey ? 'trigger_root' : ed.from;
+            const to = ed.to === oldSecondTrigKey ? 'trigger_root' : ed.to;
+            return from !== ed.from || to !== ed.to
+              ? {
+                  ...ed,
+                  id: ed.id.startsWith('custom_') ? `custom_${from}_${to}` : ed.id,
+                  from,
+                  to,
+                }
+              : ed;
+          });
+        }
+      }
+
       const targetTriggerKey =
         nextTriggers.indexOf(nodeId) === 0 ? 'trigger_root' : `trigger_${nodeId}`;
       if (!exists && dropPos) {
@@ -3543,23 +3875,69 @@ export default function WappyWorkflowCanvas({
         canvasLayout: {
           ...(workflowNodes?.canvasLayout || {}),
           positions: nextPositions,
+          nodeConfigs: nextNodeConfigs,
+          edges: nextEdges,
+          removedWires: nextRemovedWires,
         },
       });
       if (!exists) {
         setActiveConfigNodeKey(targetTriggerKey);
+      } else if (activeConfigNodeKey === removedKey) {
+        setActiveConfigNodeKey(null);
       }
       return;
     }
 
     if (group === 'memories') {
       const exists = activeMemories.includes(nodeId);
+      const oldIdx = activeMemories.indexOf(nodeId);
+      const removedKey = oldIdx === 0 ? 'sub_memory' : `sub_memory_${nodeId}`;
       const nextMemories = exists
         ? activeMemories.filter((id) => id !== nodeId)
         : [...activeMemories, nodeId];
       const targetMemKey =
         nextMemories.indexOf(nodeId) === 0 ? 'sub_memory' : `sub_memory_${nodeId}`;
       const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
-      if (!exists && dropPos) {
+      const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
+      let nextEdges = [...(workflowNodes?.canvasLayout?.edges || [])];
+      let nextRemovedWires = [...(workflowNodes?.canvasLayout?.removedWires || [])];
+
+      if (exists) {
+        delete nextPositions[removedKey];
+        delete nextNodeConfigs[removedKey];
+        nextEdges = nextEdges.filter(
+          (ed: any) =>
+            ed.from !== removedKey &&
+            ed.to !== removedKey &&
+            ed.source !== removedKey &&
+            ed.target !== removedKey,
+        );
+        nextRemovedWires = nextRemovedWires.filter((rw) => !rw.includes(removedKey));
+
+        if (oldIdx === 0 && nextMemories.length > 0) {
+          const oldSecondMemKey = `sub_memory_${nextMemories[0]}`;
+          if (nextPositions[oldSecondMemKey]) {
+            nextPositions['sub_memory'] = nextPositions[oldSecondMemKey];
+            delete nextPositions[oldSecondMemKey];
+          }
+          if (nextNodeConfigs[oldSecondMemKey]) {
+            nextNodeConfigs['sub_memory'] = nextNodeConfigs[oldSecondMemKey];
+            delete nextNodeConfigs[oldSecondMemKey];
+          }
+          nextEdges = nextEdges.map((ed) => {
+            const from = ed.from === oldSecondMemKey ? 'sub_memory' : ed.from;
+            const to = ed.to === oldSecondMemKey ? 'sub_memory' : ed.to;
+            return from !== ed.from || to !== ed.to
+              ? {
+                  ...ed,
+                  id: ed.id.startsWith('custom_') ? `custom_${from}_${to}` : ed.id,
+                  from,
+                  to,
+                }
+              : ed;
+          });
+        }
+      } else if (dropPos) {
         nextPositions[targetMemKey] = {
           x: Math.max(20, Math.round(dropPos.x - 31)),
           y: Math.max(20, Math.round(dropPos.y - 31)),
@@ -3572,10 +3950,15 @@ export default function WappyWorkflowCanvas({
         canvasLayout: {
           ...(workflowNodes?.canvasLayout || {}),
           positions: nextPositions,
+          nodeConfigs: nextNodeConfigs,
+          edges: nextEdges,
+          removedWires: nextRemovedWires,
         },
       });
       if (!exists) {
         setActiveConfigNodeKey(targetMemKey);
+      } else if (activeConfigNodeKey === removedKey) {
+        setActiveConfigNodeKey(null);
       }
       return;
     }
@@ -3584,8 +3967,10 @@ export default function WappyWorkflowCanvas({
       group === 'extractors'
         ? activeExtractors
         : group === 'outputs'
-          ? Array.isArray(workflowNodes.outputs)
-            ? workflowNodes.outputs
+          ? workflowNodes?.outputs !== undefined
+            ? Array.isArray(workflowNodes.outputs)
+              ? workflowNodes.outputs
+              : []
             : ['email_report']
           : workflowNodes[group] || [];
     const exists = currentList.includes(nodeId);
@@ -3597,16 +3982,36 @@ export default function WappyWorkflowCanvas({
       group === 'extractors'
         ? `extractor_${nodeId}`
         : group === 'hitos'
-          ? `tool_hitos_${nodeId}`
-          : group === 'outputs'
-            ? `out_${nodeId}`
-            : `tool_${group}_${nodeId}`;
+           ? `tool_hitos_${nodeId}`
+           : group === 'outputs'
+             ? `out_${nodeId}`
+             : `tool_${group}_${nodeId}`;
     const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
-    if (!exists && dropPos) {
-      nextPositions[key] = {
-        x: Math.max(20, Math.round(dropPos.x - 32)),
-        y: Math.max(20, Math.round(dropPos.y - 32)),
-      };
+    const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
+    let nextEdges = [...(workflowNodes?.canvasLayout?.edges || [])];
+    let nextRemovedWires = [...(workflowNodes?.canvasLayout?.removedWires || [])];
+
+    if (exists) {
+      delete nextPositions[key];
+      delete nextNodeConfigs[key];
+      nextEdges = nextEdges.filter(
+        (ed: any) => ed.from !== key && ed.to !== key && ed.source !== key && ed.target !== key,
+      );
+      nextRemovedWires = nextRemovedWires.filter((rw) => !rw.includes(key));
+    } else {
+      if (dropPos) {
+        nextPositions[key] = {
+          x: Math.max(20, Math.round(dropPos.x - 32)),
+          y: Math.max(20, Math.round(dropPos.y - 32)),
+        };
+      }
+      if (group === 'outputs' && pendingOutputIfBranchRef.current) {
+        nextNodeConfigs[key] = {
+          ...(nextNodeConfigs[key] || {}),
+          ifBranch: pendingOutputIfBranchRef.current,
+        };
+        pendingOutputIfBranchRef.current = null;
+      }
     }
 
     onChange({
@@ -3615,10 +4020,15 @@ export default function WappyWorkflowCanvas({
       canvasLayout: {
         ...(workflowNodes?.canvasLayout || {}),
         positions: nextPositions,
+        nodeConfigs: nextNodeConfigs,
+        edges: nextEdges,
+        removedWires: nextRemovedWires,
       },
     });
     if (!exists) {
       setActiveConfigNodeKey(key);
+    } else if (activeConfigNodeKey === key) {
+      setActiveConfigNodeKey(null);
     }
   };
 
@@ -4840,7 +5250,7 @@ export default function WappyWorkflowCanvas({
               })}
             </div>
           ) : paletteTab === 'memories' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {MEMORY_NODES.map((mem) => {
                 const isSelected = activeMemories.includes(mem.id);
                 const memIdx = activeMemories.indexOf(mem.id);
@@ -5892,20 +6302,28 @@ export default function WappyWorkflowCanvas({
                       className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-400 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
                     />
 
-                    {/* ─── LOS 3 PUERTOS EN ROMBO (◆) INFERIORES EN ESPAÑOL ─── */}
+                    {/* ─── LOS 3 PUERTOS EN ROMBO (◆) INFERIORES EN ESPAÑOL (Soportan Arrastrar Cable + Clic Directo) ─── */}
                     {/* Rombo 1: Modelo IA * */}
                     <div
-                      onPointerDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'diamond_model',
+                          node.x + 44,
+                          node.y + node.height,
+                        )
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!readOnly) {
+                        if (!readOnly && !wiringFrom) {
                           setPaletteTab('ai_engine');
                           setActiveConfigNodeKey(isExtraAgent ? node.key : 'sub_model');
                         }
                       }}
                       style={{ left: 32 }}
-                      className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/modport"
-                      title="Configurar Modelo de IA de este Agente (WAPPY Cloud / Antigravity Local / Antigravity Cloud 24/7)"
+                      className="absolute -bottom-2.5 flex flex-col items-center cursor-crosshair group/modport"
+                      title="Arrastra para conectar o haz clic para configurar Modelo de IA de este Agente"
                     >
                       <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/modport:scale-125 border-2 border-white dark:border-slate-900 shadow-sm transition-transform" />
                       <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
@@ -5915,17 +6333,25 @@ export default function WappyWorkflowCanvas({
 
                     {/* Rombo 2: Memoria [+] */}
                     <div
-                      onPointerDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'diamond_memory',
+                          node.x + 114,
+                          node.y + node.height,
+                        )
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!readOnly) {
+                        if (!readOnly && !wiringFrom) {
                           setPaletteTab('memories');
                           setActiveConfigNodeKey('sub_memory');
                         }
                       }}
                       style={{ left: 102 }}
-                      className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/memport"
-                      title="Configurar las 4 Memorias del Agente (Empresa Activa, Bitácora Anti-Duplicados, RAG NotebookLM, Reglas Normativas SST)"
+                      className="absolute -bottom-2.5 flex flex-col items-center cursor-crosshair group/memport"
+                      title="Arrastra para conectar o haz clic para configurar las 4 Memorias del Agente"
                     >
                       <div className="w-3 h-3 rotate-45 bg-pink-500 group-hover/memport:bg-pink-600 border-2 border-white dark:border-slate-900 shadow-sm" />
                       <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
@@ -5940,17 +6366,25 @@ export default function WappyWorkflowCanvas({
 
                     {/* Rombo 3: Herramienta [+] */}
                     <div
-                      onPointerDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) =>
+                        handlePortPointerDown(
+                          e,
+                          node.key,
+                          'diamond_tool',
+                          node.x + 190,
+                          node.y + node.height,
+                        )
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!readOnly) {
+                        if (!readOnly && !wiringFrom) {
                           setPaletteTab('connectors');
                           setActiveConfigNodeKey(node.key);
                         }
                       }}
                       style={{ left: 168 }}
-                      className="absolute -bottom-2.5 flex flex-col items-center cursor-pointer group/toolport"
-                      title="Conectar Herramientas al Agente IA"
+                      className="absolute -bottom-2.5 flex flex-col items-center cursor-crosshair group/toolport"
+                      title="Arrastra para conectar o haz clic para conectar Herramientas al Agente IA"
                     >
                       <div className="w-3 h-3 rotate-45 bg-indigo-500 group-hover/toolport:bg-purple-600 border-2 border-white dark:border-slate-900 shadow-sm" />
                       <span className="mt-0.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-0.5">
@@ -5966,7 +6400,7 @@ export default function WappyWorkflowCanvas({
                 );
               }
 
-              // 3. FIGURA CONDICIÓN SI/NO (Cuadrado con icono de bifurcación verde y 2 salidas sí/no)
+              // 3. FIGURA CONDICIÓN SI/NO (Cuadrado con icono de bifurcación verde, botón × de eliminar y 2 salidas sí/no con arrastre y botón +)
               if (node.shape === 'if') {
                 return (
                   <div
@@ -5983,31 +6417,84 @@ export default function WappyWorkflowCanvas({
 
                     <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
 
-                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-emerald-500 shadow-md flex items-center justify-center transition-colors ${selectedRingClass}`}>
+                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 group-hover/node:border-emerald-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
                       <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                         <GitFork className="w-6 h-6" />
                       </div>
+
+                      {!readOnly && node.removable && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteNodesByKeys([node.key]);
+                          }}
+                          className="opacity-0 group-hover/node:opacity-100 absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow transition-opacity"
+                          title="Quitar Condición Si/No"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
                     </div>
 
-                    {/* Puerto de salida superior: SÍ (y + 22) */}
+                    {/* Puerto de salida superior: SÍ (y + 22) + botón [+] para agregar salida en Rama SÍ */}
                     <div
-                      onPointerDown={(e) =>
-                        handlePortPointerDown(e, node.key, 'if_true', node.x + node.width, node.y + 22)
-                      }
-                      style={{ top: 16 }}
-                      className="absolute -right-2 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 cursor-crosshair"
-                      title="Rama SÍ (Si se cumple la condición / hay hallazgos)"
-                    />
+                      style={{ top: 14 }}
+                      className="absolute -right-7 flex items-center gap-0.5"
+                    >
+                      <div
+                        onPointerDown={(e) =>
+                          handlePortPointerDown(e, node.key, 'if_true', node.x + node.width, node.y + 22)
+                        }
+                        className="w-3.5 h-3.5 rounded-full bg-emerald-500 hover:scale-125 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform"
+                        title="Rama SÍ: Arrastra hacia una salida existente para asignarla a SÍ"
+                      />
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            pendingOutputIfBranchRef.current = 'yes';
+                            setPaletteTab('outputs');
+                          }}
+                          title="Añadir nueva salida conectada a Rama SÍ"
+                          className="opacity-0 group-hover/node:opacity-100 w-3.5 h-3.5 rounded bg-emerald-500/15 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-300 hover:text-white border border-emerald-500/40 text-[9px] font-black flex items-center justify-center transition-all"
+                        >
+                          +
+                        </button>
+                      )}
+                    </div>
 
-                    {/* Puerto de salida inferior: NO (y + 50) */}
+                    {/* Puerto de salida inferior: NO (y + 50) + botón [+] para agregar salida en Rama NO */}
                     <div
-                      onPointerDown={(e) =>
-                        handlePortPointerDown(e, node.key, 'if_false', node.x + node.width, node.y + 50)
-                      }
-                      style={{ top: 44 }}
-                      className="absolute -right-2 w-3 h-3 rounded-full bg-slate-500 border-2 border-white dark:border-slate-900 cursor-crosshair"
-                      title="Rama NO (Si no hay hallazgos / constancia normal)"
-                    />
+                      style={{ top: 42 }}
+                      className="absolute -right-7 flex items-center gap-0.5"
+                    >
+                      <div
+                        onPointerDown={(e) =>
+                          handlePortPointerDown(e, node.key, 'if_false', node.x + node.width, node.y + 50)
+                        }
+                        className="w-3.5 h-3.5 rounded-full bg-slate-500 hover:scale-125 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform"
+                        title="Rama NO: Arrastra hacia una salida existente para asignarla a NO"
+                      />
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            pendingOutputIfBranchRef.current = 'no';
+                            setPaletteTab('outputs');
+                          }}
+                          title="Añadir nueva salida conectada a Rama NO"
+                          className="opacity-0 group-hover/node:opacity-100 w-3.5 h-3.5 rounded bg-slate-500/15 hover:bg-slate-600 text-slate-700 dark:text-slate-300 hover:text-white border border-slate-400/50 text-[9px] font-black flex items-center justify-center transition-all"
+                        >
+                          +
+                        </button>
+                      )}
+                    </div>
 
                     <div className="mt-1.5 w-[124px] -ml-[26px] text-center pointer-events-none">
                       <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
@@ -8271,6 +8758,7 @@ export default function WappyWorkflowCanvas({
                               activeNode={activeNode}
                               currentCfg={currentCfg}
                               onUpdateNodeConfig={handleUpdateNodeConfig}
+                              workflowNodes={workflowNodes}
                               activeCompanyInfo={activeCompanyInfo}
                               agentId={agentId}
                               onSelectAgent={onSelectAgent}
@@ -8550,30 +9038,46 @@ export default function WappyWorkflowCanvas({
                             />
                           </div>
 
-                          {/* Indicador de estado rápido */}
-                          <span
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
-                              hasNodeErrors
-                                ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                           {/* Indicador de estado rápido + botón refrescar en vivo */}
+                          <div className="flex items-center gap-1.5">
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="cyan"
+                              disabled={nodeLiveInspectorData.loading}
+                              icon={
+                                <RefreshCw
+                                  className={`w-3 h-3 ${nodeLiveInspectorData.loading ? 'animate-spin' : ''}`}
+                                />
+                              }
+                              label="Refrescar"
+                              title="Refrescar datos e informes reales del nodo en vivo"
+                              onClick={() => setLiveInspectorRefreshTick((t) => t + 1)}
+                            />
+                            <span
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
+                                hasNodeErrors
+                                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                                  : traceStep
+                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                                    : 'bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300'
+                              }`}
+                            >
+                              {hasNodeErrors
+                                ? '❌ Error'
                                 : traceStep
-                                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
-                                  : 'bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300'
-                            }`}
-                          >
-                            {hasNodeErrors
-                              ? '❌ Error'
-                              : traceStep
-                                ? `✓ ${traceStep.durationMs || 0} ms`
-                                : '⚡ En Vivo'}
-                          </span>
+                                  ? `✓ ${traceStep.durationMs || 0} ms`
+                                  : '⚡ En Vivo'}
+                            </span>
+                          </div>
                         </div>
 
                         {ndvOutputTab === 'output' ? (
                           <>
-                            {/* Sub-barra de vista de Salida (`Tabla` | `JSON` | `Schema` | `Informe`) + Buscador */}
+                            {/* Sub-barra de vista de Salida (`Tabla` | `JSON` | `📄 Informe` | `Schema` | `Resumen`) + Buscador */}
                             <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 space-y-1.5 shrink-0">
                               <div className="flex flex-wrap items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 py-0.5 px-0.5">
+                                <div className="flex flex-wrap items-center gap-1.5 py-0.5 px-0.5">
                                   <ExpandableButton
                                     type="button"
                                     size="sm"
@@ -8596,6 +9100,26 @@ export default function WappyWorkflowCanvas({
                                     title="Ver salida enviada en formato JSON desplegable"
                                     onClick={() => setNdvOutputView('json')}
                                   />
+                                  {((Array.isArray(nodeLiveInspectorData.latestReports) &&
+                                    nodeLiveInspectorData.latestReports.length > 0) ||
+                                    activeNode.shape === 'square_hito' ||
+                                    activeNode.nodeId.includes('extract_sst_app')) && (
+                                    <ExpandableButton
+                                      type="button"
+                                      size="sm"
+                                      variant="teal"
+                                      isActive={ndvOutputView === 'report'}
+                                      icon={<FileText className="w-3.5 h-3.5" />}
+                                      badge={
+                                        Array.isArray(nodeLiveInspectorData.latestReports)
+                                          ? nodeLiveInspectorData.latestReports.length
+                                          : 0
+                                      }
+                                      label="📄 Informe"
+                                      title="Ver Vista Previa HTML Real del Informe Oficial del Aplicativo"
+                                      onClick={() => setNdvOutputView('report')}
+                                    />
+                                  )}
                                   <ExpandableButton
                                     type="button"
                                     size="sm"
@@ -8613,7 +9137,7 @@ export default function WappyWorkflowCanvas({
                                     variant="cyan"
                                     isActive={ndvOutputView === 'markdown'}
                                     icon={<FileText className="w-3.5 h-3.5" />}
-                                    label="Informe"
+                                    label="Texto"
                                     title="Ver vista previa textual / Markdown de la salida"
                                     onClick={() => setNdvOutputView('markdown')}
                                   />
@@ -8787,7 +9311,104 @@ export default function WappyWorkflowCanvas({
                                 </div>
                               )}
 
-                              {ndvOutputView === 'markdown' ? (
+                              {ndvOutputView === 'report' ? (
+                                (() => {
+                                  const reportsArr = Array.isArray(
+                                    nodeLiveInspectorData.latestReports,
+                                  )
+                                    ? nodeLiveInspectorData.latestReports
+                                    : [];
+                                  if (reportsArr.length === 0) {
+                                    return (
+                                      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-5 text-center space-y-2 my-2">
+                                        <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                                          📄 Aún no hay Informes Oficiales guardados para este aplicativo
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                          Activa{' '}
+                                          <strong>
+                                            «Generar Informe Oficial IA del aplicativo»
+                                          </strong>{' '}
+                                          en el panel central o genera un informe desde el Hito en Somos SST para previsualizar su HTML corporativo aquí.
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+                                  const safeIdx = Math.min(
+                                    Math.max(0, selectedLiveReportIdx),
+                                    reportsArr.length - 1,
+                                  );
+                                  const selectedReport = reportsArr[safeIdx] || reportsArr[0];
+                                  const reportDateStr = selectedReport?.createdAt || selectedReport?.updatedAt;
+                                  const formattedDate = reportDateStr
+                                    ? new Date(reportDateStr).toLocaleString('es-CO')
+                                    : 'Reciente';
+                                  const charTotal =
+                                    typeof selectedReport?.charCount === 'number'
+                                      ? selectedReport.charCount
+                                      : (selectedReport?.html || selectedReport?.preview || '').length;
+                                  const fallbackHtml = `<div style="font-family:Inter,system-ui,sans-serif;padding:20px;color:#1e293b;line-height:1.6;"><h3 style="margin-top:0;color:#0f766e;">${(selectedReport?.title || 'Informe Oficial').replace(/</g, '&lt;')}</h3><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;">${(selectedReport?.preview || 'Sin contenido previo disponible.').replace(/</g, '&lt;')}</pre></div>`;
+                                  const srcDocContent =
+                                    selectedReport?.html && selectedReport.html.trim().length > 0
+                                      ? selectedReport.html
+                                      : fallbackHtml;
+
+                                  return (
+                                    <div className="space-y-2.5">
+                                      {reportsArr.length > 1 && (
+                                        <div>
+                                          <label className="block text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                                            📚 Seleccionar Informe Oficial ({reportsArr.length} disponibles)
+                                          </label>
+                                          <select
+                                            value={safeIdx}
+                                            onChange={(e) =>
+                                              setSelectedLiveReportIdx(Number(e.target.value))
+                                            }
+                                            className="w-full px-2.5 py-1.5 rounded-xl border border-teal-500/40 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-800 dark:text-slate-100"
+                                          >
+                                            {reportsArr.map((rep, rIdx) => {
+                                              const rDate = rep.createdAt || rep.updatedAt;
+                                              const rDateText = rDate
+                                                ? new Date(rDate).toLocaleDateString('es-CO')
+                                                : `#${rIdx + 1}`;
+                                              return (
+                                                <option
+                                                  key={rep.id || rep.conversationId || rIdx}
+                                                  value={rIdx}
+                                                >
+                                                  {rep.title || `Informe Oficial #${rIdx + 1}`} · {rDateText}
+                                                </option>
+                                              );
+                                            })}
+                                          </select>
+                                        </div>
+                                      )}
+
+                                      <div className="rounded-xl border border-teal-500/30 bg-teal-500/5 p-2.5 flex flex-wrap items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <div className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
+                                            📄 {selectedReport?.title || 'Informe Oficial Corporativo SG-SST'}
+                                          </div>
+                                          <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                                            📅 {formattedDate} · 📏 {charTotal.toLocaleString('es-CO')} caracteres
+                                          </div>
+                                        </div>
+                                        <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[9.5px] font-black text-emerald-700 dark:text-emerald-300 shrink-0">
+                                          {selectedReport?.html ? 'HTML Oficial Completo' : 'Vista Previa'}
+                                        </span>
+                                      </div>
+
+                                      <iframe
+                                        title={selectedReport?.title || 'Vista Previa Informe Oficial'}
+                                        sandbox=""
+                                        srcDoc={srcDocContent}
+                                        className="w-full h-[420px] rounded-lg border border-slate-200 bg-white"
+                                      />
+                                    </div>
+                                  );
+                                })()
+                              ) : ndvOutputView === 'markdown' ? (
                                 <div
                                   onClick={(e) =>
                                     handleEvidenceContainerClick(

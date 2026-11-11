@@ -466,26 +466,15 @@ function buildCompanyScopeFilter(userId, company) {
 
 /**
  * Busca el documento único de un aplicativo para la empresa activa (con aislamiento estricto multi-empresa).
+ * Cuando `company._id` existe, exige filtro exacto por `companyId` SIN caer jamás en documentos sin `companyId`.
  */
 async function findSingleCompanyDoc(Model, userId, company) {
   if (!Model) return null;
   try {
     const companyFilter = buildCompanyScopeFilter(userId, company);
-    let doc = await Model.findOne(companyFilter).sort({ updatedAt: -1 }).lean();
-    if (!doc && userId) {
-      const userVariants = [String(userId)];
-      if (mongoose.Types.ObjectId.isValid(String(userId))) {
-        userVariants.push(new mongoose.Types.ObjectId(String(userId)));
-      }
-      const legacyNoCompanyFilter = company?._id
-        ? {
-            user: { $in: userVariants },
-            $or: [{ companyId: null }, { companyId: '' }, { companyId: { $exists: false } }],
-          }
-        : { user: { $in: userVariants } };
-      doc = await Model.findOne(legacyNoCompanyFilter).sort({ updatedAt: -1 }).lean();
-    }
-    return doc;
+    if (!companyFilter || Object.keys(companyFilter).length === 0) return null;
+    const doc = await Model.findOne(companyFilter).sort({ updatedAt: -1 }).lean();
+    return doc || null;
   } catch (_) {
     return null;
   }
@@ -493,25 +482,14 @@ async function findSingleCompanyDoc(Model, userId, company) {
 
 /**
  * Busca múltiples documentos de un aplicativo para la empresa activa (con aislamiento estricto multi-empresa).
+ * Cuando `company._id` existe, exige filtro exacto por `companyId` SIN caer jamás en documentos sin `companyId`.
  */
 async function findManyCompanyDocs(Model, userId, company, sortObj = { updatedAt: -1 }, limit = 300) {
   if (!Model) return [];
   try {
     const companyFilter = buildCompanyScopeFilter(userId, company);
-    let docs = await Model.find(companyFilter).sort(sortObj).limit(limit).lean();
-    if ((!docs || docs.length === 0) && userId) {
-      const userVariants = [String(userId)];
-      if (mongoose.Types.ObjectId.isValid(String(userId))) {
-        userVariants.push(new mongoose.Types.ObjectId(String(userId)));
-      }
-      const legacyNoCompanyFilter = company?._id
-        ? {
-            user: { $in: userVariants },
-            $or: [{ companyId: null }, { companyId: '' }, { companyId: { $exists: false } }],
-          }
-        : { user: { $in: userVariants } };
-      docs = await Model.find(legacyNoCompanyFilter).sort(sortObj).limit(limit).lean();
-    }
+    if (!companyFilter || Object.keys(companyFilter).length === 0) return [];
+    const docs = await Model.find(companyFilter).sort(sortObj).limit(limit).lean();
     return Array.isArray(docs) ? docs : [];
   } catch (_) {
     return [];
@@ -731,31 +709,234 @@ function normalizeInspectorNodeId(rawId) {
 }
 
 /**
- * Consulta los últimos informes guardados en Conversation / Message para unas etiquetas dadas.
+ * Limpia etiquetas HTML dejando texto plano legible (solo para resúmenes `preview`, sin mutar el HTML original).
+ */
+function stripHtmlToText(rawHtml = '') {
+  return String(rawHtml || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Extrae el contenido crudo íntegro (HTML o Markdown) de un documento `Message` de LibreChat sin truncar.
+ */
+function extractRawMessageContent(msg) {
+  if (!msg || typeof msg !== 'object') return '';
+  if (typeof msg.text === 'string' && msg.text.trim().length > 0) {
+    return msg.text;
+  }
+  if (Array.isArray(msg.content)) {
+    const joined = msg.content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (part && typeof part.text === 'string') return part.text;
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n');
+    if (joined.trim().length > 0) return joined;
+  }
+  return '';
+}
+
+/**
+ * Extrae las secciones reales (`<h1>`/`<h2>`/`<h3>`) y filas de tablas (`<tr>`) del HTML completo
+ * de un informe oficial SIN truncar a 600 caracteres.
+ */
+function extractHtmlSectionsFromReport(rawHtml = '') {
+  const src = String(rawHtml || '');
+  if (!src.trim()) return { headings: [], tableRows: [], structuredText: '' };
+
+  const cleanBlock = (s) => stripHtmlToText(s);
+  const headings = [];
+  const headingRegex = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi;
+  let hm;
+  while ((hm = headingRegex.exec(src)) !== null && headings.length < 60) {
+    const t = cleanBlock(hm[1]);
+    if (t) headings.push(t);
+  }
+
+  // Extraer bloques por capítulos h2/h3 con su texto asociado
+  const chapterParts = [];
+  const sectionSplitRegex = /(<h[1-3][^>]*>[\s\S]*?<\/h[1-3]>)/gi;
+  const tokens = src.split(sectionSplitRegex);
+  for (let i = 1; i < tokens.length; i += 2) {
+    const hTitle = cleanBlock(tokens[i]);
+    const bodyTxt = cleanBlock(tokens[i + 1] || '');
+    if (hTitle) {
+      chapterParts.push(bodyTxt ? `[${hTitle}]: ${bodyTxt}` : `[${hTitle}]`);
+    }
+  }
+
+  const tableRows = [];
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let trm;
+  while ((trm = trRegex.exec(src)) !== null && tableRows.length < 80) {
+    const cells = [];
+    const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+    let cm;
+    while ((cm = cellRegex.exec(trm[1])) !== null) {
+      const ct = cleanBlock(cm[1]);
+      if (ct) cells.push(ct);
+    }
+    if (cells.length > 0) {
+      tableRows.push(cells.join(' | '));
+    }
+  }
+
+  const structuredText =
+    chapterParts.length > 0
+      ? chapterParts.join(' || ')
+      : tableRows.length > 0
+        ? tableRows.join(' || ')
+        : cleanBlock(src);
+
+  return {
+    headings,
+    tableRows,
+    structuredText,
+  };
+}
+
+/**
+ * Empaqueta un reporte HTML embebido en un modelo Mongoose con la misma firma íntegra de `latestReports`.
+ */
+function buildEmbeddedReportEntry({ conversationId, title, html, tags = [], createdAt = null }) {
+  const rawHtml = typeof html === 'string' ? html.trim() : '';
+  if (!rawHtml || rawHtml.length < 15) return null;
+  const cleanPreview = stripHtmlToText(rawHtml).slice(0, 600);
+  const ts = createdAt || null;
+  return {
+    conversationId: String(conversationId || `embedded_${Date.now()}`),
+    title: String(title || 'Informe Oficial SG-SST'),
+    tags: Array.isArray(tags) ? tags : [],
+    html: rawHtml,
+    charCount: rawHtml.length,
+    preview: cleanPreview,
+    createdAt: ts,
+    updatedAt: ts,
+  };
+}
+
+/**
+ * Fusiona reportes del historial de conversaciones con reportes embebidos en documentos Mongoose sin perder HTML ni duplicar.
+ */
+function mergeLatestReports(tagReports = [], embeddedCandidates = []) {
+  const merged = [];
+  const seenIds = new Set();
+  const seenSignatures = new Set();
+
+  for (const r of [...(Array.isArray(tagReports) ? tagReports : []), ...(Array.isArray(embeddedCandidates) ? embeddedCandidates : [])]) {
+    if (!r || typeof r !== 'object') continue;
+    const htmlStr = typeof r.html === 'string' ? r.html : '';
+    const cid = String(r.conversationId || '').trim();
+    if (cid && seenIds.has(cid)) continue;
+    const sig = htmlStr ? `${htmlStr.length}::${stripHtmlToText(htmlStr).slice(0, 180)}` : '';
+    if (sig && seenSignatures.has(sig)) continue;
+    if (cid) seenIds.add(cid);
+    if (sig) seenSignatures.add(sig);
+    merged.push({
+      conversationId: cid || `rep_${merged.length + 1}`,
+      title: r.title || 'Informe Oficial SG-SST',
+      tags: Array.isArray(r.tags) ? r.tags : [],
+      html: htmlStr,
+      charCount: typeof r.charCount === 'number' ? r.charCount : htmlStr.length,
+      preview: typeof r.preview === 'string' ? r.preview : stripHtmlToText(htmlStr).slice(0, 600),
+      createdAt: r.createdAt || r.updatedAt || null,
+      updatedAt: r.updatedAt || r.createdAt || null,
+    });
+  }
+  return merged;
+}
+
+/**
+ * Consulta los últimos informes guardados en Conversation / Message para unas etiquetas dadas,
+ * con aislamiento estricto por `companyId` y preservando el HTML íntegro completo (`html`, `charCount`).
  */
 async function fetchLatestReportsForTags(userId, company, tags = [], limit = 5) {
-  if (!Array.isArray(tags) || tags.length === 0) return [];
+  if (!Array.isArray(tags) || tags.length === 0 || !userId) return [];
   try {
     const Conversation = getSafeModel('Conversation', null, '~/models/Conversation');
     const Message = getSafeModel('Message', null, '~/models/Message');
     if (!Conversation) return [];
 
     const companyIdStr = company?._id ? String(company._id) : null;
-    const query = {
-      user: String(userId),
-      tags: { $in: tags },
-    };
-    if (companyIdStr) {
-      query.$and = [
-        { tags: { $in: tags } },
-        { $or: [{ tags: `company-${companyIdStr}` }, { tags: `company_${companyIdStr}` }] },
-      ];
-      delete query.tags;
-    }
+    let convos = [];
 
-    let convos = await Conversation.find(query).sort({ updatedAt: -1 }).limit(limit).lean();
-    if ((!convos || convos.length === 0) && companyIdStr) {
-      convos = await Conversation.find({ user: String(userId), tags: { $in: tags } })
+    if (companyIdStr) {
+      const strictQuery = {
+        user: String(userId),
+        $and: [
+          { tags: { $in: tags } },
+          { $or: [{ tags: `company-${companyIdStr}` }, { tags: `company_${companyIdStr}` }] },
+        ],
+      };
+      convos = await Conversation.find(strictQuery).sort({ updatedAt: -1 }).limit(limit).lean();
+
+      // Único fallback legado seguro: conversaciones SIN ningún tag `company-*` de otra empresa
+      // Y cuyo título o HTML mencione de forma exacta el NIT o la razón social de la empresa activa.
+      if (!convos || convos.length === 0) {
+        const cleanNit = String(company?.nit || '').trim();
+        const cleanNitDigits = cleanNit.replace(/[^0-9]/g, '');
+        const cleanCompanyName = String(company?.companyName || '').trim().toLowerCase();
+        const hasVerifiableIdentity = cleanNitDigits.length >= 5 || cleanCompanyName.length >= 4;
+
+        if (hasVerifiableIdentity) {
+          const untaggedConvos = await Conversation.find({
+            user: String(userId),
+            $and: [
+              { tags: { $in: tags } },
+              { tags: { $not: /^company[-_]/i } },
+            ],
+          })
+            .sort({ updatedAt: -1 })
+            .limit(Math.max(limit * 3, 10))
+            .lean();
+
+          const verifiedConvos = [];
+          for (const cand of untaggedConvos || []) {
+            let rawMsgHtml = '';
+            if (Message && cand.conversationId) {
+              const candMsgs = await Message.find({ conversationId: cand.conversationId })
+                .sort({ createdAt: -1 })
+                .limit(4)
+                .lean();
+              const assistantMsg =
+                (candMsgs || []).find((m) => !m.isCreatedByUser && extractRawMessageContent(m)) ||
+                candMsgs?.[0];
+              rawMsgHtml = extractRawMessageContent(assistantMsg);
+            }
+            const haystack = `${cand.title || ''}\n${rawMsgHtml}`;
+            const haystackLow = haystack.toLowerCase();
+            const matchesNit =
+              (cleanNit.length >= 5 && haystack.includes(cleanNit)) ||
+              (cleanNitDigits.length >= 6 && haystack.replace(/[^0-9]/g, '').includes(cleanNitDigits));
+            const matchesName =
+              cleanCompanyName.length >= 4 && haystackLow.includes(cleanCompanyName);
+
+            if (matchesNit || matchesName) {
+              verifiedConvos.push({ ...cand, _prefetchedHtml: rawMsgHtml });
+              if (verifiedConvos.length >= limit) break;
+            }
+          }
+          convos = verifiedConvos;
+        } else {
+          convos = [];
+        }
+      }
+    } else {
+      convos = await Conversation.find({
+        user: String(userId),
+        tags: { $in: tags },
+      })
         .sort({ updatedAt: -1 })
         .limit(limit)
         .lean();
@@ -763,27 +944,29 @@ async function fetchLatestReportsForTags(userId, company, tags = [], limit = 5) 
 
     const results = [];
     for (const c of convos || []) {
-      let textPreview = '';
-      if (Message && c.conversationId) {
+      let rawContent = typeof c._prefetchedHtml === 'string' ? c._prefetchedHtml : '';
+      if (!rawContent && Message && c.conversationId) {
         const msgs = await Message.find({ conversationId: c.conversationId })
           .sort({ createdAt: -1 })
-          .limit(3)
+          .limit(5)
           .lean();
-        const assistantMsg = (msgs || []).find((m) => !m.isCreatedByUser && (m.text || m.content)) || msgs?.[0];
-        const rawText = assistantMsg?.text || '';
-        textPreview = String(rawText)
-          .replace(/<style[\s\S]*?<\/style>/gi, '')
-          .replace(/<script[\s\S]*?<\/script>/gi, '')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 600);
+        const assistantMsg =
+          (msgs || []).find((m) => !m.isCreatedByUser && extractRawMessageContent(m)) ||
+          msgs?.[0];
+        rawContent = extractRawMessageContent(assistantMsg);
       }
+      const html = String(rawContent || '');
+      const textPreview = stripHtmlToText(html).slice(0, 600);
+
       results.push({
         conversationId: c.conversationId,
         title: c.title || 'Informe Oficial SG-SST',
-        updatedAt: c.updatedAt,
+        tags: Array.isArray(c.tags) ? c.tags : [],
+        html,
+        charCount: html.length,
         preview: textPreview,
+        createdAt: c.createdAt || c.updatedAt || null,
+        updatedAt: c.updatedAt || c.createdAt || null,
       });
     }
     return results;
@@ -802,8 +985,35 @@ async function inspectHito1And2(canonicalId, userId, company) {
 
   // 0. Contexto de Empresa Activa (tool_sst_company)
   if (canonicalId === 'tool_sst_company') {
+    if (!company) {
+      return {
+        moduleTitle: 'Ficha Técnica de la Empresa Activa (Somos SST)',
+        sourceCollection: 'CompanyInfo',
+        kpis: [{ label: 'Empresa Activa', value: 'Sin seleccionar', tone: 'amber' }],
+        latestReports: [],
+        records: [],
+      };
+    }
     const sedesCount = Array.isArray(company?.sedes) ? company.sedes.length : 0;
+    const dept = company?.departamento || company?.department || '';
     const fields = {
+      companyName: company?.companyName || '',
+      nit: company?.nit || '',
+      ciiu: company?.ciiu || company?.ciiuCode || '',
+      economicActivity: company?.economicActivity || '',
+      riskLevel: company?.riskLevel || '',
+      arl: company?.arl || '',
+      workerCount: company?.workerCount ?? 0,
+      address: company?.address || '',
+      city: company?.city || '',
+      department: dept,
+      legalRepresentative: company?.legalRepresentative || '',
+      legalRepresentativeId: company?.legalRepresentativeId || '',
+      responsibleSST: company?.responsibleSST || '',
+      licenseNumber: company?.licenseNumber || '',
+      formationLevel: company?.formationLevel || '',
+      licenseExpiry: company?.licenseExpiry || '',
+      courseStatus: company?.courseStatus || '',
       'Razón Social': company?.companyName || 'Sin definir',
       'NIT': company?.nit || 'Sin definir',
       'Actividad Económica y CIIU': `${company?.economicActivity || ''} (CIIU ${company?.ciiu || 'N/A'})`,
@@ -812,12 +1022,13 @@ async function inspectHito1And2(canonicalId, userId, company) {
       'N° de Trabajadores': String(company?.workerCount || 0),
       'Representante Legal': `${company?.legalRepresentative || ''} (CC ${company?.legalRepresentativeId || ''})`,
       'Responsable SG-SST': `${company?.responsibleSST || ''} (Lic. ${company?.licenseNumber || 'N/A'})`,
-      'Ciudad y Dirección': `${company?.city || ''} - ${company?.address || ''}`,
+      'Ciudad, Departamento y Dirección': `${company?.city || ''}${dept ? ` (${dept})` : ''} - ${company?.address || ''}`,
       'Sedes y Centros de Trabajo': sedesCount > 0 ? company.sedes.map((s) => s.nombre || s.city).join(', ') : 'Sede Principal',
     };
     return {
       moduleTitle: 'Ficha Técnica de la Empresa Activa (Somos SST)',
       sourceCollection: 'CompanyInfo',
+      latestReports: [],
       kpis: [
         { label: 'Empresa Activa', value: companyName, tone: 'teal' },
         { label: 'NIT', value: company?.nit || 'Pendiente', tone: 'indigo' },
@@ -842,11 +1053,71 @@ async function inspectHito1And2(canonicalId, userId, company) {
   if (canonicalId === 'hito1_dofa') {
     const ContextoData = getSafeModel('ContextoData', '~/server/routes/sgsst/contexto', '~/models/ContextoData');
     const doc = await findSingleCompanyDoc(ContextoData, userId, company);
-    const dofaList = Array.isArray(doc?.dofaList) ? doc.dofaList : [];
+    const rawDofaList = Array.isArray(doc?.dofaList) ? doc.dofaList : [];
+    const internalFactors = Array.isArray(doc?.internalFactors) ? doc.internalFactors : [];
+    const externalFactors = Array.isArray(doc?.externalFactors) ? doc.externalFactors : [];
+    const dofaList =
+      rawDofaList.length > 0
+        ? rawDofaList
+        : [
+            ...internalFactors.map((f) => ({ ...f, source: f.source || 'interno' })),
+            ...externalFactors.map((f) => ({ ...f, source: f.source || 'externo' })),
+          ];
     const stakeholders = Array.isArray(doc?.stakeholders) ? doc.stakeholders : [];
     const cross = doc?.crossStrategies || {};
-    const totalStrategies =
-      (cross.fo?.length || 0) + (cross.do?.length || 0) + (cross.fa?.length || 0) + (cross.da?.length || 0);
+    const foArr = Array.isArray(cross.fo) ? cross.fo : cross.fo ? [cross.fo] : [];
+    const doArr = Array.isArray(cross.do) ? cross.do : cross.do ? [cross.do] : [];
+    const faArr = Array.isArray(cross.fa) ? cross.fa : cross.fa ? [cross.fa] : [];
+    const daArr = Array.isArray(cross.da) ? cross.da : cross.da ? [cross.da] : [];
+    const totalStrategies = foArr.length + doArr.length + faArr.length + daArr.length;
+
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-contexto-dofa', 'sgsst-contexto'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: doc?.conversationId || `embedded_contexto_${company?._id || 'active'}`,
+        title: 'Informe Oficial Contexto Organizacional y Matriz DOFA SST',
+        html: doc?.lastGeneratedReport,
+        tags: ['sgsst-contexto-dofa'],
+        createdAt: doc?.updatedAt,
+      }),
+    ]);
+
+    const crossSummaryFields = {
+      'crossStrategies.fo': foArr.join(' | '),
+      'crossStrategies.do': doArr.join(' | '),
+      'crossStrategies.fa': faArr.join(' | '),
+      'crossStrategies.da': daArr.join(' | '),
+      'Estrategias CAME FO (Ofensivas)': foArr.join(' | '),
+      'Estrategias CAME DO (Reorientación)': doArr.join(' | '),
+      'Estrategias CAME FA (Defensivas)': faArr.join(' | '),
+      'Estrategias CAME DA (Supervivencia)': daArr.join(' | '),
+    };
+
+    const crossRecords = [];
+    for (const [quadKey, quadLabel, arr] of [
+      ['fo', 'FO (Fortalezas + Oportunidades)', foArr],
+      ['do', 'DO (Debilidades + Oportunidades)', doArr],
+      ['fa', 'FA (Fortalezas + Amenazas)', faArr],
+      ['da', 'DA (Debilidades + Amenazas)', daArr],
+    ]) {
+      arr.forEach((strat, idx) => {
+        const stratText = typeof strat === 'string' ? strat : strat?.strategy || strat?.description || strat?.accion || JSON.stringify(strat);
+        const isDaOrDo = quadKey === 'da' || quadKey === 'do';
+        crossRecords.push({
+          id: `came_${quadKey}_${idx}`,
+          label: `[Estrategia Cruzada CAME ${quadKey.toUpperCase()}] ${stratText}`,
+          sublabel: `Cuadrante: ${quadLabel}`,
+          badge: `CAME ${quadKey.toUpperCase()}`,
+          badgeTone: isDaOrDo ? 'amber' : 'purple',
+          isCritical: quadKey === 'da',
+          fields: {
+            quadrant: quadKey.toUpperCase(),
+            strategy: stratText,
+            ...crossSummaryFields,
+          },
+        });
+      });
+    }
 
     const records = [
       ...dofaList.map((d, i) => {
@@ -859,6 +1130,17 @@ async function inspectHito1And2(canonicalId, userId, company) {
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
+            type: d.type || '',
+            source: d.source || (d.type === 'fortaleza' || d.type === 'debilidad' ? 'interno' : 'externo'),
+            category: d.category || '',
+            originModule: d.originModule || '',
+            description: d.description || '',
+            impact: d.impact || '',
+            strategicAction: d.strategicAction || '',
+            responsible: d.responsible || '',
+            status: d.status || '',
+            sentToKanban: Boolean(d.sentToKanban),
+            ...crossSummaryFields,
             'Factor DOFA (Fortaleza / Debilidad / Oportunidad / Amenaza)': String(d.type || '').toUpperCase(),
             'Descripción del Factor DOFA': d.description || '',
             'Origen (Interno / Externo)': d.source || '',
@@ -868,6 +1150,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
             'Acción Estratégica CAME': d.strategicAction || '',
             'Responsable': d.responsible || '',
             'Estado': d.status || '',
+            'Enviado a Kanban ACPM': d.sentToKanban ? 'Sí' : 'No',
             'Fortalezas Internas SST (F)': d.type === 'fortaleza' ? d.description : '',
             'Debilidades Internas SST (D)': d.type === 'debilidad' ? d.description : '',
             'Oportunidades Externas SST (O)': d.type === 'oportunidad' ? d.description : '',
@@ -883,6 +1166,17 @@ async function inspectHito1And2(canonicalId, userId, company) {
         badgeTone: 'indigo',
         isCritical: s.impactLevel === 'alto',
         fields: {
+          parte: s.parte || '',
+          type: s.type || 'Interno',
+          necesidades: s.necesidades || '',
+          expectativas: s.expectativas || '',
+          requisito: s.requisito || '',
+          control: s.control || '',
+          communicationChannel: s.communicationChannel || '',
+          frequency: s.frequency || '',
+          impactLevel: s.impactLevel || 'alto',
+          sentToKanban: Boolean(s.sentToKanban),
+          ...crossSummaryFields,
           'Partes Interesadas Internas y Externas (Stakeholders)': `${s.parte || ''} (${s.type || 'Interno'})`,
           'Necesidades y Expectativas en SST por Parte Interesada': `Necesidades: ${s.necesidades || ''} | Expectativas: ${s.expectativas || ''}`,
           'Requisitos Legales y Contractuales Asociados': s.requisito || '',
@@ -891,11 +1185,13 @@ async function inspectHito1And2(canonicalId, userId, company) {
           'Nivel de Impacto': s.impactLevel || 'alto',
         },
       })),
+      ...crossRecords,
     ];
 
     return {
       moduleTitle: 'Hito 1 · Contexto y Partes Interesadas (DOFA / Stakeholders)',
       sourceCollection: 'ContextoData',
+      latestReports,
       kpis: [
         { label: 'Factores DOFA', value: dofaList.length, tone: 'teal' },
         { label: 'Debilidades / Amenazas', value: dofaList.filter((d) => d.type === 'debilidad' || d.type === 'amenaza').length, tone: 'rose' },
@@ -914,8 +1210,33 @@ async function inspectHito1And2(canonicalId, userId, company) {
     const cumpleCount = items.filter((i) => i.status === 'cumple').length;
     const noCumpleCount = items.filter((i) => i.status === 'no_cumple' || i.status === 'parcial').length;
     const noAplicaCount = items.filter((i) => i.status === 'no_aplica').length;
-    const score = typeof doc?.score === 'number' ? Math.round(doc.score * 100) / 100 : 0;
+    const score =
+      typeof doc?.compliancePercentage === 'number'
+        ? Math.round(doc.compliancePercentage * 100) / 100
+        : typeof doc?.score === 'number'
+          ? Math.round(doc.score * 100) / 100
+          : 0;
+    const totalPoints =
+      typeof doc?.totalPoints === 'number'
+        ? doc.totalPoints
+        : items.reduce((acc, it) => acc + (it.status === 'cumple' || it.status === 'no_aplica' ? Number(it.weight ?? it.points ?? 0) : 0), 0);
     const level = doc?.complianceLevel || (score >= 86 ? 'Aceptable' : score >= 61 ? 'Moderado' : 'Crítico');
+    const wCount = Number(company?.workerCount || 0);
+    const resolvedCompanySize =
+      doc?.companySize ||
+      (wCount <= 10 ? '10 o menos trabajadores (7 o 21 estándares)' : wCount <= 50 ? '11 a 50 trabajadores (21 o 60 estándares)' : 'Más de 50 trabajadores (60 estándares)');
+    const resolvedRiskLevel = doc?.riskLevel || company?.riskLevel || '';
+
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-diagnostico'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: doc?.conversationId || `embedded_diag_${company?._id || 'active'}`,
+        title: 'Informe Oficial Autoevaluación Estándares Mínimos Res. 0312',
+        html: doc?.lastGeneratedReport || doc?.reportHtml,
+        tags: ['sgsst-diagnostico'],
+        createdAt: doc?.updatedAt,
+      }),
+    ]);
 
     const records = items.map((it, idx) => {
       const st = String(it.status || 'pendiente');
@@ -930,29 +1251,51 @@ async function inspectHito1And2(canonicalId, userId, company) {
               : st === 'no_aplica'
                 ? 'NO APLICA'
                 : 'PENDIENTE';
+      const stdCode = it.standardCode || it.code || it.itemId || '';
+      const stdDesc = it.description || it.name || '';
+      const stdWeight = it.weight ?? it.points ?? '';
+      const stdCycle = String(it.cycle || it.category || '').toUpperCase();
+      const stdObs = it.observation || it.evaluation || '';
+      const stdEvs = Array.isArray(it.evidenceFiles) ? it.evidenceFiles : Array.isArray(it.evidences) ? it.evidences : [];
+
       return {
-        id: String(it.itemId || it.code || `std_${idx}`),
-        label: `Estándar ${it.code || it.itemId || idx + 1} · ${it.name || it.description || 'Estándar Res. 0312'}`,
-        sublabel: `Ciclo: ${String(it.category || 'PHVA').toUpperCase()} • Peso: ${it.points ?? ''} pts${it.observation ? ` • Obs: ${it.observation}` : ''}`,
+        id: String(stdCode || `std_${idx}`),
+        label: `Estándar ${stdCode || idx + 1} · ${stdDesc || 'Estándar Res. 0312'}`,
+        sublabel: `Ciclo: ${stdCycle || 'PHVA'} • Peso: ${stdWeight} pts${stdObs ? ` • Obs: ${stdObs}` : ''}`,
         badge: stLabel,
         badgeTone: st === 'cumple' ? 'emerald' : st === 'no_aplica' ? 'slate' : 'rose',
         isCritical: isCrit,
         fields: {
-          'Código Estándar': it.code || it.itemId || '',
-          'Nombre del Estándar': it.name || it.description || '',
+          companySize: resolvedCompanySize,
+          riskLevel: resolvedRiskLevel,
+          totalPoints: Number(totalPoints.toFixed ? totalPoints.toFixed(2) : totalPoints),
+          compliancePercentage: score,
+          cycle: stdCycle,
+          standardCode: stdCode,
+          description: stdDesc,
+          weight: stdWeight,
+          status: st,
+          evaluation: it.evaluation || stLabel,
+          observation: stdObs,
+          evidenceFiles: stdEvs.map((ev) => (typeof ev === 'string' ? ev : ev?.fileName || ev?.name || ev?.url || '')).filter(Boolean),
+          'Código Estándar': stdCode,
+          'Nombre del Estándar': stdDesc,
           'Estado (Cumple / No Cumple / Parcial / No Aplica)': stLabel,
-          'Puntaje del Ítem': String(it.points ?? ''),
-          'Ciclo PHVA': String(it.category || '').toUpperCase(),
-          'Observación / Hallazgo': it.observation || '',
+          'Puntaje del Ítem': String(stdWeight),
+          'Ciclo PHVA': stdCycle,
+          'Observación / Hallazgo': stdObs,
+          'Tamaño de Empresa': resolvedCompanySize,
+          'Nivel de Riesgo ARL': String(resolvedRiskLevel),
+          'Puntaje Total Obtenido (pts)': String(totalPoints),
           'Puntaje Total Res. 0312 (%)': `${score}%`,
           'Puntaje Total 0312 (%)': `${score}%`,
           'Valoración Global (Crítico <60% / Moderado 60-85% / Aceptable >85%)': String(level).toUpperCase(),
           'Valoración Global (Crítico / Moderado / Aceptable)': String(level).toUpperCase(),
-          'Estándares que NO CUMPLEN (Brechas Críticas y Numeral)': isCrit ? `${it.code || it.itemId}: ${it.name || ''} (${it.observation || 'Sin evidencia'})` : '',
-          'Estándares que CUMPLEN Totalmente (Ítem y Peso)': st === 'cumple' ? `${it.code || it.itemId}: ${it.name || ''} (${it.points || 0} pts)` : '',
-          'Estándares que NO APLICAN (Justificación Normativa)': st === 'no_aplica' ? `${it.code || it.itemId}: ${it.name || ''}` : '',
-          'Avance por Ciclo PHVA (Planear, Hacer, Verificar, Actuar)': String(it.category || '').toUpperCase(),
-          'Observaciones Técnicas del Evaluador SST': it.observation || '',
+          'Estándares que NO CUMPLEN (Brechas Críticas y Numeral)': isCrit ? `${stdCode}: ${stdDesc} (${stdObs || 'Sin evidencia'})` : '',
+          'Estándares que CUMPLEN Totalmente (Ítem y Peso)': st === 'cumple' ? `${stdCode}: ${stdDesc} (${stdWeight || 0} pts)` : '',
+          'Estándares que NO APLICAN (Justificación Normativa)': st === 'no_aplica' ? `${stdCode}: ${stdDesc}` : '',
+          'Avance por Ciclo PHVA (Planear, Hacer, Verificar, Actuar)': stdCycle,
+          'Observaciones Técnicas del Evaluador SST': stdObs,
         },
       };
     });
@@ -960,6 +1303,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 1 · Diagnóstico Inicial Estándares Mínimos (Res. 0312)',
       sourceCollection: 'DiagnosticoData',
+      latestReports,
       kpis: [
         { label: 'Puntaje Res. 0312', value: `${score}%`, tone: score >= 86 ? 'emerald' : score >= 61 ? 'amber' : 'rose' },
         { label: 'Valoración Global', value: String(level).toUpperCase(), tone: score >= 86 ? 'emerald' : score >= 61 ? 'amber' : 'rose' },
@@ -986,51 +1330,103 @@ async function inspectHito1And2(canonicalId, userId, company) {
       hito1_rhs: 'Hito 1 · Reglamento de Higiene y Seguridad Industrial (RHS)',
       hito1_rit: 'Hito 1 · Reglamento Interno de Trabajo (RIT)',
     };
-    const reports = await fetchLatestReportsForTags(userId, company, tagMap[canonicalId], 6);
+    const reports = await fetchLatestReportsForTags(userId, company, tagMap[canonicalId], 5);
     const hasResp = Boolean(company?.responsibleSST);
-    const records = [
-      {
+    const dept = company?.departamento || company?.department || '';
+
+    const fullCompanyFields = {
+      companyName: company?.companyName || '',
+      nit: company?.nit || '',
+      ciiu: company?.ciiu || company?.ciiuCode || '',
+      economicActivity: company?.economicActivity || '',
+      riskLevel: company?.riskLevel || '',
+      arl: company?.arl || '',
+      workerCount: company?.workerCount ?? 0,
+      address: company?.address || '',
+      city: company?.city || '',
+      department: dept,
+      legalRepresentative: company?.legalRepresentative || '',
+      legalRepresentativeId: company?.legalRepresentativeId || '',
+      responsibleSST: company?.responsibleSST || '',
+      licenseNumber: company?.licenseNumber || '',
+      formationLevel: company?.formationLevel || '',
+      licenseExpiry: company?.licenseExpiry || '',
+      courseStatus: company?.courseStatus || '',
+      'Razón Social': company?.companyName || '',
+      'NIT': company?.nit || '',
+      'Código CIIU': company?.ciiu || company?.ciiuCode || '',
+      'Actividad Económica': company?.economicActivity || '',
+      'Nivel de Riesgo ARL': String(company?.riskLevel || ''),
+      'ARL Afiliada': company?.arl || '',
+      'Número de Trabajadores': String(company?.workerCount ?? 0),
+      'Dirección': company?.address || '',
+      'Ciudad / Municipio': company?.city || '',
+      'Departamento': dept,
+      'Representante Legal': company?.legalRepresentative || '',
+      'Nombre Completo y Cédula del Responsable SG-SST': company?.responsibleSST || 'Sin asignar',
+      'Nombre del Responsable SG-SST': company?.responsibleSST || 'Sin asignar',
+      'Perfil Académico (Profesional / Especialista / Tecnólogo en SST)': company?.formationLevel || '',
+      'Nivel de Formación Académica': company?.formationLevel || '',
+      'Número y Fecha de Vigencia de Licencia SST': `${company?.licenseNumber || ''} (Vence: ${company?.licenseExpiry || 'N/A'})`,
+      'Número de Licencia SST': company?.licenseNumber || '',
+      'Fecha de Vigencia de Licencia': company?.licenseExpiry || '',
+      'Certificado Curso Virtual 50 Horas / Actualización 20 Horas': company?.courseStatus || '',
+      'Actividad Económica y Clase de Riesgo': `${company?.economicActivity || ''} (CIIU ${company?.ciiu || ''} - Riesgo ${company?.riskLevel || ''})`,
+    };
+
+    const primaryExtracted = reports[0]?.html
+      ? extractHtmlSectionsFromReport(reports[0].html)
+      : { headings: [], tableRows: [], structuredText: '' };
+
+    const records = [];
+    if (company) {
+      records.push({
         id: `gov_${canonicalId}_company`,
         label:
           canonicalId === 'hito1_responsable'
             ? `Responsable SG-SST: ${company?.responsibleSST || 'Sin asignar'} (Licencia: ${company?.licenseNumber || 'Pendiente'})`
             : `${titleMap[canonicalId]} — ${companyName}`,
-        sublabel: `Formación: ${company?.formationLevel || 'N/A'} • Vigencia Licencia: ${company?.licenseExpiry || 'N/A'} • Curso 50h/20h: ${company?.courseStatus || 'N/A'}`,
+        sublabel: `NIT: ${company?.nit || 'N/A'} • Formación: ${company?.formationLevel || 'N/A'} • Licencia: ${company?.licenseNumber || 'N/A'} (Vence: ${company?.licenseExpiry || 'N/A'})`,
         badge: reports.length > 0 ? `${reports.length} Informe(s) Oficial(es)` : hasResp ? 'Datos Registrados' : 'Pendiente Generar',
         badgeTone: reports.length > 0 || hasResp ? 'emerald' : 'amber',
-        isCritical: !hasResp && canonicalId === 'hito1_responsable',
+        isCritical: canonicalId === 'hito1_responsable' ? !hasResp : false,
         fields: {
-          'Nombre Completo y Cédula del Responsable SG-SST': company?.responsibleSST || 'Sin asignar',
-          'Nombre del Responsable SG-SST': company?.responsibleSST || 'Sin asignar',
-          'Perfil Académico (Profesional / Especialista / Tecnólogo en SST)': company?.formationLevel || '',
-          'Nivel de Formación Académica': company?.formationLevel || '',
-          'Número y Fecha de Vigencia de Licencia SST': `${company?.licenseNumber || ''} (Vence: ${company?.licenseExpiry || 'N/A'})`,
-          'Número de Licencia SST': company?.licenseNumber || '',
-          'Fecha de Vigencia de Licencia': company?.licenseExpiry || '',
-          'Certificado Curso Virtual 50 Horas / Actualización 20 Horas': company?.courseStatus || '',
-          'Representante Legal': company?.legalRepresentative || '',
-          'Actividad Económica y Clase de Riesgo': `${company?.economicActivity || ''} (CIIU ${company?.ciiu || ''} - Riesgo ${company?.riskLevel || ''})`,
-          'Último Documento Oficial Generado': reports[0]?.preview || 'Sin documento generado aún',
+          ...fullCompanyFields,
+          'Capítulos / Secciones del Último Informe Oficial': primaryExtracted.headings.join(' | ') || 'Sin capítulos generados aún',
+          'Tablas Extraídas del Informe Oficial': primaryExtracted.tableRows.join(' || ') || '',
+          'Último Documento Oficial Generado (Contenido Completo por Secciones)':
+            primaryExtracted.structuredText || reports[0]?.preview || 'Sin documento generado aún',
         },
-      },
-      ...reports.map((r) => ({
+      });
+    }
+
+    for (const r of reports) {
+      const parsed = extractHtmlSectionsFromReport(r.html);
+      records.push({
         id: r.conversationId,
         label: `📄 ${r.title}`,
-        sublabel: r.preview ? r.preview.slice(0, 180) : 'Documento oficial guardado en historial',
+        sublabel: parsed.headings.length > 0 ? `Capítulos: ${parsed.headings.slice(0, 6).join(' • ')}` : r.preview || 'Documento oficial guardado en historial',
         badge: r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('es-CO') : 'Guardado',
         badgeTone: 'indigo',
         isCritical: false,
         fields: {
+          ...fullCompanyFields,
+          conversationId: r.conversationId,
+          title: r.title,
+          charCount: r.charCount,
           'Título del Informe': r.title,
           'Fecha de Generación': r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('es-CO') : '',
-          'Resumen / Contenido del Documento Oficial': r.preview,
+          'Capítulos / Encabezados (H2/H3)': parsed.headings.join(' | '),
+          'Filas de Tablas Oficiales (TR)': parsed.tableRows.join(' || '),
+          'Contenido Estructurado Completo del Documento Oficial': parsed.structuredText,
         },
-      })),
-    ];
+      });
+    }
 
     return {
       moduleTitle: titleMap[canonicalId],
       sourceCollection: 'CompanyInfo + ConversationHistory',
+      latestReports: reports,
       kpis: [
         { label: 'Responsable SST', value: company?.responsibleSST || 'Pendiente', tone: hasResp ? 'emerald' : 'rose' },
         { label: 'Licencia SST', value: company?.licenseNumber || 'Pendiente', tone: company?.licenseNumber ? 'teal' : 'amber' },
@@ -1051,6 +1447,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
     const cumple = entries.filter(([, v]) => v === 'cumple').length;
     const brecha = entries.filter(([, v]) => v === 'no_cumple' || v === 'pendiente').length;
     const pct = entries.length > 0 ? Math.round((cumple / entries.length) * 100) : 0;
+    const latestReports = await fetchLatestReportsForTags(userId, company, ['sgsst-matriz-legal', 'sgsst-matriz'], 5);
 
     const records = entries.map(([normKey, st]) => {
       const isCrit = st === 'no_cumple' || st === 'pendiente';
@@ -1075,6 +1472,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 1 · Matriz de Requisitos Legales SG-SST',
       sourceCollection: 'MatrizLegalData',
+      latestReports,
       kpis: [
         { label: 'Normas Evaluadas', value: entries.length, tone: 'teal' },
         { label: 'Cumplimiento Legal', value: `${pct}%`, tone: pct >= 85 ? 'emerald' : 'amber' },
@@ -1091,83 +1489,159 @@ async function inspectHito1And2(canonicalId, userId, company) {
     const doc = await findSingleCompanyDoc(ParticipacionIpevarData, userId, company);
     const list = Array.isArray(doc?.participacionesList) ? doc.participacionesList : [];
     const inbox = Array.isArray(doc?.inboxPublico) ? doc.inboxPublico : [];
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-participacion-ipevar'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: doc?.conversationId || `embedded_part_ipevar_${company?._id || 'active'}`,
+        title: 'Informe Oficial Participación y Consulta IPEVAR',
+        html: doc?.lastGeneratedReport || doc?.reportHtml,
+        tags: ['sgsst-participacion-ipevar'],
+        createdAt: doc?.updatedAt,
+      }),
+    ]);
+
     const combined = [
-      ...list.map((p, idx) => ({
-        id: p.id || `part_${idx}`,
-        workerName: p.trabajadoresList?.[0]?.nombre || p.title || 'Colaborador',
-        workerCedula: p.trabajadoresList?.[0]?.cedula || '',
-        cargo: p.trabajadoresList?.[0]?.cargo || '',
-        proceso: p.formData?.proceso || '',
-        zona: p.formData?.zona || '',
-        actividad: p.formData?.actividad || p.formData?.actividadGlobal || '',
-        peligroClasificacion: p.formData?.peligroClasificacion || '',
-        peligros: p.formData?.peligros || '',
-        severidad: p.formData?.severidadPercibida || 'Media',
-        controles: p.formData?.controlesExistentes || '',
-        propuesta: p.formData?.propuestaMejora || p.formData?.sugeridoAdministrativo || '',
-        status: p.status || 'processed',
-        modalidad: 'Asistida SST',
-      })),
-      ...inbox.map((inb, idx) => ({
-        id: inb.id || `inb_part_${idx}`,
-        workerName: inb.trabajador?.nombre || inb.data?.nombre || 'Reporte QR',
-        workerCedula: inb.trabajador?.cedula || inb.data?.cedula || '',
-        cargo: inb.trabajador?.cargo || inb.data?.cargo || '',
-        proceso: inb.data?.proceso || '',
-        zona: inb.data?.zona || inb.data?.ubicacion || '',
-        actividad: inb.data?.actividad || '',
-        peligroClasificacion: inb.data?.peligroClasificacion || '',
-        peligros: inb.data?.peligros || inb.data?.descripcion || '',
-        severidad: inb.data?.severidadPercibida || 'Alta',
-        controles: inb.data?.controlesExistentes || '',
-        propuesta: inb.data?.propuestaMejora || '',
-        status: inb.status || 'pending',
-        modalidad: 'Buzón QR Colaborador',
-      })),
+      ...list.map((p, idx) => {
+        const fd = p.formData || p;
+        const trab = p.trabajadoresList?.[0] || {};
+        return {
+          id: p.id || `part_${idx}`,
+          trabajadorNombre: p.trabajadorNombre || trab.nombre || fd.nombre || p.title || 'Colaborador',
+          trabajadorCedula: p.trabajadorCedula || trab.cedula || trab.documento || fd.cedula || '',
+          cargo: p.cargo || trab.cargo || fd.cargo || '',
+          area: p.area || fd.proceso || fd.area || '',
+          zona: p.zona || fd.zona || '',
+          actividad: p.actividad || fd.actividad || fd.actividadGlobal || '',
+          tarea: p.tarea || fd.tarea || fd.tareas || '',
+          rutinaria: p.rutinaria ?? fd.rutinaria ?? 'Sí',
+          peligro: p.peligro || fd.peligros || fd.peligro || '',
+          clasificacion: p.clasificacion || fd.peligroClasificacion || fd.clasificacion || '',
+          efectosPosibles: p.efectosPosibles || fd.efectosPosibles || '',
+          peorConsecuencia: p.peorConsecuencia || fd.peorConsecuencia || '',
+          severidad: p.severidad || fd.severidadPercibida || fd.severidad || 'Media',
+          controlesExistentes: p.controlesExistentes || fd.controlesExistentes || '',
+          sugeridoEliminacion: p.sugeridoEliminacion || fd.sugeridoEliminacion || '',
+          sugeridoIngenieria: p.sugeridoIngenieria || fd.sugeridoIngenieria || '',
+          sugeridoAdministrativo: p.sugeridoAdministrativo || fd.sugeridoAdministrativo || fd.propuestaMejora || '',
+          sugeridoEPP: p.sugeridoEPP || fd.sugeridoEPP || '',
+          matrixAction: p.matrixAction || fd.matrixAction || (p.status === 'applied_to_matrix' ? 'integrado' : ''),
+          estado: p.estado || p.status || 'processed',
+          fecha: p.fecha || fd.fecha || p.createdAt || '',
+          modalidad: 'Asistida SST',
+        };
+      }),
+      ...inbox.map((inb, idx) => {
+        const d = inb.data || inb;
+        const trab = inb.trabajador || {};
+        return {
+          id: inb.id || `inb_part_${idx}`,
+          trabajadorNombre: inb.trabajadorNombre || trab.nombre || d.trabajadorNombre || d.nombre || 'Reporte QR',
+          trabajadorCedula: inb.trabajadorCedula || trab.cedula || d.trabajadorCedula || d.cedula || '',
+          cargo: inb.cargo || trab.cargo || d.cargo || '',
+          area: inb.area || d.proceso || d.area || '',
+          zona: inb.zona || d.zona || d.ubicacion || '',
+          actividad: inb.actividad || d.actividad || '',
+          tarea: inb.tarea || d.tarea || d.tareas || '',
+          rutinaria: inb.rutinaria ?? d.rutinaria ?? 'Sí',
+          peligro: inb.peligro || d.peligro || d.peligros || d.descripcion || '',
+          clasificacion: inb.clasificacion || d.clasificacion || d.peligroClasificacion || '',
+          efectosPosibles: inb.efectosPosibles || d.efectosPosibles || '',
+          peorConsecuencia: inb.peorConsecuencia || d.peorConsecuencia || '',
+          severidad: inb.severidad || d.severidadPercibida || d.severidad || 'Alta',
+          controlesExistentes: inb.controlesExistentes || d.controlesExistentes || '',
+          sugeridoEliminacion: inb.sugeridoEliminacion || d.sugeridoEliminacion || '',
+          sugeridoIngenieria: inb.sugeridoIngenieria || d.sugeridoIngenieria || '',
+          sugeridoAdministrativo: inb.sugeridoAdministrativo || d.sugeridoAdministrativo || d.propuestaMejora || '',
+          sugeridoEPP: inb.sugeridoEPP || d.sugeridoEPP || '',
+          matrixAction: inb.matrixAction || d.matrixAction || 'pendiente_revision_qr',
+          estado: inb.estado || inb.status || 'pending',
+          fecha: inb.fecha || d.fecha || inb.createdAt || '',
+          modalidad: 'Buzón QR Colaborador',
+        };
+      }),
     ];
 
-    const critCount = combined.filter((c) => /alta|cr[ií]tica/i.test(c.severidad) || c.status === 'pending').length;
+    const critCount = combined.filter((c) => /alta|cr[ií]tica/i.test(String(c.severidad)) || c.estado === 'pending' || c.estado === 'pendiente').length;
 
     return {
       moduleTitle: 'Hito 1 · Participación y Consulta de Peligros (IPEVAR)',
       sourceCollection: 'ParticipacionIpevarData',
+      latestReports,
       kpis: [
         { label: 'Total Participaciones', value: combined.length, tone: 'teal' },
         { label: 'Buzón QR Público', value: inbox.length, tone: 'indigo' },
-        { label: 'Severidad Alta / Crítica', value: critCount, tone: critCount > 0 ? 'rose' : 'emerald' },
-        { label: 'Integradas a GTC-45', value: list.filter((x) => x.status === 'applied_to_matrix').length, tone: 'emerald' },
+        { label: 'Severidad Alta / Pendientes', value: critCount, tone: critCount > 0 ? 'rose' : 'emerald' },
+        { label: 'Integradas a GTC-45', value: combined.filter((x) => x.estado === 'applied_to_matrix' || x.estado === 'aprobado').length, tone: 'emerald' },
       ],
-      records: combined.map((c) => ({
-        id: c.id,
-        label: `${c.workerName} ${c.workerCedula ? `(CC ${c.workerCedula})` : ''} · ${c.peligroClasificacion || 'Peligro Reportado'}`,
-        sublabel: `Cargo: ${c.cargo || 'N/A'} • Zona: ${c.proceso || ''} ${c.zona || ''} • Peligro: ${c.peligros || ''}`,
-        badge: `${c.severidad} • ${c.modalidad}`,
-        badgeTone: /alta|cr[ií]tica/i.test(c.severidad) ? 'rose' : 'amber',
-        isCritical: /alta|cr[ií]tica/i.test(c.severidad) || c.status === 'pending',
-        fields: {
-          'Trabajador Reportante (Cédula, Nombre y Cargo)': `${c.workerName} (CC ${c.workerCedula}) - ${c.cargo}`,
-          'Cédula / Documento': c.workerCedula,
-          'Nombre Completo': c.workerName,
-          'Cargo': c.cargo,
-          'Área / Proceso / Zona': `${c.proceso} - ${c.zona}`,
-          'Actividad / Tarea': c.actividad,
-          'Clasificación del Peligro (GTC-45)': c.peligroClasificacion,
-          'Peligro Percibido o Condición Reportada': c.peligros,
-          'Severidad Percibida': c.severidad,
-          'Controles Existentes': c.controles,
-          'Propuesta de Control Sugerida por el Trabajador': c.propuesta,
-          'Estado de Incorporación en la Matriz Oficial IPEVR': c.status,
-        },
-      })),
+      records: combined.map((c) => {
+        const isCrit = /alta|cr[ií]tica/i.test(String(c.severidad)) || c.estado === 'pending' || c.estado === 'pendiente';
+        const propuestasJoin = [
+          c.sugeridoEliminacion ? `Eliminación: ${c.sugeridoEliminacion}` : '',
+          c.sugeridoIngenieria ? `Ingeniería: ${c.sugeridoIngenieria}` : '',
+          c.sugeridoAdministrativo ? `Administrativo: ${c.sugeridoAdministrativo}` : '',
+          c.sugeridoEPP ? `EPP: ${c.sugeridoEPP}` : '',
+        ]
+          .filter(Boolean)
+          .join(' | ');
+        return {
+          id: c.id,
+          label: `${c.trabajadorNombre} ${c.trabajadorCedula ? `(CC ${c.trabajadorCedula})` : ''} · ${c.clasificacion || 'Peligro Reportado'}`,
+          sublabel: `Cargo: ${c.cargo || 'N/A'} • Zona: ${c.area || ''} ${c.zona || ''} • Peligro: ${c.peligro || ''}`,
+          badge: `${c.severidad} • ${c.modalidad} (${c.estado})`,
+          badgeTone: isCrit ? 'rose' : 'emerald',
+          isCritical: isCrit,
+          fields: {
+            trabajadorNombre: c.trabajadorNombre,
+            trabajadorCedula: c.trabajadorCedula,
+            cargo: c.cargo,
+            area: c.area,
+            zona: c.zona,
+            actividad: c.actividad,
+            tarea: c.tarea,
+            rutinaria: c.rutinaria,
+            peligro: c.peligro,
+            clasificacion: c.clasificacion,
+            efectosPosibles: c.efectosPosibles,
+            peorConsecuencia: c.peorConsecuencia,
+            severidad: c.severidad,
+            controlesExistentes: c.controlesExistentes,
+            sugeridoEliminacion: c.sugeridoEliminacion,
+            sugeridoIngenieria: c.sugeridoIngenieria,
+            sugeridoAdministrativo: c.sugeridoAdministrativo,
+            sugeridoEPP: c.sugeridoEPP,
+            matrixAction: c.matrixAction,
+            estado: c.estado,
+            fecha: c.fecha,
+            modalidad: c.modalidad,
+            'Trabajador Reportante (Cédula, Nombre y Cargo)': `${c.trabajadorNombre} (CC ${c.trabajadorCedula}) - ${c.cargo}`,
+            'Cédula / Documento': c.trabajadorCedula,
+            'Nombre Completo': c.trabajadorNombre,
+            'Cargo': c.cargo,
+            'Área / Proceso / Zona': `${c.area} - ${c.zona}`,
+            'Actividad / Tarea': `${c.actividad} ${c.tarea ? `- ${c.tarea}` : ''}`.trim(),
+            'Clasificación del Peligro (GTC-45)': c.clasificacion,
+            'Peligro Percibido o Condición Reportada': c.peligro,
+            'Efectos Posibles y Peor Consecuencia': `${c.efectosPosibles} | Peor consecuencia: ${c.peorConsecuencia}`,
+            'Severidad Percibida': c.severidad,
+            'Controles Existentes': c.controlesExistentes,
+            'Propuesta de Control Sugerida por el Trabajador': propuestasJoin,
+            'Estado de Incorporación en la Matriz Oficial IPEVR': `${c.estado}${c.matrixAction ? ` (${c.matrixAction})` : ''}`,
+          },
+        };
+      }),
     };
   }
 
-  // 10. Hito 1 · Matriz Oficial de Peligros IPEVR (GTC-45)
+  // 10. Hito 1 · Matriz Oficial de Peligros IPEVR (GTC-45 — 25+ Columnas Completas)
   if (canonicalId === 'hito2_matriz_ipevar') {
     const GTC45WorkspaceSession = getSafeModel('GTC45WorkspaceSession', '~/server/routes/sgsst/gtc45Workspace', '~/models/GTC45WorkspaceSession');
     const MatrizPeligrosData = getSafeModel('MatrizPeligrosData', '~/server/routes/sgsst/matrizPeligros');
     const docs = await findManyCompanyDocs(GTC45WorkspaceSession, userId, company, { isOfficial: -1, updatedAt: -1 }, 10);
-    const officialDoc = docs.find((d) => d.isOfficial && Array.isArray(d.matrixRows) && d.matrixRows.length > 0) || docs.find((d) => Array.isArray(d.matrixRows) && d.matrixRows.length > 0);
+    const officialDoc =
+      docs.find((d) => d.isOfficial && Array.isArray(d.matrixRows) && d.matrixRows.length > 0) ||
+      docs.find((d) => Array.isArray(d.matrixRows) && d.matrixRows.length > 0) ||
+      docs[0] ||
+      null;
     let rows = Array.isArray(officialDoc?.matrixRows) ? officialDoc.matrixRows : [];
     let sourceCollectionLabel = 'GTC45WorkspaceSession';
 
@@ -1179,10 +1653,10 @@ async function inspectHito1And2(canonicalId, userId, company) {
         rows = mpEntries.map((e, idx) => ({
           id: e.id || `mp_${idx}`,
           proceso: e.proceso || 'Operativo',
-          zona: e.zona || 'Principal',
-          cargo: e.cargo || e.proceso || 'Operativo',
-          actividad: e.actividad || '',
-          tareas: e.tarea || '',
+          zona_lugar: e.zona_lugar || e.zona || 'Principal',
+          cargos: e.cargos || e.cargo || e.proceso || 'Operativo',
+          actividades: e.actividades || e.actividad || '',
+          tareas: e.tareas || e.tarea || '',
           rutinaria: e.rutinario === false ? 'No' : 'Sí',
           peligro_clasificacion: e.clasificacion || 'Peligro Operativo',
           peligro_descripcion: e.descripcionPeligro || '',
@@ -1210,32 +1684,78 @@ async function inspectHito1And2(canonicalId, userId, company) {
       }
     }
 
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-matriz-ipevar', 'sgsst-matriz-peligros'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: officialDoc?.conversationId || `embedded_gtc45_${company?._id || 'active'}`,
+        title: officialDoc?.officialTitle || 'Informe Oficial Matriz de Peligros GTC-45',
+        html: officialDoc?.reportHtml || officialDoc?.lastGeneratedReport,
+        tags: ['sgsst-matriz-ipevar'],
+        createdAt: officialDoc?.updatedAt,
+      }),
+    ]);
+
+    const chartConclusionsText = officialDoc?.chartConclusions ? formatCleanScalar(officialDoc.chartConclusions, '') : '';
     const criticos = rows.filter((r) => r.interpretacion_nr === 'I' || r.interpretacion_nr === 'II' || /no aceptable/i.test(r.aceptabilidad || '')).length;
 
     return {
       moduleTitle: 'Hito 1 · Matriz Oficial de Identificación de Peligros y Valoración de Riesgos (GTC-45)',
       sourceCollection: sourceCollectionLabel,
+      latestReports,
       kpis: [
         { label: 'Total Peligros GTC-45', value: rows.length, tone: 'teal' },
         { label: 'Críticos / Altos (Nivel I y II)', value: criticos, tone: criticos > 0 ? 'rose' : 'emerald' },
         { label: 'Aceptables (III y IV)', value: Math.max(0, rows.length - criticos), tone: 'emerald' },
-        { label: 'Cargos Evaluados', value: new Set(rows.map((r) => r.cargo).filter(Boolean)).size, tone: 'indigo' },
+        { label: 'Cargos Evaluados', value: new Set(rows.map((r) => r.cargos || r.cargo).filter(Boolean)).size, tone: 'indigo' },
       ],
       records: rows.map((r, i) => {
         const isCrit = r.interpretacion_nr === 'I' || r.interpretacion_nr === 'II' || /no aceptable/i.test(r.aceptabilidad || '');
+        const zonaLugar = r.zona_lugar || r.zona || '';
+        const cargosVal = r.cargos || r.cargo || '';
+        const actividadesVal = r.actividades || r.actividad || '';
+        const tareasVal = r.tareas || r.tarea || '';
         return {
           id: r.id || `gtc45_${i}`,
-          label: `[${r.peligro_clasificacion || 'Peligro'}] ${r.peligro_descripcion || 'Sin descripción'} — Cargo: ${r.cargo || r.proceso || 'General'}`,
-          sublabel: `Proceso: ${r.proceso || ''} • Actividad: ${r.actividad || ''} • Efectos: ${r.efectos_posibles || ''}`,
-          badge: `NR: ${r.nr || 'N/A'} (Nivel ${r.interpretacion_nr || 'N/A'} · ${r.aceptabilidad || 'Evaluado'})`,
+          label: `[${r.peligro_clasificacion || 'Peligro'}] ${r.peligro_descripcion || 'Sin descripción'} — Cargo: ${cargosVal || r.proceso || 'General'}`,
+          sublabel: `Proceso: ${r.proceso || ''} • Actividad: ${actividadesVal} • Efectos: ${r.efectos_posibles || ''}`,
+          badge: `NR: ${r.nr ?? 'N/A'} (Nivel ${r.interpretacion_nr || 'N/A'} · ${r.aceptabilidad || 'Evaluado'})`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Proceso, Zona / Lugar y Cargo Expuesto': `${r.proceso || ''} | ${r.zona || ''} | ${r.cargo || ''}`,
+            proceso: r.proceso || '',
+            zona_lugar: zonaLugar,
+            cargos: cargosVal,
+            actividades: actividadesVal,
+            tareas: tareasVal,
+            rutinaria: r.rutinaria ?? 'Sí',
+            peligro_descripcion: r.peligro_descripcion || '',
+            peligro_clasificacion: r.peligro_clasificacion || '',
+            efectos_posibles: r.efectos_posibles || '',
+            controles_fuente: r.controles_fuente || '',
+            controles_medio: r.controles_medio || '',
+            controles_individuo: r.controles_individuo || '',
+            nd: r.nd ?? '',
+            ne: r.ne ?? '',
+            np: r.np ?? '',
+            interpretacion_np: r.interpretacion_np || '',
+            nc: r.nc ?? '',
+            nr: r.nr ?? '',
+            interpretacion_nr: r.interpretacion_nr || '',
+            aceptabilidad: r.aceptabilidad || '',
+            nro_expuestos: r.nro_expuestos ?? '',
+            peor_consecuencia: r.peor_consecuencia || '',
+            requisito_legal: r.requisito_legal ?? '',
+            medida_eliminacion: r.medida_eliminacion || '',
+            medida_sustitucion: r.medida_sustitucion || '',
+            medida_ingenieria: r.medida_ingenieria || '',
+            medida_administrativa: r.medida_administrativa || '',
+            medida_eppu: r.medida_eppu || '',
+            chartConclusions: chartConclusionsText,
+            'Proceso, Zona / Lugar y Cargo Expuesto': `${r.proceso || ''} | ${zonaLugar} | ${cargosVal}`,
             'Proceso': r.proceso || '',
-            'Cargo': r.cargo || '',
-            'Zona / Lugar': r.zona || '',
-            'Actividad y Tarea (Rutinaria / No Rutinaria)': `${r.actividad || ''} - ${r.tareas || ''} (Rutinaria: ${r.rutinaria || 'Sí'})`,
+            'Cargo': cargosVal,
+            'Zona / Lugar': zonaLugar,
+            'Actividad y Tarea (Rutinaria / No Rutinaria)': `${actividadesVal} - ${tareasVal} (Rutinaria: ${r.rutinaria || 'Sí'})`,
             'Peligro (Descripción y Clasificación: Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad, Fenómenos Naturales)': `${r.peligro_clasificacion || ''}: ${r.peligro_descripcion || ''}`,
             'Clasificación del Peligro': r.peligro_clasificacion || '',
             'Descripción del Peligro': r.peligro_descripcion || '',
@@ -1243,88 +1763,180 @@ async function inspectHito1And2(canonicalId, userId, company) {
             'Controles Existentes (Fuente, Medio e Individuo)': `Fuente: ${r.controles_fuente || 'Ninguno'} | Medio: ${r.controles_medio || 'Ninguno'} | Individuo: ${r.controles_individuo || 'Ninguno'}`,
             'Evaluación del Riesgo (ND, NE, NP = ND×NE, Interpretación NP, NC)': `ND=${r.nd ?? ''} | NE=${r.ne ?? ''} | NP=${r.np ?? ''} (${r.interpretacion_np || ''}) | NC=${r.nc ?? ''}`,
             'Valoración del Riesgo (NR = NP×NC, Nivel de Riesgo I/II/III/IV y Aceptabilidad)': `NR=${r.nr ?? ''} | Nivel ${r.interpretacion_nr || ''} | ${r.aceptabilidad || ''}`,
-            'Criterios para Controles (N° Expuestos, Peor Consecuencia y Requisito Legal Asociado)': `Expuestos: ${r.nro_expuestos || ''} | Peor Consecuencia: ${r.peor_consecuencia || ''} | Req. Legal: ${r.requisito_legal || 'Sí'}`,
+            'Criterios para Controles (N° Expuestos, Peor Consecuencia y Requisito Legal Asociado)': `Expuestos: ${r.nro_expuestos ?? ''} | Peor Consecuencia: ${r.peor_consecuencia || ''} | Req. Legal: ${r.requisito_legal || 'Sí'}`,
             'Medidas de Intervención (Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos / Señalización y EPP)': `Eliminación: ${r.medida_eliminacion || 'N/A'} | Sustitución: ${r.medida_sustitucion || 'N/A'} | Ingeniería: ${r.medida_ingenieria || 'N/A'} | Admin: ${r.medida_administrativa || 'N/A'} | EPP: ${r.medida_eppu || 'N/A'}`,
+            'Conclusiones Estadísticas de la Matriz': chartConclusionsText,
           },
         };
       }),
     };
   }
 
-  // 11. Hito 1 · Matriz Oficial de Riesgos Viales PESV
+  // 11. Hito 1 · Matriz Oficial de Riesgos Viales PESV (25+ Columnas Completas)
   if (canonicalId === 'hito3_matriz_pesv') {
     const PESVWorkspaceSession = getSafeModel('PESVWorkspaceSession', '~/server/routes/sgsst/pesvWorkspace', '~/models/PESVWorkspaceSession');
     const docs = await findManyCompanyDocs(PESVWorkspaceSession, userId, company, { isOfficial: -1, updatedAt: -1 }, 10);
-    const officialDoc = docs.find((d) => d.isOfficial && Array.isArray(d.matrixRows) && d.matrixRows.length > 0) || docs.find((d) => Array.isArray(d.matrixRows) && d.matrixRows.length > 0);
+    const officialDoc =
+      docs.find((d) => d.isOfficial && Array.isArray(d.matrixRows) && d.matrixRows.length > 0) ||
+      docs.find((d) => Array.isArray(d.matrixRows) && d.matrixRows.length > 0) ||
+      docs[0] ||
+      null;
     const rows = Array.isArray(officialDoc?.matrixRows) ? officialDoc.matrixRows : [];
     const criticos = rows.filter((r) => /alto|cr[ií]tico/i.test(r.nivel_riesgo || '') || Number(r.calificacion) >= 12).length;
+
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-matriz-pesv'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: officialDoc?.conversationId || `embedded_pesv_${company?._id || 'active'}`,
+        title: officialDoc?.officialTitle || 'Informe Oficial Matriz de Riesgos Viales PESV',
+        html: officialDoc?.reportHtml || officialDoc?.lastGeneratedReport,
+        tags: ['sgsst-matriz-pesv'],
+        createdAt: officialDoc?.updatedAt,
+      }),
+    ]);
+
+    const chartConclusionsText = officialDoc?.chartConclusions ? formatCleanScalar(officialDoc.chartConclusions, '') : '';
 
     return {
       moduleTitle: 'Hito 1 · Matriz de Riesgos Viales PESV (Res. 20223040040595)',
       sourceCollection: 'PESVWorkspaceSession',
+      latestReports,
       kpis: [
         { label: 'Peligros Viales PESV', value: rows.length, tone: 'teal' },
         { label: 'Riesgo Vial Crítico / Alto', value: criticos, tone: criticos > 0 ? 'rose' : 'emerald' },
         { label: 'Riesgo Medio / Bajo', value: Math.max(0, rows.length - criticos), tone: 'emerald' },
-        { label: 'Actores Viales', value: new Set(rows.map((r) => r.rol_via || r.cargo).filter(Boolean)).size, tone: 'indigo' },
+        { label: 'Actores Viales', value: new Set(rows.map((r) => r.actor_vial || r.rol_via || r.cargo).filter(Boolean)).size, tone: 'indigo' },
       ],
       records: rows.map((r, i) => {
         const isCrit = /alto|cr[ií]tico/i.test(r.nivel_riesgo || '') || Number(r.calificacion) >= 12;
+        const actorVial = r.actor_vial || r.rol_via || '';
+        const peligroVial = r.peligro_vial || r.peligro_descripcion || '';
         return {
           id: r.id || `pesv_${i}`,
-          label: `[${r.factor_riesgo || 'Factor Vial'}] ${r.peligro_descripcion || 'Peligro Vial'} — ${r.cargo || r.rol_via || 'Conductor'}`,
+          label: `[${r.factor_riesgo || 'Factor Vial'}] ${peligroVial || 'Peligro Vial'} — ${r.cargo || actorVial || 'Conductor'}`,
           sublabel: `Desplazamiento: ${r.tipo_desplazamiento || 'Misional'} • Programa Paso 8: ${r.programa_paso8 || 'N/A'}`,
-          badge: `${r.nivel_riesgo || 'Riesgo Vial'} (Calif: ${r.calificacion || ''})`,
+          badge: `${r.nivel_riesgo || 'Riesgo Vial'} (Calif: ${r.calificacion ?? ''})`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Actor Vial (Conductor, Peatón, Pasajero, Ciclista, Motociclista)': `${r.rol_via || ''} (${r.cargo || ''})`,
+            grupo_trabajo: r.grupo_trabajo || '',
+            cargo: r.cargo || '',
+            actor_vial: actorVial,
+            tipo_desplazamiento: r.tipo_desplazamiento || '',
+            factor_riesgo: r.factor_riesgo || '',
+            peligro_vial: peligroVial,
+            np_cualitativo: r.np_cualitativo || '',
+            np_cuantitativo: r.np_cuantitativo ?? '',
+            ne_cualitativo: r.ne_cualitativo || '',
+            ne_cuantitativo: r.ne_cuantitativo ?? '',
+            nc_cualitativo: r.nc_cualitativo || '',
+            nc_cuantitativo: r.nc_cuantitativo ?? '',
+            nivel_riesgo: r.nivel_riesgo || '',
+            calificacion: r.calificacion ?? '',
+            aceptabilidad: r.aceptabilidad || '',
+            controles_existentes_descripcion: r.controles_existentes_descripcion || '',
+            controles_existentes_tipo: r.controles_existentes_tipo || '',
+            tratamiento_accion: r.tratamiento_accion || '',
+            programa_paso8: r.programa_paso8 || '',
+            plan_accion_medio: r.plan_accion_medio || '',
+            plan_accion_vehiculo: r.plan_accion_vehiculo || '',
+            plan_accion_individuo: r.plan_accion_individuo || '',
+            plan_accion_infraestructura: r.plan_accion_infraestructura || '',
+            responsable: r.responsable || '',
+            fecha_programacion: r.fecha_programacion || '',
+            estado: r.estado || '',
+            observaciones: r.observaciones || '',
+            chartConclusions: chartConclusionsText,
+            'Actor Vial (Conductor, Peatón, Pasajero, Ciclista, Motociclista)': `${actorVial} (${r.cargo || ''})`,
             'Tipo de Desplazamiento (Misional / In Itinere)': r.tipo_desplazamiento || '',
             'Factor de Riesgo Vial (Humano, Vehículo, Infraestructura, Entorno)': r.factor_riesgo || '',
-            'Peligro Vial Identificado (Velocidad, Fatiga, Distracción, Alcohol, Fallas Mecánicas)': r.peligro_descripcion || '',
+            'Peligro Vial Identificado (Velocidad, Fatiga, Distracción, Alcohol, Fallas Mecánicas)': peligroVial,
             'Programa Crítico Paso 8': r.programa_paso8 || '',
-            'Valoración del Riesgo Vial (Probabilidad, Exposición, Severidad y Nivel de Riesgo)': `NP=${r.np_cuantitativo || ''} | NE=${r.ne_cuantitativo || ''} | NC=${r.nc_cuantitativo || ''} | Total=${r.calificacion || ''} | ${r.nivel_riesgo || ''}`,
-            'Controles Preventivos y Correctivos PESV': `Existentes: ${r.controles_existentes_descripcion || ''} | Vehículo: ${r.plan_accion_vehiculo || ''} | Individuo: ${r.plan_accion_individuo || ''} | Infraestructura: ${r.plan_accion_infraestructura || ''}`,
-            'Indicadores y Metas de Siniestralidad Vial': `Responsable: ${r.responsable || ''} | Estado: ${r.estado || ''}`,
+            'Valoración del Riesgo Vial (Probabilidad, Exposición, Severidad y Nivel de Riesgo)': `NP=${r.np_cuantitativo ?? ''} (${r.np_cualitativo || ''}) | NE=${r.ne_cuantitativo ?? ''} (${r.ne_cualitativo || ''}) | NC=${r.nc_cuantitativo ?? ''} (${r.nc_cualitativo || ''}) | Total=${r.calificacion ?? ''} | ${r.nivel_riesgo || ''} (${r.aceptabilidad || ''})`,
+            'Controles Preventivos y Correctivos PESV': `Existentes (${r.controles_existentes_tipo || ''}): ${r.controles_existentes_descripcion || ''} | Medio: ${r.plan_accion_medio || ''} | Vehículo: ${r.plan_accion_vehiculo || ''} | Individuo: ${r.plan_accion_individuo || ''} | Infraestructura: ${r.plan_accion_infraestructura || ''}`,
+            'Indicadores y Metas de Siniestralidad Vial': `Responsable: ${r.responsable || ''} | Fecha: ${r.fecha_programacion || ''} | Estado: ${r.estado || ''} | Obs: ${r.observaciones || ''}`,
           },
         };
       }),
     };
   }
 
-  // 12. Hito 1 · Matriz de Compatibilidad Química SGA
+  // 12. Hito 1 · Matriz de Compatibilidad Química SGA (18+ Columnas Completas)
   if (canonicalId === 'hito3_quimicos_sga') {
     const ChemicalCompatibilitySession = getSafeModel('ChemicalCompatibilitySession', '~/server/routes/sgsst/matrizCompatibilidad', '~/models/ChemicalCompatibilitySession');
     const docs = await findManyCompanyDocs(ChemicalCompatibilitySession, userId, company, { isOfficial: -1, updatedAt: -1 }, 10);
-    const officialDoc = docs.find((d) => d.isOfficial && Array.isArray(d.matrixRows) && d.matrixRows.length > 0) || docs.find((d) => Array.isArray(d.matrixRows) && d.matrixRows.length > 0);
+    const officialDoc =
+      docs.find((d) => d.isOfficial && Array.isArray(d.matrixRows) && d.matrixRows.length > 0) ||
+      docs.find((d) => Array.isArray(d.matrixRows) && d.matrixRows.length > 0) ||
+      docs[0] ||
+      null;
     const rows = Array.isArray(officialDoc?.matrixRows) ? officialDoc.matrixRows : [];
-    const sinFds = rows.filter((r) => /no/i.test(String(r.tiene_fds || ''))).length;
+    const sinFds = rows.filter((r) => /^no$/i.test(String(r.fds_disponible ?? r.tiene_fds ?? '').trim()) || r.fds_disponible === false).length;
+
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-matriz-compatibilidad'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: officialDoc?.conversationId || `embedded_compat_sga_${company?._id || 'active'}`,
+        title: officialDoc?.officialTitle || 'Informe Oficial Matriz de Compatibilidad Química SGA',
+        html: officialDoc?.reportHtml || officialDoc?.lastGeneratedReport,
+        tags: ['sgsst-matriz-compatibilidad'],
+        createdAt: officialDoc?.updatedAt,
+      }),
+    ]);
+
+    const chartConclusionsText = officialDoc?.chartConclusions ? formatCleanScalar(officialDoc.chartConclusions, '') : '';
 
     return {
       moduleTitle: 'Hito 1 · Matriz de Compatibilidad Química SGA (Dec. 1496 / ONU)',
       sourceCollection: 'ChemicalCompatibilitySession',
+      latestReports,
       kpis: [
         { label: 'Sustancias Químicas SGA', value: rows.length, tone: 'teal' },
-        { label: 'Con FDS Vigente', value: rows.length - sinFds, tone: 'emerald' },
+        { label: 'Con FDS Vigente', value: Math.max(0, rows.length - sinFds), tone: 'emerald' },
         { label: 'Alerta Sin FDS', value: sinFds, tone: sinFds > 0 ? 'rose' : 'emerald' },
-        { label: 'Clases ONU Mapeadas', value: new Set(rows.map((r) => r.clasificacion_onu).filter(Boolean)).size, tone: 'indigo' },
+        { label: 'Clases ONU Mapeadas', value: new Set(rows.map((r) => r.clase_onu || r.clasificacion_onu).filter(Boolean)).size, tone: 'indigo' },
       ],
       records: rows.map((r, i) => {
-        const isCrit = /no/i.test(String(r.tiene_fds || '')) || /peligro/i.test(String(r.palabra_advertencia || ''));
+        const nombreSust = r.nombre_sustancia || r.nombre || '';
+        const claseOnu = r.clase_onu || r.clasificacion_onu || '';
+        const fdsDisp = r.fds_disponible ?? r.tiene_fds ?? '';
+        const rotuladoSga = r.rotulado_sga ?? r.tiene_rotulo ?? '';
+        const isCrit =
+          /^no$/i.test(String(fdsDisp).trim()) ||
+          fdsDisp === false ||
+          /peligro/i.test(String(r.palabra_advertencia || ''));
         return {
           id: r.id || `sga_${i}`,
-          label: `${r.nombre || 'Sustancia Química'} (${r.clasificacion_onu || 'Clase ONU'})`,
-          sublabel: `CAS: ${r.cas || 'N/A'} • UN: ${r.numero_onu || 'N/A'} • Bodega: ${r.ubicacion || 'General'} • FDS: ${r.tiene_fds || 'Sí'}`,
+          label: `${nombreSust || 'Sustancia Química'} (${claseOnu || 'Clase ONU'})`,
+          sublabel: `CAS: ${r.cas || 'N/A'} • UN: ${r.numero_onu || 'N/A'} • Bodega: ${r.ubicacion || 'General'} • FDS: ${fdsDisp || 'Sí'}`,
           badge: `${r.palabra_advertencia || 'SGA'} • ${(Array.isArray(r.pictogramas_sga) ? r.pictogramas_sga.join(', ') : r.pictogramas_sga) || ''}`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Nombre de la Sustancia Química y Número CAS / UN': `${r.nombre || ''} (CAS: ${r.cas || 'N/A'} / UN: ${r.numero_onu || 'N/A'})`,
+            nombre_sustancia: nombreSust,
+            fabricante: r.fabricante || '',
+            cas: r.cas || '',
+            numero_onu: r.numero_onu || '',
+            clase_onu: claseOnu,
+            estado_fisico: r.estado_fisico || '',
+            palabra_advertencia: r.palabra_advertencia || '',
+            pictogramas_sga: Array.isArray(r.pictogramas_sga) ? r.pictogramas_sga.join(', ') : r.pictogramas_sga || '',
+            frases_h: Array.isArray(r.frases_h) ? r.frases_h.join(', ') : r.frases_h || '',
+            consejos_p: Array.isArray(r.consejos_p) ? r.consejos_p.join(', ') : r.consejos_p || '',
+            ubicacion: r.ubicacion || '',
+            cantidad_almacenada: r.cantidad_almacenada || '',
+            fds_disponible: fdsDisp,
+            rotulado_sga: rotuladoSga,
+            incompatibilidades: Array.isArray(r.incompatibilidades) ? r.incompatibilidades.join(', ') : r.incompatibilidades || '',
+            requisitos_almacenamiento: r.requisitos_almacenamiento || '',
+            pubchem_cid: r.pubchem_cid || r.cid || '',
+            chartConclusions: chartConclusionsText,
+            'Nombre de la Sustancia Química y Número CAS / UN': `${nombreSust} (CAS: ${r.cas || 'N/A'} / UN: ${r.numero_onu || 'N/A'} / PubChem CID: ${r.pubchem_cid || 'N/A'})`,
             'Fabricante y Estado Físico': `${r.fabricante || ''} (${r.estado_fisico || ''})`,
-            'Clasificación SGA y Pictogramas de Peligro (GHS01 a GHS09)': `${r.clasificacion_onu || ''} | Pictogramas: ${Array.isArray(r.pictogramas_sga) ? r.pictogramas_sga.join(', ') : r.pictogramas_sga || ''}`,
+            'Clasificación SGA y Pictogramas de Peligro (GHS01 a GHS09)': `${claseOnu} | Pictogramas: ${Array.isArray(r.pictogramas_sga) ? r.pictogramas_sga.join(', ') : r.pictogramas_sga || ''}`,
             'Frases H (Indicaciones de Peligro) y Frases P (Consejos de Prudencia)': `Frases H: ${r.frases_h || ''} | Consejos P: ${r.consejos_p || ''}`,
             'Matriz de Compatibilidad e Incompatibilidades de Almacenamiento': `Incompatibilidades: ${r.incompatibilidades || ''} | Almacenamiento: ${r.requisitos_almacenamiento || ''}`,
-            'Ficha de Datos de Seguridad (FDS - 16 Secciones Vigente)': `FDS: ${r.tiene_fds || 'Sí'} | Rótulo SGA: ${r.tiene_rotulo || 'Sí'}`,
+            'Ficha de Datos de Seguridad (FDS - 16 Secciones Vigente)': `FDS: ${fdsDisp || 'Sí'} | Rótulo SGA: ${rotuladoSga || 'Sí'}`,
             'EPP Específico y Kit Antiderrames Requerido': `EPP: ${r.epp_recomendado || ''} | Derrames: ${r.control_derrames || ''} | Primeros Auxilios: ${r.primeros_auxilios || ''}`,
           },
         };
@@ -1339,6 +1951,17 @@ async function inspectHito1And2(canonicalId, userId, company) {
     const oportunidades = Array.isArray(doc?.oportunidades) ? doc.oportunidades : [];
     const riesgos = Array.isArray(doc?.riesgosSistema) ? doc.riesgosSistema : [];
 
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-oportunidades', 'sgsst-oportunidades-sst'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: doc?.conversationId || `embedded_oportunidades_${company?._id || 'active'}`,
+        title: 'Informe Oficial Matriz de Oportunidades SST y Riesgos ISO 45001',
+        html: doc?.lastGeneratedReport,
+        tags: ['sgsst-oportunidades-sst'],
+        createdAt: doc?.updatedAt,
+      }),
+    ]);
+
     const records = [
       ...oportunidades.map((o, i) => ({
         id: o.id || `op_${i}`,
@@ -1348,11 +1971,25 @@ async function inspectHito1And2(canonicalId, userId, company) {
         badgeTone: 'emerald',
         isCritical: (o.prioridad || o.impactoPrioridad) === 'Alta',
         fields: {
+          titulo: o.titulo || '',
+          categoria: o.categoria || '',
+          origenSST: o.origenSST || o.origenSst || '',
+          beneficioEsperado: o.beneficioEsperado || '',
+          prioridad: o.prioridad || o.impactoPrioridad || 'Alta',
+          viabilidad: o.viabilidad || '',
+          recursosRequeridos: o.recursosRequeridos || '',
+          indicadorExito: o.indicadorExito || '',
+          responsable: o.responsable || '',
+          plazo: o.plazo || '',
+          estado: o.estado || '',
+          sentToKanban: Boolean(o.sentToKanban),
           'Oportunidad de Mejora SST Identificada': o.titulo || '',
           'Proceso / Peligro o Fuente Asociada': `${o.categoria || ''} (${o.origenSST || o.origenSst || ''})`,
           'Beneficio Esperado en Salud y Seguridad': o.beneficioEsperado || '',
+          'Indicador de Éxito': o.indicadorExito || '',
+          'Recursos Requeridos': o.recursosRequeridos || '',
           'Viabilidad, Costo e Impacto': `Prioridad: ${o.prioridad || 'Alta'} | Viabilidad: ${o.viabilidad || 'Alta'} | Recursos: ${o.recursosRequeridos || ''}`,
-          'Plan de Implementación, Responsable y Fecha': `Resp: ${o.responsable || ''} | Plazo: ${o.plazo || ''} | Estado: ${o.estado || ''}`,
+          'Plan de Implementación, Responsable y Fecha': `Resp: ${o.responsable || ''} | Plazo: ${o.plazo || ''} | Estado: ${o.estado || ''} | Kanban: ${o.sentToKanban ? 'Sí' : 'No'}`,
         },
       })),
       ...riesgos.map((rk, i) => ({
@@ -1363,11 +2000,23 @@ async function inspectHito1And2(canonicalId, userId, company) {
         badgeTone: /cr[ií]tico|alto/i.test(rk.nivelRiesgo || '') ? 'rose' : 'amber',
         isCritical: /cr[ií]tico|alto/i.test(rk.nivelRiesgo || ''),
         fields: {
+          amenaza: rk.amenaza || '',
+          fuenteContexto: rk.fuenteContexto || '',
+          impactoSistema: rk.impactoSistema || '',
+          probabilidad: rk.probabilidad || '',
+          nivelRiesgo: rk.nivelRiesgo || '',
+          controlExistente: rk.controlExistente || '',
+          medidaMitigacion: rk.medidaMitigacion || '',
+          responsableMonitoreo: rk.responsableMonitoreo || '',
+          plazo: rk.plazo || '',
+          estado: rk.estado || '',
+          sentToKanban: Boolean(rk.sentToKanban),
           'Oportunidad de Mejora SST Identificada': `[Riesgo Sistema 6.1.1] ${rk.amenaza || ''}`,
           'Proceso / Peligro o Fuente Asociada': rk.fuenteContexto || '',
+          'Control Existente': rk.controlExistente || '',
           'Beneficio Esperado en Salud y Seguridad': rk.medidaMitigacion || '',
           'Viabilidad, Costo e Impacto': `Impacto: ${rk.impactoSistema || ''} | Probabilidad: ${rk.probabilidad || ''} | Nivel: ${rk.nivelRiesgo || ''}`,
-          'Plan de Implementación, Responsable y Fecha': `Resp: ${rk.responsableMonitoreo || ''} | Plazo: ${rk.plazo || ''} | Estado: ${rk.estado || ''}`,
+          'Plan de Implementación, Responsable y Fecha': `Resp: ${rk.responsableMonitoreo || ''} | Plazo: ${rk.plazo || ''} | Estado: ${rk.estado || ''} | Kanban: ${rk.sentToKanban ? 'Sí' : 'No'}`,
         },
       })),
     ];
@@ -1375,6 +2024,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 1 · Matriz de Oportunidades SST y Riesgos del Sistema (ISO 45001 Cl. 6.1)',
       sourceCollection: 'OportunidadesData',
+      latestReports,
       kpis: [
         { label: 'Oportunidades SST', value: oportunidades.length, tone: 'emerald' },
         { label: 'Riesgos del Sistema', value: riesgos.length, tone: 'rose' },
@@ -1384,7 +2034,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
     };
   }
 
-  // 14. Hito 1 · Análisis de Amenazas y Vulnerabilidad (Diamante de Riesgo)
+  // 14. Hito 1 · Análisis de Amenazas y Vulnerabilidad (Diamante de Riesgo IDIGER)
   if (canonicalId === 'hito6_vulnerabilidad') {
     const AnalisisVulnerabilidadData = getSafeModel('AnalisisVulnerabilidadData', '~/server/routes/sgsst/analisisVulnerabilidad');
     const doc = await findSingleCompanyDoc(AnalisisVulnerabilidadData, userId, company);
@@ -1393,63 +2043,171 @@ async function inspectHito1And2(canonicalId, userId, company) {
       : Array.isArray(doc?.amenazasList)
         ? doc.amenazasList
         : [];
-    const altos = amenazas.filter((a) => /alto/i.test(a.riskLevel || '') || /inminente/i.test(a.nivelAmenaza || '')).length;
+    const evaluadoresList = Array.isArray(doc?.evaluadoresList) ? doc.evaluadoresList : [];
+    const evaluadoresStr = evaluadoresList
+      .map((ev) => `${ev.nombre || ''} (${ev.rol || 'Evaluador'} - CC ${ev.cedula || 'N/A'})`)
+      .join(' | ');
+
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-vulnerabilidad'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: doc?.conversationId || `embedded_vuln_${company?._id || 'active'}`,
+        title: 'Informe Oficial Análisis de Amenazas y Vulnerabilidad IDIGER',
+        html: doc?.lastGeneratedReport || doc?.reportHtml,
+        tags: ['sgsst-vulnerabilidad'],
+        createdAt: doc?.updatedAt,
+      }),
+    ]);
+
+    const getIdigerColorFromPoints = (pts) => {
+      const n = Number(pts);
+      if (!Number.isFinite(n)) return 'AMARILLO';
+      if (n <= 1.0) return 'VERDE';
+      if (n <= 2.0) return 'AMARILLO';
+      return 'ROJO';
+    };
+    const getIdigerVulnLabel = (color) => {
+      const up = String(color || '').toUpperCase();
+      if (up.includes('ROJO') || up.includes('ALTA')) return 'Alta (Rojo)';
+      if (up.includes('AMARILLO') || up.includes('MEDIA')) return 'Media (Amarillo)';
+      return 'Baja (Verde)';
+    };
+    const getThreatColor = (nivel) => {
+      const low = String(nivel || '').toLowerCase();
+      if (low.includes('inminente')) return 'ROJO';
+      if (low.includes('probable')) return 'AMARILLO';
+      return 'VERDE';
+    };
+    const computeDiamondRisk = (amCol, pCol, rCol, sCol) => {
+      let rojos = 0;
+      let amarillos = 0;
+      for (const c of [amCol, pCol, rCol, sCol]) {
+        const up = String(c || '').toUpperCase();
+        if (up.includes('ROJO')) rojos++;
+        else if (up.includes('AMARILLO')) amarillos++;
+      }
+      if (rojos >= 3 || (rojos >= 2 && amarillos >= 2) || (rojos >= 1 && amarillos === 3)) return 'ALTO';
+      if ((rojos >= 1 && amarillos >= 1) || amarillos >= 3) return 'MEDIO';
+      return 'BAJO';
+    };
+
+    const computedRecords = amenazas.map((a, i) => {
+      const ptsPers = a.puntajePersonas ?? a.ptsPers ?? 0;
+      const ptsRec = a.puntajeRecursos ?? a.ptsRec ?? 0;
+      const ptsSist = a.puntajeSistemas ?? a.ptsSist ?? 0;
+      const colorPers = a.colorPers || a.vulnerabilidadPersonas || getIdigerColorFromPoints(ptsPers);
+      const colorRec = a.colorRec || a.vulnerabilidadRecursos || getIdigerColorFromPoints(ptsRec);
+      const colorSist = a.colorSist || a.vulnerabilidadSistemas || getIdigerColorFromPoints(ptsSist);
+      const colorAmenaza = a.colorAmenaza || getThreatColor(a.nivelAmenaza);
+      const computedRisk = a.nivelRiesgo || a.riskLevel || computeDiamondRisk(colorAmenaza, colorPers, colorRec, colorSist);
+      const isCrit = /alto/i.test(computedRisk) || /inminente/i.test(a.nivelAmenaza || '');
+
+      return {
+        id: a.id || `vuln_${i}`,
+        label: `${a.amenaza || 'Amenaza'} (${a.origenAmenaza || 'Natural/Tecnológica'})`,
+        sublabel: `Calificación: ${a.nivelAmenaza || 'Probable'} • Personas: ${ptsPers} (${getIdigerVulnLabel(colorPers)}) | Recursos: ${ptsRec} (${getIdigerVulnLabel(colorRec)}) | Sistemas: ${ptsSist} (${getIdigerVulnLabel(colorSist)})`,
+        badge: `Riesgo ${String(computedRisk).toUpperCase()}`,
+        badgeTone: isCrit ? 'rose' : /medio/i.test(computedRisk) ? 'amber' : 'emerald',
+        isCritical: isCrit,
+        fields: {
+          amenaza: a.amenaza || '',
+          origenAmenaza: a.origenAmenaza || '',
+          nivelAmenaza: a.nivelAmenaza || '',
+          colorAmenaza,
+          descripcionGlobal: a.descripcionGlobal || '',
+          puntajePersonas: ptsPers,
+          puntajeRecursos: ptsRec,
+          puntajeSistemas: ptsSist,
+          vulnerabilidadPersonas: getIdigerVulnLabel(colorPers),
+          vulnerabilidadRecursos: getIdigerVulnLabel(colorRec),
+          vulnerabilidadSistemas: getIdigerVulnLabel(colorSist),
+          nivelRiesgo: String(computedRisk).toUpperCase(),
+          evaluadoresList: evaluadoresStr,
+          'Amenazas Identificadas (Naturales, Tecnológicas y Sociales)': `${a.amenaza || ''} (${a.origenAmenaza || ''})`,
+          'Calificación de la Amenaza (Posible / Probable / Inminente)': `${a.nivelAmenaza || ''} (${colorAmenaza})`,
+          'Vulnerabilidad en las Personas (Gestión, Capacitación y Características)': `${ptsPers} — ${getIdigerVulnLabel(colorPers)}`,
+          'Vulnerabilidad en los Recursos (Suministros, Edificación y Equipos)': `${ptsRec} — ${getIdigerVulnLabel(colorRec)}`,
+          'Vulnerabilidad en los Sistemas y Procesos (Servicios, Sistemas Alternos y Recuperación)': `${ptsSist} — ${getIdigerVulnLabel(colorSist)}`,
+          'Diamante de Riesgo y Nivel de Vulnerabilidad (Bajo / Medio / Alto)': `Riesgo ${String(computedRisk).toUpperCase()} | Escenario: ${a.descripcionGlobal || ''} | Evaluadores: ${evaluadoresStr}`,
+        },
+      };
+    });
+
+    const altos = computedRecords.filter((r) => r.isCritical).length;
 
     return {
       moduleTitle: 'Hito 1 · Análisis de Amenazas y Vulnerabilidad (Diamante IDIGER)',
       sourceCollection: 'AnalisisVulnerabilidadData',
+      latestReports,
       kpis: [
-        { label: 'Amenazas Evaluadas', value: amenazas.length, tone: 'teal' },
+        { label: 'Amenazas Evaluadas', value: computedRecords.length, tone: 'teal' },
         { label: 'Nivel de Riesgo ALTO', value: altos, tone: altos > 0 ? 'rose' : 'emerald' },
-        { label: 'Comité Evaluador', value: Array.isArray(doc?.evaluadoresList) ? doc.evaluadoresList.length : 0, tone: 'indigo' },
+        { label: 'Comité Evaluador', value: evaluadoresList.length, tone: 'indigo' },
       ],
-      records: amenazas.map((a, i) => {
-        const isCrit = /alto/i.test(a.riskLevel || '') || /inminente/i.test(a.nivelAmenaza || '');
-        return {
-          id: a.id || `vuln_${i}`,
-          label: `${a.amenaza || 'Amenaza'} (${a.origenAmenaza || 'Natural/Tecnológica'})`,
-          sublabel: `Calificación: ${a.nivelAmenaza || 'Probable'} • Personas: ${a.ptsPers ?? 'N/A'} | Recursos: ${a.ptsRec ?? 'N/A'} | Sistemas: ${a.ptsSist ?? 'N/A'}`,
-          badge: `Riesgo ${a.riskLevel || 'MEDIO'}`,
-          badgeTone: isCrit ? 'rose' : 'amber',
-          isCritical: isCrit,
-          fields: {
-            'Amenazas Identificadas (Naturales, Tecnológicas y Sociales)': `${a.amenaza || ''} (${a.origenAmenaza || ''})`,
-            'Calificación de la Amenaza (Posible / Probable / Inminente)': a.nivelAmenaza || '',
-            'Vulnerabilidad en las Personas (Gestión, Capacitación y Características)': `${a.ptsPers ?? ''} (${a.colorPers || ''})`,
-            'Vulnerabilidad en los Recursos (Suministros, Edificación y Equipos)': `${a.ptsRec ?? ''} (${a.colorRec || ''})`,
-            'Vulnerabilidad en los Sistemas y Procesos (Servicios, Sistemas Alternos y Recuperación)': `${a.ptsSist ?? ''} (${a.colorSist || ''})`,
-            'Diamante de Riesgo y Nivel de Vulnerabilidad (Bajo / Medio / Alto)': `Riesgo ${a.riskLevel || ''} | Escenario: ${a.descripcionGlobal || ''}`,
-          },
-        };
-      }),
+      records: computedRecords,
     };
   }
 
-  // 15. Hito 1 · Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)
+  // 15. Hito 1 · Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE — 7 Secciones Completas)
   if (canonicalId === 'hito1_plan_emergencias') {
     const PlanEmergenciasData = getSafeModel('PlanEmergenciasData', '~/server/routes/sgsst/planEmergencias', '~/models/PlanEmergenciasData');
     const doc = await findSingleCompanyDoc(PlanEmergenciasData, userId, company);
+    const sd = doc?.sedeData || null;
     const escenarios = Array.isArray(doc?.escenariosAmenaza) ? doc.escenariosAmenaza : [];
-    const pons = Array.isArray(doc?.procedimientosPon) ? doc.procedimientosPon : [];
     const sci = Array.isArray(doc?.estructuraSci) ? doc.estructuraSci : [];
+    const pons = Array.isArray(doc?.procedimientosPon) ? doc.procedimientosPon : [];
     const equipos = Array.isArray(doc?.recursosEquipos) ? doc.recursosEquipos : [];
+    const directorios = Array.isArray(doc?.directoriosExternos) ? doc.directoriosExternos : [];
+    const simulacros = Array.isArray(doc?.simulacrosPlan) ? doc.simulacrosPlan : [];
+
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-plan-emergencias'], 5);
+    const latestReports = mergeLatestReports(tagReports, [
+      buildEmbeddedReportEntry({
+        conversationId: doc?.conversationId || `embedded_ppre_${company?._id || 'active'}`,
+        title: 'Informe Oficial Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)',
+        html: doc?.lastGeneratedReport,
+        tags: ['sgsst-plan-emergencias'],
+        createdAt: doc?.updatedAt,
+      }),
+    ]);
 
     const records = [
-      ...pons.map((p, i) => ({
-        id: p.id || `pon_${i}`,
-        label: `[PON ${p.codigo || i + 1}] ${p.tituloEscenario || p.amenazaAsociada || 'Procedimiento Operativo Normalizado'}`,
-        sublabel: `Amenaza: ${p.amenazaAsociada || ''} • Resp: ${p.responsableOperativo || 'Comandante SCI'}`,
-        badge: p.estado || 'Vigente',
-        badgeTone: 'teal',
-        isCritical: false,
-        fields: {
-          'Procedimientos Operativos Normalizados (PON por Amenaza)': `${p.codigo || ''} - ${p.tituloEscenario || ''}: Antes: ${p.faseAntes || ''} | Durante: ${p.faseDurante || ''} | Después: ${p.faseDespues || ''}`,
-          'Estructura del Comité de Emergencias y Cadena de Mando (SCI)': sci.map((s) => `${s.rolSci}: ${s.nombreAsignado} (${s.cargoEmpresa})`).join(' ; '),
-          'Rutas de Evacuación, Puntos de Encuentro y Sistema de Alarma': `Punto Encuentro: ${doc?.sedeData?.puntoEncuentroPrincipal || ''} | Alarma: ${doc?.sedeData?.sistemaAlarma || ''}`,
-          'Plan de Evacuación Médica (MEDEVAC) y Centros Asistenciales Cercanos': `Clínica MEDEVAC: ${doc?.sedeData?.clinicaMedevac || ''} (${doc?.sedeData?.direccionClinica || ''})`,
-          'Inventario de Recursos para Atención de Emergencias': recursosSummary(equipos),
-        },
-      })),
+      ...(doc && sd
+        ? [
+            {
+              id: `ppre_sede_${company?._id || 'main'}`,
+              label: `[Ficha Sede & MEDEVAC] ${sd.nombreSede || 'Sede Principal'} (${sd.ciudad || company?.city || ''})`,
+              sublabel: `Dirección: ${sd.direccion || company?.address || ''} • Punto Encuentro: ${sd.puntoEncuentroPrincipal || ''} • MEDEVAC: ${sd.clinicaMedevac || ''}`,
+              badge: 'SECCIÓN 1 · SEDE & MEDEVAC',
+              badgeTone: 'teal',
+              isCritical: false,
+              fields: {
+                section: 'sedeData',
+                nombreSede: sd.nombreSede || '',
+                ciudad: sd.ciudad || '',
+                direccion: sd.direccion || '',
+                telefonoEmergencia: sd.telefonoEmergencia || '',
+                horarioOperacion: sd.horarioOperacion || '',
+                trabajadoresFijos: sd.trabajadoresFijos ?? 0,
+                contratistasFlotantes: sd.contratistasFlotantes ?? 0,
+                visitantesPromedio: sd.visitantesPromedio ?? 0,
+                construccionTipo: sd.construccionTipo || '',
+                puntoEncuentroPrincipal: sd.puntoEncuentroPrincipal || '',
+                puntoEncuentroAlterno: sd.puntoEncuentroAlterno || '',
+                rutasEvacuacionDesc: sd.rutasEvacuacionDesc || '',
+                sistemaAlarma: sd.sistemaAlarma || '',
+                clinicaMedevac: sd.clinicaMedevac || '',
+                direccionClinica: sd.direccionClinica || '',
+                tiempoTrasladoMedevac: sd.tiempoTrasladoMedevac || '',
+                ambulanciaContacto: sd.ambulanciaContacto || '',
+                arlNombre: sd.arlNombre || company?.arl || '',
+                arlLineaEmergencia: sd.arlLineaEmergencia || '',
+                'Rutas de Evacuación, Puntos de Encuentro y Sistema de Alarma': `Principal: ${sd.puntoEncuentroPrincipal || ''} | Alterno: ${sd.puntoEncuentroAlterno || ''} | Rutas: ${sd.rutasEvacuacionDesc || ''} | Alarma: ${sd.sistemaAlarma || ''}`,
+                'Plan de Evacuación Médica (MEDEVAC) y Centros Asistenciales Cercanos': `Clínica: ${sd.clinicaMedevac || ''} (${sd.direccionClinica || ''}) | Traslado: ${sd.tiempoTrasladoMedevac || ''} | Ambulancia: ${sd.ambulanciaContacto || ''} | ARL: ${sd.arlNombre || ''} (${sd.arlLineaEmergencia || ''})`,
+              },
+            },
+          ]
+        : []),
       ...escenarios.map((e, i) => ({
         id: e.id || `esc_${i}`,
         label: `[Escenario: ${e.amenaza || 'Amenaza'}] (${e.tipo || 'Natural'})`,
@@ -1458,10 +2216,123 @@ async function inspectHito1And2(canonicalId, userId, company) {
         badgeTone: /alto/i.test(e.riesgoGlobal || '') ? 'rose' : 'amber',
         isCritical: /alto/i.test(e.riesgoGlobal || ''),
         fields: {
+          section: 'escenariosAmenaza',
+          amenaza: e.amenaza || '',
+          tipo: e.tipo || '',
+          origenSst: e.origenSst || '',
+          calificacionDiamante: e.calificacionDiamante || '',
+          nivelVulnerabilidad: e.nivelVulnerabilidad || '',
+          riesgoGlobal: e.riesgoGlobal || '',
+          areaAfectada: e.areaAfectada || '',
+          medidasPrevencion: e.medidasPrevencion || '',
+          medidasMitigacion: e.medidasMitigacion || '',
+          responsable: e.responsable || '',
+          sentToKanban: Boolean(e.sentToKanban),
           'Escenario de Amenaza': `${e.amenaza || ''} (${e.tipo || ''})`,
           'Riesgo Global': e.riesgoGlobal || '',
           'Medidas de Prevención y Mitigación': `${e.medidasPrevencion || ''} | ${e.medidasMitigacion || ''}`,
           'Responsable': e.responsable || '',
+        },
+      })),
+      ...sci.map((s, i) => ({
+        id: s.id || `sci_${i}`,
+        label: `[SCI · ${s.rolSci || 'Rol SCI'}] ${s.nombreAsignado || 'Por asignar'} (${s.cargoEmpresa || ''})`,
+        sublabel: `Especialidad: ${s.especialidadBrigada || ''} • Tel: ${s.telefonoContacto || ''}`,
+        badge: 'SECCIÓN 3 · COMANDO SCI',
+        badgeTone: 'indigo',
+        isCritical: false,
+        fields: {
+          section: 'estructuraSci',
+          rolSci: s.rolSci || '',
+          nombreAsignado: s.nombreAsignado || '',
+          cargoEmpresa: s.cargoEmpresa || '',
+          telefonoContacto: s.telefonoContacto || '',
+          especialidadBrigada: s.especialidadBrigada || '',
+          funcionesAntes: s.funcionesAntes || '',
+          funcionesDurante: s.funcionesDurante || '',
+          funcionesDespues: s.funcionesDespues || '',
+          origenSst: s.origenSst || '',
+          'Estructura del Comité de Emergencias y Cadena de Mando (SCI)': `${s.rolSci || ''}: ${s.nombreAsignado || ''} (${s.cargoEmpresa || ''}) - Antes: ${s.funcionesAntes || ''} | Durante: ${s.funcionesDurante || ''} | Después: ${s.funcionesDespues || ''}`,
+        },
+      })),
+      ...pons.map((p, i) => ({
+        id: p.id || `pon_${i}`,
+        label: `[PON ${p.codigo || i + 1}] ${p.tituloEscenario || p.amenazaAsociada || 'Procedimiento Operativo Normalizado'}`,
+        sublabel: `Amenaza: ${p.amenazaAsociada || ''} • Resp: ${p.responsableOperativo || 'Comandante SCI'}`,
+        badge: p.estado || 'Vigente',
+        badgeTone: 'teal',
+        isCritical: false,
+        fields: {
+          section: 'procedimientosPon',
+          codigo: p.codigo || '',
+          tituloEscenario: p.tituloEscenario || '',
+          amenazaAsociada: p.amenazaAsociada || '',
+          faseAntes: p.faseAntes || '',
+          faseDurante: p.faseDurante || '',
+          faseDespues: p.faseDespues || '',
+          recursosNecesarios: p.recursosNecesarios || '',
+          responsableOperativo: p.responsableOperativo || '',
+          estado: p.estado || 'Vigente',
+          sentToKanban: Boolean(p.sentToKanban),
+          'Procedimientos Operativos Normalizados (PON por Amenaza)': `${p.codigo || ''} - ${p.tituloEscenario || ''}: Antes: ${p.faseAntes || ''} | Durante: ${p.faseDurante || ''} | Después: ${p.faseDespues || ''} | Recursos: ${p.recursosNecesarios || ''}`,
+        },
+      })),
+      ...equipos.map((eq, i) => {
+        const eqCrit = eq.estado && !/operativo/i.test(eq.estado);
+        return {
+          id: eq.id || `rec_eq_${i}`,
+          label: `[Recurso Emergencia · ${eq.tipoRecurso || 'Equipo'}] ${eq.descripcion || ''}`,
+          sublabel: `Ubicación: ${eq.ubicacion || ''} • Cant: ${eq.cantidad ?? 1} • Inspección: ${eq.fechaInspeccion || 'N/A'}`,
+          badge: eq.estado || 'Operativo',
+          badgeTone: eqCrit ? 'rose' : 'emerald',
+          isCritical: Boolean(eqCrit),
+          fields: {
+            section: 'recursosEquipos',
+            tipoRecurso: eq.tipoRecurso || '',
+            descripcion: eq.descripcion || '',
+            ubicacion: eq.ubicacion || '',
+            cantidad: eq.cantidad ?? 1,
+            estado: eq.estado || 'Operativo',
+            fechaInspeccion: eq.fechaInspeccion || '',
+            responsable: eq.responsable || '',
+            'Inventario de Recursos para Atención de Emergencias': `${eq.tipoRecurso || ''}: ${eq.descripcion || ''} (${eq.ubicacion || ''}, Cant: ${eq.cantidad ?? 1}, Estado: ${eq.estado || 'Operativo'})`,
+          },
+        };
+      }),
+      ...directorios.map((dir, i) => ({
+        id: dir.id || `dir_ext_${i}`,
+        label: `[Apoyo Externo] ${dir.entidad || 'Entidad de Socorro'} — Tel: ${dir.lineaTelefonica || ''}`,
+        sublabel: `Apoyo: ${dir.tipoApoyo || ''} • Distancia/Dir: ${dir.direccionDistancia || ''} • Respuesta: ${dir.tiempoRespuestaEstimado || ''}`,
+        badge: 'DIRECTORIO EXTERNO',
+        badgeTone: 'indigo',
+        isCritical: false,
+        fields: {
+          section: 'directoriosExternos',
+          entidad: dir.entidad || '',
+          lineaTelefonica: dir.lineaTelefonica || '',
+          direccionDistancia: dir.direccionDistancia || '',
+          tipoApoyo: dir.tipoApoyo || '',
+          tiempoRespuestaEstimado: dir.tiempoRespuestaEstimado || '',
+        },
+      })),
+      ...simulacros.map((sim, i) => ({
+        id: sim.id || `ppre_sim_${i}`,
+        label: `[Simulacro PPRE] ${sim.tituloSimulacro || sim.escenario || 'Simulacro'}`,
+        sublabel: `Fecha: ${sim.fechaProgramada || ''} • Meta: ${sim.tiempoRespuestaMeta || ''} • Participantes: ${sim.participantesEsperados ?? ''}`,
+        badge: sim.estado || 'Programado',
+        badgeTone: sim.estado === 'Ejecutado' || sim.estado === 'Evaluado' ? 'emerald' : 'amber',
+        isCritical: Boolean(sim.hallazgosMejora),
+        fields: {
+          section: 'simulacrosPlan',
+          tituloSimulacro: sim.tituloSimulacro || '',
+          escenario: sim.escenario || '',
+          fechaProgramada: sim.fechaProgramada || '',
+          participantesEsperados: sim.participantesEsperados ?? 0,
+          tiempoRespuestaMeta: sim.tiempoRespuestaMeta || '',
+          estado: sim.estado || 'Programado',
+          hallazgosMejora: sim.hallazgosMejora || '',
+          responsable: sim.responsable || '',
+          sentToKanban: Boolean(sim.sentToKanban),
         },
       })),
     ];
@@ -1469,11 +2340,12 @@ async function inspectHito1And2(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 1 · Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)',
       sourceCollection: 'PlanEmergenciasData',
+      latestReports,
       kpis: [
-        { label: 'Escenarios Amenaza', value: escenarios.length, tone: 'rose' },
-        { label: 'Procedimientos PON', value: pons.length, tone: 'teal' },
-        { label: 'Estructura SCI', value: sci.length, tone: 'indigo' },
-        { label: 'Recursos / Equipos', value: equipos.length, tone: 'emerald' },
+        { label: 'Escenarios / PONs', value: `${escenarios.length} / ${pons.length}`, tone: 'teal' },
+        { label: 'Comando SCI / Equipos', value: `${sci.length} / ${equipos.length}`, tone: 'indigo' },
+        { label: 'Directorio / Simulacros', value: `${directorios.length} / ${simulacros.length}`, tone: 'emerald' },
+        { label: 'Alertas Críticas PPRE', value: records.filter((r) => r.isCritical).length, tone: 'rose' },
       ],
       records,
     };
@@ -1485,35 +2357,82 @@ async function inspectHito1And2(canonicalId, userId, company) {
     const doc = await findSingleCompanyDoc(PerfilCargoData, userId, company);
     const perfiles = Array.isArray(doc?.perfilesList) ? doc.perfilesList : [];
 
+    const tagReports = await fetchLatestReportsForTags(userId, company, ['sgsst-perfil-cargo'], 5);
+    const embeddedCargoReports = perfiles
+      .filter((p) => p?.report && String(p.report).trim().length > 20)
+      .map((p, idx) =>
+        buildEmbeddedReportEntry({
+          conversationId: `embedded_perfil_cargo_${p.id || idx}`,
+          title: `Perfil de Cargo y Profesiograma — ${p.nombreCargo || `Cargo #${idx + 1}`}`,
+          html: p.report,
+          tags: ['sgsst-perfil-cargo'],
+          createdAt: doc?.updatedAt,
+        }),
+      );
+    const latestReports = mergeLatestReports(tagReports, embeddedCargoReports);
+
     return {
       moduleTitle: 'Hito 2 · Perfiles de Cargo Biocéntricos & Profesiograma',
       sourceCollection: 'PerfilCargoData',
+      latestReports,
       kpis: [
         { label: 'Perfiles de Cargo', value: perfiles.length, tone: 'teal' },
         { label: 'Con Informe Profesiograma', value: perfiles.filter((p) => p.report).length, tone: 'emerald' },
-        { label: 'Operan Maquinaria', value: perfiles.filter((p) => p.operaMaquinaria === 'Sí').length, tone: 'amber' },
+        { label: 'Operan Maquinaria', value: perfiles.filter((p) => p.operaMaquinaria === 'Sí' || p.operaMaquinaria === true).length, tone: 'amber' },
         { label: 'Exigencia Física Alta', value: perfiles.filter((p) => p.exigenciaFisica === 'Alta').length, tone: 'rose' },
       ],
-      records: perfiles.map((p, i) => ({
-        id: p.id || p.nombreCargo || `cargo_${i}`,
-        label: `${p.nombreCargo || 'Cargo'} (${p.area || 'Área General'})`,
-        sublabel: `Nivel: ${p.nivelCargo || 'Operativo'} • Vacantes: ${p.numVacantes || 1} • Exigencia Física: ${p.exigenciaFisica || 'Media'} / Mental: ${p.exigenciaMental || 'Media'}`,
-        badge: p.operaMaquinaria === 'Sí' ? 'Opera Maquinaria' : `${(p.eppSeleccionados || []).length} EPP Asignados`,
-        badgeTone: p.exigenciaFisica === 'Alta' ? 'rose' : 'indigo',
-        isCritical: p.exigenciaFisica === 'Alta' || p.operaMaquinaria === 'Sí',
-        fields: {
-          'Nombre del Cargo y Área / Proceso': `${p.nombreCargo || ''} (${p.area || ''})`,
-          'Nombre del Cargo': p.nombreCargo || '',
-          'Área / Departamento': p.area || '',
-          'Objetivo y Funciones Principales del Cargo': p.contextoAdicional || '',
-          'Competencias Requeridas (Educación, Formación, Experiencia)': `Nivel: ${p.nivelCargo || ''} | Jornada: ${p.jornada || ''} | Contrato: ${p.tipoContrato || ''}`,
-          'Exigencias Biomecánicas, Mentales y Físicas del Puesto': `Física: ${p.exigenciaFisica || 'Media'} | Mental: ${p.exigenciaMental || 'Media'} | Opera Maquinaria: ${p.operaMaquinaria || 'No'}`,
-          'Peligros y Riesgos Asociados al Cargo': (p.controlesFuenteSeleccionados || []).concat(p.controlesMedioSeleccionados || []).join(', '),
-          'Profesiograma (Exámenes Médicos de Ingreso, Periódicos, Retiro y Post-Incapacidad)': 'Según matriz clínica del cargo Res. 1843 de 2025',
-          'EPP Requeridos por el Cargo': Array.isArray(p.eppSeleccionados) ? p.eppSeleccionados.join(', ') : '',
-          'Capacitaciones y Certificaciones Obligatorias (Ej. Alturas, Espacios Confinados, Vial)': Array.isArray(p.entrenamientosSeleccionados) ? p.entrenamientosSeleccionados.join(', ') : '',
-        },
-      })),
+      records: perfiles.map((p, i) => {
+        const operaMaq = p.operaMaquinaria === true ? 'Sí' : p.operaMaquinaria === false ? 'No' : p.operaMaquinaria || 'No';
+        return {
+          id: p.id || p.nombreCargo || `cargo_${i}`,
+          label: `${p.nombreCargo || 'Cargo'} (${p.area || 'Área General'})`,
+          sublabel: `Nivel: ${p.nivelCargo || 'Operativo'} • Vacantes: ${p.numVacantes ?? 1} • Exigencia Física: ${p.exigenciaFisica || 'Media'} / Mental: ${p.exigenciaMental || 'Media'}`,
+          badge: operaMaq === 'Sí' ? 'Opera Maquinaria' : `${(p.eppSeleccionados || []).length} EPP Asignados`,
+          badgeTone: p.exigenciaFisica === 'Alta' ? 'rose' : 'indigo',
+          isCritical: p.exigenciaFisica === 'Alta' || operaMaq === 'Sí',
+          fields: {
+            nombreCargo: p.nombreCargo || '',
+            area: p.area || '',
+            nivelCargo: p.nivelCargo || '',
+            sectorOrganizacion: p.sectorOrganizacion || '',
+            tipoContrato: p.tipoContrato || '',
+            jornada: p.jornada || '',
+            jefeInmediato: p.jefeInmediato || '',
+            escalasSalarial: p.escalasSalarial || p.escalaSalarial || '',
+            numVacantes: p.numVacantes ?? 1,
+            contextoAdicional: p.contextoAdicional || '',
+            eppSeleccionados: Array.isArray(p.eppSeleccionados) ? p.eppSeleccionados.join(', ') : p.eppSeleccionados || '',
+            entrenamientosSeleccionados: Array.isArray(p.entrenamientosSeleccionados)
+              ? p.entrenamientosSeleccionados.join(', ')
+              : p.entrenamientosSeleccionados || '',
+            controlesFuenteSeleccionados: Array.isArray(p.controlesFuenteSeleccionados)
+              ? p.controlesFuenteSeleccionados.join(', ')
+              : p.controlesFuenteSeleccionados || '',
+            controlesMedioSeleccionados: Array.isArray(p.controlesMedioSeleccionados)
+              ? p.controlesMedioSeleccionados.join(', ')
+              : p.controlesMedioSeleccionados || '',
+            exigenciaFisica: p.exigenciaFisica || 'Media',
+            exigenciaMental: p.exigenciaMental || 'Media',
+            operaMaquinaria: operaMaq,
+            'Nombre del Cargo y Área / Proceso': `${p.nombreCargo || ''} (${p.area || ''})`,
+            'Nombre del Cargo': p.nombreCargo || '',
+            'Área / Departamento': p.area || '',
+            'Jefe Inmediato y Sector': `Jefe: ${p.jefeInmediato || 'N/A'} | Sector: ${p.sectorOrganizacion || 'N/A'}`,
+            'Escala Salarial y Vacantes': `Escala: ${p.escalasSalarial || p.escalaSalarial || 'N/A'} | Vacantes: ${p.numVacantes ?? 1}`,
+            'Objetivo y Funciones Principales del Cargo': p.contextoAdicional || '',
+            'Competencias Requeridas (Educación, Formación, Experiencia)': `Nivel: ${p.nivelCargo || ''} | Jornada: ${p.jornada || ''} | Contrato: ${p.tipoContrato || ''}`,
+            'Exigencias Biomecánicas, Mentales y Físicas del Puesto': `Física: ${p.exigenciaFisica || 'Media'} | Mental: ${p.exigenciaMental || 'Media'} | Opera Maquinaria: ${operaMaq}`,
+            'Controles en Fuente y Medio del Cargo': `Fuente: ${(p.controlesFuenteSeleccionados || []).join(', ')} | Medio: ${(p.controlesMedioSeleccionados || []).join(', ')}`,
+            'Peligros y Riesgos Asociados al Cargo': (p.controlesFuenteSeleccionados || []).concat(p.controlesMedioSeleccionados || []).join(', '),
+            'Profesiograma (Exámenes Médicos de Ingreso, Periódicos, Retiro y Post-Incapacidad)':
+              p.report ? stripHtmlToText(p.report).slice(0, 500) : 'Según matriz clínica del cargo Res. 1843 de 2025',
+            'EPP Requeridos por el Cargo': Array.isArray(p.eppSeleccionados) ? p.eppSeleccionados.join(', ') : '',
+            'Capacitaciones y Certificaciones Obligatorias (Ej. Alturas, Espacios Confinados, Vial)': Array.isArray(p.entrenamientosSeleccionados)
+              ? p.entrenamientosSeleccionados.join(', ')
+              : '',
+          },
+        };
+      }),
     };
   }
 
@@ -1524,33 +2443,148 @@ async function inspectHito1And2(canonicalId, userId, company) {
 
     const socioDoc = await findSingleCompanyDoc(PerfilSociodemograficoData, userId, company);
     const socioList = Array.isArray(socioDoc?.trabajadores) ? socioDoc.trabajadores : [];
+    const pendingSocio = Array.isArray(socioDoc?.actualizacionesPendientes) ? socioDoc.actualizacionesPendientes : [];
+    const pendingSalud = Array.isArray(socioDoc?.actualizacionesPendientesSalud) ? socioDoc.actualizacionesPendientesSalud : [];
     const workerDocs = await findManyCompanyDocs(SgsstWorker, userId, company, { updatedAt: -1 }, 300);
 
-    // Indexar SgsstWorker por documento/cédula para enriquecer con fitScore, fitAlerts y riesgosBioIndividual
+    const reportTagsMap = {
+      hito2_perfil_socio: ['sgsst-perfil-sociodemografico'],
+      hito2_condiciones_salud: ['sgsst-condiciones-salud'],
+      hito2_oraculo_predictivo: ['sgsst-oraculo-h1', 'sgsst-predictivo-ia'],
+    };
+    const tagReports = await fetchLatestReportsForTags(userId, company, reportTagsMap[canonicalId], 5);
+    const embeddedOracleReports = [];
+    if (canonicalId === 'hito2_oraculo_predictivo') {
+      for (let i = 0; i < socioList.length; i++) {
+        const sw = socioList[i];
+        if (sw?.dictamenPredictivoH1 && String(sw.dictamenPredictivoH1).trim().length > 20) {
+          embeddedOracleReports.push(
+            buildEmbeddedReportEntry({
+              conversationId: `embedded_dictamen_h1_${sw.identificacion || sw.documento || i}`,
+              title: `Dictamen Predictivo H1 — ${sw.nombre || 'Colaborador'} (CC ${sw.identificacion || sw.documento || ''})`,
+              html: sw.dictamenPredictivoH1,
+              tags: ['sgsst-oraculo-h1'],
+              createdAt: sw.bioScoreIADate || socioDoc?.updatedAt,
+            }),
+          );
+        }
+      }
+      for (let i = 0; i < workerDocs.length; i++) {
+        const wd = workerDocs[i];
+        if (wd?.bioReportContent && String(wd.bioReportContent).trim().length > 20) {
+          embeddedOracleReports.push(
+            buildEmbeddedReportEntry({
+              conversationId: `embedded_bioreport_${wd.documento || i}`,
+              title: `Informe Bio-Individual — ${wd.nombre || 'Colaborador'} (CC ${wd.documento || ''})`,
+              html: wd.bioReportContent,
+              tags: ['sgsst-predictivo-ia'],
+              createdAt: wd.updatedAt,
+            }),
+          );
+        }
+      }
+    }
+    const latestReports = mergeLatestReports(tagReports, embeddedOracleReports.slice(0, 10));
+
+    // Indexar SgsstWorker por documento/cédula y por nombre normalizado
     const workerByCedula = new Map();
+    const workerByName = new Map();
     for (const w of workerDocs) {
       const ced = String(w.documento || '').trim();
       if (ced) workerByCedula.set(ced, w);
+      const nm = String(w.nombre || '').trim().toLowerCase();
+      if (nm && !workerByName.has(nm)) workerByName.set(nm, w);
     }
 
     const unifiedWorkers = [];
     const seenCedulas = new Set();
+    const matchedWorkerIds = new Set();
 
     for (const sw of socioList) {
       const ced = String(sw.identificacion || sw.documento || sw.cedula || '').trim();
+      const nm = String(sw.nombre || '').trim().toLowerCase();
       if (ced) seenCedulas.add(ced);
-      const wDoc = ced ? workerByCedula.get(ced) : null;
+      const wDoc = (ced ? workerByCedula.get(ced) : null) || (nm ? workerByName.get(nm) : null) || null;
+      if (wDoc?._id) matchedWorkerIds.add(String(wDoc._id));
       unifiedWorkers.push(buildUnifiedWorkerRecord(sw, wDoc, canonicalId));
     }
 
     for (const wDoc of workerDocs) {
       const ced = String(wDoc.documento || '').trim();
-      if (ced && seenCedulas.has(ced)) continue;
+      if ((ced && seenCedulas.has(ced)) || (wDoc?._id && matchedWorkerIds.has(String(wDoc._id)))) continue;
+      if (ced) seenCedulas.add(ced);
       unifiedWorkers.push(buildUnifiedWorkerRecord({}, wDoc, canonicalId));
     }
 
+    const pendingRecords = [];
+    if (canonicalId === 'hito2_perfil_socio') {
+      pendingSocio.forEach((p, idx) => {
+        const pd = p.data || p;
+        const ced = pd.identificacion || pd.documento || pd.cedula || p.cedula || '';
+        const nom = pd.nombre || p.nombre || 'Colaborador';
+        const st = p.status || p.estado || 'pending';
+        if (st === 'approved' || st === 'rejected' || st === 'dismissed') return;
+        pendingRecords.push({
+          id: p.id || `pend_socio_${idx}`,
+          label: `[Actualización QR Pendiente] ${nom} (CC ${ced})`,
+          sublabel: `Cargo: ${pd.cargo || ''} • EPS: ${pd.eps || ''} • Tel: ${pd.telefono || ''}`,
+          badge: 'PENDIENTE APROBAR QR',
+          badgeTone: 'amber',
+          isCritical: true,
+          fields: {
+            nombre: nom,
+            documento: ced,
+            cargo: pd.cargo || '',
+            area: pd.areaTrabajo || pd.area || '',
+            telefono: pd.telefono || '',
+            correoElectronico: pd.correoElectronico || '',
+            direccion: pd.direccion || '',
+            eps: pd.eps || '',
+            arl: pd.arl || '',
+            afp: pd.afp || '',
+            estado: st,
+            modalidad: 'Actualización QR Sociodemográfica Pendiente',
+          },
+        });
+      });
+    } else if (canonicalId === 'hito2_condiciones_salud') {
+      pendingSalud.forEach((p, idx) => {
+        const pd = p.data || p;
+        const ced = pd.identificacion || pd.documento || pd.cedula || p.cedula || '';
+        const nom = pd.nombre || p.nombre || 'Colaborador';
+        const st = p.status || p.estado || 'pending';
+        if (st === 'approved' || st === 'rejected' || st === 'dismissed') return;
+        pendingRecords.push({
+          id: p.id || `pend_salud_${idx}`,
+          label: `[Autorreporte Salud QR Pendiente] ${nom} (CC ${ced})`,
+          sublabel: `Enfermedades: ${pd.enfermedades || 'N/A'} • Limitaciones: ${pd.limitacionesBiomecanicas || 'N/A'}`,
+          badge: 'AUTORREPORTE SALUD PENDIENTE',
+          badgeTone: 'rose',
+          isCritical: true,
+          fields: {
+            nombre: nom,
+            documento: ced,
+            cargo: pd.cargo || '',
+            enfermedades: pd.enfermedades || '',
+            diagnosticoMedico: pd.diagnosticoMedico || '',
+            medicamentos: pd.medicamentos || '',
+            presionArterial: pd.presionArterial || '',
+            frecuenciaCardiaca: pd.frecuenciaCardiaca || '',
+            limitacionesBiomecanicas: pd.limitacionesBiomecanicas || '',
+            alergiasQuimicas: pd.alergiasQuimicas || '',
+            alimentacion: pd.alimentacion || '',
+            riesgoCardiovascular: pd.riesgoCardiovascular || '',
+            terapiaPsicologica: pd.terapiaPsicologica || '',
+            estado: st,
+            modalidad: 'Autorreporte QR de Condiciones de Salud Pendiente',
+          },
+        });
+      });
+    }
+
+    const allRecords = [...unifiedWorkers, ...pendingRecords];
     const total = unifiedWorkers.length;
-    const critCount = unifiedWorkers.filter((r) => r.isCritical).length;
+    const critCount = allRecords.filter((r) => r.isCritical).length;
     const avgFit =
       total > 0
         ? Math.round(unifiedWorkers.reduce((acc, r) => acc + (Number(r._fitScore) || 85), 0) / total)
@@ -1565,13 +2599,14 @@ async function inspectHito1And2(canonicalId, userId, company) {
     return {
       moduleTitle: titles[canonicalId],
       sourceCollection: 'PerfilSociodemograficoData + SgsstWorker',
+      latestReports,
       kpis: [
         { label: 'Trabajadores Registrados', value: total, tone: 'teal' },
         { label: 'FIT Score Promedio', value: `${avgFit}%`, tone: avgFit >= 80 ? 'emerald' : avgFit >= 60 ? 'amber' : 'rose' },
-        { label: 'Con Tarjetas Preventivas / Restricción', value: critCount, tone: critCount > 0 ? 'rose' : 'emerald' },
+        { label: 'Con Alertas / Pendientes', value: critCount, tone: critCount > 0 ? 'rose' : 'emerald' },
         { label: 'Activos en Nómina', value: unifiedWorkers.filter((w) => w._activo).length, tone: 'indigo' },
       ],
-      records: unifiedWorkers,
+      records: allRecords,
     };
   }
 
@@ -1584,42 +2619,74 @@ function recursosSummary(equipos) {
 }
 
 function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
-  const cedula = String(sw.identificacion || sw.documento || wDoc?.documento || '').trim() || 'S/D';
+  const cedula = String(sw.identificacion || sw.documento || sw.cedula || wDoc?.documento || '').trim() || 'S/D';
   const nombre = String(sw.nombre || wDoc?.nombre || 'Colaborador').trim();
   const cargo = String(sw.cargo || wDoc?.cargo || 'Sin cargo asignado').trim();
-  const area = String(sw.area || wDoc?.area || sw.sede || wDoc?.sede || 'General').trim();
-  const edad = String(sw.edad || wDoc?.edad || '').trim();
+  const area = String(sw.areaTrabajo || sw.area || wDoc?.area || sw.sede || wDoc?.sede || 'General').trim();
+  const sede = String(sw.sede || wDoc?.sede || 'Sede Principal').trim();
+  const edad = String(sw.edad ?? wDoc?.edad ?? '').trim();
   const genero = String(sw.genero || wDoc?.genero || '').trim();
-  const rh = String(sw.tipoSangre || sw.rh || wDoc?.rh || '').trim();
+  const tipoSangre = String(sw.tipoSangre || '').trim();
+  const rhVal = String(sw.rh || wDoc?.rh || '').trim();
+  const rhFull = `${tipoSangre}${rhVal && !tipoSangre.includes(rhVal) ? rhVal : ''}`.trim() || rhVal || tipoSangre;
   const eps = String(sw.eps || wDoc?.eps || '').trim();
   const arl = String(sw.arl || wDoc?.arl || '').trim();
   const afp = String(sw.afp || sw.fondoPensiones || wDoc?.afp || '').trim();
   const estadoPila = String(sw.estadoPila || wDoc?.estadoPila || 'Activo').trim();
-  const estadoLaboral = String(sw.estadoLaboral || wDoc?.estadoLaboral || 'Activo').trim();
-  const aptitud = String(sw.aptitudMedica || sw.conceptoAptitud || wDoc?.aptitud || 'Apto sin restricciones').trim();
+  const estadoLaboral = String(sw.estadoLaboral || sw.estado || wDoc?.estadoLaboral || 'Activo').trim();
+  const fechaRetiro = sw.fechaRetiro || (wDoc?.fechaRetiro ? new Date(wDoc.fechaRetiro).toISOString().slice(0, 10) : '') || '';
+  const motivoRetiro = String(sw.motivoRetiro || wDoc?.motivoRetiro || '').trim();
+  const aptitud = String(sw.bioScoreIAAptitud || sw.aptitudMedica || sw.conceptoAptitud || wDoc?.aptitud || 'Apto sin restricciones').trim();
   const fechaEmo = String(sw.fechaUltimoExamen || sw.fechaExamenMedico || '').trim();
   const fechaProxEmo = String(sw.fechaProximoExamen || '').trim();
+  const fechaSeguimiento = String(sw.fechaSeguimiento || '').trim();
   const diagnosticos = String(sw.diagnosticoMedico || sw.condicionesSalud || wDoc?.condicionesSalud || wDoc?.diagnosticoMedico || '').trim();
   const enfermedades = String(sw.enfermedades || wDoc?.enfermedades || '').trim();
   const recomendaciones = String(sw.recomendacionesMedicas || wDoc?.recomendacionesMedicas || '').trim();
   const restricciones = String(sw.limitacionesBiomecanicas || sw.restriccionesMedicas || wDoc?.limitacionesBiomecanicas || '').trim();
   const medicamentos = String(sw.medicamentos || wDoc?.medicamentos || '').trim();
   const alergias = String(sw.alergiasQuimicas || sw.alergias || wDoc?.alergiasQuimicas || '').trim();
+  const presionArterial = String(sw.presionArterial || sw.tensionArterial || '').trim();
+  const frecuenciaCardiaca = String(sw.frecuenciaCardiaca || '').trim();
+  const alimentacion = String(sw.alimentacion || '').trim();
+  const riesgoCardiovascular = String(sw.riesgoCardiovascular || '').trim();
+  const terapiaPsicologica = String(sw.terapiaPsicologica || '').trim();
   const imc = String(sw.imc || '').trim();
-  const fitScore = Number(sw.biocentricScore ?? wDoc?.fitScore ?? 88);
+  const biocentricIsLethal = Boolean(sw.biocentricIsLethal || wDoc?.biocentricIsLethal);
+  const bioScoreIAAptitud = String(sw.bioScoreIAAptitud || '').trim();
+  const bioScoreIAReason = String(sw.bioScoreIAReason || '').trim();
+  const bioTagsIA = Array.isArray(sw.bioTagsIA) ? sw.bioTagsIA : [];
+  const dictamenPredictivoH1 = sw.dictamenPredictivoH1 ? stripHtmlToText(sw.dictamenPredictivoH1) : '';
+  const fitScore = Number(
+    (typeof wDoc?.fitScore === 'number' && wDoc.fitScore > 0 ? wDoc.fitScore : null) ??
+      sw.biocentricScore ??
+      88,
+  );
+  const fitScoreDynamicPenalty = Number(wDoc?.fitScoreDynamicPenalty ?? 0);
   const percepcionPts = Number(wDoc?.percepcionRiesgoScore ?? 0);
-  const fitAlertsArr = Array.isArray(wDoc?.fitAlerts) ? wDoc.fitAlerts : [];
+  const fitAlertsArr = [
+    ...(Array.isArray(wDoc?.fitAlerts) ? wDoc.fitAlerts : []),
+    ...(Array.isArray(sw.biocentricAlerts) ? sw.biocentricAlerts : []),
+  ];
   const bioRisksArr = Array.isArray(wDoc?.riesgosBioIndividual) ? wDoc.riesgosBioIndividual : [];
+  const bioRisksDetail = bioRisksArr
+    .map(
+      (br) =>
+        `[${br.dominio_bio || 'Bio'}/${br.clasificacion_bio || 'Moderado'}] ${br.peligro_cargo || ''} (Índice: ${br.indice_bio_riesgo_efectivo ?? br.indice_bio_riesgo_bruto ?? ''}, Factor: ${br.factor_individual || 'N/A'}, Plan: ${br.plan_accion_bio || br.controles_individuo || 'N/A'})`,
+    )
+    .join(' || ');
+
   const tarjetasPreventivas =
     fitAlertsArr.length > 0
       ? fitAlertsArr.map((a) => (typeof a === 'string' ? a : a.title || a.message || JSON.stringify(a))).join(' | ')
       : restricciones || recomendaciones || enfermedades || 'Sin alertas clínico-operativas activas';
 
   const hasAlert =
+    biocentricIsLethal ||
     fitScore < 75 ||
     fitAlertsArr.length > 0 ||
-    Boolean(restricciones && !/ningun|apto sin/i.test(restricciones)) ||
-    Boolean(enfermedades && !/ningun|sano/i.test(enfermedades));
+    Boolean(restricciones && !/ningun|apto sin|no aplica/i.test(restricciones)) ||
+    Boolean(enfermedades && !/ningun|sano|no aplica/i.test(enfermedades));
 
   const badgeByMode =
     canonicalId === 'hito2_oraculo_predictivo'
@@ -1628,100 +2695,165 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
         ? `${aptitud} • FIT ${fitScore}%`
         : `${estadoLaboral} • EPS: ${eps || 'N/A'} • ARL: ${arl || 'N/A'}`;
 
+  const fechaNacStr =
+    sw.fechaNacimiento ||
+    (wDoc?.fechaNacimiento instanceof Date
+      ? wDoc.fechaNacimiento.toISOString().slice(0, 10)
+      : wDoc?.fechaNacimiento || '');
+  const fechaIngStr =
+    sw.fechaIngreso ||
+    (wDoc?.fechaIngreso instanceof Date
+      ? wDoc.fechaIngreso.toISOString().slice(0, 10)
+      : wDoc?.fechaIngreso || '');
+
   return {
     id: cedula !== 'S/D' ? cedula : String(wDoc?._id || sw.id || nombre),
     label: `${nombre} (CC ${cedula})`,
-    sublabel: `Cargo: ${cargo} • Área: ${area}${edad ? ` • ${edad} años` : ''}${rh ? ` • RH ${rh}` : ''}`,
+    sublabel: `Cargo: ${cargo} • Área: ${area}${edad ? ` • ${edad} años` : ''}${rhFull ? ` • RH ${rhFull}` : ''}`,
     badge: badgeByMode,
     badgeTone: hasAlert ? 'rose' : fitScore < 85 ? 'amber' : 'emerald',
     isCritical: hasAlert,
     _fitScore: fitScore,
     _activo: estadoLaboral !== 'Retirado',
     fields: {
+      // >35 Casillas Reales Sociodemográficas Exactas
+      nombre,
+      documento: cedula,
+      cargo,
+      area,
+      sede,
+      edad,
+      genero,
+      estadoCivil: sw.estadoCivil || '',
+      escolaridad: sw.nivelEscolaridad || sw.escolaridad || '',
+      fechaNacimiento: fechaNacStr,
+      lugarNacimiento: sw.lugarNacimiento || '',
+      direccion: sw.direccion || '',
+      barrio: sw.barrio || '',
+      municipioDomicilio: sw.municipioDomicilio || '',
+      telefono: sw.telefono || '',
+      correoElectronico: sw.correoElectronico || '',
+      emergenciaContacto: sw.emergenciaContacto || '',
+      tipoSangre,
+      rh: rhFull,
+      estrato: String(sw.estrato ?? ''),
+      tipoVivienda: sw.tipoVivienda || sw.vivienda || '',
+      personasACargo: String(sw.personasACargo ?? sw.personasCargo ?? 0),
+      hijos: String(sw.hijos ?? 0),
+      cabezaFamilia: sw.cabezaFamilia || 'No',
+      eps,
+      arl,
+      afp,
+      tipoContrato: sw.tipoContrato || '',
+      fechaIngreso: fechaIngStr,
+      antiguedadAnos: String(sw.antiguedadAnos ?? sw.antiguedad ?? ''),
+      jornadaLaboral: sw.jornadaLaboral || sw.turnoTrabajo || 'Diurna',
+      salario: sw.salario || sw.ingresos || '',
+      estadoPila,
+      fechaCursoAlturasAutorizado: sw.fechaCursoAlturasAutorizado || '',
+      fechaCursoAlturasCoordinador: sw.fechaCursoAlturasCoordinador || '',
+      licenciaConduccion: sw.licenciaConduccion || '',
+      licenciaCategoria: sw.licenciaCategoria || '',
+      licenciaConduccionVencimiento: sw.licenciaConduccionVencimiento || '',
+      curso50h: sw.curso50h || '',
+      curso20h: sw.curso20h || '',
+      esCopasst: sw.esCopasst || 'No',
+      esComiteConvivencia: sw.esComiteConvivencia || 'No',
+      esBrigadista: sw.esBrigadista || 'No',
+      esComiteSeguridadVial: sw.esComiteSeguridadVial || 'No',
+      estado: estadoLaboral,
+      fechaRetiro,
+      motivoRetiro,
+      // Casillas Reales Clínicas & Condiciones de Salud
+      enfermedades,
+      diagnosticoMedico: diagnosticos,
+      medicamentos,
+      presionArterial,
+      frecuenciaCardiaca,
+      limitacionesBiomecanicas: restricciones,
+      alergiasQuimicas: alergias,
+      alimentacion,
+      riesgoCardiovascular,
+      terapiaPsicologica,
+      fechaSeguimiento,
+      biocentricIsLethal,
+      bioScoreIAAptitud,
+      bioScoreIAReason,
+      // Casillas Reales Oráculo Predictivo H1 & Bio-Individuo
+      dictamenPredictivoH1,
+      bioTagsIA: bioTagsIA.join(', '),
+      fitScore,
+      fitScoreDynamicPenalty,
+      fitAlerts: tarjetasPreventivas,
+      percepcionRiesgoScore: percepcionPts,
+      riesgosBioIndividual: bioRisksDetail,
+      // Etiquetas Descriptivas Compatibles con MODULE_METADATA_MAP
       'Cédula / Documento': cedula,
       'Nombre Completo': nombre,
       'Cargo': cargo,
-      'Área / Proceso y Sede': area,
+      'Área / Proceso y Sede': `${area} (${sede})`,
       'Área / Proceso': area,
-      'Sede / Centro de Trabajo': sw.sede || wDoc?.sede || 'Sede Principal',
-      'Edad y Fecha de Nacimiento': `${edad ? `${edad} años` : ''} ${sw.fechaNacimiento || wDoc?.fechaNacimiento ? `(${sw.fechaNacimiento || wDoc?.fechaNacimiento})` : ''}`.trim(),
+      'Sede / Centro de Trabajo': sede,
+      'Edad y Fecha de Nacimiento': `${edad ? `${edad} años` : ''} ${fechaNacStr ? `(${fechaNacStr} · ${sw.lugarNacimiento || ''})` : ''}`.trim(),
       'Edad': edad,
-      'Fecha de Nacimiento': sw.fechaNacimiento || wDoc?.fechaNacimiento || '',
+      'Fecha de Nacimiento': fechaNacStr,
+      'Lugar de Nacimiento': sw.lugarNacimiento || '',
       'Género': genero,
-      'Grupo Sanguíneo y RH': rh,
-      'Estado Civil y Personas a Cargo': `${sw.estadoCivil || ''} (Personas a cargo: ${sw.personasCargo || sw.personasACargo || '0'})`,
+      'Grupo Sanguíneo y RH': rhFull,
+      'Estado Civil y Personas a Cargo': `${sw.estadoCivil || ''} (Personas a cargo: ${sw.personasACargo ?? sw.personasCargo ?? 0}, Hijos: ${sw.hijos ?? 0}, Cabeza Familia: ${sw.cabezaFamilia || 'No'})`,
       'Estado Civil': sw.estadoCivil || '',
-      'Personas a Cargo': String(sw.personasCargo || sw.personasACargo || '0'),
+      'Personas a Cargo': String(sw.personasACargo ?? sw.personasCargo ?? 0),
       'Nivel de Escolaridad': sw.nivelEscolaridad || '',
-      'Estrato Socioeconómico y Tipo de Vivienda': `Estrato ${sw.estrato || 'N/A'} - Vivienda ${sw.vivienda || sw.tipoVivienda || 'N/A'}`,
-      'Tipo de Vivienda': sw.vivienda || sw.tipoVivienda || '',
+      'Estrato Socioeconómico y Tipo de Vivienda': `Estrato ${sw.estrato || 'N/A'} - Vivienda ${sw.tipoVivienda || sw.vivienda || 'N/A'}`,
+      'Tipo de Vivienda': sw.tipoVivienda || sw.vivienda || '',
       'Estrato Socioeconómico': String(sw.estrato || ''),
-      'Tipo de Contrato y Turno de Trabajo': `${sw.tipoContrato || 'Término Indefinido'} (${sw.turnoTrabajo || 'Diurno'})`,
+      'Tipo de Contrato y Turno de Trabajo': `${sw.tipoContrato || 'Término Indefinido'} (${sw.jornadaLaboral || sw.turnoTrabajo || 'Diurna'})`,
       'Tipo de Contrato': sw.tipoContrato || '',
-      'Fecha de Ingreso y Antigüedad': sw.fechaIngreso || wDoc?.fechaIngreso || '',
-      'Fecha de Ingreso': sw.fechaIngreso || wDoc?.fechaIngreso || '',
-      'Antigüedad': sw.antiguedad || '',
-      'Rango Salarial / IBC': sw.ingresos || sw.salario || '',
+      'Fecha de Ingreso y Antigüedad': `${fechaIngStr} (${sw.antiguedadAnos ?? sw.antiguedad ?? ''} años)`.trim(),
+      'Fecha de Ingreso': fechaIngStr,
+      'Antigüedad': String(sw.antiguedadAnos ?? sw.antiguedad ?? ''),
+      'Rango Salarial / IBC': sw.salario || sw.ingresos || '',
       'EPS (Entidad Promotora de Salud)': eps,
       'EPS': eps,
       'ARL (Administradora de Riesgos Laborales)': arl,
       'ARL': arl,
       'AFP (Fondo de Pensiones) y Caja de Compensación': `AFP: ${afp || 'N/A'} | Caja: ${sw.cajaCompensacion || 'N/A'}`,
       'AFP (Fondo de Pensiones)': afp,
-      'Caja de Compensación': sw.cajaCompensacion || '',
       'Estado de Planilla PILA / Certificados de Afiliación': estadoPila,
-      'Estado Laboral (Activo / Retirado)': estadoLaboral,
+      'Estado Laboral (Activo / Retirado)': `${estadoLaboral}${fechaRetiro ? ` (Retiro: ${fechaRetiro} - ${motivoRetiro})` : ''}`,
       'Teléfono, Correo y Contacto de Emergencia': `Tel: ${sw.telefono || ''} | Email: ${sw.correoElectronico || ''} | Emergencia: ${sw.emergenciaContacto || ''}`,
       'Correo Electrónico': sw.correoElectronico || '',
       'Teléfono / Celular': sw.telefono || '',
-      'Dirección y Municipio': `${sw.direccion || ''} (${sw.municipioDomicilio || ''})`,
+      'Dirección, Barrio y Municipio': `${sw.direccion || ''}${sw.barrio ? `, Barrio ${sw.barrio}` : ''} (${sw.municipioDomicilio || ''})`,
       'Contacto de Emergencia': sw.emergenciaContacto || '',
-      'Hábitos de Vida (Actividad Física, Tabaco, Alcohol)': `Deporte: ${sw.deporte || 'N/A'} | Tabaco: ${sw.fuma || 'No'} | Alcohol: ${sw.alcohol || 'No'}`,
-      'Hábito de Deporte': sw.deporte || '',
-      'Consumo de Tabaco / Alcohol': `Tabaco: ${sw.fuma || 'No'} / Alcohol: ${sw.alcohol || 'No'}`,
-      // Campos Clínicos / Condiciones de Salud
+      'Certificaciones Operativas (Alturas, Licencia Vial, Curso 50h, Comités)': `Alturas: ${sw.fechaCursoAlturasAutorizado || 'N/A'} | Lic. Vial: ${sw.licenciaConduccion || 'N/A'} (${sw.licenciaCategoria || ''} vence ${sw.licenciaConduccionVencimiento || 'N/A'}) | 50h: ${sw.curso50h || 'N/A'} | COPASST: ${sw.esCopasst || 'No'} | CCL: ${sw.esComiteConvivencia || 'No'} | Brigada: ${sw.esBrigadista || 'No'} | CSV: ${sw.esComiteSeguridadVial || 'No'}`,
+      'Hábitos de Vida (Actividad Física, Tabaco, Alcohol, Alimentación)': `Deporte: ${sw.deporte || 'N/A'} | Tabaco: ${sw.fuma || 'No'} | Alcohol: ${sw.alcohol || 'No'} | Alimentación: ${alimentacion || 'N/A'}`,
       'Concepto de Aptitud Médica (Apto / Apto con Restricción / Aplazado)': aptitud,
       'Concepto de Aptitud Médica': aptitud,
-      'Fecha de Último Examen Médico Ocupacional (EMO) y Próximo Vencimiento': `Último: ${fechaEmo || 'N/A'} | Próximo: ${fechaProxEmo || 'N/A'}`,
+      'Fecha de Último Examen Médico Ocupacional (EMO) y Próximo Vencimiento': `Último: ${fechaEmo || 'N/A'} | Próximo: ${fechaProxEmo || 'N/A'} | Seguimiento: ${fechaSeguimiento || 'N/A'}`,
       'Fecha Último Examen Médico (EMO)': fechaEmo,
       'Fecha Próximo Examen Médico': fechaProxEmo,
-      'Tipo de Evaluación (Ingreso, Periódico, Retiro, Cambio de Ocupación, Post-Incapacidad)': sw.tipoExamen || 'Periódico',
       'Restricciones Médicas Laborales Activas y Vigencia': restricciones,
-      'Restricciones / Limitaciones Biomecánicas': restricciones,
       'Limitaciones Biomecánicas': restricciones,
       'Recomendaciones Médicas Ocupacionales': recomendaciones,
-      'Recomendaciones Médicas Vigentes': recomendaciones,
-      'Recomendaciones Médicas': recomendaciones,
       'Diagnósticos Clínicos / CIE-10 y Sistemas Comprometidos': diagnosticos,
-      'Diagnósticos Clínicos / CIE-10': diagnosticos,
       'Enfermedades Preexistentes': enfermedades,
-      'Enfermedades / Patologías': enfermedades,
-      'Sintomatología Osteomuscular, Visual, Auditiva o Cardiovascular': `${diagnosticos} ${enfermedades}`.trim(),
       'Medicamentos de Consumo Actual': medicamentos,
-      'Medicamentos': medicamentos,
       'Alergias Químicas / Medicamentosas': alergias,
-      'Alergias Químicas': alergias,
-      'Tensión Arterial (PA)': sw.tensionArterial || '',
-      'Frecuencia Cardíaca (FC)': sw.frecuenciaCardiaca || '',
+      'Tensión Arterial (PA)': presionArterial,
+      'Frecuencia Cardíaca (FC)': frecuenciaCardiaca,
+      'Riesgo Cardiovascular y Terapia Psicológica': `Cardiovascular: ${riesgoCardiovascular || 'N/A'} | Terapia Psicológica: ${terapiaPsicologica || 'N/A'}`,
       'Peso (kg)': String(sw.peso || ''),
       'Talla (cm)': String(sw.talla || ''),
       'Índice de Masa Corporal (IMC) y Riesgo Metabólico': `${imc} (${sw.clasificacionImc || ''})`,
-      'Índice de Masa Corporal (IMC)': imc,
-      'Clasificación IMC': sw.clasificacionImc || '',
-      ' inclusión en Sistemas de Vigilancia Epidemiológica (SVE: Biomecánico, Psicosocial, Ruido, Químico, Visual, Cardiovascular)': sw.sve || (hasAlert ? 'SVE Osteomuscular / Preventivo' : 'Vigilancia General'),
-      // Campos de Compatibilidad Trabajador-Cargo / Bio-Individuo
-      'Puntaje de Compatibilidad Cargo-Persona (FIT Score %)': `${fitScore}%`,
+      'Puntaje de Compatibilidad Cargo-Persona (FIT Score %)': `${fitScore}% (Penalización dinámica: ${fitScoreDynamicPenalty}%)`,
       'Puntaje FIT Biocéntrico (%)': `${fitScore}%`,
-      'Estado de Compatibilidad (Óptimo / Moderado / Crítico)': fitScore >= 80 ? 'Óptimo' : fitScore >= 60 ? 'Moderado' : 'Crítico',
+      'Dictamen Predictivo IA H1': dictamenPredictivoH1 || bioScoreIAReason,
       'Tarjetas Preventivas Activas por Trabajador': tarjetasPreventivas,
       'Tarjetas Preventivas / Alertas FIT': tarjetasPreventivas,
-      'Cruces Críticos entre Exigencias del Cargo y Condición de Salud': tarjetasPreventivas,
-      'Alertas de Incompatibilidad Biomecánica, En Alturas o Espacios Confinados': tarjetasPreventivas,
       'Puntaje Percepción del Riesgo (pts)': `${percepcionPts} pts`,
-      'Factor de Reducción por Cultura (%)': `${Math.round(Math.min(percepcionPts / 500, 0.4) * 100)}%`,
-      'Total Riesgos Bio-Individuales': String(bioRisksArr.length),
-      'Riesgos Bio-Individuales Críticos/Altos': String(bioRisksArr.filter((b) => /cr[ií]tico|alto/i.test(b.clasificacion_bio || '')).length),
-      'Recomendaciones de Reubicación, Readaptación o Ajuste Razonable': recomendaciones || restricciones || 'Mantener controles preventivos del cargo',
+      'Detalle de Riesgos Bio-Individuales': bioRisksDetail,
+      'Recomendaciones de Reubicación, Readaptación o Ajuste Razonable': bioScoreIAReason || recomendaciones || restricciones || 'Mantener controles preventivos del cargo',
     },
   };
 }
@@ -1737,23 +2869,50 @@ async function inspectHito3To5(canonicalId, userId, company) {
     const SgsstCopasstComite = getSafeModel('SgsstCopasstComite', '~/server/routes/sgsst/copasst', '~/models/SgsstCopasst');
     const SgsstCopasstActa = getSafeModel('SgsstCopasstActa', '~/server/routes/sgsst/copasst', '~/models/SgsstCopasst');
     const SgsstCopasstInspeccion = getSafeModel('SgsstCopasstInspeccion', '~/server/routes/sgsst/copasst', '~/models/SgsstCopasst');
+    const SgsstEleccion = getSafeModel('SgsstEleccion', '~/server/routes/sgsst/copasst', '~/models/SgsstCopasst');
 
-    const comite = await findSingleCompanyDoc(SgsstCopasstComite, userId, company);
-    const actas = await findManyCompanyDocs(SgsstCopasstActa, userId, company, { fechaReunion: -1 }, 30);
-    const inspecciones = await findManyCompanyDocs(SgsstCopasstInspeccion, userId, company, { fecha: -1 }, 30);
+    const [comite, actas, inspecciones, elecciones, tagReports] = await Promise.all([
+      findSingleCompanyDoc(SgsstCopasstComite, userId, company),
+      findManyCompanyDocs(SgsstCopasstActa, userId, company, { fechaReunion: -1 }, 30),
+      findManyCompanyDocs(SgsstCopasstInspeccion, userId, company, { fecha: -1 }, 30),
+      findManyCompanyDocs(SgsstEleccion, userId, company, { createdAt: -1 }, 10),
+      fetchLatestReportsForTags(userId, company, ['sgsst-copasst', 'sgsst-comites'], 5),
+    ]);
+    const copasstElecciones = elecciones.filter((e) => !e.tipoComite || /copasst/i.test(e.tipoComite));
 
     const repEmpleador = Array.isArray(comite?.representantesEmpleador) ? comite.representantesEmpleador : [];
     const repTrabajadores = Array.isArray(comite?.representantesTrabajadores) ? comite.representantesTrabajadores : [];
+    const vigiaObj = comite?.vigia && (comite.vigia.nombre || comite.vigia.cedula)
+      ? [{ ...comite.vigia, parte: 'Vigía SST', rol: comite.vigia.rol || 'Vigía Principal' }]
+      : [];
     const allMembers = [
+      ...vigiaObj,
       ...repEmpleador.map((m) => ({ ...m, parte: 'Empleador' })),
       ...repTrabajadores.map((m) => ({ ...m, parte: 'Trabajadores' })),
     ];
+    const periodoStr =
+      comite?.periodoInicio || comite?.periodoFin
+        ? `${comite?.periodoInicio || 'N/A'} a ${comite?.periodoFin || 'N/A'}`
+        : 'Periodo Vigente (2 años)';
+
+    const embeddedActaReports = actas
+      .filter((a) => typeof a.reporteOficialHtml === 'string' && a.reporteOficialHtml.trim().length > 80)
+      .slice(0, 5)
+      .map((a, idx) => ({
+        conversationId: String(a._id || `copasst_acta_html_${idx}`),
+        title: `Acta Oficial COPASST #${a.numeroActa || idx + 1}`,
+        html: a.reporteOficialHtml,
+        charCount: a.reporteOficialHtml.length,
+        preview: stripHtmlToText(a.reporteOficialHtml).slice(0, 280),
+        updatedAt: a.updatedAt || a.fechaReunion || null,
+      }));
+    const latestReports = [...tagReports, ...embeddedActaReports];
 
     const records = [
       ...allMembers.map((m, i) => ({
         id: m.cedula || `copasst_mem_${i}`,
         label: `[Integrante COPASST] ${m.nombre || 'Miembro'} (CC ${m.cedula || 'S/D'})`,
-        sublabel: `Representante: ${m.parte} • Rol: ${m.rol || 'Principal'} • Cargo: ${m.cargo || ''}`,
+        sublabel: `Representante: ${m.parte} • Rol: ${m.rol || 'Principal'} • Cargo: ${m.cargo || ''} • Periodo: ${periodoStr}`,
         badge: `${m.parte} · ${m.rol || 'Principal'}`,
         badgeTone: 'teal',
         isCritical: false,
@@ -1761,9 +2920,22 @@ async function inspectHito3To5(canonicalId, userId, company) {
           'Cédula / Documento del Integrante': m.cedula || '',
           'Nombre Completo y Cargo del Integrante': `${m.nombre || ''} (${m.cargo || ''})`,
           'Representación (Empleador / Trabajadores)': m.parte,
-          'Calidad del Miembro (Principal / Suplente)': m.rol || 'Principal',
-          'Rol en el Comité (Presidente / Secretario / Integrante)': m.rol || 'Integrante',
+          'Calidad del Miembro (Principal / Suplente)': m.calidad || m.rol || 'Principal',
+          'Rol en el Comité (Presidente / Secretario / Integrante)': m.rolComite || m.rol || 'Integrante',
+          'Modalidad y Periodo de Vigencia (2 años)': `${String(comite?.modalidad || 'COPASST').toUpperCase()} (${periodoStr})`,
           'Integrantes del COPASST / Vigía (Representantes del Empleador y de los Trabajadores — Principales y Suplentes)': `${m.nombre || ''} (CC ${m.cedula || ''}) - ${m.parte} - ${m.rol || ''}`,
+        },
+      })),
+      ...copasstElecciones.map((el, i) => ({
+        id: String(el._id || `copasst_elec_${i}`),
+        label: `[Convocatoria / Votación COPASST] ${el.titulo || el.periodo || `Elección #${i + 1}`}`,
+        sublabel: `Estado: ${el.estado || 'Cerrada'} • Votos registrados: ${(el.votos || []).length} • Candidatos: ${(el.candidatos || []).length}`,
+        badge: `Elección ${String(el.estado || 'Registrada').toUpperCase()}`,
+        badgeTone: 'indigo',
+        isCritical: false,
+        fields: {
+          'Convocatoria, Inscripción de Candidatos y Escrutinio de Votación': `${el.titulo || 'Elección Paritaria COPASST'} — Candidatos: ${(el.candidatos || []).length}, Votos: ${(el.votos || []).length} (${el.estado || 'Cerrada'})`,
+          'Modalidad y Periodo de Vigencia (2 años)': el.periodo || periodoStr,
         },
       })),
       ...actas.map((a, i) => {
@@ -1784,30 +2956,39 @@ async function inspectHito3To5(canonicalId, userId, company) {
           fields: {
             'Actas de Reunión Mensual Ordinaria / Extraordinaria': `Acta ${actaNum} (${dateStr})`,
             'Número y Fecha de Acta de Reunión Mensual Ordinaria / Extraordinaria': `Acta ${actaNum} - ${dateStr}`,
+            'Lugar / Modalidad de Reunión': lugarStr,
             'Verificación de Quórum y Asistencia de Miembros': `${(a.asistentes || []).length} asistentes registrados`,
             'Temas Tratados (Inspecciones, Investigación ATEL, Seguimiento Plan Anual)': temasStr,
-            'Compromisos del Acta, Responsables y Fechas de Cumplimiento': comps.map((c) => `${c.actividad || ''} (Resp: ${c.responsable || ''} - Estado: ${c.estado || 'Pendiente'})`).join(' | ') || 'Sin compromisos pendientes',
+            'Compromisos del Acta, Responsables y Fechas de Cumplimiento': comps.map((c) => `${c.actividad || ''} (Resp: ${c.responsable || ''} - Fecha: ${c.fechaLimite || c.fecha || 'N/A'} - Estado: ${c.estado || 'Pendiente'})`).join(' | ') || 'Sin compromisos pendientes',
             'Seguimiento al Estado de Compromisos de Actas Anteriores': `${pend} pendientes de ${comps.length}`,
             'Estado de Compromisos de Actas Anteriores (Abierto / En Gestión / Cerrado)': `${pend} abiertos`,
           },
         };
       }),
-      ...inspecciones.map((ins, i) => ({
-        id: String(ins._id || ins.consecutivo || `insp_${i}`),
-        label: `[Inspección COPASST ${ins.consecutivo || i + 1}] ${ins.tipoLabel || 'General'} — ${ins.sede || ''}/${ins.area || ''}`,
-        sublabel: `Hallazgos: ${(ins.hallazgos || []).length} • Inspector: ${ins.inspectorNombre || ''}`,
-        badge: `Semáforo: ${String(ins.semaforoGeneral || 'atencion').toUpperCase()}`,
-        badgeTone: ins.semaforoGeneral === 'critico' ? 'rose' : ins.semaforoGeneral === 'seguro' ? 'emerald' : 'amber',
-        isCritical: ins.semaforoGeneral === 'critico' || (ins.hallazgos || []).length > 0,
-        fields: {
-          'Revisión de Inspecciones Planeadas de Seguridad': `${ins.consecutivo || ''}: ${ins.tipoLabel || ''} en ${ins.area || ''} (${(ins.hallazgos || []).length} hallazgos)`,
-        },
-      })),
+      ...inspecciones.map((ins, i) => {
+        const hallazgosArr = Array.isArray(ins.hallazgos) ? ins.hallazgos : [];
+        return {
+          id: String(ins._id || ins.consecutivo || `insp_${i}`),
+          label: `[Inspección COPASST ${ins.consecutivo || i + 1}] ${ins.tipoLabel || 'General'} — ${ins.sede || ''}/${ins.area || ''}`,
+          sublabel: `Hallazgos: ${hallazgosArr.length} • Inspector: ${ins.inspectorNombre || ''}`,
+          badge: `Semáforo: ${String(ins.semaforoGeneral || 'atencion').toUpperCase()}`,
+          badgeTone: ins.semaforoGeneral === 'critico' ? 'rose' : ins.semaforoGeneral === 'seguro' ? 'emerald' : 'amber',
+          isCritical: ins.semaforoGeneral === 'critico' || hallazgosArr.length > 0,
+          fields: {
+            'Revisión de Inspecciones Planeadas de Seguridad': `${ins.consecutivo || ''}: ${ins.tipoLabel || ''} en ${ins.sede || ''}/${ins.area || ''} (${hallazgosArr.length} hallazgos)`,
+            'Inspector COPASST Responsable': `${ins.inspectorNombre || ''} (CC ${ins.inspectorCedula || 'N/A'})`,
+            'Detalle de Hallazgos de Inspección y Controles': hallazgosArr
+              .map((h) => `${h.descripcion || h.item || 'Hallazgo'} [Nivel: ${h.nivelRiesgo || h.prioridad || 'Medio'} - Acción: ${h.accionCorrectiva || h.recomendacion || 'Intervenir'}]`)
+              .join(' | ') || 'Sin hallazgos abiertos',
+          },
+        };
+      }),
     ];
 
     return {
       moduleTitle: 'Hito 3 · COPASST / Vigía de Seguridad y Salud en el Trabajo',
-      sourceCollection: 'SgsstCopasstComite + SgsstCopasstActa + SgsstCopasstInspeccion',
+      sourceCollection: 'SgsstCopasstComite + SgsstCopasstActa + SgsstCopasstInspeccion + SgsstEleccion',
+      latestReports,
       kpis: [
         { label: 'Modalidad', value: String(comite?.modalidad || 'COPASST').toUpperCase(), tone: 'teal' },
         { label: 'Miembros Activos', value: allMembers.length, tone: 'indigo' },
@@ -1823,10 +3004,33 @@ async function inspectHito3To5(canonicalId, userId, company) {
     const SgsstConvivenciaComite = getSafeModel('SgsstConvivenciaComite', '~/server/routes/sgsst/convivencia', '~/models/SgsstConvivencia');
     const SgsstConvivenciaActa = getSafeModel('SgsstConvivenciaActa', '~/server/routes/sgsst/convivencia', '~/models/SgsstConvivencia');
     const SgsstConvivenciaCaso = getSafeModel('SgsstConvivenciaCaso', '~/server/routes/sgsst/convivencia', '~/models/SgsstConvivencia');
+    const SgsstEleccion = getSafeModel('SgsstEleccion', '~/server/routes/sgsst/copasst', '~/models/SgsstCopasst');
 
-    const comite = await findSingleCompanyDoc(SgsstConvivenciaComite, userId, company);
-    const actas = await findManyCompanyDocs(SgsstConvivenciaActa, userId, company, { fechaReunion: -1 }, 20);
-    const casos = await findManyCompanyDocs(SgsstConvivenciaCaso, userId, company, { createdAt: -1 }, 30);
+    const [comite, actas, casos, elecciones, tagReports] = await Promise.all([
+      findSingleCompanyDoc(SgsstConvivenciaComite, userId, company),
+      findManyCompanyDocs(SgsstConvivenciaActa, userId, company, { fechaReunion: -1 }, 20),
+      findManyCompanyDocs(SgsstConvivenciaCaso, userId, company, { createdAt: -1 }, 30),
+      findManyCompanyDocs(SgsstEleccion, userId, company, { createdAt: -1 }, 10),
+      fetchLatestReportsForTags(userId, company, ['sgsst-cocolab', 'sgsst-convivencia'], 5),
+    ]);
+    const cclElecciones = elecciones.filter((e) => /convivencia|ccl|cocolab/i.test(e.tipoComite || ''));
+    const periodoStr =
+      comite?.periodoInicio || comite?.periodoFin
+        ? `${comite?.periodoInicio || 'N/A'} a ${comite?.periodoFin || 'N/A'}`
+        : 'Periodo Vigente (2 años)';
+
+    const embeddedActaReports = actas
+      .filter((a) => typeof a.reporteOficialHtml === 'string' && a.reporteOficialHtml.trim().length > 80)
+      .slice(0, 5)
+      .map((a, idx) => ({
+        conversationId: String(a._id || `ccl_acta_html_${idx}`),
+        title: `Acta Oficial CCL #${a.numeroActa || idx + 1}`,
+        html: a.reporteOficialHtml,
+        charCount: a.reporteOficialHtml.length,
+        preview: stripHtmlToText(a.reporteOficialHtml).slice(0, 280),
+        updatedAt: a.updatedAt || a.fechaReunion || null,
+      }));
+    const latestReports = [...tagReports, ...embeddedActaReports];
 
     const members = [
       ...(comite?.representantesEmpleador || []).map((m) => ({ ...m, parte: 'Empleador' })),
@@ -1837,7 +3041,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
       ...members.map((m, i) => ({
         id: m.cedula || `ccl_mem_${i}`,
         label: `[Integrante CCL] ${m.nombre || ''} (CC ${m.cedula || ''})`,
-        sublabel: `Parte: ${m.parte} • Rol: ${m.rol || 'Principal'} • Cargo: ${m.cargo || ''}`,
+        sublabel: `Parte: ${m.parte} • Rol: ${m.rol || 'Principal'} • Cargo: ${m.cargo || ''} • Periodo: ${periodoStr}`,
         badge: `${m.parte} · ${m.rol || 'Principal'}`,
         badgeTone: 'teal',
         isCritical: false,
@@ -1845,6 +3049,18 @@ async function inspectHito3To5(canonicalId, userId, company) {
           'Integrantes del Comité de Convivencia Laboral (Principales y Suplentes)': `${m.nombre || ''} (CC ${m.cedula || ''}) - ${m.parte} (${m.rol || ''})`,
           'Cédula / Documento del Integrante': m.cedula || '',
           'Nombre Completo y Cargo del Integrante': `${m.nombre || ''} (${m.cargo || ''})`,
+          'Periodo de Vigencia del Comité (2 años)': periodoStr,
+        },
+      })),
+      ...cclElecciones.map((el, i) => ({
+        id: String(el._id || `ccl_elec_${i}`),
+        label: `[Elección CCL] ${el.titulo || el.periodo || `Votación #${i + 1}`}`,
+        sublabel: `Estado: ${el.estado || 'Cerrada'} • Votos: ${(el.votos || []).length}`,
+        badge: 'ELECCIÓN CCL',
+        badgeTone: 'indigo',
+        isCritical: false,
+        fields: {
+          'Acta de Conformación y Votación Secreta CCL': `${el.titulo || 'Elección CCL'} — Candidatos: ${(el.candidatos || []).length}, Votos: ${(el.votos || []).length}`,
         },
       })),
       ...actas.map((a, i) => ({
@@ -1856,26 +3072,35 @@ async function inspectHito3To5(canonicalId, userId, company) {
         isCritical: false,
         fields: {
           'Actas de Reunión Trimestral Ordinaria / Extraordinaria': `Acta ${a.numeroActa || ''} (Trimestre ${a.trimestre || ''}/${a.anio || ''})`,
-          'Compromisos, Campañas de Prevención y Capacitaciones': (a.compromisos || []).map((c) => `${c.actividad || ''} (${c.responsable || ''})`).join(' | '),
+          'Temas Tratados y Desarrollo de Sesión CCL': a.desarrollo || a.temasTratados || '',
+          'Compromisos, Campañas de Prevención y Capacitaciones': (a.compromisos || []).map((c) => `${c.actividad || ''} (${c.responsable || ''} - ${c.estado || 'Pendiente'})`).join(' | '),
         },
       })),
-      ...casos.map((c, i) => ({
-        id: String(c._id || c.radicado || `ccl_caso_${i}`),
-        label: `[Caso Confidencial ${c.radicado || i + 1}] Modalidad: ${c.modalidadAcoso || 'Convivencia'}`,
-        sublabel: `Estado: ${c.estado || 'En trámite'} • Nivel: ${c.nivelRiesgo || 'Moderado'}`,
-        badge: String(c.estado || 'Abierto').toUpperCase(),
-        badgeTone: c.estado === 'cerrado' ? 'emerald' : 'rose',
-        isCritical: c.estado !== 'cerrado',
-        fields: {
-          'Seguimiento Estadístico de Quejas de Presunto Acoso Laboral (Reserva Ley 1010)': `Radicado ${c.radicado || ''}: ${c.modalidadAcoso || ''} - Estado: ${c.estado || ''}`,
-          'Planes de Mejora de Clima y Convivencia Laboral': c.acuerdosLogrados || c.planSeguimiento || '',
-        },
-      })),
+      ...casos.map((c, i) => {
+        const fechaRad = c.fechaRadicacion || c.createdAt;
+        const elapsedDays = fechaRad ? Math.floor((Date.now() - new Date(fechaRad).getTime()) / 86400000) : 0;
+        const diasRestantes = c.diasRestantes ?? Math.max(0, 65 - elapsedDays);
+        const vencido65 = Boolean(c.vencido65Dias || (c.estado !== 'cerrado' && elapsedDays > 65));
+        return {
+          id: String(c._id || c.radicado || `ccl_caso_${i}`),
+          label: `[Caso Confidencial ${c.radicado || i + 1}] Modalidad: ${c.modalidadAcoso || 'Convivencia'}`,
+          sublabel: `Estado: ${c.estado || 'En trámite'} • Nivel: ${c.nivelRiesgo || 'Moderado'} • Plazo Res. 3461 (65 días): ${diasRestantes} días restantes`,
+          badge: vencido65 ? 'PLAZO 65D VENCIDO' : String(c.estado || 'Abierto').toUpperCase(),
+          badgeTone: c.estado === 'cerrado' ? 'emerald' : 'rose',
+          isCritical: c.estado !== 'cerrado',
+          fields: {
+            'Seguimiento Estadístico de Quejas de Presunto Acoso Laboral (Reserva Ley 1010)': `Radicado ${c.radicado || ''}: ${c.modalidadAcoso || ''} - Estado: ${c.estado || ''} - Nivel: ${c.nivelRiesgo || ''}`,
+            'Control de Término Legal Res. 3461 de 2025 (Máx. 65 días calendario)': vencido65 ? `Vencido (${elapsedDays} días transcurridos)` : `${diasRestantes} días restantes (${elapsedDays} transcurridos)`,
+            'Planes de Mejora de Clima y Convivencia Laboral': c.acuerdosLogrados || c.planSeguimiento || '',
+          },
+        };
+      }),
     ];
 
     return {
       moduleTitle: 'Hito 3 · Comité de Convivencia Laboral (CCL — Ley 1010 / Res. 3461)',
       sourceCollection: 'SgsstConvivenciaComite + SgsstConvivenciaActa + SgsstConvivenciaCaso',
+      latestReports,
       kpis: [
         { label: 'Miembros CCL', value: members.length, tone: 'teal' },
         { label: 'Actas Trimestrales', value: actas.length, tone: 'indigo' },
@@ -1890,8 +3115,11 @@ async function inspectHito3To5(canonicalId, userId, company) {
   if (canonicalId === 'hito3_comite_pesv') {
     const SgsstPesvComite = getSafeModel('SgsstPesvComite', '~/server/routes/sgsst/copasst', '~/models/SgsstCopasst');
     const SgsstPesvActa = getSafeModel('SgsstPesvActa', '~/server/routes/sgsst/copasst', '~/models/SgsstCopasst');
-    const comite = await findSingleCompanyDoc(SgsstPesvComite, userId, company);
-    const actas = await findManyCompanyDocs(SgsstPesvActa, userId, company, { fechaReunion: -1 }, 20);
+    const [comite, actas, latestReports] = await Promise.all([
+      findSingleCompanyDoc(SgsstPesvComite, userId, company),
+      findManyCompanyDocs(SgsstPesvActa, userId, company, { fechaReunion: -1 }, 20),
+      fetchLatestReportsForTags(userId, company, ['sgsst-comite-pesv'], 5),
+    ]);
     const miembros = Array.isArray(comite?.integrantes) ? comite.integrantes : [];
 
     const records = [
@@ -1926,10 +3154,11 @@ async function inspectHito3To5(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 3 · Comité de Seguridad Vial (CSV - PESV)',
       sourceCollection: 'SgsstPesvComite + SgsstPesvActa',
+      latestReports,
       kpis: [
         { label: 'Miembros CSV', value: miembros.length, tone: 'teal' },
         { label: 'Actas CSV', value: actas.length, tone: 'indigo' },
-        { label: 'Líder PESV', value: comite?.liderPesv?.nombre || 'Asignado', tone: 'emerald' },
+        { label: 'Líder PESV', value: comite?.liderPesv?.nombre || 'Sin asignar', tone: 'emerald' },
       ],
       records,
     };
@@ -1938,11 +3167,15 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 23. Hito 3 · Brigada de Emergencias & Comité de Crisis (SCI)
   if (canonicalId === 'hito3_brigada_emergencias') {
     const SgsstBrigadista = getSafeModel('SgsstBrigadista', '~/server/routes/sgsst/brigada', '~/models/SgsstBrigadista');
-    const brigadistas = await findManyCompanyDocs(SgsstBrigadista, userId, company, { updatedAt: -1 }, 150);
+    const [brigadistas, latestReports] = await Promise.all([
+      findManyCompanyDocs(SgsstBrigadista, userId, company, { updatedAt: -1 }, 150),
+      fetchLatestReportsForTags(userId, company, ['sgsst-brigada-emergencias'], 5),
+    ]);
 
     return {
       moduleTitle: 'Hito 3 · Brigada de Emergencias & Sistema Comando de Incidentes (SCI)',
       sourceCollection: 'SgsstBrigadista',
+      latestReports,
       kpis: [
         { label: 'Brigadistas Activos', value: brigadistas.filter((b) => b.estadoMembresia === 'Activo').length, tone: 'teal' },
         { label: 'Primeros Auxilios', value: brigadistas.filter((b) => /auxilios/i.test(b.grupoEspecialidad || '')).length, tone: 'emerald' },
@@ -1957,7 +3190,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
         badgeTone: b.estadoMembresia === 'Activo' ? 'emerald' : 'amber',
         isCritical: b.estadoMembresia !== 'Activo',
         fields: {
-          'Listado de Brigadistas Activos (Cédula, Nombre, Cargo, Sede y Teléfono)': `${b.nombre || ''} (CC ${b.cedula || ''}) - ${b.cargo || ''} - Sede: ${b.sede || ''}`,
+          'Listado de Brigadistas Activos (Cédula, Nombre, Cargo, Sede y Teléfono)': `${b.nombre || ''} (CC ${b.cedula || ''}) - ${b.cargo || ''} - Sede: ${b.sede || ''} - Tel: ${b.telefono || ''}`,
           'Cédula / Documento': b.cedula || '',
           'Nombre Completo': b.nombre || '',
           'Cargo': b.cargo || '',
@@ -1975,9 +3208,23 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 24. Hito 4 · Matriz Bio-IPEVR (Evaluación Individual por Trabajador)
   if (canonicalId === 'hito4_bio_ipevar') {
     const SgsstWorker = getSafeModel('SgsstWorker', '~/server/routes/sgsst/workers', '~/models/SgsstWorker');
-    const workers = await findManyCompanyDocs(SgsstWorker, userId, company, { updatedAt: -1 }, 200);
+    const [workers, tagReports] = await Promise.all([
+      findManyCompanyDocs(SgsstWorker, userId, company, { updatedAt: -1 }, 200),
+      fetchLatestReportsForTags(userId, company, ['sgsst-bio-ipevar', 'sgsst-matriz-bio-ipevar'], 5),
+    ]);
     const rows = [];
+    const embeddedBioReports = [];
     for (const w of workers) {
+      if (typeof w.bioReportContent === 'string' && w.bioReportContent.trim().length > 80 && embeddedBioReports.length < 5) {
+        embeddedBioReports.push({
+          conversationId: `bio_rep_${w.documento || w._id}`,
+          title: `Dictamen Bio-IPEVR Individual — ${w.nombre || 'Trabajador'} (CC ${w.documento || ''})`,
+          html: w.bioReportContent,
+          charCount: w.bioReportContent.length,
+          preview: stripHtmlToText(w.bioReportContent).slice(0, 280),
+          updatedAt: w.bioReportGeneratedAt || w.updatedAt || null,
+        });
+      }
       const bioRows = Array.isArray(w.riesgosBioIndividual) ? w.riesgosBioIndividual : [];
       for (const br of bioRows) {
         const isCrit = /cr[ií]tico|alto/i.test(br.clasificacion_bio || '') || Boolean(br.intervencion_prioritaria);
@@ -1994,54 +3241,24 @@ async function inspectHito3To5(canonicalId, userId, company) {
             'Nombre Completo': w.nombre || '',
             'Cargo, Proceso y Sede': `${w.cargo || ''} (${w.area || ''} - ${w.sede || 'Principal'})`,
             'Dominio Bio-Individual': br.dominio_bio || '',
+            'Actividad Expuesta y Rutinariedad': `${br.actividad_expuesta || ''} (Rutinaria: ${br.rutinaria ?? 'Sí'})`,
             'Peligros Expuestos en el Puesto Individual': `${br.peligro_cargo || ''} (${br.actividad_expuesta || ''})`,
             'Cruces con Condiciones de Salud y Sintomatología Corporal': `${br.factor_individual || ''} -> ${br.efectos_posibles || ''}`,
+            'Nivel de Susceptibilidad (NS) y Nivel de Exposición (NE)': `NS=${br.nivel_susceptibilidad ?? ''} | NE=${br.nivel_exposicion ?? ''}`,
+            'Índice Bio-Riesgo Bruto, Factor de Control e Índice Efectivo': `Bruto=${br.indice_bio_riesgo_bruto ?? ''} | Factor Control=${br.factor_control_existente ?? ''} | Efectivo=${br.indice_bio_riesgo_efectivo ?? ''}`,
             'Valoración de Riesgo Bio-Individual (NR y Aceptabilidad)': `NS=${br.nivel_susceptibilidad ?? ''} | NE=${br.nivel_exposicion ?? ''} | Índice Efectivo=${br.indice_bio_riesgo_efectivo ?? ''} (${br.clasificacion_bio || ''})`,
-            'Controles Personalizados (Fuente, Medio e Individuo)': `Plan: ${br.plan_accion_bio || ''} | Restricciones: ${br.restricciones_laborales || ''} | EPP: ${br.medida_eppu || ''}`,
+            'Intervención Prioritaria y Frecuencia de Seguimiento': `Prioritaria: ${br.intervencion_prioritaria ? 'Sí' : 'No'} | Frecuencia: ${br.frecuencia_seguimiento || 'Semestral'}`,
+            'Medidas en Fuente/Medio y Administrativas/SVE': `Fuente/Medio: ${br.medida_fuente_medio || ''} | Admin/SVE: ${br.medida_administrativa_sve || ''}`,
+            'Controles Personalizados (Fuente, Medio e Individuo)': `Fuente/Medio: ${br.medida_fuente_medio || ''} | Admin/SVE: ${br.medida_administrativa_sve || ''} | Plan: ${br.plan_accion_bio || ''} | Restricciones: ${br.restricciones_laborales || ''} | EPP: ${br.medida_eppu || ''}`,
           },
         });
       }
     }
 
-    let sourceLabel = 'SgsstWorker.riesgosBioIndividual';
-    if (rows.length === 0 && workers.length > 0) {
-      const gtcRes = await inspectHito1And2('hito2_matriz_ipevar', userId, company);
-      const gtcRecords = Array.isArray(gtcRes?.records) ? gtcRes.records : [];
-      if (gtcRecords.length > 0) {
-        sourceLabel = `SgsstWorker + ${gtcRes.sourceCollection || 'GTC45'}`;
-        for (const w of workers.slice(0, 60)) {
-          const wCargo = String(w.cargo || '').toLowerCase();
-          const matchedGtc =
-            gtcRecords.find((g) => wCargo && String(g.fields?.['Cargo'] || g.label || '').toLowerCase().includes(wCargo)) ||
-            gtcRecords[0];
-          const gf = matchedGtc?.fields || {};
-          const isCrit = Boolean(matchedGtc?.isCritical || w.restriccionesMedicas);
-          rows.push({
-            id: `bio_cross_${w.documento || w._id}_${rows.length}`,
-            label: `${w.nombre || 'Trabajador'} (CC ${w.documento || 'S/D'}) · [${gf['Clasificación del Peligro'] || 'Riesgo Cargo'}] ${gf['Descripción del Peligro'] || w.cargo || 'Operativo'}`,
-            sublabel: `Cargo: ${w.cargo || 'Operativo'} • Efectos: ${gf['Efectos Posibles en la Salud'] || 'Evaluado'} • Salud: ${w.restriccionesMedicas || w.conceptoMedico || 'Apto'}`,
-            badge: isCrit ? 'ALTO / PRIORITARIO' : 'CONTROLADO',
-            badgeTone: isCrit ? 'rose' : 'emerald',
-            isCritical: isCrit,
-            fields: {
-              'Cédula y Nombre Completo del Trabajador': `${w.nombre || ''} (CC ${w.documento || 'S/D'})`,
-              'Cédula / Documento': w.documento || 'S/D',
-              'Nombre Completo': w.nombre || '',
-              'Cargo, Proceso y Sede': `${w.cargo || ''} (${w.area || 'General'} - ${w.sede || 'Principal'})`,
-              'Dominio Bio-Individual': gf['Clasificación del Peligro'] || 'Biomecánico / Operativo',
-              'Peligros Expuestos en el Puesto Individual': gf['Peligro (Descripción y Clasificación: Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad, Fenómenos Naturales)'] || w.cargo || '',
-              'Cruces con Condiciones de Salud y Sintomatología Corporal': `${w.restriccionesMedicas || w.conceptoMedico || 'Sin restricciones activas'} -> ${gf['Efectos Posibles en la Salud'] || 'Vigilancia epidemiológica'}`,
-              'Valoración de Riesgo Bio-Individual (NR y Aceptabilidad)': gf['Valoración del Riesgo (NR = NP×NC, Nivel de Riesgo I/II/III/IV y Aceptabilidad)'] || 'Evaluado',
-              'Controles Personalizados (Fuente, Medio e Individuo)': gf['Medidas de Intervención (Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos / Señalización y EPP)'] || 'Controles preventivos del cargo',
-            },
-          });
-        }
-      }
-    }
-
     return {
       moduleTitle: 'Hito 4 · Matriz Bio-IPEVR (Evaluación Individual por Trabajador)',
-      sourceCollection: sourceLabel,
+      sourceCollection: 'SgsstWorker.riesgosBioIndividual',
+      latestReports: [...tagReports, ...embeddedBioReports],
       kpis: [
         { label: 'Trabajadores Evaluados', value: rows.length > 0 ? new Set(rows.map((r) => r.fields?.['Cédula / Documento'])).size : 0, tone: 'teal' },
         { label: 'Total Filas Bio-IPEVR', value: rows.length, tone: 'indigo' },
@@ -2054,18 +3271,23 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 25. Hito 4 · Método OWAS (Evaluación Ergonómica Postural)
   if (canonicalId === 'hito3_owas') {
     const MetodoOwasData = getSafeModel('MetodoOwasData', '~/server/routes/sgsst/metodoOwas');
-    const doc = await findSingleCompanyDoc(MetodoOwasData, userId, company);
+    const [doc, latestReports] = await Promise.all([
+      findSingleCompanyDoc(MetodoOwasData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-metodo-owas', 'sgsst-owas'], 5),
+    ]);
     const obs = Array.isArray(doc?.observaciones) ? doc.observaciones : [];
     const trabNames = (doc?.trabajadoresList || []).map((t) => `${t.nombre} (CC ${t.cedula})`).join(', ');
+    const evalNames = (doc?.evaluadoresList || []).map((e) => `${e.nombre || ''} (${e.licencia || e.rol || 'Ergónomo'})`).join(', ');
     const crit = obs.filter((o) => Number(o.categoria) >= 3).length;
 
     return {
       moduleTitle: 'Hito 4 · Método OWAS (Evaluación Ergonómica Postural)',
       sourceCollection: 'MetodoOwasData',
+      latestReports,
       kpis: [
         { label: 'Posturas Evaluadas', value: obs.length, tone: 'teal' },
         { label: 'Nivel 3 y 4 (Acción Urgente)', value: crit, tone: crit > 0 ? 'rose' : 'emerald' },
-        { label: 'Cargo Evaluado', value: doc?.formData?.cargo || 'General', tone: 'indigo' },
+        { label: 'Cargo Evaluado', value: doc?.formData?.cargo || 'Sin registrar', tone: 'indigo' },
       ],
       records: obs.map((o, i) => {
         const cat = Number(o.categoria) || 1;
@@ -2079,10 +3301,13 @@ async function inspectHito3To5(canonicalId, userId, company) {
           isCritical: cat >= 3,
           fields: {
             'Trabajador Evaluado (Cédula, Nombre y Cargo)': `${trabNames || 'Personal Evaluado'} - Cargo: ${doc?.formData?.cargo || ''}`,
-            'Tarea / Actividad y Fase de Trabajo Analizada': `${doc?.formData?.actividadGlobal || ''} - Fase: ${o.descripcion || ''}`,
+            'Evaluador / Profesional Ergónomo': evalNames || doc?.formData?.evaluador || 'Responsable SG-SST',
+            'Tarea / Actividad y Fase de Trabajo Analizada': `${doc?.formData?.actividadGlobal || ''} - Fase: ${o.descripcion || ''} (Frecuencia: ${o.frecuencia || '100%'})`,
+            'Frecuencia Relativa de la Postura (%)': String(o.frecuencia || ''),
             'Posición de Espalda (1 a 4), Brazos (1 a 3), Piernas (1 a 7) y Carga/Fuerza (1 a 3)': `Espalda=${o.espalda} (${o.espaldaLabel || ''}), Brazos=${o.brazos} (${o.brazosLabel || ''}), Piernas=${o.piernas} (${o.piernasLabel || ''}), Carga=${o.carga} (${o.cargaLabel || ''})`,
             'Código Postural OWAS de 4 Dígitos': code4,
             'Categoría de Riesgo OWAS (Nivel 1 Normal / Nivel 2 Leve / Nivel 3 Dañino / Nivel 4 Urgente)': `Nivel ${cat}`,
+            'Acción Correctiva y Rediseño Ergonómico Recomendado': o.accionCorrectiva || (cat >= 3 ? 'Rediseño ergonómico prioritario' : 'Seguimiento postural preventivo'),
           },
         };
       }),
@@ -2092,7 +3317,10 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 26. Hito 4 · Estudio de Puesto de Trabajo (EPT)
   if (canonicalId === 'hito3_estudio_puesto') {
     const EstudioPuestoTrabajo = getSafeModel('EstudioPuestoTrabajo', '~/server/routes/sgsst/estudioPuestoTrabajo', '~/models/EstudioPuestoTrabajo');
-    const studies = await findManyCompanyDocs(EstudioPuestoTrabajo, userId, company, { createdAt: -1 }, 100);
+    const [studies, latestReports] = await Promise.all([
+      findManyCompanyDocs(EstudioPuestoTrabajo, userId, company, { createdAt: -1 }, 100),
+      fetchLatestReportsForTags(userId, company, ['sgsst-estudio-puesto', 'sgsst-ept'], 5),
+    ]);
     const crit = studies.filter((s) => /cr[ií]tico|alto/i.test(s.riskLevel || '') || Number(s.rulaScore) >= 5).length;
     const eptEvidences = [];
     for (const s of studies) {
@@ -2118,6 +3346,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 4 · Estudio de Puesto de Trabajo (EPT — RULA / REBA / MediaPipe)',
       sourceCollection: 'EstudioPuestoTrabajo',
+      latestReports,
       evidenceFiles: eptEvidences,
       kpis: [
         { label: 'Estudios EPT Realizados', value: studies.length, tone: 'teal' },
@@ -2126,10 +3355,11 @@ async function inspectHito3To5(canonicalId, userId, company) {
       ],
       records: studies.map((s, i) => {
         const isCrit = /cr[ií]tico|alto/i.test(s.riskLevel || '') || Number(s.rulaScore) >= 5;
+        const alertsStr = Array.isArray(s.telemetry?.postureAlerts) ? s.telemetry.postureAlerts.join(', ') : '';
         return {
           id: String(s._id || `ept_${i}`),
           label: `${s.workerName || 'Trabajador'} (CC ${s.workerId || 'S/D'}) — Cargo: ${s.cargo || 'General'}`,
-          sublabel: `Actividad: ${s.actividad || ''} • RULA: ${s.rulaScore ?? 'N/A'} | REBA: ${s.rebaScore ?? 'N/A'} • Cuello: ${s.telemetry?.neckAngle ?? 0}° | Tronco: ${s.telemetry?.trunkAngle ?? 0}°`,
+          sublabel: `Actividad: ${s.actividad || ''} • RULA: ${s.rulaScore ?? 'N/A'} | REBA: ${s.rebaScore ?? 'N/A'} • Evaluador: ${s.evaluatorName || 'SG-SST'}`,
           badge: `${s.riskLevel || 'Evaluado'} (${s.actionLevel || 'Estándar'})`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
@@ -2138,11 +3368,13 @@ async function inspectHito3To5(canonicalId, userId, company) {
             'Cédula / Documento': s.workerId || 'S/D',
             'Nombre Completo': s.workerName || '',
             'Cargo': s.cargo || '',
+            'Evaluador del Estudio EPT': s.evaluatorName || '',
             'Descripción de la Tarea, Jornada y Ciclo de Trabajo': s.actividad || '',
             'Condiciones Ambientales (Iluminación, Ruido, Temperatura, Vibración)': s.notes || '',
-            'Diseño del Puesto, Mobiliario y Herramientas': `Ángulos MediaPipe: Cuello ${s.telemetry?.neckAngle ?? 0}°, Tronco ${s.telemetry?.trunkAngle ?? 0}°, Brazo ${s.telemetry?.armAngle ?? 0}°, Codo ${s.telemetry?.elbowAngle ?? 0}°`,
+            'Diseño del Puesto, Mobiliario y Herramientas': `Ángulos MediaPipe: Cuello ${s.telemetry?.neckAngle ?? 0}°, Tronco ${s.telemetry?.trunkAngle ?? 0}°, Brazo ${s.telemetry?.armAngle ?? 0}°, Codo ${s.telemetry?.elbowAngle ?? 0}°, Muñeca ${s.telemetry?.wristAngle ?? 0}°, Rodilla ${s.telemetry?.kneeAngle ?? 0}°`,
+            'Alertas Posturales Detectadas (MediaPipe)': alertsStr || 'Sin alertas agudas',
             'Factores de Riesgo Biomecánico y Psicosocial Identificados': `RULA: ${s.rulaScore ?? 0} | REBA: ${s.rebaScore ?? 0} | Nivel: ${s.actionLevel || ''} (${s.riskLevel || ''})`,
-            'Plan de Intervención, Ajustes Razonables y Seguimiento': s.notes || 'Seguimiento ergonómico preventivo',
+            'Plan de Intervención, Ajustes Razonables y Seguimiento': s.summaryRecommendation || s.notes || 'Seguimiento ergonómico preventivo',
           },
         };
       }),
@@ -2152,7 +3384,10 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 27. Hito 4 · Termómetro Psicosocial y Clima Emocional
   if (canonicalId === 'hito4_psicosocial') {
     const MoodTelemetry = getSafeModel('MoodTelemetry', '~/server/routes/sgsst/animo', '~/models/MoodTelemetry');
-    const items = await findManyCompanyDocs(MoodTelemetry, userId, company, { createdAt: -1 }, 150);
+    const [items, latestReports] = await Promise.all([
+      findManyCompanyDocs(MoodTelemetry, userId, company, { createdAt: -1 }, 150),
+      fetchLatestReportsForTags(userId, company, ['sgsst-psicosocial', 'sgsst-animo'], 5),
+    ]);
     const sad = items.filter((m) => m.mood === 'sad').length;
     const happy = items.filter((m) => m.mood === 'happy').length;
     const neutral = items.filter((m) => m.mood === 'neutral').length;
@@ -2160,6 +3395,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 4 · Termómetro Psicosocial & Estado de Ánimo (Res. 2764)',
       sourceCollection: 'MoodTelemetry',
+      latestReports,
       kpis: [
         { label: 'Total Reportes Ánimo', value: items.length, tone: 'teal' },
         { label: 'Motivado / Positivo', value: happy, tone: 'emerald' },
@@ -2169,15 +3405,19 @@ async function inspectHito3To5(canonicalId, userId, company) {
       records: items.map((m, i) => ({
         id: String(m._id || `mood_${i}`),
         label: `[${m.mood === 'sad' ? 'ALERTA ESTRÉS / AGOTAMIENTO' : m.mood === 'happy' ? 'POSITIVO / MOTIVADO' : 'NORMAL / TRANQUILO'}] Área: ${m.department || 'General'}`,
-        sublabel: `Estresores: ${(m.stressors || []).join(', ') || 'Ninguno'} • Detalle: ${m.details || 'Sin comentario'}`,
+        sublabel: `Estresores: ${(m.stressors || []).join(', ') || 'Ninguno'} • Canal: ${m.channel || 'web'} • Detalle: ${m.details || 'Sin comentario'}`,
         badge: m.createdAt ? new Date(m.createdAt).toLocaleDateString('es-CO') : m.mood,
         badgeTone: m.mood === 'sad' ? 'rose' : m.mood === 'happy' ? 'emerald' : 'slate',
         isCritical: m.mood === 'sad',
         fields: {
+          'Estado de Ánimo Reportado (Motivado / Tranquilo / Estresado)': m.mood === 'sad' ? 'Estresado / Alerta (sad)' : m.mood === 'happy' ? 'Motivado / Positivo (happy)' : 'Tranquilo / Normal (neutral)',
           'Distribución de Estado de Ánimo (Positivo, Neutral, Estresado / Fatigado)': m.mood || '',
           'Factores Estresores Reportados (Carga Mental, Jornada, Liderazgo, Clima, Entorno)': (m.stressors || []).join(', '),
+          'Área / Departamento': m.department || 'General',
           'Tendencias por Área / Proceso / Sede': m.department || 'General',
+          'Canal de Captura (QR / Kiosco / Web)': m.channel || 'web',
           'Alertas Tempranas de Fatiga o Riesgo Psicosocial': m.details || '',
+          'Fecha de Registro': m.createdAt ? new Date(m.createdAt).toLocaleString('es-CO') : '',
         },
       })),
     };
@@ -2186,14 +3426,32 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 28. Hito 5 · Compras y Adquisiciones con Criterios SST
   if (canonicalId === 'hito5_compras_sst') {
     const SgsstComprasData = getSafeModel('SgsstComprasData', '~/server/routes/sgsst/compras', '~/models/SgsstComprasData');
-    const doc = await findSingleCompanyDoc(SgsstComprasData, userId, company);
+    const [doc, tagReports] = await Promise.all([
+      findSingleCompanyDoc(SgsstComprasData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-compras', 'sgsst-compras-adquisiciones'], 5),
+    ]);
     const compras = Array.isArray(doc?.compras) ? doc.compras : [];
     const aprobadas = compras.filter((c) => /aprobado/i.test(c.dictamenSST || '')).length;
     const condRech = compras.length - aprobadas;
+    const embeddedRep =
+      typeof doc?.lastGeneratedReport === 'string' && doc.lastGeneratedReport.trim().length > 80
+        ? [
+            {
+              conversationId: `compras_embedded_${doc._id || '1'}`,
+              title: 'Procedimiento e Informe Oficial de Compras SST',
+              html: doc.lastGeneratedReport,
+              charCount: doc.lastGeneratedReport.length,
+              preview: stripHtmlToText(doc.lastGeneratedReport).slice(0, 280),
+              updatedAt: doc.updatedAt || null,
+            },
+          ]
+        : [];
+    const latestReports = [...tagReports, ...embeddedRep];
 
     return {
       moduleTitle: 'Hito 5 · Compras y Adquisiciones con Criterios SST (Est. 2.9.1)',
       sourceCollection: 'SgsstComprasData',
+      latestReports,
       kpis: [
         { label: 'Compras Evaluadas', value: compras.length, tone: 'teal' },
         { label: 'Aprobadas SST', value: aprobadas, tone: 'emerald' },
@@ -2204,15 +3462,17 @@ async function inspectHito3To5(canonicalId, userId, company) {
         return {
           id: c.id || c.codigo || `cmp_${i}`,
           label: `[${c.codigo || `CMP-${i + 1}`}] ${c.productoServicio || 'Adquisición'} (${c.categoria || 'SST'})`,
-          sublabel: `Proveedor: ${c.proveedorSugerido || 'N/A'} (NIT ${c.nitProveedor || 'N/A'}) • Norma: ${c.normaTecnica || 'ANSI/NTC'}`,
+          sublabel: `Proveedor: ${c.proveedorSugerido || 'N/A'} (NIT ${c.nitProveedor || 'N/A'}) • Área: ${c.areaSolicitante || 'General'} • Norma: ${c.normaTecnica || 'ANSI/NTC'}`,
           badge: c.dictamenSST || 'Evaluado',
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
             'Producto, Equipo, Sustancia o Servicio a Adquirir': `${c.codigo || ''}: ${c.productoServicio || ''} (${c.categoria || ''})`,
-            'Especificaciones y Requisitos Técnicos de SST Exigidos': `${c.normaTecnica || ''} - ${c.especificacionesSST || ''}`,
+            'Área Solicitante, Fecha de Solicitud y Nivel de Riesgo Asociado': `Área: ${c.areaSolicitante || ''} | Fecha: ${c.fechaSolicitud || ''} | Riesgo: ${c.nivelRiesgoAsociado || ''}`,
+            'Proveedor Sugerido y NIT': `${c.proveedorSugerido || ''} (NIT ${c.nitProveedor || ''})`,
+            'Especificaciones y Requisitos Técnicos de SST Exigidos': `${c.normaTecnica || ''} - ${c.especificacionesSST || ''} ${doc?.criteriosGenerales ? `| Criterio Base: ${String(doc.criteriosGenerales).slice(0, 200)}` : ''}`.trim(),
             'Certificaciones de Calidad / Normas Técnicas (ANSI, NTC, NIOSH, RETIE, SGA)': `Certificado Calidad: ${c.tieneCertificadoCalidad ? 'Sí' : 'No'} | FDS SGA: ${c.tieneFdsSga ? 'Sí' : 'No'}`,
-            'Evaluación y Verificación de Recepción SST': `${c.dictamenSST || ''} (Resp: ${c.responsableEvaluacion || ''})`,
+            'Evaluación y Verificación de Recepción SST': `${c.dictamenSST || ''} (Resp: ${c.responsableEvaluacion || ''}) — Obs: ${c.observaciones || 'Ninguna'}`,
           },
         };
       }),
@@ -2222,13 +3482,31 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 29. Hito 5 · Gestión de Contratistas y Proveedores
   if (canonicalId === 'hito5_contratistas') {
     const SgsstContratistasData = getSafeModel('SgsstContratistasData', '~/server/routes/sgsst/contratistas', '~/models/SgsstContratistasData');
-    const doc = await findSingleCompanyDoc(SgsstContratistasData, userId, company);
+    const [doc, tagReports] = await Promise.all([
+      findSingleCompanyDoc(SgsstContratistasData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-contratistas', 'sgsst-proveedores'], 5),
+    ]);
     const contratistas = Array.isArray(doc?.contratistas) ? doc.contratistas : [];
     const enBrecha = contratistas.filter((c) => c.estadoPila !== 'Vigente' || c.calificacionSST !== 'Aprobado').length;
+    const embeddedRep =
+      typeof doc?.lastGeneratedReport === 'string' && doc.lastGeneratedReport.trim().length > 80
+        ? [
+            {
+              conversationId: `contratistas_embedded_${doc._id || '1'}`,
+              title: 'Manual e Informe Oficial de Contratistas SST',
+              html: doc.lastGeneratedReport,
+              charCount: doc.lastGeneratedReport.length,
+              preview: stripHtmlToText(doc.lastGeneratedReport).slice(0, 280),
+              updatedAt: doc.updatedAt || null,
+            },
+          ]
+        : [];
+    const latestReports = [...tagReports, ...embeddedRep];
 
     return {
       moduleTitle: 'Hito 5 · Gestión de Contratistas, Proveedores y Terceros (Est. 2.10.1)',
       sourceCollection: 'SgsstContratistasData',
+      latestReports,
       kpis: [
         { label: 'Contratistas en Padrón', value: contratistas.length, tone: 'teal' },
         { label: 'Aprobados / PILA Vigente', value: contratistas.length - enBrecha, tone: 'emerald' },
@@ -2236,6 +3514,8 @@ async function inspectHito3To5(canonicalId, userId, company) {
       ],
       records: contratistas.map((c, i) => {
         const isCrit = c.estadoPila !== 'Vigente' || c.calificacionSST !== 'Aprobado';
+        const indVal = c.induccionCompletada ?? c.induccionSST ?? '';
+        const indLabel = typeof indVal === 'boolean' ? (indVal ? 'Sí (100%)' : 'No') : String(indVal || 'Pendiente');
         return {
           id: c.id || c.nit || `ctr_${i}`,
           label: `${c.razonSocial || 'Contratista'} (NIT: ${c.nit || 'S/D'})`,
@@ -2244,11 +3524,13 @@ async function inspectHito3To5(canonicalId, userId, company) {
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Razón Social, NIT y Representante del Contratista / Proveedor': `${c.razonSocial || ''} (NIT ${c.nit || ''}) - Contacto: ${c.contactoResponsable || ''}`,
+            'Razón Social, NIT y Representante del Contratista / Proveedor': `${c.razonSocial || ''} (NIT ${c.nit || ''}) - Contacto: ${c.contactoResponsable || ''} (${c.emailContacto || ''} / ${c.telefono || ''})`,
+            'Vigencia del Contrato (Fecha Inicio y Fecha Fin)': `${c.fechaInicio || 'N/A'} a ${c.fechaFin || 'N/A'}`,
             'Objeto del Contrato, Nivel de Riesgo ARL y Trabajadores Asignados': `${c.servicio || ''} | ${c.nivelRiesgo || ''} (${c.arl || ''}) | ${c.trabajadoresEnMision || 0} trabajadores`,
             'Certificado de Evaluación de Estándares Mínimos Res. 0312 del Contratista': `${c.puntaje0312 ?? c.cumplimiento0312Pct ?? 0}%`,
             'Verificación Mensual de Planilla PILA (EPS, ARL, AFP vigentes)': `${c.estadoPila || ''} (Ref: ${c.planillaPilaRef || 'N/A'})`,
-            'Inducción SST, Certificados de Tareas de Alto Riesgo y Entrega de EPP': `Inducción: ${c.induccionSST || ''}% | Alto Riesgo: ${c.tareaAltoRiesgo || ''} | Certificados: ${c.certificadosExigidos || ''}`,
+            'Inducción SST, Certificados de Tareas de Alto Riesgo y Entrega de EPP': `Inducción: ${indLabel} | Alto Riesgo: ${c.tareaAltoRiesgo || ''} | Certificados: ${c.certificadosExigidos || ''}`,
+            'Accidentes Reportados y Observaciones de Auditoría': `AT Reportados: ${c.accidentesReportados ?? 0} | Obs: ${c.observaciones || 'Ninguna'}`,
             'Evaluación de Desempeño SST del Contratista': c.calificacionSST || '',
           },
         };
@@ -2259,13 +3541,31 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 30. Hito 5 · Gestión del Cambio (MOC)
   if (canonicalId === 'hito5_gestion_cambio') {
     const SgsstGestionCambioData = getSafeModel('SgsstGestionCambioData', '~/server/routes/sgsst/gestionCambio', '~/models/SgsstGestionCambioData');
-    const doc = await findSingleCompanyDoc(SgsstGestionCambioData, userId, company);
+    const [doc, tagReports] = await Promise.all([
+      findSingleCompanyDoc(SgsstGestionCambioData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-gestion-cambio', 'sgsst-moc'], 5),
+    ]);
     const mocList = Array.isArray(doc?.mocList) ? doc.mocList : [];
     const altoRiesgo = mocList.filter((m) => m.nivelRiesgoCambio === 'Alto' || m.estado !== 'Implementado').length;
+    const embeddedRep =
+      typeof doc?.lastGeneratedReport === 'string' && doc.lastGeneratedReport.trim().length > 80
+        ? [
+            {
+              conversationId: `moc_embedded_${doc._id || '1'}`,
+              title: 'Procedimiento e Informe Oficial de Gestión del Cambio (MOC)',
+              html: doc.lastGeneratedReport,
+              charCount: doc.lastGeneratedReport.length,
+              preview: stripHtmlToText(doc.lastGeneratedReport).slice(0, 280),
+              updatedAt: doc.updatedAt || null,
+            },
+          ]
+        : [];
+    const latestReports = [...tagReports, ...embeddedRep];
 
     return {
       moduleTitle: 'Hito 5 · Gestión del Cambio MOC (Est. 2.11.1 / Dec. 1072 Art. 2.2.4.6.26)',
       sourceCollection: 'SgsstGestionCambioData',
+      latestReports,
       kpis: [
         { label: 'Cambios MOC Registrados', value: mocList.length, tone: 'teal' },
         { label: 'Implementados', value: mocList.filter((m) => m.estado === 'Implementado').length, tone: 'emerald' },
@@ -2274,15 +3574,15 @@ async function inspectHito3To5(canonicalId, userId, company) {
       records: mocList.map((m, i) => ({
         id: m.id || m.codigo || `moc_${i}`,
         label: `[${m.codigo || `MOC-${i + 1}`}] ${m.titulo || 'Gestión del Cambio'}`,
-        sublabel: `Tipo: ${m.tipoCambio || ''} • Peligros Nuevos: ${m.peligrosNuevos || ''} • Resp: ${m.responsable || ''}`,
+        sublabel: `Área: ${m.areaProceso || 'General'} • Tipo: ${m.tipoCambio || ''} • Peligros Nuevos: ${m.peligrosNuevos || ''} • Resp: ${m.responsable || ''}`,
         badge: `Riesgo ${m.nivelRiesgoCambio || 'Medio'} • ${m.estado || 'En Evaluación'}`,
         badgeTone: m.nivelRiesgoCambio === 'Alto' ? 'rose' : 'indigo',
         isCritical: m.nivelRiesgoCambio === 'Alto' || m.estado !== 'Implementado',
         fields: {
-          'Descripción del Cambio (Interno: Procesos, Equipos, Personal, Infraestructura / Externo: Normativo, Tecnológico)': `${m.codigo || ''}: ${m.titulo || ''} (${m.tipoCambio || ''} - ${m.origen || ''}): ${m.descripcion || ''}`,
-          'Identificación de Nuevos Peligros y Evaluación de Riesgos del Cambio': `${m.peligrosNuevos || ''} (Riesgo: ${m.nivelRiesgoCambio || ''})`,
-          'Medidas de Control, Capacitación y Comunicación Antes de Implementar': `${m.controlesRequeridos || ''} | Módulos impactados: ${(m.modulosImpactados || []).join(', ')}`,
-          'Responsable, Fecha de Implementación y Verificación de Eficacia': `Resp: ${m.responsable || ''} | Fecha: ${m.fechaPropuesta || ''} | Estado: ${m.estado || ''}`,
+          'Descripción del Cambio (Interno: Procesos, Equipos, Personal, Infraestructura / Externo: Normativo, Tecnológico)': `${m.codigo || ''}: ${m.titulo || ''} (${m.tipoCambio || ''} - ${m.origen || ''} - Área: ${m.areaProceso || ''}): ${m.descripcion || ''}`,
+          'Identificación de Nuevos Peligros y Evaluación de Riesgos del Cambio': `${m.peligrosNuevos || ''} (Riesgo: ${m.nivelRiesgoCambio || ''} | Impacto SST: ${m.impactoSaludSeguridad || ''} | Impacto Legal: ${m.impactoLegal || ''})`,
+          'Medidas de Control, Capacitación y Comunicación Antes de Implementar': `${m.controlesRequeridos || ''} | Requiere Capacitación: ${m.requiereCapacitacion ? 'Sí' : 'No'} | Módulos impactados: ${(m.modulosImpactados || []).join(', ')}`,
+          'Responsable, Fecha de Implementación y Verificación de Eficacia': `Resp: ${m.responsable || ''} | Fecha: ${m.fechaPropuesta || ''} | Estado: ${m.estado || ''} | Obs: ${m.observaciones || ''}`,
         },
       })),
     };
@@ -2295,33 +3595,73 @@ async function inspectHito3To5(canonicalId, userId, company) {
       isAlturas ? 'PermisoAlturasData' : 'AnalisisTrabajoSeguroData',
       isAlturas ? '~/server/routes/sgsst/permisoAlturas' : '~/server/routes/sgsst/analisisTrabajoSeguro'
     );
-    const doc = await findSingleCompanyDoc(Model, userId, company);
+    const [doc, latestReports] = await Promise.all([
+      findSingleCompanyDoc(Model, userId, company),
+      fetchLatestReportsForTags(
+        userId,
+        company,
+        isAlturas ? ['sgsst-permiso-alturas', 'sgsst-alturas'] : ['sgsst-ats', 'sgsst-analisis-trabajo-seguro'],
+        5,
+      ),
+    ]);
     const trabs = Array.isArray(doc?.trabajadoresList) ? doc.trabajadoresList : [];
     const resps = Array.isArray(doc?.responsablesList) ? doc.responsablesList : [];
+    const inboxQr = Array.isArray(doc?.inboxPublico) ? doc.inboxPublico : [];
     const fd = doc?.formData || {};
+    const hasFormPayload = Boolean(
+      fd.actividadGlobal || fd.ubicacion || fd.pasosTarea || fd.herramientasEquipos || fd.epccEpp,
+    );
+
+    const effectiveTrabs =
+      trabs.length > 0
+        ? trabs
+        : hasFormPayload
+          ? [{ cedula: fd.cedulaEjecutante || 'Tarea-Registrada', nombre: fd.ejecutanteNombre || 'Cuadrilla Autorizada' }]
+          : [];
 
     const records = [
-      ...trabs.map((t, i) => ({
+      ...effectiveTrabs.map((t, i) => ({
         id: t.cedula || `tar_trab_${i}`,
         label: `[Ejecutante Autorizado] ${t.nombre || 'Trabajador'} (CC ${t.cedula || ''})`,
-        sublabel: `Tarea: ${fd.actividadGlobal || 'Tarea Crítica'} • Fecha: ${fd.fecha || ''} (${fd.horaInicio || ''} - ${fd.horaFin || ''})`,
+        sublabel: `Tarea: ${fd.actividadGlobal || 'Tarea Crítica'} • Ubicación: ${fd.ubicacion || fd.area || 'Planta'} • Fecha: ${fd.fecha || ''} (${fd.horaInicio || ''} - ${fd.horaFin || ''})`,
         badge: `Seg. Social: ${fd.seguridadSocial || 'Sí'} • Aptitud: ${fd.aptitudMedica || 'Sí'}`,
         badgeTone: 'emerald',
         isCritical: fd.seguridadSocial === 'No' || fd.aptitudMedica === 'No' || fd.certificacionAlturas === 'No',
         fields: isAlturas
           ? {
-              'Trabajador Autorizado (Cédula, Nombre, Cargo, ARL, EPS y Curso Alturas Vigente)': `${t.nombre || ''} (CC ${t.cedula || ''}) - Cert. Alturas: ${fd.certificacionAlturas || 'Sí'}`,
-              'Descripción, Ubicación, Altura Aproximada (m) y Fecha/Hora del Trabajo': `${fd.actividadGlobal || ''} (${fd.fecha || ''} ${fd.horaInicio || ''}-${fd.horaFin || ''})`,
+              'Trabajador Autorizado (Cédula, Nombre, Cargo, ARL, EPS y Curso Alturas Vigente)': `${t.nombre || ''} (CC ${t.cedula || ''}) - Cargo: ${t.cargo || ''} - Cert. Alturas: ${fd.certificacionAlturas || 'Sí'}`,
+              'Cédula / Documento': t.cedula || '',
+              'Nombre Completo': t.nombre || '',
+              'Descripción, Ubicación, Altura Aproximada (m) y Fecha/Hora del Trabajo': `${fd.actividadGlobal || ''} en ${fd.ubicacion || fd.area || ''} (Altura: ${fd.alturaAproximada || fd.altura || 'N/A'} m | ${fd.fecha || ''} ${fd.horaInicio || ''}-${fd.horaFin || ''})`,
+              'Sistemas de Acceso, Prevención y Protección Contra Caídas (EPCC / EPP / Herramientas)': `Herramientas: ${fd.herramientasEquipos || ''} | EPCC/EPP: ${fd.epccEpp || ''}`,
               'Verificación de Condiciones de Salud y Aptitud Médica Pre-Tarea': `Seguridad Social: ${fd.seguridadSocial || 'Sí'} | Aptitud Médica: ${fd.aptitudMedica || 'Sí'}`,
               'Firmas del Ejecutante, Coordinador de Trabajo en Alturas y Emisor': resps.map((r) => `${r.rol || 'Coordinador'}: ${r.nombre} (CC ${r.cedula})`).join(' | '),
             }
           : {
-              'Descripción de la Tarea Crítica, Área y Fecha de Ejecución': `${fd.actividadGlobal || ''} (${fd.fecha || ''} ${fd.horaInicio || ''}-${fd.horaFin || ''})`,
+              'Descripción de la Tarea Crítica, Área y Fecha de Ejecución': `${fd.actividadGlobal || ''} en ${fd.ubicacion || fd.area || ''} (${fd.fecha || ''} ${fd.horaInicio || ''}-${fd.horaFin || ''})`,
               'Trabajadores Ejecutantes y Supervisor / Emisor (Cédula, Nombre y Firma)': `Ejecutante: ${t.nombre || ''} (CC ${t.cedula || ''}) | Supervisores: ${resps.map((r) => `${r.nombre} (${r.rol || ''})`).join(', ')}`,
-              'Pasos Secuenciales de la Tarea': fd.actividadGlobal || '',
+              'Cédula / Documento': t.cedula || '',
+              'Nombre Completo': t.nombre || '',
+              'Herramientas, Equipos y EPP Requeridos': `Herramientas/Equipos: ${fd.herramientasEquipos || ''} | EPP: ${fd.epccEpp || ''}`,
+              'Pasos Secuenciales de la Tarea': formatCleanScalar(fd.pasosTarea || fd.actividadGlobal, ''),
               'Controles Requeridos antes y durante la Tarea (Bloqueo/Etiquetado, Medición Atmósfera, EPP)': `Charla Preop: ${fd.seguridadSocial || 'Sí'} | Equipos Inspeccionados: ${fd.aptitudMedica || 'Sí'} | Área Verificada: ${fd.certificacionAlturas || 'Sí'}`,
             },
       })),
+      ...(isAlturas
+        ? inboxQr.map((inb, idx) => ({
+            id: inb.id || `alt_qr_${idx}`,
+            label: `[Solicitud QR Permiso Alturas] ${inb.trabajador?.nombre || inb.nombre || 'Ejecutante'} (CC ${inb.trabajador?.cedula || inb.cedula || ''})`,
+            sublabel: `Ubicación: ${inb.data?.ubicacion || ''} • Altura: ${inb.data?.altura || ''}m • Estado: ${inb.status || 'pending'}`,
+            badge: inb.status === 'approved' || inb.status === 'processed' ? 'APROBADO' : 'PENDIENTE FIRMA',
+            badgeTone: inb.status === 'approved' || inb.status === 'processed' ? 'emerald' : 'amber',
+            isCritical: inb.status !== 'approved' && inb.status !== 'processed',
+            fields: {
+              'Trabajador Autorizado (Cédula, Nombre, Cargo, ARL, EPS y Curso Alturas Vigente)': `${inb.trabajador?.nombre || inb.nombre || ''} (CC ${inb.trabajador?.cedula || inb.cedula || ''})`,
+              'Descripción, Ubicación, Altura Aproximada (m) y Fecha/Hora del Trabajo': `${inb.data?.descripcion || inb.data?.actividad || ''} en ${inb.data?.ubicacion || ''}`,
+              'Estado de Autorización QR en Campo': inb.status || 'pending',
+            },
+          }))
+        : []),
     ];
 
     return {
@@ -2329,6 +3669,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
         ? 'Hito 5 · Permiso de Trabajo en Alturas (Res. 4272 de 2021)'
         : 'Hito 5 · Análisis de Trabajo Seguro (ATS Paso a Paso)',
       sourceCollection: isAlturas ? 'PermisoAlturasData' : 'AnalisisTrabajoSeguroData',
+      latestReports,
       kpis: [
         { label: 'Trabajadores en Tarea', value: trabs.length, tone: 'teal' },
         { label: 'Responsables / Coordinadores', value: resps.length, tone: 'indigo' },
@@ -2341,22 +3682,28 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 33. Hito 5 · Hoja de Vida e Inspección de Equipos de Alturas
   if (canonicalId === 'hito5_equipos_alturas') {
     const SgsstHeightsData = getSafeModel('SgsstHeightsData', '~/server/routes/sgsst/heights', '~/models/SgsstHeightsData');
-    const docs = await findManyCompanyDocs(SgsstHeightsData, userId, company, { updatedAt: -1 }, 100);
+    const [docs, latestReports] = await Promise.all([
+      findManyCompanyDocs(SgsstHeightsData, userId, company, { updatedAt: -1 }, 100),
+      fetchLatestReportsForTags(userId, company, ['sgsst-equipos-alturas', 'sgsst-heights'], 5),
+    ]);
     const records = [];
     for (const d of docs) {
+      const workerCedula = d.documento || d.cedula || d.workerId || '';
       for (const eq of d.equipos || []) {
         const isCrit = eq.estado === 'Vencido' || eq.estado === 'Requiere Inspección' || eq.resultadoInspeccion === 'Rechazado';
         records.push({
           id: eq.id || eq.serial || `${d._id}_${records.length}`,
-          label: `${eq.nombre || 'Equipo Alturas'} (${eq.marca || ''} ${eq.referencia || ''}) — Serial: ${eq.serial || 'S/N'}`,
-          sublabel: `Asignado a: ${d.nombreTrabajador || 'Bodega'} (${d.cargo || ''}) • Próx. Inspección: ${eq.fechaProximaInspeccion || 'N/A'}`,
+          label: `${eq.nombre || eq.tipo || 'Equipo Alturas'} (${eq.marca || ''} ${eq.referencia || ''}) — Serial: ${eq.serial || 'S/N'}`,
+          sublabel: `Asignado a: ${d.nombreTrabajador || 'Bodega'} (CC ${workerCedula || 'N/A'} · ${d.cargo || ''} · ${d.area || ''}) • Próx. Inspección: ${eq.fechaProximaInspeccion || 'N/A'}`,
           badge: `${eq.estado || 'Vigente'} • ${eq.resultadoInspeccion || 'Aprobado'}`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Tipo de Equipo (Arnés, Eslinga con Absorbedor, Línea de Vida, Mosquetón, Freno, Casco Barbuquejo)': eq.nombre || '',
-            'Marca, Modelo, Número de Serie / Lote y Norma de Certificación (ANSI Z359 / EN)': `${eq.marca || ''} ${eq.referencia || ''} (Serial: ${eq.serial || ''})`,
-            'Fecha de Fabricación, Fecha de Puesta en Servicio y Vida Útil': `Fab: ${eq.fechaFabricacion || ''} | Compra: ${eq.fechaCompra || ''}`,
+            'Trabajador Custodio / Bodega Asignada': `${d.nombreTrabajador || 'Bodega'} (CC ${workerCedula || 'N/A'} - Cargo: ${d.cargo || ''} - Área: ${d.area || ''})`,
+            'Cédula / Documento': String(workerCedula || ''),
+            'Tipo de Equipo (Arnés, Eslinga con Absorbedor, Línea de Vida, Mosquetón, Freno, Casco Barbuquejo)': `${eq.tipo || ''} ${eq.nombre || ''}`.trim(),
+            'Marca, Modelo, Número de Serie / Lote y Norma de Certificación (ANSI Z359 / EN)': `${eq.marca || ''} ${eq.referencia || ''} (Serial: ${eq.serial || ''} | Lote: ${eq.lote || 'N/A'} | Norma: ${eq.normaCertificacion || 'ANSI Z359'})`,
+            'Fecha de Fabricación, Fecha de Puesta en Servicio y Vida Útil': `Fab: ${eq.fechaFabricacion || ''} | Compra/Servicio: ${eq.fechaCompra || ''}`,
             'Historial de Inspecciones Preoperacionales y Anuales por Persona Competente / Avalada': `Última: ${eq.fechaUltimaInspeccion || ''} | Próxima: ${eq.fechaProximaInspeccion || ''} | Inspector: ${eq.inspeccionadoPor || ''}`,
             'Estado del Equipo (Apto / En Cuarentena / Dado de Baja por Impacto o Deterioro)': `${eq.estado || ''} (${eq.resultadoInspeccion || ''}) - Obs: ${eq.observaciones || ''}`,
           },
@@ -2367,6 +3714,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 5 · Hoja de Vida e Inspección de Equipos Contra Caídas (Res. 4272)',
       sourceCollection: 'SgsstHeightsData',
+      latestReports,
       kpis: [
         { label: 'Total Equipos Alturas', value: records.length, tone: 'teal' },
         { label: 'Vigentes / Aprobados', value: records.filter((r) => !r.isCritical).length, tone: 'emerald' },
@@ -2382,9 +3730,12 @@ async function inspectHito3To5(canonicalId, userId, company) {
     const SgsstEppInventory = getSafeModel('SgsstEppInventory', '~/server/routes/sgsst/epp', '~/models/SgsstEppInventory');
     const SgsstEppSolicitud = getSafeModel('SgsstEppSolicitud', '~/server/routes/sgsst/epp', '~/models/SgsstEppSolicitud');
 
-    const entregasDocs = await findManyCompanyDocs(SgsstEppData, userId, company, { updatedAt: -1 }, 100);
-    const invDocs = await findManyCompanyDocs(SgsstEppInventory, userId, company, { updatedAt: -1 }, 100);
-    const solDocs = await findManyCompanyDocs(SgsstEppSolicitud, userId, company, { createdAt: -1 }, 50);
+    const [entregasDocs, invDocs, solDocs, latestReports] = await Promise.all([
+      findManyCompanyDocs(SgsstEppData, userId, company, { updatedAt: -1 }, 100),
+      findManyCompanyDocs(SgsstEppInventory, userId, company, { updatedAt: -1 }, 100),
+      findManyCompanyDocs(SgsstEppSolicitud, userId, company, { createdAt: -1 }, 50),
+      fetchLatestReportsForTags(userId, company, ['sgsst-epp', 'sgsst-entrega-epp'], 5),
+    ]);
 
     const records = [];
     let totalEntregasCount = 0;
@@ -2412,6 +3763,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
             'Cargo': d.cargo || 'Operativo',
             'Elemento de Protección Personal Entregado y Norma Técnica': `${eppName} (${epp.normaTecnica || epp.marca || ''} ${epp.referencia || ''})`.trim(),
             'Talla, Cantidad, Fecha de Entrega y Fecha de Próxima Reposición': `Talla: ${epp.talla || 'Única'} | Cant: ${epp.cantidad || 1} | Entrega: ${epp.fechaEntrega || 'Registrada'} | Vencimiento: ${epp.fechaVencimiento || epp.proximaReposicion || 'Vigente'}`,
+            'Motivo de Entrega y Observaciones': `${epp.motivoEntrega || 'Dotación / Reposición'} — ${epp.observaciones || 'Sin observaciones'}`,
             'Estado de Stock e Inventario Mínimo por Referencia': epp.estado || 'Vigente',
             'Firma de Recibido e Inducción de Uso y Mantenimiento': hasFirma ? 'Firmado digitalmente' : 'Pendiente firma',
           },
@@ -2429,8 +3781,27 @@ async function inspectHito3To5(canonicalId, userId, company) {
         badgeTone: low ? 'rose' : 'indigo',
         isCritical: low,
         fields: {
-          'Elemento de Protección Personal Entregado y Norma Técnica': `${inv.nombre || ''} (${inv.categoria || ''})`,
+          'Elemento de Protección Personal Entregado y Norma Técnica': `${inv.nombre || ''} (${inv.categoria || ''} - Norma: ${inv.normaTecnica || 'ANSI/NTC'})`,
           'Estado de Stock e Inventario Mínimo por Referencia': `Stock Actual: ${inv.stockActual ?? 0} | Mínimo: ${inv.stockMinimo ?? 0} (${inv.ubicacionBodega || ''})`,
+        },
+      });
+    }
+
+    for (let sIdx = 0; sIdx < solDocs.length; sIdx++) {
+      const sol = solDocs[sIdx];
+      const isPend = sol.estado !== 'entregado' && sol.estado !== 'aprobado' && sol.estado !== 'cerrado';
+      records.push({
+        id: String(sol._id || `epp_sol_${sIdx}`),
+        label: `[Solicitud QR EPP] ${sol.nombreTrabajador || sol.nombre || 'Colaborador'} (CC ${sol.documento || sol.cedula || 'S/D'}) — ${sol.elementoSolicitado || sol.epp || 'EPP'}`,
+        sublabel: `Motivo: ${sol.motivo || 'Reposición'} • Talla: ${sol.talla || 'Única'} • Estado: ${sol.estado || 'pendiente'}`,
+        badge: isPend ? 'SOLICITUD QR PENDIENTE' : String(sol.estado || 'Atendida').toUpperCase(),
+        badgeTone: isPend ? 'amber' : 'emerald',
+        isCritical: isPend,
+        fields: {
+          'Trabajador Receptor (Cédula, Nombre y Cargo)': `${sol.nombreTrabajador || sol.nombre || ''} (CC ${sol.documento || sol.cedula || ''}) - ${sol.cargo || ''}`,
+          'Cédula / Documento': String(sol.documento || sol.cedula || ''),
+          'Elemento de Protección Personal Entregado y Norma Técnica': sol.elementoSolicitado || sol.epp || '',
+          'Motivo de Entrega y Observaciones': `Solicitud QR (${sol.motivo || 'Reposición'}): ${sol.observaciones || ''}`,
         },
       });
     }
@@ -2438,6 +3809,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 5 · Gestión, Inventario y Entrega de EPP',
       sourceCollection: 'SgsstEppData + SgsstEppInventory + SgsstEppSolicitud',
+      latestReports,
       kpis: [
         { label: 'Entregas a Trabajadores', value: totalEntregasCount, tone: 'teal' },
         { label: 'Referencias en Bodega', value: invDocs.length, tone: 'indigo' },
@@ -2451,33 +3823,42 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 35. Hito 5 · Inventario de Productos Químicos y FDS en Terreno
   if (canonicalId === 'hito5_registro_quimico') {
     const SgsstChemicalData = getSafeModel('SgsstChemicalData', '~/server/routes/sgsst/chemicals', '~/models/SgsstChemicalData');
-    const doc = await findSingleCompanyDoc(SgsstChemicalData, userId, company);
+    const [doc, latestReports] = await Promise.all([
+      findSingleCompanyDoc(SgsstChemicalData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-registro-quimico', 'sgsst-quimicos'], 5),
+    ]);
     const productos = Array.isArray(doc?.productos) ? doc.productos : [];
-    const alertas = productos.filter((p) => !p.tieneFds || !p.tieneRotuloSga).length;
+    const hasYes = (v) => v === true || /^s[ií]$/i.test(String(v || '').trim());
+    const alertas = productos.filter((p) => !hasYes(p.tieneFds) || !hasYes(p.tieneRotuloSga)).length;
 
     return {
       moduleTitle: 'Hito 5 · Inventario de Productos Químicos y FDS en Terreno (Dec. 1496)',
       sourceCollection: 'SgsstChemicalData',
+      latestReports,
       kpis: [
         { label: 'Sustancias en Terreno', value: productos.length, tone: 'teal' },
         { label: 'Con FDS y Rótulo SGA', value: productos.length - alertas, tone: 'emerald' },
         { label: 'Sin FDS o Sin Rótulo', value: alertas, tone: alertas > 0 ? 'rose' : 'emerald' },
       ],
       records: productos.map((p, i) => {
-        const isCrit = !p.tieneFds || !p.tieneRotuloSga;
+        const okFds = hasYes(p.tieneFds);
+        const okSga = hasYes(p.tieneRotuloSga);
+        const isCrit = !okFds || !okSga;
         return {
           id: p.id || `chem_${i}`,
-          label: `${p.nombre || 'Producto Químico'} (${p.claseOnu || 'SGA'})`,
-          sublabel: `Fabricante: ${p.fabricante || ''} • Ubicación: ${p.ubicacion || ''} • Cantidad: ${p.cantidadAlmacenada || ''}`,
-          badge: `FDS: ${p.tieneFds ? 'Sí' : 'NO'} • Rótulo SGA: ${p.tieneRotuloSga ? 'Sí' : 'NO'}`,
+          label: `${p.nombre || 'Producto Químico'} (CAS: ${p.numeroCas || 'N/A'} · ${p.claseOnu || 'SGA'})`,
+          sublabel: `Fabricante: ${p.fabricante || ''} • Ubicación: ${p.ubicacion || ''} • Cantidad: ${p.cantidadAlmacenada || ''} • Palabra: ${p.palabraAdvertencia || 'Atención'}`,
+          badge: `FDS: ${okFds ? 'Sí' : 'NO'} • Rótulo SGA: ${okSga ? 'Sí' : 'NO'}`,
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Nombre Comercial, Sustancia Activa, Fabricante y Área de Uso': `${p.nombre || ''} (${p.fabricante || ''}) - Área: ${p.ubicacion || ''}`,
+            'Nombre Comercial, Sustancia Activa, Fabricante y Área de Uso': `${p.nombre || ''} (CAS: ${p.numeroCas || 'N/A'} - Fab: ${p.fabricante || ''}) - Área: ${p.ubicacion || ''}`,
+            'Número CAS y Clase ONU': `CAS: ${p.numeroCas || 'N/A'} | ONU: ${p.claseOnu || 'N/A'}`,
             'Estado Físico, Cantidad Almacenada y Tipo de Envase': `${p.estadoFisico || ''} - Cantidad: ${p.cantidadAlmacenada || ''}`,
-            'Etiquetado SGA en Envase Original y Trasvases': `Rótulo SGA: ${p.tieneRotuloSga ? 'Sí' : 'No'} | Pictogramas: ${(p.pictogramasSga || []).join(', ')}`,
-            'Disponibilidad de FDS en el Punto de Trabajo': p.tieneFds ? 'Sí tiene FDS' : 'Falta FDS',
-            'Controles de Ventilación, Duchas Lavaojos y EPP Químico': `Almacenamiento: ${p.requisitosAlmacenamiento || ''} | Incompatibilidades: ${(p.incompatibilidades || []).join(', ')} | Expuestos: ${(p.trabajadoresExpuestos || []).join(', ')}`,
+            'Etiquetado SGA en Envase Original y Trasvases': `Rótulo SGA: ${okSga ? 'Sí' : 'No'} | Palabra Advertencia: ${p.palabraAdvertencia || ''} | Pictogramas: ${(p.pictogramasSga || []).join(', ')}`,
+            'Indicaciones de Peligro (Frases H) y Consejos de Prudencia (Frases P)': `H: ${formatCleanScalar(p.indicacionesPeligroH, 'N/A')} | P: ${formatCleanScalar(p.consejosPrudenciaP, 'N/A')}`,
+            'Disponibilidad de FDS en el Punto de Trabajo': `${okFds ? 'Sí tiene FDS' : 'Falta FDS'} (Vigencia FDS: ${p.fechaVigenciaFds || 'N/A'}${p.fichaUrl ? ` | URL: ${p.fichaUrl}` : ''})`,
+            'Controles de Ventilación, Duchas Lavaojos y EPP Químico': `EPP: ${formatCleanScalar(p.eppRequerido, '')} | Almacenamiento: ${p.requisitosAlmacenamiento || ''} | Incompatibilidades: ${(p.incompatibilidades || []).join(', ')} | Expuestos: ${(p.trabajadoresExpuestos || []).join(', ')}`,
           },
         };
       }),
@@ -2487,22 +3868,29 @@ async function inspectHito3To5(canonicalId, userId, company) {
   // 36. Hito 5 · Parque Automotor e Inspección Preoperacional PESV
   if (canonicalId === 'hito3_vehiculos') {
     const SgsstVehicleData = getSafeModel('SgsstVehicleData', '~/server/routes/sgsst/vehicles', '~/models/SgsstVehicleData');
-    const vehicles = await findManyCompanyDocs(SgsstVehicleData, userId, company, { updatedAt: -1 }, 100);
+    const [vehicles, latestReports] = await Promise.all([
+      findManyCompanyDocs(SgsstVehicleData, userId, company, { updatedAt: -1 }, 100),
+      fetchLatestReportsForTags(userId, company, ['sgsst-vehiculos', 'sgsst-parque-automotor'], 5),
+    ]);
     const now = Date.now();
 
     return {
       moduleTitle: 'Hito 5 · Parque Automotor e Inspección Preoperacional PESV',
       sourceCollection: 'SgsstVehicleData',
+      latestReports,
       kpis: [
         { label: 'Vehículos en Flota', value: vehicles.length, tone: 'teal' },
         { label: 'Inspecciones Realizadas', value: vehicles.reduce((a, v) => a + (v.inspecciones?.length || 0), 0), tone: 'indigo' },
       ],
       records: vehicles.map((v, i) => {
-        const lastInsp = Array.isArray(v.inspecciones) && v.inspecciones.length > 0 ? v.inspecciones[v.inspecciones.length - 1] : null;
+        const inspArr = Array.isArray(v.inspecciones) ? v.inspecciones : [];
+        const mantArr = Array.isArray(v.mantenimientos) ? v.mantenimientos : [];
+        const lastInsp = inspArr.length > 0 ? inspArr[inspArr.length - 1] : null;
         const soatExp = v.soatVencimiento ? new Date(v.soatVencimiento).getTime() < now : false;
         const rtmExp = v.tecnomecanicaVencimiento ? new Date(v.tecnomecanicaVencimiento).getTime() < now : false;
+        const licExp = v.vencimientoLicenciaConductor ? new Date(v.vencimientoLicenciaConductor).getTime() < now : false;
         const noApto = lastInsp && /no apto|restricci/i.test(lastInsp.resultado || '');
-        const isCrit = soatExp || rtmExp || Boolean(noApto);
+        const isCrit = soatExp || rtmExp || licExp || Boolean(noApto);
 
         return {
           id: v.placa || String(v._id || `veh_${i}`),
@@ -2512,11 +3900,12 @@ async function inspectHito3To5(canonicalId, userId, company) {
           badgeTone: isCrit ? 'rose' : 'emerald',
           isCritical: isCrit,
           fields: {
-            'Placa, Tipo de Vehículo, Marca, Modelo y Kilometraje': `Placa: ${v.placa || ''} | ${v.tipo || ''} ${v.marca || ''} ${v.referencia || ''} (${v.modelo || v.anio || ''}) | ${v.kilometrajeActual || 0} km`,
-            'Conductor Asignado (Cédula, Nombre, Categoría y Vigencia de Licencia y SIMIT)': `${v.conductorNombre || ''} (CC ${v.conductorId || ''})`,
-            'Vigencia de SOAT, Revisión Técnico-Mecánica y Póliza': `SOAT: ${v.soatVencimiento || ''} | Tecnomecánica: ${v.tecnomecanicaVencimiento || ''}`,
-            'Resultado de Inspección Preoperacional Diaria (Frenos, Llantas, Luces, Dirección, Kit de Carretera)': lastInsp ? `${lastInsp.fecha || ''}: ${lastInsp.resultado || ''} (Frenos: ${lastInsp.frenos || 'OK'}, Llantas: ${lastInsp.llantas || 'OK'}, Luces: ${lastInsp.luces || 'OK'})` : 'Sin inspección reciente',
-            'Historial de Mantenimiento Preventivo y Correctivo': `Último: ${v.ultimoMantenimiento || ''} | Próximo: ${v.proximoMantenimiento || ''}`,
+            'Placa, Tipo de Vehículo, Marca, Modelo y Kilometraje': `Placa: ${v.placa || ''} | ${v.tipo || ''} ${v.marca || ''} ${v.referencia || ''} (${v.modelo || v.anio || ''}) | Propiedad: ${v.propiedad || 'Empresa'} | Lic. Tránsito: ${v.licenciaTransito || 'N/A'} | ${v.kilometrajeActual || 0} km`,
+            'Conductor Asignado (Cédula, Nombre, Categoría y Vigencia de Licencia y SIMIT)': `${v.conductorNombre || ''} (CC ${v.conductorId || ''}) | Cat. Licencia: ${v.categoriaLicenciaConductor || 'N/A'} | Vence Lic.: ${v.vencimientoLicenciaConductor || 'N/A'}`,
+            'Cédula / Documento': String(v.conductorId || ''),
+            'Vigencia de SOAT, Revisión Técnico-Mecánica y Póliza': `SOAT: ${v.soatVencimiento || ''} | Tecnomecánica: ${v.tecnomecanicaVencimiento || ''} | Póliza Todo Riesgo: ${v.polizaTodoRiesgoVencimiento || 'N/A'}`,
+            'Resultado de Inspección Preoperacional Diaria (Frenos, Llantas, Luces, Dirección, Kit de Carretera)': lastInsp ? `Última (${lastInsp.fecha || ''}): ${lastInsp.resultado || ''} (Frenos: ${lastInsp.frenos || 'OK'}, Llantas: ${lastInsp.llantas || 'OK'}, Luces: ${lastInsp.luces || 'OK'}) | Total inspecciones: ${inspArr.length}` : 'Sin inspección reciente',
+            'Historial de Mantenimiento Preventivo y Correctivo': `Último: ${v.ultimoMantenimiento || ''} | Próximo: ${v.proximoMantenimiento || ''} | Registros taller: ${mantArr.length}`,
             'Estado Operativo (Apto para Operar / Con Restricción / Inmovilizado)': lastInsp?.resultado || (isCrit ? 'Alerta Documental / Operativa' : 'Apto para Operar'),
           },
         };
@@ -2565,6 +3954,7 @@ async function inspectHito3To5(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 5 · Inspección de Equipos de Emergencia (Extintores, Botiquines y Camillas)',
       sourceCollection: 'PlanEmergenciasData.recursosEquipos + ConversationHistory',
+      latestReports: reports,
       kpis: [
         { label: 'Equipos Registrados', value: equipos.length, tone: 'teal' },
         { label: 'Operativos', value: equipos.filter((e) => /operativo/i.test(e.estado || 'Operativo')).length, tone: 'emerald' },
@@ -2621,6 +4011,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 6 · Matriz de Comunicaciones Internas y Externas SST (Est. 2.8.1)',
       sourceCollection: 'ContextoData.stakeholders + ConversationHistory',
+      latestReports: reports,
       kpis: [
         { label: 'Canales / Audiencias', value: stakeholders.length, tone: 'teal' },
         { label: 'Informes en Historial', value: reports.length, tone: 'indigo' },
@@ -2632,14 +4023,30 @@ async function inspectHito6To8(canonicalId, userId, company) {
   // 39. Hito 6 · Programa Anual de Capacitaciones SST
   if (canonicalId === 'hito5_capacitaciones') {
     const ProgramaCapacitacionesData = getSafeModel('ProgramaCapacitacionesData', '~/server/routes/sgsst/programaCapacitaciones');
-    const doc = await findSingleCompanyDoc(ProgramaCapacitacionesData, userId, company);
+    const [doc, tagReports] = await Promise.all([
+      findSingleCompanyDoc(ProgramaCapacitacionesData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-capacitaciones', 'sgsst-programa-capacitaciones'], 5),
+    ]);
     const sesiones = Array.isArray(doc?.sesiones) ? doc.sesiones : [];
     const completadas = sesiones.filter((s) => s.estado === 'Completada').length;
     const pendientes = sesiones.filter((s) => s.estado !== 'Completada').length;
+    const embeddedActas = sesiones
+      .filter((s) => typeof s.actaHtml === 'string' && s.actaHtml.trim().length > 80)
+      .slice(0, 5)
+      .map((s, idx) => ({
+        conversationId: `cap_acta_${s.id || idx}`,
+        title: `Acta de Capacitación — ${s.tema || `Sesión #${idx + 1}`}`,
+        html: s.actaHtml,
+        charCount: s.actaHtml.length,
+        preview: stripHtmlToText(s.actaHtml).slice(0, 280),
+        updatedAt: s.fecha || doc?.updatedAt || null,
+      }));
+    const latestReports = [...tagReports, ...embeddedActas];
 
     return {
       moduleTitle: 'Hito 6 · Programa Anual de Capacitaciones, Inducción y Reinducción SST (Est. 1.2.1)',
       sourceCollection: 'ProgramaCapacitacionesData',
+      latestReports,
       kpis: [
         { label: 'Sesiones Programadas', value: sesiones.length, tone: 'teal' },
         { label: 'Completadas', value: completadas, tone: 'emerald' },
@@ -2651,16 +4058,16 @@ async function inspectHito6To8(canonicalId, userId, company) {
         return {
           id: s.id || `cap_${i}`,
           label: `${s.tema || 'Capacitación SST'} (${s.fecha || 'Por programar'} ${s.hora || ''})`,
-          sublabel: `Duración: ${s.duracion || '1'}h • Capacitador: ${s.responsable || 'SG-SST'} • Asistentes: ${asist.length}`,
+          sublabel: `Tipo: ${s.tipo || 'Capacitación'} • Modalidad: ${s.modalidad || 'Presencial'} • Lugar: ${s.lugar || 'Sede'} • Asistentes: ${asist.length}`,
           badge: s.estado || 'Programada',
           badgeTone: s.estado === 'Completada' ? 'emerald' : 'amber',
           isCritical: isCrit,
           fields: {
-            'Tema de Capacitación, Inducción o Entrenamiento': s.tema || '',
+            'Tema de Capacitación, Inducción o Entrenamiento': `${s.tema || ''} (${s.tipo || 'Capacitación'}) — Objetivo: ${s.objetivo || s.descripcion || ''}`,
             'Cargos y Trabajadores Objetivo (Convocados vs Asistentes)': asist.map((a) => `${a.nombre} (CC ${a.cedula || ''})`).join(', ') || 'Toda la nómina',
-            'Fecha Programada, Intensidad Horaria, Modalidad y Capacitador': `Fecha: ${s.fecha || ''} ${s.hora || ''} | Duración: ${s.duracion || ''}h | Resp: ${s.responsable || ''}`,
-            'Indicadores de Cobertura, Cumplimiento y Eficacia': `Estado: ${s.estado || ''} | Asistentes: ${asist.length}`,
-            'Registro de Asistencia, Evaluación y Certificados': s.descripcion || '',
+            'Fecha Programada, Intensidad Horaria, Modalidad y Capacitador': `Fecha: ${s.fecha || ''} ${s.hora || ''} | Duración: ${s.duracion || ''}h | Modalidad: ${s.modalidad || 'Presencial'} | Lugar: ${s.lugar || ''} | Resp: ${s.responsable || ''}`,
+            'Indicadores de Cobertura, Cumplimiento y Eficacia': `Estado: ${s.estado || ''} | Asistentes: ${asist.length} | Evaluación Aplicada: ${s.evaluacionAplicada ? 'Sí' : 'Por aplicar'}`,
+            'Registro de Asistencia, Evaluación y Certificados': `${s.descripcion || ''}${s.actaHtml ? ' | Acta Oficial Firmada Disponible' : ''}`.trim(),
           },
         };
       }),
@@ -2671,24 +4078,26 @@ async function inspectHito6To8(canonicalId, userId, company) {
   if (canonicalId === 'hito6_ruta_aprendizaje') {
     const Course = getSafeModel('Course', null, '~/models/Course');
     const UserProgress = getSafeModel('UserProgress', null, '~/models/UserProgress');
-    const SgsstWorker = getSafeModel('SgsstWorker', '~/server/routes/sgsst/workers', '~/models/SgsstWorker');
     const companyScope = buildCompanyScopeFilter(userId, company);
+    const globalAuthorFilter = userId ? { isPublished: true, author: String(userId) } : null;
 
-    const [companyCourses, globalCourses, progresses, workers] = await Promise.all([
+    const [companyCourses, authorCourses, progresses, latestReports] = await Promise.all([
       findManyCompanyDocs(Course, userId, company, { updatedAt: -1 }, 50),
-      Course ? Course.find({ isPublished: true }).sort({ updatedAt: -1 }).limit(30).lean().catch(() => []) : [],
-      findManyCompanyDocs(UserProgress, userId, company, { updatedAt: -1 }, 100),
-      SgsstWorker && Object.keys(companyScope).length > 0
-        ? SgsstWorker.find(companyScope).limit(100).lean().catch(() => [])
+      Course && globalAuthorFilter
+        ? Course.find(globalAuthorFilter).sort({ updatedAt: -1 }).limit(30).lean().catch(() => [])
         : [],
+      findManyCompanyDocs(UserProgress, userId, company, { updatedAt: -1 }, 100),
+      fetchLatestReportsForTags(userId, company, ['sgsst-ruta-aprendizaje', 'sgsst-lms'], 5),
     ]);
 
     const courseMap = new Map();
-    for (const c of [...companyCourses, ...globalCourses]) {
-      if (c?._id) courseMap.set(String(c._id), c);
+    const companyIdStr = company?._id ? String(company._id) : null;
+    for (const c of [...companyCourses, ...authorCourses]) {
+      if (!c?._id) continue;
+      if (companyIdStr && c.companyId && String(c.companyId) !== companyIdStr) continue;
+      courseMap.set(String(c._id), c);
     }
     const courses = Array.from(courseMap.values());
-    const workerFallback = workers[0] || null;
 
     const records = [
       ...courses.map((c, i) => ({
@@ -2707,12 +4116,15 @@ async function inspectHito6To8(canonicalId, userId, company) {
       })),
       ...progresses.map((p, i) => {
         const courseObj = p.course ? courseMap.get(String(p.course)) : null;
-        const pName = p.workerName || workerFallback?.nombre || 'Colaborador Inscrito';
-        const pCedula = p.workerCedula || workerFallback?.documento || 'Registrado';
+        const pName = p.workerName || p.nombre || 'Colaborador Inscrito';
+        const pCedula = p.workerCedula || p.cedula || 'N/A';
+        const totalLessons = Math.max(1, (courseObj?.lessons || []).length);
+        const doneLessons = (p.completedLessons || []).length;
+        const pct = courseObj ? `${Math.min(100, Math.round((doneLessons / totalLessons) * 100))}% (${doneLessons}/${totalLessons})` : `${doneLessons} lecciones completadas`;
         return {
           id: String(p._id || `prog_${i}`),
           label: `[Progreso LMS] ${pName} (CC ${pCedula})${courseObj?.title ? ` — ${courseObj.title}` : ''}`,
-          sublabel: `Lecciones completadas: ${(p.completedLessons || []).length}${courseObj ? ` / ${(courseObj.lessons || []).length}` : ''}`,
+          sublabel: `Avance: ${pct} • Nota Examen: ${p.examScore ?? 'N/A'}`,
           badge: p.isCourseCompleted ? 'CERTIFICADO' : 'En Progreso',
           badgeTone: p.isCourseCompleted ? 'emerald' : 'amber',
           isCritical: !p.isCourseCompleted,
@@ -2721,8 +4133,8 @@ async function inspectHito6To8(canonicalId, userId, company) {
             'Trabajador Inscrito (Cédula, Nombre y Cargo)': `${pName} (CC ${pCedula})`,
             'Cédula / Documento': String(pCedula),
             'Nombre Completo': pName,
-            'Porcentaje de Avance de Lecciones (%)': `${(p.completedLessons || []).length} lecciones completadas`,
-            'Calificación de Examen / Quiz y Estado de Certificación': p.isCourseCompleted ? 'Aprobado y Certificado' : 'En curso',
+            'Porcentaje de Avance de Lecciones (%)': pct,
+            'Calificación de Examen / Quiz y Estado de Certificación': `${p.isCourseCompleted ? 'Aprobado y Certificado' : 'En curso'}${p.examScore !== undefined ? ` (Nota: ${p.examScore}%)` : ''}${p.certificateCode ? ` | Código Cert.: ${p.certificateCode}` : ''}`,
           },
         };
       }),
@@ -2731,6 +4143,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 6 · Rutas de Aprendizaje y Escuela Virtual LMS',
       sourceCollection: 'Course + UserProgress',
+      latestReports,
       kpis: [
         { label: 'Cursos LMS', value: courses.length, tone: 'teal' },
         { label: 'Trabajadores Inscritos', value: progresses.length, tone: 'indigo' },
@@ -2743,8 +4156,12 @@ async function inspectHito6To8(canonicalId, userId, company) {
   // 41. Hito 6 · Reporte de Actos y Condiciones Inseguras (Buzón QR)
   if (canonicalId === 'hito4_actos_condiciones') {
     const ReporteActosData = getSafeModel('ReporteActosData', '~/server/routes/sgsst/reporteActos');
-    const doc = await findSingleCompanyDoc(ReporteActosData, userId, company);
+    const [doc, latestReports] = await Promise.all([
+      findSingleCompanyDoc(ReporteActosData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-actos-condiciones', 'sgsst-reporte-actos'], 5),
+    ]);
     const inbox = Array.isArray(doc?.inboxPublico) ? doc.inboxPublico : [];
+    const resps = Array.isArray(doc?.responsablesList) ? doc.responsablesList : [];
     const fd = doc?.formData || {};
 
     const records = [
@@ -2752,43 +4169,48 @@ async function inspectHito6To8(canonicalId, userId, company) {
         ? [
             {
               id: 'rep_acto_main',
-              label: `[Hallazgo Principal] ${fd.actividadGlobal.slice(0, 90)}`,
-              sublabel: `Fecha: ${fd.fecha || ''} • Intervención Urgente: ${fd.certificacionAlturas || 'Sí'}`,
+              label: `[${fd.tipoHallazgo || fd.tipoReporte || 'Hallazgo Principal'}] ${fd.actividadGlobal.slice(0, 90)}`,
+              sublabel: `Ubicación: ${fd.ubicacion || 'Planta'} • Fecha: ${fd.fecha || ''} • Intervención Urgente: ${fd.certificacionAlturas || 'Sí'}`,
               badge: fd.aptitudMedica === 'Sí' ? 'Actividad Suspendida' : 'Registrado',
               badgeTone: 'rose',
               isCritical: true,
               fields: {
-                'Tipo de Hallazgo (Acto Inseguro / Condición Subestándar)': 'Hallazgo Operativo SST',
-                'Descripción Detallada, Área / Sede, Fecha y Evidencia Fotográfica': `${fd.actividadGlobal || ''} (${fd.fecha || ''})`,
+                'Tipo de Hallazgo (Acto Inseguro / Condición Subestándar)': fd.tipoHallazgo || fd.tipoReporte || 'Condición / Acto Inseguro',
+                'Descripción Detallada, Área / Sede, Fecha y Evidencia Fotográfica': `${fd.actividadGlobal || ''} (Área: ${fd.ubicacion || 'Planta'} - Fecha: ${fd.fecha || ''})`,
                 'Trabajador Reportante (Cédula, Nombre y Cargo)': (doc?.trabajadoresList || []).map((t) => `${t.nombre} (CC ${t.cedula})`).join(', '),
                 'Nivel de Criticidad y Peligro Asociado': fd.certificacionAlturas === 'Sí' ? 'Intervención Urgente' : 'Moderado',
-                'Acción Correctiva Inmediata, Responsable y Estado de Cierre': `Suspendida preventivamente: ${fd.aptitudMedica || 'No'}`,
+                'Acción Correctiva Inmediata, Responsable y Estado de Cierre': `Suspendida preventivamente: ${fd.aptitudMedica || 'No'} | Responsables: ${resps.map((r) => r.nombre).join(', ') || 'SG-SST'}`,
               },
             },
           ]
         : []),
-      ...inbox.map((inb, i) => ({
-        id: inb.id || `inb_acto_${i}`,
-        label: `[Buzón QR] ${inb.trabajador?.nombre || 'Colaborador'} (CC ${inb.trabajador?.cedula || ''}) — ${inb.data?.ubicacion || 'Planta'}`,
-        sublabel: `${inb.data?.descripcion || ''}`,
-        badge: inb.status === 'processed' ? 'Procesado' : 'PENDIENTE GESTIÓN',
-        badgeTone: inb.status === 'processed' ? 'emerald' : 'rose',
-        isCritical: inb.status !== 'processed',
-        fields: {
-          'Tipo de Hallazgo (Acto Inseguro / Condición Subestándar)': 'Reporte QR Acto/Condición',
-          'Descripción Detallada, Área / Sede, Fecha y Evidencia Fotográfica': `${inb.data?.descripcion || ''} (Área: ${inb.data?.ubicacion || ''} - Fecha: ${inb.data?.fecha || ''})`,
-          'Trabajador Reportante (Cédula, Nombre y Cargo)': `${inb.trabajador?.nombre || ''} (CC ${inb.trabajador?.cedula || ''}) - ${inb.trabajador?.cargo || ''}`,
-          'Cédula / Documento': inb.trabajador?.cedula || '',
-          'Nombre Completo': inb.trabajador?.nombre || '',
-          'Cargo': inb.trabajador?.cargo || '',
-          'Acción Correctiva Inmediata, Responsable y Estado de Cierre': inb.status || 'pending',
-        },
-      })),
+      ...inbox.map((inb, i) => {
+        const fotosCount = Array.isArray(inb.data?.fotos) ? inb.data.fotos.length : Array.isArray(inb.evidencias) ? inb.evidencias.length : 0;
+        return {
+          id: inb.id || `inb_acto_${i}`,
+          label: `[Buzón QR · ${inb.data?.tipoReporte || inb.data?.tipoHallazgo || 'Acto/Condición'}] ${inb.trabajador?.nombre || 'Colaborador'} (CC ${inb.trabajador?.cedula || ''}) — ${inb.data?.ubicacion || 'Planta'}`,
+          sublabel: `${inb.data?.descripcion || ''}${fotosCount > 0 ? ` • 📷 ${fotosCount} foto(s)` : ''}`,
+          badge: inb.status === 'processed' ? 'Procesado' : 'PENDIENTE GESTIÓN',
+          badgeTone: inb.status === 'processed' ? 'emerald' : 'rose',
+          isCritical: inb.status !== 'processed',
+          fields: {
+            'Tipo de Hallazgo (Acto Inseguro / Condición Subestándar)': inb.data?.tipoReporte || inb.data?.tipoHallazgo || 'Reporte QR Acto/Condición',
+            'Descripción Detallada, Área / Sede, Fecha y Evidencia Fotográfica': `${inb.data?.descripcion || ''} (Área: ${inb.data?.ubicacion || ''} - Fecha: ${inb.data?.fecha || ''}${fotosCount > 0 ? ` - Evidencias: ${fotosCount}` : ''})`,
+            'Trabajador Reportante (Cédula, Nombre y Cargo)': `${inb.trabajador?.nombre || ''} (CC ${inb.trabajador?.cedula || ''}) - ${inb.trabajador?.cargo || ''}`,
+            'Cédula / Documento': inb.trabajador?.cedula || '',
+            'Nombre Completo': inb.trabajador?.nombre || '',
+            'Cargo': inb.trabajador?.cargo || '',
+            'Nivel de Criticidad y Peligro Asociado': inb.data?.criticidad || inb.data?.nivelRiesgo || 'Por clasificar',
+            'Acción Correctiva Inmediata, Responsable y Estado de Cierre': `${inb.data?.accionSugerida || ''} (Estado: ${inb.status || 'pending'})`.trim(),
+          },
+        };
+      }),
     ];
 
     return {
       moduleTitle: 'Hito 6 · Reporte de Actos y Condiciones Inseguras (Buzón QR)',
       sourceCollection: 'ReporteActosData',
+      latestReports,
       kpis: [
         { label: 'Total Reportes', value: records.length, tone: 'teal' },
         { label: 'Pendientes en Buzón', value: inbox.filter((x) => x.status !== 'processed').length, tone: 'rose' },
@@ -2836,6 +4258,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 6 · Programación y Evaluación de Simulacros de Emergencia',
       sourceCollection: 'PlanEmergenciasData.simulacrosPlan + ConversationHistory',
+      latestReports: reports,
       kpis: [
         { label: 'Simulacros en Plan', value: simulacros.length, tone: 'teal' },
         { label: 'Ejecutados / Evaluados', value: simulacros.filter((s) => s.estado !== 'Programado').length, tone: 'emerald' },
@@ -2853,6 +4276,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 6 · Creador de Aplicativos y Herramientas Interactivas SST',
       sourceCollection: 'CanvasSession',
+      latestReports: [],
       kpis: [{ label: 'Sesiones / Apps Creadas', value: sessions.length, tone: 'teal' }],
       records: sessions.map((s, i) => ({
         id: s.conversationId || String(s._id || `app_${i}`),
@@ -2863,7 +4287,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
         isCritical: false,
         fields: {
           'Nombre, Propósito y Estructura del Aplicativo SST': `${s.title || ''} (${s.fileType || ''})`,
-          'Datos Capturados y Resultados Generados': String(s.content || '').slice(0, 400),
+          'Datos Capturados y Resultados Generados': stripHtmlToText(s.content || '').slice(0, 1200),
         },
       })),
     };
@@ -2872,30 +4296,71 @@ async function inspectHito6To8(canonicalId, userId, company) {
   // 44. Hito 7 · Estadísticas de Accidentalidad, Enfermedad Laboral y Ausentismo (ATEL)
   if (canonicalId === 'hito7_estadisticas_atel') {
     const ATELAnnualData = getSafeModel('ATELAnnualData', '~/server/routes/sgsst/atel-data');
-    const docs = await findManyCompanyDocs(ATELAnnualData, userId, company, { year: -1 }, 5);
+    const [docs, latestReports] = await Promise.all([
+      findManyCompanyDocs(ATELAnnualData, userId, company, { year: -1 }, 5),
+      fetchLatestReportsForTags(userId, company, ['sgsst-estadisticas-atel', 'sgsst-atel-estadisticas'], 5),
+    ]);
     const events = [];
+    let totalWorkedHours = 0;
+    let workerMonthsSum = 0;
+    let activeMonthsCount = 0;
     for (const d of docs) {
       const monthsObj = d.months instanceof Map ? Object.fromEntries(d.months) : d.months || {};
       for (const [mKey, mData] of Object.entries(monthsObj)) {
+        const wh = Number(mData?.workedHours) || 0;
+        const wc = Number(mData?.workersCount) || 0;
+        if (wh > 0 || wc > 0 || (mData?.events || []).length > 0) {
+          totalWorkedHours += wh;
+          workerMonthsSum += wc;
+          activeMonthsCount += 1;
+        }
         for (const ev of mData?.events || []) {
-          events.push({ ...ev, _year: d.year, _month: mKey });
+          events.push({ ...ev, _year: d.year, _month: mKey, _workedHours: wh, _workersCount: wc });
         }
       }
     }
-    const atCount = events.filter((e) => e.tipo === 'AT').length;
-    const elCount = events.filter((e) => e.tipo === 'EL').length;
+    const avgWorkers = activeMonthsCount > 0 ? Math.max(1, Math.round(workerMonthsSum / activeMonthsCount)) : Math.max(1, Number(company?.workerCount) || 1);
+    const kConstant = 240000;
+    const atEvents = events.filter((e) => e.tipo === 'AT');
+    const atMortalCount = atEvents.filter((e) => Boolean(e.mortal || /mortal/i.test(e.gravedad || ''))).length;
+    const elEvents = events.filter((e) => e.tipo === 'EL');
+    const egEvents = events.filter((e) => e.tipo === 'EG' || e.tipo === 'Ausentismo');
+    const atDays = atEvents.reduce((a, e) => a + (Number(e.diasIncapacidad) || 0) + (Number(e.diasCargados) || 0), 0);
+    const egDays = egEvents.reduce((a, e) => a + (Number(e.diasIncapacidad) || 0), 0);
     const totalDays = events.reduce((a, e) => a + (Number(e.diasIncapacidad) || 0), 0);
 
-    return {
-      moduleTitle: 'Hito 7 · Estadísticas ATEL, Ausentismo y 6 Indicadores Mínimos Res. 0312',
-      sourceCollection: 'ATELAnnualData',
-      kpis: [
-        { label: 'Total Eventos ATEL/Ausentismo', value: events.length, tone: 'teal' },
-        { label: 'Accidentes de Trabajo (AT)', value: atCount, tone: atCount > 0 ? 'rose' : 'emerald' },
-        { label: 'Enfermedad Laboral (EL)', value: elCount, tone: elCount > 0 ? 'rose' : 'emerald' },
-        { label: 'Días de Incapacidad', value: totalDays, tone: 'amber' },
-      ],
-      records: events.map((ev, i) => {
+    const freqAT = avgWorkers > 0 ? ((atEvents.length / avgWorkers) * 100).toFixed(2) : '0.00';
+    const sevAT = avgWorkers > 0 ? ((atDays / avgWorkers) * 100).toFixed(2) : '0.00';
+    const propMortal = atEvents.length > 0 ? ((atMortalCount / atEvents.length) * 100).toFixed(2) : '0.00';
+    const prevEL = avgWorkers > 0 ? ((elEvents.length / avgWorkers) * 100000).toFixed(1) : '0.0';
+    const incEL = prevEL;
+    const progWorkDays = Math.max(1, avgWorkers * Math.max(1, activeMonthsCount) * 25);
+    const ausentismoMed = ((egDays / progWorkDays) * 100).toFixed(2);
+    const indicadoresSummaryStr = `Frecuencia AT: ${freqAT}% | Severidad AT: ${sevAT} días/100 trab. | Mortalidad AT: ${propMortal}% | Prevalencia/Incidencia EL: ${prevEL}×100k | Ausentismo Causa Médica: ${ausentismoMed}% (HHT=${totalWorkedHours || kConstant}, Prom. Trab.=${avgWorkers})`;
+
+    const records = [
+      ...(docs.length > 0
+        ? [
+            {
+              id: `atel_ind_0312_${docs[0].year || new Date().getFullYear()}`,
+              label: `📊 [6 Indicadores Mínimos Res. 0312 Art. 30 — Vigencia ${docs[0].year || new Date().getFullYear()}]`,
+              sublabel: indicadoresSummaryStr,
+              badge: `${atEvents.length} AT · ${elEvents.length} EL`,
+              badgeTone: atEvents.length > 0 || elEvents.length > 0 ? 'amber' : 'emerald',
+              isCritical: atMortalCount > 0,
+              fields: {
+                '6 Indicadores Mínimos Obligatorios Res. 0312 Art. 30': indicadoresSummaryStr,
+                'Frecuencia de Accidentalidad (AT / Trabajadores × 100)': `${freqAT}%`,
+                'Severidad de Accidentalidad (Días AT / Trabajadores × 100)': `${sevAT}`,
+                'Proporción de Accidentes de Trabajo Mortales (%)': `${propMortal}%`,
+                'Prevalencia e Incidencia de Enfermedad Laboral (por 100.000 trab.)': `Prevalencia: ${prevEL} | Incidencia: ${incEL}`,
+                'Ausentismo por Causa Médica (%)': `${ausentismoMed}%`,
+                'Horas Hombre Trabajadas (HHT) y Promedio de Trabajadores': `HHT: ${totalWorkedHours} | Promedio Trabajadores: ${avgWorkers}`,
+              },
+            },
+          ]
+        : []),
+      ...events.map((ev, i) => {
         const isCrit = ev.tipo === 'AT' || ev.tipo === 'EL' || Number(ev.diasIncapacidad) >= 5;
         return {
           id: ev.id || `atel_ev_${i}`,
@@ -2905,36 +4370,58 @@ async function inspectHito6To8(canonicalId, userId, company) {
           badgeTone: isCrit ? 'rose' : 'amber',
           isCritical: isCrit,
           fields: {
-            'Registro Individual de Eventos (Trabajador, Cédula, Fecha, Tipo AT/EL/EG, Días de Incapacidad, CIE-10, Parte del Cuerpo, Agente y Mecanismo)': `${ev.colaborador?.nombre || ''} (CC ${ev.colaborador?.cedula || ''}) | Fecha: ${ev.fecha || ''} | Tipo: ${ev.tipo || ''} | Días: ${ev.diasIncapacidad || 0} | CIE-10: ${ev.diagnosticoCIE10 || ''} | Parte: ${ev.parteCuerpo || ''} | Peligro: ${ev.peligro || ''}`,
+            'Registro Individual de Eventos (Trabajador, Cédula, Fecha, Tipo AT/EL/EG, Días de Incapacidad, CIE-10, Parte del Cuerpo, Agente y Mecanismo)': `${ev.colaborador?.nombre || ''} (CC ${ev.colaborador?.cedula || ''}) | Fecha: ${ev.fecha || ''} | Tipo: ${ev.tipo || ''} | Días: ${ev.diasIncapacidad || 0} | CIE-10: ${ev.diagnosticoCIE10 || ''} | Parte: ${ev.parteCuerpo || ''} | Agente: ${ev.agente || ev.peligro || ''} | Mecanismo: ${ev.mecanismo || ''} | Sitio: ${ev.sitio || ''}`,
             'Cédula / Documento': ev.colaborador?.cedula || '',
             'Nombre Completo': ev.colaborador?.nombre || '',
             'Cargo': ev.colaborador?.cargo || '',
             'Diagnóstico CIE-10': ev.diagnosticoCIE10 || '',
             'Días de Incapacidad': String(ev.diasIncapacidad || 0),
+            'Agente, Mecanismo, Sitio y Entidad Pagadora (EPS/ARL)': `Agente: ${ev.agente || ev.peligro || 'N/A'} | Mecanismo: ${ev.mecanismo || 'N/A'} | Sitio: ${ev.sitio || 'N/A'} | Pagadora: ${ev.entidadPagadora || 'EPS/ARL'}`,
             'Costos Directos e Indirectos del Ausentismo y Siniestralidad': `Pérdida Neta: $${ev.financiero?.perdidaNetaEmpresa || 0} | Recobro: ${ev.estadoRecobro || 'N/A'}`,
           },
         };
       }),
+    ];
+
+    return {
+      moduleTitle: 'Hito 7 · Estadísticas ATEL, Ausentismo y 6 Indicadores Mínimos Res. 0312',
+      sourceCollection: 'ATELAnnualData',
+      latestReports,
+      kpis: [
+        { label: 'Total Eventos ATEL/Ausentismo', value: events.length, tone: 'teal' },
+        { label: 'Accidentes de Trabajo (AT)', value: atEvents.length, tone: atEvents.length > 0 ? 'rose' : 'emerald' },
+        { label: 'Enfermedad Laboral (EL)', value: elEvents.length, tone: elEvents.length > 0 ? 'rose' : 'emerald' },
+        { label: 'Días de Incapacidad', value: totalDays, tone: 'amber' },
+      ],
+      records,
     };
   }
 
   // 45. Hito 7 · Investigación de Incidentes, Accidentes de Trabajo y Enfermedades Laborales (Res. 1401)
   if (canonicalId === 'hito7_investigacion_atel') {
     const InvestigacionAtelData = getSafeModel('InvestigacionAtelData', '~/server/routes/sgsst/investigacionAtel', '~/models/InvestigacionAtelData');
-    const list = await findManyCompanyDocs(InvestigacionAtelData, userId, company, { updatedAt: -1 }, 50);
+    const [list, latestReports] = await Promise.all([
+      findManyCompanyDocs(InvestigacionAtelData, userId, company, { updatedAt: -1 }, 50),
+      fetchLatestReportsForTags(userId, company, ['sgsst-investigacion-atel'], 10),
+    ]);
     const graves = list.filter((x) => /grave|mortal/i.test(x.formData?.tipoEvento || '')).length;
 
     return {
       moduleTitle: 'Hito 7 · Investigación de Incidentes y Accidentes ATEL (Res. 1401 de 2007)',
       sourceCollection: 'InvestigacionAtelData',
+      latestReports,
       kpis: [
         { label: 'Investigaciones ATEL', value: list.length, tone: 'teal' },
         { label: 'Graves / Mortales', value: graves, tone: graves > 0 ? 'rose' : 'emerald' },
         { label: 'Leves / Incidentes', value: Math.max(0, list.length - graves), tone: 'amber' },
+        { label: 'Informes Oficiales Emitidos', value: latestReports.length, tone: 'indigo' },
       ],
       records: list.map((inv, i) => {
         const fd = inv.formData || {};
         const isCrit = /grave|mortal/i.test(fd.tipoEvento || '');
+        const planAccionArr = Array.isArray(inv.planAccion) ? inv.planAccion : Array.isArray(fd.planAccion) ? fd.planAccion : [];
+        const testimoniosArr = Array.isArray(inv.testimoniosInbox) ? inv.testimoniosInbox : [];
+        const evidenciasArr = Array.isArray(inv.evidencias) ? inv.evidencias : [];
         return {
           id: inv.id || String(inv._id || `inv_${i}`),
           label: `[${fd.tipoEvento || 'Accidente'}] ${fd.afectadoNombre || 'Trabajador'} (CC ${fd.afectadoCedula || ''}) — ${fd.fechaEvento || ''}`,
@@ -2947,9 +4434,15 @@ async function inspectHito6To8(canonicalId, userId, company) {
             'Cédula / Documento': fd.afectadoCedula || '',
             'Nombre Completo': fd.afectadoNombre || '',
             'Cargo': fd.afectadoCargo || '',
+            'Radicado FURAT / FUREL': fd.furatRadicado || inv.furatRadicado || 'En radicación',
             'Descripción Detallada del Evento (Fecha, Hora, Lugar, Tarea Realizada, Testigos)': `Fecha: ${fd.fechaEvento || ''} ${fd.horaEvento || ''} en ${fd.lugarEvento || ''} | Actividad: ${fd.actividadMomento || ''} | Hechos: ${fd.descripcionHechos || ''}`,
-            'Naturaleza de la Lesión, Parte del Cuerpo Afectada, Agente y Mecanismo del Accidente': `Lesión: ${fd.naturalezaLesion || ''} | Parte: ${fd.parteCuerpo || ''} | Agente: ${fd.agenteCausal || ''} | Días: ${fd.diasIncapacidad || 0}`,
-            'Equipo Investigador (Jefe Inmediato, Representante COPASST, Responsable SG-SST y Licencia SST en Graves/Mortales)': (inv.equipoList || []).map((e) => `${e.rol || ''}: ${e.nombre || ''} (CC ${e.cedula || ''})`).join(' | '),
+            'Naturaleza de la Lesión, Parte del Cuerpo Afectada, Agente y Mecanismo del Accidente': `Lesión: ${fd.naturalezaLesion || ''} | Parte: ${fd.parteCuerpo || ''} | Agente: ${fd.agenteCausal || ''} | Mecanismo: ${fd.mecanismoAccidente || ''} | Días: ${fd.diasIncapacidad || 0}`,
+            'Análisis Causal (Causas Inmediatas, Causas Básicas, 5 Porqués y Árbol de Causas NTC 3701)': `Causas Inmediatas: ${formatCleanScalar(fd.causasInmediatas || inv.causasInmediatas, 'Por determinar')} | Causas Básicas: ${formatCleanScalar(fd.causasBasicas || inv.causasBasicas, 'Por determinar')} | 5 Porqués / Árbol: ${formatCleanScalar(fd.cincoPorques || fd.arbolCausas || inv.cincoPorques, 'En análisis')}`,
+            'Plan de Acción Correctivo y Preventivo (Fuente, Medio e Individuo)': planAccionArr
+              .map((pa) => `[${pa.control || pa.tipo || 'Control'}] ${pa.medida || pa.actividad || ''} (Resp: ${pa.responsable || ''} - Fecha: ${pa.fecha || ''})`)
+              .join(' | ') || formatCleanScalar(fd.medidasIntervencion, 'Pendiente plan de acción'),
+            'Versiones Libres de Testigos y Soportes Adjuntos': `Testimonios QR: ${testimoniosArr.length} | Evidencias adjuntas: ${evidenciasArr.length}`,
+            'Equipo Investigador (Jefe Inmediato, Representante COPASST, Responsable SG-SST y Licencia SST en Graves/Mortales)': (inv.equipoList || []).map((e) => `${e.rol || ''}: ${e.nombre || ''} (CC ${e.cedula || ''}${e.licencia ? ` - Lic. ${e.licencia}` : ''})`).join(' | '),
           },
         };
       }),
@@ -2959,7 +4452,10 @@ async function inspectHito6To8(canonicalId, userId, company) {
   // 46. Hito 7 · Centro de Control y Tablero Kanban ACPM
   if (canonicalId === 'hito7_acpm') {
     const KanbanTask = getSafeModel('KanbanTask', '~/server/routes/sgsst/kanban', '~/models/KanbanTask');
-    const tasks = await findManyCompanyDocs(KanbanTask, userId, company, { dueDate: 1, updatedAt: -1 }, 150);
+    const [tasks, latestReports] = await Promise.all([
+      findManyCompanyDocs(KanbanTask, userId, company, { dueDate: 1, updatedAt: -1 }, 150),
+      fetchLatestReportsForTags(userId, company, ['sgsst-acpm', 'sgsst-kanban', 'sgsst-plan-anual'], 5),
+    ]);
     const overdue = tasks.filter((t) => t.status === 'overdue').length;
     const done = tasks.filter((t) => t.status === 'done').length;
     const pending = tasks.filter((t) => t.status !== 'done' && t.status !== 'dismissed').length;
@@ -2967,6 +4463,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 7 · Centro de Control y Tablero Kanban ACPM (Acciones Correctivas, Preventivas y de Mejora)',
       sourceCollection: 'KanbanTask',
+      latestReports,
       kpis: [
         { label: 'Total Acciones ACPM', value: tasks.length, tone: 'teal' },
         { label: 'Vencidas (Overdue)', value: overdue, tone: overdue > 0 ? 'rose' : 'emerald' },
@@ -2975,10 +4472,11 @@ async function inspectHito6To8(canonicalId, userId, company) {
       ],
       records: tasks.map((t, i) => {
         const isCrit = t.status === 'overdue' || t.priority === 'alta' || t.priority === 'high';
+        const commentsArr = Array.isArray(t.comments) ? t.comments : [];
         return {
           id: String(t._id || `acpm_${i}`),
           label: `[${String(t.actionType || 'correctiva').toUpperCase()}] ${t.title || 'Acción ACPM'}`,
-          sublabel: `Origen: ${t.sourceModule || t.type || 'SG-SST'} • Resp: ${t.assignedTo || 'Responsable SST'} • Vence: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString('es-CO') : 'Por definir'}`,
+          sublabel: `Origen: ${t.sourceModule || t.type || 'SG-SST'} • Resp: ${t.assignedTo || 'Responsable SST'} (${t.assignedEmail || 'N/A'}) • Vence: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString('es-CO') : 'Por definir'}`,
           badge: `${String(t.status || 'todo').toUpperCase()} • Prioridad ${t.priority || 'media'}`,
           badgeTone: t.status === 'done' ? 'emerald' : isCrit ? 'rose' : 'amber',
           isCritical: t.status !== 'done' && isCrit,
@@ -2986,9 +4484,9 @@ async function inspectHito6To8(canonicalId, userId, company) {
             'Tipo de Acción (Correctiva / Preventiva / De Mejora)': t.actionType || 'correctiva',
             'Fuente del Hallazgo (Auditoría, Inspección, ATEL, COPASST, Revisión Dirección, Diagnóstico 0312)': t.sourceModule || t.type || '',
             'Descripción de la No Conformidad o Hallazgo y Análisis de Causa Raíz': `${t.title || ''}: ${t.description || ''}`,
-            'Plan de Acción, Responsable, Recursos y Fecha Límite de Cumplimiento': `Resp: ${t.assignedTo || ''} | Vence: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString('es-CO') : ''}`,
+            'Plan de Acción, Responsable, Recursos y Fecha Límite de Cumplimiento': `Resp: ${t.assignedTo || ''} (${t.assignedEmail || ''}) | Vence: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString('es-CO') : ''} | Cerrada: ${t.completedAt ? new Date(t.completedAt).toLocaleDateString('es-CO') : 'Pendiente'}`,
             'Estado en el Tablero Kanban (Pendiente, En Ejecución, En Verificación, Cerrada, Vencida)': t.status || 'todo',
-            'Evidencia de Cierre y Verificación de Eficacia': t.deliverable?.notes || t.deliverable?.fileName || '',
+            'Evidencia de Cierre y Verificación de Eficacia': `${t.deliverable?.notes || ''} ${t.deliverable?.fileName ? `(${t.deliverable.fileName} - ${t.deliverable.fileUrl || ''})` : ''} ${commentsArr.length > 0 ? `| Comentarios: ${commentsArr.length}` : ''}`.trim(),
           },
         };
       }),
@@ -2998,7 +4496,10 @@ async function inspectHito6To8(canonicalId, userId, company) {
   // 47. Hito 7 · Auditoría Anual de Cumplimiento SG-SST (Dec. 1072)
   if (canonicalId === 'hito7_auditoria') {
     const AuditoriaData = getSafeModel('AuditoriaData', '~/server/routes/sgsst/auditoria', '~/models/AuditoriaData');
-    const doc = await findSingleCompanyDoc(AuditoriaData, userId, company);
+    const [doc, latestReports] = await Promise.all([
+      findSingleCompanyDoc(AuditoriaData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-auditoria', 'sgsst-auditoria-anual'], 5),
+    ]);
     const items = Array.isArray(doc?.statusData) ? doc.statusData : [];
     const conformes = items.filter((i) => i.status === 'cumple').length;
     const noConformes = items.filter((i) => i.status === 'no_cumple' || i.status === 'parcial').length;
@@ -3007,6 +4508,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 7 · Auditoría Anual de Cumplimiento SG-SST (Dec. 1072 Art. 2.2.4.6.29)',
       sourceCollection: 'AuditoriaData',
+      latestReports,
       kpis: [
         { label: 'Puntaje Auditoría', value: `${Math.round(pct)}%`, tone: pct >= 85 ? 'emerald' : pct >= 60 ? 'amber' : 'rose' },
         { label: 'Ítems Conformes', value: conformes, tone: 'emerald' },
@@ -3014,18 +4516,19 @@ async function inspectHito6To8(canonicalId, userId, company) {
       ],
       records: items.map((it, i) => {
         const isCrit = it.status === 'no_cumple' || it.status === 'parcial';
+        const evFiles = Array.isArray(it.evidenceFiles) ? it.evidenceFiles : [];
         return {
           id: String(it.id || it.itemId || it.code || `aud_${i}`),
           label: `Cláusula ${it.code || i + 1} · ${it.name || it.description || 'Criterio Auditado'}`,
-          sublabel: `Ciclo: ${String(it.category || '').toUpperCase()} • Evidencia/Hallazgo: ${it.observation || 'Sin hallazgos'}`,
+          sublabel: `Ciclo: ${String(it.category || '').toUpperCase()} • Peso: ${it.weight ?? 'N/A'} • Evidencia/Hallazgo: ${it.observation || 'Sin hallazgos'}`,
           badge: it.status === 'cumple' ? 'CONFORME' : it.status === 'no_cumple' ? 'NO CONFORME' : String(it.status || 'pendiente').toUpperCase(),
           badgeTone: it.status === 'cumple' ? 'emerald' : isCrit ? 'rose' : 'slate',
           isCritical: isCrit,
           fields: {
-            'Programa y Plan de Auditoría Interna (Alcance, Criterios y Equipo Auditor)': `Auditor: ${doc?.reviewerInfo?.nombre || 'Auditor SG-SST'} (Lic: ${doc?.reviewerInfo?.licencia || 'N/A'})`,
-            'Lista de Chequeo por numeral del Decreto 1072 de 2015 y Resolución 0312': `${it.code || ''}: ${it.name || ''}`,
+            'Programa y Plan de Auditoría Interna (Alcance, Criterios y Equipo Auditor)': `Auditor: ${doc?.reviewerInfo?.nombre || 'Auditor SG-SST'} (CC ${doc?.reviewerInfo?.cedula || 'N/A'} · Lic: ${doc?.reviewerInfo?.licencia || 'N/A'}) | Puntaje Global: ${Math.round(pct)}% (${doc?.complianceLevel || 'Evaluado'})`,
+            'Lista de Chequeo por numeral del Decreto 1072 de 2015 y Resolución 0312': `${it.code || ''}: ${it.name || ''} (Peso: ${it.weight ?? 'N/A'} | Ciclo: ${it.category || ''})`,
             'Hallazgos de Auditoría (Conformidades, No Conformidades Mayores/Menores y Observaciones)': `${it.status || ''}: ${it.observation || ''}`,
-            'Evidencias Objetivas Verificadas': it.observation || '',
+            'Evidencias Objetivas Verificadas': `${it.observation || ''}${evFiles.length > 0 ? ` | Soportes adjuntos: ${evFiles.map((ef) => ef.fileName || ef.name || 'Soporte').join(', ')}` : ''}`,
             'Conclusiones de Auditoría y Solicitudes de Acción Correctiva (ACPM)': isCrit ? `${it.code || ''} - ${it.name || ''}: ${it.observation || 'Subsanar no conformidad'}` : '',
           },
         };
@@ -3036,35 +4539,57 @@ async function inspectHito6To8(canonicalId, userId, company) {
   // 48. Hito 7 · Revisión por la Alta Dirección (Dec. 1072 Art. 2.2.4.6.31)
   if (canonicalId === 'hito7_alta_direccion') {
     const AltaDireccionData = getSafeModel('AltaDireccionData', '~/server/routes/sgsst/altaDireccion');
-    const doc = await findSingleCompanyDoc(AltaDireccionData, userId, company);
+    const [doc, latestReports] = await Promise.all([
+      findSingleCompanyDoc(AltaDireccionData, userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-alta-direccion', 'sgsst-revision-direccion'], 5),
+    ]);
     const items = Array.isArray(doc?.statusData) ? doc.statusData : [];
+    const inboxQr = Array.isArray(doc?.inboxPublico) ? doc.inboxPublico : [];
     const cumple = items.filter((i) => i.status === 'cumple').length;
     const pend = items.filter((i) => i.status === 'no_cumple' || i.status === 'parcial' || i.status === 'pendiente').length;
+    const pct = doc?.compliancePercentage ?? (items.length > 0 ? Math.round((cumple / items.length) * 100) : 0);
 
     return {
       moduleTitle: 'Hito 7 · Revisión Anual por la Alta Dirección (24 Aspectos Art. 2.2.4.6.31)',
       sourceCollection: 'AltaDireccionData',
+      latestReports,
       kpis: [
-        { label: 'Aspectos Evaluados', value: `${items.length} / 24`, tone: 'teal' },
+        { label: 'Aspectos Evaluados', value: `${items.length} / 24 (${pct}%)`, tone: 'teal' },
         { label: 'Cumplen', value: cumple, tone: 'emerald' },
         { label: 'Con Compromiso Gerencial', value: pend, tone: pend > 0 ? 'rose' : 'emerald' },
       ],
-      records: items.map((it, i) => {
-        const isCrit = it.status === 'no_cumple' || it.status === 'parcial';
-        return {
-          id: String(it.id || it.itemId || it.code || `ad_${i}`),
-          label: `Aspecto ${it.code || i + 1} · ${it.name || it.title || 'Revisión Gerencial'}`,
-          sublabel: `Decisión / Observación: ${it.observation || 'Sin observación'}`,
-          badge: String(it.status || 'pendiente').toUpperCase(),
-          badgeTone: it.status === 'cumple' ? 'emerald' : isCrit ? 'rose' : 'slate',
-          isCritical: isCrit,
+      records: [
+        ...items.map((it, i) => {
+          const isCrit = it.status === 'no_cumple' || it.status === 'parcial';
+          const evFiles = Array.isArray(it.evidenceFiles) ? it.evidenceFiles : [];
+          return {
+            id: String(it.id || it.itemId || it.code || `ad_${i}`),
+            label: `Aspecto ${it.code || i + 1} · ${it.name || it.title || 'Revisión Gerencial'}`,
+            sublabel: `Decisión / Observación: ${it.observation || 'Sin observación'}${evFiles.length > 0 ? ` • ${evFiles.length} soporte(s)` : ''}`,
+            badge: String(it.status || 'pendiente').toUpperCase(),
+            badgeTone: it.status === 'cumple' ? 'emerald' : isCrit ? 'rose' : 'slate',
+            isCritical: isCrit,
+            fields: {
+              'Evaluación de los 24 Aspectos Obligatorios del Art. 2.2.4.6.31 Dec. 1072': `${it.code || ''}: ${it.name || ''} (${it.status || ''})`,
+              'Decisiones Gerenciales, Asignación de Presupuesto y Nuevos Recursos': it.observation || '',
+              'Evidencias e Informes Presentados a Gerencia': evFiles.map((ef) => ef.fileName || ef.name || 'Soporte').join(', ') || 'Sin adjuntos',
+              'Compromisos de la Alta Dirección y Acta Firmada por Representante Legal': `Directivo: ${doc?.reviewerInfo?.nombre || company?.legalRepresentative || ''} - Cumplimiento Global: ${pct}% - ${it.observation || ''}`,
+            },
+          };
+        }),
+        ...inboxQr.map((inb, idx) => ({
+          id: inb.id || `ad_inb_${idx}`,
+          label: `[Aporte Directivo QR] ${inb.trabajador?.nombre || inb.nombre || 'Directivo / Líder'}`,
+          sublabel: inb.data?.observacion || inb.data?.compromiso || 'Aporte para Revisión por la Alta Dirección',
+          badge: 'APORTE QR',
+          badgeTone: 'indigo',
+          isCritical: false,
           fields: {
-            'Evaluación de los 24 Aspectos Obligatorios del Art. 2.2.4.6.31 Dec. 1072': `${it.code || ''}: ${it.name || ''} (${it.status || ''})`,
-            'Decisiones Gerenciales, Asignación de Presupuesto y Nuevos Recursos': it.observation || '',
-            'Compromisos de la Alta Dirección y Acta Firmada por Representante Legal': `Directivo: ${doc?.reviewerInfo?.nombre || company?.legalRepresentative || ''} - ${it.observation || ''}`,
+            'Decisiones Gerenciales, Asignación de Presupuesto y Nuevos Recursos': inb.data?.observacion || inb.data?.compromiso || '',
+            'Compromisos de la Alta Dirección y Acta Firmada por Representante Legal': `${inb.trabajador?.nombre || inb.nombre || ''} (${inb.trabajador?.cargo || 'Directivo'})`,
           },
-        };
-      }),
+        })),
+      ],
     };
   }
 
@@ -3083,7 +4608,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
         isCritical: false,
         fields: {
           'Pregunta / Hipótesis Técnica o Jurídica Investigada': r.title,
-          'Conclusiones Periciales y Recomendaciones Aplicadas a la Empresa': r.preview,
+          'Conclusiones Periciales y Recomendaciones Aplicadas a la Empresa': r.structuredText || r.preview,
         },
       })),
       ...legalRecords,
@@ -3091,6 +4616,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
     return {
       moduleTitle: 'Hito 7 · Investigación Profunda Científica y Normativa SST',
       sourceCollection: 'ConversationHistory + MatrizLegalData',
+      latestReports: reports,
       kpis: [
         { label: 'Investigaciones Emitidas', value: reports.length, tone: 'purple' },
         ...(legalRes?.kpis?.slice(0, 3) || []),
@@ -3101,11 +4627,26 @@ async function inspectHito6To8(canonicalId, userId, company) {
 
   // 50. Hito 8 · Oráculo Predictivo de Siniestralidad y Riesgo IA (Radar Predictivo en Vivo)
   if (canonicalId === 'hito8_predictivo') {
-    const [hito2Result, gtc45Result, moodResult, diagResult] = await Promise.all([
+    const [
+      hito2Result,
+      gtc45Result,
+      moodResult,
+      diagResult,
+      atelStatsResult,
+      vehResult,
+      chemResult,
+      eppResult,
+      latestReports,
+    ] = await Promise.all([
       inspectHito1And2('hito2_oraculo_predictivo', userId, company),
       inspectHito1And2('hito2_matriz_ipevar', userId, company),
       inspectHito3To5('hito4_psicosocial', userId, company),
       inspectHito1And2('hito1_diagnostico_0312', userId, company),
+      inspectHito6To8('hito7_estadisticas_atel', userId, company),
+      inspectHito3To5('hito3_vehiculos', userId, company),
+      inspectHito3To5('hito5_registro_quimico', userId, company),
+      inspectHito3To5('hito3_epp', userId, company),
+      fetchLatestReportsForTags(userId, company, ['sgsst-predictivo-ia', 'sgsst-oraculo-predictivo'], 5),
     ]);
     const KanbanTask = getSafeModel('KanbanTask', '~/server/routes/sgsst/kanban', '~/models/KanbanTask');
     const overdueCount = KanbanTask
@@ -3117,6 +4658,10 @@ async function inspectHito6To8(canonicalId, userId, company) {
     const critGtc = gtcRecords.filter((r) => r.isCritical);
     const moodRecords = Array.isArray(moodResult?.records) ? moodResult.records : [];
     const sadMoods = moodRecords.filter((r) => r.isCritical);
+    const atelRecords = (atelStatsResult?.records || []).filter((r) => r.isCritical);
+    const critVehicles = (vehResult?.records || []).filter((r) => r.isCritical);
+    const critChemicals = (chemResult?.records || []).filter((r) => r.isCritical);
+    const critEpp = (eppResult?.records || []).filter((r) => r.isCritical);
     const medAlerts = workerRecords.filter((r) => r.isCritical).length;
     const score0312 = diagResult?.kpis?.[0]?.value || '0%';
 
@@ -3131,6 +4676,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
         const corrText = [
           `Alertas Clínicas/FIT: ${r.fields?.['Tarjetas Preventivas / Alertas FIT'] || 'Ninguna'}`,
           matchingHazards ? `Peligros Críticos GTC-45 del Cargo: ${matchingHazards}` : `Total Peligros Críticos Empresa: ${critGtc.length}`,
+          `Eventos ATEL Críticos: ${atelRecords.length} | Alertas Flota PESV: ${critVehicles.length} | Químicos sin FDS/SGA: ${critChemicals.length} | Alertas EPP: ${critEpp.length}`,
           `Alertas Clima Psicosocial: ${sadMoods.length} reporte(s) de estrés`,
         ].join(' | ');
         return {
@@ -3146,7 +4692,7 @@ async function inspectHito6To8(canonicalId, userId, company) {
           },
         };
       }),
-      ...critGtc.slice(0, 20).map((g) => ({
+      ...critGtc.slice(0, 15).map((g) => ({
         ...g,
         id: `pred_gtc_${g.id}`,
         label: `⚠️ [Radar GTC-45 Crítico] ${g.label}`,
@@ -3158,7 +4704,22 @@ async function inspectHito6To8(canonicalId, userId, company) {
             g.fields?.['Medidas de Intervención (Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos / Señalización y EPP)'] || '',
         },
       })),
-      ...sadMoods.slice(0, 10).map((m) => ({
+      ...atelRecords.slice(0, 8).map((a) => ({
+        ...a,
+        id: `pred_atel_${a.id}`,
+        label: `🚑 [Radar Siniestralidad ATEL] ${a.label}`,
+      })),
+      ...critVehicles.slice(0, 6).map((v) => ({
+        ...v,
+        id: `pred_veh_${v.id}`,
+        label: `🚗 [Radar Flota PESV] ${v.label}`,
+      })),
+      ...critChemicals.slice(0, 6).map((c) => ({
+        ...c,
+        id: `pred_chem_${c.id}`,
+        label: `🧪 [Radar Químico SGA] ${c.label}`,
+      })),
+      ...sadMoods.slice(0, 8).map((m) => ({
         ...m,
         id: `pred_mood_${m.id}`,
         label: `🧠 [Radar Psicosocial] ${m.label}`,
@@ -3166,12 +4727,13 @@ async function inspectHito6To8(canonicalId, userId, company) {
     ];
 
     return {
-      moduleTitle: 'Hito 8 · Radar Predictivo de Siniestralidad y Riesgo IA (Trabajadores + GTC-45 + Salud + Ánimo)',
-      sourceCollection: 'Radar Predictivo 360° (SgsstWorker + GTC45WorkspaceSession + MoodTelemetry + DiagnosticoData + KanbanTask)',
+      moduleTitle: 'Hito 8 · Radar Predictivo de Siniestralidad y Riesgo IA (360° Trabajadores + GTC-45 + ATEL + PESV + Químicos + Ánimo)',
+      sourceCollection: 'Radar Predictivo 360° (SgsstWorker + GTC45 + ATELAnnualData + SgsstVehicleData + SgsstChemicalData + MoodTelemetry + KanbanTask)',
+      latestReports,
       kpis: [
         { label: 'Trabajadores / Alertas Médicas', value: `${workerRecords.length} (${medAlerts} alerta)`, tone: medAlerts > 0 ? 'rose' : 'teal' },
         { label: 'Peligros Críticos GTC-45', value: `${critGtc.length} / ${gtcRecords.length}`, tone: critGtc.length > 0 ? 'rose' : 'emerald' },
-        { label: 'Alertas Estrés / Ánimo', value: `${sadMoods.length} / ${moodRecords.length}`, tone: sadMoods.length > 0 ? 'amber' : 'emerald' },
+        { label: 'ATEL / Flota / Químicos Alerta', value: `${atelRecords.length} ATEL · ${critVehicles.length} Veh · ${critChemicals.length} Quím`, tone: atelRecords.length + critVehicles.length + critChemicals.length > 0 ? 'amber' : 'emerald' },
         { label: 'Estándares 0312 / ACPM Venc.', value: `${score0312} · ${overdueCount} venc.`, tone: overdueCount > 0 ? 'rose' : 'indigo' },
       ],
       records: radarRecords,
@@ -3563,7 +5125,23 @@ async function inspectOtherNodeTeams(ctx) {
     let resolvedAccessToken = null;
     let resolvedRefreshToken = null;
     let resolvedExpiry = null;
-    const folderName = company?.googleDrive?.folderName || `SG-SST ${company?.companyName || ''}`.trim();
+    const requestedFolderName = String(
+      ctx?.nodeConfig?.driveFolderName || ctx?.options?.driveFolderName || ''
+    ).trim();
+    const fileTypeFilter = String(
+      ctx?.nodeConfig?.fileTypeFilter || ctx?.options?.fileTypeFilter || 'all'
+    ).trim().toLowerCase();
+    const maxItemsLimit = Math.min(
+      50,
+      Math.max(1, Number(ctx?.nodeConfig?.maxItems || ctx?.options?.maxItems) || 15)
+    );
+    const emailSubjectFilter = String(
+      ctx?.nodeConfig?.emailSubjectFilter || ctx?.options?.emailSubjectFilter || ''
+    ).trim();
+    const folderName =
+      requestedFolderName ||
+      company?.googleDrive?.folderName ||
+      `SG-SST ${company?.companyName || ''}`.trim();
     try {
       const { getScopedAuthValue } = require('~/server/services/googleAuthHelper');
       const [em, rt, at, exp] = await Promise.all([
@@ -3580,8 +5158,9 @@ async function inspectOtherNodeTeams(ctx) {
     } catch (_) {}
 
     let liveDriveRecords = [];
+    let liveGmailRecords = [];
     if (
-      (canonicalId === 'extract_drive' || canonicalId === 'google_drive') &&
+      (canonicalId === 'extract_drive' || canonicalId === 'google_drive' || canonicalId === 'extract_gmail' || canonicalId === 'google_gmail') &&
       hasToken &&
       (resolvedAccessToken || resolvedRefreshToken)
     ) {
@@ -3602,7 +5181,7 @@ async function inspectOtherNodeTeams(ctx) {
           expiry_date: resolvedExpiry || undefined,
         });
 
-        const fetchLiveDriveFiles = async () => {
+        const ensureFreshGoogleCredentials = async () => {
           const isExpired = resolvedExpiry ? resolvedExpiry - Date.now() < 60000 : !resolvedAccessToken;
           if (isExpired && resolvedRefreshToken) {
             const { credentials } = await oauth2Client.refreshAccessToken();
@@ -3624,54 +5203,143 @@ async function inspectOtherNodeTeams(ctx) {
               ).catch(() => {});
             }
           }
-          const drive = google.drive({ version: 'v3', auth: oauth2Client });
-          const driveRes = await drive.files.list({
-            q: 'trashed = false',
-            fields: 'files(id, name, mimeType, webViewLink, modifiedTime)',
-            pageSize: 15,
-            orderBy: 'folder,modifiedTime desc',
-          });
-          return Array.isArray(driveRes?.data?.files) ? driveRes.data.files : [];
         };
 
-        let driveTimer = null;
-        const driveFiles = await Promise.race([
-          fetchLiveDriveFiles(),
-          new Promise((resolve) => {
-            driveTimer = setTimeout(() => resolve([]), 4000);
-          }),
-        ]);
-        if (driveTimer) clearTimeout(driveTimer);
-
-        liveDriveRecords = driveFiles.map((file) => {
-          const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
-          const modFormatted = file.modifiedTime
-            ? new Date(file.modifiedTime).toLocaleString('es-CO')
-            : 'Sin fecha';
-          return {
-            id: String(file.id),
-            label: `${isFolder ? '📁' : '📄'} ${file.name || 'Sin nombre'}`,
-            sublabel: `${isFolder ? 'Carpeta' : file.mimeType || 'Archivo'} • Modificado: ${modFormatted} • ID: ${file.id}`,
-            badge: isFolder ? 'CARPETA' : 'ARCHIVO',
-            badgeTone: isFolder ? 'amber' : 'teal',
-            isCritical: false,
-            fields: {
-              'Nombre del Archivo / Carpeta': file.name || '',
-              'Tipo': isFolder ? 'Carpeta' : `Archivo (${file.mimeType || 'desconocido'})`,
-              'Fecha de Modificación': file.modifiedTime || '',
-              'ID de Google Drive': file.id || '',
-              'Enlace Google Drive (webViewLink)': file.webViewLink || '',
-            },
+        if (canonicalId === 'extract_drive' || canonicalId === 'google_drive') {
+          const fetchLiveDriveFiles = async () => {
+            await ensureFreshGoogleCredentials();
+            const drive = google.drive({ version: 'v3', auth: oauth2Client });
+            const qParts = ['trashed = false'];
+            if (requestedFolderName) {
+              const safeFolder = requestedFolderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+              const folderLookup = await drive.files.list({
+                q: `mimeType = 'application/vnd.google-apps.folder' and name contains '${safeFolder}' and trashed = false`,
+                fields: 'files(id, name)',
+                pageSize: 5,
+              });
+              const targetFolder = folderLookup?.data?.files?.[0];
+              if (targetFolder?.id) {
+                qParts.push(`'${targetFolder.id}' in parents`);
+              } else {
+                qParts.push(`name contains '${safeFolder}'`);
+              }
+            }
+            if (fileTypeFilter === 'pdf') {
+              qParts.push(`mimeType = 'application/pdf'`);
+            } else if (fileTypeFilter === 'excel' || fileTypeFilter === 'xlsx' || fileTypeFilter === 'spreadsheet') {
+              qParts.push(`(mimeType contains 'spreadsheet' or mimeType contains 'excel' or mimeType = 'text/csv')`);
+            } else if (fileTypeFilter === 'word' || fileTypeFilter === 'docx' || fileTypeFilter === 'document') {
+              qParts.push(`(mimeType contains 'document' or mimeType contains 'word')`);
+            } else if (fileTypeFilter === 'image' || fileTypeFilter === 'images') {
+              qParts.push(`mimeType contains 'image/'`);
+            }
+            const driveRes = await drive.files.list({
+              q: qParts.join(' and '),
+              fields: 'files(id, name, mimeType, webViewLink, modifiedTime)',
+              pageSize: maxItemsLimit,
+              orderBy: 'folder,modifiedTime desc',
+            });
+            return Array.isArray(driveRes?.data?.files) ? driveRes.data.files : [];
           };
-        });
+
+          let driveTimer = null;
+          const driveFiles = await Promise.race([
+            fetchLiveDriveFiles(),
+            new Promise((resolve) => {
+              driveTimer = setTimeout(() => resolve([]), 4000);
+            }),
+          ]);
+          if (driveTimer) clearTimeout(driveTimer);
+
+          liveDriveRecords = driveFiles.map((file) => {
+            const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+            const modFormatted = file.modifiedTime
+              ? new Date(file.modifiedTime).toLocaleString('es-CO')
+              : 'Sin fecha';
+            return {
+              id: String(file.id),
+              label: `${isFolder ? '📁' : '📄'} ${file.name || 'Sin nombre'}`,
+              sublabel: `${isFolder ? 'Carpeta' : file.mimeType || 'Archivo'} • Modificado: ${modFormatted} • ID: ${file.id}`,
+              badge: isFolder ? 'CARPETA' : 'ARCHIVO',
+              badgeTone: isFolder ? 'amber' : 'teal',
+              isCritical: false,
+              fields: {
+                'Nombre del Archivo / Carpeta': file.name || '',
+                'Tipo': isFolder ? 'Carpeta' : `Archivo (${file.mimeType || 'desconocido'})`,
+                'Fecha de Modificación': file.modifiedTime || '',
+                'ID de Google Drive': file.id || '',
+                'Enlace Google Drive (webViewLink)': file.webViewLink || '',
+              },
+            };
+          });
+        } else if (canonicalId === 'extract_gmail' || canonicalId === 'google_gmail') {
+          const fetchLiveGmailMessages = async () => {
+            await ensureFreshGoogleCredentials();
+            const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+            const listRes = await gmail.users.messages.list({
+              userId: 'me',
+              maxResults: Math.min(15, maxItemsLimit),
+              q: emailSubjectFilter ? `subject:(${emailSubjectFilter})` : undefined,
+            });
+            const msgRefs = Array.isArray(listRes?.data?.messages) ? listRes.data.messages : [];
+            const details = await Promise.all(
+              msgRefs.slice(0, 10).map((m) =>
+                gmail.users.messages
+                  .get({
+                    userId: 'me',
+                    id: m.id,
+                    format: 'metadata',
+                    metadataHeaders: ['Subject', 'From', 'Date'],
+                  })
+                  .then((r) => r?.data)
+                  .catch(() => null),
+              ),
+            );
+            return details.filter(Boolean);
+          };
+
+          let gmailTimer = null;
+          const gmailMsgs = await Promise.race([
+            fetchLiveGmailMessages(),
+            new Promise((resolve) => {
+              gmailTimer = setTimeout(() => resolve([]), 4000);
+            }),
+          ]);
+          if (gmailTimer) clearTimeout(gmailTimer);
+
+          liveGmailRecords = gmailMsgs.map((msg) => {
+            const hdrs = Array.isArray(msg?.payload?.headers) ? msg.payload.headers : [];
+            const getHdr = (name) => hdrs.find((h) => String(h.name || '').toLowerCase() === name.toLowerCase())?.value || '';
+            const subj = getHdr('Subject') || '(Sin asunto)';
+            const from = getHdr('From') || 'Remitente';
+            const dt = getHdr('Date') || '';
+            return {
+              id: String(msg.id),
+              label: `✉️ ${subj}`,
+              sublabel: `De: ${from} • Fecha: ${dt}`,
+              badge: 'CORREO GMAIL',
+              badgeTone: 'teal',
+              isCritical: false,
+              fields: {
+                'Asunto del Correo': subj,
+                'Remitente': from,
+                'Fecha de Recepción': dt,
+                'Extracto del Mensaje': msg.snippet || '',
+                'ID Mensaje Gmail': String(msg.id || ''),
+              },
+            };
+          });
+        }
       } catch (_) {
         liveDriveRecords = [];
+        liveGmailRecords = [];
       }
     }
 
     const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
     const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
     const logs = AutomationLog ? await AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(15).lean().catch(() => []) : [];
+    const liveWorkspaceItems = [...liveDriveRecords, ...liveGmailRecords];
 
     const records = [
       {
@@ -3679,7 +5347,7 @@ async function inspectOtherNodeTeams(ctx) {
         label: hasToken
           ? `✅ Google Workspace Conectado (${scopedEmail || company?.email || 'Cuenta vinculada'})`
           : `⚠️ Google Workspace No Vinculado en ${company?.companyName || 'esta empresa'}`,
-        sublabel: `Carpeta/Scope: ${folderName} • Servicio: ${canonicalId.toUpperCase()}${liveDriveRecords.length > 0 ? ` • ${liveDriveRecords.length} elemento(s) recientes` : ''}`,
+        sublabel: `Carpeta/Scope: ${folderName} • Servicio: ${canonicalId.toUpperCase()}${liveWorkspaceItems.length > 0 ? ` • ${liveWorkspaceItems.length} elemento(s) en vivo` : ''}`,
         badge: hasToken ? 'CONECTADO' : 'SIN VINCULAR',
         badgeTone: hasToken ? 'emerald' : 'rose',
         isCritical: !hasToken,
@@ -3687,11 +5355,11 @@ async function inspectOtherNodeTeams(ctx) {
           'Estado de Conexión OAuth2 Google Workspace': hasToken ? 'Conectado y Activo' : 'Desconectado',
           'Cuenta de Google Vinculada': scopedEmail || 'Sin vincular',
           'Carpeta / Repositorio de la Empresa': folderName,
-          'Archivos / Carpetas Recientes en Drive': liveDriveRecords.length,
+          'Elementos Recientes en Vivo': liveWorkspaceItems.length,
           'Empresa Activa': company?.companyName || '',
         },
       },
-      ...liveDriveRecords,
+      ...liveWorkspaceItems,
       ...logs.map((l, idx) => ({
         id: String(l._id || `gws_log_${idx}`),
         label: `[Sincronización ${l.status}] ${l.agentName || 'Agente'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
@@ -3706,17 +5374,30 @@ async function inspectOtherNodeTeams(ctx) {
     ];
 
     return {
+      connected: hasToken,
       moduleTitle: `Equipo 2/5 · Conector Google Workspace (${canonicalId.replace(/^(extract_|google_)/, '').toUpperCase()})`,
       sourceCollection:
         canonicalId === 'extract_drive' || canonicalId === 'google_drive'
           ? 'Google Drive API v3 (En Vivo) + CompanyInfo + AutomationLog'
-          : 'CompanyInfo + GoogleOAuth + AutomationLog',
+          : canonicalId === 'extract_gmail' || canonicalId === 'google_gmail'
+            ? 'Gmail API v1 (En Vivo) + CompanyInfo + AutomationLog'
+            : 'CompanyInfo + GoogleOAuth + AutomationLog',
       kpis: [
         { label: 'Estado Google OAuth', value: hasToken ? 'CONECTADO' : 'NO CONECTADO', tone: hasToken ? 'emerald' : 'rose' },
         { label: 'Cuenta Vinculada', value: scopedEmail || 'Pendiente', tone: hasToken ? 'teal' : 'amber' },
         {
-          label: canonicalId === 'extract_drive' || canonicalId === 'google_drive' ? 'Archivos Recientes Drive' : 'Carpeta SG-SST',
-          value: canonicalId === 'extract_drive' || canonicalId === 'google_drive' ? liveDriveRecords.length : folderName,
+          label:
+            canonicalId === 'extract_drive' || canonicalId === 'google_drive'
+              ? 'Archivos en Carpeta'
+              : canonicalId === 'extract_gmail' || canonicalId === 'google_gmail'
+                ? 'Correos Recientes'
+                : 'Carpeta SG-SST',
+          value:
+            canonicalId === 'extract_drive' || canonicalId === 'google_drive'
+              ? liveDriveRecords.length
+              : canonicalId === 'extract_gmail' || canonicalId === 'google_gmail'
+                ? liveGmailRecords.length
+                : folderName,
           tone: 'indigo',
         },
         { label: 'Sincronizaciones', value: logs.length, tone: 'purple' },
@@ -3742,6 +5423,7 @@ async function inspectOtherNodeTeams(ctx) {
     } catch (_) {}
 
     return {
+      connected: hasToken,
       moduleTitle: 'Equipo 2/5 · Conector Microsoft OneDrive / SharePoint Corporativo',
       sourceCollection: 'CompanyInfo + OneDriveOAuth',
       kpis: [
@@ -3769,8 +5451,38 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
-  // 4. Equipo 2: Resumen 360° de Aplicativos Somos SST (extract_sst_app)
+  // 4. Equipo 2: Resumen 360° o Aplicativo Específico de Somos SST (extract_sst_app)
   if (canonicalId === 'extract_sst_app') {
+    const rawTargetApp = String(
+      ctx?.nodeConfig?.sstAppSourceId || ctx?.options?.sstAppSourceId || ''
+    ).trim();
+    const sstAppAliasMap = {
+      gtc45: 'hito2_matriz_ipevar',
+      pesv: 'hito3_matriz_pesv',
+      acpm: 'hito7_acpm',
+      quimicos: 'hito5_registro_quimico',
+      alturas: 'hito3_alturas',
+      epp: 'hito3_epp',
+      inspecciones: 'hito4_actos_condiciones',
+      auditorias: 'hito7_auditoria',
+    };
+    const resolvedTargetApp = sstAppAliasMap[rawTargetApp] || rawTargetApp;
+    if (resolvedTargetApp && resolvedTargetApp !== 'all' && resolvedTargetApp !== 'extract_sst_app') {
+      const targetCanonical = normalizeInspectorNodeId(resolvedTargetApp);
+      if (targetCanonical && targetCanonical !== 'extract_sst_app') {
+        const delegated =
+          (await inspectHito1And2(targetCanonical, userId, company)) ||
+          (await inspectHito3To5(targetCanonical, userId, company)) ||
+          (await inspectHito6To8(targetCanonical, userId, company));
+        if (delegated) {
+          return {
+            ...delegated,
+            moduleTitle: `Equipo 2 · Extractor Aplicativo Somos SST → ${delegated.moduleTitle}`,
+          };
+        }
+      }
+    }
+
     const [dRes, wRes, gtcRes, acpmRes] = await Promise.all([
       inspectHito1And2('hito1_diagnostico_0312', userId, company),
       inspectHito1And2('hito2_perfil_socio', userId, company),
@@ -3780,6 +5492,11 @@ async function inspectOtherNodeTeams(ctx) {
     return {
       moduleTitle: 'Equipo 2 · Resumen 360° de Aplicativos (0312 + Trabajadores + GTC-45 + ACPM)',
       sourceCollection: 'DiagnosticoData + SgsstWorker + GTC45WorkspaceSession + KanbanTask',
+      latestReports: [
+        ...(dRes?.latestReports || []),
+        ...(gtcRes?.latestReports || []),
+        ...(acpmRes?.latestReports || []),
+      ].slice(0, 8),
       kpis: [
         dRes?.kpis?.[0] || { label: 'Puntaje 0312', value: '0%', tone: 'teal' },
         wRes?.kpis?.[0] || { label: 'Trabajadores', value: 0, tone: 'indigo' },
@@ -4786,7 +6503,158 @@ async function inspectOtherNodeTeams(ctx) {
       subagent_auditor_calidad: {
         title: 'Equipo 8 · Sub-Agente Especialista: Auditor de Calidad y Cierre de Brechas ACPM',
         badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito7_acpm',
         directive: 'Verifica que cada brecha detectada tenga causa raíz y plan de acción en Fuente, Medio e Individuo.',
+      },
+      subagent_editable_custom: {
+        title: 'Equipo 8 · Sub-Agente IA Personalizable (Prompt e Instrucciones a Medida)',
+        badge: 'SUB-AGENTE EDITABLE',
+        targetInspectId: 'hito1_diagnostico_0312',
+        directive: 'Ejecuta el rol pericial y las instrucciones especializadas definidas por el usuario sobre los datos reales de la empresa.',
+      },
+      subagent_chat_consultor_sgsst: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Consultor Líder SG-SST (Decreto 1072 & Res. 0312)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito1_diagnostico_0312',
+        directive: 'Dirige la evaluación integral del Sistema de Gestión SST, ciclo PHVA, cumplimiento de estándares mínimos y planes anuales.',
+      },
+      subagent_chat_tenshi: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Tenshi IA Copiloto Ejecutivo Multimodal SST',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'tool_sst_company',
+        directive: 'Coordina briefings ejecutivos, alertas preventivas y síntesis transversal de los 8 Hitos de Somos SST.',
+      },
+      subagent_chat_abogado_laboral: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Abogado Laboralista & Defensa Jurídica SST',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito1_matriz_legal',
+        directive: 'Analiza responsabilidad civil/laboral (Art. 216 CST), jurisprudencia Corte Suprema, descargos, RIT/RHS y cumplimiento legal.',
+      },
+      subagent_medico_laboral: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Médico Especialista en Medicina del Trabajo y Laboral',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito2_condiciones_salud',
+        directive: 'Evalúa profesiogramas, conceptos de aptitud EMO (Res. 1843 de 2025), restricciones médico-laborales y SVE bajo estricta reserva clínica.',
+      },
+      subagent_chat_fisioterapeuta: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Fisioterapeuta Ergónomo SST (DME, RULA/REBA/OWAS)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito3_estudio_puesto',
+        directive: 'Audita riesgo biomecánico, posturas forzadas, manipulación de cargas, pausas activas y estudios de puesto de trabajo (EPT).',
+      },
+      subagent_chat_psicologo_sst: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Psicólogo Especialista en Riesgo Psicosocial (Res. 2764)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito4_psicosocial',
+        directive: 'Analiza batería psicosocial, clima emocional, carga mental, prevención de burnout y protocolos de intervención Res. 2764 de 2022.',
+      },
+      subagent_chat_terapeuta_mental: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Terapeuta de Bienestar Emocional y Primeros Auxilios Psicológicos',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito3_cocolab',
+        directive: 'Orienta contención emocional, convivencia laboral (Ley 1010 / Res. 3461) y rutas de apoyo psicosocial confidencial.',
+      },
+      subagent_chat_nutricionista: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Nutricionista Ocupacional y Estilos de Vida Saludable',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito2_condiciones_salud',
+        directive: 'Diseña programas de riesgo cardiovascular, metabólico, hidratación en estrés térmico y hábitos saludables para la nómina.',
+      },
+      subagent_chat_primer_respondiente: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Instructor Primer Respondiente, APH y MEDEVAC',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito3_brigada_emergencias',
+        directive: 'Estructura protocolos PAS, atención prehospitalaria, activación MEDEVAC, botiquines y respuesta inicial ante urgencias.',
+      },
+      subagent_chat_emergencias: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Comandante de Emergencias, Vulnerabilidad y SCI',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito6_vulnerabilidad',
+        directive: 'Evalúa amenazas, diamantes de vulnerabilidad, Procedimientos Operativos Normalizados (PON) y simulacros de evacuación.',
+      },
+      subagent_chat_bioseguridad: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Epidemiólogo & Experto en Riesgo Biológico y Bioseguridad',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito2_matriz_ipevar',
+        directive: 'Controla exposición a agentes biológicos, esquemas de vacunación ocupacional, manejo de residuos biosanitarios y EPP biológico.',
+      },
+      subagent_chat_electricista: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Ingeniero de Seguridad Eléctrica RETIE & LOTO',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito3_ats',
+        directive: 'Verifica las 5 Reglas de Oro en riesgo eléctrico, bloqueo y etiquetado (LOTO), distancias de seguridad RETIE y EPP dieléctrico.',
+      },
+      subagent_chat_quimico: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Higienista Químico & Experto SGA (Decreto 1496)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito5_registro_quimico',
+        directive: 'Audita Fichas de Datos de Seguridad (16 secciones), etiquetado SGA, valores límite TLV-TWA y matrices de compatibilidad química.',
+      },
+      subagent_chat_seguridad_vial: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Auditor Líder PESV & Seguridad Vial (Res. 20223040040595)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito3_vehiculos',
+        directive: 'Audita las 24 fases del PESV, inspecciones preoperacionales diarias, control de SOAT/RTM/SIMIT y gestión de velocidad/fatiga.',
+      },
+      subagent_chat_tareas_criticas: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Coordinador de Tareas de Alto Riesgo (Alturas Res. 4272, Confinados Res. 0491)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito3_alturas',
+        directive: 'Valida permisos de trabajo en alturas, espacios confinados, trabajo en caliente, izaje de cargas e inspección de equipos EPCC.',
+      },
+      subagent_chat_minas: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Ingeniero de Seguridad Minera y Excavaciones (Dec. 1886 / Dec. 539)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito3_ats',
+        directive: 'Audita ventilación subterránea, monitoreo atmosférico multigas, sostenimiento, taludes y seguridad en labores mineras/civiles.',
+      },
+      subagent_chat_ambiental: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Ingeniero HSEQ & Gestión Ambiental ISO 14001',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito5_registro_quimico',
+        directive: 'Integra controles ambientales, contención de derrames, gestión RESPEL y matrices de aspectos e impactos ambientales con SST.',
+      },
+      subagent_chat_redactor: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Redactor Documental ISO 45001 & Control de Documentos SST',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'wappy_rag_documental',
+        directive: 'Estructura procedimientos, instructivos, programas, políticas y actas con codificación documental lista para LiveEditor/Word/PDF.',
+      },
+      subagent_chat_profesional_sst: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Profesional Operativo SST de Campo e Inspecciones',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito4_actos_condiciones',
+        directive: 'Ejecuta seguimiento diario de hallazgos locativos, actos/condiciones subestándar, entregas de EPP y charlas de 5 minutos.',
+      },
+      subagent_chat_climatico: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Analista de Riesgo Climático, Rayos y Estrés Térmico WBGT',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'pronostico_clima_sst',
+        directive: 'Cruza condiciones meteorológicas por sede con trabajo a la intemperie, alturas, tormentas eléctricas y pausas de hidratación.',
+      },
+      subagent_chat_simulador_atel: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Investigador Forense ATEL & Reconstrucción Causal (Res. 1401)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito7_investigacion_atel',
+        directive: 'Aplica metodología NTC 3701, 5 Porqués y Árbol de Causas para investigar incidentes y accidentes laborales sin sesgos.',
+      },
+      subagent_analista_ausentismo: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Analista Estadístico de Ausentismo y Siniestralidad (Res. 0312 Art. 30)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito7_estadisticas_atel',
+        directive: 'Calcula los 6 indicadores mínimos obligatorios, tendencias por CIE-10/área y costos ocultos de incapacidad laboral.',
+      },
+      subagent_validador_seguridad_social: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Auditor de Afiliaciones PILA, ARL, EPS, AFP y Contratistas',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito5_contratistas',
+        directive: 'Cruza nómina activa y contratistas contra soportes de seguridad social vigente, clase de riesgo ARL y certificaciones.',
+      },
+      subagent_sintetizador_gerencia: {
+        title: 'Equipo 8 · Sub-Agente Especialista: Relator Ejecutivo para Gerencia y Alta Dirección (Art. 2.2.4.6.31)',
+        badge: 'SUB-AGENTE IA',
+        targetInspectId: 'hito7_alta_direccion',
+        directive: 'Sintetiza indicadores técnicos en tableros ejecutivos gerenciales con ROI preventivo, riesgos críticos y decisiones presupuestales.',
       },
     };
 
@@ -4878,6 +6746,8 @@ function buildBlockedConstructionResponse({ rawNodeId, canonicalId, company, spe
     success: true,
     status: 'under_construction',
     underConstruction: true,
+    blocked: true,
+    connected: false,
     warning: warningMsg,
     nodeId: String(rawNodeId || canonicalId || ''),
     canonicalNodeId: canonicalId,
@@ -4892,6 +6762,7 @@ function buildBlockedConstructionResponse({ rawNodeId, canonicalId, company, spe
       { label: 'Ejecución Externa', value: 'BLOQUEADA', tone: 'rose' },
       { label: 'Empresa Activa', value: cName, tone: 'teal' },
     ],
+    latestReports: [],
     evidenceFiles: [],
     evidences: [],
     records: [blockedRecord],
@@ -4907,24 +6778,57 @@ async function inspectNodeLiveData(params = {}) {
     companyId,
     nodeId,
     nodeConfig = {},
+    options = {},
     disabledApps = [],
     executeLive = false,
+    driveFolderName,
+    fileTypeFilter,
+    maxItems,
+    sstAppSourceId,
+    emailSubjectFilter,
+    endpointUrl,
   } = params || {};
+
+  const topLevelQueryOverrides = {};
+  if (driveFolderName !== undefined) topLevelQueryOverrides.driveFolderName = driveFolderName;
+  if (fileTypeFilter !== undefined) topLevelQueryOverrides.fileTypeFilter = fileTypeFilter;
+  if (maxItems !== undefined) topLevelQueryOverrides.maxItems = maxItems;
+  if (sstAppSourceId !== undefined) topLevelQueryOverrides.sstAppSourceId = sstAppSourceId;
+  if (emailSubjectFilter !== undefined) topLevelQueryOverrides.emailSubjectFilter = emailSubjectFilter;
+  if (endpointUrl !== undefined) topLevelQueryOverrides.endpointUrl = endpointUrl;
+
+  const effectiveNodeConfig = {
+    ...(options && typeof options === 'object' ? options : {}),
+    ...(nodeConfig && typeof nodeConfig === 'object' ? nodeConfig : {}),
+    ...topLevelQueryOverrides,
+  };
 
   const company = await resolveTargetCompany(userId, companyId);
   const canonicalId = normalizeInspectorNodeId(nodeId);
 
   // 0. Guardia Estricta de Nodos Bloqueados / En Construcción (`🚧 Nodo en Construcción`)
   const isExplicitlyBlocked = Boolean(BLOCKED_CONSTRUCTION_NODE_SPECS[canonicalId]);
+  const isDefaultConstructionApp =
+    DEFAULT_CONSTRUCTION_HITO_APPS.has(canonicalId) &&
+    effectiveNodeConfig?.unlockedConstruction !== true;
   const isDisabledApp =
-    nodeConfig?.underConstruction === true ||
+    effectiveNodeConfig?.underConstruction === true ||
+    isDefaultConstructionApp ||
     (Array.isArray(disabledApps) && (disabledApps.includes(canonicalId) || disabledApps.includes(String(nodeId || ''))));
 
   if (isExplicitlyBlocked || isDisabledApp) {
+    const defaultHitoSpec = isDefaultConstructionApp
+      ? {
+          title: canonicalId,
+          team: 'Equipo 6 · Aplicativos Hitos SG-SST (En Construcción)',
+          reason: `🚧 Nodo en Construcción: El aplicativo «${canonicalId}» está marcado como módulo controlado en construcción en el catálogo actual.`,
+        }
+      : null;
     return buildBlockedConstructionResponse({
       rawNodeId: nodeId,
       canonicalId,
       company,
+      specOverride: defaultHitoSpec,
     });
   }
 
@@ -4941,103 +6845,25 @@ async function inspectNodeLiveData(params = {}) {
       rawNodeId: nodeId,
       userId,
       company,
-      nodeConfig,
+      nodeConfig: effectiveNodeConfig,
+      options: effectiveNodeConfig,
       executeLive,
     });
   }
 
-  // Fallback para cualquier nodo dinámico nuevo personalizado
+  // Fallback honesto para cualquier nodo dinámico nuevo personalizado (sin inyectar filas sintéticas falsas)
   if (!result) {
-    const wRes = await inspectHito1And2('hito2_perfil_socio', userId, company);
-    const dRes = await inspectHito1And2('hito1_diagnostico_0312', userId, company);
     result = {
       moduleTitle: `Inspector Operativo SG-SST (${canonicalId || 'General'})`,
-      sourceCollection: 'Multi-Colección Somos SST',
+      sourceCollection: 'Somos SST (Sin colección específica)',
       isGenericFallback: true,
-      kpis: [...(dRes?.kpis?.slice(0, 2) || []), ...(wRes?.kpis?.slice(0, 2) || [])],
-      records: [
-        ...(wRes?.records?.slice(0, 25) || []),
-        ...(dRes?.records?.filter((r) => r.isCritical).slice(0, 15) || []),
-      ],
+      kpis: [{ label: 'Registros Cargados', value: 0, tone: 'slate' }],
+      latestReports: [],
+      records: [],
     };
   }
 
-  let records = Array.isArray(result.records) ? result.records : [];
-
-  // Si la colección específica aún no tiene documentos guardados para esta empresa,
-  // sintetizar registros de línea base contextualizados con la Ficha Técnica de la Empresa Activa y su Nómina Real
-  // para que ningún nodo del flujo se quede en blanco durante la ejecución o inspección.
-  if (records.length === 0 && company) {
-    const cName = company.companyName || 'Empresa Activa';
-    const cNit = company.nit || 'N/A';
-    const cArl = company.arl || 'ARL Sura';
-    const cRisk = company.riskLevel || 'I';
-    const cResp = company.responsibleSST || 'Responsable SG-SST';
-    const cAct = company.economicActivity || 'Actividad Económica Principal';
-    const cCiiu = company.ciiu || company.ciiuCode || 'N/A';
-    const modTitle = result.moduleTitle || canonicalId;
-
-    let socioFallbackRecords = [];
-    if (canonicalId !== 'hito2_perfil_socio') {
-      try {
-        const wRes = await inspectHito1And2('hito2_perfil_socio', userId, company);
-        socioFallbackRecords = Array.isArray(wRes?.records) ? wRes.records.slice(0, 8) : [];
-      } catch (_) {}
-    }
-
-    const mappedSocioFallback = socioFallbackRecords.map((w, idx) => {
-      const wf = w.fields || {};
-      const ced = wf['Cédula / Documento'] || wf['Número de Documento / Cédula'] || w.id || `T-${idx + 1}`;
-      const nom = wf['Nombre Completo'] || w.label || 'Colaborador';
-      const car = wf['Cargo'] || 'Colaborador';
-      return {
-        id: `baseline_worker_${canonicalId}_${ced || idx}`,
-        label: `👤 [Trabajador Vinculado · CC ${ced}] ${nom} — ${car}`,
-        sublabel: `Módulo: ${modTitle} • ARL: ${wf['ARL'] || cArl} • EPS: ${wf['EPS'] || 'Activa'} • AFP: ${wf['Fondo de Pensión (AFP)'] || 'Activa'}`,
-        badge: wf['Estado de Exámenes Médicos (Vigente / Vencido)'] || 'VINCULADO',
-        badgeTone: w.isCritical ? 'amber' : 'indigo',
-        isCritical: Boolean(w.isCritical),
-        fields: {
-          ...wf,
-          'Cédula / Documento de Identidad': String(ced),
-          'Cédula / Documento': String(ced),
-          'Nombre Completo del Trabajador': String(nom),
-          'Nombre Completo': String(nom),
-          'Cargo': String(car),
-          'Módulo Evaluado': modTitle,
-          'Empresa Activa': cName,
-        },
-      };
-    });
-
-    const baselineCompanyRow = {
-      id: `baseline_${canonicalId}_${String(company._id || 'active')}`,
-      label: `📌 [Línea Base Activa · ${cName}] ${modTitle}`,
-      sublabel: `NIT: ${cNit} • ARL: ${cArl} (Riesgo ${cRisk}) • CIIU: ${cCiiu} (${cAct}) • Resp. SST: ${cResp}`,
-      badge: 'LÍNEA BASE EMPRESA',
-      badgeTone: 'teal',
-      isCritical: true,
-      fields: {
-        'Empresa Activa': `${cName} (NIT ${cNit})`,
-        'Razón Social': cName,
-        'NIT': cNit,
-        'ARL y Clase de Riesgo': `${cArl} · Riesgo ${cRisk}`,
-        'Actividad Económica y CIIU': `${cAct} (CIIU ${cCiiu})`,
-        'Responsable SG-SST': `${cResp} (Lic. ${company.licenseNumber || 'Vigente'})`,
-        'Módulo / Aplicativo SG-SST': modTitle,
-        'Norma / Ley / Decreto / Resolución y Año': 'Decreto 1072 de 2015 / Resolución 0312 de 2019 / GTC-45',
-        'Evaluación de Cumplimiento (Cumple / En Proceso / No Cumple)': 'EN PROCESO DE VERIFICACIÓN',
-        'Estado': 'Línea Base Activa para Cruce en el Flujo',
-        'Plan de Acción y Responsable de Cumplimiento Legal': `Verificar y actualizar registros de «${modTitle}» con ${cResp}`,
-      },
-    };
-
-    records =
-      canonicalId === 'hito3_vehiculos' && mappedSocioFallback.length > 0
-        ? mappedSocioFallback
-        : [baselineCompanyRow, ...mappedSocioFallback];
-  }
-
+  const records = Array.isArray(result.records) ? result.records : [];
   const sanitizedRecords = records.slice(0, 300).map((r, i) => sanitizeInspectorRecord(r, i));
   const sanitizedKpis = (Array.isArray(result.kpis) ? result.kpis : []).map((k) => ({
     label: formatCleanScalar(k?.label, 'Indicador'),
@@ -5087,11 +6913,14 @@ async function inspectNodeLiveData(params = {}) {
   }
 
   const criticalCount = sanitizedRecords.filter((r) => r.isCritical).length;
+  const latestReports = Array.isArray(result.latestReports) ? result.latestReports : [];
 
   return {
     success: true,
     status: 'ok',
     underConstruction: false,
+    blocked: false,
+    connected: result.connected !== undefined ? Boolean(result.connected) : true,
     defaultConstruction: DEFAULT_CONSTRUCTION_HITO_APPS.has(canonicalId),
     isGenericFallback: Boolean(result.isGenericFallback),
     warning: null,
@@ -5104,6 +6933,7 @@ async function inspectNodeLiveData(params = {}) {
     totalRecords: sanitizedRecords.length,
     criticalCount,
     kpis: sanitizedKpis,
+    latestReports,
     evidenceFiles: cleanEvidenceFiles,
     evidences: cleanEvidenceFiles,
     records: sanitizedRecords,
@@ -5129,6 +6959,7 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
     companyId: opts.companyId,
     nodeId: targetNodeId,
     nodeConfig,
+    options: opts.options,
     disabledApps: opts.disabledApps,
     executeLive: Boolean(opts.executeLive),
   });
@@ -5185,7 +7016,7 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
     ? nodeConfig.selectedRecordIds.map(String)
     : [];
 
-  // Panel 3: SALIDA REAL PROYECTADA (Items JSON limpios + Archivos de Evidencia)
+  // Panel 3: SALIDA REAL PROYECTADA (Items JSON limpios + Archivos de Evidencia + Informes HTML)
   let filteredRecords = baseData.records || [];
   if (!baseData.underConstruction) {
     if (filterMode === 'critical_only') {
@@ -5234,7 +7065,7 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
     : [
         {
           level: 'success',
-          message: `Inspección en vivo completada sobre «${baseData.moduleTitle}» (${outputItems.length} registro(s), ${baseData.evidenceFiles.length} archivo(s) de evidencia) en ${durationMs} ms.`,
+          message: `Inspección en vivo completada sobre «${baseData.moduleTitle}» (${outputItems.length} registro(s), ${(baseData.latestReports || []).length} informe(s) oficial(es), ${baseData.evidenceFiles.length} evidencia(s)) en ${durationMs} ms.`,
           durationMs,
         },
       ];
@@ -5277,6 +7108,7 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
       filteredCount: filteredRecords.length,
       criticalCount: baseData.criticalCount,
       kpis: baseData.kpis,
+      latestReports: baseData.latestReports || [],
       items: outputItems,
       records: filteredRecords,
       evidenceFiles: baseData.evidenceFiles,
@@ -5340,13 +7172,14 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
 
     const sections = [];
     for (const item of candidateNodes) {
+      const cfg = item.cfg || {};
       const liveData = await inspectNodeLiveData({
         userId,
         companyId: company?._id,
         nodeId: item.rawNodeId,
+        nodeConfig: cfg,
       });
 
-      const cfg = item.cfg || {};
       const rawSelectedFields = Array.isArray(cfg.selectedFields)
         ? cfg.selectedFields
         : Array.isArray(cfg.fields)
@@ -5367,9 +7200,11 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
 
       const kpiText = (liveData.kpis || []).map((k) => `${k.label}: ${k.value}`).join(' | ');
       const recordLines = filteredRecords.slice(0, 300).map((rec, idx) => {
+        const fieldEntries = Object.entries(rec.fields || {}).filter(
+          ([, fv]) => fv !== undefined && fv !== null && fv !== '' && fv !== 'No registra',
+        );
         if (strictFilter) {
           const projected = [];
-          const fieldEntries = Object.entries(rec.fields || {});
           for (const sf of selectedFields) {
             const sfNorm = sf.toLowerCase().trim();
             const match = fieldEntries.find(
@@ -5386,8 +7221,26 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
             return `   ${idx + 1}. [${rec.id}] ${projected.join(' | ')}`;
           }
         }
-        return `   ${idx + 1}. ${rec.label} — ${rec.sublabel} [${rec.badge || ''}]`;
+        const allFieldsStr = fieldEntries.map(([fk, fv]) => `${fk}: ${fv}`).join(' | ');
+        return allFieldsStr
+          ? `   ${idx + 1}. [${rec.id}] ${rec.label} [${rec.badge || ''}] -> ${allFieldsStr}`
+          : `   ${idx + 1}. ${rec.label} — ${rec.sublabel} [${rec.badge || ''}]`;
       });
+
+      let latestReportBlock = '';
+      if (
+        cfg.includeLatestReport !== false &&
+        Array.isArray(liveData.latestReports) &&
+        liveData.latestReports.length > 0
+      ) {
+        const topRep = liveData.latestReports[0];
+        const repBody = topRep.structuredText || stripHtmlToText(topRep.html || '') || topRep.preview || '';
+        if (repBody) {
+          latestReportBlock =
+            `\n   • Último Informe Oficial Emitido en Aplicativo («${topRep.title || 'Informe Oficial'}» — ${topRep.charCount || repBody.length} caracteres):\n` +
+            `     ${repBody.slice(0, 6000)}`;
+        }
+      }
 
       sections.push(
         `📦 NODO EN VIVO «${liveData.moduleTitle}» (${liveData.companyName}):\n` +
@@ -5400,8 +7253,9 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
                 : `Todos (${filteredRecords.length})`
           }${strictFilter ? ` | Campos Quirúrgicos Extraídos: [${selectedFields.join(', ')}]` : ''}\n` +
           (recordLines.length > 0
-            ? `   • Datos Extraídos de Base de Datos:\n${recordLines.join('\n')}`
-            : '   • Datos Extraídos de Base de Datos: (Sin registros que coincidan con el filtro actual)')
+            ? `   • Datos Extraídos de Base de Datos (Casillas Completas):\n${recordLines.join('\n')}`
+            : '   • Datos Extraídos de Base de Datos: (0 registros cargados actualmente en esta colección)') +
+          latestReportBlock
       );
     }
 

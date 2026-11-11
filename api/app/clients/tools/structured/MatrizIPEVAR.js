@@ -60,28 +60,18 @@ class MatrizIPEVAR extends Tool {
    */
   async _call(input, runManager) {
     try {
-      // ✅ PRIMARY: LangGraph thread_id via runManager
-      const conversationId =
-        runManager?.configurable?.thread_id ||
-        runManager?.metadata?.thread_id ||
-        this.req?.body?.conversationId;
-
-      if (!conversationId || conversationId === 'new') {
-        const errorMsg = 'No se encontró un ID de conversación válido para guardar la matriz.';
-        console.error(`[MatrizIPEVAR Tool] ${errorMsg}`);
-        return JSON.stringify({ error: errorMsg });
-      }
-
       const { accion, riesgos, filtro_proceso, filtro_cargo, filtro_actividad, filtro_peligro, ids_a_borrar } = input;
 
-      // Obtener sesión
+      // Resolver usuario y empresa activa ANTES del conversationId (soporte nativo para automatizaciones headless)
       const userId = this.req?.user?.id;
       let targetUserId = userId;
       try {
-        const User = mongoose.models.User || require('~/models/User');
-        const userDoc = await User.findById(userId).select('isSubUser parentUser assignedCompany').lean();
-        if (userDoc?.isSubUser && userDoc?.parentUser) {
-          targetUserId = userDoc.parentUser.toString();
+        if (userId) {
+          const User = mongoose.models.User || require('~/models/User');
+          const userDoc = await User.findById(userId).select('isSubUser parentUser assignedCompany').lean();
+          if (userDoc?.isSubUser && userDoc?.parentUser) {
+            targetUserId = userDoc.parentUser.toString();
+          }
         }
       } catch (_) {}
 
@@ -98,14 +88,48 @@ class MatrizIPEVAR extends Tool {
         if (!companyConfDoc) companyConfDoc = await CompanyInfo.findOne({ user: targetUserId, isActive: true });
         if (!companyConfDoc) companyConfDoc = await CompanyInfo.findOne({ user: targetUserId });
         companyId = companyConfDoc ? companyConfDoc._id : null;
+      } else if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+        companyConfDoc = await CompanyInfo.findById(explicitCompanyId);
+        if (companyConfDoc) {
+          companyId = companyConfDoc._id;
+          if (!targetUserId && companyConfDoc.user) targetUserId = String(companyConfDoc.user);
+        }
+      }
+
+      const officialConvoId = `official-${companyId || targetUserId || userId}`;
+
+      // ✅ PRIMARY: LangGraph thread_id via runManager, con fallback automático a Matriz Oficial en automatizaciones
+      let conversationId =
+        runManager?.configurable?.thread_id ||
+        runManager?.metadata?.thread_id ||
+        this.req?.body?.conversationId;
+
+      if (!conversationId || conversationId === 'new' || this.req?.isAutomation) {
+        if (companyId || targetUserId || userId) {
+          conversationId = officialConvoId;
+        } else {
+          const errorMsg = 'No se encontró un ID de conversación válido para guardar la matriz.';
+          console.error(`[MatrizIPEVAR Tool] ${errorMsg}`);
+          return JSON.stringify({ error: errorMsg });
+        }
       }
 
       // Obtener sesión
       let session = await GTC45Matrix.findOne({ conversationId });
-      if (session && !session.companyId && companyId) {
-        session.companyId = companyId;
-        await session.save();
-        console.log(`[MatrizIPEVAR Tool] Populated missing companyId ${companyId} for session ${conversationId}`);
+      if (session) {
+        let needsMetaSave = false;
+        if (!session.companyId && companyId) {
+          session.companyId = companyId;
+          needsMetaSave = true;
+        }
+        if (conversationId === officialConvoId && !session.isOfficial) {
+          session.isOfficial = true;
+          needsMetaSave = true;
+        }
+        if (needsMetaSave) {
+          await session.save();
+          console.log(`[MatrizIPEVAR Tool] Populated metadata (companyId=${companyId}, isOfficial=${session.isOfficial}) for session ${conversationId}`);
+        }
       }
       
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
@@ -159,17 +183,21 @@ class MatrizIPEVAR extends Tool {
 
          // Extraer Cargos
          if (PerfilCargoModel) {
-             const cargoDataDoc = await PerfilCargoModel.findOne({ user: userId, ...(companyId ? { companyId } : {}) }).lean();
-             if (cargoDataDoc && cargoDataDoc.perfiles) {
+             const cargoDataDoc = await PerfilCargoModel.findOne({ user: targetUserId || userId, ...(companyId ? { companyId } : {}) }).lean();
+             const rawPerfiles = cargoDataDoc?.perfilesList || cargoDataDoc?.perfiles || [];
+             if (Array.isArray(rawPerfiles) && rawPerfiles.length > 0) {
                  // Si nos mandan filtro_proceso (ej. "soldador"), filtramos para no aglomerar el payload, sino devolvemos todo.
-                 let perfiles = cargoDataDoc.perfiles;
+                 let perfiles = rawPerfiles;
                  if (filtro_proceso) {
-                     perfiles = perfiles.filter(p => p.nombreCargo && p.nombreCargo.toLowerCase().includes(filtro_proceso.toLowerCase()));
+                     perfiles = perfiles.filter(p => {
+                         const pName = p.nombreCargo || p.nombre || '';
+                         return pName && pName.toLowerCase().includes(filtro_proceso.toLowerCase());
+                     });
                  }
                  payload.perfiles_cargo_encontrados = perfiles.map(p => ({
-                     cargo: p.nombreCargo,
+                     cargo: p.nombreCargo || p.nombre || 'Cargo',
                      responsabilidadesSST: p.responsabilidadesSST || 'Ninguna definida',
-                     epp_estricto: p.elementosProteccion || 'No documentado',
+                     epp_estricto: p.elementosProteccion || p.epp || 'No documentado',
                      restricciones: p.restricciones || 'Ninguna'
                  }));
              }
@@ -317,17 +345,26 @@ class MatrizIPEVAR extends Tool {
 
         // Sincronización en paralelo con Somos SST (Matriz Oficial) al borrar
         if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-          const officialConvoId = `official-${companyId || userId}`;
-          const isOfficialSource = session.isOfficial || (await GTC45Matrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+          const isOfficialSource =
+            session.isOfficial ||
+            Boolean(this.req?.isAutomation) ||
+            (await GTC45Matrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
           if (isOfficialSource && conversationId !== officialConvoId) {
             await GTC45Matrix.findOneAndUpdate(
               { conversationId: officialConvoId },
               {
                 $set: {
                   matrixRows: session.matrixRows,
+                  isOfficial: true,
+                  companyId: companyId || undefined,
                   updatedAt: new Date(),
                 },
-              }
+                $setOnInsert: {
+                  user: targetUserId || userId || undefined,
+                  officialTitle: 'Matriz Oficial GTC-45',
+                },
+              },
+              { upsert: true },
             );
             console.log(`[MatrizIPEVAR Tool] Borrado sincronizado en paralelo con la Matriz Oficial ("${officialConvoId}")`);
           }
@@ -349,8 +386,9 @@ class MatrizIPEVAR extends Tool {
       if (!session) {
         session = new GTC45Matrix({
           conversationId,
-          user: userId || undefined,
+          user: targetUserId || userId || undefined,
           companyId: companyId || undefined,
+          isOfficial: conversationId === officialConvoId || Boolean(this.req?.isAutomation),
           matrixRows: []
         });
       }
@@ -441,11 +479,14 @@ class MatrizIPEVAR extends Tool {
       }
 
       // Ensure user inheritance for orphaned sessions during upsert
-      if (!session.user && userId) {
-        session.user = userId;
+      if (!session.user && (targetUserId || userId)) {
+        session.user = targetUserId || userId;
       }
       if (!session.companyId && companyId) {
         session.companyId = companyId;
+      }
+      if (conversationId === officialConvoId || this.req?.isAutomation) {
+        session.isOfficial = true;
       }
       
       // Mongoose needs this flag if we modify mixed Arrays manually
@@ -459,17 +500,26 @@ class MatrizIPEVAR extends Tool {
         console.log(`[MatrizIPEVAR Tool] Cleaned up temporary session for user ${userId}`);
 
         // Sincronización en paralelo con Somos SST (Matriz Oficial)
-        const officialConvoId = `official-${companyId || userId}`;
-        const isOfficialSource = session.isOfficial || (await GTC45Matrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+        const isOfficialSource =
+          session.isOfficial ||
+          Boolean(this.req?.isAutomation) ||
+          (await GTC45Matrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
         if (isOfficialSource && conversationId !== officialConvoId) {
           await GTC45Matrix.findOneAndUpdate(
             { conversationId: officialConvoId },
             {
               $set: {
                 matrixRows: session.matrixRows,
+                isOfficial: true,
+                companyId: companyId || undefined,
                 updatedAt: new Date(),
               },
-            }
+              $setOnInsert: {
+                user: targetUserId || userId || undefined,
+                officialTitle: 'Matriz Oficial GTC-45',
+              },
+            },
+            { upsert: true },
           );
           console.log(`[MatrizIPEVAR Tool] Sincronizada en paralelo con la Matriz Oficial ("${officialConvoId}")`);
         }

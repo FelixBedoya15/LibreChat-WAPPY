@@ -26,12 +26,42 @@ const { User } = require('~/db/models');
 const { logger } = require('~/config');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
-// Non-live Gemini models for 503 fallback rotation
+// Non-live Gemini models for 503 fallback rotation (strictly aligned with GOOGLE_MODELS in .env)
 const SGSST_FALLBACK_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.8-flash',
 ];
+
+/**
+ * Translates WAPPY UI/preset model aliases (e.g. 'gemini-3.8-flash') to their real
+ * Google Generative Language API text model IDs BEFORE issuing network requests,
+ * matching api/server/controllers/agents/client.js (L1768-1782) so 'gemini-3.8-flash'
+ * never triggers 404 or 5x35s key-rotation timeouts.
+ *
+ * @param {string} rawModel
+ * @param {string} [defaultModel='gemini-3.6-flash']
+ * @returns {string}
+ */
+function mapToGoogleApiTextModel(rawModel, defaultModel = 'gemini-3.6-flash') {
+  const clean = String(rawModel || '').replace(/^models\//i, '').trim();
+  if (!clean) {
+    return defaultModel;
+  }
+  if (
+    clean === 'gemini-3.8-flash' ||
+    clean === 'gemini-3.7-flash' ||
+    clean.includes('gemini-3.8') ||
+    clean.includes('gemini-3.7') ||
+    clean.includes('live') ||
+    clean.includes('native-audio') ||
+    clean.includes('tts') ||
+    clean.includes('transcribe')
+  ) {
+    return 'gemini-3.6-flash';
+  }
+  return clean;
+}
 
 // Live-only models for VoiceSession / LiveAnalysis rotation
 const LIVE_FALLBACK_MODELS = [
@@ -268,11 +298,12 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     promptText = tempPrompt;
   }
 
-  const preferredModel = (
+  const rawPreferredModel = (
     typeof modelInstance === 'string'
       ? modelInstance
       : (modelInstance && modelInstance.model) || ''
-  ).replace('models/', '').trim() || 'gemini-3.5-flash-lite';
+  ).replace('models/', '').trim();
+  const preferredModel = mapToGoogleApiTextModel(rawPreferredModel, 'gemini-3.5-flash-lite');
 
   const genConfig = (modelInstance && typeof modelInstance === 'object' && modelInstance.generationConfig)
     ? modelInstance.generationConfig
@@ -281,9 +312,11 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
   const envModels = (process.env.GOOGLE_MODELS || '')
     .split(',')
     .map(m => m.trim().replace('models/', ''))
-    .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts'));
+    .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts') && !m.includes('transcribe'))
+    .map(m => mapToGoogleApiTextModel(m, 'gemini-3.6-flash'));
 
-  const candidateFallbacks = [...new Set([...envModels, ...SGSST_FALLBACK_MODELS])];
+  const mappedFallbacks = SGSST_FALLBACK_MODELS.map(m => mapToGoogleApiTextModel(m, 'gemini-3.6-flash'));
+  const candidateFallbacks = [...new Set([...envModels, ...mappedFallbacks])].filter(Boolean);
   const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);
   const modelsToTry = safeOpts.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
 
@@ -533,13 +566,14 @@ function cleanRawRows(rawRows) {
  * @param {object} params { htmlContent, title, tags, model }
  * @returns {Promise<{ conversationId: string|null, messageId: string|null, title: string }>}
  */
-async function autoPersistGeneratedReport(req, { htmlContent, title, tags, model } = {}) {
+async function autoPersistGeneratedReport(req, { htmlContent, title, tags, model, companyId } = {}) {
   try {
     if (!htmlContent || typeof htmlContent !== 'string' || !htmlContent.trim()) {
       return { conversationId: null, messageId: null, title: title || '' };
     }
 
     const crypto = require('crypto');
+    const mongoose = require('mongoose');
     const CompanyInfo = require('~/models/CompanyInfo');
     const { saveConvo } = require('~/models/Conversation');
     const { saveMessage, updateMessageText } = require('~/models/Message');
@@ -555,8 +589,17 @@ async function autoPersistGeneratedReport(req, { htmlContent, title, tags, model
       return { conversationId: null, messageId: null, title: title || '' };
     }
 
+    const explicitCompanyId = String(
+      companyId || req?.companyId || req?.body?.companyId || req?.query?.companyId || '',
+    ).trim();
+
     let activeCompany = null;
-    if (rawUser.isSubUser && rawUser.assignedCompany) {
+    if (explicitCompanyId && mongoose.Types.ObjectId.isValid(explicitCompanyId)) {
+      activeCompany =
+        (await CompanyInfo.findOne({ _id: explicitCompanyId, user: targetUserId }).lean()) ||
+        (await CompanyInfo.findById(explicitCompanyId).lean());
+    }
+    if (!activeCompany && rawUser.isSubUser && rawUser.assignedCompany) {
       activeCompany = await CompanyInfo.findOne({
         _id: rawUser.assignedCompany,
         user: targetUserId,
@@ -569,7 +612,11 @@ async function autoPersistGeneratedReport(req, { htmlContent, title, tags, model
       activeCompany = await CompanyInfo.findOne({ user: targetUserId }).lean();
     }
 
-    const companyIdStr = activeCompany?._id ? activeCompany._id.toString() : null;
+    const companyIdStr = activeCompany?._id
+      ? activeCompany._id.toString()
+      : explicitCompanyId && mongoose.Types.ObjectId.isValid(explicitCompanyId)
+        ? explicitCompanyId
+        : null;
     const baseTags = (Array.isArray(tags) ? tags : [tags]).filter(Boolean);
     if (baseTags.length === 0) {
       baseTags.push('sgsst-diagnostico');
@@ -676,9 +723,54 @@ async function autoPersistGeneratedReport(req, { htmlContent, title, tags, model
   }
 }
 
+/**
+ * High-level text generation helper wrapping generateWithKeyRotation with automatic
+ * model translation ('gemini-3.8-flash' -> 'gemini-3.6-flash') and clean string extraction.
+ *
+ * @param {object} params
+ * @param {string} params.userId
+ * @param {string|Array} params.prompt
+ * @param {string} [params.modelName='gemini-3.6-flash']
+ * @param {string} [params.systemInstruction]
+ * @param {object} [params.generationConfig]
+ * @param {number} [params.timeoutMs]
+ * @param {boolean} [params.useWebSearch]
+ * @returns {Promise<string>}
+ */
+async function callSgsstGemini({
+  userId,
+  prompt,
+  modelName = 'gemini-3.6-flash',
+  systemInstruction,
+  generationConfig = {},
+  timeoutMs = 35000,
+  useWebSearch = false,
+} = {}) {
+  const effectiveModel = mapToGoogleApiTextModel(modelName, 'gemini-3.6-flash');
+  const result = await generateWithKeyRotation(
+    { model: effectiveModel, generationConfig, ...(systemInstruction ? { systemInstruction } : {}) },
+    userId,
+    prompt,
+    { generationConfig, systemInstruction, timeoutMs, useWebSearch },
+  );
+  if (!result) return '';
+  if (typeof result?.response?.text === 'function') {
+    return result.response.text() || '';
+  }
+  if (result?.text) {
+    return typeof result.text === 'function' ? result.text() : String(result.text);
+  }
+  if (typeof result === 'string') {
+    return result;
+  }
+  return '';
+}
+
 module.exports = {
   resolveApiKeys,
   generateWithKeyRotation,
+  callSgsstGemini,
+  mapToGoogleApiTextModel,
   SGSST_FALLBACK_MODELS,
   LIVE_FALLBACK_MODELS,
   cleanRawRows,

@@ -176,6 +176,8 @@ export interface CanvasNodeConfig {
   maxItems?: number;
   timeWindow?: string;
   workerStatusFilter?: 'active' | 'all' | 'retired' | 'with_restrictions';
+  sstAppSourceId?: string;
+  endpointUrl?: string;
   /** Parámetros propios de Motor IA y Memorias (Equipos 3 y 4) */
   temperature?: string;
   agentOutputStyle?: 'executive_report' | 'structured_table' | 'silent_action';
@@ -184,6 +186,9 @@ export interface CanvasNodeConfig {
   legalStandards?: string[];
   /** Modo de operación en Aplicativos de Hitos SST (Equipo 6) */
   hitoOperationMode?: 'extract_only' | 'write_register' | 'audit_and_update';
+  appActionMode?: 'read_only' | 'write_and_update' | 'write_and_report' | 'generate_report';
+  generateAppReport?: boolean;
+  forceRegenerateReport?: boolean;
   /** Parámetros propios de Bitácora y Salidas (Equipo 7) */
   emailSubject?: string;
   onlyOnCriticalAlerts?: boolean;
@@ -201,9 +206,17 @@ export interface CanvasNodeConfig {
   kanbanPriority?: 'high' | 'medium' | 'low';
   kanbanDueDays?: number;
   kanbanAssignee?: string;
-  /** Parámetros propios de Nodos Lógicos If / Loop / Aprobación (Equipo 8) */
-  ifConditionType?: 'critical_findings' | 'numeric_threshold' | 'keyword_match' | 'ai_evaluation';
+  /** Parámetros propios de Nodos Lógicos If / Loop / Merge / Aprobación (Equipo 8) */
+  ifBranch?: 'yes' | 'no';
+  ifConditionMode?: 'critical_findings' | 'always_branch' | 'ai_verdict' | 'custom_rule' | string;
+  ifConditionLabel?: string;
+  ifConditionType?: 'critical_findings' | 'numeric_threshold' | 'keyword_match' | 'ai_evaluation' | 'always_branch' | 'ai_verdict' | 'custom_rule';
   ifRuleExpression?: string;
+  batchSize?: number;
+  iterateByField?: string;
+  loopMode?: 'consolidado_unico' | 'resumen_por_lote';
+  mergeStrategy?: 'union_dedup' | 'intersect_key' | 'append_all';
+  mergeKey?: string;
   approverEmail?: string;
   /** Avatar 3D asignado al Agente IA o Sub-Agente en el lienzo */
   avatarSrc?: string;
@@ -7942,14 +7955,20 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
         ],
       },
     ],
-    reportTags: ['sgsst-owas'],
+    reportTags: ['sgsst-estudio-puesto'],
   },
 
   hito4_psicosocial: {
     moduleTitle: 'Hito 4 · Termómetro Psicosocial y Clima Emocional (Res. 2764)',
     moduleBadge: 'Hito 4 · Psicosocial',
-    fieldsLabel: 'Indicadores y Resultados Propios del Termómetro Psicosocial',
+    fieldsLabel: 'Casillas Reales MoodTelemetry e Indicadores del Termómetro Psicosocial (Res. 2764)',
     fields: [
+      'Estado de Ánimo',
+      'Factores Estresores',
+      'Área / Departamento',
+      'Comentarios / Detalles',
+      'Canal de Reporte',
+      'Fecha de Registro',
       'Índice Global de Bienestar y Clima Emocional (%)',
       'Nivel de Riesgo Psicosocial Global (Sin Riesgo / Bajo / Medio / Alto / Muy Alto)',
       'Total de Reportes Emocionales y Cobertura de Participación (%)',
@@ -7968,6 +7987,18 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
       'Plan de Intervención Psicosocial, Responsables y Fechas de Seguimiento',
     ],
     quickCombos: [
+      {
+        label: '⚡ Telemetría en Vivo (MoodTelemetry: Ánimo, Estresores, Área y Comentarios)',
+        description: 'Casillas exactas registradas en el Termómetro Psicosocial en tiempo real',
+        fields: [
+          'Estado de Ánimo',
+          'Factores Estresores',
+          'Área / Departamento',
+          'Comentarios / Detalles',
+          'Canal de Reporte',
+          'Fecha de Registro',
+        ],
+      },
       {
         label: '⚡ Índice de Bienestar + Áreas Críticas + Alertas Burnout + Plan de Intervención',
         description: 'Resumen psicosocial ejecutivo respetando la reserva legal (Res. 2764)',
@@ -8811,7 +8842,7 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
         ],
       },
     ],
-    reportTags: ['sgsst-programa-capacitaciones'],
+    reportTags: ['sgsst-ruta-aprendizaje'],
   },
 
   hito4_actos_condiciones: {
@@ -9186,7 +9217,7 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
         ],
       },
     ],
-    reportTags: ['sgsst-diagnostico', 'sgsst-auditoria'],
+    reportTags: ['sgsst-acpm'],
   },
 
   hito7_auditoria: {

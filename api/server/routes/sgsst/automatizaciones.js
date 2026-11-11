@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
@@ -15,10 +16,117 @@ const {
   runWorkflowSandboxSimulation,
   calculateNextRun,
   stopAutomation,
+  hasCronTrigger,
+  executeDownstreamOutputs,
 } = require('~/server/services/automationScheduler');
 const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
 
 const UserPlan = require('~/db/models/UserPlan');
+
+function safeSecretEquals(expectedSecret, providedSecret) {
+  const expected = String(expectedSecret || '').trim();
+  const provided = String(providedSecret || '').trim();
+  if (!expected || !provided) return false;
+  const h1 = crypto.createHash('sha256').update(expected, 'utf8').digest();
+  const h2 = crypto.createHash('sha256').update(provided, 'utf8').digest();
+  return crypto.timingSafeEqual(h1, h2);
+}
+
+/**
+ * POST /api/sgsst/automatizaciones/webhook/:automationId
+ * POST /api/sgsst/automatizaciones/webhook
+ * Disparador público de Webhook autenticado por secreto (`trigger_webhook`), montado ANTES de `requireJwtAuth`.
+ */
+async function handlePublicAutomationWebhook(req, res) {
+  try {
+    const rawId =
+      req.params?.automationId || req.body?.automationId || req.query?.automationId || '';
+    const automationId = String(rawId).trim();
+    if (!automationId || !mongoose.Types.ObjectId.isValid(automationId)) {
+      return res.status(400).json({ error: 'El parámetro automationId es obligatorio y debe ser válido.' });
+    }
+
+    const automation = await Automation.findOne({
+      _id: automationId,
+      isSystemPreset: { $ne: true },
+    }).lean();
+
+    if (!automation) {
+      return res.status(404).json({ error: 'Automatización no encontrada.' });
+    }
+    if (automation.status !== 'active') {
+      return res.status(403).json({ error: 'La automatización está inactiva o pausada.' });
+    }
+
+    const triggers = Array.isArray(automation.workflowNodes?.triggers)
+      ? automation.workflowNodes.triggers
+      : automation.workflowNodes?.trigger
+        ? [automation.workflowNodes.trigger]
+        : [];
+    if (!triggers.includes('trigger_webhook')) {
+      return res.status(400).json({
+        error: 'Esta automatización no tiene habilitado el disparador Webhook (trigger_webhook).',
+      });
+    }
+
+    const nodeConfigs =
+      automation.workflowNodes?.canvasLayout?.nodeConfigs ||
+      automation.workflowNodes?.nodeConfigs ||
+      {};
+    const configuredSecret = String(
+      nodeConfigs?.trigger_root?.webhookSecret ||
+        nodeConfigs?.trigger_trigger_webhook?.webhookSecret ||
+        nodeConfigs?.trigger_webhook?.webhookSecret ||
+        '',
+    ).trim();
+
+    if (configuredSecret) {
+      const authHeader = String(req.headers?.authorization || '');
+      const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+      const candidateSecret =
+        req.headers?.['x-wappy-secret'] ||
+        (bearerToken !== authHeader ? bearerToken : '') ||
+        req.query?.secret ||
+        req.body?.secret ||
+        '';
+      if (!safeSecretEquals(configuredSecret, candidateSecret)) {
+        return res.status(401).json({ error: 'Secreto de Webhook inválido o no autorizado.' });
+      }
+    }
+
+    const sanitizedPayload = { ...(req.body && typeof req.body === 'object' ? req.body : {}) };
+    delete sanitizedPayload.secret;
+
+    const waitMode = String(req.query?.wait || '').toLowerCase() === 'true';
+    if (waitMode) {
+      await runAutomation(automation, {
+        triggerSource: 'webhook',
+        eventPayload: sanitizedPayload,
+      });
+    } else {
+      setImmediate(() => {
+        runAutomation(automation, {
+          triggerSource: 'webhook',
+          eventPayload: sanitizedPayload,
+        }).catch((whErr) => {
+          console.error('[Webhook Trigger] Error en corrida background:', whErr?.message || whErr);
+        });
+      });
+    }
+
+    return res.json({
+      success: true,
+      automationId: automation._id,
+      message: 'Flujo disparado por Webhook',
+    });
+  } catch (err) {
+    console.error('[API Automatizaciones Webhook] Error:', err);
+    return res.status(500).json({ error: 'Error interno al procesar el disparo por Webhook.' });
+  }
+}
+
+router.post('/webhook/:automationId', handlePublicAutomationWebhook);
+router.post('/webhook', handlePublicAutomationWebhook);
 
 /**
  * GET /api/sgsst/automatizaciones/evidencias/:fileName
@@ -558,16 +666,325 @@ router.get('/node-live-inspector', async (req, res) => {
     }
     const explicitCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
     const companyId = await getActiveCompanyId(req.user.id, explicitCompanyId, req.user?.role);
+
+    const driveFolderName = req.query.driveFolderName ? String(req.query.driveFolderName).trim() : '';
+    const fileTypeFilter = req.query.fileTypeFilter ? String(req.query.fileTypeFilter).trim() : '';
+    const maxItems = req.query.maxItems !== undefined ? Number(req.query.maxItems) || undefined : undefined;
+    const sstAppSourceId = req.query.sstAppSourceId ? String(req.query.sstAppSourceId).trim() : '';
+    const emailSubjectFilter = req.query.emailSubjectFilter ? String(req.query.emailSubjectFilter).trim() : '';
+    const endpointUrl = req.query.endpointUrl ? String(req.query.endpointUrl).trim() : '';
+
     const data = await inspectNodeLiveData({
       userId: req.user.id,
       companyId,
       nodeId,
-      sstAppSourceId: req.query.sstAppSourceId ? String(req.query.sstAppSourceId).trim() : '',
+      driveFolderName,
+      fileTypeFilter,
+      maxItems,
+      sstAppSourceId,
+      emailSubjectFilter,
+      endpointUrl,
+      nodeConfig: {
+        driveFolderName,
+        fileTypeFilter,
+        maxItems,
+        sstAppSourceId,
+        emailSubjectFilter,
+        endpointUrl,
+      },
     });
     return res.json({ success: true, ...data });
   } catch (error) {
     console.error('[API Automatizaciones] Error en node-live-inspector:', error);
     return res.status(500).json({ error: 'Error al consultar datos en vivo del nodo.' });
+  }
+});
+
+/**
+ * POST /api/sgsst/automatizaciones/trigger-tenshi
+ * Dispara automatizaciones del usuario/empresa con `'trigger_tenshi'` cuyo `voiceCommand` o nombre de tarea coincida.
+ */
+router.post('/trigger-tenshi', async (req, res) => {
+  try {
+    const commandText = String(req.body?.commandText || req.body?.text || '').trim();
+    const explicitAutomationId = req.body?.automationId ? String(req.body.automationId).trim() : '';
+    if (!commandText && !explicitAutomationId) {
+      return res.status(400).json({ error: 'El parámetro commandText es obligatorio.' });
+    }
+
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.body?.companyId || req.query?.companyId,
+      req.user?.role,
+    );
+
+    const norm = (str) =>
+      String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const queryFilter = {
+      isSystemPreset: { $ne: true },
+      status: 'active',
+      ...(companyId ? { companyId } : { user: req.user.id }),
+    };
+
+    const candidates = await Automation.find(queryFilter).lean();
+    const cmdNorm = norm(commandText);
+
+    const matched = candidates.filter((auto) => {
+      if (explicitAutomationId && String(auto._id) === explicitAutomationId) {
+        return true;
+      }
+      const triggers = Array.isArray(auto?.workflowNodes?.triggers)
+        ? auto.workflowNodes.triggers
+        : auto?.workflowNodes?.trigger
+          ? [auto.workflowNodes.trigger]
+          : [];
+      if (!triggers.includes('trigger_tenshi')) {
+        return false;
+      }
+
+      const nodeConfigs =
+        auto?.workflowNodes?.canvasLayout?.nodeConfigs ||
+        auto?.workflowNodes?.nodeConfigs ||
+        {};
+      const configuredCmd = norm(
+        nodeConfigs?.trigger_root?.voiceCommand ||
+          nodeConfigs?.trigger_trigger_tenshi?.voiceCommand ||
+          nodeConfigs?.trigger_tenshi?.voiceCommand ||
+          '',
+      );
+      const taskNameNorm = norm(auto.name || '');
+
+      if (configuredCmd && (cmdNorm.includes(configuredCmd) || configuredCmd.includes(cmdNorm))) {
+        return true;
+      }
+      if (taskNameNorm && (cmdNorm.includes(taskNameNorm) || taskNameNorm.includes(cmdNorm))) {
+        return true;
+      }
+      return !configuredCmd && candidates.filter((c) => (c?.workflowNodes?.triggers || []).includes('trigger_tenshi')).length === 1;
+    });
+
+    if (matched.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No se encontró ninguna automatización activa con disparador de voz/texto Tenshi que coincida con ese comando.',
+      });
+    }
+
+    for (const auto of matched) {
+      setImmediate(() => {
+        runAutomation(auto, {
+          triggerSource: 'tenshi_voice',
+          eventPayload: {
+            commandText,
+            invokedBy: req.user?.email || req.user?.id,
+            invokedAt: new Date().toISOString(),
+          },
+        }).catch((tErr) => {
+          console.error('[Trigger Tenshi] Error ejecutando flujo:', tErr?.message || tErr);
+        });
+      });
+    }
+
+    return res.json({
+      success: true,
+      triggeredCount: matched.length,
+      automations: matched.map((a) => ({ _id: a._id, name: a.name })),
+      message: `Disparado(s) ${matched.length} flujo(s) por comando Tenshi.`,
+    });
+  } catch (error) {
+    console.error('[API Automatizaciones] Error en trigger-tenshi:', error);
+    return res.status(500).json({ error: 'Error al procesar el comando de disparo Tenshi.' });
+  }
+});
+
+/**
+ * POST /api/sgsst/automatizaciones/logs/:logId/approve
+ * Aprueba una corrida detenida en Compuerta de Aprobación Humana (`awaiting_approval`) y ejecuta las salidas retenidas.
+ */
+router.post('/logs/:logId/approve', async (req, res) => {
+  try {
+    const { logId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(logId || ''))) {
+      return res.status(400).json({ error: 'ID de bitácora inválido.' });
+    }
+
+    const log = await AutomationLog.findById(logId);
+    if (!log) {
+      return res.status(404).json({ error: 'Registro de bitácora no encontrado.' });
+    }
+    if (String(log.user) !== String(req.user.id) && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'No tienes permiso para aprobar esta ejecución.' });
+    }
+    if (log.status !== 'awaiting_approval') {
+      return res.status(400).json({
+        error: `Esta ejecución no está pendiente de aprobación (estado actual: ${log.status}).`,
+      });
+    }
+
+    const payload = log.pendingApprovalPayload || {};
+    const automation = log.automation
+      ? await Automation.findById(log.automation).lean()
+      : null;
+
+    const outputSummary = await executeDownstreamOutputs({
+      automation: automation || {
+        _id: log.automation,
+        name: 'Automatización Aprobada',
+        user: log.user,
+        companyId: log.companyId,
+        prompt: log.prompt || '',
+        emails: req.user?.email ? [req.user.email] : [],
+      },
+      user: req.user,
+      companyId: log.companyId || automation?.companyId || null,
+      outputsToExecute: Array.isArray(payload.outputsToExecute)
+        ? payload.outputsToExecute
+        : automation?.workflowNodes?.outputs || [],
+      responseText: payload.responseText || log.result || '',
+      generatedAppReports: Array.isArray(payload.generatedAppReports)
+        ? payload.generatedAppReports
+        : [],
+      activeBranch: payload.activeBranch || 'yes',
+      nodeConfigs:
+        payload.nodeConfigs ||
+        automation?.workflowNodes?.canvasLayout?.nodeConfigs ||
+        {},
+      capturedEvidences: Array.isArray(payload.capturedEvidences)
+        ? payload.capturedEvidences
+        : Array.isArray(log.evidenceFiles)
+          ? log.evidenceFiles
+          : [],
+      generatedConvoId: payload.generatedConvoId || log.conversationId || null,
+      hasCriticalSignal: payload.hasCriticalSignal !== false,
+      logId: log._id,
+    });
+
+    const now = new Date();
+    const approverIdentity = req.user?.email || String(req.user?.id || '');
+    log.status = 'success';
+    log.approvedAt = now;
+    log.approvedBy = approverIdentity;
+    log.pendingApprovalPayload = {
+      ...payload,
+      processed: true,
+      approvedAt: now.toISOString(),
+      approvedBy: approverIdentity,
+      executedOutputs: outputSummary.executedOutputs || [],
+      workspaceLinks: outputSummary.workspaceLinks || [],
+    };
+    log.executionTrace = {
+      ...(log.executionTrace && typeof log.executionTrace === 'object' ? log.executionTrace : {}),
+      humanApprovalDecision: 'approved',
+      approvedAt: now.toISOString(),
+      approvedBy: approverIdentity,
+      executedOutputs: outputSummary.executedOutputs || [],
+      workspaceLinks: outputSummary.workspaceLinks || [],
+    };
+    log.markModified('pendingApprovalPayload');
+    log.markModified('executionTrace');
+    await log.save();
+
+    if (log.automation) {
+      await Automation.updateOne(
+        { _id: log.automation },
+        {
+          $set: {
+            lastRunStatus: 'success',
+            lastRunResult: `[Aprobado por ${approverIdentity}] ${String(log.result || '').substring(0, 430)}`,
+          },
+        },
+      ).catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      log: log.toObject(),
+      outputSummary,
+    });
+  } catch (error) {
+    console.error('[API Automatizaciones] Error aprobando log:', error);
+    return res.status(500).json({ error: 'Error al aprobar y despachar las salidas de la bitácora.' });
+  }
+});
+
+/**
+ * POST /api/sgsst/automatizaciones/logs/:logId/reject
+ * Rechaza una corrida detenida en Compuerta de Aprobación Humana (`awaiting_approval`) cancelando las salidas finales.
+ */
+router.post('/logs/:logId/reject', async (req, res) => {
+  try {
+    const { logId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(logId || ''))) {
+      return res.status(400).json({ error: 'ID de bitácora inválido.' });
+    }
+
+    const log = await AutomationLog.findById(logId);
+    if (!log) {
+      return res.status(404).json({ error: 'Registro de bitácora no encontrado.' });
+    }
+    if (String(log.user) !== String(req.user.id) && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'No tienes permiso para rechazar esta ejecución.' });
+    }
+    if (log.status !== 'awaiting_approval') {
+      return res.status(400).json({
+        error: `Esta ejecución no está pendiente de aprobación (estado actual: ${log.status}).`,
+      });
+    }
+
+    const now = new Date();
+    const rejectorIdentity = req.user?.email || String(req.user?.id || '');
+    const reason = String(req.body?.reason || '').trim() || 'Rechazado por aprobador';
+    const payload = log.pendingApprovalPayload || {};
+
+    log.status = 'rejected';
+    log.rejectedAt = now;
+    log.rejectedBy = rejectorIdentity;
+    log.rejectedReason = reason;
+    log.pendingApprovalPayload = {
+      ...payload,
+      processed: true,
+      rejected: true,
+      rejectedAt: now.toISOString(),
+      rejectedBy: rejectorIdentity,
+      rejectedReason: reason,
+    };
+    log.executionTrace = {
+      ...(log.executionTrace && typeof log.executionTrace === 'object' ? log.executionTrace : {}),
+      humanApprovalDecision: 'rejected',
+      rejectedAt: now.toISOString(),
+      rejectedBy: rejectorIdentity,
+      rejectedReason: reason,
+    };
+    log.markModified('pendingApprovalPayload');
+    log.markModified('executionTrace');
+    await log.save();
+
+    if (log.automation) {
+      await Automation.updateOne(
+        { _id: log.automation },
+        {
+          $set: {
+            lastRunStatus: 'rejected',
+            lastRunResult: `[Rechazado: ${reason}]`,
+          },
+        },
+      ).catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      log: log.toObject(),
+    });
+  } catch (error) {
+    console.error('[API Automatizaciones] Error rechazando log:', error);
+    return res.status(500).json({ error: 'Error al rechazar la ejecución en espera.' });
   }
 });
 
@@ -872,7 +1289,10 @@ router.post('/presets/:id/install', async (req, res) => {
 
     const canActivate = activateImmediately && effectiveLimit > 0 && activeCount < effectiveLimit;
     const finalStatus = canActivate ? 'active' : 'inactive';
-    const nextRunAt = canActivate ? calculateNextRun(preset.scheduleType || 'daily', preset.scheduleConfig || {}) : null;
+    const nextRunAt =
+      canActivate && hasCronTrigger(preset)
+        ? calculateNextRun(preset.scheduleType || 'daily', preset.scheduleConfig || {})
+        : null;
 
     const defaultEmails =
       Array.isArray(emails) && emails.length > 0
@@ -1010,7 +1430,15 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario. Registre su empresa primero.' });
     }
 
-    const nextRunAt = calculateNextRun(scheduleType || 'daily', scheduleConfig || {});
+    const resolvedWorkflowNodes = workflowNodes || {
+      trigger: 'schedule_cron',
+      inputs: [],
+      hitos: [],
+      outputs: ['email_report'],
+    };
+    const nextRunAt = hasCronTrigger({ workflowNodes: resolvedWorkflowNodes })
+      ? calculateNextRun(scheduleType || 'daily', scheduleConfig || {})
+      : null;
 
     const automation = await Automation.create({
       user: req.user.id,
@@ -1024,12 +1452,7 @@ router.post('/', async (req, res) => {
       prompt,
       scheduleType: scheduleType || 'daily',
       scheduleConfig: scheduleConfig || { hour: 8, minute: 0 },
-      workflowNodes: workflowNodes || {
-        trigger: 'schedule_cron',
-        inputs: [],
-        hitos: [],
-        outputs: ['email_report'],
-      },
+      workflowNodes: resolvedWorkflowNodes,
       emails: emails || [],
       status: 'active',
       nextRunAt
@@ -1151,8 +1574,14 @@ router.put('/:id', async (req, res) => {
       automation.status = status;
     }
 
-    if (automation.status === 'active') {
-      if (scheduleType !== undefined || scheduleConfig !== undefined || status === 'active' || !automation.nextRunAt) {
+    if (automation.status === 'active' && hasCronTrigger(automation)) {
+      if (
+        scheduleType !== undefined ||
+        scheduleConfig !== undefined ||
+        workflowNodes !== undefined ||
+        status === 'active' ||
+        !automation.nextRunAt
+      ) {
         automation.nextRunAt = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
       }
     } else {

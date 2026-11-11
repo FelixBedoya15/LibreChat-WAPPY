@@ -1,5 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
+const net = require('net');
+const { Readable } = require('stream');
 const { monitorEventLoopDelay } = require('perf_hooks');
 const { getAppConfig } = require('~/server/services/Config');
 const { getAgent } = require('~/models/Agent');
@@ -17,6 +20,538 @@ const {
   buildSurgicalLiveContextForWorkflow,
 } = require('~/server/services/workflowNodeInspectorService');
 const { normalizeAnyDateYmd } = require('~/server/routes/sgsst/birthDateHelper');
+
+/**
+ * Carga defensiva del pipeline universal de Informes Oficiales HTML de Aplicativos Hito (Worker B).
+ */
+let _cachedHitoReportPipeline = null;
+try {
+  _cachedHitoReportPipeline = require('./hitoAppReportPipelineService');
+} catch (_) {
+  _cachedHitoReportPipeline = null;
+}
+function getHitoReportPipeline() {
+  if (_cachedHitoReportPipeline) return _cachedHitoReportPipeline;
+  try {
+    _cachedHitoReportPipeline = require('./hitoAppReportPipelineService');
+    return _cachedHitoReportPipeline;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Extensión en tiempo de carga de esquemas Mongoose (AutomationLog y Automation) para soportar
+ * Compuerta Real de Aprobación Humana ('awaiting_approval', 'rejected', pendingApprovalPayload),
+ * metadatos de disparadores por evento y deduplicación por gmailMessageId sin tocar modelos compartidos.
+ */
+(function extendAutomationSchemasForRealWorkflows() {
+  try {
+    if (AutomationLog?.schema) {
+      const statusPath = AutomationLog.schema.path('status');
+      if (statusPath) {
+        for (const extraStatus of ['awaiting_approval', 'rejected']) {
+          if (Array.isArray(statusPath.enumValues) && !statusPath.enumValues.includes(extraStatus)) {
+            statusPath.enumValues.push(extraStatus);
+          }
+          if (Array.isArray(statusPath.options?.enum) && !statusPath.options.enum.includes(extraStatus)) {
+            statusPath.options.enum.push(extraStatus);
+          }
+        }
+      }
+      const extraLogFields = {};
+      if (!AutomationLog.schema.path('pendingApprovalPayload')) {
+        extraLogFields.pendingApprovalPayload = { type: mongoose.Schema.Types.Mixed, default: null };
+      }
+      if (!AutomationLog.schema.path('approvedAt')) {
+        extraLogFields.approvedAt = { type: Date, default: null };
+      }
+      if (!AutomationLog.schema.path('approvedBy')) {
+        extraLogFields.approvedBy = { type: String, default: '' };
+      }
+      if (!AutomationLog.schema.path('rejectedAt')) {
+        extraLogFields.rejectedAt = { type: Date, default: null };
+      }
+      if (!AutomationLog.schema.path('rejectedBy')) {
+        extraLogFields.rejectedBy = { type: String, default: '' };
+      }
+      if (!AutomationLog.schema.path('rejectedReason')) {
+        extraLogFields.rejectedReason = { type: String, default: '' };
+      }
+      if (!AutomationLog.schema.path('triggerSource')) {
+        extraLogFields.triggerSource = { type: String, default: 'schedule_cron' };
+      }
+      if (!AutomationLog.schema.path('gmailMessageId')) {
+        extraLogFields.gmailMessageId = { type: String, default: '', index: true };
+      }
+      if (!AutomationLog.schema.path('eventMetadata')) {
+        extraLogFields.eventMetadata = { type: mongoose.Schema.Types.Mixed, default: null };
+      }
+      if (!AutomationLog.schema.path('executionTrace')) {
+        extraLogFields.executionTrace = { type: mongoose.Schema.Types.Mixed, default: null };
+      }
+      if (Object.keys(extraLogFields).length > 0) {
+        AutomationLog.schema.add(extraLogFields);
+        if (AutomationLog.prototype) {
+          for (const fieldName of Object.keys(extraLogFields)) {
+            if (!(fieldName in AutomationLog.prototype)) {
+              Object.defineProperty(AutomationLog.prototype, fieldName, {
+                get() {
+                  return this.get(fieldName);
+                },
+                set(val) {
+                  this.set(fieldName, val);
+                },
+                configurable: true,
+                enumerable: true,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (Automation?.schema) {
+      const lastRunStatusPath = Automation.schema.path('lastRunStatus');
+      if (lastRunStatusPath) {
+        for (const extraStatus of ['awaiting_approval', 'rejected']) {
+          if (
+            Array.isArray(lastRunStatusPath.enumValues) &&
+            !lastRunStatusPath.enumValues.includes(extraStatus)
+          ) {
+            lastRunStatusPath.enumValues.push(extraStatus);
+          }
+          if (
+            Array.isArray(lastRunStatusPath.options?.enum) &&
+            !lastRunStatusPath.options.enum.includes(extraStatus)
+          ) {
+            lastRunStatusPath.options.enum.push(extraStatus);
+          }
+        }
+      }
+    }
+  } catch (schemaExtErr) {
+    console.warn('[AutomationScheduler] Aviso extendiendo esquemas de ejecución:', schemaExtErr?.message);
+  }
+})();
+
+/**
+ * Mapa canónico de alias de extract_sst_app hacia los IDs reales de Hitos SG-SST.
+ */
+const sstAppSourceAliasMap = {
+  gtc45: 'hito2_matriz_ipevar',
+  pesv: 'hito3_matriz_pesv',
+  '0312': 'hito1_diagnostico_0312',
+  diagnostico_0312: 'hito1_diagnostico_0312',
+  atel: 'hito7_investigacion_atel',
+  acpm: 'hito7_acpm',
+  quimicos: 'hito5_registro_quimico',
+  alturas: 'hito3_alturas',
+  epp: 'hito3_epp',
+  inspecciones: 'hito4_actos_condiciones',
+  capacitaciones: 'hito6_capacitaciones',
+  auditorias: 'hito7_auditoria',
+  trabajadores: 'extract_sst_workers',
+  cronograma: 'hito1_plan_trabajo',
+  legal: 'hito1_matriz_legal',
+};
+
+/**
+ * Lista explícita de conectores en construcción bloqueados (NUNCA incluye 'webhook_api').
+ */
+const BLOCKED_WORKFLOW_NODE_IDS = [
+  'trigger_whatsapp',
+  'extract_onedrive',
+  'one_drive',
+  'scraper_agy_pensiones_directo',
+  'scraper_agy_salud_rethus',
+];
+
+/**
+ * Determina si una automatización debe ser ejecutada por el reloj horario (`schedule_cron`).
+ * Retorna `true` SOLO si `!Array.isArray(automation?.workflowNodes?.triggers)`
+ * o `automation.workflowNodes.triggers.length === 0`
+ * o `automation.workflowNodes.triggers.includes('schedule_cron')`.
+ */
+function hasCronTrigger(automation) {
+  const triggers = automation?.workflowNodes?.triggers;
+  if (!Array.isArray(triggers) || triggers.length === 0) {
+    return true;
+  }
+  return triggers.includes('schedule_cron');
+}
+
+/**
+ * Mapea dinámicamente los nodos activos del lienzo (`triggers`, `extractors`, `inputs`, `hitos`, `outputs`, `customNodes`)
+ * hacia los nombres exactos de herramientas registradas en `handleTools.js`, sin duplicados.
+ */
+function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
+  const wf = workflowNodes && typeof workflowNodes === 'object' ? workflowNodes : {};
+  const triggers = Array.isArray(wf.triggers)
+    ? wf.triggers
+    : wf.trigger
+      ? [wf.trigger]
+      : [];
+  const extractors = Array.isArray(wf.extractors) ? wf.extractors : [];
+  const inputs = Array.isArray(wf.inputs) ? wf.inputs : [];
+  const hitos = Array.isArray(wf.hitos) ? wf.hitos : [];
+  const outputs = Array.isArray(wf.outputs) ? wf.outputs : [];
+  const customNodes = Array.isArray(wf?.canvasLayout?.customNodes)
+    ? wf.canvasLayout.customNodes
+    : Array.isArray(wf.customNodes)
+      ? wf.customNodes
+      : [];
+  const nodeConfigs = wf?.canvasLayout?.nodeConfigs || wf?.nodeConfigs || {};
+
+  // Resolver alias de extract_sst_app si está configurado
+  const resolvedSstAppTargets = [];
+  if (extractors.includes('extract_sst_app')) {
+    const extCfg =
+      nodeConfigs.extractor_extract_sst_app ||
+      nodeConfigs.ext_extract_sst_app ||
+      nodeConfigs.extract_sst_app ||
+      {};
+    if (extCfg.sstAppSourceId) {
+      const mapped =
+        sstAppSourceAliasMap[String(extCfg.sstAppSourceId).toLowerCase().trim()] ||
+        String(extCfg.sstAppSourceId).trim();
+      if (mapped) resolvedSstAppTargets.push(mapped);
+    }
+  }
+
+  const allTokens = new Set(
+    [
+      ...triggers,
+      ...extractors,
+      ...inputs,
+      ...hitos,
+      ...outputs,
+      ...resolvedSstAppTargets,
+      ...customNodes.flatMap((cn) =>
+        cn && typeof cn === 'object' ? [cn.id, cn.key, cn.nodeType] : [],
+      ),
+    ]
+      .filter(Boolean)
+      .map((s) => String(s).trim()),
+  );
+
+  const requiredTools = new Set();
+
+  const hasAnyStartsWith = (prefix) => {
+    for (const tok of allTokens) {
+      if (tok.startsWith(prefix)) return true;
+    }
+    return false;
+  };
+
+  if (
+    hitos.length > 0 ||
+    resolvedSstAppTargets.some((t) => t.startsWith('hito')) ||
+    hasAnyStartsWith('somos_sst_') ||
+    hasAnyStartsWith('extract_sst_') ||
+    allTokens.has('somos_sst')
+  ) {
+    requiredTools.add('somos_sst');
+  }
+
+  if (allTokens.has('hito2_matriz_ipevar') || allTokens.has('matriz_ipevar')) {
+    requiredTools.add('matriz_ipevar');
+  }
+  if (allTokens.has('hito3_matriz_pesv') || allTokens.has('matriz_pesv')) {
+    requiredTools.add('matriz_pesv');
+  }
+  if (allTokens.has('hito3_quimicos_sga') || allTokens.has('matriz_compatibilidad')) {
+    requiredTools.add('matriz_compatibilidad');
+  }
+  if (allTokens.has('hito4_psicosocial') || allTokens.has('consultar_analitica_psicosocial')) {
+    requiredTools.add('consultar_analitica_psicosocial');
+  }
+  if (
+    allTokens.has('hito4_actos_condiciones') ||
+    allTokens.has('consultar_analitica_actos_condiciones')
+  ) {
+    requiredTools.add('consultar_analitica_actos_condiciones');
+  }
+  if (allTokens.has('extract_drive') || allTokens.has('google_drive')) {
+    requiredTools.add('google_drive');
+  }
+  if (
+    allTokens.has('extract_gmail') ||
+    allTokens.has('google_gmail') ||
+    allTokens.has('trigger_email')
+  ) {
+    requiredTools.add('google_gmail');
+  }
+  if (allTokens.has('google_docs')) {
+    requiredTools.add('google_docs');
+  }
+  if (allTokens.has('google_sheets')) {
+    requiredTools.add('google_sheets');
+  }
+  if (allTokens.has('google_slides')) {
+    requiredTools.add('google_slides');
+  }
+  if (allTokens.has('google_calendar')) {
+    requiredTools.add('google_calendar');
+  }
+  if (allTokens.has('consultar_pubchem_quimico') || allTokens.has('pubchem_api')) {
+    requiredTools.add('pubchem_api');
+  }
+  if (allTokens.has('extract_web_search') || allTokens.has('web_search')) {
+    requiredTools.add('web_search');
+  }
+
+  return Array.from(requiredTools);
+}
+
+/**
+ * Valida si una dirección IP (IPv4 o IPv6) pertenece a rangos privados, loopback, link-local o reservados (anti-SSRF).
+ */
+function isPrivateOrReservedIp(ipStr = '') {
+  const clean = String(ipStr || '').trim().replace(/^\[|\]$/g, '').toLowerCase();
+  if (!clean) return true;
+  if (
+    clean === '::1' ||
+    clean === '::' ||
+    clean === '0:0:0:0:0:0:0:1' ||
+    clean === '0:0:0:0:0:0:0:0'
+  ) {
+    return true;
+  }
+  if (clean.startsWith('::ffff:')) {
+    return isPrivateOrReservedIp(clean.slice(7));
+  }
+  const ipVersion = net.isIP(clean);
+  if (ipVersion === 4) {
+    const parts = clean.split('.').map((n) => parseInt(n, 10));
+    if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) {
+      return true;
+    }
+    const [a, b] = parts;
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // Carrier-grade NAT
+    if (a >= 224) return true; // Multicast / reserved
+    return false;
+  }
+  if (ipVersion === 6) {
+    if (/^f[cd][0-9a-f]{2}:/i.test(clean)) return true; // fc00::/7 Unique Local
+    if (/^fe[89ab][0-9a-f]:/i.test(clean)) return true; // fe80::/10 Link-Local
+    if (/^ff[0-9a-f]{2}:/i.test(clean)) return true; // Multicast
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Verifica sincrónicamente que la URL sea HTTPS pública y no apunte a localhost ni subredes internas.
+ */
+function isSafePublicHttpsUrl(rawUrl = '') {
+  try {
+    const u = new URL(String(rawUrl || '').trim());
+    if (u.protocol !== 'https:') return false;
+    const host = String(u.hostname || '').trim().replace(/^\[|\]$/g, '').toLowerCase();
+    if (!host) return false;
+    if (
+      host === 'localhost' ||
+      host.endsWith('.localhost') ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      host === 'metadata.google.internal' ||
+      host === '0.0.0.0' ||
+      host === '::1'
+    ) {
+      return false;
+    }
+    if (net.isIP(host)) {
+      return !isPrivateOrReservedIp(host);
+    }
+    return host.includes('.');
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Ejecuta una pre-consulta HTTP GET segura sobre `webhook_api` (solo `https://` público, timeout 8s, anti-SSRF con DNS check).
+ */
+async function fetchSafeWebhookApiData(endpointUrl = '', extraHeaders = {}) {
+  const cleanUrl = String(endpointUrl || '').trim();
+  if (!isSafePublicHttpsUrl(cleanUrl)) {
+    return {
+      ok: false,
+      status: 0,
+      error:
+        'URL bloqueada por seguridad SSRF: solo se permiten URLs públicas con protocolo https:// (se bloquean localhost e IPs privadas).',
+      previewText: '',
+      parsedJson: null,
+    };
+  }
+  try {
+    const parsed = new URL(cleanUrl);
+    const host = parsed.hostname.replace(/^\[|\]$/g, '');
+    if (!net.isIP(host)) {
+      const resolved = await dns.promises.lookup(host, { all: true });
+      if (!Array.isArray(resolved) || resolved.length === 0) {
+        return {
+          ok: false,
+          status: 0,
+          error: `No fue posible resolver DNS para ${host}.`,
+          previewText: '',
+          parsedJson: null,
+        };
+      }
+      for (const entry of resolved) {
+        if (isPrivateOrReservedIp(entry.address)) {
+          return {
+            ok: false,
+            status: 0,
+            error: `Resolución DNS bloqueada por protección SSRF (${host} -> IP interna/reservada).`,
+            previewText: '',
+            parsedJson: null,
+          };
+        }
+      }
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let resp;
+    try {
+      const safeHeaders = {
+        Accept: 'application/json, text/plain;q=0.9, */*;q=0.8',
+        'User-Agent': 'Wappy-SGSST-WorkflowEngine/1.0',
+      };
+      if (extraHeaders && typeof extraHeaders === 'object' && !Array.isArray(extraHeaders)) {
+        for (const [hk, hv] of Object.entries(extraHeaders)) {
+          if (hk && typeof hv === 'string' && !/^(host|cookie)$/i.test(hk)) {
+            safeHeaders[hk] = hv;
+          }
+        }
+      }
+      resp = await fetch(cleanUrl, {
+        method: 'GET',
+        headers: safeHeaders,
+        redirect: 'error',
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const contentType = String(resp.headers.get('content-type') || '');
+    const rawBody = await resp.text();
+    const previewText = String(rawBody || '').slice(0, 10000);
+    let parsedJson = null;
+    if (contentType.includes('json') || /^[\s]*[{[]/.test(previewText)) {
+      try {
+        parsedJson = JSON.parse(rawBody);
+      } catch (_) {}
+    }
+    return {
+      ok: resp.ok,
+      status: resp.status,
+      contentType,
+      previewText,
+      parsedJson,
+      error: resp.ok ? null : `HTTP ${resp.status}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      contentType: '',
+      previewText: '',
+      parsedJson: null,
+      error:
+        err?.name === 'AbortError'
+          ? 'Timeout de 8 segundos alcanzado consultando el endpoint HTTPS.'
+          : err?.message || 'Error consultando endpoint HTTPS externo.',
+    };
+  }
+}
+
+/**
+ * Obtiene un cliente OAuth2 de Google autenticado y aislado estrictamente por `(userId, companyId)`
+ * (usado por pre-extractores de Drive y post-procesadores Google Docs, Sheets, Calendar y Slides).
+ */
+async function getCompanyGoogleOAuthClient(userId, companyId) {
+  try {
+    if (!userId) return null;
+    const { google } = require('googleapis');
+    const { getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelper');
+    const uid = String(userId);
+    const cid = companyId && String(companyId) !== 'DEFAULT' ? String(companyId) : null;
+
+    const accessToken = await getScopedAuthValue(uid, cid, 'GOOGLE_DRIVE_ACCESS_TOKEN', false);
+    const refreshToken = await getScopedAuthValue(uid, cid, 'GOOGLE_DRIVE_REFRESH_TOKEN', false);
+    const expiryStr = await getScopedAuthValue(uid, cid, 'GOOGLE_DRIVE_EXPIRY', false);
+
+    if (!accessToken && !refreshToken) {
+      return null;
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${process.env.DOMAIN_SERVER || 'http://localhost:3080'}/api/sgsst/google-drive/callback`,
+    );
+
+    const expiry = expiryStr ? Number(expiryStr) : null;
+    oauth2Client.setCredentials({
+      access_token: accessToken || undefined,
+      refresh_token: refreshToken || undefined,
+      expiry_date: expiry || undefined,
+    });
+
+    if ((!accessToken || (expiry && expiry - Date.now() < 60000)) && refreshToken) {
+      try {
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        oauth2Client.setCredentials(credentials);
+        if (credentials.access_token) {
+          await updateScopedAuthValue(uid, cid, 'GOOGLE_DRIVE_ACCESS_TOKEN', credentials.access_token);
+        }
+        if (credentials.expiry_date) {
+          await updateScopedAuthValue(uid, cid, 'GOOGLE_DRIVE_EXPIRY', String(credentials.expiry_date));
+        }
+      } catch (refreshErr) {
+        console.warn('[AutomationScheduler] Aviso refrescando OAuth Google:', refreshErr?.message);
+        if (!accessToken) return null;
+      }
+    }
+
+    return { oauth2Client, google };
+  } catch (err) {
+    console.warn('[AutomationScheduler] Error inicializando Google OAuth Client:', err?.message);
+    return null;
+  }
+}
+
+/** Coordenadas de ciudades principales de Colombia para pronostico_clima_sst (Open-Meteo, sin API key). */
+const COLOMBIAN_CITIES_COORDS = {
+  bogota: { name: 'Bogotá D.C.', lat: 4.711, lon: -74.0721 },
+  medellin: { name: 'Medellín', lat: 6.2442, lon: -75.5812 },
+  cali: { name: 'Cali', lat: 3.4516, lon: -76.532 },
+  barranquilla: { name: 'Barranquilla', lat: 10.9685, lon: -74.7813 },
+  cartagena: { name: 'Cartagena', lat: 10.391, lon: -75.4794 },
+  bucaramanga: { name: 'Bucaramanga', lat: 7.1193, lon: -73.1227 },
+  pereira: { name: 'Pereira', lat: 4.8133, lon: -75.6961 },
+  manizales: { name: 'Manizales', lat: 5.0703, lon: -75.5138 },
+  cucuta: { name: 'Cúcuta', lat: 7.8939, lon: -72.5078 },
+  ibague: { name: 'Ibagué', lat: 4.4389, lon: -75.2322 },
+  villavicencio: { name: 'Villavicencio', lat: 4.142, lon: -73.6266 },
+  santamarta: { name: 'Santa Marta', lat: 11.2408, lon: -74.199 },
+  neiva: { name: 'Neiva', lat: 2.9273, lon: -75.2819 },
+  pasto: { name: 'Pasto', lat: 1.2136, lon: -77.2811 },
+  armenia: { name: 'Armenia', lat: 4.5339, lon: -75.6811 },
+  monteria: { name: 'Montería', lat: 8.7479, lon: -75.8814 },
+  valledupar: { name: 'Valledupar', lat: 10.4631, lon: -73.2532 },
+  popayan: { name: 'Popayán', lat: 2.4448, lon: -76.6147 },
+  tunja: { name: 'Tunja', lat: 5.5353, lon: -73.3678 },
+  yopal: { name: 'Yopal', lat: 5.3378, lon: -72.3959 },
+};
 
 /**
  * Resuelve determinísticamente a qué rama ('yes' | 'no') pertenece un nodo de salida
@@ -405,16 +940,14 @@ function stripAgentInlineEvidenceNoise(markdownText, evidences = []) {
 function isUnderConstructionNode(nodeKey = '', nodeId = '', customNodeObj = null) {
   if (customNodeObj && customNodeObj.underConstruction === true) return true;
   const hay = `${nodeKey || ''} ${nodeId || ''} ${customNodeObj?.id || ''} ${customNodeObj?.key || ''} ${customNodeObj?.nodeType || ''}`.toLowerCase();
+  if (hay.includes('webhook_api')) return false;
   return (
-    hay.includes('scraper_agy_pensiones_directo') ||
+    BLOCKED_WORKFLOW_NODE_IDS.some((blockedId) => hay.includes(blockedId)) ||
     hay.includes('custom_scraper_agy_pensiones') ||
     hay.includes('pensiones_directo') ||
-    hay.includes('scraper_agy_salud_rethus') ||
     hay.includes('custom_scraper_agy_salud_rethus') ||
     hay.includes('salud_rethus') ||
-    hay.includes('extract_onedrive') ||
-    /\bone_drive\b/.test(hay) ||
-    hay.includes('trigger_whatsapp')
+    /\bone_drive\b/.test(hay)
   );
 }
 
@@ -713,9 +1246,1476 @@ function calculateNextRun(scheduleType, config) {
   return nextUtc;
 }
 
-async function runAutomation(automation, isManual = false) {
+/**
+ * Parsea listas de correos desde cadena separada por comas/punto y coma o arreglo, devolviendo correos válidos deduplicados.
+ */
+function parseEmailList(rawInput) {
+  if (!rawInput) return [];
+  const items = Array.isArray(rawInput)
+    ? rawInput
+    : String(rawInput)
+        .split(/[,;\n]+/)
+        .map((s) => s.trim());
+  const seen = new Set();
+  const out = [];
+  for (const item of items) {
+    const clean = String(item || '').trim();
+    if (clean && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean) && !seen.has(clean.toLowerCase())) {
+      seen.add(clean.toLowerCase());
+      out.push(clean);
+    }
+  }
+  return out;
+}
+
+/**
+ * Construye pre-extracciones reales (`extract_drive`, `extract_gmail`, `extract_web_search`, `webhook_api`),
+ * resúmenes en vivo de entradas especiales (`pronostico_clima_sst`, `somos_sst_perfiles_cargo`, `somos_sst_epp`,
+ * `somos_sst_examenes`, `cursos_lms`) y procesamiento estructurado de `logic_merge` y `logic_loop`.
+ */
+async function buildLivePreExtractionAndLogicBlocks({
+  automation,
+  reqUser,
+  targetCompanyIdStr,
+  automationCompany,
+  effectiveAiModel,
+}) {
+  const wf = automation?.workflowNodes || {};
+  const extractors = Array.isArray(wf.extractors) ? wf.extractors : [];
+  const inputs = Array.isArray(wf.inputs) ? wf.inputs : [];
+  const hitos = Array.isArray(wf.hitos) ? wf.hitos : [];
+  const nodeConfigs = wf?.canvasLayout?.nodeConfigs || wf?.nodeConfigs || {};
+  const customNodes = Array.isArray(wf?.canvasLayout?.customNodes)
+    ? wf.canvasLayout.customNodes
+    : Array.isArray(wf.customNodes)
+      ? wf.customNodes
+      : [];
+  const logicNodes = Array.isArray(wf?.canvasLayout?.logicNodes)
+    ? wf.canvasLayout.logicNodes
+    : [];
+
+  const getNodeCfg = (...keys) => {
+    for (const k of keys) {
+      if (k && nodeConfigs[k] && typeof nodeConfigs[k] === 'object') {
+        return nodeConfigs[k];
+      }
+    }
+    return {};
+  };
+
+  const blocks = [];
+  const traceMeta = {
+    driveFilesPrelisted: 0,
+    gmailMessagesPreextracted: 0,
+    webSearchExecuted: false,
+    webhookEndpointsFetched: 0,
+    mergedRecordsCount: 0,
+    batchesProcessed: 0,
+  };
+
+  const userIdStr = String(automation?.user || reqUser?.id || '');
+  const companyName = automationCompany?.companyName || 'Empresa Activa';
+
+  // 1. Pre-extracción real de Google Drive (`extract_drive` / `driveFolderName`)
+  const driveCfg = getNodeCfg(
+    'extractor_extract_drive',
+    'ext_extract_drive',
+    'extract_drive',
+    'tool_inputs_google_drive',
+    'google_drive',
+  );
+  if (
+    extractors.includes('extract_drive') ||
+    (inputs.includes('google_drive') && driveCfg?.driveFolderName)
+  ) {
+    try {
+      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      const folderName = String(driveCfg?.driveFolderName || '').trim();
+      const fileTypeFilter = String(driveCfg?.fileTypeFilter || 'all').toLowerCase().trim();
+      const maxItems = Math.min(40, Math.max(1, parseInt(driveCfg?.maxItems, 10) || 15));
+
+      if (!oauthCtx) {
+        blocks.push(
+          `📂 [PRE-EXTRACCIÓN GOOGLE DRIVE (extract_drive${folderName ? ` — Carpeta: "${folderName}"` : ''})]: Google Drive NO está vinculado por OAuth para "${companyName}". Informa con transparencia que requiere conectar Google Drive en Integraciones.`,
+        );
+      } else {
+        const drive = oauthCtx.google.drive({ version: 'v3', auth: oauthCtx.oauth2Client });
+        const buildMimeClause = () => {
+          if (!fileTypeFilter || fileTypeFilter === 'all') return '';
+          if (fileTypeFilter.includes('pdf')) return ` and mimeType = 'application/pdf'`;
+          if (fileTypeFilter.includes('sheet') || fileTypeFilter.includes('excel') || fileTypeFilter.includes('xlsx')) {
+            return ` and (mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or mimeType = 'text/csv')`;
+          }
+          if (fileTypeFilter.includes('doc') || fileTypeFilter.includes('word')) {
+            return ` and (mimeType = 'application/vnd.google-apps.document' or mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')`;
+          }
+          if (fileTypeFilter.includes('image') || fileTypeFilter.includes('img') || fileTypeFilter.includes('foto')) {
+            return ` and mimeType contains 'image/'`;
+          }
+          return '';
+        };
+
+        let targetFiles = [];
+        let matchedFolderInfo = '';
+        if (folderName) {
+          const escapedFolder = folderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const folderRes = await drive.files.list({
+            q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name contains '${escapedFolder}'`,
+            pageSize: 5,
+            orderBy: 'modifiedTime desc',
+            fields: 'files(id, name, modifiedTime)',
+          });
+          const folders = Array.isArray(folderRes?.data?.files) ? folderRes.data.files : [];
+          if (folders.length > 0) {
+            const exactFolder =
+              folders.find((f) => String(f.name || '').toLowerCase() === folderName.toLowerCase()) ||
+              folders[0];
+            matchedFolderInfo = `Carpeta encontrada: "${exactFolder.name}" (folderId: ${exactFolder.id})`;
+            const filesRes = await drive.files.list({
+              q: `'${exactFolder.id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}`,
+              pageSize: maxItems,
+              orderBy: 'modifiedTime desc',
+              fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
+            });
+            targetFiles = Array.isArray(filesRes?.data?.files) ? filesRes.data.files : [];
+          } else {
+            matchedFolderInfo = `No se halló carpeta llamada "${folderName}"; listando coincidencias directas por nombre`;
+            const fallbackRes = await drive.files.list({
+              q: `trashed = false and mimeType != 'application/vnd.google-apps.folder' and name contains '${escapedFolder}'${buildMimeClause()}`,
+              pageSize: maxItems,
+              orderBy: 'modifiedTime desc',
+              fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
+            });
+            targetFiles = Array.isArray(fallbackRes?.data?.files) ? fallbackRes.data.files : [];
+          }
+        } else {
+          const recentRes = await drive.files.list({
+            q: `trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}`,
+            pageSize: maxItems,
+            orderBy: 'modifiedTime desc',
+            fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
+          });
+          targetFiles = Array.isArray(recentRes?.data?.files) ? recentRes.data.files : [];
+        }
+
+        traceMeta.driveFilesPrelisted = targetFiles.length;
+        if (targetFiles.length > 0) {
+          const fileLines = targetFiles.map(
+            (f, idx) =>
+              `  ${idx + 1}. "${f.name}" | fileId: "${f.id}" | mimeType: ${f.mimeType} | Modificado: ${f.modifiedTime || 'N/A'}`,
+          );
+          blocks.push(
+            `📂 [ARCHIVOS REALES PRE-LISTADOS EN GOOGLE DRIVE${folderName ? ` — Carpeta "${folderName}"` : ''} (${matchedFolderInfo || 'Raíz / Recientes'})]:\n` +
+              `${fileLines.join('\n')}\n` +
+              `👉 INSTRUCCIÓN DIRECTA: Invoca la herramienta "google_drive" (action: "read_document_content" o "readFile") pasando directamente los "fileId" exactos de arriba sin adivinar IDs ni rutas.`,
+          );
+        } else {
+          blocks.push(
+            `📂 [PRE-EXTRACCIÓN GOOGLE DRIVE${folderName ? ` — Carpeta "${folderName}"` : ''}]: Conectado correctamente (${matchedFolderInfo || 'Drive activo'}), pero existen 0 archivos que coincidan actualmente.`,
+          );
+        }
+      }
+    } catch (driveErr) {
+      console.warn('[AutomationScheduler] Aviso pre-listando Google Drive:', driveErr?.message);
+    }
+  }
+
+  // 2. Pre-extracción real de Gmail (`extract_gmail`)
+  const gmailCfg = getNodeCfg(
+    'extractor_extract_gmail',
+    'ext_extract_gmail',
+    'extract_gmail',
+    'tool_inputs_google_gmail',
+    'google_gmail',
+  );
+  if (extractors.includes('extract_gmail')) {
+    try {
+      const { listEmails, readEmail } = require('./googleGmail');
+      const subjectFilter = String(gmailCfg?.emailSubjectFilter || '').trim();
+      const maxItems = Math.min(15, Math.max(1, parseInt(gmailCfg?.maxItems, 10) || 6));
+      const gmailQuery = subjectFilter ? `subject:("${subjectFilter.replace(/"/g, '')}")` : 'newer_than:7d';
+      const emails = await listEmails(
+        userIdStr,
+        { query: gmailQuery, maxResults: maxItems },
+        targetCompanyIdStr,
+      );
+      traceMeta.gmailMessagesPreextracted = Array.isArray(emails) ? emails.length : 0;
+      if (Array.isArray(emails) && emails.length > 0) {
+        const detailed = [];
+        for (const em of emails.slice(0, 5)) {
+          try {
+            const full = await readEmail(userIdStr, em.id, targetCompanyIdStr);
+            detailed.push(
+              `  • [messageId: ${em.id}] De: ${full.from || em.from} | Asunto: "${full.subject || em.subject}" | Fecha: ${full.date || em.date}\n    Extracto: ${String(full.body || full.snippet || em.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 500)}`,
+            );
+          } catch (_) {
+            detailed.push(
+              `  • [messageId: ${em.id}] De: ${em.from} | Asunto: "${em.subject}" | Fecha: ${em.date} | Extracto: ${String(em.snippet || '').slice(0, 300)}`,
+            );
+          }
+        }
+        blocks.push(
+          `📧 [CORREOS REALES PRE-EXTRAÍDOS DE GMAIL (extract_gmail${subjectFilter ? ` — Filtro asunto: "${subjectFilter}"` : ''})]:\n${detailed.join('\n')}`,
+        );
+      } else {
+        blocks.push(
+          `📧 [PRE-EXTRACCIÓN GMAIL]: Bandeja consultada correctamente (${gmailQuery}), 0 mensajes coincidentes.`,
+        );
+      }
+    } catch (gmErr) {
+      blocks.push(
+        `📧 [PRE-EXTRACCIÓN GMAIL]: Gmail OAuth no conectado o expirado para "${companyName}" (${gmErr?.message || 'sin sesión'}).`,
+      );
+    }
+  }
+
+  // 3. Pre-ejecución de Búsqueda Web Fundamentada (`extract_web_search`)
+  if (extractors.includes('extract_web_search')) {
+    try {
+      const wsCfg = getNodeCfg('extractor_extract_web_search', 'ext_extract_web_search', 'extract_web_search');
+      const searchQueryStr = String(
+        wsCfg?.searchQuery ||
+          wsCfg?.targetUrl ||
+          wsCfg?.customInstruction ||
+          automation?.prompt ||
+          `Normativa vigente SG-SST Colombia aplicable a ${companyName}`,
+      )
+        .trim()
+        .slice(0, 300);
+      const searchExec = await executeSandboxAgentCall({
+        reqUser,
+        agentDoc: {
+          name: 'Buscador Normativo Web WAPPY',
+          model: effectiveAiModel,
+          instructions:
+            'Eres un motor de búsqueda normativa y técnica SST en Colombia (MinTrabajo, ARL, Decreto 1072/2015, Res. 0312/2019, Res. 4272/2021, PESV). Entrega de 3 a 5 hallazgos verificados, concisos y con fuente oficial.',
+        },
+        fullPrompt: `Consulta en vivo sobre: "${searchQueryStr}". Resume los hallazgos oficiales más recientes aplicables a "${companyName}".`,
+        useWebSearch: true,
+      });
+      if (searchExec?.text) {
+        traceMeta.webSearchExecuted = true;
+        blocks.push(
+          `🌐 [BÚSQUEDA WEB FUNDAMENTADA EN VIVO (extract_web_search — ${effectiveAiModel})]:\n${searchExec.text.slice(0, 2200)}`,
+        );
+      }
+    } catch (wsErr) {
+      console.warn('[AutomationScheduler] Aviso en extract_web_search:', wsErr?.message);
+    }
+  }
+
+  // 4. Pre-consulta HTTP segura para `webhook_api` (8s timeout + anti-SSRF)
+  const webhookApiCandidates = [];
+  if (inputs.includes('webhook_api') || extractors.includes('webhook_api')) {
+    const whCfg = getNodeCfg(
+      'tool_inputs_webhook_api',
+      'extractor_webhook_api',
+      'ext_webhook_api',
+      'webhook_api',
+    );
+    if (whCfg?.endpointUrl || whCfg?.targetUrl) {
+      webhookApiCandidates.push({
+        label: whCfg.customTitle || 'Conector API HTTPS (webhook_api)',
+        endpointUrl: whCfg.endpointUrl || whCfg.targetUrl,
+        headers: whCfg.headers || {},
+      });
+    }
+  }
+  for (const cn of customNodes) {
+    if (!cn) continue;
+    const cnHay = `${cn.id || ''} ${cn.key || ''} ${cn.nodeType || ''}`.toLowerCase();
+    if (cnHay.includes('webhook_api')) {
+      const cnCfg = { ...(cn.config || {}), ...(nodeConfigs[cn.key || cn.id] || {}) };
+      const ep = cnCfg.endpointUrl || cnCfg.targetUrl || cn.targetUrl;
+      if (ep) {
+        webhookApiCandidates.push({
+          label: cn.title || 'Conector API HTTPS',
+          endpointUrl: ep,
+          headers: cnCfg.headers || {},
+        });
+      }
+    }
+  }
+  for (const cand of webhookApiCandidates.slice(0, 3)) {
+    const whRes = await fetchSafeWebhookApiData(cand.endpointUrl, cand.headers);
+    if (whRes.ok) {
+      traceMeta.webhookEndpointsFetched += 1;
+      blocks.push(
+        `🔌 [RESPUESTA EN VIVO API EXTERNA (${cand.label} — HTTP ${whRes.status})]:\n${whRes.previewText.slice(0, 3500)}`,
+      );
+    } else {
+      blocks.push(
+        `🔌 [AVISO CONECTOR API EXTERNA (${cand.label})]: ${whRes.error || 'No fue posible consultar el endpoint.'}`,
+      );
+    }
+  }
+
+  // 5. Resúmenes reales en vivo para entradas especiales (`inputs`)
+  if (inputs.includes('pronostico_clima_sst')) {
+    try {
+      const rawCity = String(automationCompany?.city || 'Bogotá').trim();
+      const normCity = rawCity
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z]/g, '');
+      const coords =
+        Object.entries(COLOMBIAN_CITIES_COORDS).find(
+          ([k]) => normCity.includes(k) || k.includes(normCity),
+        )?.[1] || COLOMBIAN_CITIES_COORDS.bogota;
+      const ctrl = new AbortController();
+      const tId = setTimeout(() => ctrl.abort(), 5000);
+      try {
+        const meteoResp = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,wind_gusts_10m&daily=precipitation_probability_max,wind_speed_10m_max&timezone=America%2FBogota&forecast_days=1`,
+          { signal: ctrl.signal },
+        );
+        if (meteoResp.ok) {
+          const mJson = await meteoResp.json();
+          const cur = mJson?.current || {};
+          const daily = mJson?.daily || {};
+          const windMax = Math.max(
+            Number(cur.wind_speed_10m || 0),
+            Number(cur.wind_gusts_10m || 0),
+            Number(daily.wind_speed_10m_max?.[0] || 0),
+          );
+          const rainProb = Number(daily.precipitation_probability_max?.[0] || 0);
+          const alturasAlert =
+            windMax >= 35 || Number(cur.precipitation || 0) > 1.5
+              ? '⚠️ ALERTA CRÍTICA RES. 4272/2021: Suspender o restringir izajes y trabajo en alturas a la intemperie.'
+              : '✅ Condiciones meteorológicas operativas normales para campo.';
+          blocks.push(
+            `🌦️ [PRONÓSTICO CLIMÁTICO SST EN VIVO (${coords.name} — Open-Meteo)]: Temperatura: ${cur.temperature_2m ?? 'N/A'}°C | Humedad: ${cur.relative_humidity_2m ?? 'N/A'}% | Precipitación actual: ${cur.precipitation ?? 0} mm (Prob. lluvia hoy: ${rainProb}%) | Viento: ${cur.wind_speed_10m ?? 0} km/h (Ráfagas máx: ${windMax} km/h) | Dictamen Alturas/Campo: ${alturasAlert}`,
+          );
+        }
+      } finally {
+        clearTimeout(tId);
+      }
+    } catch (wErr) {
+      console.warn('[AutomationScheduler] Aviso pronostico_clima_sst:', wErr?.message);
+    }
+  }
+
+  if (inputs.includes('somos_sst_perfiles_cargo') && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+    try {
+      const PerfilCargoModel = mongoose.models.PerfilCargoData;
+      const doc = PerfilCargoModel
+        ? await PerfilCargoModel.findOne({ companyId: targetCompanyIdStr }).lean()
+        : await mongoose.connection.db
+            .collection('perfilcargodatas')
+            .findOne({ companyId: new mongoose.Types.ObjectId(targetCompanyIdStr) });
+      const perfiles = Array.isArray(doc?.perfilesList) ? doc.perfilesList : [];
+      if (perfiles.length > 0) {
+        const lines = perfiles.slice(0, 25).map(
+          (p, i) =>
+            `  ${i + 1}. Cargo: "${p.nombreCargo || p.cargo || 'Sin nombre'}" | Área: ${p.area || 'General'} | Riesgos clave: ${p.peligrosPrincipales || p.riesgos || 'N/A'} | Exámenes/EPP: ${p.examenesMedicos || p.eppRequerido || 'Según matriz'}`,
+        );
+        blocks.push(
+          `👔 [PERFILES DE CARGO Y PROFESIOLOGÍA EN VIVO (${perfiles.length} cargo(s))]:\n${lines.join('\n')}`,
+        );
+      } else {
+        blocks.push(`👔 [PERFILES DE CARGO EN VIVO]: 0 perfiles de cargo registrados actualmente para "${companyName}".`);
+      }
+    } catch (_) {}
+  }
+
+  if (inputs.includes('somos_sst_epp') && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+    try {
+      const SgsstEppInventory = require('~/models/SgsstEppInventory');
+      const SgsstEppSolicitud = require('~/models/SgsstEppSolicitud');
+      const [invItems, pendingReqs] = await Promise.all([
+        SgsstEppInventory.find({ companyId: targetCompanyIdStr }).limit(40).lean(),
+        SgsstEppSolicitud.find({ companyId: targetCompanyIdStr }).sort({ createdAt: -1 }).limit(15).lean(),
+      ]);
+      const lowStock = (invItems || []).filter(
+        (it) => Number(it.stockActual || 0) <= Number(it.stockMinimo || 3),
+      );
+      const pendingOnly = (pendingReqs || []).filter((r) => r.estado === 'pendiente');
+      const eppLines = [
+        `  • Inventario EPP: ${(invItems || []).length} referencia(s) registradas | En stock crítico/agotado: ${lowStock.length}`,
+        `  • Solicitudes QR de EPP recientes: ${(pendingReqs || []).length} (${pendingOnly.length} pendiente(s) de entrega)`,
+      ];
+      for (const reqItem of pendingOnly.slice(0, 8)) {
+        const itemNames = (reqItem.items || []).map((i) => `${i.nombre} x${i.cantidad || 1}`).join(', ');
+        eppLines.push(
+          `    - Pendiente: ${reqItem.nombreTrabajador} (CC: ${reqItem.documento}) solicita [${itemNames}] — Urgencia: ${reqItem.urgencia || 'Media'}`,
+        );
+      }
+      blocks.push(`🦺 [GESTIÓN DE DOTACIÓN Y EPP EN VIVO (somos_sst_epp)]:\n${eppLines.join('\n')}`);
+    } catch (_) {}
+  }
+
+  if (inputs.includes('somos_sst_examenes') && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+    try {
+      const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+      const PerfilModel = mongoose.models.PerfilSociodemograficoData;
+      const [workers, perfilDoc] = await Promise.all([
+        SgsstWorker.find({ companyId: targetCompanyIdStr }).limit(100).lean(),
+        PerfilModel ? PerfilModel.findOne({ companyId: targetCompanyIdStr }).lean() : null,
+      ]);
+      const socioList = Array.isArray(perfilDoc?.trabajadores) ? perfilDoc.trabajadores : [];
+      const sourceRows = socioList.length > 0 ? socioList : workers || [];
+      const emoLines = sourceRows.slice(0, 40).map((w, idx) => {
+        const docNum = w.identificacion || w.documento || 'N/A';
+        const fechaEmo = w.fechaExamenMedico || w.ultimoExamenMedico || 'Sin registro';
+        const rec = w.recomendacionesMedicas || (Array.isArray(w.fitAlerts) ? w.fitAlerts.join(', ') : '') || 'Sin restricciones';
+        return `  ${idx + 1}. ${w.nombre || 'Colaborador'} (CC: ${docNum}, Cargo: ${w.cargo || 'N/A'}) — Último EMO: ${fechaEmo} | Concepto/Recomendaciones: ${String(rec).slice(0, 140)}`;
+      });
+      blocks.push(
+        `🩺 [SEGUIMIENTO EXÁMENES MÉDICOS OCUPACIONALES EN VIVO (${sourceRows.length} colaborador(es))]:\n${
+          emoLines.length > 0 ? emoLines.join('\n') : '  • Sin registros de exámenes médicos ocupacionales cargados.'
+        }`,
+      );
+    } catch (_) {}
+  }
+
+  if (inputs.includes('cursos_lms')) {
+    try {
+      const Course = mongoose.models.Course || require('~/models/Course');
+      const UserProgress = mongoose.models.UserProgress || require('~/models/UserProgress');
+      const companyFilter =
+        targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+          ? { $or: [{ companyId: targetCompanyIdStr }, { isPublished: true }] }
+          : { isPublished: true };
+      const [courses, progresses] = await Promise.all([
+        Course.find(companyFilter).limit(20).select('title category lessons isPublished').lean(),
+        targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+          ? UserProgress.find({ companyId: targetCompanyIdStr }).limit(100).lean()
+          : [],
+      ]);
+      const completedCount = (progresses || []).filter((p) => p.isCourseCompleted).length;
+      const courseLines = (courses || []).slice(0, 12).map(
+        (c, idx) =>
+          `  ${idx + 1}. Curso LMS: "${c.title}" | Lecciones: ${Array.isArray(c.lessons) ? c.lessons.length : 0}`,
+      );
+      blocks.push(
+        `🎓 [ACADEMIA LMS Y PROGRESO DE CAPACITACIÓN (cursos_lms)]: ${(courses || []).length} curso(s) disponibles | ${(progresses || []).length} inscripción(es) en la empresa (${completedCount} completado(s)).\n${courseLines.join('\n')}`,
+      );
+    } catch (_) {}
+  }
+
+  // 6. Ejecución real de `logic_merge` y `logic_loop` sobre registros extraídos
+  const mergeNode = logicNodes.find(
+    (ln) => ln && (ln.logicType === 'merge' || ln.id === 'logic_merge' || ln.key === 'logic_merge'),
+  );
+  const loopNode = logicNodes.find(
+    (ln) => ln && (ln.logicType === 'loop' || ln.id === 'logic_loop' || ln.key === 'logic_loop'),
+  );
+
+  if ((mergeNode || loopNode) && targetCompanyIdStr) {
+    try {
+      const sourceNodeIds = [];
+      for (const extId of extractors) {
+        if (extId === 'extract_sst_app') {
+          const appCfg = getNodeCfg('extractor_extract_sst_app', 'ext_extract_sst_app', 'extract_sst_app');
+          const mapped =
+            appCfg?.sstAppSourceId
+              ? sstAppSourceAliasMap[String(appCfg.sstAppSourceId).toLowerCase().trim()] ||
+                String(appCfg.sstAppSourceId).trim()
+              : '';
+          if (mapped) sourceNodeIds.push(mapped);
+        } else if (extId.startsWith('extract_sst_') || extId.startsWith('hito')) {
+          sourceNodeIds.push(extId);
+        }
+      }
+      for (const hId of hitos) {
+        if (!sourceNodeIds.includes(hId)) sourceNodeIds.push(hId);
+      }
+
+      const collectedRecords = [];
+      for (const srcId of sourceNodeIds.slice(0, 6)) {
+        try {
+          const inspected = await inspectNodeLiveData({
+            userId: userIdStr,
+            companyId: targetCompanyIdStr,
+            nodeId: srcId,
+          });
+          if (Array.isArray(inspected?.records)) {
+            for (const rec of inspected.records.slice(0, 150)) {
+              collectedRecords.push({
+                _sourceModule: inspected.moduleTitle || srcId,
+                id: rec.id,
+                label: rec.label,
+                sublabel: rec.sublabel,
+                badge: rec.badge,
+                isCritical: Boolean(rec.isCritical),
+                ...(rec.fields && typeof rec.fields === 'object' ? rec.fields : {}),
+              });
+            }
+          }
+        } catch (_) {}
+      }
+
+      let workingRecords = collectedRecords;
+
+      if (mergeNode && workingRecords.length > 0) {
+        const mergeCfg = {
+          ...(mergeNode.config || {}),
+          ...getNodeCfg(mergeNode.key, mergeNode.id, 'logic_merge'),
+        };
+        const mergeStrategy = String(mergeCfg.mergeStrategy || 'deduplicate_by_id').toLowerCase();
+        const rawMergeKey = String(mergeCfg.mergeKey || '').trim().toLowerCase();
+
+        const extractRecordKey = (rec, idx) => {
+          if (rawMergeKey) {
+            const matchedEntry = Object.entries(rec).find(
+              ([k]) => k.toLowerCase().trim() === rawMergeKey || k.toLowerCase().includes(rawMergeKey),
+            );
+            if (matchedEntry && matchedEntry[1]) {
+              return String(matchedEntry[1]).trim().toLowerCase();
+            }
+          }
+          const docCandidate =
+            rec['Cédula / Documento'] ||
+            rec.cedula ||
+            rec.documento ||
+            rec.identificacion ||
+            rec.Placa ||
+            rec.placa ||
+            rec.id ||
+            rec.label ||
+            `row_${idx}`;
+          return String(docCandidate).trim().toLowerCase();
+        };
+
+        if (mergeStrategy !== 'append_all') {
+          const mergedMap = new Map();
+          for (let i = 0; i < workingRecords.length; i++) {
+            const rec = workingRecords[i];
+            const key = extractRecordKey(rec, i);
+            if (!mergedMap.has(key)) {
+              mergedMap.set(key, { ...rec, _mergedSources: [rec._sourceModule] });
+            } else {
+              const prev = mergedMap.get(key);
+              mergedMap.set(key, {
+                ...rec,
+                ...prev,
+                _mergedSources: Array.from(new Set([...(prev._mergedSources || []), rec._sourceModule])),
+              });
+            }
+          }
+          workingRecords = Array.from(mergedMap.values());
+        }
+
+        traceMeta.mergedRecordsCount = workingRecords.length;
+        const mergeLines = workingRecords.slice(0, 80).map(
+          (r, idx) =>
+            `  ${idx + 1}. ${r.label || r.id} [${(r._mergedSources || [r._sourceModule]).join(' + ')}] — ${r.sublabel || ''} (${r.badge || 'OK'})`,
+        );
+        blocks.push(
+          `🔀 [REGISTROS CONSOLIDADOS Y DEDUPLICADOS POR NODO MERGE (${workingRecords.length} registro(s) únicos de ${collectedRecords.length} totales | Llave: ${rawMergeKey || 'documento/id'})]:\n${mergeLines.join('\n')}`,
+        );
+      }
+
+      if (loopNode && workingRecords.length > 0) {
+        const loopCfg = {
+          ...(loopNode.config || {}),
+          ...getNodeCfg(loopNode.key, loopNode.id, 'logic_loop'),
+        };
+        const batchSize = Math.min(50, Math.max(1, parseInt(loopCfg.batchSize, 10) || 10));
+        const iterateByField = String(loopCfg.iterateByField || '').trim();
+        const batches = [];
+
+        if (iterateByField) {
+          const groups = new Map();
+          for (const rec of workingRecords) {
+            const matchedEntry = Object.entries(rec).find(([k]) =>
+              k.toLowerCase().includes(iterateByField.toLowerCase()),
+            );
+            const groupVal = matchedEntry?.[1] ? String(matchedEntry[1]).trim() : 'General';
+            if (!groups.has(groupVal)) groups.set(groupVal, []);
+            groups.get(groupVal).push(rec);
+          }
+          for (const [groupLabel, items] of groups.entries()) {
+            for (let i = 0; i < items.length; i += batchSize) {
+              batches.push({
+                label: `${iterateByField}: ${groupLabel}`,
+                items: items.slice(i, i + batchSize),
+              });
+            }
+          }
+        } else {
+          for (let i = 0; i < workingRecords.length; i += batchSize) {
+            batches.push({
+              label: `Registros ${i + 1}–${Math.min(i + batchSize, workingRecords.length)}`,
+              items: workingRecords.slice(i, i + batchSize),
+            });
+          }
+        }
+
+        traceMeta.batchesProcessed = batches.length;
+        const batchBlocks = batches.slice(0, 20).map((b, bIdx) => {
+          const rows = b.items
+            .map((it, rIdx) => `    ${rIdx + 1}) ${it.label || it.id}${it.sublabel ? ` — ${it.sublabel}` : ''} [${it.badge || 'Activo'}]`)
+            .join('\n');
+          return `  📦 [LOTE #${bIdx + 1} de #${batches.length} (${b.label} · ${b.items.length} reg.)]:\n${rows}`;
+        });
+        blocks.push(
+          `🔁 [ITERACIÓN ESTRUCTURADA POR LOTES — NODO LOOP (${batches.length} LOTE(S) PROCESADOS, tamaño máx: ${batchSize})]:\n${batchBlocks.join('\n')}`,
+        );
+      }
+    } catch (logicErr) {
+      console.warn('[AutomationScheduler] Aviso procesando logic_merge / logic_loop:', logicErr?.message);
+    }
+  }
+
+  return {
+    contextBlock: blocks.length > 0 ? `\n${blocks.join('\n\n')}\n` : '',
+    traceMeta,
+  };
+}
+
+/**
+ * Ejecuta todas las salidas finales permitidas por la rama activa (`outputsToExecute`):
+ * `wappy_notification`, `tenshi_alert`, `antigravity_local_report`, `antigravity_cloud_report`,
+ * `canvas_doc`, `acpm_task`, `wappy_kanban`, `email_report`, `google_calendar`, `google_docs`,
+ * `google_sheets` y `google_slides`.
+ * Reutilizado tanto en ejecución directa como tras la Compuerta Real de Aprobación Humana (`POST /logs/:logId/approve`).
+ */
+async function executeDownstreamOutputs({
+  automation,
+  user,
+  companyId,
+  companyInfo = null,
+  outputsToExecute = [],
+  responseText = '',
+  generatedAppReports = [],
+  activeBranch = 'direct',
+  nodeConfigs = {},
+  capturedEvidences = [],
+  generatedConvoId = null,
+  hasCriticalSignal = true,
+  logId = null,
+} = {}) {
+  const executedOutputs = [];
+  const workspaceLinks = [];
+  const errors = [];
+
+  if (!automation || !Array.isArray(outputsToExecute) || outputsToExecute.length === 0) {
+    return { executedOutputs, workspaceLinks, errors };
+  }
+
+  const userId = user?.id || user?._id || automation.user;
+  const userIdStr = userId ? String(userId) : '';
+  const targetCompanyIdStr = companyId
+    ? String(companyId)
+    : automation.companyId
+      ? String(automation.companyId)
+      : null;
+
+  let resolvedCompany = companyInfo;
+  if (!resolvedCompany && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+    try {
+      resolvedCompany = await CompanyInfo.findById(targetCompanyIdStr).lean();
+    } catch (_) {}
+  }
+  const compLabel = resolvedCompany?.companyName || 'Somos SST';
+  const postNodeConfigs = nodeConfigs || automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
+  const validReports = Array.isArray(generatedAppReports)
+    ? generatedAppReports.filter((r) => r && typeof r.reportHtml === 'string' && r.reportHtml.trim())
+    : [];
+  const safeResponseText = String(responseText || '').trim();
+  const bogotaDateStr = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    dateStyle: 'full',
+    timeStyle: 'medium',
+  }).format(new Date());
+
+  // 1. Notificación en WAPPY + Chat de Tenshi (`wappy_notification` / `tenshi_alert`)
+  if (outputsToExecute.includes('wappy_notification') || outputsToExecute.includes('tenshi_alert')) {
+    const notifCfg =
+      postNodeConfigs.out_wappy_notification ||
+      postNodeConfigs.wappy_notification ||
+      postNodeConfigs.out_tenshi_alert ||
+      postNodeConfigs.tenshi_alert ||
+      {};
+    if (!notifCfg.onlyOnCriticalAlerts || hasCriticalSignal) {
+      try {
+        const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 260);
+        await Notification.create({
+          user: automation.user || userId,
+          companyId: automation.companyId || targetCompanyIdStr || null,
+          title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
+          body: `${shortSummary}${safeResponseText.length > 260 ? '...' : ''}`,
+          type: 'system_update',
+          read: false,
+        });
+        await TenshiMessage.create({
+          user: automation.user || userId,
+          companyId: targetCompanyIdStr || null,
+          role: 'assistant',
+          content:
+            `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
+            `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
+        });
+        executedOutputs.push('wappy_notification');
+      } catch (notifErr) {
+        errors.push(`wappy_notification: ${notifErr.message}`);
+      }
+    }
+  }
+
+  // 2. Bitácora Antigravity (`antigravity_local_report` / `antigravity_cloud_report`)
+  if (
+    outputsToExecute.includes('antigravity_local_report') ||
+    outputsToExecute.includes('antigravity_cloud_report')
+  ) {
+    try {
+      const targetEnv = outputsToExecute.includes('antigravity_cloud_report')
+        ? 'Antigravity Cloud 24/7'
+        : 'Antigravity Local (Mi PC)';
+      await KanbanTask.create({
+        user: automation.user || userId,
+        companyId: targetCompanyIdStr || 'DEFAULT',
+        title: `[Bitácora ${targetEnv}] ${automation.name} — ${compLabel}`,
+        description: safeResponseText.substring(0, 4000),
+        status: 'done',
+        priority: 'medium',
+        type: 'antigravity_delegation',
+        sourceModule: 'Automatización WAPPY',
+        assignedTo: targetEnv,
+        category: 'Automatización WAPPY',
+        assignedAgent: targetEnv,
+        dueDate: new Date(),
+        completedAt: new Date(),
+      });
+      const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 240);
+      await Notification.create({
+        user: automation.user || userId,
+        companyId: automation.companyId || targetCompanyIdStr || null,
+        title: `📡 Bitácora ${targetEnv}: ${automation.name} (${compLabel})`,
+        body: `Informe registrado en ${targetEnv}: ${shortSummary}${safeResponseText.length > 240 ? '...' : ''}`,
+        type: 'system_update',
+        read: false,
+      });
+      executedOutputs.push(
+        outputsToExecute.includes('antigravity_cloud_report')
+          ? 'antigravity_cloud_report'
+          : 'antigravity_local_report',
+      );
+    } catch (agyErr) {
+      errors.push(`antigravity_report: ${agyErr.message}`);
+    }
+  }
+
+  // 3. Documento Vivo WAPPY (`canvas_doc`) — Generalizado para CUALQUIER Aplicativo Hito 1–8
+  if (outputsToExecute.includes('canvas_doc')) {
+    try {
+      const LiveDocumentModel =
+        mongoose.models.LiveDocument || require('~/models/LiveDocument');
+      if (LiveDocumentModel) {
+        const docCfg = postNodeConfigs.out_canvas_doc || postNodeConfigs.canvas_doc || {};
+        const customDocTitle = String(docCfg.documentTitle || '').trim();
+        const defaultReportTitle =
+          validReports.length === 1 && validReports[0].reportTitle
+            ? `${validReports[0].reportTitle} (${compLabel})`
+            : `📄 Informe Automatizado: ${automation.name} (${compLabel})`;
+        const docTitle = customDocTitle || defaultReportTitle;
+        const execSummaryHtml = formatMarkdownToEmailHtml(safeResponseText) || `<p>${safeResponseText}</p>`;
+        const extractedOfficialHtmlBlocks = validReports
+          .map((rep) => {
+            const officialTitle = rep.reportTitle || 'Informe Oficial del Aplicativo SG-SST';
+            return (
+              `<hr style="margin:28px 0;border:none;border-top:2px solid #cbd5e1;" />` +
+              `<h3 style="color:#0d9488;margin:12px 0 8px 0;font-size:16px;">📋 ${officialTitle}</h3>` +
+              `<div class="wappy-extracted-official-report" style="margin-top:12px;">${rep.reportHtml}</div>`
+            );
+          })
+          .join('\n');
+        const htmlContent = extractedOfficialHtmlBlocks
+          ? `<div style="margin-bottom:24px;">${execSummaryHtml}</div>\n${extractedOfficialHtmlBlocks}`
+          : execSummaryHtml;
+        const validCompanyObjId =
+          targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+            ? targetCompanyIdStr
+            : undefined;
+        await LiveDocumentModel.findOneAndUpdate(
+          {
+            user: automation.user || userId,
+            title: docTitle,
+            ...(validCompanyObjId ? { companyId: validCompanyObjId } : {}),
+          },
+          {
+            $set: {
+              title: docTitle,
+              content: htmlContent,
+              originalFileName: `${validReports[0]?.fileNameSlug || automation.name}.docx`,
+              originalFileType: 'html',
+              user: automation.user || userId,
+              ...(validCompanyObjId ? { companyId: validCompanyObjId } : {}),
+            },
+          },
+          { upsert: true, new: true },
+        );
+        executedOutputs.push('canvas_doc');
+      }
+    } catch (docErr) {
+      errors.push(`canvas_doc: ${docErr.message}`);
+    }
+  }
+
+  // 4. Actividad en el Centro de Control / Kanban ACPM (`acpm_task` / `wappy_kanban`)
+  if (outputsToExecute.includes('acpm_task') || outputsToExecute.includes('wappy_kanban')) {
+    try {
+      const acpmCfg =
+        postNodeConfigs.out_acpm_task ||
+        postNodeConfigs.acpm_task ||
+        postNodeConfigs.out_wappy_kanban ||
+        postNodeConfigs.wappy_kanban ||
+        {};
+      const rawStage = String(acpmCfg.kanbanStatus || 'todo').trim();
+      const validStage =
+        rawStage === 'urgent'
+          ? 'overdue'
+          : ['todo', 'in_progress', 'due_soon', 'overdue', 'done'].includes(rawStage)
+            ? rawStage
+            : 'todo';
+      const rawPriority = String(acpmCfg.kanbanPriority || 'high').toLowerCase();
+      const validPriority =
+        rawPriority === 'low' || rawPriority === 'baja'
+          ? 'baja'
+          : rawPriority === 'medium' || rawPriority === 'media'
+            ? 'media'
+            : 'alta';
+      const validActionType = ['correctiva', 'preventiva', 'mejora'].includes(
+        String(acpmCfg.kanbanActionType || '').toLowerCase(),
+      )
+        ? String(acpmCfg.kanbanActionType).toLowerCase()
+        : 'correctiva';
+      const dueDays = Math.max(1, Number(acpmCfg.kanbanDueDays) || 7);
+      const dueTarget = new Date(Date.now() + dueDays * 24 * 3600000);
+      const customTitle = String(acpmCfg.kanbanTaskTitle || '').trim();
+      const customAssignee = String(acpmCfg.kanbanAssignee || '').trim();
+
+      await KanbanTask.create({
+        user: automation.user || userId,
+        companyId: targetCompanyIdStr || 'DEFAULT',
+        title: customTitle || `[Centro de Control] ${automation.name} — ${compLabel}`,
+        description: safeResponseText.substring(0, 3500),
+        status: validStage,
+        priority: validPriority,
+        actionType: validActionType,
+        type: 'audit_finding',
+        sourceModule: 'Automatización WAPPY (Centro de Control)',
+        assignedTo: customAssignee || automation.agentName || 'Responsable SG-SST',
+        referenceId: String(automation._id),
+        referenceName: automation.name,
+        dueDate: dueTarget,
+        ...(validStage === 'done' ? { completedAt: new Date() } : {}),
+      });
+      executedOutputs.push('acpm_task');
+    } catch (acpmErr) {
+      errors.push(`acpm_task: ${acpmErr.message}`);
+    }
+  }
+
+  // 5. Post-Procesador Real: Google Calendar + Agenda Interna (`google_calendar`)
+  if (outputsToExecute.includes('google_calendar')) {
+    try {
+      const calendarCfg =
+        postNodeConfigs.out_google_calendar || postNodeConfigs.google_calendar || {};
+      const calTitle =
+        String(calendarCfg.calendarEventTitle || '').trim() ||
+        `[SG-SST] ${automation.name} — ${compLabel}`;
+      const durationMinutes = Math.max(5, Number(calendarCfg.calendarDurationMinutes) || 30);
+      const attendeesList = parseEmailList(calendarCfg.calendarAttendees);
+      const startDate = calendarCfg.startDateTime
+        ? new Date(calendarCfg.startDateTime)
+        : new Date(Date.now() + 60 * 60 * 1000); // Por defecto +1 hora
+      const safeStart = Number.isNaN(startDate.getTime())
+        ? new Date(Date.now() + 60 * 60 * 1000)
+        : startDate;
+      const safeEnd = new Date(safeStart.getTime() + durationMinutes * 60 * 1000);
+
+      const bogotaStartHm = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(safeStart);
+      const bogotaEndHm = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(safeEnd);
+
+      // 5A. Crear evento en la Agenda Interna de WAPPY (KanbanTask + AgendaEvent si existe)
+      await KanbanTask.create({
+        user: automation.user || userId,
+        companyId: targetCompanyIdStr || 'DEFAULT',
+        title: calTitle,
+        description: safeResponseText.substring(0, 3000),
+        status: 'todo',
+        priority: hasCriticalSignal ? 'alta' : 'media',
+        type: 'scheduled_reminder',
+        sourceModule: 'Agenda SG-SST (Automatización)',
+        dueDate: safeStart,
+        startTime: bogotaStartHm,
+        endTime: bogotaEndHm,
+        emailAttendees: attendeesList,
+      });
+      if (mongoose.models.AgendaEvent) {
+        try {
+          await mongoose.models.AgendaEvent.create({
+            user: automation.user || userId,
+            companyId: targetCompanyIdStr || null,
+            title: calTitle,
+            description: safeResponseText.substring(0, 3000),
+            startDate: safeStart,
+            endDate: safeEnd,
+            durationMinutes,
+            attendees: attendeesList,
+          });
+        } catch (_) {}
+      }
+
+      // 5B. Si el usuario tiene OAuth Google Calendar conectado, crear evento real en Google Calendar API
+      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      if (oauthCtx) {
+        try {
+          const calendar = oauthCtx.google.calendar({ version: 'v3', auth: oauthCtx.oauth2Client });
+          const gcalRes = await calendar.events.insert({
+            calendarId: 'primary',
+            sendUpdates: attendeesList.length > 0 ? 'all' : 'none',
+            requestBody: {
+              summary: calTitle,
+              description: `${safeResponseText.substring(0, 3500)}\n\n— Generado automáticamente por WAPPY SG-SST (${compLabel})`,
+              start: {
+                dateTime: safeStart.toISOString(),
+                timeZone: 'America/Bogota',
+              },
+              end: {
+                dateTime: safeEnd.toISOString(),
+                timeZone: 'America/Bogota',
+              },
+              ...(attendeesList.length > 0
+                ? { attendees: attendeesList.map((email) => ({ email })) }
+                : {}),
+            },
+          });
+          if (gcalRes?.data?.htmlLink) {
+            workspaceLinks.push({
+              type: 'google_calendar',
+              label: `📅 Evento Google Calendar: "${calTitle}"`,
+              url: gcalRes.data.htmlLink,
+            });
+          }
+        } catch (gcalErr) {
+          console.warn('[AutomationScheduler] Aviso creando evento Google Calendar API:', gcalErr?.message);
+        }
+      }
+      executedOutputs.push('google_calendar');
+    } catch (calErr) {
+      errors.push(`google_calendar: ${calErr.message}`);
+    }
+  }
+
+  // 6. Post-Procesador Real: Google Docs (`google_docs` — conversión Multipart HTML -> Google Doc nativo)
+  if (outputsToExecute.includes('google_docs')) {
+    try {
+      const alreadyHasGoogleDocInText = /https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/i.test(
+        safeResponseText,
+      );
+      if (!alreadyHasGoogleDocInText) {
+        const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+        if (oauthCtx) {
+          const docsCfg = postNodeConfigs.out_google_docs || postNodeConfigs.google_docs || {};
+          const docTitle =
+            String(docsCfg.documentTitle || '').trim() ||
+            (validReports[0]?.reportTitle
+              ? `${validReports[0].reportTitle} — ${compLabel}`
+              : `Informe SG-SST: ${automation.name} (${compLabel})`);
+          const execHtml = formatMarkdownToEmailHtml(safeResponseText) || `<p>${safeResponseText}</p>`;
+          const appReportsHtml = validReports
+            .map(
+              (rep) =>
+                `<hr /><h2>${rep.reportTitle || 'Informe Oficial del Aplicativo SG-SST'}</h2><div>${rep.reportHtml}</div>`,
+            )
+            .join('\n');
+          const fullDocHtml =
+            `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${docTitle.replace(/[<>&"]/g, '')}</title></head>` +
+            `<body style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.5;">` +
+            `<h1>${docTitle}</h1>` +
+            `<p><strong>Empresa:</strong> ${compLabel} &bull; <strong>Fecha:</strong> ${bogotaDateStr}</p><hr />` +
+            `<div>${execHtml}</div>` +
+            `${appReportsHtml}` +
+            `</body></html>`;
+
+          const drive = oauthCtx.google.drive({ version: 'v3', auth: oauthCtx.oauth2Client });
+          const folderId = String(docsCfg.folderId || '').trim();
+          const createdDoc = await drive.files.create({
+            requestBody: {
+              name: docTitle,
+              mimeType: 'application/vnd.google-apps.document',
+              ...(folderId ? { parents: [folderId] } : {}),
+            },
+            media: {
+              mimeType: 'text/html',
+              body: Readable.from([Buffer.from(fullDocHtml, 'utf8')]),
+            },
+            fields: 'id, name, webViewLink',
+          });
+          const docUrl =
+            createdDoc?.data?.webViewLink ||
+            (createdDoc?.data?.id
+              ? `https://docs.google.com/document/d/${createdDoc.data.id}/edit`
+              : null);
+          if (docUrl) {
+            workspaceLinks.push({
+              type: 'google_docs',
+              label: `📝 Google Doc Oficial: "${docTitle}"`,
+              url: docUrl,
+            });
+          }
+          executedOutputs.push('google_docs');
+        }
+      } else {
+        executedOutputs.push('google_docs');
+      }
+    } catch (gdocErr) {
+      console.warn('[AutomationScheduler] Aviso creando Google Doc:', gdocErr?.message);
+      errors.push(`google_docs: ${gdocErr.message}`);
+    }
+  }
+
+  // 7. Post-Procesador Real: Google Sheets (`google_sheets` — fila de auditoría en spreadsheetId o bitácora)
+  if (outputsToExecute.includes('google_sheets')) {
+    try {
+      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      if (oauthCtx) {
+        const sheetsCfg = postNodeConfigs.out_google_sheets || postNodeConfigs.google_sheets || {};
+        const sheets = oauthCtx.google.sheets({ version: 'v4', auth: oauthCtx.oauth2Client });
+        const drive = oauthCtx.google.drive({ version: 'v3', auth: oauthCtx.oauth2Client });
+
+        let rawSheetId = String(sheetsCfg.spreadsheetId || '').trim();
+        const urlMatch = rawSheetId.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        let spreadsheetId = urlMatch ? urlMatch[1] : rawSheetId;
+        let sheetTabName = String(sheetsCfg.sheetName || '').trim();
+
+        if (!spreadsheetId) {
+          const defaultSheetTitle = `Bitácora Automatizaciones SG-SST - ${compLabel}`;
+          const escapedTitle = defaultSheetTitle.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const existingSearch = await drive.files.list({
+            q: `mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false and name = '${escapedTitle}'`,
+            pageSize: 1,
+            fields: 'files(id, name)',
+          });
+          if (Array.isArray(existingSearch?.data?.files) && existingSearch.data.files.length > 0) {
+            spreadsheetId = existingSearch.data.files[0].id;
+          } else {
+            const createdSheet = await sheets.spreadsheets.create({
+              requestBody: {
+                properties: { title: defaultSheetTitle },
+              },
+            });
+            spreadsheetId = createdSheet?.data?.spreadsheetId || '';
+            const firstTab =
+              createdSheet?.data?.sheets?.[0]?.properties?.title || 'Hoja 1';
+            sheetTabName = firstTab;
+            if (spreadsheetId) {
+              await sheets.spreadsheets.values.append({
+                spreadsheetId,
+                range: `'${firstTab}'!A1`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                  values: [
+                    [
+                      'Fecha y Hora (Bogotá)',
+                      'Empresa',
+                      'Automatización',
+                      'Rama Ejecutada',
+                      'Estado Hallazgos',
+                      'Resumen Ejecutivo',
+                      'Enlace / Referencia',
+                    ],
+                  ],
+                },
+              });
+            }
+          }
+        }
+
+        if (spreadsheetId) {
+          if (!sheetTabName) {
+            try {
+              const meta = await sheets.spreadsheets.get({
+                spreadsheetId,
+                fields: 'sheets.properties.title',
+              });
+              sheetTabName = meta?.data?.sheets?.[0]?.properties?.title || 'Sheet1';
+            } catch (_) {
+              sheetTabName = 'Sheet1';
+            }
+          }
+          const cleanExcerpt = safeResponseText
+            .replace(/[#*_`|]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 480);
+          const refLink =
+            workspaceLinks.find((l) => l.type === 'google_docs')?.url ||
+            (generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : 'https://wappy.club/tareas');
+
+          await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: `'${sheetTabName}'!A1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+              values: [
+                [
+                  bogotaDateStr,
+                  compLabel,
+                  automation.name,
+                  String(activeBranch || 'direct').toUpperCase(),
+                  hasCriticalSignal ? 'CON HALLAZGOS' : 'SIN NOVEDADES CRÍTICAS',
+                  cleanExcerpt,
+                  refLink,
+                ],
+              ],
+            },
+          });
+
+          const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+          workspaceLinks.push({
+            type: 'google_sheets',
+            label: `📊 Bitácora Google Sheets Actualizada`,
+            url: sheetUrl,
+          });
+          executedOutputs.push('google_sheets');
+        }
+      }
+    } catch (gsheetErr) {
+      console.warn('[AutomationScheduler] Aviso actualizando Google Sheets:', gsheetErr?.message);
+      errors.push(`google_sheets: ${gsheetErr.message}`);
+    }
+  }
+
+  // 8. Post-Procesador Real: Google Slides (`google_slides` — presentación ejecutiva con conclusiones clave)
+  if (outputsToExecute.includes('google_slides')) {
+    try {
+      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      if (oauthCtx) {
+        const slidesCfg = postNodeConfigs.out_google_slides || postNodeConfigs.google_slides || {};
+        const presTitle =
+          String(slidesCfg.presentationTitle || '').trim() ||
+          `Informe Ejecutivo SG-SST: ${automation.name} (${compLabel})`;
+        const slidesApi = oauthCtx.google.slides({ version: 'v1', auth: oauthCtx.oauth2Client });
+
+        const createdPres = await slidesApi.presentations.create({
+          requestBody: { title: presTitle },
+        });
+        const presentationId = createdPres?.data?.presentationId;
+        if (presentationId) {
+          const requests = [];
+          const firstSlide = createdPres?.data?.slides?.[0];
+          if (firstSlide?.pageElements) {
+            const titleEl = firstSlide.pageElements.find(
+              (el) =>
+                el.shape?.placeholder?.type === 'CENTERED_TITLE' ||
+                el.shape?.placeholder?.type === 'TITLE',
+            );
+            const subEl = firstSlide.pageElements.find(
+              (el) => el.shape?.placeholder?.type === 'SUBTITLE',
+            );
+            if (titleEl?.objectId) {
+              requests.push({
+                insertText: {
+                  objectId: titleEl.objectId,
+                  text: presTitle.slice(0, 140),
+                },
+              });
+            }
+            if (subEl?.objectId) {
+              requests.push({
+                insertText: {
+                  objectId: subEl.objectId,
+                  text: `${compLabel} · Generado por WAPPY SG-SST · ${bogotaDateStr}`,
+                },
+              });
+            }
+          }
+
+          const slide2Id = `exec_summary_${Date.now().toString(36)}`;
+          const slide2TitleId = `${slide2Id}_title`;
+          const slide2BodyId = `${slide2Id}_body`;
+          const bulletLines = safeResponseText
+            .split('\n')
+            .map((l) => l.replace(/^[\s#*>-]+/, '').replace(/\*\*/g, '').trim())
+            .filter((l) => l.length >= 12 && !l.startsWith('|'))
+            .slice(0, 7)
+            .map((l) => `• ${l.slice(0, 170)}`)
+            .join('\n');
+
+          requests.push({
+            createSlide: {
+              objectId: slide2Id,
+              insertionIndex: 1,
+              slideLayoutReference: { predefinedLayout: 'TITLE_AND_BODY' },
+              placeholderIdMappings: [
+                { layoutPlaceholder: { type: 'TITLE', index: 0 }, objectId: slide2TitleId },
+                { layoutPlaceholder: { type: 'BODY', index: 0 }, objectId: slide2BodyId },
+              ],
+            },
+          });
+          requests.push({
+            insertText: {
+              objectId: slide2TitleId,
+              text: 'Conclusiones y Hallazgos Clave SG-SST',
+            },
+          });
+          requests.push({
+            insertText: {
+              objectId: slide2BodyId,
+              text: bulletLines || safeResponseText.replace(/[#*_`]/g, '').slice(0, 900),
+            },
+          });
+
+          await slidesApi.presentations.batchUpdate({
+            presentationId,
+            requestBody: { requests },
+          });
+
+          const slidesUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
+          workspaceLinks.push({
+            type: 'google_slides',
+            label: `📽️ Presentación Ejecutiva Google Slides: "${presTitle}"`,
+            url: slidesUrl,
+          });
+          executedOutputs.push('google_slides');
+        }
+      }
+    } catch (gslidesErr) {
+      console.warn('[AutomationScheduler] Aviso creando Google Slides:', gslidesErr?.message);
+      errors.push(`google_slides: ${gslidesErr.message}`);
+    }
+  }
+
+  // 9. Correo Electrónico (`email_report`) — honrando `emailRecipientsOverride` + Informes Oficiales Universales HTML
+  const emailCfg = postNodeConfigs.out_email_report || postNodeConfigs.email_report || {};
+  const shouldSendEmailReport =
+    outputsToExecute.includes('email_report') &&
+    (!emailCfg.onlyOnCriticalAlerts || hasCriticalSignal);
+
+  if (shouldSendEmailReport) {
+    try {
+      const overrideEmails = parseEmailList(emailCfg.emailRecipientsOverride);
+      const baseEmails = parseEmailList([
+        ...(Array.isArray(automation.emails) ? automation.emails : []),
+        ...(Array.isArray(automation.emailRecipients) ? automation.emailRecipients : []),
+      ]);
+      const validEmails = parseEmailList([...overrideEmails, ...baseEmails]);
+
+      if (validEmails.length > 0) {
+        const chatUrl = generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : null;
+        const emailAttachments = [];
+        const MAX_EMAIL_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+        let totalAttachmentBytes = 0;
+        const seenAttachmentPaths = new Set();
+
+        if (Array.isArray(capturedEvidences) && capturedEvidences.length > 0) {
+          for (const ev of capturedEvidences) {
+            const chosenLocalPath =
+              ev?.pdfLocalPath && fs.existsSync(ev.pdfLocalPath)
+                ? ev.pdfLocalPath
+                : ev?.imageLocalPath && fs.existsSync(ev.imageLocalPath)
+                  ? ev.imageLocalPath
+                  : null;
+            if (!chosenLocalPath || seenAttachmentPaths.has(chosenLocalPath)) continue;
+            try {
+              const fileBuf = await fs.promises.readFile(chosenLocalPath);
+              if (
+                fileBuf.length > 200 &&
+                totalAttachmentBytes + fileBuf.length <= MAX_EMAIL_ATTACHMENT_BYTES
+              ) {
+                const chosenFileName = path.basename(chosenLocalPath);
+                const ext = path.extname(chosenFileName).toLowerCase();
+                const contentType =
+                  ext === '.pdf'
+                    ? 'application/pdf'
+                    : ext === '.png'
+                      ? 'image/png'
+                      : 'image/jpeg';
+                emailAttachments.push({
+                  filename: chosenFileName,
+                  content: fileBuf,
+                  contentType,
+                });
+                totalAttachmentBytes += fileBuf.length;
+                seenAttachmentPaths.add(chosenLocalPath);
+              }
+            } catch (_) {}
+          }
+        }
+
+        let emailHtmlResult = formatMarkdownToEmailHtml(safeResponseText);
+        if (validReports.length > 0) {
+          for (const rep of validReports) {
+            const dynamicReportTitle =
+              rep.reportTitle || 'Informe Oficial del Aplicativo SG-SST';
+            const dynamicSlugPrefix = rep.fileNameSlug || 'Informe_Oficial_SGSST';
+            const rawDetailSlug =
+              rep.formData?.afectadoNombre ||
+              rep.caseId ||
+              rep.hitoNodeId ||
+              rep.appId ||
+              new Date().toISOString().slice(0, 10);
+            const safeSlug =
+              String(rawDetailSlug)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-zA-Z0-9_-]+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 64) || 'SGSST';
+            const reportUrl = rep.reportConversationId
+              ? `https://wappy.club/c/${rep.reportConversationId}`
+              : null;
+            const standaloneReportHtml =
+              `<!DOCTYPE html>\n<html lang="es">\n<head>\n` +
+              `<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n` +
+              `<title>${dynamicReportTitle.replace(/[<>&"]/g, '')}</title>\n` +
+              `<style>body{font-family:Arial,Helvetica,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:24px;} .sgsst-sheet{max-width:1060px;margin:0 auto;background:#ffffff;padding:28px;border-radius:16px;box-shadow:0 10px 25px rgba(15,23,42,0.08);} @media print{body{background:#fff;padding:0;} .sgsst-sheet{box-shadow:none;padding:0;max-width:100%;}}</style>\n` +
+              `</head>\n<body>\n<div class="sgsst-sheet">\n${rep.reportHtml}\n</div>\n</body>\n</html>`;
+            const htmlAttachmentBuf = Buffer.from(standaloneReportHtml, 'utf8');
+            if (totalAttachmentBytes + htmlAttachmentBuf.length <= MAX_EMAIL_ATTACHMENT_BYTES) {
+              emailAttachments.push({
+                filename: `${dynamicSlugPrefix}_${safeSlug}.html`,
+                content: htmlAttachmentBuf,
+                contentType: 'text/html; charset=utf-8',
+              });
+              totalAttachmentBytes += htmlAttachmentBuf.length;
+            }
+
+            const hasAtelMeta = Boolean(rep.formData?.afectadoNombre || rep.caseId);
+            const metaLineHtml = hasAtelMeta
+              ? `<strong>Trabajador:</strong> ${rep.formData?.afectadoNombre || 'N/A'} (CC: ${rep.formData?.afectadoCedula || 'N/A'}) &bull; <strong>Evento:</strong> ${rep.formData?.tipoEvento || 'ATEL'} &bull; <strong>Fecha:</strong> ${rep.formData?.fechaEvento || 'N/A'} &bull; <strong>Expediente:</strong> <code>${rep.caseId || 'N/A'}</code>`
+              : `<strong>Empresa:</strong> ${compLabel} &bull; <strong>Módulo:</strong> ${rep.hitoNodeId || rep.appId || 'SG-SST'} &bull; <strong>Generado:</strong> ${bogotaDateStr}`;
+
+            emailHtmlResult += `
+              <div style="border: 2px solid #0d9488; background: linear-gradient(135deg, rgba(13, 148, 136, 0.14), rgba(14, 165, 233, 0.10)); border-radius: 14px; padding: 16px 18px; margin: 22px 0 14px 0;">
+                <h3 style="color: #0d9488; margin: 0 0 8px 0; font-size: 16px; font-weight: 800;">📋 ${dynamicReportTitle}</h3>
+                <p style="margin: 0 0 10px 0; font-size: 13px; color: #334155; line-height: 1.5;">
+                  ${metaLineHtml}
+                </p>
+                ${
+                  reportUrl
+                    ? `<a href="${reportUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0d9488; color: #ffffff; font-weight: 700; font-size: 13px; padding: 8px 16px; border-radius: 8px; text-decoration: none;">🔗 Abrir Informe Oficial en el Historial de WAPPY &rarr;</a>`
+                    : ''
+                }
+              </div>
+              <div style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 14px; padding: 20px; margin: 12px 0 22px 0; overflow-x: auto;">
+                ${rep.reportHtml}
+              </div>
+            `;
+          }
+        }
+
+        if (workspaceLinks.length > 0) {
+          const wsItems = workspaceLinks
+            .map(
+              (wl) =>
+                `<li style="margin-bottom:6px;"><a href="${wl.url}" target="_blank" rel="noopener noreferrer" style="color:#2dd4bf;font-weight:700;text-decoration:underline;">${wl.label} &rarr;</a></li>`,
+            )
+            .join('');
+          emailHtmlResult += `
+            <div style="border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.08); border-radius: 10px; padding: 14px; margin: 16px 0;">
+              <h4 style="color: #38bdf8; margin: 0 0 8px 0; font-size: 14px;">🔗 Documentos y Salidas Sincronizadas en Google Workspace</h4>
+              <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #e2e8f0;">${wsItems}</ul>
+            </div>
+          `;
+        }
+
+        if (Array.isArray(capturedEvidences) && capturedEvidences.length > 0) {
+          const evItemsHtml = capturedEvidences
+            .map((ev, idx) => {
+              const pdfLink = ev.pdfAbsoluteUrl
+                ? `<a href="${ev.pdfAbsoluteUrl}?download=1" target="_blank" rel="noopener noreferrer" style="color: #2dd4bf; font-weight: 700; text-decoration: underline; margin-right: 10px;">📄 Descargar PDF Oficial</a>`
+                : '';
+              const imgLink = ev.imageAbsoluteUrl
+                ? `<a href="${ev.imageAbsoluteUrl}" target="_blank" rel="noopener noreferrer" style="color: #a855f7; font-weight: 700; text-decoration: underline;">🖼️ Ver Imagen del Certificado</a>`
+                : '';
+              return `<li style="margin-bottom: 8px;"><strong>${idx + 1}. ${ev.workerName || 'Registro'} (${ev.cedula || 'N/A'})</strong> — ${ev.title || 'Certificado Oficial'} (${ev.portal || 'Portal Oficial'}):<br>${pdfLink}${imgLink}</li>`;
+            })
+            .join('');
+          emailHtmlResult += `
+            <div style="border: 1px solid #0d9488; background: rgba(13, 148, 136, 0.1); border-radius: 10px; padding: 14px; margin: 18px 0 6px 0;">
+              <h4 style="color: #2dd4bf; margin: 0 0 8px 0; font-size: 14px;">📎 Certificados y Soportes Oficiales Extraídos (${capturedEvidences.length})</h4>
+              <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #e2e8f0;">${evItemsHtml}</ul>
+            </div>
+          `;
+        }
+
+        const customEmailSubject = String(emailCfg.emailSubject || '').trim();
+        const resolvedEmailSubject = customEmailSubject
+          ? `${customEmailSubject} (${compLabel})`
+          : `📊 Reporte Automático SGSST: ${automation.name} - ${compLabel}`;
+
+        for (const recipient of validEmails) {
+          sendEmail({
+            email: recipient,
+            from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
+            subject: resolvedEmailSubject,
+            payload: {
+              taskName: automation.name,
+              agentName: automation.agentName || 'Agente Experto SG-SST',
+              companyName: compLabel,
+              executionDate: bogotaDateStr,
+              prompt: automation.prompt,
+              result: emailHtmlResult,
+              chatUrl,
+              year: new Date().getFullYear(),
+            },
+            template: 'agentAutomationReport.handlebars',
+            throwError: false,
+            ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {}),
+          }).catch((e) =>
+            console.warn(`[AutomationScheduler] Non-blocking email error for ${recipient}:`, e.message),
+          );
+        }
+        executedOutputs.push('email_report');
+      }
+    } catch (emailErr) {
+      errors.push(`email_report: ${emailErr.message}`);
+    }
+  }
+
+  // Si se crearon enlaces en Google Workspace y tenemos logId, anexarlos al resultado del log en Historial
+  if (workspaceLinks.length > 0 && logId) {
+    try {
+      const linksMd =
+        `\n\n---\n### 🔗 Salidas Generadas en Google Workspace\n` +
+        workspaceLinks.map((wl) => `- [${wl.label}](${wl.url})`).join('\n');
+      const existingLog = await AutomationLog.findById(logId).select('result').lean();
+      if (existingLog && !String(existingLog.result || '').includes(workspaceLinks[0].url)) {
+        await AutomationLog.updateOne(
+          { _id: logId },
+          { $set: { result: `${existingLog.result || safeResponseText}${linksMd}` } },
+        );
+      }
+    } catch (_) {}
+  }
+
+  return { executedOutputs, workspaceLinks, errors };
+}
+
+async function runAutomation(automation, optionsOrIsManual = false) {
+  const runOpts =
+    typeof optionsOrIsManual === 'boolean'
+      ? { isManual: optionsOrIsManual }
+      : optionsOrIsManual && typeof optionsOrIsManual === 'object'
+        ? optionsOrIsManual
+        : {};
+  const isManual = Boolean(runOpts.isManual);
+  const triggerSource = String(
+    runOpts.triggerSource || (isManual ? 'manual' : 'schedule_cron'),
+  );
+  const eventPayload = runOpts.eventPayload || null;
+  const gmailMessageId = runOpts.gmailMessageId ? String(runOpts.gmailMessageId) : '';
+
   const automationIdStr = automation._id.toString();
-  console.log(`[AutomationScheduler] Starting execution for automation "${automation.name}" (${automationIdStr})`);
+  console.log(
+    `[AutomationScheduler] Starting execution for automation "${automation.name}" (${automationIdStr}) [trigger=${triggerSource}]`,
+  );
   
   // Update Automation state to running
   await Automation.updateOne(
@@ -731,7 +2731,10 @@ async function runAutomation(automation, isManual = false) {
     agentId: automation.agentId,
     agentName: automation.agentName,
     prompt: automation.prompt,
-    status: 'running'
+    status: 'running',
+    triggerSource,
+    ...(gmailMessageId ? { gmailMessageId } : {}),
+    ...(eventPayload ? { eventMetadata: eventPayload } : {}),
   });
 
   const prelimAbortController = new AbortController();
@@ -849,7 +2852,7 @@ async function runAutomation(automation, isManual = false) {
     let companyProfileMemoryBlock = '';
     if (activeMemories.includes('wappy_memory_company') && automationCompany) {
       companyProfileMemoryBlock =
-        `- [MEMORIA DE EMPRESA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiuCode || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.employeeCount ?? 'N/A'} | Ciudad/Depto: ${automationCompany.city || 'N/A'} / ${automationCompany.department || 'N/A'} | Representante Legal: ${automationCompany.legalRepresentative || 'N/A'} | Responsable SG-SST: ${automationCompany.sstResponsibleName || 'N/A'} (Licencia: ${automationCompany.sstLicenseNumber || 'N/A'})\n`;
+        `- [MEMORIA DE EMPRESA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiu || automationCompany.ciiuCode || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.workerCount ?? automationCompany.employeeCount ?? 'N/A'} | Ciudad/Depto: ${automationCompany.city || 'N/A'} / ${automationCompany.departamento || automationCompany.department || 'N/A'} | Representante Legal: ${automationCompany.legalRepresentative || 'N/A'} | Responsable SG-SST: ${automationCompany.responsibleSST || automationCompany.sstResponsibleName || 'N/A'} (Licencia: ${automationCompany.licenseNumber || automationCompany.sstLicenseNumber || 'N/A'})\n`;
     }
 
     let previousRunMemoryBlock = '';
@@ -970,9 +2973,33 @@ async function runAutomation(automation, isManual = false) {
         mongoose.models.Message ||
         (mongoose.modelNames().includes('Message') ? mongoose.model('Message') : null);
 
+      const wfOutputsForContext = Array.isArray(automation.workflowNodes?.outputs)
+        ? automation.workflowNodes.outputs
+        : ['email_report'];
+      const hasDocumentaryOutput =
+        wfOutputsForContext.includes('canvas_doc') ||
+        wfOutputsForContext.includes('email_report') ||
+        wfOutputsForContext.includes('google_docs');
+
       for (const [nKey, cfg] of Object.entries(nodeConfigs)) {
         if (!cfg || typeof cfg !== 'object') continue;
         const parts = [];
+        const isHitoReportPipelineActive =
+          hasDocumentaryOutput &&
+          (cfg.generateAppReport === true ||
+            cfg.appActionMode === 'generate_report' ||
+            cfg.appActionMode === 'write_and_report' ||
+            cfg.includeLatestReport === true);
+
+        if (cfg.driveFolderName && String(cfg.driveFolderName).trim()) {
+          parts.push(`📂 Carpeta Google Drive Objetivo: "${String(cfg.driveFolderName).trim()}"`);
+        }
+        if (cfg.emailSubjectFilter && String(cfg.emailSubjectFilter).trim()) {
+          parts.push(`📧 Filtro de Asunto Gmail: "${String(cfg.emailSubjectFilter).trim()}"`);
+        }
+        if (cfg.endpointUrl && String(cfg.endpointUrl).trim()) {
+          parts.push(`🔌 Endpoint HTTPS Objetivo: "${String(cfg.endpointUrl).trim()}"`);
+        }
         if (Array.isArray(cfg.fields) && cfg.fields.length > 0) {
           const isStrict = cfg.strictFieldFilter !== false;
           parts.push(
@@ -1001,16 +3028,27 @@ async function runAutomation(automation, isManual = false) {
                 .sort({ createdAt: -1 })
                 .select('text')
                 .lean();
-              const cleanSnippet = String(latestMsg?.text || '')
-                .replace(/<style[\s\S]*?<\/style>/gi, '')
-                .replace(/<script[\s\S]*?<\/script>/gi, '')
-                .replace(/<[^>]+>/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 700);
-              parts.push(
-                `📜 Último Informe del Historial ("${latestConv.title}"): "${cleanSnippet}"`,
-              );
+              const rawMsgText = String(latestMsg?.text || '');
+              if (isHitoReportPipelineActive) {
+                const preservedHtmlOrText = rawMsgText
+                  .replace(/<script[\s\S]*?<\/script>/gi, '')
+                  .trim()
+                  .slice(0, 24000);
+                parts.push(
+                  `📜 Último Informe Oficial Íntegro del Historial ("${latestConv.title}" — preservado para salida documental): "${preservedHtmlOrText}"`,
+                );
+              } else {
+                const cleanSnippet = rawMsgText
+                  .replace(/<style[\s\S]*?<\/style>/gi, '')
+                  .replace(/<script[\s\S]*?<\/script>/gi, '')
+                  .replace(/<[^>]+>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                  .slice(0, 700);
+                parts.push(
+                  `📜 Último Informe del Historial ("${latestConv.title}"): "${cleanSnippet}"`,
+                );
+              }
             }
           } catch (_) {}
         }
@@ -1025,15 +3063,19 @@ async function runAutomation(automation, isManual = false) {
               .select('conversationId text')
               .lean();
             if (selMsgs && selMsgs.length > 0) {
-              const snippets = selMsgs.map((m) =>
-                String(m.text || '')
+              const snippets = selMsgs.map((m) => {
+                const rawTxt = String(m.text || '');
+                if (isHitoReportPipelineActive) {
+                  return rawTxt.replace(/<script[\s\S]*?<\/script>/gi, '').trim().slice(0, 12000);
+                }
+                return rawTxt
                   .replace(/<style[\s\S]*?<\/style>/gi, '')
                   .replace(/<script[\s\S]*?<\/script>/gi, '')
                   .replace(/<[^>]+>/g, ' ')
                   .replace(/\s+/g, ' ')
                   .trim()
-                  .slice(0, 500),
-              );
+                  .slice(0, 500);
+              });
               parts.push(
                 `📜 Informes Seleccionados del Historial (${(cfg.selectedReportTitles || []).join(', ')}): "${snippets.join(' || ')}"`,
               );
@@ -1274,8 +3316,30 @@ async function runAutomation(automation, isManual = false) {
       console.warn('[AutomationScheduler] Aviso en verificación real Antigravity Scraper:', scErr?.message || scErr);
     }
 
+    // 4.9. Pre-extracción en vivo (Drive folder, Gmail, Web Search, Webhook API, Clima, Perfiles, EPP, Exámenes, LMS) + Loop & Merge
+    let livePreExtractionBlock = '';
+    let preExtractionTraceMeta = {};
+    try {
+      const preRes = await buildLivePreExtractionAndLogicBlocks({
+        automation,
+        reqUser,
+        targetCompanyIdStr,
+        automationCompany,
+        effectiveAiModel,
+      });
+      livePreExtractionBlock = preRes?.block || '';
+      preExtractionTraceMeta = preRes?.traceMeta || {};
+    } catch (preErr) {
+      console.warn('[AutomationScheduler] Aviso en buildLivePreExtractionAndLogicBlocks:', preErr?.message || preErr);
+    }
+
+    const realTimeEventHeader = eventPayload
+      ? `🚨 [EVENTO DISPARADOR EN TIEMPO REAL (${String(triggerSource || 'event').toUpperCase()}) — PRIORIDAD #1]:\n` +
+        `${typeof eventPayload === 'string' ? eventPayload : JSON.stringify(eventPayload, null, 2).slice(0, 8000)}\n\n`
+      : '';
+
     const companyHeaderBlock = automationCompany
-      ? `[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
+      ? `${realTimeEventHeader}[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
         `- Empresa objetivo exclusiva de esta tarea: "${automationCompany.companyName}" (NIT: ${automationCompany.nit || 'N/A'}, ID: ${targetCompanyIdStr}).\n` +
         antigravityEngineDirective +
         companyProfileMemoryBlock +
@@ -1284,13 +3348,14 @@ async function runAutomation(automation, isManual = false) {
         proceduralNormativeMemoryBlock +
         canvasNodesContextBlock +
         liveDatabaseSurgicalBlock +
+        livePreExtractionBlock +
         liveAntigravityScraperBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : `${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}${liveAntigravityScraperBlock}`;
+      : `${realTimeEventHeader}${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}${livePreExtractionBlock}${liveAntigravityScraperBlock}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
@@ -1301,6 +3366,11 @@ async function runAutomation(automation, isManual = false) {
         model: effectiveAiModel,
       };
     }
+
+    // Inyección Dinámica de Herramientas del Lienzo sin duplicados
+    const dynamicWorkflowTools = resolveRequiredToolsForWorkflow(automation.workflowNodes);
+    const existingAgentTools = Array.isArray(agent.tools) ? agent.tools.filter(Boolean) : [];
+    agent.tools = Array.from(new Set([...existingAgentTools, ...dynamicWorkflowTools]));
 
     // Build mock request & response with explicit companyId, isAutomation flag, and app reports collector
     const req = {
@@ -1421,44 +3491,6 @@ async function runAutomation(automation, isManual = false) {
       resultText = stripAgentInlineEvidenceNoise(resultText, cleanRunEvidenceFiles);
     }
 
-    // 10. Update Log (con evidenceFiles / evidences) and Automation to SUCCESS immediately in MongoDB
-    console.log(
-      `[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} (${cleanRunEvidenceFiles.length} evidenceFiles) and Automation ${automation._id} to SUCCESS...`,
-    );
-    await Promise.all([
-      AutomationLog.updateOne(
-        { _id: log._id },
-        {
-          $set: {
-            status: 'success',
-            result: resultText,
-            conversationId: generatedConvoId,
-            evidenceFiles: cleanRunEvidenceFiles,
-            evidences: cleanRunEvidenceFiles,
-          }
-        }
-      ),
-      Automation.updateOne(
-        { _id: automation._id },
-        {
-          $set: {
-            lastRunAt: new Date(),
-            lastRunStatus: 'success',
-            lastRunResult: resultText.substring(0, 500),
-            conversationId: generatedConvoId,
-            ...(isManual && automation.status === 'active'
-              ? { nextRunAt: calculateNextRun(automation.scheduleType, automation.scheduleConfig) }
-              : {})
-          }
-        }
-      )
-    ]);
-    console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
-
-    // 11. Optional Post-Processing Tasks (Completely Non-Blocking in background)
-    const configuredOutputs = Array.isArray(automation.workflowNodes?.outputs)
-      ? automation.workflowNodes.outputs
-      : ['email_report'];
     const postNodeConfigs = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
     const postLogicNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.logicNodes)
       ? automation.workflowNodes.canvasLayout.logicNodes
@@ -1466,8 +3498,152 @@ async function runAutomation(automation, isManual = false) {
     const postEdges = Array.isArray(automation.workflowNodes?.canvasLayout?.edges)
       ? automation.workflowNodes.canvasLayout.edges
       : [];
+    const postCustomNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
+      ? automation.workflowNodes.canvasLayout.customNodes
+      : Array.isArray(automation.workflowNodes?.customNodes)
+        ? automation.workflowNodes.customNodes
+        : [];
+    const extraAgentsForRun = Array.isArray(automation.workflowNodes?.canvasLayout?.extraAgents)
+      ? automation.workflowNodes.canvasLayout.extraAgents.filter(Boolean)
+      : [];
+    const subagentCustomNodes = postCustomNodes.filter((cn) => {
+      const cid = String(cn?.id || cn?.nodeType || cn?.key || '').toLowerCase();
+      return cid.startsWith('subagent_') || cn?.category === 'subagent';
+    });
 
-    // Evaluar condición lógica real (if_router) y aprobación humana (human_approval) para que Ejecución Real y Sandbox sean 100% coherentes
+    // 9.5. Pases Secuenciales Multi-Agente (`extraAgents` y `subagent_*` en `customNodes`) vía callSgsstGemini
+    let multiAgentPassesExecuted = 0;
+    if (extraAgentsForRun.length > 0 || subagentCustomNodes.length > 0) {
+      try {
+        const { callSgsstGemini } = require('~/server/routes/sgsst/sgsstGemini');
+        const sequentialReviewers = [
+          ...extraAgentsForRun.map((ea, idx) => ({
+            name: ea.agentName || ea.name || `Agente Especialista #${idx + 2}`,
+            role: ea.roleLabel || 'Revisor / Auditor Especialista SG-SST',
+            model: allowedTextModels.includes(ea.aiModel || ea.model)
+              ? ea.aiModel || ea.model
+              : effectiveAiModel,
+            instruction:
+              String(ea.prompt || postNodeConfigs[ea.key]?.customInstruction || '').trim() ||
+              'Audita, enriquece técnicamente y consolida el dictamen del Agente #1 con rigor normativo SG-SST colombiano.',
+          })),
+          ...subagentCustomNodes.map((sn, idx) => {
+            const snCfg = postNodeConfigs[sn.key] || postNodeConfigs[sn.id] || {};
+            return {
+              name: sn.title || sn.label || `Subagente Especialista #${idx + 1}`,
+              role: sn.subtitle || 'Subagente Especialista de Dominio',
+              model: allowedTextModels.includes(snCfg.aiModel || sn.aiModel)
+                ? snCfg.aiModel || sn.aiModel
+                : effectiveAiModel,
+              instruction:
+                String(snCfg.customInstruction || sn.prompt || '').trim() ||
+                `Aplica tu especialidad (${sn.title || sn.id}) sobre el dictamen preliminar y consolida un informe ejecutivo enriquecido.`,
+            };
+          }),
+        ];
+
+        for (const rev of sequentialReviewers) {
+          const passPrompt =
+            `[ORQUESTACIÓN MULTI-AGENTE WAPPY SG-SST — EMPRESA: "${automationCompany?.companyName || 'Somos SST'}"]\n` +
+            `Actúas como **${rev.name}** (${rev.role}).\n\n` +
+            `[BORRADOR / DICTAMEN DEL AGENTE PREVIO EN LA CADENA]:\n"""\n${resultText.slice(0, 18000)}\n"""\n\n` +
+            `[TU MISIÓN E INSTRUCCIÓN ESPECIALIZADA]:\n${rev.instruction}\n\n` +
+            `Entrega el informe ejecutivo consolidado final en Markdown (conservando todos los datos verificados, tablas, hallazgos críticos y complementando con tu dictamen experto sin perder trazabilidad).`;
+          const enriched = await callSgsstGemini({
+            userId: automation.user.toString(),
+            modelName: rev.model,
+            prompt: passPrompt,
+            timeoutMs: 45000,
+          });
+          if (enriched && String(enriched).trim().length > 60) {
+            resultText = String(enriched).trim();
+            if (cleanRunEvidenceFiles.length > 0) {
+              resultText = stripAgentInlineEvidenceNoise(resultText, cleanRunEvidenceFiles);
+            }
+            multiAgentPassesExecuted += 1;
+          }
+        }
+      } catch (maErr) {
+        console.warn('[AutomationScheduler] Aviso en pase secuencial Multi-Agente:', maErr?.message || maErr);
+      }
+    }
+
+    // 9.8. Puente Universal de Informes Oficiales HTML (`req._generatedAppReports`) para TODOS los Aplicativos Hito 1–8
+    const workflowHitosList = Array.isArray(automation.workflowNodes?.hitos)
+      ? automation.workflowNodes.hitos.filter(Boolean)
+      : [];
+    if (workflowHitosList.length > 0) {
+      const pipeline = getHitoReportPipeline();
+      if (pipeline) {
+        for (const rawHitoId of workflowHitosList) {
+          const hitoNodeId = sstAppSourceAliasMap[rawHitoId] || rawHitoId;
+          const cfg =
+            postNodeConfigs[`hito_${rawHitoId}`] ||
+            postNodeConfigs[rawHitoId] ||
+            postNodeConfigs[`hito_${hitoNodeId}`] ||
+            postNodeConfigs[hitoNodeId] ||
+            {};
+          const alreadyCollected = Array.isArray(req._generatedAppReports) &&
+            req._generatedAppReports.some(
+              (r) =>
+                r &&
+                (r.hitoNodeId === hitoNodeId ||
+                  r.hitoNodeId === rawHitoId ||
+                  r.appId === hitoNodeId),
+            );
+          if (alreadyCollected) continue;
+
+          try {
+            if (
+              cfg.generateAppReport === true ||
+              cfg.appActionMode === 'generate_report' ||
+              cfg.appActionMode === 'write_and_report'
+            ) {
+              if (typeof pipeline.generateOrExtractOfficialAppReport === 'function') {
+                await pipeline.generateOrExtractOfficialAppReport({
+                  userId: automation.user.toString(),
+                  companyId: targetCompanyIdStr,
+                  hitoNodeId,
+                  forceRegenerate: Boolean(cfg.forceRegenerateReport),
+                  generateIfMissing: true,
+                  aiModel: effectiveAiModel,
+                  customInstructions: String(cfg.customInstruction || '').trim(),
+                  req,
+                });
+              }
+            } else if (cfg.includeLatestReport === true) {
+              if (typeof pipeline.extractLatestOfficialAppReport === 'function') {
+                const extracted = await pipeline.extractLatestOfficialAppReport({
+                  userId: automation.user.toString(),
+                  companyId: targetCompanyIdStr,
+                  hitoNodeId,
+                });
+                if (extracted?.found && extracted?.reportHtml) {
+                  req._generatedAppReports.push({
+                    appId: extracted.appId || hitoNodeId,
+                    hitoNodeId: extracted.hitoNodeId || hitoNodeId,
+                    reportTitle: extracted.reportTitle || 'Informe Oficial del Aplicativo SG-SST',
+                    reportHtml: extracted.reportHtml,
+                    reportConversationId: extracted.reportConversationId || null,
+                    fileNameSlug: extracted.fileNameSlug || 'Informe_Oficial_SGSST',
+                  });
+                }
+              }
+            }
+          } catch (hitoRepErr) {
+            console.warn(
+              `[AutomationScheduler] Aviso procesando informe oficial Hito (${hitoNodeId}):`,
+              hitoRepErr?.message || hitoRepErr,
+            );
+          }
+        }
+      }
+    }
+
+    const configuredOutputs = Array.isArray(automation.workflowNodes?.outputs)
+      ? automation.workflowNodes.outputs
+      : ['email_report'];
+
     const allGeneratedAppReports = Array.isArray(req._generatedAppReports)
       ? req._generatedAppReports.filter(Boolean)
       : [];
@@ -1533,381 +3709,263 @@ async function runAutomation(automation, isManual = false) {
       return branch === 'no' ? !ifConditionPassed : ifConditionPassed;
     };
 
-    const humanApprovalNode = postLogicNodes.find((ln) => ln && ln.logicType === 'human_approval');
+    const activeBranch = Boolean(automation.workflowNodes?.includeIfNode)
+      ? ifConditionPassed
+        ? 'yes'
+        : 'no'
+      : 'direct';
+    const outputsToExecute = configuredOutputs.filter((outId) => isOutputAllowedByIfBranch(outId));
+
+    const humanApprovalNode = postLogicNodes.find(
+      (ln) =>
+        ln &&
+        (ln.logicType === 'human_approval' ||
+          ln.id === 'logic_human_approval' ||
+          String(ln.key || '').includes('human_approval')),
+    );
     const humanApprovalCfg = humanApprovalNode
-      ? postNodeConfigs[humanApprovalNode.key] || postNodeConfigs.human_approval || {}
+      ? postNodeConfigs[humanApprovalNode.key] ||
+        postNodeConfigs.logic_human_approval ||
+        postNodeConfigs.human_approval ||
+        {}
       : null;
 
-    setImmediate(async () => {
-      // Background tagging
-      if (generatedConvoId) {
-        try {
-          const ConvoModel = mongoose.models.Conversation;
-          if (ConvoModel) {
-            await ConvoModel.updateOne(
-              { conversationId: generatedConvoId },
-              { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } }
-            );
+    const shouldGateForHumanApproval =
+      Boolean(humanApprovalNode) &&
+      (activeBranch === 'yes' || !Boolean(automation.workflowNodes?.includeIfNode)) &&
+      outputsToExecute.length > 0;
+
+    const executionTraceSummary = {
+      triggerSource,
+      activeBranch,
+      ifConditionPassed,
+      hasCriticalSignal: hasCriticalSignalInResult,
+      multiAgentPassesExecuted,
+      officialReportsAttached: newAppReports.length,
+      dynamicToolsInjected: dynamicWorkflowTools,
+      ...preExtractionTraceMeta,
+    };
+
+    // 10. Compuerta Real de Aprobación Humana (`logic_human_approval`) vs Ejecución Directa de Salidas
+    const cronNextRunPatch =
+      isManual && automation.status === 'active'
+        ? {
+            nextRunAt: hasCronTrigger(automation)
+              ? calculateNextRun(automation.scheduleType, automation.scheduleConfig)
+              : null,
           }
-        } catch (tagErr) {
-          // No-op
+        : {};
+
+    if (shouldGateForHumanApproval) {
+      const approverEmail = String(
+        humanApprovalCfg?.approverEmail ||
+          reqUser?.email ||
+          (Array.isArray(automation.emails) ? automation.emails[0] : '') ||
+          '',
+      ).trim();
+      const approverRole = String(
+        humanApprovalCfg?.approverRole || 'Responsable SG-SST / Gerencia',
+      ).trim();
+      const requestedAt = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 3600000).toISOString();
+
+      const pendingApprovalPayload = {
+        outputsToExecute,
+        responseText: resultText,
+        generatedAppReports: newAppReports.map((r) => ({
+          appId: r.appId || null,
+          hitoNodeId: r.hitoNodeId || null,
+          reportTitle: r.reportTitle || 'Informe Oficial del Aplicativo SG-SST',
+          reportHtml: r.reportHtml || '',
+          reportConversationId: r.reportConversationId || null,
+          fileNameSlug: r.fileNameSlug || 'Informe_Oficial_SGSST',
+          formData: r.formData || null,
+          caseId: r.caseId || null,
+        })),
+        capturedEvidences: runCapturedEvidences,
+        generatedConvoId,
+        hasCriticalSignal: hasCriticalSignalInResult,
+        activeBranch,
+        nodeConfigs: postNodeConfigs,
+        approverRole,
+        approverEmail,
+        requestedAt,
+        expiresAt,
+        processed: false,
+      };
+
+      console.log(
+        `[AutomationScheduler] STEP 6 (HUMAN APPROVAL GATE): Deteniendo ${outputsToExecute.length} salida(s) de "${automation.name}" hasta Visto Bueno de ${approverEmail || approverRole}...`,
+      );
+
+      await Promise.all([
+        AutomationLog.updateOne(
+          { _id: log._id },
+          {
+            $set: {
+              status: 'awaiting_approval',
+              result: resultText,
+              conversationId: generatedConvoId,
+              evidenceFiles: cleanRunEvidenceFiles,
+              evidences: cleanRunEvidenceFiles,
+              pendingApprovalPayload,
+              executionTrace: executionTraceSummary,
+            },
+          },
+        ),
+        Automation.updateOne(
+          { _id: automation._id },
+          {
+            $set: {
+              lastRunAt: new Date(),
+              lastRunStatus: 'awaiting_approval',
+              lastRunResult: `[Pendiente de Visto Bueno Humano] ${resultText.substring(0, 440)}`,
+              conversationId: generatedConvoId,
+              ...cronNextRunPatch,
+            },
+          },
+        ),
+      ]);
+
+      setImmediate(async () => {
+        if (generatedConvoId) {
+          try {
+            const ConvoModel = mongoose.models.Conversation;
+            if (ConvoModel) {
+              await ConvoModel.updateOne(
+                { conversationId: generatedConvoId },
+                { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
+              );
+            }
+          } catch (_) {}
         }
-      }
 
-      const compLabel = automationCompany?.companyName || 'Somos SST';
-
-      if (humanApprovalNode) {
+        const compLabel = automationCompany?.companyName || 'Somos SST';
+        const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 340);
         try {
-          const approver = String(humanApprovalCfg?.approverEmail || '').trim();
           await Notification.create({
             user: automation.user,
             companyId: automation.companyId || null,
-            title: `🛑 Revisión Humana Solicitada: ${automation.name} (${compLabel})`,
-            body: `El flujo incluye nodo de Aprobación Humana${approver ? ` (${approver})` : ''}. Revisa la bitácora generada en /tareas.`,
+            title: `🛑 Visto Bueno Requerido: ${automation.name} (${compLabel})`,
+            body: `Salidas retenidas (${outputsToExecute.join(', ')})${approverEmail ? ` para aprobación de ${approverEmail}` : ''}. Aprueba o rechaza en /tareas (pestaña Historial). Resumen: ${shortSummary}`,
             type: 'system_update',
             read: false,
           });
         } catch (_) {}
-      }
 
-      // 11A. Notificación Directa en WAPPY + Chat de Tenshi (cuando wappy_notification está activo)
-      const notifCfg = postNodeConfigs.out_wappy_notification || postNodeConfigs.wappy_notification || {};
-      if (
-        configuredOutputs.includes('wappy_notification') &&
-        isOutputAllowedByIfBranch('wappy_notification') &&
-        (!notifCfg.onlyOnCriticalAlerts || hasCriticalSignalInResult)
-      ) {
-        try {
-          const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 260);
-          await Notification.create({
-            user: automation.user,
-            companyId: automation.companyId || null,
-            title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
-            body: `${shortSummary}${resultText.length > 260 ? '...' : ''}`,
-            type: 'system_update',
-            read: false,
-          });
-          await TenshiMessage.create({
-            user: automation.user,
-            companyId: automation.companyId ? String(automation.companyId) : null,
-            role: 'assistant',
-            content:
-              `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
-              `${resultText.substring(0, 900)}${resultText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
-          });
-        } catch (notifErr) {
-          console.warn('[AutomationScheduler] Non-blocking WAPPY notification error:', notifErr.message);
-        }
-      }
-
-      // 11B. Envío de Bitácora Final a Google Antigravity (PC Local o Cloud 24/7)
-      if (
-        (configuredOutputs.includes('antigravity_local_report') &&
-          isOutputAllowedByIfBranch('antigravity_local_report')) ||
-        (configuredOutputs.includes('antigravity_cloud_report') &&
-          isOutputAllowedByIfBranch('antigravity_cloud_report'))
-      ) {
-        try {
-          const targetEnv = configuredOutputs.includes('antigravity_cloud_report')
-            ? 'Antigravity Cloud 24/7'
-            : 'Antigravity Local (Mi PC)';
-          await KanbanTask.create({
-            user: automation.user,
-            companyId: targetCompanyIdStr || 'DEFAULT',
-            title: `[Bitácora ${targetEnv}] ${automation.name} — ${compLabel}`,
-            description: resultText.substring(0, 4000),
-            status: 'done',
-            priority: 'medium',
-            type: 'antigravity_delegation',
-            sourceModule: 'Automatización WAPPY',
-            assignedTo: targetEnv,
-            category: 'Automatización WAPPY',
-            assignedAgent: targetEnv,
-            dueDate: new Date(),
-            completedAt: new Date(),
-          });
-          const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 240);
-          await Notification.create({
-            user: automation.user,
-            companyId: automation.companyId || null,
-            title: `📡 Bitácora ${targetEnv}: ${automation.name} (${compLabel})`,
-            body: `Informe registrado en ${targetEnv}: ${shortSummary}${resultText.length > 240 ? '...' : ''}`,
-            type: 'system_update',
-            read: false,
-          });
-        } catch (agyErr) {
-          console.warn('[AutomationScheduler] Non-blocking Antigravity bitácora error:', agyErr.message);
-        }
-      }
-
-      // 11C. Creación/Actualización de Documento en el Editor en Vivo WAPPY (canvas_doc)
-      if (configuredOutputs.includes('canvas_doc') && isOutputAllowedByIfBranch('canvas_doc')) {
-        try {
-          const LiveDocumentModel =
-            mongoose.models.LiveDocument || require('~/models/LiveDocument');
-          if (LiveDocumentModel) {
-            const docCfg = postNodeConfigs.out_canvas_doc || postNodeConfigs.canvas_doc || {};
-            const customDocTitle = String(docCfg.documentTitle || '').trim();
-            const docTitle = customDocTitle || `📄 Informe Automatizado: ${automation.name} (${compLabel})`;
-            const execSummaryHtml = formatMarkdownToEmailHtml(resultText) || `<p>${resultText}</p>`;
-            const extractedOfficialHtmlBlocks = newAppReports
-              .filter((rep) => rep && typeof rep.reportHtml === 'string' && rep.reportHtml.trim())
-              .map(
-                (rep) =>
-                  `<hr style="margin:28px 0;border:none;border-top:2px solid #cbd5e1;" />` +
-                  `<div class="wappy-extracted-atel-report" style="margin-top:16px;">${rep.reportHtml}</div>`,
-              )
-              .join('\n');
-            const htmlContent = extractedOfficialHtmlBlocks
-              ? `<div style="margin-bottom:24px;">${execSummaryHtml}</div>\n${extractedOfficialHtmlBlocks}`
-              : execSummaryHtml;
-            const validCompanyObjId =
-              targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
-                ? targetCompanyIdStr
-                : undefined;
-            await LiveDocumentModel.findOneAndUpdate(
-              {
-                user: automation.user,
-                title: docTitle,
-                ...(validCompanyObjId ? { companyId: validCompanyObjId } : {}),
-              },
-              {
-                $set: {
-                  title: docTitle,
-                  content: htmlContent,
-                  originalFileName: `${automation.name}.docx`,
-                  originalFileType: 'html',
-                  user: automation.user,
-                  ...(validCompanyObjId ? { companyId: validCompanyObjId } : {}),
-                },
-              },
-              { upsert: true, new: true },
-            );
-          }
-        } catch (docErr) {
-          console.warn('[AutomationScheduler] Non-blocking LiveDocument (canvas_doc) error:', docErr.message);
-        }
-      }
-
-      // 11D. Creación de Actividad en el Centro de Control en cualquiera de sus Etapas (acpm_task)
-      if (configuredOutputs.includes('acpm_task') && isOutputAllowedByIfBranch('acpm_task')) {
-        try {
-          const acpmCfg = postNodeConfigs.out_acpm_task || postNodeConfigs.acpm_task || {};
-          const rawStage = String(acpmCfg.kanbanStatus || 'todo').trim();
-          const validStage =
-            rawStage === 'urgent'
-              ? 'overdue'
-              : ['todo', 'in_progress', 'due_soon', 'overdue', 'done'].includes(rawStage)
-                ? rawStage
-                : 'todo';
-          const rawPriority = String(acpmCfg.kanbanPriority || 'high').toLowerCase();
-          const validPriority =
-            rawPriority === 'low' || rawPriority === 'baja'
-              ? 'baja'
-              : rawPriority === 'medium' || rawPriority === 'media'
-                ? 'media'
-                : 'alta';
-          const validActionType = ['correctiva', 'preventiva', 'mejora'].includes(
-            String(acpmCfg.kanbanActionType || '').toLowerCase(),
-          )
-            ? String(acpmCfg.kanbanActionType).toLowerCase()
-            : 'correctiva';
-          const dueDays = Math.max(1, Number(acpmCfg.kanbanDueDays) || 7);
-          const dueTarget = new Date(Date.now() + dueDays * 24 * 3600000);
-          const customTitle = String(acpmCfg.kanbanTaskTitle || '').trim();
-          const customAssignee = String(acpmCfg.kanbanAssignee || '').trim();
-
-          await KanbanTask.create({
-            user: automation.user,
-            companyId: targetCompanyIdStr || 'DEFAULT',
-            title: customTitle || `[Centro de Control] ${automation.name} — ${compLabel}`,
-            description: resultText.substring(0, 3500),
-            status: validStage,
-            priority: validPriority,
-            actionType: validActionType,
-            type: 'audit_finding',
-            sourceModule: 'Automatización WAPPY (Centro de Control)',
-            assignedTo: customAssignee || automation.agentName || agent?.name || 'Responsable SG-SST',
-            referenceId: String(automation._id),
-            referenceName: automation.name,
-            dueDate: dueTarget,
-            ...(validStage === 'done' ? { completedAt: new Date() } : {}),
-          });
-        } catch (acpmErr) {
-          console.warn('[AutomationScheduler] Non-blocking Centro de Control task error:', acpmErr.message);
-        }
-      }
-    });
-
-    // 12. Send Email Notification ONLY when email_report output node is active, If-branch allows it, and onlyOnCriticalAlerts is satisfied
-    const emailCfg = postNodeConfigs.out_email_report || postNodeConfigs.email_report || {};
-    const shouldSendEmailReport =
-      configuredOutputs.includes('email_report') &&
-      isOutputAllowedByIfBranch('email_report') &&
-      (!emailCfg.onlyOnCriticalAlerts || hasCriticalSignalInResult);
-
-    if (shouldSendEmailReport && Array.isArray(automation.emails) && automation.emails.length > 0) {
-      setImmediate(async () => {
-        try {
-          let companyName = 'Mi Empresa';
-          if (automation.companyId) {
-            const comp = await CompanyInfo.findById(automation.companyId).select('companyName').lean();
-            if (comp?.companyName) companyName = comp.companyName;
-          }
-
-          const validEmails = automation.emails
-            .map(e => (typeof e === 'string' ? e.trim() : ''))
-            .filter(e => e.includes('@'));
-
-          if (validEmails.length > 0) {
+        if (approverEmail && approverEmail.includes('@')) {
+          try {
             const bogotaDateStr = new Intl.DateTimeFormat('es-CO', {
               timeZone: 'America/Bogota',
               dateStyle: 'full',
-              timeStyle: 'medium'
+              timeStyle: 'medium',
             }).format(new Date());
+            const approvalBannerHtml =
+              `<div style="border:2px solid #f59e0b;background:rgba(245,158,11,0.12);border-radius:12px;padding:16px;margin-bottom:18px;">` +
+              `<h3 style="color:#d97706;margin:0 0 8px 0;">🛑 Solicitud de Visto Bueno Humano (${approverRole})</h3>` +
+              `<p style="margin:0 0 10px 0;font-size:14px;">Las salidas finales de este flujo (<strong>${outputsToExecute.join(', ')}</strong>) están <strong>detenidas en compuerta</strong> esperando tu autorización.</p>` +
+              `<a href="https://wappy.club/tareas" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;padding:10px 18px;border-radius:8px;text-decoration:none;">Revisar y Aprobar / Rechazar en WAPPY (/tareas &rarr; Historial)</a>` +
+              `</div>` +
+              formatMarkdownToEmailHtml(resultText);
 
-            const chatUrl = generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : null;
-
-            const emailAttachments = [];
-            const MAX_EMAIL_ATTACHMENT_BYTES = 8 * 1024 * 1024;
-            let totalAttachmentBytes = 0;
-            const seenAttachmentPaths = new Set();
-
-            if (runCapturedEvidences.length > 0) {
-              for (const ev of runCapturedEvidences) {
-                const chosenLocalPath =
-                  ev.pdfLocalPath && fs.existsSync(ev.pdfLocalPath)
-                    ? ev.pdfLocalPath
-                    : ev.imageLocalPath && fs.existsSync(ev.imageLocalPath)
-                      ? ev.imageLocalPath
-                      : null;
-                if (!chosenLocalPath || seenAttachmentPaths.has(chosenLocalPath)) continue;
-                try {
-                  const fileBuf = await fs.promises.readFile(chosenLocalPath);
-                  if (
-                    fileBuf.length > 200 &&
-                    totalAttachmentBytes + fileBuf.length <= MAX_EMAIL_ATTACHMENT_BYTES
-                  ) {
-                    const chosenFileName = path.basename(chosenLocalPath);
-                    const ext = path.extname(chosenFileName).toLowerCase();
-                    const contentType =
-                      ext === '.pdf'
-                        ? 'application/pdf'
-                        : ext === '.png'
-                          ? 'image/png'
-                          : 'image/jpeg';
-                    emailAttachments.push({
-                      filename: chosenFileName,
-                      content: fileBuf,
-                      contentType,
-                    });
-                    totalAttachmentBytes += fileBuf.length;
-                    seenAttachmentPaths.add(chosenLocalPath);
-                  }
-                } catch (_) {}
-              }
-            }
-
-            let emailHtmlResult = formatMarkdownToEmailHtml(resultText);
-            if (newAppReports.length > 0) {
-              for (const rep of newAppReports) {
-                if (!rep || typeof rep.reportHtml !== 'string' || !rep.reportHtml.trim()) continue;
-                const rawSlug = `${rep.formData?.afectadoNombre || rep.caseId || 'Evento'}_${rep.formData?.fechaEvento || new Date().toISOString().slice(0, 10)}`;
-                const safeSlug = rawSlug
-                  .normalize('NFD')
-                  .replace(/[\u0300-\u036f]/g, '')
-                  .replace(/[^a-zA-Z0-9_-]+/g, '_')
-                  .replace(/^_+|_+$/g, '')
-                  .slice(0, 72) || 'ATEL';
-                const reportUrl = rep.reportConversationId
-                  ? `https://wappy.club/c/${rep.reportConversationId}`
-                  : null;
-                const standaloneReportHtml =
-                  `<!DOCTYPE html>\n<html lang="es">\n<head>\n` +
-                  `<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n` +
-                  `<title>${(rep.reportTitle || 'Informe Oficial de Investigación ATEL').replace(/[<>&"]/g, '')}</title>\n` +
-                  `<style>body{font-family:Arial,Helvetica,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:24px;} .atel-sheet{max-width:1060px;margin:0 auto;background:#ffffff;padding:28px;border-radius:16px;box-shadow:0 10px 25px rgba(15,23,42,0.08);} @media print{body{background:#fff;padding:0;} .atel-sheet{box-shadow:none;padding:0;max-width:100%;}}</style>\n` +
-                  `</head>\n<body>\n<div class="atel-sheet">\n${rep.reportHtml}\n</div>\n</body>\n</html>`;
-                const htmlAttachmentBuf = Buffer.from(standaloneReportHtml, 'utf8');
-                if (totalAttachmentBytes + htmlAttachmentBuf.length <= MAX_EMAIL_ATTACHMENT_BYTES) {
-                  emailAttachments.push({
-                    filename: `Informe_Investigacion_ATEL_${safeSlug}.html`,
-                    content: htmlAttachmentBuf,
-                    contentType: 'text/html; charset=utf-8',
-                  });
-                  totalAttachmentBytes += htmlAttachmentBuf.length;
-                }
-
-                emailHtmlResult += `
-                  <div style="border: 2px solid #0d9488; background: linear-gradient(135deg, rgba(13, 148, 136, 0.14), rgba(14, 165, 233, 0.10)); border-radius: 14px; padding: 16px 18px; margin: 22px 0 14px 0;">
-                    <h3 style="color: #0d9488; margin: 0 0 8px 0; font-size: 16px; font-weight: 800;">📋 Informe Oficial Extraído del Aplicativo Investigación ATEL (Res. 1401 de 2007)</h3>
-                    <p style="margin: 0 0 10px 0; font-size: 13px; color: #334155; line-height: 1.5;">
-                      <strong>Trabajador:</strong> ${rep.formData?.afectadoNombre || 'N/A'} (CC: ${rep.formData?.afectadoCedula || 'N/A'}) &bull;
-                      <strong>Evento:</strong> ${rep.formData?.tipoEvento || 'ATEL'} &bull;
-                      <strong>Fecha:</strong> ${rep.formData?.fechaEvento || 'N/A'} &bull;
-                      <strong>Expediente:</strong> <code>${rep.caseId || 'N/A'}</code>
-                    </p>
-                    ${
-                      reportUrl
-                        ? `<a href="${reportUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0d9488; color: #ffffff; font-weight: 700; font-size: 13px; padding: 8px 16px; border-radius: 8px; text-decoration: none;">🔗 Abrir Informe Oficial en el Historial de WAPPY &rarr;</a>`
-                        : ''
-                    }
-                  </div>
-                  <div style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 14px; padding: 20px; margin: 12px 0 22px 0; overflow-x: auto;">
-                    ${rep.reportHtml}
-                  </div>
-                `;
-              }
-            }
-            if (runCapturedEvidences.length > 0) {
-              const evItemsHtml = runCapturedEvidences
-                .map((ev, idx) => {
-                  const pdfLink = ev.pdfAbsoluteUrl
-                    ? `<a href="${ev.pdfAbsoluteUrl}?download=1" target="_blank" rel="noopener noreferrer" style="color: #2dd4bf; font-weight: 700; text-decoration: underline; margin-right: 10px;">📄 Descargar PDF Oficial</a>`
-                    : '';
-                  const imgLink = ev.imageAbsoluteUrl
-                    ? `<a href="${ev.imageAbsoluteUrl}" target="_blank" rel="noopener noreferrer" style="color: #a855f7; font-weight: 700; text-decoration: underline;">🖼️ Ver Imagen del Certificado</a>`
-                    : '';
-                  return `<li style="margin-bottom: 8px;"><strong>${idx + 1}. ${ev.workerName || 'Registro'} (${ev.cedula || 'N/A'})</strong> — ${ev.title || 'Certificado Oficial'} (${ev.portal || 'Portal Oficial'}):<br>${pdfLink}${imgLink}</li>`;
-                })
-                .join('');
-              emailHtmlResult += `
-                <div style="border: 1px solid #0d9488; background: rgba(13, 148, 136, 0.1); border-radius: 10px; padding: 14px; margin: 18px 0 6px 0;">
-                  <h4 style="color: #2dd4bf; margin: 0 0 8px 0; font-size: 14px;">📎 Certificados y Soportes Oficiales Extraídos (${runCapturedEvidences.length})</h4>
-                  <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #e2e8f0;">${evItemsHtml}</ul>
-                </div>
-              `;
-            }
-
-            const customEmailSubject = String(emailCfg.emailSubject || '').trim();
-            const resolvedEmailSubject = customEmailSubject
-              ? `${customEmailSubject} (${companyName})`
-              : `📊 Reporte Automático SGSST: ${automation.name} - ${companyName}`;
-
-            for (const recipient of validEmails) {
-              console.log(`[AutomationScheduler] Sending report email to ${recipient} for "${automation.name}" (${emailAttachments.length} attachment(s))`);
-              sendEmail({
-                email: recipient,
-                from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
-                subject: resolvedEmailSubject,
-                payload: {
-                  taskName: automation.name,
-                  agentName: automation.agentName || agent.name || 'Agente Experto',
-                  companyName,
-                  executionDate: bogotaDateStr,
-                  prompt: automation.prompt,
-                  result: emailHtmlResult,
-                  chatUrl,
-                  year: new Date().getFullYear()
-                },
-                template: 'agentAutomationReport.handlebars',
-                throwError: false,
-                ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {})
-              }).catch(e => console.warn(`[AutomationScheduler] Non-blocking email error for ${recipient}:`, e.message));
-            }
+            await sendEmail({
+              email: approverEmail,
+              from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
+              subject: `🛑 Visto Bueno Requerido: ${automation.name} (${compLabel})`,
+              payload: {
+                taskName: `[Aprobación Pendiente] ${automation.name}`,
+                agentName: automation.agentName || agent?.name || 'Agente Experto',
+                companyName: compLabel,
+                executionDate: bogotaDateStr,
+                prompt: automation.prompt,
+                result: approvalBannerHtml,
+                chatUrl: 'https://wappy.club/tareas',
+                year: new Date().getFullYear(),
+              },
+              template: 'agentAutomationReport.handlebars',
+              throwError: false,
+            });
+          } catch (apMailErr) {
+            console.warn('[AutomationScheduler] Aviso correo Visto Bueno:', apMailErr?.message);
           }
-        } catch (emailErr) {
-          console.error(`[AutomationScheduler] Error in non-blocking email task:`, emailErr.message);
+        }
+      });
+    } else {
+      console.log(
+        `[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} (${cleanRunEvidenceFiles.length} evidenceFiles) and Automation ${automation._id} to SUCCESS...`,
+      );
+      await Promise.all([
+        AutomationLog.updateOne(
+          { _id: log._id },
+          {
+            $set: {
+              status: 'success',
+              result: resultText,
+              conversationId: generatedConvoId,
+              evidenceFiles: cleanRunEvidenceFiles,
+              evidences: cleanRunEvidenceFiles,
+              executionTrace: executionTraceSummary,
+            },
+          },
+        ),
+        Automation.updateOne(
+          { _id: automation._id },
+          {
+            $set: {
+              lastRunAt: new Date(),
+              lastRunStatus: 'success',
+              lastRunResult: resultText.substring(0, 500),
+              conversationId: generatedConvoId,
+              ...cronNextRunPatch,
+            },
+          },
+        ),
+      ]);
+      console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
+
+      setImmediate(async () => {
+        if (generatedConvoId) {
+          try {
+            const ConvoModel = mongoose.models.Conversation;
+            if (ConvoModel) {
+              await ConvoModel.updateOne(
+                { conversationId: generatedConvoId },
+                { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
+              );
+            }
+          } catch (_) {}
+        }
+
+        try {
+          const outRes = await executeDownstreamOutputs({
+            automation,
+            user: reqUser,
+            companyId: targetCompanyIdStr,
+            companyInfo: automationCompany,
+            outputsToExecute,
+            responseText: resultText,
+            generatedAppReports: newAppReports,
+            activeBranch,
+            nodeConfigs: postNodeConfigs,
+            capturedEvidences: runCapturedEvidences,
+            generatedConvoId,
+            hasCriticalSignal: hasCriticalSignalInResult,
+            logId: log._id,
+          });
+          if (outRes?.workspaceLinks?.length > 0 || outRes?.executedOutputs?.length > 0) {
+            await AutomationLog.updateOne(
+              { _id: log._id },
+              {
+                $set: {
+                  'executionTrace.executedOutputs': outRes.executedOutputs || [],
+                  'executionTrace.workspaceLinks': outRes.workspaceLinks || [],
+                  ...(outRes.errors?.length ? { 'executionTrace.outputWarnings': outRes.errors } : {}),
+                },
+              },
+            ).catch(() => {});
+          }
+        } catch (postErr) {
+          console.warn('[AutomationScheduler] Non-blocking executeDownstreamOutputs error:', postErr?.message || postErr);
         }
       });
     }
@@ -1961,7 +4019,9 @@ async function runAutomation(automation, isManual = false) {
       updateDoc.nextRunAt = null;
       console.warn(`[AutomationScheduler] Automation "${automation.name}" paused immediately due to exhaustion/critical failure.`);
     } else if (isManual && automation.status === 'active') {
-      updateDoc.nextRunAt = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
+      updateDoc.nextRunAt = hasCronTrigger(automation)
+        ? calculateNextRun(automation.scheduleType, automation.scheduleConfig)
+        : null;
     }
 
     await Automation.updateOne({ _id: automation._id }, { $set: updateDoc });
@@ -2023,6 +4083,230 @@ async function stopAutomation(automationId) {
   };
 }
 
+/**
+ * Normaliza equivalencias de portales QR públicos para disparo reactivo `trigger_qr_worker`.
+ */
+function matchesQrPortalFilter(configuredValue, incomingPortalType) {
+  const cfgNorm = String(configuredValue || '')
+    .trim()
+    .toLowerCase();
+  if (!cfgNorm || cfgNorm === 'all' || cfgNorm === 'todos' || cfgNorm === '*') {
+    return true;
+  }
+  const incNorm = String(incomingPortalType || '')
+    .trim()
+    .toLowerCase();
+  if (!incNorm) return false;
+  if (cfgNorm === incNorm) return true;
+
+  const aliasGroups = [
+    ['actos_condiciones', 'reporte_acto', 'actos', 'condiciones_inseguras', 'inspecciones'],
+    ['participacion_ipevr', 'participacion_ipevar', 'ipevr', 'ipevar', 'peligros_qr'],
+    ['permiso_alturas', 'alturas', 'trabajo_alturas'],
+    ['solicitud_epp', 'epp', 'dotacion_epp'],
+    ['sociodemografico_salud', 'sociodemografico', 'perfil_salud', 'autoreporte_salud', 'perfil_update'],
+    ['testimonio_atel', 'investigacion_atel', 'atel', 'accidente'],
+    ['alta_direccion', 'aporte_alta_direccion', 'gerencia'],
+    ['inspeccion_pesv', 'pesv', 'preoperacional_pesv'],
+    ['copasst_inspeccion', 'copasst'],
+    ['comite_convivencia', 'convivencia', 'cocola'],
+    ['brigada_emergencias', 'brigadista', 'emergencias'],
+    ['estudio_puesto', 'ept', 'ergonomia'],
+    ['clima_psicosocial', 'mood', 'psicosocial'],
+  ];
+
+  for (const group of aliasGroups) {
+    if (group.includes(cfgNorm) && group.includes(incNorm)) {
+      return true;
+    }
+  }
+  return incNorm.includes(cfgNorm) || cfgNorm.includes(incNorm);
+}
+
+/**
+ * Dispara en segundo plano (`setImmediate`) todas las automatizaciones activas de la empresa
+ * que tengan `'trigger_qr_worker'` en `workflowNodes.triggers` y coincidan con `portalType`.
+ * Nunca bloquea la petición pública del trabajador.
+ */
+function dispatchQrWorkerAutomations({ companyId, portalType, submissionData = {} } = {}) {
+  if (!companyId) return;
+  const companyIdStr = String(companyId).trim();
+  if (!companyIdStr) return;
+
+  setImmediate(async () => {
+    try {
+      const candidates = await Automation.find({
+        isSystemPreset: { $ne: true },
+        status: 'active',
+        companyId: companyIdStr,
+        'workflowNodes.triggers': 'trigger_qr_worker',
+      })
+        .select(AUTOMATION_RUN_FIELDS)
+        .lean();
+
+      if (!Array.isArray(candidates) || candidates.length === 0) return;
+
+      for (const auto of candidates) {
+        const nodeConfigs =
+          auto?.workflowNodes?.canvasLayout?.nodeConfigs ||
+          auto?.workflowNodes?.nodeConfigs ||
+          {};
+        const configuredPortal =
+          nodeConfigs?.trigger_root?.qrPortalType ||
+          nodeConfigs?.trigger_trigger_qr_worker?.qrPortalType ||
+          nodeConfigs?.trigger_qr_worker?.qrPortalType ||
+          nodeConfigs?.trigger_root?.qrPortalTarget ||
+          nodeConfigs?.trigger_trigger_qr_worker?.qrPortalTarget ||
+          'all';
+
+        if (!matchesQrPortalFilter(configuredPortal, portalType)) {
+          continue;
+        }
+
+        console.log(
+          `[AutomationScheduler] Disparo reactivo QR Worker (${portalType}) -> "${auto.name}" (${auto._id})`,
+        );
+        runAutomation(auto, {
+          triggerSource: 'qr_worker',
+          eventPayload: {
+            portalType,
+            receivedAt: new Date().toISOString(),
+            ...submissionData,
+          },
+        }).catch((qrErr) => {
+          console.warn(
+            `[AutomationScheduler] Error en automatización QR "${auto.name}":`,
+            qrErr?.message || qrErr,
+          );
+        });
+      }
+    } catch (err) {
+      console.warn('[AutomationScheduler] Aviso en dispatchQrWorkerAutomations:', err?.message || err);
+    }
+  });
+}
+
+let lastEmailTriggerSweepAt = 0;
+
+/**
+ * Vigilante de Bandeja Gmail (`trigger_email`): consulta mensajes recientes no leídos (`is:unread newer_than:1d`)
+ * deduplicando contra `AutomationLog.gmailMessageId` para no disparar dos veces el mismo correo.
+ */
+async function checkEmailTriggeredAutomations(maxToDispatch = 2) {
+  if (maxToDispatch <= 0) return;
+  const nowMs = Date.now();
+  if (nowMs - lastEmailTriggerSweepAt < 50000) return; // Máx 1 barrido cada ~50s
+  lastEmailTriggerSweepAt = nowMs;
+
+  try {
+    const emailAutomations = await Automation.find({
+      isSystemPreset: { $ne: true },
+      companyId: { $ne: 'SYSTEM_PRESET' },
+      status: 'active',
+      lastRunStatus: { $ne: 'running' },
+      'workflowNodes.triggers': 'trigger_email',
+    })
+      .select(AUTOMATION_RUN_FIELDS)
+      .limit(12)
+      .lean();
+
+    if (!Array.isArray(emailAutomations) || emailAutomations.length === 0) return;
+
+    let dispatched = 0;
+    for (const auto of emailAutomations) {
+      if (dispatched >= maxToDispatch) break;
+      if (runningAutomations.has(String(auto._id))) continue;
+
+      const userIdStr = String(auto.user || '');
+      const companyIdStr = auto.companyId ? String(auto.companyId) : null;
+      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, companyIdStr);
+      if (!oauthCtx) continue;
+
+      const scopesStr = String(oauthCtx.tokenDoc?.scopes || '').toLowerCase();
+      if (scopesStr && !scopesStr.includes('gmail') && !scopesStr.includes('mail.google.com')) {
+        continue;
+      }
+
+      const nodeConfigs =
+        auto?.workflowNodes?.canvasLayout?.nodeConfigs ||
+        auto?.workflowNodes?.nodeConfigs ||
+        {};
+      const emailSubjectFilter = String(
+        nodeConfigs?.trigger_root?.emailSubjectFilter ||
+          nodeConfigs?.trigger_trigger_email?.emailSubjectFilter ||
+          nodeConfigs?.trigger_email?.emailSubjectFilter ||
+          '',
+      ).trim();
+
+      const gmailQuery = emailSubjectFilter
+        ? `is:unread newer_than:1d subject:"${emailSubjectFilter.replace(/"/g, '')}"`
+        : 'is:unread newer_than:1d';
+
+      try {
+        const gmail = oauthCtx.google.gmail({ version: 'v1', auth: oauthCtx.oauth2Client });
+        const listRes = await gmail.users.messages.list({
+          userId: 'me',
+          q: gmailQuery,
+          maxResults: 5,
+        });
+        const msgs = Array.isArray(listRes?.data?.messages) ? listRes.data.messages : [];
+        if (msgs.length === 0) continue;
+
+        for (const m of msgs) {
+          if (!m?.id) continue;
+          const alreadyTriggered = await AutomationLog.exists({
+            automation: auto._id,
+            $or: [{ gmailMessageId: m.id }, { 'eventMetadata.gmailMessageId': m.id }],
+          });
+          if (alreadyTriggered) continue;
+
+          const detail = await gmail.users.messages.get({
+            userId: 'me',
+            id: m.id,
+            format: 'metadata',
+            metadataHeaders: ['From', 'Subject', 'Date'],
+          });
+          const headers = Array.isArray(detail?.data?.payload?.headers)
+            ? detail.data.payload.headers
+            : [];
+          const getHdr = (hName) =>
+            headers.find((h) => String(h?.name || '').toLowerCase() === hName.toLowerCase())?.value || '';
+
+          const emailMeta = {
+            gmailMessageId: m.id,
+            threadId: detail?.data?.threadId || m.threadId || null,
+            from: getHdr('From'),
+            subject: getHdr('Subject'),
+            date: getHdr('Date'),
+            snippet: String(detail?.data?.snippet || '').trim(),
+            matchedFilter: emailSubjectFilter || null,
+          };
+
+          console.log(
+            `[AutomationScheduler] Disparo reactivo Gmail (${m.id}: "${emailMeta.subject}") -> "${auto.name}"`,
+          );
+          dispatched += 1;
+          runAutomation(auto, {
+            triggerSource: 'email',
+            gmailMessageId: m.id,
+            eventPayload: emailMeta,
+          }).catch((emErr) => {
+            console.warn(
+              `[AutomationScheduler] Error en automatización Email "${auto.name}":`,
+              emErr?.message || emErr,
+            );
+          });
+          break; // 1 correo nuevo por ciclo para esta automatización
+        }
+      } catch (gErr) {
+        // Token sin permiso Gmail o revocado — ignorar silenciosamente sin tumbar el scheduler
+      }
+    }
+  } catch (err) {
+    console.warn('[AutomationScheduler] Aviso en checkEmailTriggeredAutomations:', err?.message || err);
+  }
+}
+
 async function checkAndRunAutomations() {
   if (isCheckingAutomations) return;
   isCheckingAutomations = true;
@@ -2063,29 +4347,50 @@ async function checkAndRunAutomations() {
     const availableSlots = adaptiveCap - runningAutomations.size;
     if (availableSlots <= 0) return;
 
-    // Query pending active automations (lean + projection + limit => mínimo uso de RAM)
-    const pendingAutomations = await Automation.find({
+    // 2.5. Vigilante de Bandeja Gmail (`trigger_email`)
+    await checkEmailTriggeredAutomations(Math.min(2, availableSlots));
+
+    const remainingSlots = adaptiveCap - runningAutomations.size;
+    if (remainingSlots <= 0) return;
+
+    // 3. Ejecutar por reloj horario SOLO las automatizaciones con disparador Cron (`hasCronTrigger(auto) === true`)
+    const pendingCandidates = await Automation.find({
       isSystemPreset: { $ne: true },
       companyId: { $ne: 'SYSTEM_PRESET' },
       status: 'active',
       lastRunStatus: { $ne: 'running' },
-      $or: [
-        { nextRunAt: { $lte: now } },
-        { nextRunAt: null }
-      ]
+      $and: [
+        {
+          $or: [
+            { nextRunAt: { $lte: now } },
+            { nextRunAt: null },
+          ],
+        },
+        {
+          $or: [
+            { 'workflowNodes.triggers': { $exists: false } },
+            { 'workflowNodes.triggers': { $size: 0 } },
+            { 'workflowNodes.triggers': 'schedule_cron' },
+          ],
+        },
+      ],
     })
       .select(AUTOMATION_RUN_FIELDS)
       .sort({ nextRunAt: 1 })
-      .limit(availableSlots)
+      .limit(remainingSlots)
       .lean();
 
+    const pendingAutomations = pendingCandidates.filter((auto) => hasCronTrigger(auto));
     if (pendingAutomations.length === 0) return;
 
-    console.log(`[AutomationScheduler] Found ${pendingAutomations.length} pending automations to execute (adaptive cap: ${adaptiveCap}, active: ${runningAutomations.size}).`);
+    console.log(`[AutomationScheduler] Found ${pendingAutomations.length} cron automations to execute (adaptive cap: ${adaptiveCap}, active: ${runningAutomations.size}).`);
 
     const toExecute = [];
 
     for (const automation of pendingAutomations) {
+      if (!hasCronTrigger(automation)) {
+        continue;
+      }
       // 3. Anti-loop & Cooldown Check: Ensure at least 4 minutes between automatic runs
       if (automation.lastRunAt) {
         const timeSinceLastRun = now.getTime() - new Date(automation.lastRunAt).getTime();
@@ -2122,7 +4427,7 @@ async function checkAndRunAutomations() {
       const executing = new Set();
       for (const item of toExecute) {
         const p = Promise.resolve()
-          .then(() => runAutomation(item))
+          .then(() => runAutomation(item, { triggerSource: 'schedule_cron' }))
           .catch((err) => {
             console.error(`[AutomationScheduler] Background run error for ${item._id}:`, err);
           });
@@ -4087,40 +6392,59 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     const filterMode = cfg.recordFilterMode || 'all';
     const selectedRecordIds = Array.isArray(cfg.selectedRecordIds) ? cfg.selectedRecordIds : [];
 
-    const sstAppSourceAliasMap = {
-      gtc45: 'hito3_matriz_gtc45',
-      pesv: 'hito4_matriz_pesv',
-      '0312': 'hito1_diagnostico_0312',
-      diagnostico_0312: 'hito1_diagnostico_0312',
-      atel: 'hito7_investigacion_atel',
-      acpm: 'hito8_acciones_acpm',
-      quimicos: 'hito4_inventario_quimico',
-      alturas: 'hito4_permisos_alturas',
-      epp: 'hito5_entrega_epp',
-      inspecciones: 'hito5_actos_condiciones',
-      capacitaciones: 'hito6_capacitaciones',
-      auditorias: 'hito7_auditorias',
-      trabajadores: 'extract_sst_workers',
-      cronograma: 'hito1_plan_trabajo',
-      legal: 'hito1_matriz_legal',
-    };
     const effectiveInspectNodeId =
       nodeId === 'extract_sst_app' && cfg.sstAppSourceId
         ? sstAppSourceAliasMap[String(cfg.sstAppSourceId).toLowerCase().trim()] ||
           String(cfg.sstAppSourceId).trim()
-        : nodeId;
+        : sstAppSourceAliasMap[String(nodeId || '').toLowerCase().trim()] || nodeId;
 
     let liveData = null;
     let stepError = null;
-    try {
-      liveData = await inspectNodeLiveData({
-        userId: userIdStr,
-        companyId: targetCompanyIdStr,
-        nodeId: effectiveInspectNodeId,
+    if (
+      (nodeId === 'webhook_api' || String(nodeKey || '').includes('webhook_api')) &&
+      cfg.endpointUrl
+    ) {
+      const whRes = await fetchSafeWebhookApiData(cfg.endpointUrl, {
+        method: cfg.httpMethod || 'GET',
+        headers: cfg.headers || {},
       });
-    } catch (inspectErr) {
-      stepError = inspectErr?.message || 'Error inspeccionando datos del nodo';
-      addStepLog('error', `Error al consultar datos de ${effectiveInspectNodeId}: ${stepError}`);
+      if (whRes.ok) {
+        const rows = Array.isArray(whRes.data) ? whRes.data : [whRes.data];
+        liveData = {
+          nodeId: 'webhook_api',
+          canonicalNodeId: 'webhook_api',
+          sourceTitle: `API / Webhook HTTPS (${cfg.endpointUrl})`,
+          totalCount: rows.length,
+          records: rows.slice(0, 40).map((item, idx) => ({
+            id: `wh_${idx + 1}`,
+            label: typeof item === 'object' && item ? item.title || item.name || item.id || `Registro API #${idx + 1}` : String(item).slice(0, 80),
+            sublabel: `HTTP ${whRes.status}`,
+            isCritical: false,
+            data: typeof item === 'object' && item ? item : { value: item },
+          })),
+        };
+      } else {
+        stepError = whRes.error || 'Error en consulta HTTPS externa';
+        addStepLog('error', `Error consultando API/Webhook HTTPS: ${stepError}`);
+      }
+    } else {
+      try {
+        liveData = await inspectNodeLiveData({
+          userId: userIdStr,
+          companyId: targetCompanyIdStr,
+          nodeId: effectiveInspectNodeId,
+          driveFolderName: cfg.driveFolderName,
+          fileTypeFilter: cfg.fileTypeFilter,
+          maxItems: cfg.maxItems,
+          sstAppSourceId: cfg.sstAppSourceId,
+          emailSubjectFilter: cfg.emailSubjectFilter,
+          endpointUrl: cfg.endpointUrl,
+          nodeConfig: cfg,
+        });
+      } catch (inspectErr) {
+        stepError = inspectErr?.message || 'Error inspeccionando datos del nodo';
+        addStepLog('error', `Error al consultar datos de ${effectiveInspectNodeId}: ${stepError}`);
+      }
     }
     await pauseStep(240);
 
@@ -5606,8 +7930,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       const currentAgentRole = isPrimaryAgent
         ? 'Agente IA Principal'
         : eaObj?.roleLabel || planStep.roleLabel || 'Sub-Agente Especialista';
+      const requestedEaModel = eaObj?.aiModel || eaObj?.model;
       const currentAgentModel =
-        !isPrimaryAgent && allowedTextModels.includes(eaObj?.model) ? eaObj.model : effectiveAiModel;
+        !isPrimaryAgent && allowedTextModels.includes(requestedEaModel)
+          ? requestedEaModel
+          : effectiveAiModel;
 
       // Construir el contexto ESTRICTAMENTE con los nodos que YA se ejecutaron antes de este Agente en el flujo conectado
       const upstreamSteps = nodeTrace.slice();
@@ -5635,7 +7962,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       let connectedMemoriesPromptBlock = '';
       if (connectedNodeIds.has('wappy_memory_company') && automationCompany) {
         connectedMemoriesPromptBlock +=
-          `- [MEMORIA DE EMPRESA CONECTADA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiuCode || automationCompany.ciiu || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.employeeCount ?? automationCompany.workerCount ?? 'N/A'}\n`;
+          `- [MEMORIA DE EMPRESA CONECTADA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiu || automationCompany.ciiuCode || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.workerCount ?? automationCompany.employeeCount ?? 'N/A'} | Responsable SG-SST: ${automationCompany.responsibleSST || automationCompany.sstResponsibleName || 'N/A'} (Licencia: ${automationCompany.licenseNumber || automationCompany.sstLicenseNumber || 'N/A'})\n`;
       }
       if (connectedNodeIds.has('wappy_memory_antiduplicate')) {
         connectedMemoriesPromptBlock +=
@@ -6157,5 +8484,14 @@ module.exports = {
   isUnderConstructionNode,
   calculateNextRun,
   stopAutomation,
+  hasCronTrigger,
+  resolveRequiredToolsForWorkflow,
+  sstAppSourceAliasMap,
+  dispatchQrWorkerAutomations,
+  matchesQrPortalFilter,
+  checkEmailTriggeredAutomations,
+  executeDownstreamOutputs,
+  isSafePublicHttpsUrl,
+  fetchSafeWebhookApiData,
 };
 

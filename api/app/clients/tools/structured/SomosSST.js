@@ -47,10 +47,28 @@ class SomosSST extends Tool {
           'retirar_trabajador',
           'eliminar_trabajador',
           'actualizar_trabajador',
+          'generar_informe_aplicativo',
+          'registrar_equipo_alturas',
         ])
         .describe(
-          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, importar_sociodemografico_drive (alimentar Perfil Sociodemográfico y Condiciones de Salud desde Drive), importar_hito1_drive (buscar y alimentar aplicativos del Hito 1: Matriz IPEVR GTC-45, Matriz PESV, Matriz Compatibilidad SGA, Análisis de Vulnerabilidad, Diagnóstico 0312 o Responsable SST desde Google Drive con gemini-3.5-flash-lite), alimentar_sociodemografico_masivo, retirar_trabajador, actualizar_trabajador, eliminar_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
+          'La acción a ejecutar: consultar_expediente_integral, listar_trabajadores, resumen_empresa, consultar_informacion_empresa, crear_trabajador, importar_sociodemografico_drive (alimentar Perfil Sociodemográfico y Condiciones de Salud desde Drive), importar_hito1_drive (buscar y alimentar aplicativos del Hito 1: Matriz IPEVR GTC-45, Matriz PESV, Matriz Compatibilidad SGA, Análisis de Vulnerabilidad, Diagnóstico 0312 o Responsable SST desde Google Drive con gemini-3.5-flash-lite), alimentar_sociodemografico_masivo, retirar_trabajador, actualizar_trabajador, eliminar_trabajador, actualizar_informacion_empresa, editar_cualquier_aplicativo, generar_informe_aplicativo (genera o extrae el informe oficial HTML corporativo de cualquiera de los 42 aplicativos Hito 1-8 y lo deja listo para Canvas/Email), registrar_equipo_alturas, generar_informe_html, consultar_historial_informes, consultar_planes_y_sistema, consultar_centro_control_acpm, crear_actividad_acpm, o actualizar_actividad_acpm.',
         ),
+      modulo: z
+        .string()
+        .optional()
+        .describe('Identificador del nodo Hito o aplicativo de Somos SST (ej: "hito1_dofa", "hito2_matriz_ipevar", "hito7_investigacion_atel", "contexto", "diagnostico", "equipos_alturas").'),
+      hitoNodeId: z
+        .string()
+        .optional()
+        .describe('ID canónico del nodo Hito activo (ej: "hito1_dofa", "hito3_owas", "hito7_auditoria") para generar_informe_aplicativo.'),
+      forzar_regeneracion: z
+        .boolean()
+        .optional()
+        .describe('Si es true en generar_informe_aplicativo, regenera el informe oficial HTML con datos en vivo de MongoDB.'),
+      enfoque: z
+        .string()
+        .optional()
+        .describe('Instrucciones o enfoque técnico adicional para generar_informe_aplicativo.'),
       razon_social: z.string().optional().describe('Razón Social o Nombre de la empresa.'),
       tipo_empresa: z.string().optional().describe('Tipo de empresa: "Persona Jurídica" o "Persona Natural".'),
       nit: z.string().optional().describe('NIT o documento de identificación tributaria de la empresa.'),
@@ -936,17 +954,22 @@ class SomosSST extends Tool {
           // ── Hito 1: Cargo Profile
           if (wCargo && PerfilCargoModel) {
             const cargoDoc = await PerfilCargoModel.findOne(queryObj).lean();
-            if (cargoDoc && cargoDoc.perfiles) {
-              const profile = cargoDoc.perfiles.find(p => p.nombreCargo && p.nombreCargo.toLowerCase().trim() === wCargo.toLowerCase().trim());
+            const rawPerfiles = cargoDoc?.perfilesList || cargoDoc?.perfiles || [];
+            if (Array.isArray(rawPerfiles) && rawPerfiles.length > 0) {
+              const profile = rawPerfiles.find(p => {
+                const pName = p.nombreCargo || p.nombre || '';
+                return pName && pName.toLowerCase().trim() === wCargo.toLowerCase().trim();
+              });
               if (profile) {
                 workerPayload.hito_1_huella_biocentrica.perfil_del_cargo = {
-                  descripcion: profile.descripcion || 'Sin descripción',
+                  nombreCargo: profile.nombreCargo || profile.nombre || wCargo,
+                  descripcion: profile.descripcion || profile.funcionesPrincipales || 'Sin descripción',
                   educacion: profile.educacion || 'No especificado',
                   experiencia: profile.experiencia || 'No especificado',
                   responsabilidadesSST: profile.responsabilidadesSST || [],
                   restricciones: profile.restricciones || '',
                   examenesMedicos: profile.examenesMedicos || [],
-                  elementosProteccion: profile.elementosProteccion || [],
+                  elementosProteccion: profile.elementosProteccion || profile.epp || [],
                   controlesFuente: profile.controlesFuenteSeleccionados || [],
                   controlesMedio: profile.controlesMedioSeleccionados || []
                 };
@@ -1298,8 +1321,9 @@ class SomosSST extends Tool {
         // Hito 1: Cargo Profiles Completed
         if (PerfilCargoModel) {
           const cargoDoc = await PerfilCargoModel.findOne(queryObj).lean();
-          if (cargoDoc && cargoDoc.perfiles) {
-            resumen.hito_1_huella_biocentrica_global.total_perfiles_cargo = cargoDoc.perfiles.length;
+          const rawPerfiles = cargoDoc?.perfilesList || cargoDoc?.perfiles || [];
+          if (Array.isArray(rawPerfiles)) {
+            resumen.hito_1_huella_biocentrica_global.total_perfiles_cargo = rawPerfiles.length;
           }
         }
 
@@ -1786,17 +1810,232 @@ Correo: ${company.email || 'N/A'}`;
         });
       }
 
-      // ── ACTION: EDITAR CUALQUIER APLICATIVO (UNIVERSAL MUTATION) ────────────
-      if (accion === 'editar_cualquier_aplicativo') {
-        if (!input.nombre_aplicativo) {
-          return JSON.stringify({ error: 'Debes proporcionar el nombre_aplicativo a editar.' });
-        }
-        if (!input.campo_a_modificar && !input.datos_json) {
-          return JSON.stringify({ error: 'Debes proporcionar el campo_a_modificar o datos_json.' });
+      // ── ACTION: GENERAR INFORME OFICIAL DE APLICATIVO HITO (42 NODOS) ─────────
+      if (accion === 'generar_informe_aplicativo') {
+        const targetMod = (
+          input.hitoNodeId ||
+          input.modulo ||
+          input.nombre_aplicativo ||
+          input.tipo_informe ||
+          ''
+        ).trim();
+        if (!targetMod) {
+          return JSON.stringify({
+            exito: false,
+            error:
+              'Debes especificar el parámetro "modulo" o "hitoNodeId" del aplicativo Hito (ej: "hito1_dofa", "hito2_matriz_ipevar", "hito7_investigacion_atel").',
+          });
         }
 
-        const appName = input.nombre_aplicativo.toLowerCase().trim();
-        const filterStr = (input.identificador_o_filtro || input.nombre_o_cargo || '').toLowerCase().trim();
+        const {
+          resolveHitoReportSpec,
+          generateOrExtractOfficialAppReport,
+        } = require('~/server/services/hitoAppReportPipelineService');
+
+        const spec = resolveHitoReportSpec(targetMod);
+        if (!spec) {
+          return JSON.stringify({
+            exito: false,
+            error: `El módulo "${targetMod}" no corresponde a ninguno de los aplicativos Hito registrados.`,
+          });
+        }
+
+        const reportResult = await generateOrExtractOfficialAppReport({
+          userId,
+          companyId: activeCompanyId,
+          hitoNodeId: spec.hitoNodeId,
+          forceRegenerate: Boolean(input.forzar_regeneracion),
+          generateIfMissing: true,
+          customInstructions: input.enfoque || input.contenido_html || input.datos_json || '',
+          req: this.req,
+        });
+
+        return JSON.stringify({
+          exito: Boolean(reportResult?.found && reportResult?.reportHtml),
+          mensaje: reportResult?.reusedExisting
+            ? `Informe oficial existente recuperado para "${spec.reportTitle}" (${reportResult.charCount} caracteres HTML) y vinculado al flujo.`
+            : `Informe oficial HTML generado y persistido exitosamente para "${spec.reportTitle}" (${reportResult?.charCount || 0} caracteres HTML).`,
+          hitoNodeId: spec.hitoNodeId,
+          appId: spec.sgsstAppId,
+          reportTitle: reportResult?.reportTitle || spec.reportTitle,
+          reportConversationId: reportResult?.reportConversationId || null,
+          fileNameSlug: reportResult?.fileNameSlug || null,
+          charCount: reportResult?.charCount || 0,
+          reusedExisting: Boolean(reportResult?.reusedExisting),
+        });
+      }
+
+      // Helper compartido para registrar/actualizar Equipos de Protección Contra Caídas (SgsstHeightsData)
+      const upsertHeightsEquipmentRecord = async ({ rawFilter, fieldKey, payloadVal }) => {
+        if (!activeCompanyId) {
+          return { exito: false, error: 'No hay una empresa activa configurada para registrar equipos de alturas.' };
+        }
+        const SgsstHeightsData = mongoose.models.SgsstHeightsData || require('~/models/SgsstHeightsData');
+        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+        const escapeRx = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const objData = payloadVal && typeof payloadVal === 'object' && !Array.isArray(payloadVal) ? payloadVal : {};
+        const lookup = String(
+          objData.workerId ||
+            objData.documento ||
+            objData.cedula ||
+            input.cedula_trabajador ||
+            rawFilter ||
+            input.nombre_o_cargo ||
+            '',
+        ).trim();
+
+        let workerDoc = null;
+        if (lookup) {
+          const rx = new RegExp(escapeRx(lookup), 'i');
+          workerDoc = await SgsstWorker.findOne({
+            companyId: activeCompanyId,
+            $or: [{ documento: rx }, { nombre: rx }, { cargo: rx }],
+          }).lean();
+        }
+        let socioWorker = null;
+        if (!workerDoc && lookup && socioData && Array.isArray(socioData.trabajadores)) {
+          const low = lookup.toLowerCase();
+          socioWorker = socioData.trabajadores.find(
+            (t) =>
+              String(t.identificacion || t.id || '').toLowerCase().includes(low) ||
+              String(t.nombre || '').toLowerCase().includes(low),
+          );
+        }
+
+        const resolvedWorkerId = String(
+          workerDoc?.documento ||
+            socioWorker?.id ||
+            socioWorker?.identificacion ||
+            objData.workerId ||
+            objData.documento ||
+            lookup ||
+            'TRAB-ALTURAS-01',
+        ).trim();
+        const resolvedWorkerName = String(
+          workerDoc?.nombre ||
+            socioWorker?.nombre ||
+            objData.nombreTrabajador ||
+            input.nombre_o_cargo ||
+            'Trabajador Autorizado Alturas',
+        ).trim();
+        const resolvedCargo = String(
+          workerDoc?.cargo || socioWorker?.cargo || objData.cargo || input.cargo_trabajador || 'Operativo Alturas',
+        ).trim();
+
+        let heightsDoc = await SgsstHeightsData.findOne({
+          user: userId,
+          companyId: activeCompanyId,
+          workerId: resolvedWorkerId,
+        });
+        if (!heightsDoc) {
+          heightsDoc = new SgsstHeightsData({
+            user: userId,
+            companyId: activeCompanyId,
+            workerId: resolvedWorkerId,
+            nombreTrabajador: resolvedWorkerName,
+            cargo: resolvedCargo,
+            equipos: [],
+          });
+        }
+
+        const rawItems = Array.isArray(payloadVal)
+          ? payloadVal
+          : Array.isArray(objData.equipos)
+            ? objData.equipos
+            : [objData];
+
+        for (const eq of rawItems) {
+          if (!eq || typeof eq !== 'object' || Object.keys(eq).length === 0) {
+            if (fieldKey && typeof payloadVal === 'string') {
+              heightsDoc.equipos.push({
+                id: `eq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                nombre: fieldKey === 'nombre' ? payloadVal : input.titulo_actividad || 'Arnés Cuerpo Completo',
+                serial: `SN-${Date.now().toString().slice(-6)}`,
+                estado: 'Vigente',
+                resultadoInspeccion: 'Aprobado',
+                observaciones: payloadVal,
+              });
+            }
+            continue;
+          }
+          const eqSerial = String(eq.serial || eq.serie || eq.codigo || `SN-${Date.now().toString().slice(-6)}`).trim();
+          const eqNombre = String(eq.nombre || eq.equipo || eq.tipo || 'Equipo Protección Contra Caídas').trim();
+          const validRes = ['Aprobado', 'Rechazado', 'N/A'].includes(eq.resultadoInspeccion)
+            ? eq.resultadoInspeccion
+            : 'Aprobado';
+          const validEst = ['Vigente', 'Vencido', 'Requiere Inspección', 'Retirado'].includes(eq.estado)
+            ? eq.estado
+            : 'Vigente';
+
+          const existingIdx = heightsDoc.equipos.findIndex(
+            (e) => (eq.id && e.id === eq.id) || (eq.serial && e.serial === eq.serial),
+          );
+          const normalizedEq = {
+            id: eq.id || (existingIdx >= 0 ? heightsDoc.equipos[existingIdx].id : `eq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`),
+            nombre: eqNombre,
+            marca: eq.marca || '',
+            referencia: eq.referencia || '',
+            serial: eqSerial,
+            fechaFabricacion: eq.fechaFabricacion || '',
+            fechaCompra: eq.fechaCompra || '',
+            fechaUltimaInspeccion: eq.fechaUltimaInspeccion || new Date().toISOString().slice(0, 10),
+            fechaProximaInspeccion: eq.fechaProximaInspeccion || '',
+            inspeccionadoPor: eq.inspeccionadoPor || 'Coordinador Trabajo en Alturas',
+            resultadoInspeccion: validRes,
+            estado: validEst,
+            observaciones: eq.observaciones || '',
+          };
+          if (existingIdx >= 0) {
+            heightsDoc.equipos[existingIdx] = { ...heightsDoc.equipos[existingIdx].toObject?.() || heightsDoc.equipos[existingIdx], ...normalizedEq };
+          } else {
+            heightsDoc.equipos.push(normalizedEq);
+          }
+        }
+
+        heightsDoc.markModified('equipos');
+        await heightsDoc.save();
+        return {
+          exito: true,
+          mensaje: `Hoja de vida de equipos de alturas actualizada para "${resolvedWorkerName}" (${heightsDoc.equipos.length} equipos registrados).`,
+          detalles: {
+            aplicativo: 'Hoja de Vida e Inspección de Equipos de Alturas (Res. 4272/2021)',
+            trabajador: resolvedWorkerName,
+            workerId: resolvedWorkerId,
+            totalEquipos: heightsDoc.equipos.length,
+          },
+        };
+      };
+
+      if (accion === 'registrar_equipo_alturas') {
+        let parsedEq = input.datos_json;
+        if (typeof parsedEq === 'string') {
+          try {
+            parsedEq = JSON.parse(parsedEq);
+          } catch (_) {}
+        }
+        const resHeights = await upsertHeightsEquipmentRecord({
+          rawFilter: input.identificador_o_filtro || input.cedula_trabajador || input.nombre_o_cargo || '',
+          fieldKey: input.campo_a_modificar || '',
+          payloadVal: parsedEq || (input.nuevo_valor !== undefined ? input.nuevo_valor : {}),
+        });
+        return JSON.stringify(resHeights);
+      }
+
+      // ── ACTION: EDITAR CUALQUIER APLICATIVO (UNIVERSAL MUTATION) ────────────
+      if (accion === 'editar_cualquier_aplicativo') {
+        const rawTargetApp = input.nombre_aplicativo || input.modulo || input.hitoNodeId;
+        if (!rawTargetApp) {
+          return JSON.stringify({ error: 'Debes proporcionar el nombre_aplicativo o modulo a editar.' });
+        }
+        if (!input.campo_a_modificar && !input.datos_json && input.nuevo_valor === undefined) {
+          return JSON.stringify({ error: 'Debes proporcionar el campo_a_modificar, nuevo_valor o datos_json.' });
+        }
+
+        const appName = String(rawTargetApp).toLowerCase().trim();
+        const rawFilterOriginal = (input.identificador_o_filtro || input.nombre_o_cargo || '').trim();
+        const filterStr = rawFilterOriginal.toLowerCase();
+        const escapeRx = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const fieldToEdit = (input.campo_a_modificar || '').trim();
         let parsedData = input.datos_json;
         if (typeof parsedData === 'string') {
@@ -1805,9 +2044,10 @@ Correo: ${company.email || 'N/A'}`;
           } catch (_) {}
         }
         const newValue = input.nuevo_valor !== undefined ? input.nuevo_valor : parsedData;
+        const makeItemId = (prefix = 'item') => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-        // ── CASO ESPECIAL: EMPRESA (CompanyInfo) ──────────────────────────────
-        if (appName.includes('empresa') || appName.includes('company')) {
+        // ── 1. EMPRESA (CompanyInfo) ──────────────────────────────────────────
+        if (appName === 'empresa' || appName === 'company' || appName === 'informacion_empresa') {
           const CompanyInfo = mongoose.models.CompanyInfo || require('~/models/CompanyInfo');
           let comp = await getActiveCompanyDoc(userId);
           if (!comp) comp = new CompanyInfo({ user: userId, isActive: true });
@@ -1840,45 +2080,59 @@ Correo: ${company.email || 'N/A'}`;
             'telefono': 'phone',
             'phone': 'phone',
             'correo': 'email',
-            'email': 'email'
+            'email': 'email',
+            'responsable_sst': 'responsibleSST',
+            'licencia_sst': 'licenseNumber',
+            'vencimiento_licencia': 'licenseExpiry',
+            'curso_50h': 'courseStatus',
           };
 
-          const targetProp = fieldMap[fieldToEdit.toLowerCase()] || fieldToEdit;
-          comp[targetProp] = newValue;
+          if (newValue && typeof newValue === 'object' && !Array.isArray(newValue) && !fieldToEdit) {
+            for (const [k, v] of Object.entries(newValue)) {
+              const mapped = fieldMap[k.toLowerCase()] || k;
+              comp[mapped] = v;
+            }
+          } else {
+            const targetProp = fieldMap[fieldToEdit.toLowerCase()] || fieldToEdit;
+            comp[targetProp] = newValue;
+          }
           await comp.save();
 
           return JSON.stringify({
             exito: true,
-            mensaje: `Campo "${targetProp}" actualizado exitosamente en Información de la Empresa.`,
-            detalles: { aplicativo: 'Información de la Empresa', campo: targetProp, nuevoValor: newValue }
+            mensaje: `Información de la Empresa actualizada exitosamente.`,
+            detalles: { aplicativo: 'Información de la Empresa', campo: fieldToEdit || 'datos_json', nuevoValor: newValue }
           });
         }
 
-        // ── CASO ESPECIAL: ESTUDIO DE PUESTO DE TRABAJO (EPT) ─────────────────
-        if (appName.includes('estudio_puesto') || appName.includes('ept') || appName.includes('puesto_trabajo')) {
+        // ── 2. ESTUDIO DE PUESTO DE TRABAJO (EPT — SgsstWorker por documento/nombre/cargo) ──
+        if (appName.includes('estudio_puesto') || appName === 'ept' || appName.includes('puesto_trabajo')) {
           const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/models/EstudioPuestoTrabajo');
           const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
-          
+
           let workerDoc = null;
-          if (filterStr) {
+          if (rawFilterOriginal) {
+            const rx = new RegExp(escapeRx(rawFilterOriginal), 'i');
             workerDoc = await SgsstWorker.findOne({
-              companyId: activeCompanyId,
-              $or: [
-                { documentId: new RegExp(filterStr, 'i') },
-                { firstName: new RegExp(filterStr, 'i') },
-                { lastName: new RegExp(filterStr, 'i') },
-                { jobTitle: new RegExp(filterStr, 'i') }
-              ]
+              ...(activeCompanyId ? { companyId: activeCompanyId } : { user: userId }),
+              $or: [{ documento: rx }, { nombre: rx }, { cargo: rx }],
             });
           }
 
-          const targetWorkerId = workerDoc?.documentId || filterStr || 'GEN-01';
-          const targetWorkerName = workerDoc ? `${workerDoc.firstName || ''} ${workerDoc.lastName || ''}`.trim() : (input.nombre_o_cargo || 'Trabajador Evaluado');
-          const targetCargo = workerDoc?.jobTitle || input.cargo_trabajador || 'Cargo Operativo';
+          const objPayload = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          const targetWorkerId = String(
+            workerDoc?.documento || objPayload.workerId || objPayload.documento || rawFilterOriginal || 'GEN-01',
+          ).trim();
+          const targetWorkerName = String(
+            workerDoc?.nombre || objPayload.workerName || input.nombre_o_cargo || 'Trabajador Evaluado',
+          ).trim();
+          const targetCargo = String(
+            workerDoc?.cargo || objPayload.cargo || input.cargo_trabajador || 'Cargo Operativo',
+          ).trim();
 
           let eptDoc = await EstudioPuestoTrabajo.findOne({
-            companyId: activeCompanyId,
-            workerId: targetWorkerId
+            ...(activeCompanyId ? { companyId: activeCompanyId } : { user: userId }),
+            workerId: targetWorkerId,
           });
 
           if (!eptDoc) {
@@ -1888,19 +2142,30 @@ Correo: ${company.email || 'N/A'}`;
               workerId: targetWorkerId,
               workerName: targetWorkerName,
               cargo: targetCargo,
-              evaluationType: 'asistida',
-              evaluatorName: 'Tenshi IA - Auditoría Biomecánica',
+              evaluationType: objPayload.evaluationType || 'asistida',
+              evaluatorName: objPayload.evaluatorName || 'Tenshi IA - Auditoría Biomecánica',
               channel: 'somos_sst',
-              riskLevel: 'Medio',
-              actionLevel: 'Nivel 2 (Se requieren cambios)',
-              summaryRecommendation: 'Optimizar postura en estación de trabajo y realizar pausas activas dirigidas.',
+              riskLevel: objPayload.riskLevel || 'Medio',
+              actionLevel: objPayload.actionLevel || 'Nivel 2 (Se requieren cambios)',
+              summaryRecommendation:
+                objPayload.summaryRecommendation ||
+                'Optimizar postura en estación de trabajo y realizar pausas activas dirigidas.',
             });
           }
 
-          if (fieldToEdit && newValue !== undefined) {
-            eptDoc[fieldToEdit] = newValue;
+          if (Object.keys(objPayload).length > 0 && (!fieldToEdit || fieldToEdit === 'estudio' || fieldToEdit === 'datos')) {
+            for (const [k, v] of Object.entries(objPayload)) {
+              if (k === 'telemetry' && typeof v === 'object') {
+                eptDoc.telemetry = { ...(eptDoc.telemetry || {}), ...v };
+              } else {
+                eptDoc[k] = v;
+              }
+            }
+          } else if (fieldToEdit && newValue !== undefined) {
             if (fieldToEdit === 'telemetry' && typeof newValue === 'object') {
-              eptDoc.telemetry = { ...eptDoc.telemetry, ...newValue };
+              eptDoc.telemetry = { ...(eptDoc.telemetry || {}), ...newValue };
+            } else {
+              eptDoc[fieldToEdit] = newValue;
             }
           }
           await eptDoc.save();
@@ -1913,51 +2178,103 @@ Correo: ${company.email || 'N/A'}`;
               trabajador: targetWorkerName,
               cedula: targetWorkerId,
               cargo: targetCargo,
-              campo: fieldToEdit,
-              nuevoValor: newValue
-            }
+              campo: fieldToEdit || 'registro_ept',
+            },
           });
         }
 
-        // ── CASO ESPECIAL: PERFILES DE CARGO ──────────────────────────────────
+        // ── 3. PERFILES DE CARGO (perfilesList + nombreCargo) ─────────────────
         if (appName.includes('cargo') || appName.includes('perfil_cargo')) {
           const PerfilCargoModel = modelLoader('PerfilCargoData', '~/server/routes/sgsst/perfilesCargo');
-          let cargoDoc = await PerfilCargoModel.findOne(queryObj) || (!companyId ? await PerfilCargoModel.findOne({ user: userId }) : null);
+          let cargoDoc =
+            (await PerfilCargoModel.findOne(queryObj)) ||
+            (!companyId ? await PerfilCargoModel.findOne({ user: userId }) : null);
           if (!cargoDoc) {
             cargoDoc = new PerfilCargoModel({ user: userId, companyId: activeCompanyId, perfilesList: [] });
           }
 
-          let perfilesList = cargoDoc.perfilesList || [];
+          let perfilesList =
+            Array.isArray(cargoDoc.perfilesList) && cargoDoc.perfilesList.length > 0
+              ? [...cargoDoc.perfilesList]
+              : Array.isArray(cargoDoc.perfiles)
+                ? [...cargoDoc.perfiles]
+                : [];
+
           let targetIndex = -1;
           if (filterStr) {
-            targetIndex = perfilesList.findIndex(p => 
-              (p.nombre && p.nombre.toLowerCase().includes(filterStr)) ||
-              (p.id && String(p.id).toLowerCase().includes(filterStr))
-            );
+            targetIndex = perfilesList.findIndex((p) => {
+              const cName = String(p.nombreCargo || p.nombre || '').toLowerCase();
+              return (
+                (cName && cName.includes(filterStr)) ||
+                (p.id && String(p.id).toLowerCase().includes(filterStr))
+              );
+            });
           }
 
-          if (fieldToEdit === 'nuevo_cargo' || fieldToEdit === 'agregar_cargo' || (targetIndex === -1 && fieldToEdit === 'perfil')) {
-            const newCargoObj = typeof newValue === 'object' ? newValue : {
-              id: Date.now().toString(),
-              nombre: input.nombre_o_cargo || filterStr || newValue || 'Nuevo Cargo',
-              descripcion: typeof newValue === 'string' ? newValue : 'Descripción del cargo generada por Tenshi',
-              departamento: 'Operaciones / SST',
-              peligros: [],
-              epp: [],
-              responsabilidadesSST: 'Cumplir normas del SG-SST y reportar condiciones de riesgo.'
+          const normalizeCargoItem = (rawItem) => {
+            const base = rawItem && typeof rawItem === 'object' ? { ...rawItem } : {};
+            const resolvedName = String(
+              base.nombreCargo || base.nombre || input.nombre_o_cargo || rawFilterOriginal || 'Nuevo Cargo',
+            ).trim();
+            return {
+              id: base.id || makeItemId('cargo'),
+              nombreCargo: resolvedName,
+              nombre: resolvedName,
+              area: base.area || base.departamento || 'Operaciones / SST',
+              departamento: base.departamento || base.area || 'Operaciones / SST',
+              descripcion:
+                base.descripcion ||
+                (typeof rawItem === 'string' ? rawItem : 'Descripción y funciones del cargo en el SG-SST.'),
+              educacion: base.educacion || 'Bachiller / Técnico o Profesional según rol',
+              experiencia: base.experiencia || '6 meses a 1 año',
+              responsabilidadesSST:
+                base.responsabilidadesSST ||
+                'Cumplir las normas, reglamentos e instrucciones del SG-SST y reportar actos/condiciones inseguras.',
+              peligrosExpuestos: base.peligrosExpuestos || base.peligros || [],
+              elementosProteccion: base.elementosProteccion || base.epp || [],
+              examenesMedicos: base.examenesMedicos || [],
+              restricciones: base.restricciones || '',
+              ...base,
             };
-            perfilesList.push(newCargoObj);
+          };
+
+          if (Array.isArray(newValue)) {
+            for (const item of newValue) {
+              const norm = normalizeCargoItem(item);
+              const idx = perfilesList.findIndex(
+                (p) => String(p.nombreCargo || p.nombre || '').toLowerCase() === norm.nombreCargo.toLowerCase(),
+              );
+              if (idx >= 0) perfilesList[idx] = { ...perfilesList[idx], ...norm };
+              else perfilesList.push(norm);
+            }
+          } else if (
+            fieldToEdit === 'nuevo_cargo' ||
+            fieldToEdit === 'agregar_cargo' ||
+            (targetIndex === -1 && (!fieldToEdit || fieldToEdit === 'perfil' || typeof newValue === 'object'))
+          ) {
+            const norm = normalizeCargoItem(newValue);
+            perfilesList.push(norm);
           } else if (targetIndex >= 0) {
-            if (typeof newValue === 'object') {
-              perfilesList[targetIndex] = { ...perfilesList[targetIndex], ...newValue };
-            } else {
+            if (newValue && typeof newValue === 'object') {
+              const merged = { ...perfilesList[targetIndex], ...newValue };
+              const cName = merged.nombreCargo || merged.nombre;
+              if (cName) {
+                merged.nombreCargo = cName;
+                merged.nombre = cName;
+              }
+              perfilesList[targetIndex] = merged;
+            } else if (fieldToEdit) {
               perfilesList[targetIndex][fieldToEdit] = newValue;
+              if (fieldToEdit === 'nombre' || fieldToEdit === 'nombreCargo') {
+                perfilesList[targetIndex].nombreCargo = newValue;
+                perfilesList[targetIndex].nombre = newValue;
+              }
             }
           } else {
-            // General property or append
-            if (typeof newValue === 'object') {
-              perfilesList.push(newValue);
-            }
+            return JSON.stringify({
+              exito: false,
+              error: `No se encontró el perfil de cargo "${rawFilterOriginal}" para modificar "${fieldToEdit}". Usa campo_a_modificar="nuevo_cargo" o envía un objeto en datos_json para crearlo.`,
+            });
           }
 
           cargoDoc.perfilesList = perfilesList;
@@ -1967,138 +2284,1347 @@ Correo: ${company.email || 'N/A'}`;
           return JSON.stringify({
             exito: true,
             mensaje: `Módulo de Perfiles de Cargo actualizado exitosamente. Total perfiles: ${perfilesList.length}.`,
-            detalles: { aplicativo: 'Perfiles de Cargo (Roles)', campo: fieldToEdit, filtro: filterStr || 'General' }
+            detalles: {
+              aplicativo: 'Perfiles de Cargo (Roles)',
+              totalPerfiles: perfilesList.length,
+              campo: fieldToEdit || 'perfilesList',
+              filtro: rawFilterOriginal || 'General',
+            },
           });
         }
 
-        // ── CASO ESPECIAL: AUDITORIA Y DIAGNÓSTICO (Report/State tags) ─────────
-        if (appName.includes('auditoria') || appName.includes('diagnostico')) {
+        // ── 4. DIAGNÓSTICO RES. 0312 Y AUDITORÍA INTERNA (Actualización real en DiagnosticoData / AuditoriaData + Trazabilidad) ──
+        if (appName.includes('auditoria') || appName.includes('diagnostico') || appName.includes('0312')) {
           const isAudit = appName.includes('auditoria');
+          const StateModel = isAudit
+            ? mongoose.models.AuditoriaData || require('~/models/AuditoriaData')
+            : mongoose.models.DiagnosticoData || require('~/models/DiagnosticoData');
           const reportTag = isAudit ? 'sgsst-auditoria' : 'sgsst-diagnostico';
-          const defaultTitle = isAudit ? 'Informe de Auditoría Interna SG-SST' : 'Diagnóstico Inicial Estándares Mínimos Res. 0312';
-          
+          const defaultTitle = isAudit
+            ? 'Informe de Auditoría Interna SG-SST'
+            : 'Diagnóstico Inicial Estándares Mínimos Res. 0312';
+
+          let stateDoc = await StateModel.findOne(queryObj);
+          if (!stateDoc) {
+            stateDoc = new StateModel({
+              user: userId,
+              companyId: activeCompanyId,
+              statusData: [],
+            });
+          }
+
+          const statusList = Array.isArray(stateDoc.statusData) ? [...stateDoc.statusData] : [];
+          const normalizeEvalStatus = (raw) => {
+            const s = String(raw || '').toLowerCase().trim();
+            if (['cumple', 'cumplido', 'conforme', 'si', 'sí', 'ok', '100%'].includes(s)) return 'cumple';
+            if (['no_cumple', 'no cumple', 'incumple', 'no_conforme', 'no', '0%'].includes(s)) return 'no_cumple';
+            if (['parcial', 'en_proceso', 'parcialmente'].includes(s)) return 'parcial';
+            if (['no_aplica', 'na', 'n/a'].includes(s)) return 'no_aplica';
+            return s || 'cumple';
+          };
+
+          const incomingItems = [];
+          if (Array.isArray(newValue)) {
+            incomingItems.push(...newValue);
+          } else if (newValue && typeof newValue === 'object') {
+            if (Array.isArray(newValue.statusData)) incomingItems.push(...newValue.statusData);
+            else if (Array.isArray(newValue.statuses)) incomingItems.push(...newValue.statuses);
+            else if (newValue.itemId || newValue.code || newValue.estandar || rawFilterOriginal) {
+              incomingItems.push({
+                itemId: newValue.itemId || newValue.code || newValue.estandar || rawFilterOriginal,
+                code: newValue.code || newValue.estandar || newValue.itemId || rawFilterOriginal,
+                status: newValue.status || newValue.estado || 'cumple',
+                observation: newValue.observation || newValue.observacion || newValue.hallazgo || '',
+                weight: newValue.weight,
+              });
+            }
+            if (isAudit && newValue.auditorInfo && typeof newValue.auditorInfo === 'object') {
+              stateDoc.auditorInfo = { ...(stateDoc.auditorInfo || {}), ...newValue.auditorInfo };
+            }
+          } else if (rawFilterOriginal || fieldToEdit) {
+            const targetCode = rawFilterOriginal || fieldToEdit;
+            incomingItems.push({
+              itemId: targetCode,
+              code: targetCode,
+              status: normalizeEvalStatus(newValue),
+              observation: input.descripcion_actividad || '',
+            });
+          }
+
+          for (const rawIt of incomingItems) {
+            if (!rawIt || typeof rawIt !== 'object') continue;
+            const itemCode = String(rawIt.code || rawIt.itemId || rawIt.estandar || '').trim();
+            const itemId = String(rawIt.itemId || rawIt.code || itemCode).trim();
+            if (!itemId && !itemCode) continue;
+            const normSt = normalizeEvalStatus(rawIt.status || rawIt.estado);
+            const idx = statusList.findIndex(
+              (x) =>
+                (itemId && String(x.itemId || '') === itemId) ||
+                (itemCode && String(x.code || '') === itemCode) ||
+                (itemCode && String(x.itemId || '').includes(itemCode.replace(/\./g, '_'))),
+            );
+            const merged = {
+              ...(idx >= 0 ? statusList[idx] : {}),
+              itemId: idx >= 0 ? statusList[idx].itemId || itemId : itemId,
+              code: idx >= 0 ? statusList[idx].code || itemCode : itemCode,
+              status: normSt,
+              observation:
+                rawIt.observation ?? rawIt.observacion ?? rawIt.hallazgo ?? (idx >= 0 ? statusList[idx].observation : ''),
+              ...(rawIt.weight !== undefined ? { weight: Number(rawIt.weight) } : {}),
+            };
+            if (idx >= 0) statusList[idx] = merged;
+            else statusList.push(merged);
+          }
+
+          stateDoc.statusData = statusList;
+          const evaluable = statusList.filter((s) => s && s.status && s.status !== 'pendiente');
+          const applicable = evaluable.filter((s) => s.status !== 'no_aplica');
+          const cumplidos = applicable.filter((s) => s.status === 'cumple').length;
+          const parciales = applicable.filter((s) => s.status === 'parcial').length;
+          const compliancePct =
+            applicable.length > 0 ? Math.round(((cumplidos + parciales * 0.5) / applicable.length) * 100) : 0;
+
+          if (isAudit) {
+            stateDoc.compliancePercentage = compliancePct;
+            stateDoc.weightedPercentage = compliancePct;
+          } else {
+            const hasWeights = statusList.some((s) => Number(s?.weight) > 0);
+            if (hasWeights) {
+              const earned = statusList.reduce((acc, s) => {
+                const w = Number(s?.weight) || 0;
+                if (s?.status === 'cumple' || s?.status === 'no_aplica') return acc + w;
+                if (s?.status === 'parcial') return acc + w * 0.5;
+                return acc;
+              }, 0);
+              stateDoc.score = Math.min(100, Math.round(earned * 100) / 100);
+            } else {
+              stateDoc.score = compliancePct;
+            }
+            stateDoc.compliancePercentage = compliancePct;
+            stateDoc.complianceLevel =
+              stateDoc.score >= 85 ? 'ACEPTABLE' : stateDoc.score >= 60 ? 'MODERADAMENTE ACEPTABLE' : 'CRÍTICO';
+          }
+
+          stateDoc.updatedAt = new Date();
+          stateDoc.markModified('statusData');
+          await stateDoc.save();
+
+          let conversationId = null;
           try {
             const { saveConvo } = require('~/models/Conversation');
             const { saveMessage } = require('~/models/Message');
             const crypto = require('crypto');
 
-            const conversationId = crypto.randomUUID();
+            conversationId = crypto.randomUUID();
             const messageId = crypto.randomUUID();
             const dateStr = new Date().toLocaleString('es-CO');
-            const reportTags = [reportTag, `company-${activeCompanyId}`];
+            const reportTags = [reportTag, ...(activeCompanyId ? [`company-${activeCompanyId}`] : [])];
 
-            const structuredContent = typeof newValue === 'object' ? JSON.stringify(newValue, null, 2) : String(newValue);
-            const fullReportText = `<!-- SGSST_AUDIT_DATA_V1:${structuredContent} -->\n\n# ${input.titulo_informe || defaultTitle}\n**Fecha:** ${dateStr}\n**Evaluado por:** Tenshi IA - Auditor Líder\n\n### Detalle de Hallazgos y Evaluación:\n${structuredContent}`;
-
-            await saveConvo(this.req, {
-              conversationId,
-              title: `${defaultTitle} - ${dateStr}`,
-              endpoint: reportTag,
-              model: reportTag,
-              tags: reportTags,
-            }, { context: 'SomosSST Tool Audit/Diagnostic Update' });
-
-            await saveMessage(this.req, {
-              messageId,
-              conversationId,
-              text: fullReportText,
-              sender: isAudit ? 'Auditor SG-SST' : 'SGSST Diagnóstico',
-              isCreatedByUser: false,
-              parentMessageId: '00000000-0000-0000-0000-000000000000',
-            }, { context: 'SomosSST Tool Audit/Diagnostic Message' });
-
-            return JSON.stringify({
-              exito: true,
-              mensaje: `Se registró y guardó exitosamente la evaluación en "${defaultTitle}" (/sgsst/${isAudit ? 'auditoria' : 'diagnostico'}).`,
-              detalles: { aplicativo: defaultTitle, tag: reportTag, conversationId }
+            const structuredState = JSON.stringify({
+              statuses: statusList,
+              compliancePercentage: stateDoc.compliancePercentage,
+              score: stateDoc.score,
+              complianceLevel: stateDoc.complianceLevel,
             });
+            const fullReportText = `<!-- SGSST_AUDIT_DATA_V1:${structuredState} -->\n\n# ${input.titulo_informe || defaultTitle}\n**Fecha:** ${dateStr}\n**Cumplimiento Calculado:** ${stateDoc.compliancePercentage}%\n\n### Ítems Evaluados (${statusList.length}):\n${JSON.stringify(incomingItems, null, 2)}`;
+
+            await saveConvo(
+              this.req,
+              {
+                conversationId,
+                title: `${defaultTitle} - ${dateStr}`,
+                endpoint: reportTag,
+                model: reportTag,
+                tags: reportTags,
+              },
+              { context: 'SomosSST Tool Audit/Diagnostic Update' },
+            );
+
+            await saveMessage(
+              this.req,
+              {
+                messageId,
+                conversationId,
+                text: fullReportText,
+                sender: isAudit ? 'Auditor SG-SST' : 'SGSST Diagnóstico',
+                isCreatedByUser: false,
+                parentMessageId: '00000000-0000-0000-0000-000000000000',
+              },
+              { context: 'SomosSST Tool Audit/Diagnostic Message' },
+            );
           } catch (auditErr) {
-            console.warn('[SomosSST] Fallback saving audit/diagnostic report:', auditErr.message);
+            console.warn('[SomosSST] Optional traceability convo save warning:', auditErr.message);
           }
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Se actualizó la colección oficial "${isAudit ? 'AuditoriaData' : 'DiagnosticoData'}" (${statusList.length} ítems registrados, cumplimiento: ${stateDoc.compliancePercentage}%).`,
+            detalles: {
+              aplicativo: defaultTitle,
+              totalItemsEvaluados: statusList.length,
+              compliancePercentage: stateDoc.compliancePercentage,
+              score: stateDoc.score ?? stateDoc.compliancePercentage,
+              complianceLevel: stateDoc.complianceLevel || undefined,
+              conversationId,
+            },
+          });
         }
 
-        // ── RESOLUCIÓN DEL MODELO PARA LOS DEMÁS 30 MÓDULOS ───────────────────
+        // ── 5. EQUIPOS DE ALTURAS (ANTES de permiso_alturas) ──────────────────
+        if (
+          appName.includes('equipo_altura') ||
+          appName.includes('equipos_altura') ||
+          appName.includes('heights') ||
+          appName === 'hito5_equipos_alturas'
+        ) {
+          const resHeights = await upsertHeightsEquipmentRecord({
+            rawFilter: rawFilterOriginal,
+            fieldKey: fieldToEdit,
+            payloadVal: newValue,
+          });
+          return JSON.stringify(resHeights);
+        }
+
+        // ── 6. REGISTRO E INVENTARIO QUÍMICO (ANTES de compatibilidad SGA) ────
+        if (
+          appName.includes('registro_quimico') ||
+          appName.includes('inventario_quimico') ||
+          appName.includes('chemical') ||
+          appName === 'hito5_registro_quimico'
+        ) {
+          const SgsstChemicalData = mongoose.models.SgsstChemicalData || require('~/models/SgsstChemicalData');
+          let chemDoc = await SgsstChemicalData.findOne(queryObj);
+          if (!chemDoc) {
+            chemDoc = new SgsstChemicalData({ user: userId, companyId: activeCompanyId, productos: [] });
+          }
+          const rawProds = Array.isArray(newValue)
+            ? newValue
+            : newValue && typeof newValue === 'object' && Array.isArray(newValue.productos)
+              ? newValue.productos
+              : newValue && typeof newValue === 'object'
+                ? [newValue]
+                : [{ nombre: rawFilterOriginal || String(newValue || 'Producto Químico') }];
+
+          const normYesNo = (v) => {
+            if (v === true) return 'Sí';
+            if (v === false) return 'No';
+            const s = String(v || '').toLowerCase().trim();
+            return ['si', 'sí', 'yes', 'true', '1'].includes(s) ? 'Sí' : 'No';
+          };
+          const normEstadoFisico = (v) => {
+            const s = String(v || '').toLowerCase();
+            if (s.includes('sol') || s.includes('sól') || s.includes('polvo')) return 'Sólido';
+            if (s.includes('gas') || s.includes('vap')) return 'Gaseoso';
+            return 'Líquido';
+          };
+
+          for (const p of rawProds) {
+            if (!p || typeof p !== 'object') continue;
+            const pName = String(p.nombre || p.producto || rawFilterOriginal || 'Producto Químico').trim();
+            const idx = chemDoc.productos.findIndex(
+              (x) => (p.id && x.id === p.id) || String(x.nombre || '').toLowerCase() === pName.toLowerCase(),
+            );
+            const normalized = {
+              id: p.id || (idx >= 0 ? chemDoc.productos[idx].id : makeItemId('chem')),
+              nombre: pName,
+              fabricante: p.fabricante || (idx >= 0 ? chemDoc.productos[idx].fabricante : '') || '',
+              estadoFisico: p.estadoFisico ? normEstadoFisico(p.estadoFisico) : (idx >= 0 ? chemDoc.productos[idx].estadoFisico : 'Líquido'),
+              pictogramasSga: Array.isArray(p.pictogramasSga) ? p.pictogramasSga : (idx >= 0 ? chemDoc.productos[idx].pictogramasSga : []),
+              claseOnu: p.claseOnu || p.clasificacion_onu || (idx >= 0 ? chemDoc.productos[idx].claseOnu : '') || '',
+              ubicacion: p.ubicacion || (idx >= 0 ? chemDoc.productos[idx].ubicacion : '') || '',
+              cantidadAlmacenada: p.cantidadAlmacenada || (idx >= 0 ? chemDoc.productos[idx].cantidadAlmacenada : '') || '',
+              tieneFds: p.tieneFds !== undefined ? normYesNo(p.tieneFds) : (idx >= 0 ? chemDoc.productos[idx].tieneFds : 'No'),
+              tieneRotuloSga: p.tieneRotuloSga !== undefined ? normYesNo(p.tieneRotuloSga) : (idx >= 0 ? chemDoc.productos[idx].tieneRotuloSga : 'No'),
+              requisitosAlmacenamiento: p.requisitosAlmacenamiento || (idx >= 0 ? chemDoc.productos[idx].requisitosAlmacenamiento : '') || '',
+              incompatibilidades: Array.isArray(p.incompatibilidades)
+                ? p.incompatibilidades
+                : p.incompatibilidades
+                  ? [String(p.incompatibilidades)]
+                  : (idx >= 0 ? chemDoc.productos[idx].incompatibilidades : []),
+              trabajadoresExpuestos: Array.isArray(p.trabajadoresExpuestos) ? p.trabajadoresExpuestos : (idx >= 0 ? chemDoc.productos[idx].trabajadoresExpuestos : []),
+              observaciones: p.observaciones || (idx >= 0 ? chemDoc.productos[idx].observaciones : '') || '',
+            };
+            if (fieldToEdit && typeof newValue !== 'object') {
+              normalized[fieldToEdit] =
+                fieldToEdit === 'tieneFds' || fieldToEdit === 'tieneRotuloSga' ? normYesNo(newValue) : newValue;
+            }
+            if (idx >= 0) chemDoc.productos[idx] = normalized;
+            else chemDoc.productos.push(normalized);
+          }
+
+          chemDoc.markModified('productos');
+          await chemDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Inventario Químico (SgsstChemicalData) actualizado exitosamente (${chemDoc.productos.length} productos).`,
+            detalles: { aplicativo: 'Registro y Rótulo de Productos Químicos (SGA)', totalProductos: chemDoc.productos.length },
+          });
+        }
+
+        // ── 7. MATRIZ DE COMPATIBILIDAD QUÍMICA SGA (ChemicalCompatibilitySession Oficial) ──
+        if (
+          appName.includes('compatibil') ||
+          appName.includes('quimicos_sga') ||
+          appName === 'quimicos' ||
+          appName === 'hito3_quimicos_sga'
+        ) {
+          const ChemicalCompatibilitySession =
+            mongoose.models.ChemicalCompatibilitySession || require('~/models/ChemicalCompatibilitySession');
+          const officialConvId = `official-chem-${activeCompanyId || userId}`;
+          let session = await ChemicalCompatibilitySession.findOne({ conversationId: officialConvId });
+          if (!session) {
+            session = new ChemicalCompatibilitySession({
+              conversationId: officialConvId,
+              user: userId,
+              companyId: activeCompanyId,
+              isOfficial: true,
+              officialTitle: 'Matriz Oficial de Compatibilidad Química',
+              matrixRows: [],
+            });
+          }
+          const incomingRows = Array.isArray(newValue)
+            ? newValue
+            : newValue && typeof newValue === 'object' && Array.isArray(newValue.matrixRows)
+              ? newValue.matrixRows
+              : newValue && typeof newValue === 'object' && Array.isArray(newValue.productos)
+                ? newValue.productos
+                : newValue && typeof newValue === 'object'
+                  ? [newValue]
+                  : [];
+
+          for (const r of incomingRows) {
+            if (!r || typeof r !== 'object') continue;
+            const rName = String(r.nombre || r.producto || rawFilterOriginal || 'Sustancia Química').trim();
+            const idx = session.matrixRows.findIndex(
+              (x) => (r.id && x.id === r.id) || String(x.nombre || '').toLowerCase() === rName.toLowerCase(),
+            );
+            const merged = { ...(idx >= 0 ? session.matrixRows[idx] : {}), ...r, nombre: rName };
+            if (!merged.id) merged.id = makeItemId('sga');
+            if (idx >= 0) session.matrixRows[idx] = merged;
+            else session.matrixRows.push(merged);
+          }
+          if (incomingRows.length === 0 && fieldToEdit) {
+            session[fieldToEdit] = newValue;
+          }
+          session.isOfficial = true;
+          if (activeCompanyId) session.companyId = activeCompanyId;
+          session.markModified('matrixRows');
+          await session.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Matriz Oficial de Compatibilidad Química SGA actualizada (${session.matrixRows.length} sustancias).`,
+            detalles: { aplicativo: 'Matriz de Compatibilidad Química SGA', conversationId: officialConvId, totalSustancias: session.matrixRows.length },
+          });
+        }
+
+        // ── 8. FLOTA VEHICULAR E INSPECCIÓN PREOPERACIONAL (SgsstVehicleData por placa) ──
+        if (appName.includes('vehicul') || appName.includes('flota') || appName === 'hito3_vehiculos') {
+          const SgsstVehicleData = mongoose.models.SgsstVehicleData || require('~/models/SgsstVehicleData');
+          const objVeh = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          const targetPlaca = String(objVeh.placa || rawFilterOriginal || 'VEH-001').toUpperCase().trim();
+
+          let vehDoc = await SgsstVehicleData.findOne({
+            user: userId,
+            companyId: activeCompanyId,
+            placa: targetPlaca,
+          });
+          if (!vehDoc) {
+            vehDoc = new SgsstVehicleData({
+              user: userId,
+              companyId: activeCompanyId,
+              placa: targetPlaca,
+              marca: objVeh.marca || 'Genérica',
+              referencia: objVeh.referencia || '',
+              modelo: objVeh.modelo || String(new Date().getFullYear()),
+              tipo: objVeh.tipo || objVeh.tipoVehiculo || 'Automóvil',
+              conductorId: objVeh.conductorId || objVeh.conductorCedula || 'COND-01',
+              conductorNombre: objVeh.conductorNombre || objVeh.conductor || input.nombre_o_cargo || 'Conductor Asignado',
+              soatVencimiento: objVeh.soatVencimiento || new Date(Date.now() + 31536000000).toISOString().slice(0, 10),
+              tecnomecanicaVencimiento: objVeh.tecnomecanicaVencimiento || '',
+              kilometrajeActual: Number(objVeh.kilometrajeActual || objVeh.kilometraje || 0),
+              inspecciones: [],
+            });
+          }
+
+          if (fieldToEdit === 'inspeccion' || objVeh.inspeccion) {
+            const insp = objVeh.inspeccion || objVeh;
+            vehDoc.inspecciones.push({
+              fecha: insp.fecha || new Date().toISOString().slice(0, 10),
+              kilometraje: Number(insp.kilometraje || vehDoc.kilometrajeActual || 0),
+              conductorNombre: insp.conductorNombre || vehDoc.conductorNombre,
+              resultado: insp.resultado === 'Rechazado' ? 'Rechazado' : 'Aprobado',
+              observaciones: insp.observaciones || '',
+              ...insp,
+            });
+            vehDoc.markModified('inspecciones');
+          } else if (Object.keys(objVeh).length > 0) {
+            for (const [k, v] of Object.entries(objVeh)) {
+              if (k !== '_id') vehDoc[k] = v;
+            }
+          } else if (fieldToEdit) {
+            vehDoc[fieldToEdit] = newValue;
+          }
+          await vehDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Vehículo con placa "${targetPlaca}" actualizado exitosamente en Flota PESV.`,
+            detalles: { aplicativo: 'Inspección y Control de Flota Vehicular', placa: targetPlaca, totalInspecciones: vehDoc.inspecciones.length },
+          });
+        }
+
+        // ── 9. COMITÉ DE SEGURIDAD VIAL (SgsstPesvComite — ANTES de pesv general) ──
+        if (appName.includes('comite_pesv') || appName === 'hito3_comite_pesv') {
+          const { SgsstPesvComite } = require('~/models/SgsstCopasst');
+          let csvDoc = await SgsstPesvComite.findOne(queryObj);
+          if (!csvDoc) {
+            csvDoc = new SgsstPesvComite({ user: userId, companyId: activeCompanyId, integrantes: [] });
+          }
+          if (newValue && typeof newValue === 'object') {
+            if (Array.isArray(newValue.integrantes)) csvDoc.integrantes = newValue.integrantes;
+            else if (newValue.liderPesv) csvDoc.liderPesv = newValue.liderPesv;
+            else if (newValue.nombre) {
+              csvDoc.integrantes.push({
+                nombre: newValue.nombre,
+                cedula: newValue.cedula || '000000',
+                cargo: newValue.cargo || 'Integrante CSV',
+                rol: newValue.rol || 'Vocal',
+              });
+            }
+          }
+          csvDoc.markModified('integrantes');
+          await csvDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Comité de Seguridad Vial (CSV) actualizado (${csvDoc.integrantes.length} integrantes).`,
+            detalles: { aplicativo: 'Comité de Seguridad Vial (CSV)', totalIntegrantes: csvDoc.integrantes.length },
+          });
+        }
+
+        // ── 10. MATRIZ PESV OFICIAL (PESVWorkspaceSession) ────────────────────
+        if (appName.includes('pesv') || appName === 'hito3_matriz_pesv') {
+          const PESVWorkspaceSession =
+            mongoose.models.PESVWorkspaceSession || require('~/models/PESVWorkspaceSession');
+          const officialPesvId = `official-pesv-${activeCompanyId || userId}`;
+          let session = await PESVWorkspaceSession.findOne({ conversationId: officialPesvId });
+          if (!session) {
+            session = new PESVWorkspaceSession({
+              conversationId: officialPesvId,
+              user: userId,
+              companyId: activeCompanyId,
+              isOfficial: true,
+              officialTitle: 'Matriz Oficial de Riesgos Viales PESV',
+              matrixRows: [],
+            });
+          }
+          const incomingRows = Array.isArray(newValue)
+            ? newValue
+            : newValue && typeof newValue === 'object' && Array.isArray(newValue.matrixRows)
+              ? newValue.matrixRows
+              : newValue && typeof newValue === 'object' && Array.isArray(newValue.riesgos)
+                ? newValue.riesgos
+                : newValue && typeof newValue === 'object'
+                  ? [newValue]
+                  : [];
+
+          for (const r of incomingRows) {
+            if (!r || typeof r !== 'object') continue;
+            const np = Number(r.np_cuantitativo) || 3;
+            const ne = Number(r.ne_cuantitativo) || 3;
+            const nc = Number(r.nc_cuantitativo) || 3;
+            const cal = np + ne + nc;
+            const row = {
+              ...r,
+              id: r.id || makeItemId('pesv'),
+              np_cuantitativo: np,
+              ne_cuantitativo: ne,
+              nc_cuantitativo: nc,
+              calificacion: cal,
+              nivel_riesgo:
+                cal >= 12 ? 'NIVEL DE RIESGO ALTO o CRITICO' : cal >= 8 ? 'NIVEL DE RIESGO MEDIO o MODERADO' : 'NIVEL DE RIESGO BAJO',
+              aceptabilidad: cal >= 12 ? 'NO ACEPTABLE' : cal >= 8 ? 'ACEPTABLE CON CONTROL ESPECIFICO' : 'ACEPTABLE',
+            };
+            const idx = session.matrixRows.findIndex(
+              (x) =>
+                (r.id && x.id === r.id) ||
+                (x.cargo && r.cargo && x.cargo.toLowerCase() === r.cargo.toLowerCase() && x.peligro_descripcion === r.peligro_descripcion),
+            );
+            if (idx >= 0) session.matrixRows[idx] = { ...session.matrixRows[idx], ...row };
+            else session.matrixRows.push(row);
+          }
+          session.isOfficial = true;
+          if (activeCompanyId) session.companyId = activeCompanyId;
+          session.markModified('matrixRows');
+          await session.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Matriz Oficial PESV actualizada (${session.matrixRows.length} riesgos viales).`,
+            detalles: { aplicativo: 'Matriz de Riesgos Viales PESV', conversationId: officialPesvId, totalRiesgos: session.matrixRows.length },
+          });
+        }
+
+        // ── 11. PARTICIPACIÓN IPEVAR COMUNITARIA (ANTES de bio_ipevar e ipevar) ──
+        if (appName.includes('participacion')) {
+          const ParticipacionModel = modelLoader('ParticipacionIpevarData', '~/server/routes/sgsst/participacionIpevar');
+          let partDoc = await ParticipacionModel.findOne(queryObj);
+          if (!partDoc) {
+            partDoc = new ParticipacionModel({ user: userId, companyId: activeCompanyId, reportes: [] });
+          }
+          const itemObj = newValue && typeof newValue === 'object' ? newValue : { peligroReportado: String(newValue || ''), area: rawFilterOriginal };
+          if (!Array.isArray(partDoc.reportes)) partDoc.reportes = [];
+          partDoc.reportes.push({ id: makeItemId('part'), fecha: new Date().toISOString().slice(0, 10), ...itemObj });
+          partDoc.markModified('reportes');
+          await partDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Reporte de Participación IPEVAR registrado (${partDoc.reportes.length} participaciones).`,
+            detalles: { aplicativo: 'Participación IPEVAR Comunitaria', totalReportes: partDoc.reportes.length },
+          });
+        }
+
+        // ── 12. MATRIZ BIO-IPEVAR INDIVIDUAL (SgsstWorker.riesgosBioIndividual — separado de GTC-45) ──
+        if (appName.includes('bio_ipevar') || appName.includes('riesgos_bio') || appName === 'hito4_bio_ipevar') {
+          const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+          if (!rawFilterOriginal) {
+            return JSON.stringify({
+              exito: false,
+              error: 'Para editar Matriz Bio-IPEVAR Individual debes indicar la cédula o nombre del trabajador en identificador_o_filtro o nombre_o_cargo.',
+            });
+          }
+          const rx = new RegExp(escapeRx(rawFilterOriginal), 'i');
+          const workerDoc = await SgsstWorker.findOne({
+            ...(activeCompanyId ? { companyId: activeCompanyId } : { user: userId }),
+            $or: [{ documento: rx }, { nombre: rx }],
+          });
+          if (!workerDoc) {
+            return JSON.stringify({
+              exito: false,
+              error: `No se encontró al trabajador "${rawFilterOriginal}" en SgsstWorker para actualizar riesgosBioIndividual.`,
+            });
+          }
+          const incomingBio = Array.isArray(newValue)
+            ? newValue
+            : newValue && typeof newValue === 'object' && Array.isArray(newValue.riesgosBioIndividual)
+              ? newValue.riesgosBioIndividual
+              : newValue && typeof newValue === 'object'
+                ? [newValue]
+                : [{ peligro: String(newValue || ''), campo: fieldToEdit }];
+
+          if (!Array.isArray(workerDoc.riesgosBioIndividual)) workerDoc.riesgosBioIndividual = [];
+          for (const item of incomingBio) {
+            workerDoc.riesgosBioIndividual.push({ id: makeItemId('bio'), fecha: new Date().toISOString().slice(0, 10), ...item });
+          }
+          workerDoc.markModified('riesgosBioIndividual');
+          await workerDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Matriz Bio-IPEVAR Individual actualizada para "${workerDoc.nombre}" (${workerDoc.riesgosBioIndividual.length} riesgos individuales).`,
+            detalles: { aplicativo: 'Matriz Bio-IPEVAR Individual', trabajador: workerDoc.nombre, documento: workerDoc.documento },
+          });
+        }
+
+        // ── 13. MATRIZ IPEVR GTC-45 OFICIAL (GTC45WorkspaceSession) ───────────
+        if (
+          appName.includes('gtc45') ||
+          appName.includes('matriz_peligro') ||
+          appName.includes('matriz_ipevar') ||
+          appName === 'ipevar' ||
+          appName === 'peligros' ||
+          appName === 'hito2_matriz_ipevar'
+        ) {
+          const GTC45WorkspaceSession =
+            mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+          const officialGtcId = `official-${activeCompanyId || userId}`;
+          let session = await GTC45WorkspaceSession.findOne({ conversationId: officialGtcId });
+          if (!session) {
+            session = new GTC45WorkspaceSession({
+              conversationId: officialGtcId,
+              user: userId,
+              companyId: activeCompanyId,
+              isOfficial: true,
+              officialTitle: 'Matriz Oficial IPEVR GTC-45',
+              matrixRows: [],
+            });
+          }
+
+          const incomingRows = Array.isArray(newValue)
+            ? newValue
+            : newValue && typeof newValue === 'object' && Array.isArray(newValue.matrixRows)
+              ? newValue.matrixRows
+              : newValue && typeof newValue === 'object' && Array.isArray(newValue.riesgos)
+                ? newValue.riesgos
+                : newValue && typeof newValue === 'object'
+                  ? [newValue]
+                  : [];
+
+          for (const riesgo of incomingRows) {
+            if (!riesgo || typeof riesgo !== 'object') continue;
+            const nd = Number(riesgo.nd ?? 2);
+            const ne = Number(riesgo.ne ?? 2);
+            const np = nd * ne;
+            const nc = Number(riesgo.nc ?? 25);
+            const nr = np * nc;
+            const interpretacion_nr = nr >= 600 ? 'I' : nr >= 150 ? 'II' : nr >= 40 ? 'III' : 'IV';
+            const aceptabilidad =
+              interpretacion_nr === 'I'
+                ? 'No Aceptable'
+                : interpretacion_nr === 'II'
+                  ? 'No Aceptable o Aceptable con Control Específico'
+                  : interpretacion_nr === 'III'
+                    ? 'Mejorable'
+                    : 'Aceptable';
+
+            const row = {
+              proceso: riesgo.proceso || 'Operativo',
+              cargo: riesgo.cargo || rawFilterOriginal || 'General',
+              actividad: riesgo.actividad || 'Actividad operativa',
+              ...riesgo,
+              id: riesgo.id || makeItemId('gtc'),
+              nd,
+              ne,
+              np,
+              nc,
+              nr,
+              interpretacion_nr,
+              aceptabilidad,
+            };
+            const idx = session.matrixRows.findIndex(
+              (r) =>
+                (riesgo.id && r.id === riesgo.id) ||
+                (r.proceso?.toLowerCase() === row.proceso?.toLowerCase() &&
+                  r.cargo?.toLowerCase() === row.cargo?.toLowerCase() &&
+                  r.peligro_descripcion?.toLowerCase() === row.peligro_descripcion?.toLowerCase()),
+            );
+            if (idx >= 0) session.matrixRows[idx] = { ...session.matrixRows[idx], ...row, id: session.matrixRows[idx].id || row.id };
+            else session.matrixRows.push(row);
+          }
+
+          session.isOfficial = true;
+          if (activeCompanyId) session.companyId = activeCompanyId;
+          session.markModified('matrixRows');
+          await session.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Matriz Oficial IPEVR GTC-45 actualizada (${session.matrixRows.length} filas sincronizadas).`,
+            detalles: { aplicativo: 'Matriz IPEVR GTC-45 Oficial', conversationId: officialGtcId, totalFilas: session.matrixRows.length },
+          });
+        }
+
+        // ── 14. PLAN DE EMERGENCIAS PPRE (ANTES de vulnerabilidad/emergencias genérico) ──
+        if (
+          appName.includes('plan_emergencia') ||
+          appName === 'ppre' ||
+          appName === 'hito1_plan_emergencias' ||
+          appName.includes('simulacro')
+        ) {
+          const PlanEmergenciasData =
+            mongoose.models.PlanEmergenciasData || require('~/models/PlanEmergenciasData');
+          let ppreDoc = await PlanEmergenciasData.findOne(queryObj);
+          if (!ppreDoc) {
+            ppreDoc = new PlanEmergenciasData({ user: userId, companyId: activeCompanyId });
+          }
+
+          const objPpre = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : null;
+          const arrayFields = [
+            'escenariosAmenaza',
+            'estructuraSci',
+            'procedimientosPon',
+            'recursosEquipos',
+            'directoriosExternos',
+            'simulacrosPlan',
+          ];
+
+          const ensurePpreItemDefaults = (arrName, item) => {
+            const it = item && typeof item === 'object' ? { ...item } : {};
+            if (!it.id) it.id = makeItemId('ppre');
+            if (arrName === 'escenariosAmenaza' && !it.amenaza) it.amenaza = it.titulo || String(newValue || 'Sismo / Incendio');
+            if (arrName === 'estructuraSci' && !it.rolSci) it.rolSci = it.rol || 'Comandante del Incidente';
+            if (arrName === 'procedimientosPon' && !it.tituloEscenario) it.tituloEscenario = it.titulo || 'PON General de Evacuación';
+            if (arrName === 'recursosEquipos' && !it.descripcion) it.descripcion = it.nombre || 'Extintor Multipropósito ABC';
+            if (arrName === 'directoriosExternos') {
+              if (!it.entidad) it.entidad = 'Línea Única de Emergencias';
+              if (!it.lineaTelefonica) it.lineaTelefonica = it.telefono || '123';
+            }
+            if (arrName === 'simulacrosPlan' && !it.tituloSimulacro) {
+              it.tituloSimulacro = it.titulo || String(newValue || 'Simulacro Anual de Evacuación');
+            }
+            return it;
+          };
+
+          if (appName.includes('simulacro') && (!fieldToEdit || fieldToEdit === 'simulacro')) {
+            const simItem = ensurePpreItemDefaults('simulacrosPlan', objPpre || { tituloSimulacro: String(newValue || 'Simulacro de Evacuación') });
+            ppreDoc.simulacrosPlan.push(simItem);
+            ppreDoc.markModified('simulacrosPlan');
+          } else if (arrayFields.includes(fieldToEdit)) {
+            const items = Array.isArray(newValue) ? newValue : [objPpre || { descripcion: String(newValue || '') }];
+            for (const rawIt of items) {
+              ppreDoc[fieldToEdit].push(ensurePpreItemDefaults(fieldToEdit, rawIt));
+            }
+            ppreDoc.markModified(fieldToEdit);
+          } else if (fieldToEdit === 'sedeData' && objPpre) {
+            ppreDoc.sedeData = { ...(ppreDoc.sedeData?.toObject?.() || ppreDoc.sedeData || {}), ...objPpre };
+            ppreDoc.markModified('sedeData');
+          } else if (objPpre) {
+            for (const af of arrayFields) {
+              if (Array.isArray(objPpre[af])) {
+                for (const rawIt of objPpre[af]) ppreDoc[af].push(ensurePpreItemDefaults(af, rawIt));
+                ppreDoc.markModified(af);
+              }
+            }
+            if (objPpre.sedeData && typeof objPpre.sedeData === 'object') {
+              ppreDoc.sedeData = { ...(ppreDoc.sedeData?.toObject?.() || ppreDoc.sedeData || {}), ...objPpre.sedeData };
+              ppreDoc.markModified('sedeData');
+            }
+            if (objPpre.amenaza && !objPpre.escenariosAmenaza) {
+              ppreDoc.escenariosAmenaza.push(ensurePpreItemDefaults('escenariosAmenaza', objPpre));
+              ppreDoc.markModified('escenariosAmenaza');
+            }
+          } else if (fieldToEdit) {
+            if (!ppreDoc.sedeData) ppreDoc.sedeData = {};
+            ppreDoc.sedeData[fieldToEdit] = newValue;
+            ppreDoc.markModified('sedeData');
+          }
+
+          await ppreDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE) actualizado exitosamente.`,
+            detalles: {
+              aplicativo: 'Plan de Emergencias (PPRE)',
+              escenarios: ppreDoc.escenariosAmenaza?.length || 0,
+              simulacros: ppreDoc.simulacrosPlan?.length || 0,
+            },
+          });
+        }
+
+        // ── 15. ANÁLISIS DE VULNERABILIDAD (Escribe estrictamente en doc.formData.amenazasList) ──
+        if (appName.includes('vulnerabil') || appName === 'hito6_vulnerabilidad') {
+          const VulnModel = modelLoader('AnalisisVulnerabilidadData', '~/server/routes/sgsst/analisisVulnerabilidad');
+          let vulnDoc = await VulnModel.findOne(queryObj);
+          if (!vulnDoc) {
+            vulnDoc = new VulnModel({
+              user: userId,
+              companyId: activeCompanyId,
+              formData: { amenazasList: [] },
+            });
+          }
+          if (!vulnDoc.formData || typeof vulnDoc.formData !== 'object') {
+            vulnDoc.formData = { amenazasList: [] };
+          }
+          if (!Array.isArray(vulnDoc.formData.amenazasList)) {
+            vulnDoc.formData.amenazasList = [];
+          }
+
+          const incomingThreats = Array.isArray(newValue)
+            ? newValue
+            : newValue && typeof newValue === 'object' && Array.isArray(newValue.amenazasList)
+              ? newValue.amenazasList
+              : newValue && typeof newValue === 'object' && Array.isArray(newValue.formData?.amenazasList)
+                ? newValue.formData.amenazasList
+                : newValue && typeof newValue === 'object'
+                  ? [newValue]
+                  : [{ amenaza: rawFilterOriginal || String(newValue || 'Amenaza Identificada'), origen: 'Natural', probabilidad: 'Probable' }];
+
+          for (const th of incomingThreats) {
+            if (!th || typeof th !== 'object') continue;
+            const tName = String(th.amenaza || th.nombre || rawFilterOriginal || 'Amenaza').trim();
+            const idx = vulnDoc.formData.amenazasList.findIndex(
+              (x) => (th.id && x.id === th.id) || String(x.amenaza || x.nombre || '').toLowerCase() === tName.toLowerCase(),
+            );
+            const merged = {
+              ...(idx >= 0 ? vulnDoc.formData.amenazasList[idx] : {}),
+              ...th,
+              id: th.id || (idx >= 0 ? vulnDoc.formData.amenazasList[idx].id : makeItemId('vuln')),
+              amenaza: tName,
+            };
+            if (idx >= 0) vulnDoc.formData.amenazasList[idx] = merged;
+            else vulnDoc.formData.amenazasList.push(merged);
+          }
+
+          vulnDoc.updatedAt = new Date();
+          vulnDoc.markModified('formData');
+          await vulnDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Análisis de Vulnerabilidad actualizado en formData.amenazasList (${vulnDoc.formData.amenazasList.length} amenazas).`,
+            detalles: {
+              aplicativo: 'Análisis de Amenazas y Vulnerabilidad',
+              totalAmenazas: vulnDoc.formData.amenazasList.length,
+            },
+          });
+        }
+
+        // ── 16. REVISIÓN POR LA ALTA DIRECCIÓN (Separado de Política/Objetivos/RHS/RIT) ──
+        if (appName.includes('alta_direccion') || appName.includes('gerencia') || appName === 'hito7_alta_direccion') {
+          const AltaDirModel = modelLoader('AltaDireccionData', '~/server/routes/sgsst/altaDireccion');
+          let altaDoc = await AltaDirModel.findOne(queryObj);
+          if (!altaDoc) {
+            altaDoc = new AltaDirModel({ user: userId, companyId: activeCompanyId, statusData: [], reviewerInfo: {} });
+          }
+          if (newValue && typeof newValue === 'object' && !Array.isArray(newValue)) {
+            if (Array.isArray(newValue.statusData)) altaDoc.statusData = newValue.statusData;
+            if (newValue.reviewerInfo && typeof newValue.reviewerInfo === 'object') {
+              altaDoc.reviewerInfo = { ...(altaDoc.reviewerInfo || {}), ...newValue.reviewerInfo };
+            }
+            if (newValue.itemId || newValue.status) {
+              const idx = altaDoc.statusData.findIndex((s) => s.itemId === newValue.itemId);
+              if (idx >= 0) altaDoc.statusData[idx] = { ...altaDoc.statusData[idx], ...newValue };
+              else altaDoc.statusData.push(newValue);
+            }
+          } else if (Array.isArray(newValue)) {
+            altaDoc.statusData = newValue;
+          } else if (fieldToEdit) {
+            if (['nombre', 'cargo', 'cedula', 'fecha'].includes(fieldToEdit)) {
+              altaDoc.reviewerInfo = { ...(altaDoc.reviewerInfo || {}), [fieldToEdit]: newValue };
+            } else {
+              altaDoc.statusData.push({ itemId: rawFilterOriginal || fieldToEdit, status: String(newValue), observation: '' });
+            }
+          }
+          altaDoc.updatedAt = new Date();
+          altaDoc.markModified('statusData');
+          altaDoc.markModified('reviewerInfo');
+          await altaDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Revisión por la Alta Dirección actualizada exitosamente (${altaDoc.statusData.length} elementos revisados).`,
+            detalles: { aplicativo: 'Revisión por la Alta Dirección', totalItems: altaDoc.statusData.length },
+          });
+        }
+
+        // ── 17. MÓDULOS DOCUMENTALES HITO 1 (Política, Objetivos, RHS, RIT, Responsable SG-SST) ──
+        if (
+          appName.includes('politica') ||
+          appName.includes('objetivo') ||
+          appName === 'rhs' ||
+          appName.includes('reglamento_higiene') ||
+          appName === 'hito1_rhs' ||
+          appName === 'rit' ||
+          appName.includes('reglamento_interno') ||
+          appName === 'hito1_rit' ||
+          appName.includes('responsable')
+        ) {
+          let docNodeId = 'hito1_politica_objetivos';
+          if (appName.includes('objetivo') && !appName.includes('politica')) docNodeId = 'hito1_objetivos';
+          else if (appName === 'rhs' || appName.includes('reglamento_higiene') || appName === 'hito1_rhs') docNodeId = 'hito1_rhs';
+          else if (appName === 'rit' || appName.includes('reglamento_interno') || appName === 'hito1_rit') docNodeId = 'hito1_rit';
+          else if (appName.includes('responsable')) docNodeId = 'hito1_responsable';
+
+          // Si es Responsable SG-SST y llegan campos de perfil del responsable, actualizar también CompanyInfo
+          if (docNodeId === 'hito1_responsable') {
+            const comp = await getActiveCompanyDoc(userId);
+            if (comp) {
+              const objR = newValue && typeof newValue === 'object' ? newValue : { [fieldToEdit]: newValue };
+              if (objR.responsibleSST || objR.nombre || objR.responsable) {
+                comp.responsibleSST = objR.responsibleSST || objR.nombre || objR.responsable;
+              }
+              if (objR.licenseNumber || objR.licencia) comp.licenseNumber = objR.licenseNumber || objR.licencia;
+              if (objR.licenseExpiry || objR.vencimiento) comp.licenseExpiry = objR.licenseExpiry || objR.vencimiento;
+              if (objR.courseStatus || objR.curso50h) comp.courseStatus = objR.courseStatus || objR.curso50h;
+              await comp.save();
+            }
+          }
+
+          const { generateOrExtractOfficialAppReport } = require('~/server/services/hitoAppReportPipelineService');
+          const customInstructions =
+            typeof newValue === 'object' ? JSON.stringify(newValue, null, 2) : `${fieldToEdit ? fieldToEdit + ': ' : ''}${String(newValue ?? '')}`;
+
+          const genRes = await generateOrExtractOfficialAppReport({
+            userId,
+            companyId: activeCompanyId,
+            hitoNodeId: docNodeId,
+            forceRegenerate: true,
+            customInstructions,
+            req: this.req,
+          });
+
+          return JSON.stringify({
+            exito: Boolean(genRes?.found),
+            mensaje: `Documento oficial de "${genRes?.reportTitle || docNodeId}" generado y actualizado en el historial corporativo.`,
+            detalles: {
+              aplicativo: genRes?.reportTitle || docNodeId,
+              hitoNodeId: docNodeId,
+              reportConversationId: genRes?.reportConversationId || null,
+              charCount: genRes?.charCount || 0,
+            },
+          });
+        }
+
+        // ── 18. TERMÓMETRO PSICOSOCIAL / ÁNIMO (MoodTelemetry.create) ─────────
+        if (appName.includes('animo') || appName.includes('psicosocial') || appName === 'hito4_psicosocial') {
+          if (!activeCompanyId) {
+            return JSON.stringify({ exito: false, error: 'Se requiere una empresa activa para registrar telemetría psicosocial.' });
+          }
+          const MoodTelemetry = mongoose.models.MoodTelemetry || require('~/models/MoodTelemetry');
+          const objMood = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          const rawMoodStr = String(objMood.mood || objMood.estado || (typeof newValue === 'string' ? newValue : 'neutral')).toLowerCase();
+          const validMood =
+            rawMoodStr.includes('happy') || rawMoodStr.includes('feliz') || rawMoodStr.includes('bien') || rawMoodStr.includes('motivad')
+              ? 'happy'
+              : rawMoodStr.includes('sad') || rawMoodStr.includes('triste') || rawMoodStr.includes('estres') || rawMoodStr.includes('agotad') || rawMoodStr.includes('alto')
+                ? 'sad'
+                : 'neutral';
+
+          const createdMood = await MoodTelemetry.create({
+            companyId: activeCompanyId,
+            mood: validMood,
+            stressors: Array.isArray(objMood.stressors)
+              ? objMood.stressors
+              : objMood.estresor
+                ? [String(objMood.estresor)]
+                : [],
+            details: objMood.details || objMood.observaciones || (typeof newValue === 'string' ? newValue : ''),
+            department: objMood.department || objMood.area || rawFilterOriginal || 'General',
+            deviceId: objMood.deviceId || 'somos_sst_agent',
+            isDemo: false,
+          });
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Registro de Telemetría Psicosocial / Clima Laboral creado exitosamente (mood="${validMood}").`,
+            detalles: { aplicativo: 'Batería de Riesgo Psicosocial / Clima', id: createdMood._id, mood: validMood },
+          });
+        }
+
+        // ── 19. INVESTIGACIÓN PROFUNDA DE ACCIDENTES (Separado de investigacion_atel) ──
+        if (appName.includes('investigacion_profunda') || appName === 'hito7_investigacion_profunda') {
+          const { generateOrExtractOfficialAppReport } = require('~/server/services/hitoAppReportPipelineService');
+          const genRes = await generateOrExtractOfficialAppReport({
+            userId,
+            companyId: activeCompanyId,
+            hitoNodeId: 'hito7_investigacion_profunda',
+            forceRegenerate: true,
+            customInstructions: typeof newValue === 'object' ? JSON.stringify(newValue, null, 2) : String(newValue || ''),
+            req: this.req,
+          });
+          return JSON.stringify({
+            exito: Boolean(genRes?.found),
+            mensaje: `Informe de Investigación Profunda ATEL generado y persistido exitosamente.`,
+            detalles: { hitoNodeId: 'hito7_investigacion_profunda', reportConversationId: genRes?.reportConversationId },
+          });
+        }
+
+        // ── 20. INVESTIGACIÓN FORENSE ATEL RES. 1401 (Multi-documento en InvestigacionAtelData, ANTES de estadisticas/atel) ──
+        if (appName.includes('investigacion') || appName === 'hito7_investigacion_atel') {
+          const crypto = require('crypto');
+          const InvestigacionAtelData =
+            mongoose.models.InvestigacionAtelData || require('~/models/InvestigacionAtelData');
+          const objInv = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          const formIn = objInv.formData && typeof objInv.formData === 'object' ? objInv.formData : objInv;
+
+          let invDoc = null;
+          const lookupKey = String(objInv.id || formIn.afectadoCedula || rawFilterOriginal || '').trim();
+          if (lookupKey) {
+            const rx = new RegExp(escapeRx(lookupKey), 'i');
+            invDoc = await InvestigacionAtelData.findOne({
+              user: userId,
+              ...(activeCompanyId ? { companyId: activeCompanyId } : {}),
+              $or: [
+                { id: lookupKey },
+                { 'formData.afectadoCedula': rx },
+                { 'formData.afectadoNombre': rx },
+              ],
+            });
+          }
+
+          if (!invDoc) {
+            invDoc = new InvestigacionAtelData({
+              id: objInv.id || crypto.randomUUID(),
+              user: userId,
+              companyId: activeCompanyId,
+              title:
+                objInv.title ||
+                `Investigación ATEL - ${formIn.afectadoNombre || rawFilterOriginal || new Date().toISOString().slice(0, 10)}`,
+              status: objInv.status || 'en_proceso',
+              formData: {
+                tipoEvento: formIn.tipoEvento || input.tipo_evento || 'Accidente Leve',
+                fechaEvento: formIn.fechaEvento || input.fecha_accidente || new Date().toISOString().slice(0, 10),
+                lugarEvento: formIn.lugarEvento || input.lugar_accidente || 'Sede Principal',
+                afectadoNombre: formIn.afectadoNombre || input.nombre_o_cargo || '',
+                afectadoCedula: formIn.afectadoCedula || input.cedula_trabajador || rawFilterOriginal || '',
+                afectadoCargo: formIn.afectadoCargo || input.cargo_trabajador || '',
+                descripcionHechos: formIn.descripcionHechos || input.descripcion_accidente || '',
+                ...formIn,
+              },
+              equipoList: Array.isArray(objInv.equipoList) ? objInv.equipoList : [],
+              testigosList: Array.isArray(objInv.testigosList) ? objInv.testigosList : [],
+            });
+          } else {
+            if (Object.keys(formIn).length > 0) {
+              invDoc.formData = { ...(invDoc.formData || {}), ...formIn };
+              invDoc.markModified('formData');
+            }
+            if (Array.isArray(objInv.equipoList)) {
+              invDoc.equipoList = objInv.equipoList;
+              invDoc.markModified('equipoList');
+            }
+            if (Array.isArray(objInv.testigosList)) {
+              invDoc.testigosList = objInv.testigosList;
+              invDoc.markModified('testigosList');
+            }
+            if (fieldToEdit && typeof newValue !== 'object') {
+              invDoc.formData = { ...(invDoc.formData || {}), [fieldToEdit]: newValue };
+              invDoc.markModified('formData');
+            }
+          }
+
+          await invDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Expediente de Investigación ATEL (${invDoc.id}) guardado exitosamente.`,
+            detalles: { aplicativo: 'Investigación de Incidentes y Accidentes ATEL (Res. 1401)', id: invDoc.id, title: invDoc.title },
+          });
+        }
+
+        // ── 21. ESTADÍSTICAS E INDICADORES ATEL (ATELAnnualData desde ~/server/routes/sgsst/atel-data) ──
+        if (appName.includes('estadistica') || appName.includes('atel')) {
+          const ATELModel = modelLoader('ATELAnnualData', '~/server/routes/sgsst/atel-data');
+          if (!ATELModel) {
+            return JSON.stringify({ exito: false, error: 'No se pudo cargar el modelo ATELAnnualData.' });
+          }
+          const objAtel = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          const targetYear = Number(objAtel.year || objAtel.anio || (/^\d{4}$/.test(rawFilterOriginal) ? rawFilterOriginal : new Date().getFullYear()));
+          let atelDoc = await ATELModel.findOne({
+            user: userId,
+            ...(activeCompanyId ? { companyId: activeCompanyId } : {}),
+            year: targetYear,
+          });
+          if (!atelDoc) {
+            atelDoc = new ATELModel({
+              user: userId,
+              companyId: activeCompanyId,
+              year: targetYear,
+              monthlyData: [],
+              casesList: [],
+            });
+          }
+          if (Array.isArray(objAtel.monthlyData)) {
+            atelDoc.monthlyData = objAtel.monthlyData;
+            atelDoc.markModified('monthlyData');
+          }
+          if (Array.isArray(objAtel.casesList)) {
+            atelDoc.casesList = objAtel.casesList;
+            atelDoc.markModified('casesList');
+          }
+          if (objAtel.caso && typeof objAtel.caso === 'object') {
+            if (!Array.isArray(atelDoc.casesList)) atelDoc.casesList = [];
+            atelDoc.casesList.push({ id: makeItemId('atel'), ...objAtel.caso });
+            atelDoc.markModified('casesList');
+          }
+          if (fieldToEdit && atelDoc[fieldToEdit] !== undefined) {
+            atelDoc[fieldToEdit] = newValue;
+            atelDoc.markModified(fieldToEdit);
+          }
+          await atelDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Estadísticas Anuales ATEL (${targetYear}) actualizadas exitosamente.`,
+            detalles: { aplicativo: 'Estadísticas e Indicadores ATEL (Res. 0312)', year: targetYear },
+          });
+        }
+
+        // ── 22. ENTREGA DE EPP (Multi-documento en SgsstEppData por workerId/documento) ──
+        if (appName.includes('epp') || appName.includes('elementos') || appName === 'hito3_epp') {
+          const SgsstEppData = mongoose.models.SgsstEppData || require('~/models/SgsstEppData');
+          const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+          const objEpp = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          const lookup = String(
+            objEpp.workerId || objEpp.documento || input.cedula_trabajador || rawFilterOriginal || input.nombre_o_cargo || '',
+          ).trim();
+
+          let workerDoc = null;
+          if (lookup) {
+            const rx = new RegExp(escapeRx(lookup), 'i');
+            workerDoc = await SgsstWorker.findOne({
+              ...(activeCompanyId ? { companyId: activeCompanyId } : { user: userId }),
+              $or: [{ documento: rx }, { nombre: rx }],
+            }).lean();
+          }
+
+          const resolvedDoc = String(workerDoc?.documento || objEpp.documento || lookup || 'DOC-EPP-01').trim();
+          const resolvedWorkerId = String(objEpp.workerId || resolvedDoc).trim();
+          const resolvedName = String(
+            workerDoc?.nombre || objEpp.nombreTrabajador || input.nombre_o_cargo || 'Trabajador Receptor EPP',
+          ).trim();
+
+          let eppDoc = await SgsstEppData.findOne({
+            user: userId,
+            companyId: activeCompanyId,
+            $or: [{ workerId: resolvedWorkerId }, { documento: resolvedDoc }],
+          });
+          if (!eppDoc) {
+            eppDoc = new SgsstEppData({
+              user: userId,
+              companyId: activeCompanyId,
+              workerId: resolvedWorkerId,
+              documento: resolvedDoc,
+              nombreTrabajador: resolvedName,
+              cargo: workerDoc?.cargo || objEpp.cargo || input.cargo_trabajador || '',
+              entregas: [],
+            });
+          }
+
+          const rawItems = Array.isArray(newValue)
+            ? newValue
+            : Array.isArray(objEpp.entregas)
+              ? objEpp.entregas
+              : [objEpp];
+          for (const it of rawItems) {
+            const eppName = String(it?.nombre || it?.epp || (typeof newValue === 'string' ? newValue : 'EPP Certificado')).trim();
+            eppDoc.entregas.push({
+              id: it?.id || makeItemId('epp'),
+              nombre: eppName,
+              tipo: it?.tipo === 'Alturas' ? 'Alturas' : 'Regular',
+              fechaEntrega: it?.fechaEntrega || new Date().toISOString().slice(0, 10),
+              cantidad: Number(it?.cantidad || 1),
+              estado: 'Entregado',
+              observaciones: it?.observaciones || '',
+            });
+          }
+          eppDoc.markModified('entregas');
+          await eppDoc.save();
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Entrega de EPP registrada para "${resolvedName}" (${eppDoc.entregas.length} entregas acumuladas).`,
+            detalles: { aplicativo: 'Matriz y Control de Entrega de EPP', trabajador: resolvedName, documento: resolvedDoc },
+          });
+        }
+
+        // ── 23. PLAN DE TRABAJO / KANBAN ACPM (Multi-documento en KanbanTask por _id/title o create) ──
+        if (
+          appName.includes('kanban') ||
+          appName.includes('tarea') ||
+          appName.includes('plan_trabajo') ||
+          appName.includes('acpm') ||
+          appName === 'hito7_acpm'
+        ) {
+          const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
+          const objTask = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          let taskDoc = null;
+          if (rawFilterOriginal) {
+            if (mongoose.Types.ObjectId.isValid(rawFilterOriginal)) {
+              taskDoc = await KanbanTask.findOne({ _id: rawFilterOriginal, user: userId });
+            }
+            if (!taskDoc) {
+              taskDoc = await KanbanTask.findOne({
+                user: userId,
+                ...(activeCompanyId ? { companyId: activeCompanyId } : {}),
+                title: new RegExp(escapeRx(rawFilterOriginal), 'i'),
+              });
+            }
+          }
+
+          if (taskDoc) {
+            if (Object.keys(objTask).length > 0) Object.assign(taskDoc, objTask);
+            else if (fieldToEdit) taskDoc[fieldToEdit] = newValue;
+            await taskDoc.save();
+          } else {
+            taskDoc = await KanbanTask.create({
+              user: userId,
+              companyId: activeCompanyId,
+              title: objTask.title || objTask.titulo || input.titulo_actividad || rawFilterOriginal || String(newValue || 'Acción Preventiva/Correctiva SG-SST'),
+              description: objTask.description || objTask.descripcion || input.descripcion_actividad || '',
+              status: objTask.status || input.estado_actividad || 'todo',
+              priority: objTask.priority || 'medium',
+              dueDate: objTask.dueDate || input.fecha_vencimiento || undefined,
+              sourceModule: objTask.sourceModule || 'somos_sst',
+            });
+          }
+
+          return JSON.stringify({
+            exito: true,
+            mensaje: `Tarea ACPM "${taskDoc.title}" guardada exitosamente en KanbanTask.`,
+            detalles: { aplicativo: 'Plan de Trabajo Anual y Acciones ACPM', taskId: taskDoc._id, title: taskDoc.title, status: taskDoc.status },
+          });
+        }
+
+        // ── 24. COMPRAS, CONTRATISTAS, GESTIÓN DEL CAMBIO Y OPORTUNIDADES SST (Push estructurado con ID) ──
+        if (appName.includes('compra') || appName.includes('adquisicion') || appName === 'hito5_compras_sst') {
+          const SgsstComprasData = mongoose.models.SgsstComprasData || require('~/models/SgsstComprasData');
+          let docComp = (await SgsstComprasData.findOne(queryObj)) || new SgsstComprasData({ user: userId, companyId: activeCompanyId, compras: [] });
+          const items = Array.isArray(newValue) ? newValue : newValue && typeof newValue === 'object' ? (Array.isArray(newValue.compras) ? newValue.compras : [newValue]) : [{ productoServicio: String(newValue || rawFilterOriginal || 'Adquisición SST') }];
+          for (const it of items) {
+            const pServ = String(it.productoServicio || it.nombre || it.producto || rawFilterOriginal || 'Elemento / Servicio SST').trim();
+            const idx = docComp.compras.findIndex((c) => (it.id && c.id === it.id) || String(c.productoServicio || '').toLowerCase() === pServ.toLowerCase());
+            const entry = { ...(idx >= 0 ? docComp.compras[idx].toObject?.() || docComp.compras[idx] : {}), ...it, id: it.id || (idx >= 0 ? docComp.compras[idx].id : makeItemId('cmp')), productoServicio: pServ };
+            if (idx >= 0) docComp.compras[idx] = entry;
+            else docComp.compras.push(entry);
+          }
+          docComp.markModified('compras');
+          await docComp.save();
+          return JSON.stringify({ exito: true, mensaje: `Compras SST actualizadas (${docComp.compras.length} registros).`, detalles: { aplicativo: 'Compras y Adquisiciones SST', totalCompras: docComp.compras.length } });
+        }
+
+        if (appName.includes('contratista') || appName.includes('proveedor') || appName === 'hito5_contratistas') {
+          const SgsstContratistasData = mongoose.models.SgsstContratistasData || require('~/models/SgsstContratistasData');
+          let docCont = (await SgsstContratistasData.findOne(queryObj)) || new SgsstContratistasData({ user: userId, companyId: activeCompanyId, contratistas: [] });
+          const items = Array.isArray(newValue) ? newValue : newValue && typeof newValue === 'object' ? (Array.isArray(newValue.contratistas) ? newValue.contratistas : [newValue]) : [{ razonSocial: String(newValue || rawFilterOriginal || 'Contratista SST') }];
+          for (const it of items) {
+            const rSoc = String(it.razonSocial || it.nombre || rawFilterOriginal || 'Proveedor / Contratista').trim();
+            const idx = docCont.contratistas.findIndex((c) => (it.id && c.id === it.id) || (it.nit && c.nit === it.nit) || String(c.razonSocial || '').toLowerCase() === rSoc.toLowerCase());
+            const entry = { ...(idx >= 0 ? docCont.contratistas[idx].toObject?.() || docCont.contratistas[idx] : {}), ...it, id: it.id || (idx >= 0 ? docCont.contratistas[idx].id : makeItemId('ctr')), razonSocial: rSoc };
+            if (idx >= 0) docCont.contratistas[idx] = entry;
+            else docCont.contratistas.push(entry);
+          }
+          docCont.markModified('contratistas');
+          await docCont.save();
+          return JSON.stringify({ exito: true, mensaje: `Gestión de Contratistas actualizada (${docCont.contratistas.length} contratistas).`, detalles: { aplicativo: 'Gestión de Contratistas y Proveedores', totalContratistas: docCont.contratistas.length } });
+        }
+
+        if (appName.includes('cambio') || appName.includes('moc') || appName === 'hito5_gestion_cambio') {
+          const SgsstGestionCambioData = mongoose.models.SgsstGestionCambioData || require('~/models/SgsstGestionCambioData');
+          let docMoc = (await SgsstGestionCambioData.findOne(queryObj)) || new SgsstGestionCambioData({ user: userId, companyId: activeCompanyId, mocList: [] });
+          const items = Array.isArray(newValue) ? newValue : newValue && typeof newValue === 'object' ? (Array.isArray(newValue.mocList) ? newValue.mocList : [newValue]) : [{ titulo: String(newValue || rawFilterOriginal || 'Cambio Organizacional / Técnico') }];
+          for (const it of items) {
+            const tit = String(it.titulo || it.nombre || rawFilterOriginal || 'Gestión del Cambio SST').trim();
+            const idx = docMoc.mocList.findIndex((m) => (it.id && m.id === it.id) || String(m.titulo || '').toLowerCase() === tit.toLowerCase());
+            const entry = { ...(idx >= 0 ? docMoc.mocList[idx].toObject?.() || docMoc.mocList[idx] : {}), ...it, id: it.id || (idx >= 0 ? docMoc.mocList[idx].id : makeItemId('moc')), titulo: tit };
+            if (idx >= 0) docMoc.mocList[idx] = entry;
+            else docMoc.mocList.push(entry);
+          }
+          docMoc.markModified('mocList');
+          await docMoc.save();
+          return JSON.stringify({ exito: true, mensaje: `Gestión del Cambio (MOC) actualizada (${docMoc.mocList.length} cambios).`, detalles: { aplicativo: 'Gestión del Cambio (MOC)', totalCambios: docMoc.mocList.length } });
+        }
+
+        if (appName.includes('oportunidad') || appName === 'hito1_oportunidades_sst') {
+          const OportunidadesData = mongoose.models.OportunidadesData || require('~/models/OportunidadesData');
+          let docOp = (await OportunidadesData.findOne(queryObj)) || new OportunidadesData({ user: userId, companyId: activeCompanyId, oportunidades: [], riesgosSistema: [] });
+          const isRiesgoSistema = fieldToEdit === 'riesgosSistema' || (newValue && typeof newValue === 'object' && newValue.amenaza && !newValue.titulo);
+          if (isRiesgoSistema) {
+            const items = Array.isArray(newValue) ? newValue : [newValue];
+            for (const it of items) {
+              docOp.riesgosSistema.push({ id: it.id || makeItemId('rsis'), amenaza: String(it.amenaza || rawFilterOriginal || 'Riesgo del Sistema'), ...it });
+            }
+            docOp.markModified('riesgosSistema');
+          } else {
+            const items = Array.isArray(newValue) ? newValue : newValue && typeof newValue === 'object' ? (Array.isArray(newValue.oportunidades) ? newValue.oportunidades : [newValue]) : [{ titulo: String(newValue || rawFilterOriginal || 'Oportunidad de Mejora SST') }];
+            for (const it of items) {
+              const tit = String(it.titulo || it.oportunidad || rawFilterOriginal || 'Oportunidad SST').trim();
+              docOp.oportunidades.push({ id: it.id || makeItemId('op'), titulo: tit, ...it });
+            }
+            docOp.markModified('oportunidades');
+          }
+          await docOp.save();
+          return JSON.stringify({ exito: true, mensaje: `Oportunidades SST actualizadas (${docOp.oportunidades.length} oportunidades, ${docOp.riesgosSistema.length} riesgos del sistema).`, detalles: { aplicativo: 'Oportunidades para la SST (ISO 45001 Cl. 6.1.2.3)' } });
+        }
+
+        // ── 25. COMITÉS COPASST Y COCOLAB (SgsstCopasst / SgsstConvivencia) ────
+        if (appName.includes('copasst') || appName === 'comites' || appName === 'hito4_comites') {
+          const { SgsstCopasstComite, SgsstCopasstActa } = require('~/models/SgsstCopasst');
+          const objC = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          if (fieldToEdit === 'acta' || objC.consecutivo || objC.temasTratados) {
+            const now = new Date();
+            const acta = await SgsstCopasstActa.create({
+              user: userId,
+              companyId: activeCompanyId,
+              consecutivo: objC.consecutivo || `ACTA-COPASST-${Date.now().toString().slice(-4)}`,
+              mes: Number(objC.mes || now.getMonth() + 1),
+              anio: Number(objC.anio || now.getFullYear()),
+              fecha: objC.fecha || now.toISOString().slice(0, 10),
+              ...objC,
+            });
+            return JSON.stringify({ exito: true, mensaje: `Acta COPASST "${acta.consecutivo}" creada exitosamente.`, detalles: { aplicativo: 'COPASST', actaId: acta._id } });
+          }
+          let comite = (await SgsstCopasstComite.findOne(queryObj)) || new SgsstCopasstComite({ user: userId, companyId: activeCompanyId, miembrosPrincipales: [], miembrosSuplentes: [] });
+          if (Array.isArray(objC.miembrosPrincipales)) comite.miembrosPrincipales = objC.miembrosPrincipales;
+          else if (objC.nombre) {
+            comite.miembrosPrincipales.push({
+              nombre: objC.nombre,
+              cedula: objC.cedula || '000000',
+              cargo: objC.cargo || 'Integrante COPASST',
+              representacion: objC.representacion === 'Empleador' ? 'Empleador' : 'Trabajadores',
+              rolComite: objC.rolComite || 'Vocal',
+            });
+          }
+          comite.markModified('miembrosPrincipales');
+          await comite.save();
+          return JSON.stringify({ exito: true, mensaje: `Comité COPASST actualizado (${comite.miembrosPrincipales.length} miembros principales).`, detalles: { aplicativo: 'COPASST / Vigía SST' } });
+        }
+
+        if (appName.includes('cocolab') || appName.includes('convivencia') || appName === 'hito3_cocolab') {
+          const { SgsstConvivenciaComite, SgsstConvivenciaActa } = require('~/models/SgsstConvivencia');
+          const objCc = newValue && typeof newValue === 'object' && !Array.isArray(newValue) ? newValue : {};
+          if (fieldToEdit === 'acta' || objCc.consecutivo || objCc.temasTratados) {
+            const now = new Date();
+            const acta = await SgsstConvivenciaActa.create({
+              user: userId,
+              companyId: activeCompanyId,
+              consecutivo: objCc.consecutivo || `ACTA-CCL-${Date.now().toString().slice(-4)}`,
+              trimestre: Number(objCc.trimestre || Math.ceil((now.getMonth() + 1) / 3)),
+              anio: Number(objCc.anio || now.getFullYear()),
+              fecha: objCc.fecha || now.toISOString().slice(0, 10),
+              ...objCc,
+            });
+            return JSON.stringify({ exito: true, mensaje: `Acta Comité de Convivencia "${acta.consecutivo}" creada exitosamente.`, detalles: { aplicativo: 'Comité de Convivencia Laboral', actaId: acta._id } });
+          }
+          let ccl = (await SgsstConvivenciaComite.findOne(queryObj)) || new SgsstConvivenciaComite({ user: userId, companyId: activeCompanyId, miembrosPrincipales: [], miembrosSuplentes: [] });
+          if (Array.isArray(objCc.miembrosPrincipales)) ccl.miembrosPrincipales = objCc.miembrosPrincipales;
+          else if (objCc.nombre) {
+            ccl.miembrosPrincipales.push({
+              nombre: objCc.nombre,
+              cedula: objCc.cedula || '000000',
+              cargo: objCc.cargo || 'Integrante CCL',
+              representacion: objCc.representacion === 'Empleador' ? 'Empleador' : 'Trabajadores',
+              rolComite: objCc.rolComite || 'Vocal',
+            });
+          }
+          ccl.markModified('miembrosPrincipales');
+          await ccl.save();
+          return JSON.stringify({ exito: true, mensaje: `Comité de Convivencia Laboral actualizado (${ccl.miembrosPrincipales.length} miembros principales).`, detalles: { aplicativo: 'Comité de Convivencia Laboral (COCOLAB)' } });
+        }
+
+        // ── 26. RESOLUCIÓN EXPLÍCITA DE MÓDULOS RESTANTES (CERO FALLBACK DESTRUCTIVO A PerfilSocioModel) ──
         let modelObj = null;
         let modelPath = '';
 
-        if (appName.includes('epp') || appName.includes('elementos')) {
-          modelObj = modelLoader('SgsstEppData', '~/models/SgsstEppData') || modelLoader('EppData', '~/server/routes/sgsst/epp');
-          modelPath = 'EPP (Elementos de Protección Personal)';
-        } else if (appName.includes('altura') || appName.includes('permiso_altura')) {
-          modelObj = modelLoader('PermisoAlturasData', '~/server/routes/sgsst/permisoAlturas') || modelLoader('SgsstHeightsData', '~/models/SgsstHeightsData');
+        if (appName.includes('altura') || appName.includes('permiso_altura') || appName === 'hito3_alturas') {
+          modelObj = modelLoader('PermisoAlturasData', '~/server/routes/sgsst/permisoAlturas');
           modelPath = 'Permiso de Trabajo en Alturas';
-        } else if (appName.includes('ats') || appName.includes('trabajo_seguro')) {
+        } else if (appName.includes('ats') || appName.includes('trabajo_seguro') || appName === 'hito3_ats') {
           modelObj = modelLoader('AnalisisTrabajoSeguroData', '~/server/routes/sgsst/analisisTrabajoSeguro');
           modelPath = 'ATS (Análisis de Trabajo Seguro)';
-        } else if (appName.includes('vehicul') || appName.includes('pesv')) {
-          modelObj = modelLoader('SgsstVehicleData', '~/models/SgsstVehicleData') || modelLoader('PesvWorkspaceData', '~/server/routes/sgsst/pesvWorkspace');
-          modelPath = 'PESV / Vehículos';
-        } else if (appName.includes('capacitac')) {
+        } else if (appName.includes('capacitac') || appName === 'hito5_capacitaciones') {
           modelObj = modelLoader('ProgramaCapacitacionesData', '~/server/routes/sgsst/programaCapacitaciones');
           modelPath = 'Programa de Capacitaciones';
-        } else if (appName.includes('gtc45') || appName.includes('peligro') || appName.includes('matriz_peligro') || appName.includes('ipevar')) {
-          modelObj = modelLoader('MatrizPeligrosData', '~/server/routes/sgsst/matrizPeligros');
-          modelPath = 'Matriz GTC-45 / IPEVAR';
-        } else if (appName.includes('owas') || appName.includes('ergonom')) {
+        } else if (appName.includes('owas') || appName.includes('ergonom') || appName === 'hito3_owas') {
           modelObj = modelLoader('MetodoOwasData', '~/server/routes/sgsst/metodoOwas');
           modelPath = 'Evaluación Ergonómica OWAS';
-        } else if (appName.includes('acto') || appName.includes('condicion')) {
+        } else if (appName.includes('acto') || appName.includes('condicion_insegura') || appName === 'actos_condiciones' || appName === 'hito4_actos_condiciones') {
           modelObj = modelLoader('ReporteActosData', '~/server/routes/sgsst/reporteActos');
-          modelPath = 'Reporte de Actos e Incidentes';
-        } else if (appName.includes('vulnerabil') || appName.includes('emergenc')) {
-          modelObj = modelLoader('AnalisisVulnerabilidadData', '~/server/routes/sgsst/analisisVulnerabilidad');
-          modelPath = 'Análisis de Vulnerabilidad y Emergencias';
-        } else if (appName.includes('quimic') || appName.includes('compatibil')) {
-          modelObj = modelLoader('MatrizCompatibilidadData', '~/server/routes/sgsst/matrizCompatibilidad') || modelLoader('SgsstChemicalData', '~/models/SgsstChemicalData');
-          modelPath = 'Matriz de Compatibilidad Química (SGA)';
-        } else if (appName.includes('kanban') || appName.includes('tarea') || appName.includes('plan_trabajo') || appName.includes('acpm')) {
-          modelObj = modelLoader('KanbanData', '~/server/routes/sgsst/kanban') || modelLoader('KanbanTask', '~/models/KanbanTask');
-          modelPath = 'Kanban / Plan de Trabajo ACPM';
-        } else if (appName.includes('politica') || appName.includes('objetivo') || appName.includes('gerencia') || appName.includes('alta_direccion')) {
-          modelObj = modelLoader('AltaDireccionData', '~/server/routes/sgsst/altaDireccion') || modelLoader('PoliticaData', '~/server/routes/sgsst/politica');
-          modelPath = 'Política / Objetivos / Alta Dirección';
-        } else if (appName.includes('legal') || appName.includes('matriz_legal')) {
+          modelPath = 'Reporte de Actos y Condiciones Inseguras';
+        } else if (appName.includes('legal') || appName.includes('matriz_legal') || appName === 'hito1_matriz_legal') {
           modelObj = modelLoader('MatrizLegalData', '~/server/routes/sgsst/matriz');
           modelPath = 'Matriz Legal SG-SST';
-        } else if (appName.includes('rhs') || appName.includes('reglamento_higiene')) {
-          modelObj = modelLoader('CompanyInfo', '~/models/CompanyInfo');
-          modelPath = 'Reglamento de Higiene y Seguridad Industrial';
-        } else if (appName.includes('rit') || appName.includes('reglamento_interno')) {
-          modelObj = modelLoader('ReglamentoInternoData', '~/server/routes/sgsst/rit') || PerfilSocioModel;
-          modelPath = 'Reglamento Interno de Trabajo (RIT)';
-        } else if (appName.includes('participacion')) {
-          modelObj = modelLoader('ParticipacionIpevarData', '~/server/routes/sgsst/participacionIpevar');
-          modelPath = 'Participación IPEVAR Comunitaria';
-        } else if (appName.includes('animo') || appName.includes('psicosocial')) {
-          modelObj = modelLoader('SgsstMoodRecord', '~/server/routes/sgsst/sgsstMood') || PerfilSocioModel;
-          modelPath = 'Termómetro Psicosocial / Ánimo';
-        } else if (appName.includes('estadistica') || appName.includes('atel')) {
-          modelObj = modelLoader('ATELAnnualData', '~/server/routes/sgsst/estadisticas');
-          modelPath = 'Estadísticas ATEL';
-        } else if (appName.includes('investigacion')) {
-          modelObj = modelLoader('InvestigacionAtelData', '~/server/routes/sgsst/investigacionAtel');
-          modelPath = 'Investigación Forense ATEL';
-        } else if (appName.includes('compra') || appName.includes('adquisicion')) {
-          modelObj = modelLoader('SgsstComprasData', '~/models/SgsstComprasData');
-          modelPath = 'Compras y Adquisiciones en SST (Hito 5)';
-        } else if (appName.includes('contratista') || appName.includes('proveedor')) {
-          modelObj = modelLoader('SgsstContratistasData', '~/models/SgsstContratistasData');
-          modelPath = 'Control y Gestión de Contratistas y Proveedores (Hito 5)';
-        } else if (appName.includes('cambio') || appName.includes('moc') || appName.includes('gestion_cambio')) {
-          modelObj = modelLoader('SgsstGestionCambioData', '~/models/SgsstGestionCambioData');
-          modelPath = 'Gestión del Cambio en SST - MOC (Hito 5)';
-        } else if (appName.includes('contexto') || appName.includes('dofa')) {
+        } else if (appName.includes('contexto') || appName.includes('dofa') || appName === 'hito1_dofa') {
           modelObj = modelLoader('ContextoData', '~/models/ContextoData');
-          modelPath = 'Contexto de la Organización y Partes Interesadas';
-        } else if (appName.includes('oportunidad')) {
-          modelObj = modelLoader('OportunidadesData', '~/models/OportunidadesData');
-          modelPath = 'Oportunidades para la SST (ISO 45001 Cl. 6.1.2.3)';
-        } else if (appName.includes('plan_emergencia') || appName.includes('ppre')) {
-          modelObj = modelLoader('PlanEmergenciasData', '~/models/PlanEmergenciasData');
-          modelPath = 'Plan de Prevención, Preparación y Respuesta ante Emergencias (PPRE)';
-        } else {
+          modelPath = 'Contexto de la Organización y DOFA';
+        } else if (
+          appName === 'perfil_socio' ||
+          appName === 'perfil_sociodemografico' ||
+          appName === 'sociodemografico' ||
+          appName === 'trabajadores' ||
+          appName === 'condiciones_salud' ||
+          appName === 'hito2_perfil_socio' ||
+          appName === 'hito2_condiciones_salud'
+        ) {
           modelObj = PerfilSocioModel;
-          modelPath = 'Perfil Sociodemográfico / Ecosistema General';
+          modelPath = 'Perfil Sociodemográfico y Condiciones de Salud';
+        } else {
+          const validModules = [
+            'empresa', 'contexto', 'diagnostico', 'responsable', 'politica', 'objetivos', 'rhs', 'rit',
+            'participacion_ipevar', 'oportunidades_sst', 'plan_emergencias', 'matriz_legal',
+            'perfiles_cargo', 'perfil_socio', 'condiciones_salud', 'matriz_ipevar', 'bio_ipevar',
+            'matriz_pesv', 'comite_pesv', 'vehiculos', 'quimicos_sga', 'registro_quimico',
+            'owas', 'estudio_puesto', 'ats', 'alturas', 'equipos_alturas', 'epp',
+            'copasst', 'cocolab', 'psicosocial', 'actos_condiciones',
+            'compras_sst', 'contratistas', 'gestion_cambio', 'capacitaciones',
+            'vulnerabilidad', 'estadisticas_atel', 'investigacion_atel', 'investigacion_profunda',
+            'acpm', 'auditoria', 'alta_direccion',
+          ];
+          return JSON.stringify({
+            exito: false,
+            error: `El módulo "${rawTargetApp}" no existe o no es un aplicativo válido en editar_cualquier_aplicativo. No se modificó ningún dato.`,
+            modulos_validos: validModules,
+          });
         }
 
         if (!modelObj) {
@@ -2157,15 +3683,18 @@ Correo: ${company.email || 'N/A'}`;
           return updatedHere;
         };
 
-        if (doc[fieldToEdit] !== undefined) {
+        if (fieldToEdit && doc[fieldToEdit] !== undefined) {
           doc[fieldToEdit] = newValue;
           modified = true;
-        } else {
+        } else if (fieldToEdit) {
           modified = updateNested(doc);
+        } else if (newValue && typeof newValue === 'object' && !Array.isArray(newValue)) {
+          Object.assign(doc, newValue);
+          modified = true;
         }
 
         if (modified || doc.isModified()) {
-          doc.markModified(fieldToEdit);
+          if (fieldToEdit) doc.markModified(fieldToEdit);
           if (doc.formData) doc.markModified('formData');
           if (doc.procesos) doc.markModified('procesos');
           if (doc.sesiones) doc.markModified('sesiones');
@@ -2175,38 +3704,36 @@ Correo: ${company.email || 'N/A'}`;
           if (doc.trabajadores) doc.markModified('trabajadores');
           if (doc.statuses) doc.markModified('statuses');
           if (doc.seguimientos) doc.markModified('seguimientos');
-          if (doc.compras) doc.markModified('compras');
-          if (doc.criteriosMatriz) doc.markModified('criteriosMatriz');
-          if (doc.contratistas) doc.markModified('contratistas');
-          if (doc.checklistRequisitos) doc.markModified('checklistRequisitos');
-          if (doc.mocList) doc.markModified('mocList');
+          if (doc.dofaItems) doc.markModified('dofaItems');
+          if (doc.partesInteresadas) doc.markModified('partesInteresadas');
+          if (doc.contextData) doc.markModified('contextData');
           await doc.save();
 
           return JSON.stringify({
             exito: true,
-            mensaje: `Se actualizó exitosamente la propiedad "${fieldToEdit}" en el aplicativo "${modelPath}".`,
+            mensaje: `Se actualizó exitosamente "${fieldToEdit || 'datos'}" en el aplicativo "${modelPath}".`,
             detalles: {
               aplicativo: modelPath,
-              campo: fieldToEdit,
+              campo: fieldToEdit || 'datos_json',
               nuevoValor: newValue,
-              filtroAplicado: filterStr || 'General'
+              filtroAplicado: rawFilterOriginal || 'General'
             }
           });
         } else {
-          if (doc.formData && typeof doc.formData === 'object') {
+          if (doc.formData && typeof doc.formData === 'object' && fieldToEdit) {
             doc.formData[fieldToEdit] = newValue;
             doc.markModified('formData');
-          } else {
+          } else if (fieldToEdit) {
             doc[fieldToEdit] = newValue;
           }
           await doc.save();
 
           return JSON.stringify({
             exito: true,
-            mensaje: `Se asignó y guardó la información de "${fieldToEdit}" en el aplicativo "${modelPath}".`,
+            mensaje: `Se asignó y guardó la información de "${fieldToEdit || 'datos'}" en el aplicativo "${modelPath}".`,
             detalles: {
               aplicativo: modelPath,
-              campo: fieldToEdit,
+              campo: fieldToEdit || 'datos_json',
               nuevoValor: newValue
             }
           });

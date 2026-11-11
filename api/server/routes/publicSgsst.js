@@ -7,6 +7,17 @@ const {
   normalizeBirthDateYmd,
   calculateAgeFromBirthDate,
 } = require('./sgsst/birthDateHelper');
+const { dispatchQrWorkerAutomations } = require('~/server/services/automationScheduler');
+
+function triggerQrFlowNonBlocking(payload) {
+  try {
+    if (typeof dispatchQrWorkerAutomations === 'function') {
+      dispatchQrWorkerAutomations(payload);
+    }
+  } catch (err) {
+    logger.warn('[Public SGSST] Non-blocking QR automation dispatch warning:', err?.message);
+  }
+}
 
 const router = express.Router();
 
@@ -436,6 +447,20 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
       }
     }
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'actos_condiciones',
+      submissionData: {
+        reportId: newInboxItem.id,
+        trabajador: newInboxItem.trabajador,
+        esTercero: !!esTercero,
+        tipo: data?.tipo || '',
+        lugar: data?.lugar || '',
+        descripcion: data?.descripcion || '',
+        fecha: data?.fecha || new Date().toISOString().slice(0, 10),
+      },
+    });
+
     res.json({ success: true, message: 'Reporte radicado de forma exitosa y segura.' });
   } catch (error) {
     logger.error('[Public SGSST] Report submission error:', error);
@@ -574,6 +599,19 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
       }
     }
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'participacion_ipevr',
+      submissionData: {
+        reportId: newInboxItem.id,
+        trabajador: newInboxItem.trabajador,
+        tarea: data?.tarea || '',
+        peligros: data?.peligros || data?.peligroIdentificado || '',
+        controlesExistentes: data?.controlesExistentes || '',
+        propuestaMejora: data?.propuestaMejora || data?.recomendacion || '',
+      },
+    });
+
     res.json({
       success: true,
       message: 'Su participación ha sido enviada exitosamente al equipo SGSST.',
@@ -697,6 +735,17 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
         logger.error('[Public SGSST] Error feeding worker event for ATEL testimony:', feedErr);
       }
     }
+
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'testimonio_atel',
+      submissionData: {
+        reportId: newInboxItem.id,
+        investigacionId: targetDoc.id || String(targetDoc._id),
+        testigo: newInboxItem.testigo,
+        testimonio: String(data?.testimonio || '').slice(0, 2000),
+      },
+    });
 
     res.json({
       success: true,
@@ -901,6 +950,16 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
         logger.warn('[Public AltaDireccion] Gamification error:', gErr.message);
       }
     }
+
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'alta_direccion',
+      submissionData: {
+        reportId: newReport.id,
+        trabajador: newReport.trabajador,
+        data: data || {},
+      },
+    });
 
     res.json({
       success: true,
@@ -1198,6 +1257,19 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
       }
     });
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'sociodemografico_salud',
+      submissionData: {
+        workerId,
+        workerName: worker.nombre || '',
+        cedula: worker.identificacion || cedula || '',
+        cargo: worker.cargo || '',
+        socialFieldsUpdated: Object.keys(socialUpdates),
+        healthFieldsUpdated: Object.keys(healthUpdates),
+      },
+    });
+
     res.json({ success: true });
   } catch (err) {
     logger.error('[Public Perfil Update POST]', err);
@@ -1274,6 +1346,16 @@ router.post('/mood/:companyId', async (req, res) => {
     });
 
     await telemetry.save();
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'clima_psicosocial',
+      submissionData: {
+        telemetryId: String(telemetry._id),
+        mood,
+        department: department || '',
+        details: initialDetails,
+      },
+    });
     return res.json({ success: true, telemetryId: telemetry._id, isDemo: isBypassAllowed });
   } catch (error) {
     logger.error('[Public SGSST] Mood telemetry error:', error);
@@ -2465,6 +2547,22 @@ REGLAS DE FORMATO Y SALIDA:
       logger.warn('[Public SGSST] Error updating scheduled appointment to completado:', aptErr?.message);
     }
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'estudio_puesto',
+      submissionData: {
+        studyId: String(newStudy._id),
+        workerName: cleanName,
+        workerId: cleanDoc,
+        cargo: cleanCargo,
+        actividad: cleanActividad,
+        riskLevel: finalRiskLevel,
+        actionLevel: finalActionLevel,
+        rulaScore: calculatedRula,
+        rebaScore: calculatedReba,
+      },
+    });
+
     return res.json({
       success: true,
       message: 'Auto-evaluación ergonómica registrada exitosamente.',
@@ -3022,6 +3120,20 @@ router.post('/copasst-inspeccion/:companyId', async (req, res) => {
       }
     }
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'copasst_inspeccion',
+      submissionData: {
+        inspeccionId: String(nuevaInspeccion._id),
+        consecutivo,
+        area: String(area).trim(),
+        sede: sede || 'Sede Principal',
+        inspector: { nombre: inspector.nombre, cedula: cleanInspectorCedula },
+        hallazgosCount: Array.isArray(hallazgos) ? hallazgos.length : 0,
+        semaforoGeneral: semaforoGeneral || 'atencion',
+      },
+    });
+
     res.json({
       success: true,
       message: `Inspección ${consecutivo} radicada exitosamente y registrada para el COPASST.`,
@@ -3102,6 +3214,18 @@ router.post('/convivencia/:companyId', async (req, res) => {
       } catch (err) {
         logger.warn('[Public Convivencia] Notification error:', err.message);
       }
+    });
+
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'comite_convivencia',
+      submissionData: {
+        radicado: radicadoNum,
+        tipoAcoso,
+        esAnonimo: !!esAnonimo,
+        lugarHechos: lugarHechos || '',
+        fechaHechos: fechaHechos || '',
+      },
     });
 
     res.json({
@@ -3800,6 +3924,19 @@ router.post('/brigadista/:companyId', async (req, res) => {
       }
     });
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'brigada_emergencias',
+      submissionData: {
+        brigadistaId: String(brigadista._id),
+        nombre: updatePayload.nombre,
+        cedula: cleanCedula,
+        cargo: updatePayload.cargo,
+        grupoEspecialidad: updatePayload.grupoEspecialidad,
+        rolSCI: updatePayload.rolSCI,
+      },
+    });
+
     res.json({
       success: true,
       message: '¡Hoja de Vida de Brigadista guardada exitosamente y carné digital activado! (+40 pts)',
@@ -4011,6 +4148,21 @@ router.post('/epp/solicitar/:companyId', async (req, res) => {
       }
     });
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'solicitud_epp',
+      submissionData: {
+        solicitudId: String(nuevaSolicitud._id),
+        documento: cleanDoc,
+        nombreTrabajador: nuevaSolicitud.nombreTrabajador,
+        cargo: nuevaSolicitud.cargo,
+        urgencia: nuevaSolicitud.urgencia,
+        itemsCount: nuevaSolicitud.items.length,
+        items: nuevaSolicitud.items.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad, talla: i.talla })),
+        justificacion: nuevaSolicitud.justificacion,
+      },
+    });
+
     res.json({
       success: true,
       message: '¡Solicitud de EPP radicada exitosamente! Recibirás notificación de entrega. (+25 pts)',
@@ -4198,6 +4350,19 @@ router.post('/pesv/inspeccion-diaria/:companyId', async (req, res) => {
       });
     }
 
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'inspeccion_pesv',
+      submissionData: {
+        placa: cleanPlaca,
+        conductorCedula: String(conductorCedula).trim(),
+        conductorNombre: nuevaInspeccion.conductorNombre,
+        resultado: nuevaInspeccion.resultado,
+        kilometraje: km,
+        observaciones: nuevaInspeccion.observaciones,
+      },
+    });
+
     res.json({
       success: true,
       message: resultado === 'Rechazado' 
@@ -4209,6 +4374,88 @@ router.post('/pesv/inspeccion-diaria/:companyId', async (req, res) => {
   } catch (error) {
     logger.error('[Public SGSST] Error saving vehicle inspection:', error);
     res.status(500).json({ error: 'Error al registrar inspección preoperacional' });
+  }
+});
+
+// ─── PERMISO DE TRABAJO EN ALTURAS (PORTAL PÚBLICO QR — RES. 4272 DE 2021) ───
+router.post('/permiso-alturas/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { cedula, nombre, cargo, formData, checklist, ubicacion, alturaEstimada, actividad, observaciones } =
+      req.body || {};
+
+    if (!cedula || !nombre) {
+      return res.status(400).json({ error: 'Nombre y documento del trabajador son obligatorios' });
+    }
+
+    const cleanCedula = String(cedula).trim();
+    const { company, worker: workerFound } = await resolveCompanyAndWorker(companyId, { cedula: cleanCedula });
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    if (!mongoose.models.PermisoAlturasData) {
+      try {
+        require('./sgsst/permisoAlturas');
+      } catch (_) {}
+    }
+    const PermisoAlturasData = mongoose.models.PermisoAlturasData;
+    const workerEntry = {
+      id: new mongoose.Types.ObjectId().toString(),
+      cedula: cleanCedula,
+      documento: cleanCedula,
+      nombre: String(workerFound?.nombre || nombre).trim(),
+      cargo: String(workerFound?.cargo || cargo || 'Trabajador Autorizado').trim(),
+      actividad: String(actividad || formData?.actividad || 'Trabajo en alturas').trim(),
+      ubicacion: String(ubicacion || formData?.ubicacion || '').trim(),
+      alturaEstimada: alturaEstimada || formData?.alturaEstimada || '',
+      checklist: checklist || {},
+      observaciones: String(observaciones || '').trim(),
+      origen: 'portal_qr',
+      fechaSolicitud: new Date().toISOString(),
+    };
+
+    if (PermisoAlturasData) {
+      await PermisoAlturasData.findOneAndUpdate(
+        { user: new mongoose.Types.ObjectId(company.user), companyId: company._id },
+        {
+          $push: { trabajadoresList: workerEntry },
+          $set: {
+            ...(formData && typeof formData === 'object' ? { formData } : {}),
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true, new: true },
+      );
+    }
+
+    setImmediate(async () => {
+      try {
+        await Notification.create({
+          user: new mongoose.Types.ObjectId(company.user),
+          companyId: company._id,
+          type: 'sgsst_permiso_alturas',
+          title: `Solicitud QR de Permiso de Alturas: ${workerEntry.nombre}`,
+          body: `${workerEntry.nombre} (CC: ${cleanCedula}) radicó permiso de alturas (${workerEntry.actividad}${workerEntry.ubicacion ? ` en ${workerEntry.ubicacion}` : ''}).`,
+          metadata: { module: 'permiso_alturas', requestId: workerEntry.id, companyId: company._id },
+        });
+      } catch (_) {}
+    });
+
+    triggerQrFlowNonBlocking({
+      companyId: company._id,
+      portalType: 'permiso_alturas',
+      submissionData: workerEntry,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Solicitud de Permiso de Trabajo en Alturas radicada exitosamente.',
+      request: workerEntry,
+    });
+  } catch (error) {
+    logger.error('[Public SGSST] POST /permiso-alturas error:', error);
+    return res.status(500).json({ error: 'Error al radicar el permiso de trabajo en alturas' });
   }
 });
 

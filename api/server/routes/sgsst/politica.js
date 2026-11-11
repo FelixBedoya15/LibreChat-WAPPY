@@ -24,30 +24,96 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             objectives,
             additionalNorms,
             modelName,
+            companyId: reqBodyCompanyId,
         } = req.body;
+
+        // Load company info first (strictly respecting explicit companyId when provided)
+        let companyInfoBlock = '';
+        let loadedCompanyInfo = null;
+        try {
+            const explicitCid = reqBodyCompanyId || req.companyId || req.query?.companyId;
+            let ci = null;
+            if (explicitCid && mongoose.Types.ObjectId.isValid(String(explicitCid))) {
+                ci = await CompanyInfo.findOne({ _id: explicitCid, user: req.user.id }).lean();
+            }
+            if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+            if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            loadedCompanyInfo = ci;
+            if (ci && ci.companyName) {
+                companyInfoBlock = buildCompanyContextString(ci);
+            }
+        } catch (ciErr) {
+            logger.warn('[SGSST Politica] Error loading company info:', ciErr.message);
+        }
 
         let finalHazards = hazards;
 
         if (!finalHazards || !finalHazards.trim()) {
             try {
-                // Try to fallback to Matriz de Peligros data of active company
-                const activeComp = (await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean()) || (await CompanyInfo.findOne({ user: req.user.id }).lean());
-                const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', new mongoose.Schema({ user: mongoose.Schema.Types.ObjectId, companyId: mongoose.Schema.Types.ObjectId, procesos: Array }, { strict: false }));
-                const matrizData = await MatrizPeligrosData.findOne({ user: req.user.id, ...(activeComp?._id ? { companyId: activeComp._id } : {}) }).lean();
+                // 1) Prioridad 1: Matriz Oficial GTC-45 (GTC45WorkspaceSession) de la empresa activa
+                const GTC45WorkspaceSession =
+                    mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+                let officialSession = null;
+                if (loadedCompanyInfo?._id) {
+                    officialSession =
+                        (await GTC45WorkspaceSession.findOne({
+                            companyId: loadedCompanyInfo._id,
+                            isOfficial: true,
+                        }).lean()) ||
+                        (await GTC45WorkspaceSession.findOne({
+                            conversationId: `official-${loadedCompanyInfo._id}`,
+                        }).lean()) ||
+                        (await GTC45WorkspaceSession.findOne({
+                            companyId: loadedCompanyInfo._id,
+                            'matrixRows.0': { $exists: true },
+                        })
+                            .sort({ updatedAt: -1 })
+                            .lean());
+                } else {
+                    officialSession =
+                        (await GTC45WorkspaceSession.findOne({
+                            user: req.user.id,
+                            isOfficial: true,
+                        }).lean()) ||
+                        (await GTC45WorkspaceSession.findOne({
+                            conversationId: `official-${req.user.id}`,
+                        }).lean());
+                }
 
-                if (matrizData && matrizData.procesos && matrizData.procesos.length > 0) {
-                    const fallbackHazards = [];
-                    matrizData.procesos.forEach(p => {
-                        if (p.peligros && p.peligros.length > 0) {
-                            p.peligros.forEach(h => {
-                                fallbackHazards.push(`- **Proceso:** ${p.proceso} (Actividad: ${p.actividad}): ${h.descripcionPeligro || h.clasificacion}`);
-                            });
-                        }
+                if (officialSession && Array.isArray(officialSession.matrixRows) && officialSession.matrixRows.length > 0) {
+                    const gtcLines = officialSession.matrixRows.slice(0, 80).map((r) => {
+                        const proc = r.proceso || 'General';
+                        const cargo = r.cargo ? ` | Cargo: ${r.cargo}` : '';
+                        const act = r.actividad ? ` | Actividad: ${r.actividad}` : '';
+                        const clas = r.peligro_clasificacion || 'Peligro';
+                        const desc = r.peligro_descripcion || '';
+                        const ef = r.efectos_posibles ? ` -> Efecto posible: ${r.efectos_posibles}` : '';
+                        const niv = r.interpretacion_nr ? ` [Nivel Riesgo: ${r.interpretacion_nr}]` : '';
+                        return `- **Proceso:** ${proc}${cargo}${act}: [${clas}] ${desc}${ef}${niv}`;
                     });
+                    finalHazards = `Peligros identificados en la Matriz Oficial IPEVR GTC-45 (${officialSession.matrixRows.length} registros):\n${gtcLines.join('\n')}`;
+                    logger.info('[SGSST Politica] Using hazards from official GTC45WorkspaceSession');
+                }
 
-                    if (fallbackHazards.length > 0) {
-                        finalHazards = `Peligros identificados en la Matriz GTC 45:\n${fallbackHazards.join('\n')}`;
-                        logger.info('[SGSST Politica] Using fallback hazards from Matriz de Peligros');
+                // 2) Fallback legado: MatrizPeligrosData
+                if (!finalHazards || !finalHazards.trim()) {
+                    const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', new mongoose.Schema({ user: mongoose.Schema.Types.ObjectId, companyId: mongoose.Schema.Types.ObjectId, procesos: Array }, { strict: false }));
+                    const matrizData = await MatrizPeligrosData.findOne({ user: req.user.id, ...(loadedCompanyInfo?._id ? { companyId: loadedCompanyInfo._id } : {}) }).lean();
+
+                    if (matrizData && matrizData.procesos && matrizData.procesos.length > 0) {
+                        const fallbackHazards = [];
+                        matrizData.procesos.forEach(p => {
+                            if (p.peligros && p.peligros.length > 0) {
+                                p.peligros.forEach(h => {
+                                    fallbackHazards.push(`- **Proceso:** ${p.proceso} (Actividad: ${p.actividad}): ${h.descripcionPeligro || h.clasificacion}`);
+                                });
+                            }
+                        });
+
+                        if (fallbackHazards.length > 0) {
+                            finalHazards = `Peligros identificados en la Matriz GTC 45:\n${fallbackHazards.join('\n')}`;
+                            logger.info('[SGSST Politica] Using fallback hazards from legacy MatrizPeligrosData');
+                        }
                     }
                 }
             } catch (err) {
@@ -61,27 +127,9 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             }
         }
 
-        // 1. Retrieve the user's Google API key
-        let resolvedApiKey;
-        try {
-            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
-            try {
-                const parsed = JSON.parse(storedKey);
-                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
-            } catch (parseErr) {
-                resolvedApiKey = storedKey;
-            }
-        } catch (err) {
-            logger.debug('[SGSST Politica] No user Google key found, trying env vars:', err.message);
-        }
-
-        if (!resolvedApiKey) {
-            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-        }
-
-        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
-            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
-        }
+        // 1. Retrieve Google API keys (user key + rotated server keys)
+        const resolvedKeys = await resolveApiKeys(req.user.id);
+        const resolvedApiKey = resolvedKeys[0];
 
         if (!resolvedApiKey) {
             return res.status(400).json({
@@ -89,23 +137,9 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             });
         }
 
-        // 2. Load company info from DB
-        let companyInfoBlock = '';
-        let loadedCompanyInfo = null;
-        try {
-            let ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
-            if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            loadedCompanyInfo = ci;
-            if (ci && ci.companyName) {
-                companyInfoBlock = buildCompanyContextString(ci);
-            }
-        } catch (ciErr) {
-            logger.warn('[SGSST Politica] Error loading company info:', ciErr.message);
-        }
-
         // 3. Initialize the Gemini SDK
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
         const finalModelName = modelName || preferredModel;
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: finalModelName });
@@ -224,6 +258,7 @@ El diseño debe ser elegante con colores institucionales (azul #0f766e para enca
             title: `Política SST - ${new Date().toLocaleDateString('es-CO')}`,
             tags: ['sgsst-politica'],
             model: finalModelName,
+            companyId: loadedCompanyInfo?._id,
         });
 
         res.json({

@@ -96,7 +96,13 @@ interface Automation {
   presetDescription?: string;
   workflowNodes?: WorkflowNodesConfig;
   lastRunAt?: string;
-  lastRunStatus?: 'success' | 'failed' | 'running' | 'stopped';
+  lastRunStatus?:
+    | 'success'
+    | 'failed'
+    | 'running'
+    | 'stopped'
+    | 'awaiting_approval'
+    | 'rejected';
   lastRunResult?: string;
   evidenceFiles?: ScraperCapturedEvidence[];
   evidences?: ScraperCapturedEvidence[];
@@ -111,7 +117,7 @@ interface AutomationLog {
   agentName: string;
   prompt: string;
   runAt: string;
-  status: 'running' | 'success' | 'failed';
+  status: 'running' | 'success' | 'failed' | 'awaiting_approval' | 'rejected';
   result?: string;
   error?: string;
   conversationId?: string;
@@ -1055,6 +1061,52 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   // Trigger immediate stop (Stop Now in real time)
+  const [approvalActionLoadingId, setApprovalActionLoadingId] = useState<string | null>(null);
+
+  // Aprobar visto bueno humano y ejecutar salidas pendientes
+  const handleApproveLog = async (logId: string) => {
+    setApprovalActionLoadingId(logId);
+    try {
+      const res = await axios.post(`/api/sgsst/automatizaciones/logs/${logId}/approve`);
+      showToast({
+        message:
+          res.data?.message ||
+          'Visto bueno aprobado. Ejecutando salidas conectadas del flujo.',
+        status: 'success',
+      });
+      await Promise.all([fetchLogs(), fetchAutomations()]);
+    } catch (err: any) {
+      showToast({
+        message:
+          err.response?.data?.error ||
+          'Error al aprobar y ejecutar las salidas de la automatización.',
+        status: 'error',
+      });
+    } finally {
+      setApprovalActionLoadingId(null);
+    }
+  };
+
+  // Rechazar ejecución pendiente de visto bueno humano
+  const handleRejectLog = async (logId: string) => {
+    setApprovalActionLoadingId(logId);
+    try {
+      const res = await axios.post(`/api/sgsst/automatizaciones/logs/${logId}/reject`);
+      showToast({
+        message: res.data?.message || 'Ejecución rechazada. No se despacharon las salidas.',
+        status: 'success',
+      });
+      await Promise.all([fetchLogs(), fetchAutomations()]);
+    } catch (err: any) {
+      showToast({
+        message: err.response?.data?.error || 'Error al rechazar la ejecución pendiente.',
+        status: 'error',
+      });
+    } finally {
+      setApprovalActionLoadingId(null);
+    }
+  };
+
   const handleStop = async (id: string) => {
     setActionLoadingId(id);
     try {
@@ -1563,6 +1615,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                           <Loader2 className="w-3 h-3 animate-spin" /> Corriendo
                         </span>
+                      ) : auto.lastRunStatus === 'awaiting_approval' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-bold px-2.5 py-0.5 rounded-xl uppercase tracking-wider">
+                          ⏳ Esperando Visto Bueno Humano
+                        </span>
+                      ) : auto.lastRunStatus === 'rejected' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30 font-bold px-2.5 py-0.5 rounded-xl uppercase tracking-wider">
+                          <XCircle className="w-3 h-3" /> Rechazado
+                        </span>
                       ) : auto.lastRunStatus === 'success' ? (
                         <span className="inline-flex items-center gap-1 text-[10px] bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                           <CheckCircle className="w-3 h-3" /> Exitoso
@@ -1999,6 +2059,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                               <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 font-bold px-2 py-0.5 rounded-xl border border-blue-500/30 uppercase tracking-wider">
                                 <Loader2 className="w-3 h-3 animate-spin" /> Corriendo
                               </span>
+                            ) : log.status === 'awaiting_approval' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold px-2.5 py-1 rounded-xl border border-amber-500/40 uppercase tracking-wider">
+                                ⏳ Esperando Visto Bueno Humano
+                              </span>
+                            ) : log.status === 'rejected' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-slate-500/15 text-slate-700 dark:text-slate-300 font-bold px-2 py-0.5 rounded-xl border border-slate-400/40 uppercase tracking-wider">
+                                <XCircle className="w-3 h-3" /> Rechazado
+                              </span>
                             ) : log.status === 'success' ? (
                               <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-xl border border-emerald-500/30 uppercase tracking-wider">
                                 <CheckCircle className="w-3 h-3" /> Completado
@@ -2010,7 +2078,65 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                             )}
                           </td>
                           <td className="px-6 py-4 text-xs text-gray-700 dark:text-gray-300 max-w-md align-top">
-                            {log.status === 'success' ? (
+                            {log.status === 'awaiting_approval' ? (
+                              <div className="space-y-2.5 min-w-0">
+                                <p className="line-clamp-2 italic leading-relaxed text-amber-900 dark:text-amber-200">
+                                  "{cleanedSummary || log.result || 'Flujo en pausa esperando visto bueno humano antes de despachar las salidas conectadas.'}"
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="teal"
+                                    disabled={approvalActionLoadingId === log._id}
+                                    icon={
+                                      approvalActionLoadingId === log._id ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                      )
+                                    }
+                                    label="✅ Aprobar y Ejecutar Salidas"
+                                    title="Aprobar visto bueno humano y ejecutar las salidas pendientes"
+                                    onClick={() => void handleApproveLog(log._id)}
+                                  />
+                                  <ExpandableButton
+                                    type="button"
+                                    size="sm"
+                                    variant="danger"
+                                    disabled={approvalActionLoadingId === log._id}
+                                    icon={<XCircle className="w-3.5 h-3.5" />}
+                                    label="❌ Rechazar"
+                                    title="Rechazar ejecución y cancelar el envío de salidas"
+                                    onClick={() => void handleRejectLog(log._id)}
+                                  />
+                                  {log.result && (
+                                    <ExpandableButton
+                                      type="button"
+                                      size="sm"
+                                      variant="purple"
+                                      icon={<Eye className="w-3.5 h-3.5" />}
+                                      label="Revisar Borrador"
+                                      title="Revisar el contenido generado antes de aprobar"
+                                      onClick={() =>
+                                        setViewResultModal({
+                                          title: log.prompt,
+                                          agentName: log.agentName,
+                                          date: log.runAt,
+                                          content: log.result || '',
+                                          conversationId: log.conversationId,
+                                          evidences: logEvidences,
+                                        })
+                                      }
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            ) : log.status === 'rejected' ? (
+                              <p className="text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+                                {log.error || 'Ejecución rechazada en etapa de Visto Bueno Humano.'}
+                              </p>
+                            ) : log.status === 'success' ? (
                               <div className="space-y-2.5 min-w-0">
                                 <p className="line-clamp-2 italic leading-relaxed text-gray-800 dark:text-gray-200">
                                   "{cleanedSummary || log.result || 'Ejecución completada.'}"

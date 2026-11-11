@@ -14,11 +14,20 @@ const auditoriaMap = require('./auditoriaMap');
 
 
 /**
- * Helper to fetch the latest saved report for a given user and tag.
+ * Helper to fetch the latest saved report for a given user, tag(s), and companyId (strict multi-company isolation).
  */
-async function fetchLatestReportText(userId, tag) {
+async function fetchLatestReportText(userId, tagOrTags, companyId = null) {
     try {
-        const convo = await Conversation.findOne({ user: userId, tags: tag }).sort({ createdAt: -1 }).lean();
+        const tagClause = Array.isArray(tagOrTags) ? { tags: { $in: tagOrTags } } : { tags: tagOrTags };
+        const andFilters = [tagClause];
+        if (companyId) {
+            const cidStr = String(companyId).trim();
+            andFilters.push({ tags: { $in: [`company-${cidStr}`, `company_${cidStr}`] } });
+        }
+        const convo = await Conversation.findOne({
+            user: String(userId),
+            $and: andFilters,
+        }).sort({ updatedAt: -1, createdAt: -1 }).lean();
         if (convo) {
             const msg = await Message.findOne({ conversationId: convo.conversationId, isCreatedByUser: false }).sort({ createdAt: -1 }).lean();
             if (msg && msg.text) {
@@ -26,7 +35,7 @@ async function fetchLatestReportText(userId, tag) {
             }
         }
     } catch (e) {
-        logger.warn(`[SGSST Objetivos] Error fetching last report for tag ${tag}:`, e.message);
+        logger.warn(`[SGSST Objetivos] Error fetching last report for tag ${tagOrTags}:`, e.message);
     }
     return null;
 }
@@ -40,31 +49,16 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         const {
             policySummary, // User provided or empty
             diagnosticSummary, // User provided or empty
+            previousObjectives, // User provided previous period objectives / evaluation
+            yearPlan, // Target year / annual work plan scope
             additionalNorms,
             modelName,
+            companyId: reqBodyCompanyId,
         } = req.body;
 
-        // 1. Retrieve the user's Google API key
-        let resolvedApiKey;
-        try {
-            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
-            try {
-                const parsed = JSON.parse(storedKey);
-                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
-            } catch (parseErr) {
-                resolvedApiKey = storedKey;
-            }
-        } catch (err) {
-            logger.debug('[SGSST Objetivos] No user Google key found, trying env vars:', err.message);
-        }
-
-        if (!resolvedApiKey) {
-            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-        }
-
-        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
-            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
-        }
+        // 1. Retrieve Google API keys (user key + rotated server keys)
+        const resolvedKeys = await resolveApiKeys(req.user.id);
+        const resolvedApiKey = resolvedKeys[0];
 
         if (!resolvedApiKey) {
             return res.status(400).json({
@@ -72,11 +66,16 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             });
         }
 
-        // 2. Load company info
+        // 2. Load company info (strictly respecting explicit companyId when provided)
         let companyInfoBlock = '';
         let loadedCompanyInfo = null;
         try {
-            let ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+            const explicitCid = reqBodyCompanyId || req.companyId || req.query?.companyId;
+            let ci = null;
+            if (explicitCid && mongoose.Types.ObjectId.isValid(String(explicitCid))) {
+                ci = await CompanyInfo.findOne({ _id: explicitCid, user: req.user.id }).lean();
+            }
+            if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
             if (!ci) ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
@@ -86,32 +85,109 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             logger.warn('[SGSST Objetivos] Error loading company info:', ciErr.message);
         }
 
-        // 3. Fetch Política SST Fallback
+        const activeCidStr = loadedCompanyInfo?._id ? String(loadedCompanyInfo._id) : null;
+
+        // 3. Fetch Política SST Fallback (strictly isolated by company-${companyId})
         let politicaContext = policySummary || 'No hay datos previos de la Política SST registrados.';
         if (!policySummary) {
-            const polText = await fetchLatestReportText(req.user.id, 'sgsst-politica');
+            const polText = await fetchLatestReportText(req.user.id, ['sgsst-politica', 'sgsst-politica-sst'], activeCidStr);
             if (polText) {
                 politicaContext = `Política SST Actual:\n${polText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 1500)}...`;
             }
         }
 
-        // 4. Fetch Matriz de Peligros Fallback
+        // 4. Fetch Matriz de Peligros Fallback: FIRST GTC45WorkspaceSession, THEN Conversation report, THEN legacy MatrizPeligrosData
         let matrixContext = 'No hay datos de matriz de peligros registrados.';
-        const matText = await fetchLatestReportText(req.user.id, 'sgsst-matriz-peligros');
-        if (matText) {
-            matrixContext = `Documento de Identificación de Peligros y Valoración de Riesgos GTC45 más reciente (Extrae los riesgos de nivel V, IV o III mencionados aquí):\n${matText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 2000)}...`;
+        try {
+            const GTC45WorkspaceSession =
+                mongoose.models.GTC45WorkspaceSession || require('~/models/GTC45WorkspaceSession');
+            let officialSession = null;
+            if (loadedCompanyInfo?._id) {
+                officialSession =
+                    (await GTC45WorkspaceSession.findOne({
+                        companyId: loadedCompanyInfo._id,
+                        isOfficial: true,
+                    }).lean()) ||
+                    (await GTC45WorkspaceSession.findOne({
+                        conversationId: `official-${loadedCompanyInfo._id}`,
+                    }).lean()) ||
+                    (await GTC45WorkspaceSession.findOne({
+                        companyId: loadedCompanyInfo._id,
+                        'matrixRows.0': { $exists: true },
+                    })
+                        .sort({ updatedAt: -1 })
+                        .lean());
+            } else {
+                officialSession =
+                    (await GTC45WorkspaceSession.findOne({
+                        user: req.user.id,
+                        isOfficial: true,
+                    }).lean()) ||
+                    (await GTC45WorkspaceSession.findOne({
+                        conversationId: `official-${req.user.id}`,
+                    }).lean());
+            }
+
+            if (officialSession && Array.isArray(officialSession.matrixRows) && officialSession.matrixRows.length > 0) {
+                const sortedRows = [...officialSession.matrixRows].sort(
+                    (a, b) => (Number(b.nr) || 0) - (Number(a.nr) || 0),
+                );
+                const topRows = sortedRows.slice(0, 40).map(
+                    (r) =>
+                        `- Proceso: ${r.proceso || 'General'} | Cargo: ${r.cargo || 'Operativo'} | Peligro: [${r.peligro_clasificacion || 'Riesgo'}] ${r.peligro_descripcion || ''} | Efecto Posible: ${r.efectos_posibles || 'N/A'} | Nivel Riesgo: ${r.interpretacion_nr || 'N/A'} (${r.aceptabilidad || 'N/A'}, NR=${r.nr || 0})`,
+                );
+                matrixContext = `Matriz Oficial IPEVR GTC-45 de la empresa (${officialSession.matrixRows.length} riesgos evaluados; ordenados por criticidad NR):\n${topRows.join('\n')}`;
+            } else {
+                const matText = await fetchLatestReportText(
+                    req.user.id,
+                    ['sgsst-matriz-ipevar', 'sgsst-matriz-peligros'],
+                    activeCidStr,
+                );
+                if (matText) {
+                    matrixContext = `Documento de Identificación de Peligros y Valoración de Riesgos GTC45 más reciente:\n${matText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 2000)}...`;
+                } else {
+                    const MatrizPeligrosData =
+                        mongoose.models.MatrizPeligrosData ||
+                        mongoose.model(
+                            'MatrizPeligrosData',
+                            new mongoose.Schema(
+                                { user: mongoose.Schema.Types.ObjectId, companyId: mongoose.Schema.Types.ObjectId, procesos: Array },
+                                { strict: false },
+                            ),
+                        );
+                    const legacyMat = await MatrizPeligrosData.findOne({
+                        user: req.user.id,
+                        ...(loadedCompanyInfo?._id ? { companyId: loadedCompanyInfo._id } : {}),
+                    }).lean();
+                    if (legacyMat && Array.isArray(legacyMat.procesos) && legacyMat.procesos.length > 0) {
+                        const legacyLines = [];
+                        legacyMat.procesos.forEach((p) => {
+                            (p.peligros || []).forEach((h) => {
+                                legacyLines.push(
+                                    `- Proceso: ${p.proceso} | Peligro: ${h.descripcionPeligro || h.clasificacion} | Efecto: ${h.efectosPosibles || 'N/A'}`,
+                                );
+                            });
+                        });
+                        if (legacyLines.length > 0) {
+                            matrixContext = `Matriz GTC-45 Registrada:\n${legacyLines.slice(0, 40).join('\n')}`;
+                        }
+                    }
+                }
+            }
+        } catch (matErr) {
+            logger.warn('[SGSST Objetivos] Error loading GTC45WorkspaceSession fallback:', matErr.message);
         }
 
-        // 5. Fetch ATEL Statistics Fallback
+        // 5. Fetch ATEL Statistics Fallback (strictly isolated by company-${companyId})
         let atelContext = 'No hay datos de accidentabilidad (ATEL) registrados para el año en curso.';
-        const atelText = await fetchLatestReportText(req.user.id, 'sgsst-estadisticas-atel');
+        const atelText = await fetchLatestReportText(req.user.id, ['sgsst-estadisticas-atel', 'sgsst-atel'], activeCidStr);
         if (atelText) {
             atelContext = `Estadísticas ATEL registradas en el periodo (Extrae exactamente si hubieron accidentes o no, los diagnósticos y las ausencias reportadas):\n${atelText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 1500)}...`;
         }
 
-        // 6. Fetch Auditoria Fallback
+        // 6. Fetch Auditoria Fallback (strictly isolated by company-${companyId})
         let auditoriaContext = 'No hay datos de auditoría recientes registrados.';
-        const audText = await fetchLatestReportText(req.user.id, 'sgsst-auditoria');
+        const audText = await fetchLatestReportText(req.user.id, ['sgsst-auditoria'], activeCidStr);
         if (audText) {
             // Try to extract the JSON state if it exists
             const stateMatch = audText.match(/<!-- SGSST_AUDIT_DATA_V1:(.*?) -->/);
@@ -135,9 +211,9 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             }
         }
 
-        // 5. Initialize Gemini
+        // 7. Initialize Gemini
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.5-flash').split(',')[0].trim();
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-3.6-flash').split(',')[0].trim();
         const finalModelName = modelName || preferredModel;
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: finalModelName });
@@ -176,6 +252,12 @@ ${politicaContext}
 
 **5. Resultados del Diagnóstico Inicial (Si el usuario los propuso):**
 ${diagnosticSummary || 'El usuario no proporcionó el diagnóstico. Concéntrate en la mejora continua por defecto.'}
+
+**6. Vigencia / Año del Plan Anual de Trabajo SST:**
+${yearPlan || new Date().getFullYear()}
+
+**7. Evaluación de Objetivos del Periodo Anterior (Si aplica):**
+${previousObjectives || 'No se registraron objetivos del periodo anterior.'}
 
 **Marco Normativo Adicional:**
 ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
@@ -248,6 +330,7 @@ Las tablas DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; wi
             title: `Objetivos SST - ${new Date().toLocaleDateString('es-CO')}`,
             tags: ['sgsst-objetivos'],
             model: finalModelName,
+            companyId: loadedCompanyInfo?._id,
         });
 
         res.json({

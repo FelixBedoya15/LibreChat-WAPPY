@@ -60,8 +60,8 @@ class MatrizCompatibilidad extends Tool {
         runManager?.metadata?.thread_id ||
         this.req?.body?.conversationId;
 
-      if (!conversationId || conversationId === 'new') {
-        if (userId) {
+      if (!conversationId || conversationId === 'new' || this.req?.isAutomation) {
+        if (companyId || userId) {
           conversationId = officialConvId;
         } else {
           const errorMsg = 'No se encontró un ID de conversación válido para guardar la matriz de compatibilidad.';
@@ -73,9 +73,19 @@ class MatrizCompatibilidad extends Tool {
       const { accion, productos, filtro_nombre, filtro_ubicacion, filtro_clase, ids_a_borrar } = input;
 
       let session = await ChemicalCompatibilitySession.findOne({ conversationId });
-      if (session && !session.companyId && companyId) {
-        session.companyId = companyId;
-        await session.save();
+      if (session) {
+        let needsMetaSave = false;
+        if (!session.companyId && companyId) {
+          session.companyId = companyId;
+          needsMetaSave = true;
+        }
+        if (conversationId === officialConvId && !session.isOfficial) {
+          session.isOfficial = true;
+          needsMetaSave = true;
+        }
+        if (needsMetaSave) {
+          await session.save();
+        }
       }
 
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
@@ -94,10 +104,30 @@ class MatrizCompatibilidad extends Tool {
       if (accion === 'consultar_contexto_sgsst') {
         if (!userId) { return JSON.stringify({ error: 'No autenticado para acceder al contexto.' }); }
 
-        const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData;
-        const PerfilCargoModel = mongoose.models.PerfilCargoData;
+        const PerfilSocioModel =
+          mongoose.models.PerfilSociodemograficoData ||
+          (() => {
+            try {
+              require('~/models/PerfilSociodemograficoData');
+            } catch (_) {}
+            return mongoose.models.PerfilSociodemograficoData || null;
+          })();
+        const PerfilCargoModel =
+          mongoose.models.PerfilCargoData ||
+          (() => {
+            try {
+              require('~/server/routes/sgsst/perfilesCargo');
+            } catch (_) {}
+            return mongoose.models.PerfilCargoData || null;
+          })();
         const SgsstChemicalData = require('~/models/SgsstChemicalData');
-        const EppData = require('~/models/EppData');
+        const SgsstEppData = require('~/models/SgsstEppData');
+        let EppData = mongoose.models.EppData || null;
+        if (!EppData) {
+          try {
+            EppData = require('~/models/EppData');
+          } catch (_) {}
+        }
         const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
         const DiagnosticoData = require('~/models/DiagnosticoData');
         const KanbanTask = require('~/models/KanbanTask');
@@ -138,8 +168,27 @@ class MatrizCompatibilidad extends Tool {
           }
         }
 
-        // Entregas de EPP Químico (Hito 5)
-        if (EppData) {
+        // Entregas de EPP Químico (Hito 5 - SgsstEppData / EppData)
+        if (SgsstEppData) {
+          const eppDocs = await SgsstEppData.find(baseQuery).limit(30).lean();
+          const allDeliveries = [];
+          for (const d of eppDocs) {
+            for (const ent of d.entregas || []) {
+              allDeliveries.push({
+                workerName: d.nombreTrabajador,
+                workerRole: d.cargo,
+                eppName: ent.nombre,
+                eppType: ent.tipo,
+              });
+            }
+          }
+          payload.epp_quimico_hito5 = {
+            total_entregas_epp: allDeliveries.length,
+            entregas_proteccion_quimica: allDeliveries
+              .filter(e => /nitrilo|neopreno|gafa|careta|respirador|cartucho|delantal|vapor|qu[ií]mic/i.test(`${e.eppType || ''} ${e.eppName || ''}`))
+              .map(e => ({ trabajador: e.workerName, cargo: e.workerRole, epp: e.eppName || e.eppType }))
+          };
+        } else if (EppData) {
           const eppItems = await EppData.find(baseQuery).limit(30).lean();
           payload.epp_quimico_hito5 = {
             total_entregas_epp: eppItems.length,
@@ -186,11 +235,12 @@ class MatrizCompatibilidad extends Tool {
         // Perfiles de Cargo (Hito 2)
         if (PerfilCargoModel) {
           const cargoDoc = await PerfilCargoModel.findOne(baseQuery).lean();
-          if (cargoDoc && Array.isArray(cargoDoc.perfiles)) {
-            payload.perfiles_de_cargo = cargoDoc.perfiles.map(p => ({
-              cargo: p.nombreCargo || p.cargo,
-              funciones: p.funcionesPrincipales || p.objetivoCargo || '',
-              peligros_identificados: p.peligrosExpuestos || ''
+          const rawPerfiles = cargoDoc?.perfilesList || cargoDoc?.perfiles || [];
+          if (Array.isArray(rawPerfiles) && rawPerfiles.length > 0) {
+            payload.perfiles_de_cargo = rawPerfiles.map(p => ({
+              cargo: p.nombreCargo || p.nombre || p.cargo || 'Cargo',
+              funciones: p.funcionesPrincipales || p.objetivoCargo || p.descripcion || '',
+              peligros_identificados: p.peligrosExpuestos || p.peligros || ''
             }));
           }
         }
@@ -434,6 +484,9 @@ class MatrizCompatibilidad extends Tool {
 
       if (!session.user && userId) session.user = userId;
       if (!session.companyId && companyId) session.companyId = companyId;
+      if (conversationId === officialConvId || this.req?.isAutomation) {
+        session.isOfficial = true;
+      }
 
       session.markModified('matrixRows');
       await session.save();

@@ -44,14 +44,17 @@ import ExpandableButton from '~/components/Common/ExpandableButton';
 import {
   AI_ENGINE_MODELS,
   EXTRACTOR_NODES,
+  HITO_APP_NODES,
   SKILL_RULE_SUBAGENT_NODES,
   WAPPY_AGENT_AVATAR_ROTATION,
   getRotatedAgentAvatar,
+  getNodeDefById,
   getNodeModuleMetadata,
   doesNodeRequireAntigravity,
   type CanvasNodeConfig,
   type CanvasExtraAgentNode,
   type CanvasCustomUserNode,
+  type WorkflowNodesConfig,
 } from './workflowNodesCatalog';
 import {
   TENSHI_NORMATIVE_MARKDOWN_DOCS,
@@ -82,6 +85,64 @@ export interface LiveInspectorPayload {
     data?: Record<string, any>;
     [key: string]: any;
   }>;
+  latestReports?: Array<{
+    id?: string;
+    conversationId?: string;
+    title?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    charCount?: number;
+    preview?: string;
+    html?: string;
+  }>;
+}
+
+function resolveDefaultOutputIfBranch(
+  outId: string,
+  idx: number,
+  totalOutputs: number,
+  nodeConfigs?: Record<string, any>,
+  allOutputIds?: string[],
+): 'yes' | 'no' {
+  const explicit = nodeConfigs?.[`out_${outId}`]?.ifBranch;
+  if (explicit === 'yes' || explicit === 'no') {
+    return explicit;
+  }
+  const urgentYesIds = [
+    'acpm_task',
+    'email_report',
+    'google_calendar',
+    'somos_sst_update',
+    'antigravity_local_report',
+    'antigravity_cloud_report',
+  ];
+  const calmNoIds = [
+    'wappy_notification',
+    'google_sheets',
+    'canvas_doc',
+    'google_docs',
+    'google_slides',
+  ];
+  const classifyDefault = (id: string): 'yes' | 'no' => {
+    if (urgentYesIds.includes(id)) return 'yes';
+    if (calmNoIds.includes(id)) return 'no';
+    return 'yes';
+  };
+  const baseBranch = classifyDefault(outId);
+  if (totalOutputs >= 2 && Array.isArray(allOutputIds) && allOutputIds.length === totalOutputs) {
+    const hasAnyExplicit = allOutputIds.some((id) => {
+      const b = nodeConfigs?.[`out_${id}`]?.ifBranch;
+      return b === 'yes' || b === 'no';
+    });
+    if (!hasAnyExplicit) {
+      const defaults = allOutputIds.map((id) => classifyDefault(id));
+      const allYes = defaults.every((b) => b === 'yes');
+      const allNo = defaults.every((b) => b === 'no');
+      if (allYes && idx === totalOutputs - 1) return 'no';
+      if (allNo && idx === 0) return 'yes';
+    }
+  }
+  return baseBranch;
 }
 
 export interface ReportHistoryPayload {
@@ -127,6 +188,7 @@ export interface WappyNodeCustomEditorProps {
   };
   currentCfg: CanvasNodeConfig;
   onUpdateNodeConfig: (nodeKey: string, partial: Partial<CanvasNodeConfig>) => void;
+  workflowNodes?: WorkflowNodesConfig;
   activeCompanyInfo?: ActiveCompanySummary | null;
   // Propiedades globales del flujo sincronizadas con los nodos correspondientes
   agentId?: string;
@@ -268,6 +330,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     activeNode,
     currentCfg,
     onUpdateNodeConfig,
+    workflowNodes,
     activeCompanyInfo,
     agentId,
     onSelectAgent,
@@ -316,9 +379,47 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     '',
   );
 
-  const moduleMeta = getNodeModuleMetadata(activeNode.nodeId, activeNode.shape as any);
-  const presetFields = moduleMeta.fields || [];
-  const selectedFields = currentCfg.fields || [];
+  const effectiveInspectMetaId =
+    cleanId === 'extract_sst_app' && currentCfg.sstAppSourceId
+      ? currentCfg.sstAppSourceId
+      : activeNode.nodeId;
+  const moduleMeta = getNodeModuleMetadata(effectiveInspectMetaId, activeNode.shape as any);
+  const baseCatalogFields = Array.isArray(moduleMeta.fields) ? moduleMeta.fields : [];
+
+  // Unión dinámica sin duplicados de meta.fields con el 100% de llaves reales detectadas en nodeLiveInspectorData.records
+  const isDynamicLiveFieldsNode =
+    activeNode.shape === 'square_hito' || cleanId === 'extract_sst_app';
+  const liveDetectedFieldSet = new Set<string>();
+  const mergedPresetFields: string[] = [...baseCatalogFields];
+  if (isDynamicLiveFieldsNode && Array.isArray(nodeLiveInspectorData?.records)) {
+    const existingLower = new Set(baseCatalogFields.map((f) => f.trim().toLowerCase()));
+    nodeLiveInspectorData.records.forEach((rec) => {
+      const recFieldsObj =
+        rec?.fields && typeof rec.fields === 'object' && !Array.isArray(rec.fields)
+          ? rec.fields
+          : null;
+      if (recFieldsObj) {
+        Object.keys(recFieldsObj).forEach((rawKey) => {
+          const k = String(rawKey || '').trim();
+          if (!k || k === '_id' || k === '__v') return;
+          liveDetectedFieldSet.add(k);
+          if (!existingLower.has(k.toLowerCase())) {
+            existingLower.add(k.toLowerCase());
+            mergedPresetFields.push(k);
+          }
+        });
+      }
+    });
+  }
+  // Incluir también cualquier casilla personalizada añadida por el usuario para que aparezca marcada en la grilla
+  const selectedFields = Array.isArray(currentCfg.fields) ? currentCfg.fields : [];
+  selectedFields.forEach((sf) => {
+    const cleanSf = String(sf || '').trim();
+    if (cleanSf && !mergedPresetFields.includes(cleanSf)) {
+      mergedPresetFields.push(cleanSf);
+    }
+  });
+  const presetFields = mergedPresetFields;
 
   // Resolución inteligente de la Empresa Activa (desde /api/sgsst/company-info o desde el inspector en vivo)
   const resolvedCompanyName =
@@ -499,6 +600,18 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
 
           <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+            {(presetFields.length > 5 || cleanId === 'extract_sst_app') && (
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={fieldSearchQuery}
+                  onChange={(e) => setFieldSearchQuery(e.target.value)}
+                  placeholder="Buscar casilla..."
+                  className="pl-8 pr-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 w-40"
+                />
+              </div>
+            )}
             <ExpandableButton
               size="sm"
               variant="teal"
@@ -558,34 +671,84 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
           {filteredChecklistFields.map((fieldLabel) => {
             const active = selectedFields.includes(fieldLabel);
+            const isLiveDbDetected = liveDetectedFieldSet.has(fieldLabel);
             return (
               <label
                 key={fieldLabel}
                 onClick={() => toggleFieldChip(fieldLabel)}
-                className={`px-3 py-2 rounded-xl border flex items-center gap-2.5 cursor-pointer transition select-none text-xs ${
+                className={`px-3 py-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition select-none text-xs ${
                   active
                     ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 dark:border-[#C7F303] font-extrabold text-purple-950 dark:text-white shadow-2xs'
                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-purple-400'
                 }`}
               >
-                <span
-                  className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
-                    active
-                      ? 'bg-purple-600 dark:bg-[#C7F303] border-purple-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
-                      : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
-                  }`}
-                >
-                  {active && <Check className="w-3 h-3 stroke-[3]" />}
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                      active
+                        ? 'bg-purple-600 dark:bg-[#C7F303] border-purple-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
+                        : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                    }`}
+                  >
+                    {active && <Check className="w-3 h-3 stroke-[3]" />}
+                  </span>
+                  <span className="truncate" title={fieldLabel}>
+                    {fieldLabel}
+                  </span>
                 </span>
-                <span className="truncate" title={fieldLabel}>
-                  {fieldLabel}
-                </span>
+                {isLiveDbDetected && (
+                  <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/15 border border-emerald-500/35 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300 shrink-0">
+                    BD en vivo
+                  </span>
+                )}
               </label>
             );
           })}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div className="flex items-center gap-2 flex-1 min-w-0 sm:min-w-[220px] max-w-md w-full">
+            <input
+              type="text"
+              value={customFieldInput}
+              onChange={(e) => setCustomFieldInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddCustomField();
+                }
+              }}
+              placeholder="Agregar casilla personalizada..."
+              className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
+            />
+            <ExpandableButton
+              size="sm"
+              variant="emerald"
+              icon={<Plus className="w-3.5 h-3.5" />}
+              label="Añadir Casilla"
+              onClick={handleAddCustomField}
+            />
+          </div>
+          {selectedFields.length > 0 && (
+            <label className="flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isStrictFilter}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    strictFieldFilter: e.target.checked,
+                  })
+                }
+                className="rounded border-teal-500 text-teal-600"
+              />
+              <span>
+                🔒 Extraer <strong>SOLO</strong> estas {selectedFields.length} casilla(s)
+              </span>
+            </label>
+          )}
         </div>
       </div>
     );
@@ -1962,7 +2125,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               Principal: Tenshi (Gato) · #2: Suri (Suricato) · #3: Max (Perro) · #4: Paz (Paloma) · #5: Capi (Capibara)
             </span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {WAPPY_AGENT_AVATAR_ROTATION.slice(0, 5).map((av, idx) => {
               const defaultAvatar = getRotatedAgentAvatar(
                 isExtraAgent
@@ -3289,31 +3452,70 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
      EQUIPO 8: NODOS LÓGICOS (CONDICIÓN SI/NO, LOOP, MERGE, APROBACIÓN) + SKILLS / REGLAS / SCRAPING
      ═════════════════════════════════════════════════════════════════════════ */
   if (activeNode.shape === 'if' || activeNode.key === 'if_router') {
+    const rawMode =
+      currentCfg.ifConditionMode || currentCfg.ifConditionType || 'critical_findings';
+    const normalizedIfMode =
+      rawMode === 'ai_evaluation'
+        ? 'ai_verdict'
+        : rawMode === 'keyword_match' || rawMode === 'numeric_threshold'
+          ? 'custom_rule'
+          : rawMode;
+
+    const computeIfConditionLabel = (mode: string, expr?: string): string => {
+      if (mode === 'critical_findings') return '¿Críticos abiertos?';
+      if (mode === 'always_branch') return 'Evaluar Sí / No';
+      if (mode === 'ai_verdict' || mode === 'ai_evaluation') return '¿Hallazgos IA?';
+      const trimmed = (expr ?? currentCfg.ifRuleExpression ?? '').trim();
+      if (trimmed) {
+        return trimmed.length > 26 ? `${trimmed.slice(0, 25)}…` : trimmed;
+      }
+      return 'Regla personalizada';
+    };
+
+    const connectedOutputsList =
+      workflowNodes?.outputs !== undefined
+        ? Array.isArray(workflowNodes.outputs)
+          ? workflowNodes.outputs
+          : []
+        : ['email_report'];
+    const allNodeCfgs = workflowNodes?.canvasLayout?.nodeConfigs;
+
     return (
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-emerald-700 dark:text-emerald-300 mb-1">
               🔀 1. ¿Qué evalúa esta Condición Si / No?
             </label>
             <select
-              value={currentCfg.ifConditionType || 'critical_findings'}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { ifConditionType: e.target.value as any })
-              }
+              value={normalizedIfMode}
+              onChange={(e) => {
+                const nextMode = e.target.value;
+                const mappedType =
+                  nextMode === 'ai_verdict'
+                    ? 'ai_evaluation'
+                    : nextMode === 'custom_rule'
+                      ? 'keyword_match'
+                      : nextMode;
+                onUpdateNodeConfig(activeNode.key, {
+                  ifConditionMode: nextMode,
+                  ifConditionType: mappedType as any,
+                  ifConditionLabel: computeIfConditionLabel(nextMode, currentCfg.ifRuleExpression),
+                });
+              }}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
             >
               <option value="critical_findings">
                 🚨 Si existen hallazgos críticos, vencimientos o brechas
               </option>
-              <option value="keyword_match">
-                🔤 Si los datos extraídos cumplen una condición específica (ej. sin EPS/ARL)
+              <option value="always_branch">
+                ⚖️ Evaluar Sí / No siempre sobre los resultados del flujo
               </option>
-              <option value="numeric_threshold">
-                🔢 Si el puntaje o porcentaje es menor a un umbral (ej. &lt; 85%)
+              <option value="ai_verdict">
+                🧠 Veredicto inteligente del Agente IA (¿Hallazgos IA?)
               </option>
-              <option value="ai_evaluation">
-                🧠 Evaluación inteligente del Agente IA según tu regla
+              <option value="custom_rule">
+                📏 Regla personalizada sobre datos o umbrales extraídos
               </option>
             </select>
           </div>
@@ -3324,9 +3526,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             <input
               type="text"
               value={currentCfg.ifRuleExpression || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { ifRuleExpression: e.target.value })
-              }
+              onChange={(e) => {
+                const nextExpr = e.target.value;
+                onUpdateNodeConfig(activeNode.key, {
+                  ifRuleExpression: nextExpr,
+                  ...(normalizedIfMode === 'custom_rule'
+                    ? { ifConditionLabel: computeIfConditionLabel('custom_rule', nextExpr) }
+                    : {}),
+                });
+              }}
               placeholder="Ej: Si algún trabajador no tiene certificado de afiliación vigente o tiene EMO vencido..."
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
@@ -3363,49 +3571,288 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             />
           </div>
         </div>
+
+        {/* Tarjeta: Enrutamiento de Salidas Conectadas (Rama SÍ vs Rama NO) */}
+        <div className="p-3.5 rounded-2xl border border-emerald-500/35 bg-emerald-500/5 dark:bg-slate-900/70 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-black uppercase text-emerald-900 dark:text-[#C7F303] flex items-center gap-1.5">
+                <GitBranch className="w-4 h-4 text-emerald-600 dark:text-[#C7F303]" />
+                Enrutamiento de Salidas Conectadas (Rama SÍ vs Rama NO)
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Asigna con un clic qué rama activa cada salida del flujo (también puedes arrastrar el cable desde los puertos SÍ / NO en el lienzo).
+              </p>
+            </div>
+            <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
+              {connectedOutputsList.length} salida(s)
+            </span>
+          </div>
+
+          {connectedOutputsList.length === 0 ? (
+            <div className="p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 text-center">
+              Aún no hay nodos de salida en el flujo. Haz clic en el botón <strong>+</strong> junto a los puertos SÍ o NO del lienzo para añadir salidas.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {connectedOutputsList.map((outId, outIdx) => {
+                const outDef = getNodeDefById(outId);
+                const resolvedBr = resolveDefaultOutputIfBranch(
+                  outId,
+                  outIdx,
+                  connectedOutputsList.length,
+                  allNodeCfgs,
+                  connectedOutputsList,
+                );
+                return (
+                  <div
+                    key={`route_out_${outId}`}
+                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate">
+                        {outDef?.label || outDef?.shortLabel || outId}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-semibold truncate">
+                        Nodo: out_{outId}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateNodeConfig(`out_${outId}`, { ifBranch: 'yes' })
+                        }
+                        className={`px-2.5 py-1 rounded-xl border text-[11px] font-extrabold transition ${
+                          resolvedBr === 'yes'
+                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/30'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-400'
+                        }`}
+                      >
+                        ✅ Rama SÍ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateNodeConfig(`out_${outId}`, { ifBranch: 'no' })
+                        }
+                        className={`px-2.5 py-1 rounded-xl border text-[11px] font-extrabold transition ${
+                          resolvedBr === 'no'
+                            ? 'bg-slate-500/20 border-slate-500 text-slate-800 dark:text-slate-200 ring-1 ring-slate-500/30'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-400'
+                        }`}
+                      >
+                        ⚪ Rama NO
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   if (activeNode.shape === 'logic') {
+    const isLoopNode = activeNode.nodeId.includes('loop');
+    const isMergeNode = activeNode.nodeId.includes('merge');
+    const isApprovalNode = activeNode.nodeId.includes('approval');
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-            ⚙️ Regla de Control para «{activeNode.title}»
-          </label>
-          <input
-            type="text"
-            value={currentCfg.customInstruction || ''}
-            onChange={(e) =>
-              onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
-            }
-            placeholder={
-              activeNode.nodeId.includes('loop')
-                ? 'Ej: Iterar trabajador por trabajador verificando su cédula...'
-                : activeNode.nodeId.includes('approval')
-                  ? 'Ej: Solicitar visto bueno antes de publicar el informe final...'
-                  : 'Ej: Unir los resultados de ambas ramas en una sola tabla...'
-            }
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-          />
-        </div>
-        {activeNode.nodeId.includes('approval') && (
-          <div>
+      <div className="space-y-3.5">
+        {isLoopNode && (
+          <div className="p-3.5 rounded-2xl border border-amber-400/50 dark:border-amber-700/60 bg-amber-50/30 dark:bg-amber-950/15 space-y-3">
+            <div className="text-xs font-black uppercase text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+              <Repeat className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              Parámetros de Iteración por Lotes (`logic_loop`)
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                  📦 Tamaño de lote (`batchSize`)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={currentCfg.batchSize ?? 10}
+                  onChange={(e) =>
+                    onUpdateNodeConfig(activeNode.key, {
+                      batchSize: Math.max(1, Number(e.target.value) || 10),
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                  🗂️ Modo de consolidación (`loopMode`)
+                </label>
+                <select
+                  value={currentCfg.loopMode || 'consolidado_unico'}
+                  onChange={(e) =>
+                    onUpdateNodeConfig(activeNode.key, {
+                      loopMode: e.target.value as 'consolidado_unico' | 'resumen_por_lote',
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                >
+                  <option value="consolidado_unico">
+                    📑 Consolidado único al finalizar todos los lotes
+                  </option>
+                  <option value="resumen_por_lote">
+                    📦 Resumen parcial por cada lote procesado
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🔑 Iterar / agrupar por casilla (`iterateByField`)
+              </label>
+              <input
+                type="text"
+                value={currentCfg.iterateByField || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { iterateByField: e.target.value })
+                }
+                placeholder="Ej: Trabajador / Cédula, Área / Sede, Proceso..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {['Trabajador / Cédula', 'Área / Sede', 'Proceso', 'Cargo', 'Vehículo / Placa'].map(
+                  (presetKey) => (
+                    <button
+                      key={presetKey}
+                      type="button"
+                      onClick={() =>
+                        onUpdateNodeConfig(activeNode.key, { iterateByField: presetKey })
+                      }
+                      className={`px-2.5 py-1 rounded-lg border text-[10.5px] font-bold transition ${
+                        currentCfg.iterateByField === presetKey
+                          ? 'bg-amber-500/20 border-amber-500 text-amber-800 dark:text-amber-300'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-amber-400'
+                      }`}
+                    >
+                      {presetKey}
+                    </button>
+                  ),
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isMergeNode && (
+          <div className="p-3.5 rounded-2xl border border-purple-400/50 dark:border-purple-700/60 bg-purple-50/30 dark:bg-purple-950/15 space-y-3">
+            <div className="text-xs font-black uppercase text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+              <GitMerge className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              Parámetros de Unión de Ramas (`logic_merge`)
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                  🔗 Estrategia de unión (`mergeStrategy`)
+                </label>
+                <select
+                  value={currentCfg.mergeStrategy || 'union_dedup'}
+                  onChange={(e) =>
+                    onUpdateNodeConfig(activeNode.key, {
+                      mergeStrategy: e.target.value as
+                        | 'union_dedup'
+                        | 'intersect_key'
+                        | 'append_all',
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                >
+                  <option value="union_dedup">
+                    ✨ Unión sin duplicados (`union_dedup`)
+                  </option>
+                  <option value="intersect_key">
+                    🎯 Cruce exacto por campo llave (`intersect_key`)
+                  </option>
+                  <option value="append_all">
+                    📚 Concatenar todos los registros (`append_all`)
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                  🔑 Campo llave de cruce (`mergeKey`)
+                </label>
+                <input
+                  type="text"
+                  value={currentCfg.mergeKey || ''}
+                  onChange={(e) =>
+                    onUpdateNodeConfig(activeNode.key, { mergeKey: e.target.value })
+                  }
+                  placeholder="Ej: documento / cédula, cargo, placa..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {['documento / cédula', 'cargo', 'placa', 'área / sede', 'código estándar'].map(
+                (kPreset) => (
+                  <button
+                    key={kPreset}
+                    type="button"
+                    onClick={() => onUpdateNodeConfig(activeNode.key, { mergeKey: kPreset })}
+                    className={`px-2.5 py-1 rounded-lg border text-[10.5px] font-bold transition ${
+                      currentCfg.mergeKey === kPreset
+                        ? 'bg-purple-500/20 border-purple-500 text-purple-800 dark:text-purple-300'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-purple-400'
+                    }`}
+                  >
+                    {kPreset}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className={isApprovalNode ? '' : 'sm:col-span-2'}>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              👤 Correo del Responsable que Aprueba
+              ⚙️ Regla o Instrucción Adicional para «{activeNode.title}»
             </label>
             <input
               type="text"
-              value={currentCfg.approverEmail || ''}
+              value={currentCfg.customInstruction || ''}
               onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { approverEmail: e.target.value })
+                onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
               }
-              placeholder="Ej: gerencia@empresa.com"
+              placeholder={
+                isLoopNode
+                  ? 'Ej: Iterar trabajador por trabajador verificando su cédula...'
+                  : isApprovalNode
+                    ? 'Ej: Solicitar visto bueno antes de publicar el informe final...'
+                    : 'Ej: Unir los resultados de ambas ramas en una sola tabla...'
+              }
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
-        )}
+          {isApprovalNode && (
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                👤 Correo del Responsable que Aprueba
+              </label>
+              <input
+                type="text"
+                value={currentCfg.approverEmail || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { approverEmail: e.target.value })
+                }
+                placeholder="Ej: gerencia@empresa.com"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -4171,30 +4618,66 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
     if (cleanId === 'extract_sst_app') {
       const selectedAppTarget = currentCfg.documentTitle || 'Matriz IPEVR GTC-45 (Hito 1)';
+      const activeSourceId = currentCfg.sstAppSourceId || 'hito1_gtc45';
       return (
         <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/80 dark:border-teal-800/60 space-y-2">
+          <div className="p-3 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/80 dark:border-teal-800/60 space-y-2.5">
             <label className="block text-xs font-extrabold uppercase text-teal-900 dark:text-teal-300">
               🛡️ 1. Elige de qué Aplicativo o Matriz de «{resolvedCompanyFull}» deseas extraer datos sin IA:
             </label>
             <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
               {[
-                { label: '⚡ Extraer Matriz de Peligros IPEVR GTC-45 (Hito 1)', val: 'Matriz IPEVR GTC-45 (Hito 1)', variant: 'teal' as const },
-                { label: '🚗 Extraer Matriz de Riesgos Viales PESV y Flota (Hito 3)', val: 'Matriz PESV y Parque Automotor (Hito 3)', variant: 'amber' as const },
-                { label: '⚖️ Extraer Matriz Legal y Normas en Brecha (Hito 1)', val: 'Matriz Legal SG-SST (Hito 1)', variant: 'purple' as const },
-                { label: '📊 Extraer Diagnóstico Estándares Mínimos Res. 0312 (Hito 1)', val: 'Diagnóstico Res. 0312 (Hito 1)', variant: 'cyan' as const },
-                { label: '🚑 Extraer Casos e Investigaciones ATEL (Hito 7)', val: 'Investigación y Estadísticas ATEL (Hito 7)', variant: 'danger' as const },
-                { label: '📋 Extraer Actividades del Centro de Control ACPM (Hito 7)', val: 'Tablero Kanban ACPM (Hito 7)', variant: 'indigo' as const },
+                {
+                  label: '⚡ Extraer Matriz de Peligros IPEVR GTC-45 (Hito 1)',
+                  val: 'Matriz IPEVR GTC-45 (Hito 1)',
+                  srcId: 'hito1_gtc45',
+                  variant: 'teal' as const,
+                },
+                {
+                  label: '🚗 Extraer Matriz de Riesgos Viales PESV y Flota (Hito 3)',
+                  val: 'Matriz PESV y Parque Automotor (Hito 3)',
+                  srcId: 'hito3_pesv',
+                  variant: 'amber' as const,
+                },
+                {
+                  label: '⚖️ Extraer Matriz Legal y Normas en Brecha (Hito 1)',
+                  val: 'Matriz Legal SG-SST (Hito 1)',
+                  srcId: 'hito1_matriz_legal',
+                  variant: 'purple' as const,
+                },
+                {
+                  label: '📊 Extraer Diagnóstico Estándares Mínimos Res. 0312 (Hito 1)',
+                  val: 'Diagnóstico Res. 0312 (Hito 1)',
+                  srcId: 'hito1_diagnostico_0312',
+                  variant: 'cyan' as const,
+                },
+                {
+                  label: '🚑 Extraer Casos e Investigaciones ATEL (Hito 7)',
+                  val: 'Investigación y Estadísticas ATEL (Hito 7)',
+                  srcId: 'hito7_investigacion_atel',
+                  variant: 'danger' as const,
+                },
+                {
+                  label: '📋 Extraer Actividades del Centro de Control ACPM (Hito 7)',
+                  val: 'Tablero Kanban ACPM (Hito 7)',
+                  srcId: 'hito7_acpm',
+                  variant: 'indigo' as const,
+                },
               ].map((appOpt) => (
                 <ExpandableButton
                   key={appOpt.val}
                   size="sm"
-                  variant={selectedAppTarget === appOpt.val ? appOpt.variant : 'neutral'}
-                  isActive={selectedAppTarget === appOpt.val}
+                  variant={
+                    selectedAppTarget === appOpt.val || activeSourceId === appOpt.srcId
+                      ? appOpt.variant
+                      : 'neutral'
+                  }
+                  isActive={selectedAppTarget === appOpt.val || activeSourceId === appOpt.srcId}
                   icon={<ShieldCheck className="w-3.5 h-3.5" />}
                   label={appOpt.label}
                   onClick={() =>
                     onUpdateNodeConfig(activeNode.key, {
+                      sstAppSourceId: appOpt.srcId,
                       documentTitle: appOpt.val,
                       customInstruction: `Extraer directamente desde MongoDB los registros de ${appOpt.val} para la empresa activa ${resolvedCompanyFull}.`,
                     })
@@ -4202,9 +4685,35 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 />
               ))}
             </div>
+            <div>
+              <label className="block text-[10.5px] font-extrabold uppercase text-teal-800 dark:text-teal-300 mb-1">
+                🔎 O selecciona cualquier Aplicativo de los 8 Hitos SG-SST (`sstAppSourceId`):
+              </label>
+              <select
+                value={activeSourceId}
+                onChange={(e) => {
+                  const chosenId = e.target.value;
+                  const chosenDef = HITO_APP_NODES.find((h) => h.id === chosenId);
+                  const chosenTitle = chosenDef?.label || chosenId;
+                  onUpdateNodeConfig(activeNode.key, {
+                    sstAppSourceId: chosenId,
+                    documentTitle: chosenTitle,
+                    customInstruction: `Extraer directamente desde MongoDB los registros de ${chosenTitle} para la empresa activa ${resolvedCompanyFull}.`,
+                  });
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-teal-300 dark:border-teal-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                {HITO_APP_NODES.map((hNode) => (
+                  <option key={hNode.id} value={hNode.id}>
+                    {hNode.badge ? `[${hNode.badge}] ` : ''}
+                    {hNode.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           {renderFieldChecklistSection('teal')}
-          {renderLiveRecordsTableSection(`🛡️ Estado de los 50 Aplicativos de «${resolvedCompanyFull}»`)}
+          {renderLiveRecordsTableSection(`🛡️ Estado de «${selectedAppTarget}» en «${resolvedCompanyFull}»`)}
           {renderReportHistorySection()}
         </div>
       );
@@ -4506,58 +5015,151 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
   return (
     <div className="space-y-4">
-      {/* 1. MODO DE OPERACIÓN EN EL APLICATIVO DE SOMOS SST */}
+      {/* 1. MODO DE OPERACIÓN Y GENERACIÓN DE INFORME OFICIAL EN EL APLICATIVO DE SOMOS SST */}
       {activeNode.shape === 'square_hito' && (
-        <div>
-          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2">
-            1. ¿Qué debe hacer el flujo en «{resolvedNodeDisplayTitle}» ({resolvedCompanyFull})?
-          </label>
-          <div className="grid grid-cols-1 gap-2">
-            {[
-              {
-                id: 'extract_only',
-                title: '🔍 Solo Extraer Datos Puntuales',
-                desc: 'Lee únicamente las columnas que marques abajo (ej. solo Cédula y Nombre) sin saturar el proceso.',
-              },
-              {
-                id: 'write_register',
-                title: '✍️ Registrar / Alimentar Aplicativo',
-                desc: 'Guarda nuevos registros, hallazgos, casos ATEL, tareas o controles directamente en este aplicativo.',
-              },
-              {
-                id: 'audit_and_update',
-                title: '🔄 Auditar Brechas + Actualizar',
-                desc: 'Consulta los registros actuales del aplicativo, cruza la información y actualiza el cumplimiento.',
-              },
-            ].map((modeOpt) => {
-              const active = hitoOpMode === modeOpt.id;
-              return (
-                <button
-                  key={modeOpt.id}
-                  type="button"
-                  onClick={() =>
+        <div className="space-y-3.5">
+          {/* Bloque Oficial: Generación y Extracción de Informe Oficial del Aplicativo */}
+          <div className="p-3.5 rounded-2xl border border-teal-500/40 bg-gradient-to-br from-teal-500/5 via-emerald-500/5 to-cyan-500/5 dark:from-slate-900 dark:to-slate-900/80 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wide text-teal-900 dark:text-[#C7F303] flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-teal-600 dark:text-[#C7F303]" />
+                  📄 Generación y Extracción de Informe Oficial del Aplicativo
+                </span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Define cómo interactúa el flujo con <strong>«{resolvedNodeDisplayTitle}»</strong> y su Informe Oficial corporativo HTML.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
+                ⚙️ Modo de Acción en el Aplicativo (`appActionMode`)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  {
+                    id: 'read_only' as const,
+                    title: '🔍 Solo consultar casillas e informes existentes',
+                    desc: 'Lee registros reales e informes ya guardados sin modificar el aplicativo.',
+                    legacyOp: 'extract_only' as const,
+                  },
+                  {
+                    id: 'write_and_update' as const,
+                    title: '✍️ Alimentar / registrar datos en el aplicativo',
+                    desc: 'Registra o actualiza hallazgos, controles o evaluaciones en MongoDB.',
+                    legacyOp: 'write_register' as const,
+                  },
+                  {
+                    id: 'write_and_report' as const,
+                    title: '🚀 Alimentar aplicativo + Generar y extraer Informe Oficial HTML',
+                    desc: 'Actualiza el aplicativo y genera el Informe Oficial completo hacia las Salidas.',
+                    legacyOp: 'audit_and_update' as const,
+                  },
+                  {
+                    id: 'generate_report' as const,
+                    title: '📄 Generar Informe Oficial IA del aplicativo y pasarlo al flujo',
+                    desc: 'Construye el Informe Oficial HTML con membrete, tablas y firmas para LiveEditor / Gmail.',
+                    legacyOp: 'audit_and_update' as const,
+                  },
+                ].map((actOpt) => {
+                  const currentActionMode =
+                    currentCfg.appActionMode ||
+                    (hitoOpMode === 'extract_only'
+                      ? 'read_only'
+                      : hitoOpMode === 'write_register'
+                        ? 'write_and_update'
+                        : 'write_and_report');
+                  const isActSelected = currentActionMode === actOpt.id;
+                  return (
+                    <button
+                      key={actOpt.id}
+                      type="button"
+                      onClick={() =>
+                        onUpdateNodeConfig(activeNode.key, {
+                          appActionMode: actOpt.id,
+                          hitoOperationMode: actOpt.legacyOp,
+                          ...(actOpt.id === 'write_and_report' || actOpt.id === 'generate_report'
+                            ? { generateAppReport: true }
+                            : {}),
+                        })
+                      }
+                      className={`p-2.5 rounded-xl border-2 text-left transition ${
+                        isActSelected
+                          ? 'bg-teal-50/90 dark:bg-slate-800 border-teal-600 dark:border-[#C7F303] ring-1 ring-teal-500/25 shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-teal-400'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-snug">
+                          {actOpt.title}
+                        </span>
+                        {isActSelected && (
+                          <Check className="w-4 h-4 text-teal-600 dark:text-[#C7F303] stroke-[3] shrink-0 mt-0.5" />
+                        )}
+                      </div>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                        {actOpt.desc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3 Toggles Oficiales de Informe HTML */}
+            <div className="grid grid-cols-1 gap-2 pt-1">
+              <label className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 cursor-pointer">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  📄 Generar / Extraer Informe Oficial HTML completo hacia Salidas (LiveEditor / Gmail)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(currentCfg.generateAppReport)}
+                  onChange={(e) =>
                     onUpdateNodeConfig(activeNode.key, {
-                      hitoOperationMode: modeOpt.id as any,
+                      generateAppReport: e.target.checked,
                     })
                   }
-                  className={`p-3 rounded-2xl border-2 text-left transition ${
-                    active
-                      ? 'bg-teal-50/90 dark:bg-slate-800 border-teal-600 dark:border-[#C7F303] ring-2 ring-teal-500/20 shadow-xs'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-teal-400'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                      {modeOpt.title}
-                    </span>
-                    {active && <Check className="w-4 h-4 text-teal-600 dark:text-[#C7F303] stroke-[3]" />}
-                  </div>
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                    {modeOpt.desc}
-                  </p>
-                </button>
-              );
-            })}
+                  className="w-4 h-4 rounded border-teal-500 text-teal-600 shrink-0"
+                />
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 cursor-pointer">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                    🔄 Forzar regeneración nueva con IA en cada corrida
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(currentCfg.forceRegenerateReport)}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, {
+                        forceRegenerateReport: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded border-purple-500 text-purple-600 shrink-0"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 cursor-pointer">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                    📚 Incluir último Informe Oficial guardado
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(currentCfg.includeLatestReport)}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, {
+                        includeLatestReport: e.target.checked,
+                        reportTags: moduleMeta.reportTags,
+                      })
+                    }
+                    className="w-4 h-4 rounded border-emerald-500 text-emerald-600 shrink-0"
+                  />
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -4656,28 +5258,36 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
           {filteredPresetFields.map((fieldLabel) => {
             const active = selectedFields.includes(fieldLabel);
+            const isLiveDbDetected = liveDetectedFieldSet.has(fieldLabel);
             return (
               <label
                 key={fieldLabel}
                 onClick={() => toggleFieldChip(fieldLabel)}
-                className={`px-3 py-2 rounded-xl border flex items-center gap-2.5 cursor-pointer transition select-none text-xs ${
+                className={`px-3 py-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition select-none text-xs ${
                   active
                     ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 dark:border-[#C7F303] font-extrabold text-purple-950 dark:text-white shadow-2xs'
                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-purple-400'
                 }`}
               >
-                <span
-                  className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
-                    active
-                      ? 'bg-purple-600 dark:bg-[#C7F303] border-purple-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
-                      : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
-                  }`}
-                >
-                  {active && <Check className="w-3 h-3 stroke-[3]" />}
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                      active
+                        ? 'bg-purple-600 dark:bg-[#C7F303] border-purple-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
+                        : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                    }`}
+                  >
+                    {active && <Check className="w-3 h-3 stroke-[3]" />}
+                  </span>
+                  <span className="truncate" title={fieldLabel}>
+                    {fieldLabel}
+                  </span>
                 </span>
-                <span className="truncate" title={fieldLabel}>
-                  {fieldLabel}
-                </span>
+                {isLiveDbDetected && (
+                  <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/15 border border-emerald-500/35 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300 shrink-0">
+                    BD en vivo
+                  </span>
+                )}
               </label>
             );
           })}
@@ -4744,8 +5354,65 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       effectiveNodeAiEngine === 'antigravity' ||
       effectiveNodeAiEngine === 'antigravity_cloud');
 
+  const shouldRenderOutputIfBranchSelector =
+    activeNode.shape === 'square_output' && Boolean(workflowNodes?.includeIfNode);
+
+  const renderOutputIfBranchSelectorBanner = () => {
+    const outList =
+      workflowNodes?.outputs !== undefined
+        ? Array.isArray(workflowNodes.outputs)
+          ? workflowNodes.outputs
+          : []
+        : ['email_report'];
+    const outIdx = Math.max(0, outList.indexOf(cleanId));
+    const effectiveBranch =
+      currentCfg.ifBranch === 'yes' || currentCfg.ifBranch === 'no'
+        ? currentCfg.ifBranch
+        : resolveDefaultOutputIfBranch(
+            cleanId,
+            outIdx,
+            Math.max(1, outList.length),
+            workflowNodes?.canvasLayout?.nodeConfigs,
+            outList,
+          );
+
+    return (
+      <div className="p-3 rounded-2xl border border-emerald-500/35 bg-emerald-500/5 dark:bg-slate-900/80 space-y-2">
+        <div className="text-xs font-black uppercase text-emerald-900 dark:text-[#C7F303] flex items-center gap-1.5">
+          <GitBranch className="w-3.5 h-3.5 text-emerald-600 dark:text-[#C7F303]" />
+          Rama Condicional que activa esta Salida:
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onUpdateNodeConfig(activeNode.key, { ifBranch: 'yes' })}
+            className={`p-2.5 rounded-xl border-2 text-left text-xs font-extrabold transition ${
+              effectiveBranch === 'yes'
+                ? 'bg-emerald-500/15 border-emerald-500 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500/30'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-400'
+            }`}
+          >
+            ✅ Rama SÍ (Cuando se cumple la condición)
+          </button>
+          <button
+            type="button"
+            onClick={() => onUpdateNodeConfig(activeNode.key, { ifBranch: 'no' })}
+            className={`p-2.5 rounded-xl border-2 text-left text-xs font-extrabold transition ${
+              effectiveBranch === 'no'
+                ? 'bg-slate-500/20 border-slate-500 text-slate-900 dark:text-slate-100 ring-1 ring-slate-500/30'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400'
+            }`}
+          >
+            ⚪ Rama NO (Ruta alternativa / Sin hallazgos)
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4 min-w-0">
+      {shouldRenderOutputIfBranchSelector && renderOutputIfBranchSelectorBanner()}
       {shouldRenderTopAntigravityBanner && renderAntigravityModeSelectorPanel()}
       {renderSpecificNodeEditor()}
     </div>

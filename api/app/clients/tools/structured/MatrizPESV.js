@@ -52,30 +52,47 @@ class MatrizPESV extends Tool {
           : String(this.req?.user?.id || this.req?.user?._id || '');
 
       const userId = rawUserId || null;
+      let targetUserId = userId;
+      try {
+        if (userId) {
+          const User = mongoose.models.User || require('~/models/User');
+          const userDoc = await User.findById(userId).select('isSubUser parentUser assignedCompany').lean();
+          if (userDoc?.isSubUser && userDoc?.parentUser) {
+            targetUserId = userDoc.parentUser.toString();
+          }
+        }
+      } catch (_) {}
+
       let companyId = null;
       let companyConf = null;
       const explicitCompanyId =
         this.req?.companyId ||
         this.req?.body?.companyId ||
         (this.req?.user?.isSubUser && this.req?.user?.assignedCompany ? this.req.user.assignedCompany : null);
-      if (userId) {
+      if (targetUserId) {
         if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
-          companyConf = await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId }).lean();
+          companyConf = await CompanyInfo.findOne({ _id: explicitCompanyId, user: targetUserId }).lean();
         }
-        if (!companyConf) companyConf = await CompanyInfo.findOne({ user: userId, isActive: true }).lean();
-        if (!companyConf) companyConf = await CompanyInfo.findOne({ user: userId }).lean();
+        if (!companyConf) companyConf = await CompanyInfo.findOne({ user: targetUserId, isActive: true }).lean();
+        if (!companyConf) companyConf = await CompanyInfo.findOne({ user: targetUserId }).lean();
         companyId = companyConf ? companyConf._id : null;
+      } else if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
+        companyConf = await CompanyInfo.findById(explicitCompanyId).lean();
+        if (companyConf) {
+          companyId = companyConf._id;
+          if (!targetUserId && companyConf.user) targetUserId = String(companyConf.user);
+        }
       }
 
-      const officialConvoId = `official-pesv-${companyId || userId}`;
+      const officialConvoId = `official-pesv-${companyId || targetUserId || userId}`;
 
       let conversationId =
         runManager?.configurable?.thread_id ||
         runManager?.metadata?.thread_id ||
         this.req?.body?.conversationId;
 
-      if (!conversationId || conversationId === 'new') {
-        if (userId) {
+      if (!conversationId || conversationId === 'new' || this.req?.isAutomation) {
+        if (companyId || targetUserId || userId) {
           conversationId = officialConvoId;
         } else {
           const errorMsg = 'No se encontró un ID de conversación válido para guardar la matriz PESV.';
@@ -87,10 +104,20 @@ class MatrizPESV extends Tool {
       const { accion, riesgos, filtro_proceso, filtro_cargo, filtro_actor_vial, filtro_peligro, ids_a_borrar } = input;
 
       let session = await PESVMatrix.findOne({ conversationId });
-      if (session && !session.companyId && companyId) {
-        session.companyId = companyId;
-        await session.save();
-        console.log(`[MatrizPESV Tool] Populated missing companyId ${companyId} for session ${conversationId}`);
+      if (session) {
+        let needsMetaSave = false;
+        if (!session.companyId && companyId) {
+          session.companyId = companyId;
+          needsMetaSave = true;
+        }
+        if (conversationId === officialConvoId && !session.isOfficial) {
+          session.isOfficial = true;
+          needsMetaSave = true;
+        }
+        if (needsMetaSave) {
+          await session.save();
+          console.log(`[MatrizPESV Tool] Populated metadata (companyId=${companyId}, isOfficial=${session.isOfficial}) for session ${conversationId}`);
+        }
       }
 
       if (!session && userId && conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
@@ -109,15 +136,36 @@ class MatrizPESV extends Tool {
         if (!userId) { return JSON.stringify({ error: 'No autenticado para acceder al contexto.' }); }
         console.log(`[MatrizPESV Tool] CONTEXTO 360° SGSST/PESV solicitado para convo: ${conversationId}`);
 
-        const PerfilCargoModel = mongoose.models.PerfilCargoData;
-        const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData;
+        const PerfilCargoModel =
+          mongoose.models.PerfilCargoData ||
+          (() => {
+            try {
+              require('~/server/routes/sgsst/perfilesCargo');
+            } catch (_) {}
+            return mongoose.models.PerfilCargoData || null;
+          })();
+        const PerfilSocioModel =
+          mongoose.models.PerfilSociodemograficoData ||
+          (() => {
+            try {
+              require('~/models/PerfilSociodemograficoData');
+            } catch (_) {}
+            return mongoose.models.PerfilSociodemograficoData || null;
+          })();
         const SgsstVehicleData = require('~/models/SgsstVehicleData');
-        const ComitesData = require('~/models/ComitesData');
+        let ComitesData = mongoose.models.ComitesData || null;
+        if (!ComitesData) {
+          try {
+            ComitesData = require('~/models/ComitesData');
+          } catch (_) {}
+        }
         const InvestigacionAtelData = require('~/models/InvestigacionAtelData');
         const KanbanTask = require('~/models/KanbanTask');
         const DiagnosticoData = require('~/models/DiagnosticoData');
 
-        const baseQuery = companyId ? { user: userId, companyId } : { user: userId };
+        const baseQuery = companyId
+          ? { user: targetUserId || userId, companyId }
+          : { user: targetUserId || userId };
         let payload = {};
 
         if (companyConf) {
@@ -143,13 +191,16 @@ class MatrizPESV extends Tool {
           if (cargoDataDoc && (cargoDataDoc.perfiles || cargoDataDoc.perfilesList)) {
             let perfiles = cargoDataDoc.perfilesList || cargoDataDoc.perfiles || [];
             if (filtro_proceso) {
-              perfiles = perfiles.filter(p => p.nombreCargo && p.nombreCargo.toLowerCase().includes(filtro_proceso.toLowerCase()));
+              perfiles = perfiles.filter(p => {
+                const pName = p.nombreCargo || p.nombre || '';
+                return pName && pName.toLowerCase().includes(filtro_proceso.toLowerCase());
+              });
             }
             payload.perfiles_cargo_encontrados = perfiles.map(p => ({
-              cargo: p.nombreCargo,
-              area: p.area || 'General',
+              cargo: p.nombreCargo || p.nombre || 'Cargo',
+              area: p.area || p.departamento || 'General',
               responsabilidadesSST: p.responsabilidadesSST || 'Ninguna definida',
-              epp_estricto: p.elementosProteccion || 'No documentado',
+              epp_estricto: p.elementosProteccion || p.epp || 'No documentado',
               restricciones: p.restricciones || 'Ninguna'
             }));
           }
@@ -192,17 +243,46 @@ class MatrizPESV extends Tool {
           } catch (_e) {}
         }
 
-        // Comité de Seguridad Vial (Hito 3 - ComitesData)
-        if (ComitesData) {
+        // Comité de Seguridad Vial (Hito 3 - Prioridad 1: SgsstPesvComite, Fallback: ComitesData)
+        try {
+          let pesvMembers = [];
+          let liderPesv = null;
           try {
+            const { SgsstPesvComite } = require('~/models/SgsstCopasst');
+            if (SgsstPesvComite) {
+              const sgsstPesvQuery = companyId
+                ? { companyId }
+                : { user: targetUserId || userId };
+              const pesvComiteDoc = await SgsstPesvComite.findOne(sgsstPesvQuery).lean();
+              if (pesvComiteDoc) {
+                if (Array.isArray(pesvComiteDoc.integrantes) && pesvComiteDoc.integrantes.length > 0) {
+                  pesvMembers = pesvComiteDoc.integrantes;
+                }
+                if (pesvComiteDoc.liderPesv && pesvComiteDoc.liderPesv.nombre) {
+                  liderPesv = pesvComiteDoc.liderPesv;
+                }
+              }
+            }
+          } catch (_pesvErr) {}
+
+          if (pesvMembers.length === 0 && ComitesData) {
             const comiteDoc = await ComitesData.findOne(baseQuery).lean();
-            const pesvMembers = Array.isArray(comiteDoc?.comitePesv) ? comiteDoc.comitePesv : [];
-            payload.comite_seguridad_vial_hito3 = {
-              total_integrantes: pesvMembers.length,
-              integrantes: pesvMembers.map(m => ({ nombre: m.nombre, cargo: m.cargo, rol: m.rol || m.rolComite }))
-            };
-          } catch (_e) {}
-        }
+            if (Array.isArray(comiteDoc?.comitePesv) && comiteDoc.comitePesv.length > 0) {
+              pesvMembers = comiteDoc.comitePesv;
+            }
+          }
+
+          payload.comite_seguridad_vial_hito3 = {
+            total_integrantes: pesvMembers.length,
+            lider_pesv: liderPesv ? { nombre: liderPesv.nombre, cargo: liderPesv.cargo, cedula: liderPesv.cedula } : null,
+            integrantes: pesvMembers.map(m => ({
+              nombre: m.nombre,
+              cedula: m.cedula || '',
+              cargo: m.cargo || '',
+              rol: m.rol || m.rolComite || m.representacion || 'Integrante CSV'
+            }))
+          };
+        } catch (_e) {}
 
         // Siniestros e Incidentes Viales en Hito 7 (InvestigacionAtelData)
         if (InvestigacionAtelData) {
@@ -300,16 +380,26 @@ class MatrizPESV extends Tool {
 
         // Sincronización en paralelo con Somos SST (Matriz PESV Oficial) al borrar
         if (conversationId && conversationId !== 'new' && !conversationId.startsWith('temp-')) {
-          const isOfficialSource = session.isOfficial || (await PESVMatrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+          const isOfficialSource =
+            session.isOfficial ||
+            Boolean(this.req?.isAutomation) ||
+            (await PESVMatrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
           if (isOfficialSource && conversationId !== officialConvoId) {
             await PESVMatrix.findOneAndUpdate(
               { conversationId: officialConvoId },
               {
                 $set: {
                   matrixRows: session.matrixRows,
+                  isOfficial: true,
+                  companyId: companyId || undefined,
                   updatedAt: new Date(),
                 },
-              }
+                $setOnInsert: {
+                  user: targetUserId || userId || undefined,
+                  officialTitle: 'Matriz Oficial PESV',
+                },
+              },
+              { upsert: true },
             );
             console.log(`[MatrizPESV Tool] Borrado sincronizado en paralelo con la Matriz PESV Oficial ("${officialConvoId}")`);
           }
@@ -330,8 +420,9 @@ class MatrizPESV extends Tool {
       if (!session) {
         session = new PESVMatrix({
           conversationId,
-          user: userId || undefined,
+          user: targetUserId || userId || undefined,
           companyId: companyId || undefined,
+          isOfficial: conversationId === officialConvoId || Boolean(this.req?.isAutomation),
           matrixRows: []
         });
       }
@@ -444,11 +535,14 @@ class MatrizPESV extends Tool {
         }
       }
 
-      if (!session.user && userId) {
-        session.user = userId;
+      if (!session.user && (targetUserId || userId)) {
+        session.user = targetUserId || userId;
       }
       if (!session.companyId && companyId) {
         session.companyId = companyId;
+      }
+      if (conversationId === officialConvoId || this.req?.isAutomation) {
+        session.isOfficial = true;
       }
 
       session.markModified('matrixRows');
@@ -461,16 +555,26 @@ class MatrizPESV extends Tool {
         console.log(`[MatrizPESV Tool] Cleaned up temporary session for user ${userId}`);
 
         // Sincronización en paralelo con Somos SST (Matriz PESV Oficial)
-        const isOfficialSource = session.isOfficial || (await PESVMatrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
+        const isOfficialSource =
+          session.isOfficial ||
+          Boolean(this.req?.isAutomation) ||
+          (await PESVMatrix.exists({ conversationId: officialConvoId, sourceConversationId: conversationId }));
         if (isOfficialSource && conversationId !== officialConvoId) {
           await PESVMatrix.findOneAndUpdate(
             { conversationId: officialConvoId },
             {
               $set: {
                 matrixRows: session.matrixRows,
+                isOfficial: true,
+                companyId: companyId || undefined,
                 updatedAt: new Date(),
               },
-            }
+              $setOnInsert: {
+                user: targetUserId || userId || undefined,
+                officialTitle: 'Matriz Oficial PESV',
+              },
+            },
+            { upsert: true },
           );
           console.log(`[MatrizPESV Tool] Sincronizada en paralelo con la Matriz PESV Oficial ("${officialConvoId}")`);
         }
