@@ -4819,7 +4819,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     [activeCompanyId],
   );
 
-  const { data: config, refetch: refetchTenshiConfig } = useQuery(
+  const {
+    data: config,
+    isError: isTenshiConfigError,
+    refetch: refetchTenshiConfig,
+  } = useQuery(
     ['tenshiConfig', token, activeCompanyId],
     async () => {
       const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/config'), {
@@ -6522,9 +6526,46 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const showVoiceModal = useRecoilValue(store.showVoiceModal);
   const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
 
+  // Notificar a Root.tsx cuando el Modo Protagonista ya está pintado en el DOM (2 frames RAF),
+  // para levantar la pantalla central de sincronización sin mostrar jamás las barras laterales ni el chat de fondo.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (isTenshiConfigError) {
+      window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
+      return;
+    }
+    if (!config) return;
+    if (!config.isActive || !isMobileHeroMode || showVoiceModal || showLiveAnalysisModal) {
+      window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
+      return;
+    }
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      if (raf2) window.cancelAnimationFrame(raf2);
+    };
+  }, [
+    isAuthenticated,
+    config,
+    isTenshiConfigError,
+    isMobileHeroMode,
+    showVoiceModal,
+    showLiveAnalysisModal,
+  ]);
+
   if (!isAuthenticated || !config || !config.isActive || showVoiceModal || showLiveAnalysisModal) {
     return null;
   }
+
+  const resolvedHeroAvatarId =
+    config?.effectiveAvatar?.avatarId || activeAvatarProfile?.avatarId || config?.defaultAvatarId;
+  const resolvedHeroAvatarName =
+    config?.effectiveAvatar?.name || activeAvatarProfile?.name || config?.name || 'Tenshi';
 
   const tenshiPortalContent = (
     <>
@@ -6670,6 +6711,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               <div className="relative flex h-8 w-8 md:h-9 md:w-9 items-center justify-center">
                 <TenshiAvatar
                   size={32}
+                  avatarId={resolvedHeroAvatarId}
                   mood={derivedAvatarMood}
                   isSpeaking={isTenshiSpeaking}
                   outputAmplitude={outputAmplitude}
@@ -6688,7 +6730,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs md:text-sm font-bold text-slate-900 dark:text-zinc-100 leading-none">
-                    {activeAvatarProfile?.name || config?.effectiveAvatar?.name || config?.name || 'Tenshi'}
+                    {resolvedHeroAvatarName}
                   </h3>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-bold">
                     WAPPY SST
@@ -6759,6 +6801,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 >
                   <TenshiAvatar
                     size={heroAvatarSize}
+                    avatarId={resolvedHeroAvatarId}
                     mood={derivedAvatarMood}
                     isSpeaking={isTenshiSpeaking}
                     outputAmplitude={outputAmplitude}

@@ -25,7 +25,8 @@ import InactiveAccount from '~/components/Auth/InactiveAccount';
 import { hasActivePlan } from '~/utils/planAccess';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
-const TenshiChat = lazy(() => import('~/components/Tenshi/TenshiChat'));
+const loadTenshiChatChunk = () => import('~/components/Tenshi/TenshiChat');
+const TenshiChat = lazy(loadTenshiChatChunk);
 
 const playStartupSound = () => {
   try {
@@ -78,6 +79,23 @@ export default function Root() {
   // Suscripción a la ruta: garantiza re-render al navegar desde la página de inicio (/) hacia /c/new.
   const { pathname: routePathname } = useLocation();
   const [isCheckingSession, setIsCheckingSession] = useState(() => !isAuthenticated);
+  const [tenshiHeroBootDone, setTenshiHeroBootDone] = useState(false);
+
+  useEffect(() => {
+    const markBootComplete = () => setTenshiHeroBootDone(true);
+    window.addEventListener('tenshi-hero-boot-complete', markBootComplete);
+    window.addEventListener('tenshi-exit-mobile-hero', markBootComplete);
+    return () => {
+      window.removeEventListener('tenshi-hero-boot-complete', markBootComplete);
+      window.removeEventListener('tenshi-exit-mobile-hero', markBootComplete);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || routePathname === '/' || routePathname === '') {
+      setTenshiHeroBootDone(false);
+    }
+  }, [isAuthenticated, routePathname]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -185,6 +203,74 @@ export default function Root() {
     return false;
   };
 
+  const renderThinkingCurtain = (overlay = false) => (
+    <div
+      id={overlay ? 'wappy-tenshi-boot-curtain' : undefined}
+      className={
+        overlay
+          ? 'fixed inset-0 z-[2500] flex h-[100dvh] w-screen flex-col items-center justify-center gap-4 bg-white dark:bg-zinc-950 bg-gradient-to-b from-teal-50/40 via-white to-amber-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 px-4 text-center select-none'
+          : 'flex h-screen flex-col items-center justify-center gap-4 bg-white dark:bg-zinc-950 bg-gradient-to-b from-teal-50/40 via-white to-amber-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 px-4 text-center select-none'
+      }
+      aria-live="polite"
+      role="status"
+    >
+      {overlay && (
+        <style>{`
+          [data-testid="nav"],
+          .nav-mask,
+          #mobile-sidepanel-mask-group {
+            display: none !important;
+          }
+          #controls-nav,
+          #artifacts-panel,
+          [data-panel-resize-handle-id] {
+            visibility: hidden !important;
+            pointer-events: none !important;
+            opacity: 0 !important;
+          }
+        `}</style>
+      )}
+      <TenshiAvatar
+        size={128}
+        mood="working"
+        showHaloEffect={true}
+        showHUD={true}
+        interactive={true}
+        statusText="Sincronizando Ecosistema WAPPY IA..."
+      />
+      <div className="mt-4 max-w-md">
+        <h2 className="bg-gradient-to-r from-teal-600 via-emerald-500 to-amber-500 bg-clip-text text-xl font-black tracking-tight text-transparent">
+          WAPPY IA
+        </h2>
+        <p className="mt-1 text-xs font-medium text-slate-600 dark:text-zinc-400">
+          Ecosistema de Inteligencia Artificial para Productividad Empresarial y Gestión SG-SST.
+        </p>
+      </div>
+    </div>
+  );
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isPublicRoute(window.location.pathname)) {
+      loadTenshiChatChunk().catch(() => {});
+    }
+  }, [routePathname, isAuthenticated]);
+
+  const isChatHeroEntry =
+    (routePathname === '/c/new' || routePathname.startsWith('/c/')) &&
+    !(
+      typeof window !== 'undefined' &&
+      (window.location.search.includes('agent_id=') || window.location.search.includes('prompt='))
+    );
+  const showTenshiBootCurtain = isAuthenticated && isChatHeroEntry && !tenshiHeroBootDone;
+
+  useEffect(() => {
+    if (!showTenshiBootCurtain) return;
+    const safetyTimer = setTimeout(() => {
+      setTenshiHeroBootDone(true);
+    }, 4500);
+    return () => clearTimeout(safetyTimer);
+  }, [showTenshiBootCurtain]);
+
   if (!isAuthenticated) {
     if (window.location.pathname === '/' || window.location.pathname === '') {
       return <Outlet context={{ navVisible: false, setNavVisible: () => {} } satisfies ContextType} />;
@@ -199,30 +285,7 @@ export default function Root() {
       );
     }
     if (isCheckingSession) {
-      return (
-        <div
-          className="flex h-screen flex-col items-center justify-center gap-4 bg-gradient-to-b from-teal-50/40 via-white to-amber-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 px-4 text-center"
-          aria-live="polite"
-          role="status"
-        >
-          <TenshiAvatar
-            size={128}
-            mood="working"
-            showHaloEffect={true}
-            showHUD={true}
-            interactive={true}
-            statusText="Sincronizando Ecosistema WAPPY IA..."
-          />
-          <div className="mt-4 max-w-md">
-            <h2 className="bg-gradient-to-r from-teal-600 via-emerald-500 to-amber-500 bg-clip-text text-xl font-black tracking-tight text-transparent">
-              WAPPY IA
-            </h2>
-            <p className="mt-1 text-xs font-medium text-slate-600 dark:text-zinc-400">
-              Ecosistema de Inteligencia Artificial para Productividad Empresarial y Gestión SG-SST.
-            </p>
-          </div>
-        </div>
-      );
+      return renderThinkingCurtain(false);
     }
     return <Navigate to="/login" replace={true} />;
   }
@@ -241,11 +304,16 @@ export default function Root() {
     return <Navigate to="/planes" replace={true} />;
   }
 
+  if (showTenshiBootCurtain && typeof document !== 'undefined') {
+    document.documentElement.dataset.tenshiHero = 'true';
+  }
+
   return (
     <SetConvoProvider>
       <FileMapContext.Provider value={fileMap}>
         <AssistantsMapContext.Provider value={assistantsMap}>
           <AgentsMapContext.Provider value={agentsMap}>
+            {showTenshiBootCurtain && renderThinkingCurtain(true)}
             <PromptGroupsProvider>
               <Banner onHeightChange={setBannerHeight} />
               <div className="flex" style={{ height: `calc(100dvh - ${bannerHeight}px)` }}>
