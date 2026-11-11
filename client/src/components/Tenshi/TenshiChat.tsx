@@ -1255,12 +1255,13 @@ export default function TenshiChat() {
   const [isVisionActive, setIsVisionActive] = useState(false);
 
   const heroAvatarSize = useMemo(() => {
-    const reservedVertical = isVisionActive && !isHeroChatOpen ? 470 : 320;
     if (viewportSize.width < 768) {
-      return Math.min(315, Math.max(190, viewportSize.height - reservedVertical));
+      const reservedMobile = isVisionActive && !isHeroChatOpen ? 500 : 365;
+      return Math.min(315, Math.max(150, viewportSize.height - reservedMobile));
     }
-    const maxDesktopAvatar = isHeroChatOpen ? 315 : 355;
-    return Math.min(maxDesktopAvatar, Math.max(185, viewportSize.height - (reservedVertical - 10)));
+    const reservedDesktop = isVisionActive && !isHeroChatOpen ? 535 : 395;
+    const maxDesktopAvatar = isHeroChatOpen ? 300 : 340;
+    return Math.min(maxDesktopAvatar, Math.max(145, viewportSize.height - reservedDesktop));
   }, [viewportSize.width, viewportSize.height, isVisionActive, isHeroChatOpen]);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const isCameraOnRef = useRef(true);
@@ -6633,11 +6634,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       {isMobileHeroMode ? (
         <div
           id="tenshi-mobile-hero-container"
-          className="fixed inset-0 z-[55] flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
+          className="fixed inset-0 w-screen z-[70] flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
           style={{
-            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
+            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 94px)',
           }}
         >
+          {/* Ocultar por completo barras laterales izquierda y derecha mientras Tenshi está en Modo Protagonista */}
+          <style>{`
+            [data-testid="nav"],
+            .nav-mask,
+            #mobile-sidepanel-mask-group {
+              display: none !important;
+            }
+            #controls-nav,
+            #artifacts-panel,
+            [data-panel-resize-handle-id] {
+              visibility: hidden !important;
+              pointer-events: none !important;
+              opacity: 0 !important;
+            }
+          `}</style>
+
           {/* Luces ambientales sutiles WAPPY Design System */}
           <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-teal-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-emerald-500/10 dark:bg-teal-500/[0.06] blur-3xl" />
@@ -6718,114 +6735,115 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           </div>
 
           {/* Cuerpo Central Adaptativo: En Celular superpone el chat; en PC/Portátil/Tablet divide la pantalla (Chat a la izquierda + Tenshi a la derecha) */}
-          <div className="relative z-10 flex-1 min-h-0 w-full max-w-[1680px] mx-auto flex flex-col md:flex-row items-stretch justify-center overflow-hidden md:px-6 lg:px-10 md:py-3 md:gap-6 lg:gap-8">
+          <div className="relative z-10 flex-1 min-h-0 w-full max-w-[1680px] mx-auto flex flex-col md:flex-row items-stretch justify-center overflow-hidden md:px-8 lg:px-12 md:py-2 md:gap-6 lg:gap-8">
             {/* Escenario Hero de Tenshi: Centrado cuando el chat está cerrado; desplazado suavemente a la derecha en pantallas grandes cuando el chat se abre */}
             <div
               className={cn(
-                'flex-1 min-h-0 px-4 py-2 flex flex-col items-center justify-center select-none relative transition-all duration-500 ease-out md:order-2',
+                'flex-1 min-h-0 px-4 flex flex-col items-center overflow-y-auto no-scrollbar select-none relative transition-all duration-500 ease-out md:order-2',
                 isHeroChatOpen ? 'md:w-[46%] lg:w-[48%] xl:w-[50%]' : 'w-full'
               )}
             >
-              {/* 1. Avatar Grande Adaptativo de Tenshi */}
-              <div
-                className="relative flex flex-col items-center my-1 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
-                onClick={() => {
-                  tenshiAudio.playBlip();
-                  if (!isVoiceActive) {
-                    startVoiceMode();
-                  } else {
-                    stopVoiceMode();
-                  }
-                }}
-                title={isMobileScreen ? 'Tócame para hablar' : 'Haz clic para hablar'}
-              >
-                <TenshiAvatar
-                  size={heroAvatarSize}
-                  mood={derivedAvatarMood}
-                  isSpeaking={isTenshiSpeaking}
-                  outputAmplitude={outputAmplitude}
-                  isVoiceActive={isVoiceActive}
-                  isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
-                  statusText={liveActionPill || tenshiStatus || undefined}
-                  interactive={true}
-                  showHaloEffect={true}
-                  showHUD={true}
-                />
-              </div>
-
-              {/* 2. Saludo & Subtítulo */}
-              <div className="text-center max-w-xs md:max-w-md mt-4 md:mt-5 mb-3 md:mb-4">
-                <h2 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                  ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
-                </h2>
-                <p className="text-xs md:text-sm text-slate-500 dark:text-zinc-400 mt-1 leading-snug font-medium">
-                  {isVoiceActive
-                    ? isMicMuted
-                      ? 'Micrófono silenciado (Mute activo). Tenshi no te escucha.'
-                      : 'Voz en vivo activa. Te estoy escuchando...'
-                    : isMobileScreen
-                    ? 'Soy tu copiloto en SG-SST. Tócame para hablar o pulsa el micrófono.'
-                    : 'Soy tu copiloto en SG-SST. Haz clic en mí para hablar o pulsa el micrófono.'}
-                </p>
-              </div>
-
-              {/* PiP en Pantalla Hero cuando el chat está cerrado */}
-              {isVisionActive && !isHeroChatOpen && (
-                <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/60 bg-zinc-950 shadow-2xl w-full max-w-xs md:max-w-sm h-40 md:h-44 mb-3 shrink-0 animate-in fade-in zoom-in-95">
-                  <video
-                    ref={setVisionVideoNode}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover rounded-xl bg-black"
+              <div className="my-auto flex w-full flex-col items-center py-2">
+                {/* 1. Avatar Grande Adaptativo de Tenshi (pt-3 protege el halo superior de cualquier recorte) */}
+                <div
+                  className="relative flex flex-col items-center pt-3 shrink-0 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
+                  onClick={() => {
+                    tenshiAudio.playBlip();
+                    if (!isVoiceActive) {
+                      startVoiceMode();
+                    } else {
+                      stopVoiceMode();
+                    }
+                  }}
+                  title={isMobileScreen ? 'Tócame para hablar' : 'Haz clic para hablar'}
+                >
+                  <TenshiAvatar
+                    size={heroAvatarSize}
+                    mood={derivedAvatarMood}
+                    isSpeaking={isTenshiSpeaking}
+                    outputAmplitude={outputAmplitude}
+                    isVoiceActive={isVoiceActive}
+                    isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
+                    statusText={liveActionPill || tenshiStatus || undefined}
+                    interactive={true}
+                    showHaloEffect={true}
+                    showHUD={true}
                   />
-                  <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md text-[9px] text-white font-bold border border-white/20">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                    </span>
-                    <span>
-                      {visionSource === 'screen'
-                        ? 'PANTALLA EN VIVO'
-                        : `EN VIVO (${facingMode === 'user' ? 'Frontal' : 'Trasera'})`}
-                    </span>
-                  </div>
-                  <div className="absolute top-2 right-2 flex items-center gap-1">
-                    {visionSource === 'camera' && (
+                </div>
+
+                {/* 2. Saludo & Subtítulo */}
+                <div className="text-center max-w-xs md:max-w-md mt-2.5 md:mt-3.5 mb-2.5 md:mb-3.5 shrink-0">
+                  <h2 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
+                  </h2>
+                  <p className="text-xs md:text-sm text-slate-500 dark:text-zinc-400 mt-1 leading-snug font-medium">
+                    {isVoiceActive
+                      ? isMicMuted
+                        ? 'Micrófono silenciado (Mute activo). Tenshi no te escucha.'
+                        : 'Voz en vivo activa. Te estoy escuchando...'
+                      : isMobileScreen
+                      ? 'Soy tu copiloto en SG-SST. Tócame para hablar o pulsa el micrófono.'
+                      : 'Soy tu copiloto en SG-SST. Haz clic en mí para hablar o pulsa el micrófono.'}
+                  </p>
+                </div>
+
+                {/* PiP en Pantalla Hero cuando el chat está cerrado */}
+                {isVisionActive && !isHeroChatOpen && (
+                  <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/60 bg-zinc-950 shadow-2xl w-full max-w-xs md:max-w-sm h-32 md:h-36 mb-2.5 shrink-0 animate-in fade-in zoom-in-95">
+                    <video
+                      ref={setVisionVideoNode}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover rounded-xl bg-black"
+                    />
+                    <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md text-[9px] text-white font-bold border border-white/20">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                      <span>
+                        {visionSource === 'screen'
+                          ? 'PANTALLA EN VIVO'
+                          : `EN VIVO (${facingMode === 'user' ? 'Frontal' : 'Trasera'})`}
+                      </span>
+                    </div>
+                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                      {visionSource === 'camera' && (
+                        <button
+                          type="button"
+                          onClick={switchCamera}
+                          title="Girar cámara"
+                          className="p-1 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 active:scale-95 shadow-md"
+                        >
+                          <SwitchCamera className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={switchCamera}
-                        title="Girar cámara"
-                        className="p-1 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 active:scale-95 shadow-md"
+                        onClick={stopVision}
+                        title="Detener visión"
+                        className="p-1 rounded-full bg-red-600/80 hover:bg-red-700 text-white backdrop-blur-md active:scale-95 shadow-md"
                       >
-                        <SwitchCamera className="h-3.5 w-3.5" />
+                        <CameraOff className="h-3.5 w-3.5" />
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={stopVision}
-                      title="Detener visión"
-                      className="p-1 rounded-full bg-red-600/80 hover:bg-red-700 text-white backdrop-blur-md active:scale-95 shadow-md"
-                    >
-                      <CameraOff className="h-3.5 w-3.5" />
-                    </button>
+                    </div>
+                    <div className="absolute bottom-2 inset-x-2 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md border border-white/10">
+                      <span className="text-[9px] text-zinc-300 font-medium truncate">Tenshi analiza en vivo</span>
+                      <button
+                        type="button"
+                        onClick={() => captureVisionSnapshot('📸 Evidencia visual')}
+                        className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[10px] font-bold shadow-md active:scale-95"
+                      >
+                        <Camera className="h-3 w-3" />
+                        <span>Tomar Foto</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="absolute bottom-2 inset-x-2 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md border border-white/10">
-                    <span className="text-[9px] text-zinc-300 font-medium truncate">Tenshi analiza en vivo</span>
-                    <button
-                      type="button"
-                      onClick={() => captureVisionSnapshot('📸 Evidencia visual')}
-                      className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[10px] font-bold shadow-md active:scale-95"
-                    >
-                      <Camera className="h-3 w-3" />
-                      <span>Tomar Foto</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono Live] [Mute] [Cámara] + [Compartir Pantalla en PC]) */}
-              <div className="inline-flex items-center gap-3 md:gap-3.5 p-1.5 md:px-3 md:py-2 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40">
+                {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono Live] [Mute] [Cámara] + [Compartir Pantalla en PC]) */}
+                <div className="inline-flex items-center justify-center gap-2.5 sm:gap-3 md:gap-3.5 p-1.5 md:px-3.5 md:py-1.5 mb-1 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40 shrink-0">
                 {/* Botón Chat */}
                 <button
                   type="button"
@@ -6928,6 +6946,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     {isVisionActive && visionSource === 'screen' ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
                   </button>
                 )}
+              </div>
               </div>
             </div>
 

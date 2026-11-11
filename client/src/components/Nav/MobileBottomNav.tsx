@@ -193,11 +193,14 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     navigate(path);
   };
 
+  const showLeftPanelActive = !isTenshiHeroActive && !!navVisible;
+  const showRightPanelActive = !isTenshiHeroActive && isRightPanelOpen;
+
   return (
     <div
       id="wappy-mobile-bottom-nav-wrapper"
       className={cn(
-        'fixed bottom-0 inset-x-0 flex-shrink-0 w-full z-[60] px-3 transition-all duration-200 ease-out pointer-events-none',
+        'fixed bottom-0 inset-x-0 flex-shrink-0 w-full z-[80] px-3 transition-all duration-200 ease-out pointer-events-none',
         isTenshiHeroActive ? 'block' : 'md:hidden',
         isKeyboardOpen
           ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden pb-0'
@@ -233,13 +236,13 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           }}
           aria-label="Abrir panel izquierdo"
           className={cn(
-            'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all',
-            navVisible
+            'flex items-center justify-center flex-1 basis-0 min-w-0 py-2 px-1 rounded-xl transition-all',
+            showLeftPanelActive
               ? 'bg-teal-500/10 text-teal-500'
               : 'hover:bg-surface-hover active:bg-surface-hover/80',
           )}
         >
-          <LeftPanelIcon active={!!navVisible} />
+          <LeftPanelIcon active={showLeftPanelActive} />
         </motion.button>
 
         {/* 2. MANO IZQUIERDA: ACADEMIA */}
@@ -248,7 +251,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           onClick={() => handleNavClick('/academia')}
           aria-label="Ir a Academia WAPPY"
           className={cn(
-            'flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all',
+            'flex flex-col items-center justify-center flex-1 basis-0 min-w-0 py-1 px-1 rounded-xl transition-all',
             isAcademiaActive
               ? 'text-teal-600 dark:text-teal-400 font-semibold'
               : 'text-text-secondary hover:text-text-primary',
@@ -271,7 +274,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         </motion.button>
 
         {/* 3. CENTRO DESTACADO: NUEVO CHAT (HERO BUTTON) */}
-        <div className="flex flex-col items-center justify-center flex-1 -mt-4">
+        <div className="flex flex-col items-center justify-center flex-1 basis-0 min-w-0 -mt-4">
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.88 }}
@@ -286,7 +289,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           >
             <Plus className="h-6 w-6 text-white stroke-[2.8] transition-transform duration-200 group-active:rotate-90" />
           </motion.button>
-          <span className="text-[10px] mt-0.5 font-semibold tracking-tight text-text-primary">
+          <span className="text-[10px] mt-0.5 font-semibold tracking-tight text-text-primary whitespace-nowrap">
             Nuevo Chat
           </span>
         </div>
@@ -297,7 +300,7 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           onClick={() => handleNavClick(isVital ? '/huella-biocentrica' : '/sgsst')}
           aria-label={isVital ? 'Ir a Huella Biocéntrica' : 'Ir a Somos SST'}
           className={cn(
-            'flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all',
+            'flex flex-col items-center justify-center flex-1 basis-0 min-w-0 py-1 px-1 rounded-xl transition-all',
             isSSTActive
               ? 'text-teal-600 dark:text-teal-400 font-semibold'
               : 'text-text-secondary hover:text-text-primary',
@@ -343,13 +346,13 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
           }}
           aria-label="Abrir panel derecho"
           className={cn(
-            'flex items-center justify-center flex-1 py-2 px-1 rounded-xl transition-all',
-            isRightPanelOpen
+            'flex items-center justify-center flex-1 basis-0 min-w-0 py-2 px-1 rounded-xl transition-all',
+            showRightPanelActive
               ? 'bg-teal-500/10 text-teal-500'
               : 'hover:bg-surface-hover active:bg-surface-hover/80',
           )}
         >
-          <RightPanelIcon active={isRightPanelOpen} />
+          <RightPanelIcon active={showRightPanelActive} />
         </motion.button>
       </nav>
     </div>
