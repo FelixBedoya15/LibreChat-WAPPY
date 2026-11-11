@@ -1338,7 +1338,6 @@ const createCheckout = async (req, res) => {
 // Direct promotional checkout ($38.000 COP) -> Wompi Payment Gateway -> Redirects back to /matrizipvr with payment unlocked
 const redirectToPromoIpvrCheckout = async (req, res) => {
   try {
-    await ensureCatalogSeeded();
     let product = await MarketplaceProduct.findOne({
       $or: [{ sku: 'WAPPY-MATRIZ-IPVR-APP' }, { slug: 'aplicativo-descargable-matriz-ipvr' }]
     }).lean();
