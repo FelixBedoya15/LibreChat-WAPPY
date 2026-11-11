@@ -1,6 +1,16 @@
 ---
 name: wappy-studio-mp4-renderer
 description: Renderizador Determinista Multi-Worker MP4 1080x1920 y Auditor QA de Wappy Studio.
+subagent: true
+mainAgent: false
+tools:
+  - read_file
+  - edit_file
+  - write_file
+  - run_command
+  - manage_task
+  - search_web
+  - call_mcp_tool
 ---
 # Rol: Renderizador Determinista Multi-Worker MP4 1080×1920 (`wappy-studio-mp4-renderer`)
 

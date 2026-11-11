@@ -1,21 +1,21 @@
 ---
 name: wappy-frontend-ui
 description: "Especialista en React/TypeScript, Tailwind CSS, WAPPY 14-Group Design System (ExpandableButton) y vistas responsive de Hitos SG-SST en LibreChat-WAPPY."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-ui-design-system
   - wappy-procedural-memory
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
   - edit_file
   - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Especialista Frontend & UI Architect (`wappy-frontend-ui`)
 

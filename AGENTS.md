@@ -26,6 +26,7 @@
      * 🎙️ **Tenshi Voice / Gemini Live (`geminiLive.js`, `voiceSession.js`, Push SSE)** ➔ Invocar **SIEMPRE** a `wappy-tenshi-voice`.
      * 🔌 **Conectores Externos y Puentes (`wappy-push-daemon.js`, `mcpBridge.js`, Flow, NotebookLM, Drive, OneDrive)** ➔ Invocar **SIEMPRE** a `wappy-integrations-hub`.
      * 🎨⚛️ **Creación de vistas nuevas, módulos de Hitos SG-SST o rediseños UI/UX completos** ➔ Invocar a `wappy-design-director` y/o `wappy-frontend-ui`.
+     * 🔀 **Flujos Lógicos y Automatizaciones DAG (`/tareas`, `systemWorkflowPresetsCatalog.js`, `automationScheduler.js`, `WappyWorkflowCanvas.tsx`)** ➔ Invocar **SIEMPRE** a `wappy-workflow-architect`.
      * ⚙️ **Nuevos endpoints Express, esquemas Mongoose o herramientas MCP** ➔ Invocar a `wappy-backend-api`.
    - **Ejecución en Paralelo (*Parallel Fan-Out*):**
      * Cuando una tarea abarque múltiples dominios (ej. Backend API + Frontend UI, o Diseño + Implementación), lanzar los subagentes correspondientes **en paralelo en el mismo turno**, nunca en cadena secuencial innecesaria.
@@ -40,6 +41,8 @@
   - **Uso OBLIGATORIO en:** Pulir interfaces, crear vistas con estética premium, auditar espaciado sin desbordamiento (0px horizontal overflow), Glassmorphism, micro-animaciones SVG, paletas semánticas y tablas de `LiveEditor`.
 - ⚛️ **`wappy-frontend-ui`** (*Ingeniero Frontend React & TypeScript*):
   - **Uso OBLIGATORIO en:** Programar lógica en `client/src/**/*`, formularios de Hitos SG-SST, hooks, gestión de estado y componentes responsive. Trabaja habitualmente en dupla con `wappy-design-director`.
+- 🔀 **`wappy-workflow-architect`** (*Arquitecto Senior de Flujos Lógicos & Automatizaciones DAG estilo n8n*):
+  - **Uso OBLIGATORIO en:** Diseñar, auditar, simular y validar flujos en `/tareas` (`systemWorkflowPresetsCatalog.js`, `automationScheduler.js`, `WappyWorkflowCanvas.tsx`) con causalidad estricta de izquierda a derecha (`source_read` vs `target_write_report`), cero fuentes redundantes, compuertas `pre_agent` vs `post_agent`, deduplicación con estado (`processedEntityKeys`) y pruebas lógicas multi-escenario (`validate-workflow-logic.js`).
 - ⚙️ **`wappy-backend-api`** (*Arquitecto Backend & MCP*):
   - **Uso OBLIGATORIO en:** Crear/modificar rutas Express (`api/server/routes/**/*.js`), modelos Mongoose, controladores, endpoints seguros y conectores de herramientas MCP (`wappy` / `wappy-cloud`).
 - 🎙️ **`wappy-tenshi-voice`** (*Especialista en Tenshi Voice & Push SSE*):

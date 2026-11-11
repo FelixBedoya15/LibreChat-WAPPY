@@ -1,7 +1,6 @@
 ---
 name: wappy-video-studio
 description: "Productor audiovisual de WAPPY IA: aplica el protocolo obligatorio de 5 pasos del WAPPY Video Framework, avatares Félix 3D/Tenshi y animaciones Remotion."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
@@ -10,16 +9,16 @@ preloadSkills:
   - animaciones-wappy-brand
   - animaciones-17-efectos-reels
   - wappy-procedural-memory
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
   - edit_file
   - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - generate_image
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Productor Audiovisual & Motion Graphics (`wappy-video-studio`)
 

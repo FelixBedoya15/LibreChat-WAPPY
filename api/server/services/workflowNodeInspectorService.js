@@ -2618,6 +2618,42 @@ function recursosSummary(equipos) {
   return equipos.map((e) => `${e.tipoRecurso || e.categoria || 'Equipo'}: ${e.descripcion || ''} (${e.ubicacion || ''})`).join(' ; ');
 }
 
+function parseFlexibleDateMs(rawVal) {
+  if (!rawVal) return null;
+  if (rawVal instanceof Date) {
+    const ms = rawVal.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  const s = String(rawVal).trim();
+  if (!s || /^(n\/a|na|no registra|sin registro|no aplica|vigente|pendiente|s\/d|-)$/i.test(s)) {
+    return null;
+  }
+  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmy) {
+    const dt = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+    const ms = dt.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  const dt = new Date(s);
+  const ms = dt.getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function isDateExpiredOrWithinDays(rawVal, daysThreshold = 30) {
+  const targetMs = parseFlexibleDateMs(rawVal);
+  if (targetMs === null) return false;
+  const horizonMs = Date.now() + Number(daysThreshold) * 86400000;
+  return targetMs <= horizonMs;
+}
+
+function isAnnualDateExpiredOrWithinDays(rawStartDateVal, daysThreshold = 30) {
+  const startMs = parseFlexibleDateMs(rawStartDateVal);
+  if (startMs === null) return false;
+  const annualExpiryMs = startMs + 365 * 86400000;
+  const horizonMs = Date.now() + Number(daysThreshold) * 86400000;
+  return annualExpiryMs <= horizonMs;
+}
+
 function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
   const cedula = String(sw.identificacion || sw.documento || sw.cedula || wDoc?.documento || '').trim() || 'S/D';
   const nombre = String(sw.nombre || wDoc?.nombre || 'Colaborador').trim();
@@ -2634,11 +2670,35 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
   const afp = String(sw.afp || sw.fondoPensiones || wDoc?.afp || '').trim();
   const estadoPila = String(sw.estadoPila || wDoc?.estadoPila || 'Activo').trim();
   const estadoLaboral = String(sw.estadoLaboral || sw.estado || wDoc?.estadoLaboral || 'Activo').trim();
+  const isActivo = !/^retirad/i.test(estadoLaboral);
   const fechaRetiro = sw.fechaRetiro || (wDoc?.fechaRetiro ? new Date(wDoc.fechaRetiro).toISOString().slice(0, 10) : '') || '';
   const motivoRetiro = String(sw.motivoRetiro || wDoc?.motivoRetiro || '').trim();
   const aptitud = String(sw.bioScoreIAAptitud || sw.aptitudMedica || sw.conceptoAptitud || wDoc?.aptitud || 'Apto sin restricciones').trim();
-  const fechaEmo = String(sw.fechaUltimoExamen || sw.fechaExamenMedico || '').trim();
-  const fechaProxEmo = String(sw.fechaProximoExamen || '').trim();
+  const fechaEmo = String(
+    sw.fechaUltimoExamen ||
+      sw.fechaExamenMedico ||
+      (wDoc?.fechaUltimoExamen instanceof Date
+        ? wDoc.fechaUltimoExamen.toISOString().slice(0, 10)
+        : wDoc?.fechaUltimoExamen || '') ||
+      (wDoc?.fechaExamenMedico instanceof Date
+        ? wDoc.fechaExamenMedico.toISOString().slice(0, 10)
+        : wDoc?.fechaExamenMedico || ''),
+  ).trim();
+  const fechaProxEmo = String(
+    sw.fechaProximoExamen ||
+      (wDoc?.fechaProximoExamen instanceof Date
+        ? wDoc.fechaProximoExamen.toISOString().slice(0, 10)
+        : wDoc?.fechaProximoExamen || ''),
+  ).trim();
+  const fechaVencAlturas = String(
+    sw.fechaVencimientoAlturas ||
+      sw.vencimientoCursoAlturas ||
+      (wDoc?.fechaVencimientoAlturas instanceof Date
+        ? wDoc.fechaVencimientoAlturas.toISOString().slice(0, 10)
+        : wDoc?.fechaVencimientoAlturas || ''),
+  ).trim();
+  const fechaCursoAlturas = String(sw.fechaCursoAlturasAutorizado || '').trim();
+  const fechaVencLicencia = String(sw.licenciaConduccionVencimiento || '').trim();
   const fechaSeguimiento = String(sw.fechaSeguimiento || '').trim();
   const diagnosticos = String(sw.diagnosticoMedico || sw.condicionesSalud || wDoc?.condicionesSalud || wDoc?.diagnosticoMedico || '').trim();
   const enfermedades = String(sw.enfermedades || wDoc?.enfermedades || '').trim();
@@ -2681,12 +2741,30 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
       ? fitAlertsArr.map((a) => (typeof a === 'string' ? a : a.title || a.message || JSON.stringify(a))).join(' | ')
       : restricciones || recomendaciones || enfermedades || 'Sin alertas clínico-operativas activas';
 
+  const emoExpiredOrSoon =
+    parseFlexibleDateMs(fechaProxEmo) !== null
+      ? isDateExpiredOrWithinDays(fechaProxEmo, 30)
+      : isAnnualDateExpiredOrWithinDays(fechaEmo, 30);
+  const alturasExpiredOrSoon =
+    parseFlexibleDateMs(fechaVencAlturas) !== null
+      ? isDateExpiredOrWithinDays(fechaVencAlturas, 30)
+      : isAnnualDateExpiredOrWithinDays(fechaCursoAlturas, 30);
+  const licenciaVialExpiredOrSoon = isDateExpiredOrWithinDays(fechaVencLicencia, 30);
+  const aptitudOrPilaAlert =
+    Boolean(aptitud && /no\s*apto|aplazad|con\s*restricci/i.test(aptitud) && !/sin\s*restricci/i.test(aptitud)) ||
+    Boolean(estadoPila && /mora|inactiv|suspendid/i.test(estadoPila));
+
   const hasAlert =
-    biocentricIsLethal ||
-    fitScore < 75 ||
-    fitAlertsArr.length > 0 ||
-    Boolean(restricciones && !/ningun|apto sin|no aplica/i.test(restricciones)) ||
-    Boolean(enfermedades && !/ningun|sano|no aplica/i.test(enfermedades));
+    isActivo &&
+    (biocentricIsLethal ||
+      fitScore < 75 ||
+      fitAlertsArr.length > 0 ||
+      emoExpiredOrSoon ||
+      alturasExpiredOrSoon ||
+      licenciaVialExpiredOrSoon ||
+      aptitudOrPilaAlert ||
+      Boolean(restricciones && !/ningun|apto sin|no aplica/i.test(restricciones)) ||
+      Boolean(enfermedades && !/ningun|sano|no aplica/i.test(enfermedades)));
 
   const badgeByMode =
     canonicalId === 'hito2_oraculo_predictivo'
@@ -3620,13 +3698,26 @@ async function inspectHito3To5(canonicalId, userId, company) {
           : [];
 
     const records = [
-      ...effectiveTrabs.map((t, i) => ({
-        id: t.cedula || `tar_trab_${i}`,
-        label: `[Ejecutante Autorizado] ${t.nombre || 'Trabajador'} (CC ${t.cedula || ''})`,
-        sublabel: `Tarea: ${fd.actividadGlobal || 'Tarea Crítica'} • Ubicación: ${fd.ubicacion || fd.area || 'Planta'} • Fecha: ${fd.fecha || ''} (${fd.horaInicio || ''} - ${fd.horaFin || ''})`,
-        badge: `Seg. Social: ${fd.seguridadSocial || 'Sí'} • Aptitud: ${fd.aptitudMedica || 'Sí'}`,
-        badgeTone: 'emerald',
-        isCritical: fd.seguridadSocial === 'No' || fd.aptitudMedica === 'No' || fd.certificacionAlturas === 'No',
+      ...effectiveTrabs.map((t, i) => {
+        const trabAlturasExp =
+          t.certificacionAlturas === 'No' ||
+          isDateExpiredOrWithinDays(
+            t.fechaVencimientoAlturas || t.vencimientoCursoAlturas || fd.fechaVencimientoAlturas,
+            30,
+          ) ||
+          isAnnualDateExpiredOrWithinDays(t.fechaCursoAlturas, 30);
+        const isTrabCrit =
+          fd.seguridadSocial === 'No' ||
+          fd.aptitudMedica === 'No' ||
+          fd.certificacionAlturas === 'No' ||
+          trabAlturasExp;
+        return {
+          id: t.cedula || `tar_trab_${i}`,
+          label: `[Ejecutante Autorizado] ${t.nombre || 'Trabajador'} (CC ${t.cedula || ''})`,
+          sublabel: `Tarea: ${fd.actividadGlobal || 'Tarea Crítica'} • Ubicación: ${fd.ubicacion || fd.area || 'Planta'} • Fecha: ${fd.fecha || ''} (${fd.horaInicio || ''} - ${fd.horaFin || ''})`,
+          badge: `Seg. Social: ${fd.seguridadSocial || 'Sí'} • Aptitud: ${fd.aptitudMedica || 'Sí'}`,
+          badgeTone: isTrabCrit ? 'rose' : 'emerald',
+          isCritical: isTrabCrit,
         fields: isAlturas
           ? {
               'Trabajador Autorizado (Cédula, Nombre, Cargo, ARL, EPS y Curso Alturas Vigente)': `${t.nombre || ''} (CC ${t.cedula || ''}) - Cargo: ${t.cargo || ''} - Cert. Alturas: ${fd.certificacionAlturas || 'Sí'}`,
@@ -3646,7 +3737,8 @@ async function inspectHito3To5(canonicalId, userId, company) {
               'Pasos Secuenciales de la Tarea': formatCleanScalar(fd.pasosTarea || fd.actividadGlobal, ''),
               'Controles Requeridos antes y durante la Tarea (Bloqueo/Etiquetado, Medición Atmósfera, EPP)': `Charla Preop: ${fd.seguridadSocial || 'Sí'} | Equipos Inspeccionados: ${fd.aptitudMedica || 'Sí'} | Área Verificada: ${fd.certificacionAlturas || 'Sí'}`,
             },
-      })),
+        };
+      }),
       ...(isAlturas
         ? inboxQr.map((inb, idx) => ({
             id: inb.id || `alt_qr_${idx}`,
@@ -3690,7 +3782,12 @@ async function inspectHito3To5(canonicalId, userId, company) {
     for (const d of docs) {
       const workerCedula = d.documento || d.cedula || d.workerId || '';
       for (const eq of d.equipos || []) {
-        const isCrit = eq.estado === 'Vencido' || eq.estado === 'Requiere Inspección' || eq.resultadoInspeccion === 'Rechazado';
+        const inspExp = isDateExpiredOrWithinDays(eq.fechaProximaInspeccion, 30);
+        const isCrit =
+          eq.estado === 'Vencido' ||
+          eq.estado === 'Requiere Inspección' ||
+          eq.resultadoInspeccion === 'Rechazado' ||
+          inspExp;
         records.push({
           id: eq.id || eq.serial || `${d._id}_${records.length}`,
           label: `${eq.nombre || eq.tipo || 'Equipo Alturas'} (${eq.marca || ''} ${eq.referencia || ''}) — Serial: ${eq.serial || 'S/N'}`,
@@ -3747,7 +3844,16 @@ async function inspectHito3To5(canonicalId, userId, company) {
 
       for (const epp of itemsList) {
         const eppName = epp.elemento || epp.nombre || epp.epp || 'EPP';
-        const isCrit = epp.estado === 'Vencido' || epp.estado === 'Requiere Reposición';
+        const eppExp =
+          isDateExpiredOrWithinDays(epp.fechaVencimiento || epp.proximaReposicion, 30) ||
+          isDateExpiredOrWithinDays(epp.fechaProximaInspeccion, 30);
+        const isCrit =
+          epp.estado === 'Vencido' ||
+          epp.estado === 'Requiere Reposición' ||
+          epp.estado === 'Inspección Requerida' ||
+          epp.estado === 'Fuera de Servicio' ||
+          epp.resultadoInspeccion === 'Rechazado' ||
+          eppExp;
         const hasFirma = Boolean(epp.firmaTrabajador || epp.firmado || d.firmaTrabajador);
         records.push({
           id: epp.id || `${workerCedula}_${eppName}_${records.length}`,
@@ -3886,9 +3992,9 @@ async function inspectHito3To5(canonicalId, userId, company) {
         const inspArr = Array.isArray(v.inspecciones) ? v.inspecciones : [];
         const mantArr = Array.isArray(v.mantenimientos) ? v.mantenimientos : [];
         const lastInsp = inspArr.length > 0 ? inspArr[inspArr.length - 1] : null;
-        const soatExp = v.soatVencimiento ? new Date(v.soatVencimiento).getTime() < now : false;
-        const rtmExp = v.tecnomecanicaVencimiento ? new Date(v.tecnomecanicaVencimiento).getTime() < now : false;
-        const licExp = v.vencimientoLicenciaConductor ? new Date(v.vencimientoLicenciaConductor).getTime() < now : false;
+        const soatExp = isDateExpiredOrWithinDays(v.soatVencimiento, 30);
+        const rtmExp = isDateExpiredOrWithinDays(v.tecnomecanicaVencimiento, 30);
+        const licExp = isDateExpiredOrWithinDays(v.vencimientoLicenciaConductor, 30);
         const noApto = lastInsp && /no apto|restricci/i.test(lastInsp.resultado || '');
         const isCrit = soatExp || rtmExp || licExp || Boolean(noApto);
 
@@ -7117,68 +7223,484 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
 }
 
 /**
- * Construye el bloque de datos quirúrgicos reales en vivo desde MongoDB
- * para todos los nodos configurados en una automatización durante su ejecución.
+ * Resuelve determinísticamente el rol causal de un aplicativo Hito dentro del DAG:
+ * - `'source_read'`: Fuente de lectura en Etapa 2 (a la izquierda de IF y del Agente IA).
+ * - `'target_write_report'`: Destino de escritura / generación de Informe Oficial HTML (a la derecha del Agente IA / Rama SÍ).
  */
-async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null) {
+function resolveWorkflowHitoRole(nodeConfigs = {}, hitoId = '') {
+  const safeConfigs = nodeConfigs && typeof nodeConfigs === 'object' ? nodeConfigs : {};
+  const rawId = String(hitoId || '').trim();
+  const canonical = rawId ? normalizeInspectorNodeId(rawId) : '';
+  const cfg =
+    safeConfigs[`tool_hitos_${rawId}`] ||
+    safeConfigs[`hito_${rawId}`] ||
+    safeConfigs[rawId] ||
+    (canonical && canonical !== rawId
+      ? safeConfigs[`tool_hitos_${canonical}`] ||
+        safeConfigs[`hito_${canonical}`] ||
+        safeConfigs[canonical]
+      : null) ||
+    {};
+
+  if (cfg.hitoRole === 'source_read' || cfg.hitoRole === 'target_write_report') {
+    return cfg.hitoRole;
+  }
+  if (
+    ['write_and_report', 'write_and_update', 'generate_report'].includes(cfg.appActionMode) ||
+    cfg.generateAppReport === true ||
+    ['write_register', 'audit_and_update'].includes(cfg.hitoOperationMode)
+  ) {
+    return 'target_write_report';
+  }
+  return 'source_read';
+}
+
+/**
+ * Genera una llave determinista y estable de negocio para deduplicación entre corridas (`Remove Duplicates`):
+ * busca cédula/documento, placa vehicular, número CAS o código estándar en `rec.fields` o `rec.id`
+ * y retorna `${canonicalNodeId}:${cleanId}` (ej. `hito2_perfil_socio:10203040`, `hito3_epp:10203040`, `hito3_matriz_pesv:abc123`).
+ */
+function extractWorkflowEntityDedupKey(canonicalNodeId = '', rec = {}) {
+  const rawPrefix = String(canonicalNodeId || '').trim();
+  const cleanNode =
+    rawPrefix === 'drive' || rawPrefix === 'gmail'
+      ? rawPrefix
+      : rawPrefix
+        ? normalizeInspectorNodeId(rawPrefix)
+        : 'source';
+  const safeRec = rec && typeof rec === 'object' ? rec : {};
+  const fields = safeRec.fields && typeof safeRec.fields === 'object' ? safeRec.fields : {};
+
+  const isPlaceholder = (val) => {
+    if (val === undefined || val === null) return true;
+    const s = String(val).trim().toLowerCase();
+    return (
+      !s ||
+      s === 'n/a' ||
+      s === 'na' ||
+      s === 'no registra' ||
+      s === 'sin registro' ||
+      s === 'no aplica' ||
+      s === 'undefined' ||
+      s === 'null' ||
+      s === 's/n' ||
+      s === '-'
+    );
+  };
+
+  if (cleanNode === 'drive' || cleanNode === 'gmail') {
+    const extId = String(
+      fields.fileId || fields.messageId || safeRec.fileId || safeRec.messageId || safeRec.id || '',
+    ).trim();
+    return `${cleanNode}:${extId || 'unknown'}`;
+  }
+
+  const orderedEntries = [...Object.entries(fields), ...Object.entries(safeRec)].filter(
+    ([k, v]) =>
+      k !== 'fields' &&
+      k !== 'index' &&
+      k !== 'isCritical' &&
+      k !== 'badgeTone' &&
+      typeof v !== 'object' &&
+      !isPlaceholder(v),
+  );
+
+  const getFieldByPatterns = (patterns) => {
+    for (const [k, v] of orderedEntries) {
+      const kNorm = String(k)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+      if (patterns.some((rx) => rx.test(kNorm))) {
+        return String(v).trim();
+      }
+    }
+    return '';
+  };
+
+  // 0. Para vehículos PESV y hojas de vida de equipos contra caídas, priorizar Placa o Serial antes que la Cédula del conductor/custodio
+  if (cleanNode === 'hito3_vehiculos') {
+    const vehId = String(safeRec.id || getFieldByPatterns([/^placa\b/, /\bplaca\b/]) || '')
+      .replace(/^placa\s*[:\s]*/i, '')
+      .split('|')[0]
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    if (vehId.length >= 4 && vehId.length <= 16) {
+      return `${cleanNode}:${vehId}`;
+    }
+  }
+  if (cleanNode === 'hito5_equipos_alturas' && !isPlaceholder(safeRec.id)) {
+    const eqId = String(safeRec.id).trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '');
+    if (eqId.length >= 3) {
+      return `${cleanNode}:${eqId}`;
+    }
+  }
+
+  // Helper de sub-clave para EPP (mismo trabajador puede tener varios EPP distintos)
+  const buildEppSuffix = () => {
+    if (cleanNode !== 'hito3_epp') return '';
+    const rawEpp = getFieldByPatterns([/elemento de proteccion personal/]);
+    if (!rawEpp) return '';
+    const eppBase = rawEpp
+      .split('(')[0]
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 28);
+    return eppBase ? `:${eppBase}` : '';
+  };
+
+  // 1. Cédula / Documento de Identidad
+  const rawDoc = getFieldByPatterns([
+    /\bcedula\b/,
+    /\bdocumento\b/,
+    /\bidentificacion\b/,
+    /^cc$/,
+    /trabajadorcedula/,
+    /numerodocumento/,
+  ]);
+  if (rawDoc) {
+    const eppSuffix = buildEppSuffix();
+    const ccMatchInCombined = rawDoc.match(/\b(?:cc|doc|id)[:\s]*(\d{5,15})\b/i);
+    if (ccMatchInCombined && ccMatchInCombined[1]) {
+      return `${cleanNode}:${ccMatchInCombined[1]}${eppSuffix}`;
+    }
+    const strippedPrefix = rawDoc.replace(/^(?:cc|ce|ti|nit|pep|ppt)[\s:.-]*/i, '').trim();
+    const digitsOnly = strippedPrefix.replace(/\D/g, '');
+    if (digitsOnly.length >= 5 && /^[\d.\s-]+$/.test(strippedPrefix)) {
+      return `${cleanNode}:${digitsOnly}${eppSuffix}`;
+    }
+    const cleanAlpha = strippedPrefix.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanAlpha.length >= 3 && cleanAlpha.length <= 32) {
+      return `${cleanNode}:${cleanAlpha}${eppSuffix}`;
+    }
+  }
+
+  // 2. Placa vehicular
+  const rawPlaca = getFieldByPatterns([/\bplaca\b/, /vehiculo.*placa/]);
+  if (rawPlaca) {
+    const cleanPlaca = rawPlaca.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanPlaca.length >= 4 && cleanPlaca.length <= 16) {
+      return `${cleanNode}:${cleanPlaca}`;
+    }
+  }
+
+  // 3. Número CAS / Código de Sustancia Química
+  const rawCas = getFieldByPatterns([/\bcas\b/, /numerocas/, /codigoproducto/]);
+  if (rawCas) {
+    const cleanCas = rawCas.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '');
+    if (cleanCas.length >= 2 && cleanCas.length <= 32) {
+      return `${cleanNode}:${cleanCas}`;
+    }
+  }
+
+  // 4. Código de Estándar 0312 / Numeral / Serial / Radicado / CaseId
+  const rawCode = getFieldByPatterns([
+    /codigo\s*estandar/,
+    /^estandar$/,
+    /^numeral$/,
+    /\bserial\b/,
+    /\bserie\b/,
+    /\bcaseid\b/,
+    /\bradicado\b/,
+    /^codigo$/,
+  ]);
+  if (rawCode) {
+    const cleanCode = rawCode.toLowerCase().replace(/[^a-z0-9._-]+/g, '').trim();
+    if (cleanCode.length >= 2 && cleanCode.length <= 48) {
+      return `${cleanNode}:${cleanCode}`;
+    }
+  }
+
+  // 5. Buscar "(CC 10203040)" dentro de label si existe
+  const labelStr = String(safeRec.label || safeRec.nombre || '');
+  const ccInLabel = labelStr.match(/\b(?:cc|doc|id)[:\s]*(\d{5,15})\b/i);
+  if (ccInLabel && ccInLabel[1]) {
+    return `${cleanNode}:${ccInLabel[1]}`;
+  }
+
+  // 6. Fallback determinista a rec.id o slug estable de rec.label
+  const rawId = !isPlaceholder(safeRec.id)
+    ? String(safeRec.id)
+    : !isPlaceholder(safeRec._id)
+      ? String(safeRec._id)
+      : labelStr;
+  const cleanId =
+    String(rawId || 'item')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9._-]+/g, '')
+      .slice(0, 80) || 'item';
+
+  return `${cleanNode}:${cleanId}`;
+}
+
+/**
+ * Mapa de familia canónica para deduplicar fuentes solapadas en flujos antiguos o híbridos:
+ * garantiza que jamás se consulte ni inyecte dos veces la misma colección MongoDB.
+ */
+function resolveCanonicalSourceFamily(rawNodeId = '', canonicalNodeId = '') {
+  const raw = String(rawNodeId || '').trim().toLowerCase();
+  const canon = String(canonicalNodeId || '').trim().toLowerCase();
+
+  if (
+    raw === 'extract_sst_workers' ||
+    raw === 'somos_sst_trabajadores' ||
+    raw === 'somos_sst_examenes' ||
+    raw === 'hito2_perfil_socio' ||
+    raw === 'hito2_sociodemografico' ||
+    canon === 'hito2_perfil_socio'
+  ) {
+    return 'family:workers_emo_nomina';
+  }
+  if (
+    raw === 'somos_sst_epp' ||
+    raw === 'hito3_epp' ||
+    raw === 'hito6_inspecciones_epp' ||
+    canon === 'hito3_epp'
+  ) {
+    return 'family:epp_dotacion';
+  }
+  if (
+    raw === 'somos_sst_perfiles_cargo' ||
+    raw === 'hito1_perfiles_cargo' ||
+    raw === 'hito2_perfiles_cargo' ||
+    canon === 'hito2_perfiles_cargo' ||
+    canon === 'hito1_perfiles_cargo'
+  ) {
+    return 'family:perfiles_cargo';
+  }
+  if (raw === 'matriz_ipevar' || raw === 'extract_gtc45_risks' || canon === 'hito2_matriz_ipevar') {
+    return 'family:matriz_ipevar';
+  }
+  if (raw === 'matriz_pesv' || canon === 'hito3_matriz_pesv') {
+    return 'family:matriz_pesv';
+  }
+  if (raw === 'matriz_compatibilidad' || canon === 'hito3_quimicos_sga') {
+    return 'family:compatibilidad_quimica';
+  }
+  if (raw === 'extract_chemical_inventory' || canon === 'hito5_registro_quimico') {
+    return 'family:inventario_quimico';
+  }
+  if (raw === 'extract_pesv_vehicles' || canon === 'hito3_vehiculos') {
+    return 'family:vehiculos_pesv';
+  }
+  if (
+    raw === 'wappy_memory_company' ||
+    raw === 'somos_sst_empresa' ||
+    canon === 'tool_sst_company'
+  ) {
+    return 'family:company_profile';
+  }
+  return `family:${canon || raw}`;
+}
+
+/**
+ * Recolecta estructuradamente ÚNICAMENTE las fuentes de lectura (`source_read`) de un flujo,
+ * deduplicando fuentes canónicas solapadas y clasificando registros críticos frente al ledger
+ * anti-duplicados (`alreadyProcessedKeysSet`).
+ */
+async function collectStructuredWorkflowSourceData(
+  task,
+  companyOverride = null,
+  options = {},
+) {
+  const { alreadyProcessedKeysSet = new Set(), includeTargetWriteHitos = false } = options || {};
+  const safeProcessedSet =
+    alreadyProcessedKeysSet instanceof Set
+      ? alreadyProcessedKeysSet
+      : Array.isArray(alreadyProcessedKeysSet)
+        ? new Set(alreadyProcessedKeysSet.filter(Boolean).map(String))
+        : new Set();
+
+  const emptyResult = {
+    contextBlock: '',
+    allRecords: [],
+    criticalRecords: [],
+    freshCriticalRecords: [],
+    deduplicatedSkippedRecords: [],
+    candidateProcessedKeys: [],
+    sourceSummaries: [],
+  };
+
   try {
     const userId = task?.user;
     const company = companyOverride || (await resolveTargetCompany(userId, task?.companyId));
     const wf = task?.workflowNodes || {};
-    const nodeConfigs = wf?.canvasLayout?.nodeConfigs || {};
+    const nodeConfigs = wf?.canvasLayout?.nodeConfigs || wf?.nodeConfigs || {};
+    const wfExtractors = Array.isArray(wf.extractors) ? wf.extractors : [];
+    const wfHitos = Array.isArray(wf.hitos) ? wf.hitos : [];
+    const wfInputs = Array.isArray(wf.inputs) ? wf.inputs : [];
+    const wfMemories = Array.isArray(wf.memories) ? wf.memories : [];
 
-    // Recolectar todos los nodos configurados en el flujo
+    const sstAppAlias = {
+      gtc45: 'hito2_matriz_ipevar',
+      pesv: 'hito3_matriz_pesv',
+      '0312': 'hito1_diagnostico_0312',
+      diagnostico_0312: 'hito1_diagnostico_0312',
+      atel: 'hito7_investigacion_atel',
+      acpm: 'hito7_acpm',
+      quimicos: 'hito5_registro_quimico',
+      alturas: 'hito3_alturas',
+      epp: 'hito3_epp',
+      inspecciones: 'hito4_actos_condiciones',
+      capacitaciones: 'hito5_capacitaciones',
+      auditorias: 'hito7_auditoria',
+      trabajadores: 'hito2_perfil_socio',
+      cronograma: 'hito7_acpm',
+      legal: 'hito1_matriz_legal',
+    };
+
     const candidateNodes = [];
-    const seenCanonical = new Set();
+    const seenFamilies = new Set();
 
-    const pushCandidate = (rawKey, rawNodeId) => {
-      const canonical = normalizeInspectorNodeId(rawNodeId || rawKey);
-      if (
-        !canonical.startsWith('hito') &&
-        canonical !== 'tool_sst_company' &&
-        canonical !== 'wappy_memory_procedural' &&
-        rawNodeId !== 'extract_sst_workers' &&
-        rawNodeId !== 'extract_sst_app' &&
-        rawNodeId !== 'somos_sst_trabajadores' &&
-        rawNodeId !== 'somos_sst_empresa' &&
-        rawNodeId !== 'wappy_memory_procedural'
-      ) {
-        return;
-      }
+    // Si wappy_memory_company ya está activa en Memorias, el perfil de empresa ya está cubierto
+    if (wfMemories.includes('wappy_memory_company')) {
+      seenFamilies.add('family:company_profile');
+    }
+
+    const pushCandidate = (rawKey, rawNodeId, originType) => {
+      if (!rawNodeId) return;
       const cfg =
         nodeConfigs[rawKey] ||
         nodeConfigs[rawNodeId] ||
-        nodeConfigs[`hito_${rawNodeId}`] ||
         nodeConfigs[`tool_hitos_${rawNodeId}`] ||
+        nodeConfigs[`hito_${rawNodeId}`] ||
+        nodeConfigs[`extractor_${rawNodeId}`] ||
         nodeConfigs[`ext_${rawNodeId}`] ||
         nodeConfigs[`tool_inputs_${rawNodeId}`] ||
         nodeConfigs[`sub_memory_${rawNodeId}`] ||
         {};
-      const dedupKey = `${canonical}::${rawKey}`;
-      if (seenCanonical.has(dedupKey)) return;
-      seenCanonical.add(dedupKey);
-      candidateNodes.push({ rawKey, rawNodeId: rawNodeId || rawKey, canonical, cfg });
+
+      let effectiveRawId = rawNodeId;
+      if (rawNodeId === 'extract_sst_app' && cfg.sstAppSourceId) {
+        const cleanTarget = String(cfg.sstAppSourceId).toLowerCase().trim();
+        effectiveRawId = sstAppAlias[cleanTarget] || String(cfg.sstAppSourceId).trim();
+      }
+
+      const canonical = normalizeInspectorNodeId(effectiveRawId);
+
+      // Ignorar extractores externos (Drive, Gmail, Web Search, Webhook) que se manejan en pre-extracción dedicada
+      const isSupportedLocalSource =
+        canonical.startsWith('hito') ||
+        canonical === 'tool_sst_company' ||
+        canonical === 'wappy_memory_procedural' ||
+        rawNodeId === 'extract_sst_workers' ||
+        rawNodeId === 'extract_sst_app' ||
+        rawNodeId === 'somos_sst_trabajadores' ||
+        rawNodeId === 'somos_sst_examenes' ||
+        rawNodeId === 'somos_sst_epp' ||
+        rawNodeId === 'somos_sst_perfiles_cargo' ||
+        rawNodeId === 'somos_sst_empresa' ||
+        rawNodeId === 'wappy_memory_procedural';
+
+      if (!isSupportedLocalSource) return;
+
+      // Filtrar Hitos de destino (target_write_report) salvo que se pida explícitamente
+      if (originType === 'hito' && !includeTargetWriteHitos) {
+        const hitoRole = resolveWorkflowHitoRole(nodeConfigs, rawNodeId);
+        if (hitoRole !== 'source_read') {
+          return;
+        }
+      }
+
+      // Deduplicación estricta por familia canónica (nómina/EMO, EPP, perfiles, matrices, etc.)
+      const familyKey = resolveCanonicalSourceFamily(effectiveRawId, canonical);
+      if (seenFamilies.has(familyKey)) {
+        return;
+      }
+      seenFamilies.add(familyKey);
+
+      candidateNodes.push({
+        rawKey,
+        rawNodeId: effectiveRawId,
+        originalNodeId: rawNodeId,
+        canonical,
+        familyKey,
+        originType,
+        cfg,
+      });
     };
 
-    for (const extId of wf.extractors || []) pushCandidate(`ext_${extId}`, extId);
-    for (const inId of wf.inputs || []) pushCandidate(`tool_inputs_${inId}`, inId);
-    for (const hitoId of wf.hitos || []) pushCandidate(`tool_hitos_${hitoId}`, hitoId);
-    for (const memId of wf.memories || []) pushCandidate(`sub_memory_${memId}`, memId);
-    for (const [k, v] of Object.entries(nodeConfigs)) {
-      if (v && typeof v === 'object') pushCandidate(k, k);
+    // Prioridad 1: Aplicativos Hito explícitos en modo `source_read` (fuentes canónicas más ricas)
+    for (const hitoId of wfHitos) {
+      pushCandidate(`tool_hitos_${hitoId}`, hitoId, 'hito');
+    }
+    // Prioridad 2: Extractores de Etapa 2 (`wf.extractors`)
+    for (const extId of wfExtractors) {
+      pushCandidate(`ext_${extId}`, extId, 'extractor');
+    }
+    // Prioridad 3: Inputs de lectura SOLO si su familia canónica no fue cubierta ya por Hito o Extractor
+    for (const inId of wfInputs) {
+      pushCandidate(`tool_inputs_${inId}`, inId, 'input');
+    }
+    // Prioridad 4: Memoria procedural con documentos .md quirúrgicos si aplica
+    for (const memId of wfMemories) {
+      if (memId === 'wappy_memory_procedural') {
+        pushCandidate(`sub_memory_${memId}`, memId, 'memory');
+      }
     }
 
-    if (candidateNodes.length === 0) return '';
+    if (candidateNodes.length === 0) {
+      return emptyResult;
+    }
 
+    const allRecords = [];
+    const criticalRecords = [];
+    const freshCriticalRecords = [];
+    const deduplicatedSkippedRecords = [];
+    const candidateProcessedKeysSet = new Set();
+    const sourceSummaries = [];
     const sections = [];
+
+    const formatRecordLine = (rec, idx, strictFilter, selectedFields) => {
+      const fieldEntries = Object.entries(rec.fields || {}).filter(
+        ([, fv]) => fv !== undefined && fv !== null && fv !== '' && fv !== 'No registra',
+      );
+      if (strictFilter) {
+        const projected = [];
+        for (const sf of selectedFields) {
+          const sfNorm = sf.toLowerCase().trim();
+          const match = fieldEntries.find(
+            ([fk]) =>
+              fk.toLowerCase().trim() === sfNorm ||
+              fk.toLowerCase().includes(sfNorm) ||
+              sfNorm.includes(fk.toLowerCase().trim()),
+          );
+          if (match && match[1] !== undefined && match[1] !== '') {
+            projected.push(`${sf}: ${match[1]}`);
+          }
+        }
+        if (projected.length > 0) {
+          return `   ${idx + 1}. [${rec.id}] ${projected.join(' | ')}`;
+        }
+      }
+      const allFieldsStr = fieldEntries.map(([fk, fv]) => `${fk}: ${fv}`).join(' | ');
+      return allFieldsStr
+        ? `   ${idx + 1}. [${rec.id}] ${rec.label} [${rec.badge || ''}] -> ${allFieldsStr}`
+        : `   ${idx + 1}. ${rec.label} — ${rec.sublabel} [${rec.badge || ''}]`;
+    };
+
     for (const item of candidateNodes) {
       const cfg = item.cfg || {};
       const liveData = await inspectNodeLiveData({
         userId,
         companyId: company?._id,
         nodeId: item.rawNodeId,
+        sstAppSourceId: cfg.sstAppSourceId,
         nodeConfig: cfg,
       });
+
+      if (liveData?.underConstruction) {
+        continue;
+      }
 
       const rawSelectedFields = Array.isArray(cfg.selectedFields)
         ? cfg.selectedFields
@@ -7190,42 +7712,82 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
       const filterMode = cfg.recordFilterMode || 'all';
       const selectedRecordIds = Array.isArray(cfg.selectedRecordIds) ? cfg.selectedRecordIds : [];
 
-      let filteredRecords = liveData.records || [];
-      if (filterMode === 'critical_only') {
-        filteredRecords = filteredRecords.filter((r) => r.isCritical);
-      } else if (filterMode === 'selected' && selectedRecordIds.length > 0) {
+      const rawRecords = Array.isArray(liveData.records) ? liveData.records : [];
+      const isProceduralMemory = item.canonical === 'wappy_memory_procedural';
+
+      // Población auditada en base de datos
+      let auditedRecords = rawRecords;
+      if (filterMode === 'selected' && selectedRecordIds.length > 0) {
         const idSet = new Set(selectedRecordIds.map(String));
-        filteredRecords = filteredRecords.filter((r) => idSet.has(String(r.id)));
+        auditedRecords = rawRecords.filter((r) => idSet.has(String(r.id)));
+      }
+
+      const nodeFreshCritical = [];
+      const nodeDedupSkipped = [];
+      const nodeNonCritical = [];
+
+      for (const rec of auditedRecords) {
+        const entityKey = extractWorkflowEntityDedupKey(item.canonical, rec);
+        const enrichedRec = {
+          ...rec,
+          _sourceNodeId: item.originalNodeId,
+          _canonicalNodeId: item.canonical,
+          _moduleTitle: liveData.moduleTitle || item.rawNodeId,
+          _entityKey: entityKey,
+        };
+        if (!isProceduralMemory) {
+          allRecords.push(enrichedRec);
+        }
+
+        if (!isProceduralMemory && rec.isCritical === true) {
+          criticalRecords.push(enrichedRec);
+          if (safeProcessedSet.has(entityKey)) {
+            deduplicatedSkippedRecords.push(enrichedRec);
+            nodeDedupSkipped.push(enrichedRec);
+          } else {
+            freshCriticalRecords.push(enrichedRec);
+            candidateProcessedKeysSet.add(entityKey);
+            nodeFreshCritical.push(enrichedRec);
+          }
+        } else {
+          nodeNonCritical.push(enrichedRec);
+        }
+      }
+
+      if (!isProceduralMemory) {
+        sourceSummaries.push({
+          nodeId: item.originalNodeId,
+          canonicalNodeId: item.canonical,
+          moduleTitle: liveData.moduleTitle || item.rawNodeId,
+          totalRecords: auditedRecords.length,
+          criticalCount: nodeFreshCritical.length + nodeDedupSkipped.length,
+          freshCriticalCount: nodeFreshCritical.length,
+          deduplicatedSkippedCount: nodeDedupSkipped.length,
+          kpis: liveData.kpis || [],
+        });
+      }
+
+      // Determinar registros a presentar en el bloque de contexto del Agente IA:
+      // Si existen registros deduplicados por ventana anti-duplicados, se priorizan los freshCriticalRecords
+      // y se omiten los críticos ya gestionados para no repetir alertas.
+      let recordsForPrompt = [];
+      if (filterMode === 'critical_only') {
+        recordsForPrompt = nodeFreshCritical;
+      } else if (safeProcessedSet.size > 0 && nodeDedupSkipped.length > 0) {
+        recordsForPrompt = [...nodeFreshCritical, ...nodeNonCritical];
+      } else {
+        recordsForPrompt = [...nodeFreshCritical, ...nodeDedupSkipped, ...nodeNonCritical];
       }
 
       const kpiText = (liveData.kpis || []).map((k) => `${k.label}: ${k.value}`).join(' | ');
-      const recordLines = filteredRecords.slice(0, 300).map((rec, idx) => {
-        const fieldEntries = Object.entries(rec.fields || {}).filter(
-          ([, fv]) => fv !== undefined && fv !== null && fv !== '' && fv !== 'No registra',
-        );
-        if (strictFilter) {
-          const projected = [];
-          for (const sf of selectedFields) {
-            const sfNorm = sf.toLowerCase().trim();
-            const match = fieldEntries.find(
-              ([fk]) =>
-                fk.toLowerCase().trim() === sfNorm ||
-                fk.toLowerCase().includes(sfNorm) ||
-                sfNorm.includes(fk.toLowerCase().trim())
-            );
-            if (match && match[1] !== undefined && match[1] !== '') {
-              projected.push(`${sf}: ${match[1]}`);
-            }
-          }
-          if (projected.length > 0) {
-            return `   ${idx + 1}. [${rec.id}] ${projected.join(' | ')}`;
-          }
-        }
-        const allFieldsStr = fieldEntries.map(([fk, fv]) => `${fk}: ${fv}`).join(' | ');
-        return allFieldsStr
-          ? `   ${idx + 1}. [${rec.id}] ${rec.label} [${rec.badge || ''}] -> ${allFieldsStr}`
-          : `   ${idx + 1}. ${rec.label} — ${rec.sublabel} [${rec.badge || ''}]`;
-      });
+      const recordLines = recordsForPrompt
+        .slice(0, 300)
+        .map((rec, idx) => formatRecordLine(rec, idx, strictFilter, selectedFields));
+
+      const dedupNoticeLine =
+        safeProcessedSet.size > 0 && nodeDedupSkipped.length > 0
+          ? `\n   • 🛡️ Filtro Anti-Duplicados Activo: ${nodeDedupSkipped.length} hallazgo(s) crítico(s) ya gestionado(s) en corridas recientes fue(ron) omitido(s) automáticamente (${nodeFreshCritical.length} brecha(s) nueva(s) pendiente(s) de gestión). NO repitas alertas sobre los registros ya gestionados.`
+          : '';
 
       let latestReportBlock = '';
       if (
@@ -7234,7 +7796,8 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
         liveData.latestReports.length > 0
       ) {
         const topRep = liveData.latestReports[0];
-        const repBody = topRep.structuredText || stripHtmlToText(topRep.html || '') || topRep.preview || '';
+        const repBody =
+          topRep.structuredText || stripHtmlToText(topRep.html || '') || topRep.preview || '';
         if (repBody) {
           latestReportBlock =
             `\n   • Último Informe Oficial Emitido en Aplicativo («${topRep.title || 'Informe Oficial'}» — ${topRep.charCount || repBody.length} caracteres):\n` +
@@ -7243,31 +7806,62 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null)
       }
 
       sections.push(
-        `📦 NODO EN VIVO «${liveData.moduleTitle}» (${liveData.companyName}):\n` +
+        `📦 NODO FUENTE EN VIVO «${liveData.moduleTitle}» (${liveData.companyName}):\n` +
           `   • Indicadores Actuales: ${kpiText || 'N/A'}\n` +
           `   • Filtro de Registros: ${
             filterMode === 'critical_only'
-              ? `Solo Críticos / En Brecha (${filteredRecords.length})`
+              ? `Solo Críticos / Nuevas Brechas (${recordsForPrompt.length} nuevos de ${auditedRecords.length} verificados)`
               : filterMode === 'selected'
-                ? `Seleccionados Específicos (${filteredRecords.length})`
-                : `Todos (${filteredRecords.length})`
-          }${strictFilter ? ` | Campos Quirúrgicos Extraídos: [${selectedFields.join(', ')}]` : ''}\n` +
+                ? `Seleccionados Específicos (${recordsForPrompt.length})`
+                : `Auditados (${auditedRecords.length} total | ${nodeFreshCritical.length} brechas nuevas)`
+          }${strictFilter ? ` | Campos Quirúrgicos Extraídos: [${selectedFields.join(', ')}]` : ''}` +
+          dedupNoticeLine +
+          `\n` +
           (recordLines.length > 0
-            ? `   • Datos Extraídos de Base de Datos (Casillas Completas):\n${recordLines.join('\n')}`
-            : '   • Datos Extraídos de Base de Datos: (0 registros cargados actualmente en esta colección)') +
-          latestReportBlock
+            ? `   • Datos Extraídos de Base de Datos (Priorizando Brechas Nuevas No Duplicadas):\n${recordLines.join('\n')}`
+            : nodeDedupSkipped.length > 0
+              ? `   • Datos Extraídos de Base de Datos: (0 brechas nuevas pendientes; los ${nodeDedupSkipped.length} casos críticos existentes ya fueron alertados dentro de la ventana anti-duplicados)`
+              : '   • Datos Extraídos de Base de Datos: (0 registros en brecha o 0 registros cargados actualmente en esta colección)') +
+          latestReportBlock,
       );
     }
 
-    return sections.length > 0
-      ? `\n\n═══ DATOS QUIRÚRGICOS REALES EXTRAÍDOS DE LOS NODOS DE SOMOS SST (${company?.companyName || 'Empresa Activa'}) ═══\n` +
-          `Usa prioritariamente esta información real y filtrada quirúrgicamente por cada nodo configurado:\n\n` +
+    const globalDedupHeader =
+      safeProcessedSet.size > 0 && deduplicatedSkippedRecords.length > 0
+        ? `🛡️ [MEMORIA ANTI-DUPLICADOS ESTRUCTURADA ACTIVA]: Se omitieron automáticamente ${deduplicatedSkippedRecords.length} registro(s) crítico(s) que ya fueron alertados/gestionados dentro de la ventana anti-duplicados vigente. Enfócate EXCLUSIVAMENTE en las ${freshCriticalRecords.length} brecha(s) nueva(s) listadas a continuación.\n\n`
+        : '';
+
+    const contextBlock =
+      sections.length > 0
+        ? `\n\n═══ DATOS QUIRÚRGICOS REALES EXTRAÍDOS DE LOS NODOS DE SOMOS SST (${company?.companyName || 'Empresa Activa'}) ═══\n` +
+          globalDedupHeader +
+          `Usa prioritariamente esta información real y filtrada quirúrgicamente por cada nodo fuente configurado:\n\n` +
           sections.join('\n\n')
-      : '';
+        : '';
+
+    return {
+      contextBlock,
+      allRecords,
+      criticalRecords,
+      freshCriticalRecords,
+      deduplicatedSkippedRecords,
+      candidateProcessedKeys: Array.from(candidateProcessedKeysSet),
+      sourceSummaries,
+    };
   } catch (err) {
-    console.warn('[WorkflowNodeInspector] Error building surgical live context:', err.message);
-    return '';
+    console.warn('[WorkflowNodeInspector] Error collecting structured source data:', err.message);
+    return emptyResult;
   }
+}
+
+/**
+ * Construye el bloque de datos quirúrgicos reales en vivo desde MongoDB
+ * para todos los nodos fuente configurados en una automatización durante su ejecución.
+ * Delega internamente en `collectStructuredWorkflowSourceData` por retrocompatibilidad total.
+ */
+async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null, options = {}) {
+  const res = await collectStructuredWorkflowSourceData(task, companyOverride, options);
+  return res?.contextBlock || '';
 }
 
 module.exports = {
@@ -7275,6 +7869,9 @@ module.exports = {
   inspectNodeLiveData,
   inspectOtherNodeTeams,
   buildSurgicalLiveContextForWorkflow,
+  collectStructuredWorkflowSourceData,
+  resolveWorkflowHitoRole,
+  extractWorkflowEntityDedupKey,
   normalizeInspectorNodeId,
   BLOCKED_CONSTRUCTION_NODE_SPECS,
 };

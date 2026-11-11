@@ -1,7 +1,6 @@
 ---
 name: wappy-design-director
 description: "Director de Arte y Especialista Senior UI/UX de WAPPY IA: domina el WAPPY 14-Group Design System, Glassmorphism, micro-animaciones SVG, auditoría espacial sin desbordamiento (0px horizontal overflow), jerarquía tipográfica Outfit/Inter y experiencia de usuario premium."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
@@ -9,16 +8,16 @@ preloadSkills:
   - wappy-procedural-memory
   - ckw-design
   - redesign-existing-projects
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
   - edit_file
   - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - generate_image
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Director de Arte & Especialista Senior UI/UX (`wappy-design-director`)
 

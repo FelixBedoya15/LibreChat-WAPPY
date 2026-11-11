@@ -35,11 +35,12 @@
 
 ---
 
-### ⚙️ Bundle 3: `wappy-platform-and-sgsst` (Herramientas SG-SST, Backend & Conectores Externos)
-**Subagentes Líderes:** [`wappy-backend-api`](./agents/wappy-backend-api.md) & [`wappy-integrations-hub`](./agents/wappy-integrations-hub.md)
+### ⚙️ Bundle 3: `wappy-platform-and-sgsst` (Herramientas SG-SST, Flujos DAG, Backend & Conectores Externos)
+**Subagentes Líderes:** [`wappy-workflow-architect`](./agents/wappy-workflow-architect.md), [`wappy-backend-api`](./agents/wappy-backend-api.md) & [`wappy-integrations-hub`](./agents/wappy-integrations-hub.md)
 
 | Skill ID | Rol en el Bundle | Risk | Cuándo Activarla |
 | :--- | :--- | :---: | :--- |
+| [`wappy-workflow-architecture`](./skills/wappy-workflow-architecture/SKILL.md) | **Arquitectura Oficial Flujos n8n-WAPPY** | `safe` | Siempre al diseñar, auditar o probar flujos en `/tareas` (`validate-workflow-logic.js`, compuertas `pre_agent`/`post_agent`, anti-duplicados y Hitos `source_read` vs `target_write_report`). |
 | [`wappy-sgsst-tools`](./skills/wappy-sgsst-tools/SKILL.md) | Matrices & Automatizaciones SST | `safe` | Matriz PESV (Res. 20223040040595), Compatibilidad Química (SGA Decreto 1496) y Gestor de Tareas (`/tareas`). |
 | [`wappy-google-connectors`](./skills/wappy-google-connectors/SKILL.md) | Puentes & Conectores OAuth/MCP | `safe` | Puente Reactivo Antigravity (`wappy-push-daemon.js`, `mcpBridge.js`), NotebookLM, Google Flow Veo/Imagen, Drive y OneDrive. |
 

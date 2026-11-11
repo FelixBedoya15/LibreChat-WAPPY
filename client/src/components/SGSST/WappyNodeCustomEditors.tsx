@@ -2470,39 +2470,59 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       );
     }
 
-    // 4.2 MEMORIA BITÁCORA ANTI-DUPLICADOS
+    // 4.2 MEMORIA BITÁCORA ANTI-DUPLICADOS (`Remove Duplicates` con Ledger `processedEntityKeys` en `AutomationLog`)
     if (cleanId.includes('antiduplicate')) {
+      const currentDedupWindow = currentCfg.dedupWindow || '7d';
       return (
         <div className="space-y-3">
+          <div className="p-3.5 rounded-2xl border border-teal-500/35 bg-gradient-to-br from-teal-500/5 via-emerald-500/5 to-cyan-500/5 dark:from-slate-900 dark:to-slate-900/80 space-y-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-black uppercase tracking-wide text-teal-900 dark:text-[#C7F303] flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-[#C7F303] shrink-0" />
+                Ledger Con Estado Anti-Duplicados (Estilo «Remove Duplicates» de n8n)
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-teal-500/15 border border-teal-500/30 text-[10px] font-extrabold text-teal-800 dark:text-teal-300">
+                Ventana activa: {currentDedupWindow}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+              Guarda las llaves únicas de negocio (<code className="px-1 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 font-mono text-[10px]">processedEntityKeys</code>) en <code className="px-1 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 font-mono text-[10px]">AutomationLog</code> y descarta registros ya alertados dentro de la ventana <code className="px-1 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 font-mono text-[10px]">dedupWindow</code> <strong>antes</strong> de evaluar la compuerta <em>Condición Si/No</em> y del Agente IA (evitando correos repetidos y tarjetas duplicadas en Kanban ACPM).
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
-                🛡️ Ventana de Tiempo Anti-Duplicados
+                🛡️ Ventana de Tiempo Anti-Duplicados (`dedupWindow`)
               </label>
               <div className="flex flex-wrap items-center gap-2 py-1 px-1">
                 {[
                   {
                     id: '24h',
-                    label: 'Últimas 24h — Omitir repetidos de hoy',
+                    badge: '24h',
+                    label: 'Últimas 24h — Omitir llaves ya procesadas hoy',
                     variant: 'amber' as const,
                   },
                   {
                     id: '7d',
-                    label: '7 días — Omitir repetidos de la última semana',
+                    badge: '7d',
+                    label: '7 días — Omitir llaves de la última semana',
                     variant: 'rose' as const,
                   },
                   {
                     id: '30d',
-                    label: '30 días — Omitir repetidos del último mes',
+                    badge: '30d',
+                    label: '30 días — Omitir llaves del último mes',
                     variant: 'purple' as const,
                   },
                   {
                     id: 'all',
-                    label: 'Histórico Total — Todo el historial de ejecuciones',
+                    badge: 'all',
+                    label: 'Histórico Total — Todo el ledger en AutomationLog',
                     variant: 'teal' as const,
                   },
                 ].map((win) => {
-                  const active = (currentCfg.dedupWindow || '7d') === win.id;
+                  const active = currentDedupWindow === win.id;
                   return (
                     <ExpandableButton
                       key={win.id}
@@ -2510,6 +2530,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                       size="sm"
                       variant={active ? win.variant : 'neutral'}
                       isActive={active}
+                      badge={win.badge}
                       icon={<Clock className="w-3.5 h-3.5" />}
                       label={win.label}
                       onClick={() =>
@@ -3452,24 +3473,79 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
      EQUIPO 8: NODOS LÓGICOS (CONDICIÓN SI/NO, LOOP, MERGE, APROBACIÓN) + SKILLS / REGLAS / SCRAPING
      ═════════════════════════════════════════════════════════════════════════ */
   if (activeNode.shape === 'if' || activeNode.key === 'if_router') {
-    const rawMode =
-      currentCfg.ifConditionMode || currentCfg.ifConditionType || 'critical_findings';
-    const normalizedIfMode =
-      rawMode === 'ai_evaluation'
-        ? 'ai_verdict'
-        : rawMode === 'keyword_match' || rawMode === 'numeric_threshold'
-          ? 'custom_rule'
-          : rawMode;
+    const allNodeCfgs = workflowNodes?.canvasLayout?.nodeConfigs;
+    const altIfCfg =
+      activeNode.key === 'if_router'
+        ? allNodeCfgs?.['if_condition']
+        : allNodeCfgs?.['if_router'];
 
-    const computeIfConditionLabel = (mode: string, expr?: string): string => {
-      if (mode === 'critical_findings') return '¿Críticos abiertos?';
-      if (mode === 'always_branch') return 'Evaluar Sí / No';
-      if (mode === 'ai_verdict' || mode === 'ai_evaluation') return '¿Hallazgos IA?';
+    const resolvedIfPlacement: 'pre_agent' | 'post_agent' =
+      (currentCfg.ifPlacement || altIfCfg?.ifPlacement) === 'pre_agent'
+        ? 'pre_agent'
+        : 'post_agent';
+
+    const hasStage2SourcesInFlow = (() => {
+      const extCount = Array.isArray(workflowNodes?.extractors)
+        ? workflowNodes!.extractors!.length
+        : 0;
+      if (extCount > 0) return true;
+      const hitosArr = Array.isArray(workflowNodes?.hitos) ? workflowNodes!.hitos! : [];
+      const hasSourceHito = hitosArr.some((hid) => {
+        const hCfg = {
+          ...(allNodeCfgs?.[hid] || {}),
+          ...(allNodeCfgs?.[`hito_${hid}`] || {}),
+          ...(allNodeCfgs?.[`tool_hitos_${hid}`] || {}),
+        };
+        if (hCfg.hitoRole === 'source_read') return true;
+        if (hCfg.hitoRole === 'target_write_report') return false;
+        if (
+          ['write_and_report', 'write_and_update', 'generate_report'].includes(
+            String(hCfg.appActionMode || ''),
+          ) ||
+          hCfg.generateAppReport === true ||
+          ['write_register', 'audit_and_update'].includes(String(hCfg.hitoOperationMode || ''))
+        ) {
+          return false;
+        }
+        return true;
+      });
+      if (hasSourceHito) return true;
+      const cNodes = Array.isArray(workflowNodes?.canvasLayout?.customNodes)
+        ? workflowNodes!.canvasLayout!.customNodes!
+        : [];
+      return cNodes.some((cn) => String(cn?.nodeType || cn?.key || '').includes('scraper'));
+    })();
+
+    const rawCondType =
+      currentCfg.ifConditionType || currentCfg.ifConditionMode || 'critical_findings';
+    const resolvedIfConditionType =
+      rawCondType === 'ai_evaluation'
+        ? 'ai_verdict'
+        : rawCondType === 'custom_rule'
+          ? 'keyword_match'
+          : [
+                'critical_findings',
+                'new_external_items',
+                'numeric_threshold',
+                'keyword_match',
+                'ai_verdict',
+                'always_branch',
+              ].includes(rawCondType)
+            ? rawCondType
+            : 'critical_findings';
+
+    const computeIfConditionLabel = (condType: string, expr?: string): string => {
+      if (condType === 'critical_findings') return '¿Críticos abiertos?';
+      if (condType === 'new_external_items') return '¿Nuevos ítems >= 1?';
+      if (condType === 'ai_verdict' || condType === 'ai_evaluation') {
+        return '¿Veredicto IA = SÍ?';
+      }
+      if (condType === 'always_branch') return 'Evaluar Sí / No';
       const trimmed = (expr ?? currentCfg.ifRuleExpression ?? '').trim();
       if (trimmed) {
         return trimmed.length > 26 ? `${trimmed.slice(0, 25)}…` : trimmed;
       }
-      return 'Regla personalizada';
+      return condType === 'numeric_threshold' ? '¿Supera umbral?' : 'Regla coincidencia';
     };
 
     const connectedOutputsList =
@@ -3478,45 +3554,123 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           ? workflowNodes.outputs
           : []
         : ['email_report'];
-    const allNodeCfgs = workflowNodes?.canvasLayout?.nodeConfigs;
 
     return (
       <div className="space-y-3.5">
+        {/* Selector Causal: Ubicación de la Compuerta (`ifPlacement`) */}
+        <div className="p-3.5 rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-cyan-500/5 dark:from-slate-900 dark:to-slate-900/80 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-xs font-black uppercase tracking-wide text-emerald-900 dark:text-[#C7F303] flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-emerald-600 dark:text-[#C7F303] shrink-0" />
+              Ubicación Causal de la Compuerta (`ifPlacement`)
+            </label>
+            <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
+              {resolvedIfPlacement === 'pre_agent'
+                ? '⚡ Pre-Agente (0 Tokens en NO)'
+                : '🤖 Post-Agente (Semántico)'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {[
+              {
+                id: 'pre_agent' as const,
+                title: '⚡ Antes del Agente IA (Filtro Determinista · 0 Tokens en NO)',
+                desc: 'Evalúa brechas de BD o archivos nuevos en Etapa 2 antes de llamar a la IA. Si es NO, corta directo sin gastar tokens.',
+              },
+              {
+                id: 'post_agent' as const,
+                title: '🤖 Después del Agente IA (Veredicto Semántico IA)',
+                desc: 'El Agente analiza entradas abiertas (QR, voz, correo libre) y emite el marcador [VEREDICTO_IF: SI|NO].',
+              },
+            ].map((plOpt) => {
+              const isSelected = resolvedIfPlacement === plOpt.id;
+              return (
+                <button
+                  key={plOpt.id}
+                  type="button"
+                  onClick={() =>
+                    onUpdateNodeConfig(activeNode.key, {
+                      ifPlacement: plOpt.id,
+                      ...(plOpt.id === 'post_agent' &&
+                      resolvedIfConditionType === 'new_external_items'
+                        ? {
+                            ifConditionType: 'ai_verdict',
+                            ifConditionMode: 'ai_verdict',
+                            ifConditionLabel: computeIfConditionLabel('ai_verdict'),
+                          }
+                        : {}),
+                    })
+                  }
+                  className={`p-3 rounded-xl border-2 text-left transition ${
+                    isSelected
+                      ? 'bg-emerald-50/90 dark:bg-slate-800 border-emerald-600 dark:border-[#C7F303] ring-1 ring-emerald-500/25 shadow-2xs'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-snug">
+                      {plOpt.title}
+                    </span>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-[#C7F303] stroke-[3] shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                    {plOpt.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {resolvedIfPlacement === 'pre_agent' && !hasStage2SourcesInFlow && (
+            <div className="p-2.5 rounded-xl border border-amber-400/50 bg-amber-500/10 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+              💡 Para activar la compuerta determinista antes del Agente IA en el lienzo, conecta al menos 1 Extractor o Aplicativo Hito en modo <strong>Fuente de Lectura (Etapa 2)</strong>.
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-emerald-700 dark:text-emerald-300 mb-1">
-              🔀 1. ¿Qué evalúa esta Condición Si / No?
+              🔀 1. ¿Qué evalúa esta Condición Si / No? (`ifConditionType`)
             </label>
             <select
-              value={normalizedIfMode}
+              value={resolvedIfConditionType}
               onChange={(e) => {
-                const nextMode = e.target.value;
-                const mappedType =
-                  nextMode === 'ai_verdict'
-                    ? 'ai_evaluation'
-                    : nextMode === 'custom_rule'
-                      ? 'keyword_match'
-                      : nextMode;
+                const nextType = e.target.value;
                 onUpdateNodeConfig(activeNode.key, {
-                  ifConditionMode: nextMode,
-                  ifConditionType: mappedType as any,
-                  ifConditionLabel: computeIfConditionLabel(nextMode, currentCfg.ifRuleExpression),
+                  ifConditionType: nextType as any,
+                  ifConditionMode: nextType,
+                  ifConditionLabel: computeIfConditionLabel(nextType, currentCfg.ifRuleExpression),
+                  ...(nextType === 'ai_verdict' && resolvedIfPlacement === 'pre_agent'
+                    ? { ifPlacement: 'post_agent' }
+                    : {}),
                 });
               }}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
             >
               <option value="critical_findings">
-                🚨 Si existen hallazgos críticos, vencimientos o brechas
+                🚨 Brechas Críticas / Vencimientos en BD (&gt;= 1)
               </option>
-              <option value="always_branch">
-                ⚖️ Evaluar Sí / No siempre sobre los resultados del flujo
+              <option value="new_external_items">
+                📂 Archivos / Correos Nuevos No Procesados (&gt;= 1)
+              </option>
+              <option value="numeric_threshold">
+                🔢 Umbral Numérico sobre Conteo / Indicador Extraído
+              </option>
+              <option value="keyword_match">
+                🔎 Coincidencia de Palabras Clave / Regla Exacta
               </option>
               <option value="ai_verdict">
-                🧠 Veredicto inteligente del Agente IA (¿Hallazgos IA?)
+                🤖 Veredicto Semántico del Agente IA ([VEREDICTO_IF])
               </option>
-              <option value="custom_rule">
-                📏 Regla personalizada sobre datos o umbrales extraídos
-              </option>
+              {resolvedIfConditionType === 'always_branch' && (
+                <option value="always_branch">
+                  ⚖️ Evaluar Sí / No siempre sobre los resultados del flujo
+                </option>
+              )}
             </select>
           </div>
           <div>
@@ -3530,12 +3684,18 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 const nextExpr = e.target.value;
                 onUpdateNodeConfig(activeNode.key, {
                   ifRuleExpression: nextExpr,
-                  ...(normalizedIfMode === 'custom_rule'
-                    ? { ifConditionLabel: computeIfConditionLabel('custom_rule', nextExpr) }
+                  ...(resolvedIfConditionType === 'numeric_threshold' ||
+                  resolvedIfConditionType === 'keyword_match'
+                    ? {
+                        ifConditionLabel: computeIfConditionLabel(
+                          resolvedIfConditionType,
+                          nextExpr,
+                        ),
+                      }
                     : {}),
                 });
               }}
-              placeholder="Ej: Si algún trabajador no tiene certificado de afiliación vigente o tiene EMO vencido..."
+              placeholder="Ej: Si algún trabajador tiene EMO vencido <= 30 días o archivo nuevo en Drive..."
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
@@ -5009,15 +5169,115 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     ? presetFields.filter((f) => f.toLowerCase().includes(fieldSearchQuery.trim().toLowerCase()))
     : presetFields;
 
+  const resolvedHitoRole: 'source_read' | 'target_write_report' = (() => {
+    if (currentCfg.hitoRole === 'source_read' || currentCfg.hitoRole === 'target_write_report') {
+      return currentCfg.hitoRole;
+    }
+    if (
+      ['write_and_report', 'write_and_update', 'generate_report'].includes(
+        String(currentCfg.appActionMode || ''),
+      ) ||
+      currentCfg.generateAppReport === true ||
+      ['write_register', 'audit_and_update'].includes(
+        String(currentCfg.hitoOperationMode || ''),
+      )
+    ) {
+      return 'target_write_report';
+    }
+    return 'source_read';
+  })();
+
   const hitoOpMode =
     currentCfg.hitoOperationMode ||
-    (activeNode.shape === 'square_extractor' ? 'extract_only' : 'audit_and_update');
+    (activeNode.shape === 'square_extractor' || resolvedHitoRole === 'source_read'
+      ? 'read_only'
+      : 'write_register');
 
   return (
     <div className="space-y-4">
-      {/* 1. MODO DE OPERACIÓN Y GENERACIÓN DE INFORME OFICIAL EN EL APLICATIVO DE SOMOS SST */}
+      {/* 1. ROL CAUSAL Y MODO DE OPERACIÓN EN EL APLICATIVO DE SOMOS SST */}
       {activeNode.shape === 'square_hito' && (
         <div className="space-y-3.5">
+          {/* Selector Causal Oficial: Rol Causal en el Flujo (`hitoRole`) */}
+          <div className="p-3.5 rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-cyan-500/5 dark:from-slate-900 dark:to-slate-900/80 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wide text-emerald-900 dark:text-[#C7F303] flex items-center gap-1.5">
+                  <GitBranch className="w-4 h-4 text-emerald-600 dark:text-[#C7F303] shrink-0" />
+                  Rol Causal en el Flujo (`hitoRole`)
+                </span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Ubica automáticamente a <strong>«{resolvedNodeDisplayTitle}»</strong> en la Etapa 2 (lectura previa) o en la Rama SÍ después del Agente IA (escritura/informe).
+                </p>
+              </div>
+              <span className="px-2 py-0.5 rounded-lg bg-teal-500/15 border border-teal-500/30 text-[10px] font-extrabold text-teal-800 dark:text-teal-300">
+                {resolvedHitoRole === 'source_read'
+                  ? '📥 Etapa 2 · Fuente Lectura'
+                  : '📤 Derecha IA · Escritura / Informe'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    hitoRole: 'source_read',
+                    hitoOperationMode: 'read_only',
+                    appActionMode: 'read_only',
+                    generateAppReport: false,
+                  })
+                }
+                className={`p-3 rounded-xl border-2 text-left transition ${
+                  resolvedHitoRole === 'source_read'
+                    ? 'bg-teal-50/90 dark:bg-slate-800 border-teal-600 dark:border-[#C7F303] ring-1 ring-teal-500/25 shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-teal-400'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-snug">
+                    📥 Fuente de Lectura / Auditoría (Etapa 2 · Izquierda del Agente)
+                  </span>
+                  {resolvedHitoRole === 'source_read' && (
+                    <Check className="w-4 h-4 text-teal-600 dark:text-[#C7F303] stroke-[3] shrink-0 mt-0.5" />
+                  )}
+                </div>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                  Extrae registros reales y casillas quirúrgicas antes de Condición Si/No y del Agente IA.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    hitoRole: 'target_write_report',
+                    hitoOperationMode: 'write_register',
+                    appActionMode: 'write_and_report',
+                    generateAppReport: true,
+                  })
+                }
+                className={`p-3 rounded-xl border-2 text-left transition ${
+                  resolvedHitoRole === 'target_write_report'
+                    ? 'bg-emerald-50/90 dark:bg-slate-800 border-emerald-600 dark:border-[#C7F303] ring-1 ring-emerald-500/25 shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-snug">
+                    📤 Destino de Escritura / Informe Oficial HTML (Derecha del Agente · Rama SÍ)
+                  </span>
+                  {resolvedHitoRole === 'target_write_report' && (
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-[#C7F303] stroke-[3] shrink-0 mt-0.5" />
+                  )}
+                </div>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                  Registra/actualiza datos del análisis del Agente IA y emite el Informe Oficial HTML hacia Salidas.
+                </p>
+              </button>
+            </div>
+          </div>
+
           {/* Bloque Oficial: Generación y Extracción de Informe Oficial del Aplicativo */}
           <div className="p-3.5 rounded-2xl border border-teal-500/40 bg-gradient-to-br from-teal-500/5 via-emerald-500/5 to-cyan-500/5 dark:from-slate-900 dark:to-slate-900/80 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -5042,30 +5302,36 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                     id: 'read_only' as const,
                     title: '🔍 Solo consultar casillas e informes existentes',
                     desc: 'Lee registros reales e informes ya guardados sin modificar el aplicativo.',
-                    legacyOp: 'extract_only' as const,
+                    legacyOp: 'read_only' as const,
+                    role: 'source_read' as const,
                   },
                   {
                     id: 'write_and_update' as const,
                     title: '✍️ Alimentar / registrar datos en el aplicativo',
                     desc: 'Registra o actualiza hallazgos, controles o evaluaciones en MongoDB.',
                     legacyOp: 'write_register' as const,
+                    role: 'target_write_report' as const,
                   },
                   {
                     id: 'write_and_report' as const,
                     title: '🚀 Alimentar aplicativo + Generar y extraer Informe Oficial HTML',
                     desc: 'Actualiza el aplicativo y genera el Informe Oficial completo hacia las Salidas.',
-                    legacyOp: 'audit_and_update' as const,
+                    legacyOp: 'write_register' as const,
+                    role: 'target_write_report' as const,
                   },
                   {
                     id: 'generate_report' as const,
                     title: '📄 Generar Informe Oficial IA del aplicativo y pasarlo al flujo',
                     desc: 'Construye el Informe Oficial HTML con membrete, tablas y firmas para LiveEditor / Gmail.',
                     legacyOp: 'audit_and_update' as const,
+                    role: 'target_write_report' as const,
                   },
                 ].map((actOpt) => {
                   const currentActionMode =
                     currentCfg.appActionMode ||
-                    (hitoOpMode === 'extract_only'
+                    (resolvedHitoRole === 'source_read' ||
+                    hitoOpMode === 'extract_only' ||
+                    hitoOpMode === 'read_only'
                       ? 'read_only'
                       : hitoOpMode === 'write_register'
                         ? 'write_and_update'
@@ -5077,11 +5343,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                       type="button"
                       onClick={() =>
                         onUpdateNodeConfig(activeNode.key, {
+                          hitoRole: actOpt.role,
                           appActionMode: actOpt.id,
                           hitoOperationMode: actOpt.legacyOp,
-                          ...(actOpt.id === 'write_and_report' || actOpt.id === 'generate_report'
-                            ? { generateAppReport: true }
-                            : {}),
+                          generateAppReport:
+                            actOpt.id === 'write_and_report' || actOpt.id === 'generate_report',
                         })
                       }
                       className={`p-2.5 rounded-xl border-2 text-left transition ${
@@ -5119,6 +5385,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   onChange={(e) =>
                     onUpdateNodeConfig(activeNode.key, {
                       generateAppReport: e.target.checked,
+                      ...(e.target.checked
+                        ? {
+                            hitoRole: 'target_write_report',
+                            appActionMode:
+                              currentCfg.appActionMode === 'read_only' || !currentCfg.appActionMode
+                                ? 'generate_report'
+                                : currentCfg.appActionMode,
+                          }
+                        : {}),
                     })
                   }
                   className="w-4 h-4 rounded border-teal-500 text-teal-600 shrink-0"

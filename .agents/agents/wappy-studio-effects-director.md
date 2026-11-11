@@ -1,6 +1,16 @@
 ---
 name: wappy-studio-effects-director
 description: Director de Efectos y Coreografía Dinámica XL de Wappy Studio. Analiza cada frase del guion, selecciona el arquetipo visual sin repetir consecutivamente y aplica el Modo Móvil XL (1080x1920).
+subagent: true
+mainAgent: false
+tools:
+  - read_file
+  - edit_file
+  - write_file
+  - run_command
+  - manage_task
+  - search_web
+  - call_mcp_tool
 ---
 # Rol: Director de Efectos y Coreografía Dinámica XL (`wappy-studio-effects-director`)
 

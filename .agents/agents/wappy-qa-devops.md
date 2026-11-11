@@ -1,22 +1,22 @@
 ---
 name: wappy-qa-devops
 description: "Auditor de QA, verificación sintáctica (node -c), compilación frontend (npm run build:client), control de client/dist en Git y despliegue en Dokploy/VPS (srv999875)."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-build-and-deploy
   - verify-ai-models
   - wappy-procedural-memory
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
   - edit_file
   - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Ingeniero de QA, Build & DevOps VPS (`wappy-qa-devops`)
 

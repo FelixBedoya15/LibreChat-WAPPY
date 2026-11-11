@@ -1,22 +1,22 @@
 ---
 name: wappy-backend-api
 description: "Arquitecto de Backend Node.js/Express, MongoDB/Mongoose, rutas en api/server/routes, seguridad de endpoints y conectores MCP de Wappy IA."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-sgsst-tools
   - wappy-procedural-memory
   - verify-ai-models
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
   - edit_file
   - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Arquitecto Backend, Base de Datos & MCP (`wappy-backend-api`)
 

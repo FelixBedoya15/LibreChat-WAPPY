@@ -18,6 +18,10 @@ const sendEmail = require('~/server/utils/sendEmail');
 const {
   inspectNodeLiveData,
   buildSurgicalLiveContextForWorkflow,
+  collectStructuredWorkflowSourceData,
+  resolveWorkflowHitoRole,
+  extractWorkflowEntityDedupKey,
+  normalizeInspectorNodeId,
 } = require('~/server/services/workflowNodeInspectorService');
 const { normalizeAnyDateYmd } = require('~/server/routes/sgsst/birthDateHelper');
 
@@ -90,6 +94,12 @@ function getHitoReportPipeline() {
       if (!AutomationLog.schema.path('executionTrace')) {
         extraLogFields.executionTrace = { type: mongoose.Schema.Types.Mixed, default: null };
       }
+      if (!AutomationLog.schema.path('processedEntityKeys')) {
+        extraLogFields.processedEntityKeys = { type: [String], default: [], index: true };
+      }
+      if (!AutomationLog.schema.path('dedupWindowUsed')) {
+        extraLogFields.dedupWindowUsed = { type: String, default: '' };
+      }
       if (Object.keys(extraLogFields).length > 0) {
         AutomationLog.schema.add(extraLogFields);
         if (AutomationLog.prototype) {
@@ -134,6 +144,271 @@ function getHitoReportPipeline() {
     console.warn('[AutomationScheduler] Aviso extendiendo esquemas de ejecución:', schemaExtErr?.message);
   }
 })();
+
+/**
+ * Carga el Ledger Real Anti-Duplicados (`Remove Duplicates` estilo n8n) consultando las llaves
+ * de entidades ya procesadas (`processedEntityKeys`) en corridas previas exitosas o esperando aprobación
+ * dentro de la ventana temporal configurada (`24h`, `7d`, `30d`, `all`).
+ */
+async function loadProcessedEntityKeysForAutomation({
+  automationId,
+  nodeConfigs = {},
+  excludeLogId = null,
+} = {}) {
+  const safeConfigs = nodeConfigs && typeof nodeConfigs === 'object' ? nodeConfigs : {};
+  const dedupWindow = String(
+    safeConfigs.sub_memory_wappy_memory_antiduplicate?.dedupWindow ||
+      safeConfigs.sub_memory?.dedupWindow ||
+      safeConfigs.wappy_memory_antiduplicate?.dedupWindow ||
+      '7d',
+  )
+    .trim()
+    .toLowerCase();
+
+  let sinceDate = null;
+  if (dedupWindow !== 'all' && dedupWindow !== 'forever' && dedupWindow !== '0') {
+    if (dedupWindow === '24h' || dedupWindow === '1d') {
+      sinceDate = new Date(Date.now() - 24 * 3600000);
+    } else if (dedupWindow === '7d') {
+      sinceDate = new Date(Date.now() - 7 * 24 * 3600000);
+    } else if (dedupWindow === '30d') {
+      sinceDate = new Date(Date.now() - 30 * 24 * 3600000);
+    } else {
+      const customMatch = dedupWindow.match(/^(\d+)\s*([hd])$/);
+      if (customMatch) {
+        const val = Number(customMatch[1]);
+        const unitMs = customMatch[2] === 'h' ? 3600000 : 24 * 3600000;
+        sinceDate = new Date(Date.now() - val * unitMs);
+      } else {
+        sinceDate = new Date(Date.now() - 7 * 24 * 3600000);
+      }
+    }
+  }
+
+  if (!automationId || !mongoose.Types.ObjectId.isValid(String(automationId))) {
+    return { keysSet: new Set(), dedupWindow };
+  }
+
+  try {
+    const query = {
+      automation: automationId,
+      status: { $in: ['success', 'awaiting_approval'] },
+      ...(sinceDate ? { runAt: { $gte: sinceDate } } : {}),
+      ...(excludeLogId && mongoose.Types.ObjectId.isValid(String(excludeLogId))
+        ? { _id: { $ne: excludeLogId } }
+        : {}),
+    };
+    const logs = await AutomationLog.find(query).select('processedEntityKeys runAt').lean();
+    const flatKeys = [];
+    for (const lg of logs || []) {
+      if (Array.isArray(lg?.processedEntityKeys)) {
+        for (const k of lg.processedEntityKeys) {
+          const clean = String(k || '').trim();
+          if (clean) flatKeys.push(clean);
+        }
+      }
+    }
+    return { keysSet: new Set(flatKeys), dedupWindow };
+  } catch (err) {
+    console.warn('[AutomationScheduler] Aviso consultando ledger anti-duplicados:', err?.message);
+    return { keysSet: new Set(), dedupWindow };
+  }
+}
+
+/**
+ * Evalúa la Compuerta Condicional Determinista ANTES del Agente IA (`ifPlacement: 'pre_agent'`).
+ * Ahorra el 100 % de tokens LLM cuando no existen brechas nuevas ni elementos externos sin procesar.
+ */
+function evaluatePreAgentDeterministicIf({
+  ifCfg = {},
+  structuredSourceRes = {},
+  preRes = {},
+  runCapturedEvidences = [],
+  scraperBreachCount = 0,
+  eventPayload = null,
+  watchesExternal = false,
+} = {}) {
+  const safeCfg = ifCfg && typeof ifCfg === 'object' ? ifCfg : {};
+  const condType = String(safeCfg.ifConditionType || 'critical_findings').trim();
+  const expr = String(safeCfg.ifRuleExpression || '').trim();
+
+  const freshCriticalCount = Array.isArray(structuredSourceRes?.freshCriticalRecords)
+    ? structuredSourceRes.freshCriticalRecords.length
+    : 0;
+  const dedupSkippedCount = Array.isArray(structuredSourceRes?.deduplicatedSkippedRecords)
+    ? structuredSourceRes.deduplicatedSkippedRecords.length
+    : 0;
+  const freshExternalCount =
+    Number(preRes?.traceMeta?.freshDriveFilesCount || 0) +
+    Number(preRes?.traceMeta?.freshGmailMessagesCount || 0) +
+    (eventPayload ? 1 : 0);
+  const extDedupCount =
+    Number(preRes?.traceMeta?.deduplicatedDriveFilesCount || 0) +
+    Number(preRes?.traceMeta?.deduplicatedGmailMessagesCount || 0);
+  const effectiveScraperBreachCount = Number(
+    scraperBreachCount ||
+      structuredSourceRes?.scraperBreachCount ||
+      preRes?.traceMeta?.scraperBreachCount ||
+      0,
+  );
+
+  const numMatch = expr.match(/(>=|<=|>|<|===|==|=|!=|!==)\s*(\d+(?:\.\d+)?)/);
+  const op = numMatch ? numMatch[1] : '>=';
+  const threshold = numMatch ? Number(numMatch[2]) : 1;
+
+  const evalOp = (observed, operator, target) => {
+    if (operator === '>') return observed > target;
+    if (operator === '>=') return observed >= target;
+    if (operator === '<') return observed < target;
+    if (operator === '<=') return observed <= target;
+    if (operator === '!=' || operator === '!==') return observed !== target;
+    return observed === target;
+  };
+
+  let passed = false;
+  let reason = '';
+
+  if (condType === 'new_external_items') {
+    passed = evalOp(freshExternalCount, op, threshold);
+    reason = passed
+      ? `Se detectaron ${freshExternalCount} elemento(s) externo(s) nuevo(s) sin procesar (${freshExternalCount} ${op} ${threshold}) -> Se activa la Rama SÍ.`
+      : `0 elementos externos nuevos que cumplan (${freshExternalCount} ${op} ${threshold})${extDedupCount > 0 ? ` (${extDedupCount} archivo(s)/correo(s) ya procesados omitidos por anti-duplicados)` : ''} -> Se activa la Rama NO (0 tokens LLM).`;
+  } else if (condType === 'numeric_threshold') {
+    // NUNCA sustituir 0 críticos por allRecords.length
+    const observed = watchesExternal
+      ? freshExternalCount
+      : freshCriticalCount + effectiveScraperBreachCount;
+    passed = evalOp(observed, op, threshold);
+    reason = passed
+      ? `Umbral numérico cumplido sobre hallazgos nuevos (${observed} ${op} ${threshold}) -> Se activa la Rama SÍ.`
+      : `Umbral numérico NO cumplido (${observed} ${op} ${threshold})${dedupSkippedCount + extDedupCount > 0 ? ` · ${dedupSkippedCount + extDedupCount} ítem(s) previos omitidos por anti-duplicados` : ''} -> Se activa la Rama NO (0 tokens LLM).`;
+  } else if (condType === 'keyword_match') {
+    const keywords = expr
+      .split(/[,;|]+/)
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    const haystack = JSON.stringify([
+      structuredSourceRes?.freshCriticalRecords || [],
+      preRes?.freshDriveFiles || [],
+      preRes?.freshGmailMessages || [],
+      eventPayload,
+    ]).toLowerCase();
+    const matchedKw = keywords.find((kw) => haystack.includes(kw));
+    passed = Boolean(matchedKw);
+    reason = passed
+      ? `Palabra clave "${matchedKw}" detectada en los registros nuevos -> Se activa la Rama SÍ.`
+      : `Ninguna palabra clave de [${expr || 'sin expresión'}] presente en registros nuevos -> Se activa la Rama NO (0 tokens LLM).`;
+  } else {
+    // critical_findings (por defecto)
+    passed =
+      freshCriticalCount >= 1 ||
+      (watchesExternal && freshExternalCount >= 1) ||
+      effectiveScraperBreachCount >= 1;
+    if (passed) {
+      const parts = [];
+      if (freshCriticalCount >= 1) parts.push(`${freshCriticalCount} brecha(s) crítica(s) nueva(s) en BD`);
+      if (watchesExternal && freshExternalCount >= 1) {
+        parts.push(`${freshExternalCount} archivo(s)/correo(s)/evento(s) externo(s) nuevo(s)`);
+      }
+      if (effectiveScraperBreachCount >= 1) {
+        parts.push(`${effectiveScraperBreachCount} novedad(es) en portal oficial Antigravity`);
+      }
+      reason = `Hallazgos nuevos verificados (${parts.join(' + ')}) -> Se activa la Rama SÍ.`;
+    } else {
+      const totalDedup = dedupSkippedCount + extDedupCount;
+      reason =
+        totalDedup > 0
+          ? `0 brechas nuevas pendientes (${totalDedup} caso(s) ya gestionados omitidos por ventana anti-duplicados) -> Se activa la Rama NO (0 tokens LLM).`
+          : `100 % al día: 0 brechas críticas nuevas${watchesExternal ? ' y 0 elementos externos nuevos' : ''} -> Se activa la Rama NO (0 tokens LLM).`;
+    }
+  }
+
+  return {
+    passed,
+    branchTaken: passed ? 'yes' : 'no',
+    reason,
+    freshCriticalCount,
+    dedupSkippedCount,
+    freshExternalCount,
+  };
+}
+
+/**
+ * Evalúa la Compuerta Semántica DESPUÉS del Agente IA (`ifPlacement: 'post_agent'`),
+ * priorizando el veredicto estructurado `[VEREDICTO_IF: SI|NO]` y protegiendo el respaldo
+ * contra falsos positivos por negaciones en español («0 exámenes vencidos», «sin brechas críticas»).
+ */
+function evaluatePostAgentSemanticIf({
+  resultText = '',
+  ifCfg = {},
+  watchesDriveNewFiles = false,
+} = {}) {
+  const rawText = String(resultText || '');
+  const safeCfg = ifCfg && typeof ifCfg === 'object' ? ifCfg : {};
+
+  // 1° Prioridad: Marcador explícito [VEREDICTO_IF: NO]
+  if (/\[\s*VEREDICTO_IF\s*:\s*NO\s*\]/i.test(rawText)) {
+    return {
+      passed: false,
+      reason: 'Veredicto explícito [VEREDICTO_IF: NO] emitido por el Agente IA.',
+    };
+  }
+
+  // 2° Prioridad: Marcador explícito [VEREDICTO_IF: SI] / [VEREDICTO_IF: SÍ]
+  if (/\[\s*VEREDICTO_IF\s*:\s*S[IÍ]\s*\]/i.test(rawText)) {
+    return {
+      passed: true,
+      reason: 'Veredicto explícito [VEREDICTO_IF: SI] emitido por el Agente IA.',
+    };
+  }
+
+  // 3° Respaldo inmune a negaciones en español
+  if (
+    watchesDriveNewFiles &&
+    /no\s+(se\s+encontraron|existen|hay)\s+archivos\s+nuevos|no\s+(se\s+encontraron|existen|hay)\s+(archivos|documentos|reportes|furat|eventos|accidentes)(\s+furat)?\s+nuevos|0\s+(archivos|furat|accidentes)\s+nuevos|google\s+drive\s+no\s+est[aá]\s+vinculado|sin\s+archivos\s+(furat\s+)?nuevos|conexi[oó]n\s+con\s+google\s+drive\s+ha\s+expirado|no\s+se\s+encontraron\s+archivos\s+ni\s+carpetas\s+en\s+google\s+drive|ya\s+(hab[ií]an\s+sido|fueron)\s+(procesados|investigados)\s+anteriormente/i.test(
+      rawText,
+    )
+  ) {
+    return {
+      passed: false,
+      reason: 'El dictamen confirma ausencia de archivos o eventos nuevos en origen externo.',
+    };
+  }
+
+  const strippedText = rawText.replace(
+    /(?:\b0\b|cero|ning[uú]n[oa]?|sin|no\s+hay|no\s+existen|no\s+se\s+(?:encontraron|detectaron|hallaron)|100\s*%\s+(?:vigente|al\s+d[ií]a|cumplimiento))\s+(?:[a-záéíóúñ]+\s+){0,4}(?:vencid[oa]s?|cr[ií]tic[oa]s?|brechas?|incumplimientos?|hallazgos?|alertas?|archivos?\s+nuevos?|accidentes?|casos?|novedades?|riesgos?\s+altos?|multas?|comparendos?)/gi,
+    ' ',
+  );
+
+  const condType = String(safeCfg.ifConditionType || 'critical_findings').trim();
+  const expr = String(safeCfg.ifRuleExpression || '').trim();
+
+  if (condType === 'keyword_match' && expr) {
+    const keywords = expr
+      .split(/[,;|]+/)
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    const matched = keywords.find((kw) => strippedText.toLowerCase().includes(kw));
+    return {
+      passed: Boolean(matched),
+      reason: matched
+        ? `Palabra clave "${matched}" detectada en dictamen no negado.`
+        : `Ninguna palabra clave de [${expr}] activa tras excluir cláusulas negadas.`,
+    };
+  }
+
+  const hasPositiveCritical =
+    /🚨|❌|\bvencid[oa]s?\b|\bcr[ií]tic[oa]s?\b|\bmultas?\b|\bcomparendos?\b|\bincumplimientos?\b|\bbrechas?\b|\briesgo\s+alto\b|\bno\s+cumple\b|\bsin\s+afiliaci[oó]n\b|\bpeligro\s+inminente\b|\baccidente\s+grave\b/i.test(
+      strippedText,
+    );
+
+  return {
+    passed: hasPositiveCritical,
+    reason: hasPositiveCritical
+      ? 'Señales semánticas de hallazgo crítico detectadas tras excluir cláusulas negadas.'
+      : 'Sin hallazgos críticos activos tras evaluación semántica inmune a negaciones.',
+  };
+}
 
 /**
  * Mapa canónico de alias de extract_sst_app hacia los IDs reales de Hitos SG-SST.
@@ -1279,11 +1554,13 @@ async function buildLivePreExtractionAndLogicBlocks({
   targetCompanyIdStr,
   automationCompany,
   effectiveAiModel,
+  alreadyProcessedKeysSet = new Set(),
 }) {
   const wf = automation?.workflowNodes || {};
   const extractors = Array.isArray(wf.extractors) ? wf.extractors : [];
   const inputs = Array.isArray(wf.inputs) ? wf.inputs : [];
   const hitos = Array.isArray(wf.hitos) ? wf.hitos : [];
+  const normalizedHitosSet = new Set(hitos.map((h) => normalizeInspectorNodeId(h)));
   const nodeConfigs = wf?.canvasLayout?.nodeConfigs || wf?.nodeConfigs || {};
   const customNodes = Array.isArray(wf?.canvasLayout?.customNodes)
     ? wf.canvasLayout.customNodes
@@ -1293,6 +1570,13 @@ async function buildLivePreExtractionAndLogicBlocks({
   const logicNodes = Array.isArray(wf?.canvasLayout?.logicNodes)
     ? wf.canvasLayout.logicNodes
     : [];
+
+  const safeProcessedSet =
+    alreadyProcessedKeysSet instanceof Set
+      ? alreadyProcessedKeysSet
+      : Array.isArray(alreadyProcessedKeysSet)
+        ? new Set(alreadyProcessedKeysSet.filter(Boolean).map(String))
+        : new Set();
 
   const getNodeCfg = (...keys) => {
     for (const k of keys) {
@@ -1304,9 +1588,19 @@ async function buildLivePreExtractionAndLogicBlocks({
   };
 
   const blocks = [];
+  const freshDriveFiles = [];
+  const deduplicatedDriveFiles = [];
+  const freshGmailMessages = [];
+  const deduplicatedGmailMessages = [];
+  const externalCandidateKeysSet = new Set();
+
   const traceMeta = {
     driveFilesPrelisted: 0,
+    freshDriveFilesCount: 0,
+    deduplicatedDriveFilesCount: 0,
     gmailMessagesPreextracted: 0,
+    freshGmailMessagesCount: 0,
+    deduplicatedGmailMessagesCount: 0,
     webSearchExecuted: false,
     webhookEndpointsFetched: 0,
     mergedRecordsCount: 0,
@@ -1398,17 +1692,45 @@ async function buildLivePreExtractionAndLogicBlocks({
           targetFiles = Array.isArray(recentRes?.data?.files) ? recentRes.data.files : [];
         }
 
+        for (const f of targetFiles) {
+          const cleanFileId = String(f?.id || '').trim();
+          const driveKey = cleanFileId ? `drive:${cleanFileId}` : '';
+          if (driveKey && safeProcessedSet.has(driveKey)) {
+            deduplicatedDriveFiles.push(f);
+          } else {
+            freshDriveFiles.push(f);
+            if (driveKey) externalCandidateKeysSet.add(driveKey);
+          }
+        }
+
         traceMeta.driveFilesPrelisted = targetFiles.length;
+        traceMeta.freshDriveFilesCount = freshDriveFiles.length;
+        traceMeta.deduplicatedDriveFilesCount = deduplicatedDriveFiles.length;
+
         if (targetFiles.length > 0) {
-          const fileLines = targetFiles.map(
+          const freshLines = freshDriveFiles.map(
             (f, idx) =>
-              `  ${idx + 1}. "${f.name}" | fileId: "${f.id}" | mimeType: ${f.mimeType} | Modificado: ${f.modifiedTime || 'N/A'}`,
+              `  ${idx + 1}. [NUEVO SIN PROCESAR] "${f.name}" | fileId: "${f.id}" | mimeType: ${f.mimeType} | Modificado: ${f.modifiedTime || 'N/A'}`,
           );
-          blocks.push(
-            `📂 [ARCHIVOS REALES PRE-LISTADOS EN GOOGLE DRIVE${folderName ? ` — Carpeta "${folderName}"` : ''} (${matchedFolderInfo || 'Raíz / Recientes'})]:\n` +
-              `${fileLines.join('\n')}\n` +
-              `👉 INSTRUCCIÓN DIRECTA: Invoca la herramienta "google_drive" (action: "read_document_content" o "readFile") pasando directamente los "fileId" exactos de arriba sin adivinar IDs ni rutas.`,
+          const dedupLines = deduplicatedDriveFiles.map(
+            (f, idx) =>
+              `  ${idx + 1}. [YA PROCESADO — OMITIR] "${f.name}" | fileId: "${f.id}" | Modificado: ${f.modifiedTime || 'N/A'}`,
           );
+          if (freshDriveFiles.length > 0) {
+            blocks.push(
+              `📂 [ARCHIVOS REALES PRE-LISTADOS EN GOOGLE DRIVE${folderName ? ` — Carpeta "${folderName}"` : ''} (${matchedFolderInfo || 'Raíz / Recientes'})]:\n` +
+                `• NUEVOS SIN PROCESAR (${freshDriveFiles.length}):\n${freshLines.join('\n')}` +
+                (dedupLines.length > 0
+                  ? `\n• YA PROCESADOS EN CORRIDAS ANTERIORES — NO REPROCESAR (${deduplicatedDriveFiles.length}):\n${dedupLines.join('\n')}`
+                  : '') +
+                `\n👉 INSTRUCCIÓN DIRECTA: Invoca la herramienta "google_drive" (action: "read_document_content" o "readFile") pasando ÚNICAMENTE los "fileId" marcados como [NUEVO SIN PROCESAR] sin adivinar IDs ni reprocesar archivos ya gestionados.`,
+            );
+          } else {
+            blocks.push(
+              `📂 [PRE-EXTRACCIÓN GOOGLE DRIVE${folderName ? ` — Carpeta "${folderName}"` : ''}]: Existen 0 archivos nuevos sin procesar (${deduplicatedDriveFiles.length} archivo(s) encontrado(s) en carpeta ya fueron procesados previamente dentro de la ventana anti-duplicados; NO reprocesar).\n` +
+                dedupLines.join('\n'),
+            );
+          }
         } else {
           blocks.push(
             `📂 [PRE-EXTRACCIÓN GOOGLE DRIVE${folderName ? ` — Carpeta "${folderName}"` : ''}]: Conectado correctamente (${matchedFolderInfo || 'Drive activo'}), pero existen 0 archivos que coincidan actualmente.`,
@@ -1434,29 +1756,59 @@ async function buildLivePreExtractionAndLogicBlocks({
       const subjectFilter = String(gmailCfg?.emailSubjectFilter || '').trim();
       const maxItems = Math.min(15, Math.max(1, parseInt(gmailCfg?.maxItems, 10) || 6));
       const gmailQuery = subjectFilter ? `subject:("${subjectFilter.replace(/"/g, '')}")` : 'newer_than:7d';
-      const emails = await listEmails(
+      const rawEmails = await listEmails(
         userIdStr,
         { query: gmailQuery, maxResults: maxItems },
         targetCompanyIdStr,
       );
-      traceMeta.gmailMessagesPreextracted = Array.isArray(emails) ? emails.length : 0;
-      if (Array.isArray(emails) && emails.length > 0) {
-        const detailed = [];
-        for (const em of emails.slice(0, 5)) {
-          try {
-            const full = await readEmail(userIdStr, em.id, targetCompanyIdStr);
-            detailed.push(
-              `  • [messageId: ${em.id}] De: ${full.from || em.from} | Asunto: "${full.subject || em.subject}" | Fecha: ${full.date || em.date}\n    Extracto: ${String(full.body || full.snippet || em.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 500)}`,
-            );
-          } catch (_) {
-            detailed.push(
-              `  • [messageId: ${em.id}] De: ${em.from} | Asunto: "${em.subject}" | Fecha: ${em.date} | Extracto: ${String(em.snippet || '').slice(0, 300)}`,
-            );
-          }
+      const emails = Array.isArray(rawEmails)
+        ? rawEmails
+        : Array.isArray(rawEmails?.messages)
+          ? rawEmails.messages
+          : [];
+
+      for (const em of emails) {
+        const cleanMsgId = String(em?.id || '').trim();
+        const gmailKey = cleanMsgId ? `gmail:${cleanMsgId}` : '';
+        if (gmailKey && safeProcessedSet.has(gmailKey)) {
+          deduplicatedGmailMessages.push(em);
+        } else {
+          freshGmailMessages.push(em);
+          if (gmailKey) externalCandidateKeysSet.add(gmailKey);
         }
-        blocks.push(
-          `📧 [CORREOS REALES PRE-EXTRAÍDOS DE GMAIL (extract_gmail${subjectFilter ? ` — Filtro asunto: "${subjectFilter}"` : ''})]:\n${detailed.join('\n')}`,
-        );
+      }
+
+      traceMeta.gmailMessagesPreextracted = emails.length;
+      traceMeta.freshGmailMessagesCount = freshGmailMessages.length;
+      traceMeta.deduplicatedGmailMessagesCount = deduplicatedGmailMessages.length;
+
+      if (emails.length > 0) {
+        if (freshGmailMessages.length > 0) {
+          const detailed = [];
+          for (const em of freshGmailMessages.slice(0, 5)) {
+            try {
+              const full = await readEmail(userIdStr, em.id, targetCompanyIdStr);
+              detailed.push(
+                `  • [NUEVO SIN PROCESAR | messageId: ${em.id}] De: ${full.from || em.from} | Asunto: "${full.subject || em.subject}" | Fecha: ${full.date || em.date}\n    Extracto: ${String(full.body || full.snippet || em.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 500)}`,
+              );
+            } catch (_) {
+              detailed.push(
+                `  • [NUEVO SIN PROCESAR | messageId: ${em.id}] De: ${em.from} | Asunto: "${em.subject}" | Fecha: ${em.date} | Extracto: ${String(em.snippet || '').slice(0, 300)}`,
+              );
+            }
+          }
+          const dedupNote =
+            deduplicatedGmailMessages.length > 0
+              ? `\n  • (🛡️ Anti-Duplicados: ${deduplicatedGmailMessages.length} mensaje(s) anterior(es) ya procesados omitidos)`
+              : '';
+          blocks.push(
+            `📧 [CORREOS REALES PRE-EXTRAÍDOS DE GMAIL (extract_gmail${subjectFilter ? ` — Filtro asunto: "${subjectFilter}"` : ''} · ${freshGmailMessages.length} nuevo(s))]:\n${detailed.join('\n')}${dedupNote}`,
+          );
+        } else {
+          blocks.push(
+            `📧 [PRE-EXTRACCIÓN GMAIL]: Existen 0 correos nuevos sin procesar (${deduplicatedGmailMessages.length} mensaje(s) coincidente(s) ya fueron procesados previamente dentro de la ventana anti-duplicados).`,
+          );
+        }
       } else {
         blocks.push(
           `📧 [PRE-EXTRACCIÓN GMAIL]: Bandeja consultada correctamente (${gmailQuery}), 0 mensajes coincidentes.`,
@@ -1596,7 +1948,13 @@ async function buildLivePreExtractionAndLogicBlocks({
     }
   }
 
-  if (inputs.includes('somos_sst_perfiles_cargo') && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+  if (
+    inputs.includes('somos_sst_perfiles_cargo') &&
+    !normalizedHitosSet.has('hito2_perfiles_cargo') &&
+    !normalizedHitosSet.has('hito1_perfiles_cargo') &&
+    targetCompanyIdStr &&
+    mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+  ) {
     try {
       const PerfilCargoModel = mongoose.models.PerfilCargoData;
       const doc = PerfilCargoModel
@@ -1619,7 +1977,12 @@ async function buildLivePreExtractionAndLogicBlocks({
     } catch (_) {}
   }
 
-  if (inputs.includes('somos_sst_epp') && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+  if (
+    inputs.includes('somos_sst_epp') &&
+    !normalizedHitosSet.has('hito3_epp') &&
+    targetCompanyIdStr &&
+    mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+  ) {
     try {
       const SgsstEppInventory = require('~/models/SgsstEppInventory');
       const SgsstEppSolicitud = require('~/models/SgsstEppSolicitud');
@@ -1645,7 +2008,14 @@ async function buildLivePreExtractionAndLogicBlocks({
     } catch (_) {}
   }
 
-  if (inputs.includes('somos_sst_examenes') && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
+  if (
+    inputs.includes('somos_sst_examenes') &&
+    !normalizedHitosSet.has('hito2_perfil_socio') &&
+    !normalizedHitosSet.has('hito2_condiciones_salud') &&
+    !extractors.includes('extract_sst_workers') &&
+    targetCompanyIdStr &&
+    mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+  ) {
     try {
       const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
       const PerfilModel = mongoose.models.PerfilSociodemograficoData;
@@ -1694,7 +2064,7 @@ async function buildLivePreExtractionAndLogicBlocks({
     } catch (_) {}
   }
 
-  // 6. Ejecución real de `logic_merge` y `logic_loop` sobre registros extraídos
+  // 6. Ejecución real de `logic_merge` y `logic_loop` sobre registros extraídos de fuentes de lectura
   const mergeNode = logicNodes.find(
     (ln) => ln && (ln.logicType === 'merge' || ln.id === 'logic_merge' || ln.key === 'logic_merge'),
   );
@@ -1719,19 +2089,48 @@ async function buildLivePreExtractionAndLogicBlocks({
         }
       }
       for (const hId of hitos) {
+        if (resolveWorkflowHitoRole(nodeConfigs, hId) !== 'source_read') continue;
         if (!sourceNodeIds.includes(hId)) sourceNodeIds.push(hId);
       }
 
       const collectedRecords = [];
       for (const srcId of sourceNodeIds.slice(0, 6)) {
         try {
+          const srcCfg = getNodeCfg(
+            `tool_hitos_${srcId}`,
+            `hito_${srcId}`,
+            `extractor_${srcId}`,
+            `ext_${srcId}`,
+            srcId,
+          );
+          const srcFilterMode = String(srcCfg?.recordFilterMode || 'all').trim();
+          const srcSelectedIds = Array.isArray(srcCfg?.selectedRecordIds)
+            ? new Set(srcCfg.selectedRecordIds.map(String))
+            : null;
+          const canonicalSrcId = normalizeInspectorNodeId(srcId);
+
           const inspected = await inspectNodeLiveData({
             userId: userIdStr,
             companyId: targetCompanyIdStr,
             nodeId: srcId,
+            nodeConfig: srcCfg,
           });
           if (Array.isArray(inspected?.records)) {
-            for (const rec of inspected.records.slice(0, 150)) {
+            let sourceFiltered = inspected.records;
+            if (srcFilterMode === 'critical_only') {
+              sourceFiltered = sourceFiltered.filter((r) => r && r.isCritical === true);
+            } else if (srcFilterMode === 'selected' && srcSelectedIds && srcSelectedIds.size > 0) {
+              sourceFiltered = sourceFiltered.filter((r) => srcSelectedIds.has(String(r.id)));
+            }
+            if (safeProcessedSet.size > 0) {
+              sourceFiltered = sourceFiltered.filter((r) => {
+                if (!r || r.isCritical !== true) return true;
+                const dedupKey = extractWorkflowEntityDedupKey(canonicalSrcId, r);
+                return !safeProcessedSet.has(dedupKey);
+              });
+            }
+
+            for (const rec of sourceFiltered.slice(0, 150)) {
               collectedRecords.push({
                 _sourceModule: inspected.moduleTitle || srcId,
                 id: rec.id,
@@ -1862,6 +2261,9 @@ async function buildLivePreExtractionAndLogicBlocks({
   return {
     contextBlock: blocks.length > 0 ? `\n${blocks.join('\n\n')}\n` : '',
     traceMeta,
+    freshDriveFiles,
+    freshGmailMessages,
+    externalCandidateKeys: Array.from(externalCandidateKeysSet),
   };
 }
 
@@ -2086,23 +2488,52 @@ async function executeDownstreamOutputs({
       const dueTarget = new Date(Date.now() + dueDays * 24 * 3600000);
       const customTitle = String(acpmCfg.kanbanTaskTitle || '').trim();
       const customAssignee = String(acpmCfg.kanbanAssignee || '').trim();
+      const resolvedTitle = customTitle || `[Centro de Control] ${automation.name} — ${compLabel}`;
 
-      await KanbanTask.create({
+      const existingOpenTask = await KanbanTask.findOne({
         user: automation.user || userId,
         companyId: targetCompanyIdStr || 'DEFAULT',
-        title: customTitle || `[Centro de Control] ${automation.name} — ${compLabel}`,
-        description: safeResponseText.substring(0, 3500),
-        status: validStage,
-        priority: validPriority,
-        actionType: validActionType,
-        type: 'audit_finding',
-        sourceModule: 'Automatización WAPPY (Centro de Control)',
-        assignedTo: customAssignee || automation.agentName || 'Responsable SG-SST',
         referenceId: String(automation._id),
-        referenceName: automation.name,
-        dueDate: dueTarget,
-        ...(validStage === 'done' ? { completedAt: new Date() } : {}),
-      });
+        title: resolvedTitle,
+        status: { $nin: ['done', 'completed', 'cancelled'] },
+      })
+        .select('_id description')
+        .lean();
+
+      if (existingOpenTask?._id) {
+        const prevDesc = String(existingOpenTask.description || '').trim();
+        const combinedDesc = prevDesc
+          ? `${prevDesc}\n\n---\n**[Actualización Automática ${bogotaDateStr}]:**\n${safeResponseText}`.slice(-4000)
+          : safeResponseText.substring(0, 4000);
+        await KanbanTask.updateOne(
+          { _id: existingOpenTask._id },
+          {
+            $set: {
+              description: combinedDesc,
+              priority: validPriority,
+              dueDate: dueTarget,
+              updatedAt: new Date(),
+            },
+          },
+        );
+      } else {
+        await KanbanTask.create({
+          user: automation.user || userId,
+          companyId: targetCompanyIdStr || 'DEFAULT',
+          title: resolvedTitle,
+          description: safeResponseText.substring(0, 3500),
+          status: validStage,
+          priority: validPriority,
+          actionType: validActionType,
+          type: 'audit_finding',
+          sourceModule: 'Automatización WAPPY (Centro de Control)',
+          assignedTo: customAssignee || automation.agentName || 'Responsable SG-SST',
+          referenceId: String(automation._id),
+          referenceName: automation.name,
+          dueDate: dueTarget,
+          ...(validStage === 'done' ? { completedAt: new Date() } : {}),
+        });
+      }
       executedOutputs.push('acpm_task');
     } catch (acpmErr) {
       errors.push(`acpm_task: ${acpmErr.message}`);
@@ -2784,7 +3215,16 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       }
     }
     if (!agent) {
-      throw new Error(`Agent ${automation.agentId} not found`);
+      agent = {
+        id: automation.agentId || 'agent_consultor_sg_sst',
+        name: automation.agentName || 'Consultor SG-SST',
+        provider: 'google',
+        model: 'gemini-3.6-flash',
+        instructions:
+          'Actúas como Consultor Especialista en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la normativa colombiana vigente (Decreto 1072 de 2015 y Resolución 0312 de 2019).',
+        tools: [],
+        model_parameters: { model: 'gemini-3.6-flash' },
+      };
     }
     if (isTenshiAvatarAgent) {
       agent = {
@@ -2849,29 +3289,44 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       ? automation.workflowNodes.memories
       : ['wappy_memory_company'];
 
+    const allNodeCfg =
+      automation.workflowNodes?.canvasLayout?.nodeConfigs ||
+      automation.workflowNodes?.nodeConfigs ||
+      {};
+
     let companyProfileMemoryBlock = '';
     if (activeMemories.includes('wappy_memory_company') && automationCompany) {
       companyProfileMemoryBlock =
         `- [MEMORIA DE EMPRESA (wappy_memory_company)]: Razón Social: "${automationCompany.companyName}" | NIT: ${automationCompany.nit || 'N/A'} | Actividad Económica: ${automationCompany.economicActivity || 'N/A'} (CIIU: ${automationCompany.ciiu || automationCompany.ciiuCode || 'N/A'}) | Nivel de Riesgo ARL: ${automationCompany.riskLevel || 'N/A'} | ARL: ${automationCompany.arl || 'N/A'} | N.º Trabajadores: ${automationCompany.workerCount ?? automationCompany.employeeCount ?? 'N/A'} | Ciudad/Depto: ${automationCompany.city || 'N/A'} / ${automationCompany.departamento || automationCompany.department || 'N/A'} | Representante Legal: ${automationCompany.legalRepresentative || 'N/A'} | Responsable SG-SST: ${automationCompany.responsibleSST || automationCompany.sstResponsibleName || 'N/A'} (Licencia: ${automationCompany.licenseNumber || automationCompany.sstLicenseNumber || 'N/A'})\n`;
     }
 
+    let dedupLedger = { keysSet: new Set(), dedupWindow: '' };
     let previousRunMemoryBlock = '';
     if (activeMemories.includes('wappy_memory_antiduplicate')) {
+      dedupLedger = await loadProcessedEntityKeysForAutomation({
+        automationId: automation._id,
+        nodeConfigs: allNodeCfg,
+        excludeLogId: log._id,
+      });
       try {
         const lastSuccessLog = await AutomationLog.findOne({
           automation: automation._id,
-          status: 'success',
+          status: { $in: ['success', 'awaiting_approval'] },
           _id: { $ne: log._id },
         })
           .sort({ runAt: -1 })
-          .select('runAt result')
+          .select('runAt result processedEntityKeys')
           .lean();
+        const activeKeysNote =
+          dedupLedger.keysSet.size > 0
+            ? ` (${dedupLedger.keysSet.size} llave(s) única(s) filtradas activamente en ventana ${dedupLedger.dedupWindow})`
+            : ` (ventana activa: ${dedupLedger.dedupWindow})`;
         if (lastSuccessLog?.result) {
           previousRunMemoryBlock =
-            `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS (${new Date(lastSuccessLog.runAt).toISOString()})]: En la ejecución anterior ya se procesó lo siguiente (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(lastSuccessLog.result).substring(0, 600)}\n`;
+            `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS (${new Date(lastSuccessLog.runAt).toISOString()})${activeKeysNote}]: En la ejecución anterior ya se procesó lo siguiente (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(lastSuccessLog.result).substring(0, 600)}\n`;
         } else if (automation.lastRunResult) {
           previousRunMemoryBlock =
-            `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS]: Último resultado procesado (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(automation.lastRunResult).substring(0, 500)}\n`;
+            `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS${activeKeysNote}]: Último resultado procesado (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(automation.lastRunResult).substring(0, 500)}\n`;
         }
       } catch (_) {}
     }
@@ -3213,8 +3668,21 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     } catch (_) {}
 
     let liveDatabaseSurgicalBlock = '';
+    let structuredSourceRes = {
+      contextBlock: '',
+      allRecords: [],
+      criticalRecords: [],
+      freshCriticalRecords: [],
+      deduplicatedSkippedRecords: [],
+      candidateProcessedKeys: [],
+      sourceSummaries: [],
+    };
     try {
-      liveDatabaseSurgicalBlock = await buildSurgicalLiveContextForWorkflow(automation, automationCompany);
+      structuredSourceRes = await collectStructuredWorkflowSourceData(automation, automationCompany, {
+        alreadyProcessedKeysSet: dedupLedger.keysSet,
+        includeTargetWriteHitos: false,
+      });
+      liveDatabaseSurgicalBlock = structuredSourceRes?.contextBlock || '';
     } catch (liveErr) {
       console.error('[AutomationScheduler] Error construyendo extracción quirúrgica en vivo:', liveErr?.message || liveErr);
     }
@@ -3223,6 +3691,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     // ejecutar la verificación real por el túnel Push SSE de Antigravity (MinTrabajo Alturas + Rama Judicial + SENA)
     let liveAntigravityScraperBlock = '';
     const runCapturedEvidences = [];
+    let runScraperBreachCount = 0;
+    const runScraperCandidateKeys = [];
     try {
       const wfCustomNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
         ? automation.workflowNodes.canvasLayout.customNodes
@@ -3235,10 +3705,6 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       const wfInputs = Array.isArray(automation.workflowNodes?.inputs)
         ? automation.workflowNodes.inputs
         : [];
-      const allNodeCfg =
-        automation.workflowNodes?.canvasLayout?.nodeConfigs ||
-        automation.workflowNodes?.nodeConfigs ||
-        {};
       const seenScraperKeys = new Set();
       const scraperCandidates = [
         ...wfCustomNodes.map((cn) => ({
@@ -3299,6 +3765,33 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           if (Array.isArray(scrapeRes?.evidences) && scrapeRes.evidences.length > 0) {
             runCapturedEvidences.push(...scrapeRes.evidences);
           }
+          if (Array.isArray(scrapeRes?.outputItems) && scrapeRes.outputItems.length > 0) {
+            for (const item of scrapeRes.outputItems) {
+              const statusTxt = String(
+                item?.estadoPortal || item?.detalleOficial || item?.estado || item?.alerta || '',
+              ).toLowerCase();
+              const isItemBreach =
+                Boolean(item?.isCritical) ||
+                /sin\s+registro|sin\s+curso|vencid|no\s+afiliad|inactiv|comparendo|multa|brecha|cr[ií]tic|no\s+encontrad/i.test(
+                  statusTxt,
+                );
+              if (isItemBreach) {
+                const rawDoc = String(
+                  item?.cedula || item?.['Cédula / Documento'] || item?.documento || item?.placa || item?.id || '',
+                )
+                  .trim()
+                  .toLowerCase()
+                  .replace(/[^a-z0-9_-]/g, '');
+                const sKey = `scraper:${sc.nodeId || sc.nodeKey}:${rawDoc || 'item'}`;
+                if (!dedupLedger.keysSet.has(sKey)) {
+                  runScraperBreachCount += 1;
+                  runScraperCandidateKeys.push(sKey);
+                }
+              }
+            }
+          } else if (Number(scrapeRes?.verifiedNoCoursesCount || 0) > 0) {
+            runScraperBreachCount += Number(scrapeRes.verifiedNoCoursesCount);
+          }
           if (scrapeRes?.outputPreview) {
             previewBlocks.push(
               `[VERIFICACIÓN EN VIVO EJECUTADA VÍA GOOGLE ANTIGRAVITY SCRAPER (${scrapeRes.portalLabel})]:\n${scrapeRes.outputPreview}`,
@@ -3319,19 +3812,231 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     // 4.9. Pre-extracción en vivo (Drive folder, Gmail, Web Search, Webhook API, Clima, Perfiles, EPP, Exámenes, LMS) + Loop & Merge
     let livePreExtractionBlock = '';
     let preExtractionTraceMeta = {};
+    let preRes = null;
     try {
-      const preRes = await buildLivePreExtractionAndLogicBlocks({
+      preRes = await buildLivePreExtractionAndLogicBlocks({
         automation,
         reqUser,
         targetCompanyIdStr,
         automationCompany,
         effectiveAiModel,
+        alreadyProcessedKeysSet: dedupLedger.keysSet,
       });
-      livePreExtractionBlock = preRes?.block || '';
+      livePreExtractionBlock = preRes?.contextBlock || preRes?.block || '';
       preExtractionTraceMeta = preRes?.traceMeta || {};
     } catch (preErr) {
       console.warn('[AutomationScheduler] Aviso en buildLivePreExtractionAndLogicBlocks:', preErr?.message || preErr);
     }
+
+    // 4.95. Compuerta Condicional Determinista Pre-Agente (`ifPlacement: 'pre_agent'`) — 0 tokens LLM en Rama NO
+    const ifCfg = allNodeCfg.if_router || allNodeCfg.if_condition || {};
+    const includeIfNodeFlag = Boolean(automation.workflowNodes?.includeIfNode);
+    const isPreAgentIf =
+      includeIfNodeFlag && String(ifCfg.ifPlacement || '').trim() === 'pre_agent';
+    const ifConditionLabelStr = String(
+      ifCfg.ifConditionLabel ||
+        ifCfg.customTitle ||
+        ifCfg.title ||
+        ifCfg.customInstruction ||
+        ifCfg.ifRuleExpression ||
+        automation.workflowNodes?.ifConditionLabel ||
+        '',
+    ).trim();
+    const wfTriggersForCondition = Array.isArray(automation.workflowNodes?.triggers)
+      ? automation.workflowNodes.triggers
+      : [automation.workflowNodes?.trigger].filter(Boolean);
+    const wfExtractorsForCondition = Array.isArray(automation.workflowNodes?.extractors)
+      ? automation.workflowNodes.extractors
+      : [];
+    const watchesDriveNewFiles =
+      wfExtractorsForCondition.includes('extract_drive') ||
+      wfExtractorsForCondition.includes('google_drive') ||
+      /furat|drive|nuevo/i.test(ifConditionLabelStr);
+    const watchesExternal =
+      watchesDriveNewFiles ||
+      wfExtractorsForCondition.includes('extract_gmail') ||
+      wfTriggersForCondition.includes('trigger_email') ||
+      wfTriggersForCondition.includes('trigger_email_in') ||
+      wfTriggersForCondition.includes('trigger_webhook') ||
+      wfTriggersForCondition.includes('trigger_webhook_in') ||
+      Boolean(eventPayload);
+
+    let preIfRes = null;
+    if (isPreAgentIf) {
+      preIfRes = evaluatePreAgentDeterministicIf({
+        ifCfg,
+        structuredSourceRes,
+        preRes,
+        runCapturedEvidences,
+        scraperBreachCount: runScraperBreachCount,
+        eventPayload,
+        watchesExternal,
+      });
+
+      if (preIfRes.passed === false) {
+        clearTimeout(timeoutId);
+        const totalAuditedRecordsCount = Array.isArray(structuredSourceRes?.allRecords)
+          ? structuredSourceRes.allRecords.length
+          : 0;
+        const extDedupCount =
+          Number(preRes?.traceMeta?.deduplicatedDriveFilesCount || 0) +
+          Number(preRes?.traceMeta?.deduplicatedGmailMessagesCount || 0);
+        const totalDedupSkipped = Number(preIfRes.dedupSkippedCount || 0) + extDedupCount;
+
+        const sourceBulletLines = Array.isArray(structuredSourceRes?.sourceSummaries)
+          ? structuredSourceRes.sourceSummaries.map((s) => {
+              const sDedup = Number(s.deduplicatedSkippedCount ?? s.deduplicatedCount ?? 0);
+              return `- **${s.moduleTitle || s.title || s.canonicalNodeId || s.canonical || s.nodeId}**: ${s.totalRecords} registro(s) verificado(s) · ${s.freshCriticalCount || 0} brecha(s) nueva(s)${sDedup > 0 ? ` · ${sDedup} ya gestionado(s) en ventana anti-duplicados` : ''}`;
+            })
+          : [];
+        if (watchesDriveNewFiles) {
+          sourceBulletLines.push(
+            `- **Google Drive**: ${Number(preRes?.traceMeta?.driveFilesPrelisted || 0)} archivo(s) listado(s) · ${Number(preRes?.traceMeta?.freshDriveFilesCount || 0)} nuevo(s) sin procesar${Number(preRes?.traceMeta?.deduplicatedDriveFilesCount || 0) > 0 ? ` · ${preRes.traceMeta.deduplicatedDriveFilesCount} ya procesado(s)` : ''}`,
+          );
+        }
+        if (wfExtractorsForCondition.includes('extract_gmail')) {
+          sourceBulletLines.push(
+            `- **Gmail**: ${Number(preRes?.traceMeta?.gmailMessagesPreextracted || 0)} correo(s) inspeccionado(s) · ${Number(preRes?.traceMeta?.freshGmailMessagesCount || 0)} nuevo(s) sin procesar${Number(preRes?.traceMeta?.deduplicatedGmailMessagesCount || 0) > 0 ? ` · ${preRes.traceMeta.deduplicatedGmailMessagesCount} ya procesado(s)` : ''}`,
+          );
+        }
+
+        const compDisplay = automationCompany?.companyName || 'Somos SST';
+        let preNoResultText =
+          `### ✅ Constancia de Verificación Automática SG-SST — Rama NO Activa (0 Tokens IA)\n\n` +
+          `- **Empresa Auditada:** ${compDisplay}${automationCompany?.nit ? ` (NIT: ${automationCompany.nit})` : ''}\n` +
+          `- **Compuerta Evaluada (\`pre_agent\`):** ${ifConditionLabelStr || 'Detección determinista de brechas nuevas'}\n` +
+          `- **Total de Registros Verificados:** ${totalAuditedRecordsCount}\n` +
+          `- **Brechas Críticas Nuevas Detectadas:** 0\n` +
+          (totalDedupSkipped > 0
+            ? `- **Filtro Anti-Duplicados Activo (${dedupLedger.dedupWindow || '7d'}):** ${totalDedupSkipped} registro(s)/archivo(s) previamente gestionados fueron omitidos para evitar alertas repetidas.\n`
+            : '') +
+          `- **Dictamen Determinista:** ${preIfRes.reason}\n` +
+          `- **Acción Ejecutada:** Se activó limpiamente la **Rama NO** sin invocar al modelo LLM ni generar reportes/escalamientos innecesarios.\n` +
+          (sourceBulletLines.length > 0
+            ? `\n#### 📊 Fuentes de Lectura Revisadas\n${sourceBulletLines.join('\n')}\n`
+            : '');
+
+        const configuredOutputsPre = Array.isArray(automation.workflowNodes?.outputs)
+          ? automation.workflowNodes.outputs
+          : ['email_report'];
+        const postEdgesPre = Array.isArray(automation.workflowNodes?.canvasLayout?.edges)
+          ? automation.workflowNodes.canvasLayout.edges
+          : [];
+        const outputsToExecuteNo = configuredOutputsPre.filter((outNodeId) => {
+          const outIdx = Math.max(0, configuredOutputsPre.indexOf(outNodeId));
+          const branch = resolveOutputBranchForIfRouter(
+            outNodeId,
+            outIdx,
+            configuredOutputsPre,
+            allNodeCfg,
+            postEdgesPre,
+          );
+          return branch === 'no';
+        });
+
+        const cleanPreEvidenceFiles = sanitizePublicEvidenceList(runCapturedEvidences);
+        let outResNo = { executedOutputs: [], workspaceLinks: [], errors: [] };
+        if (outputsToExecuteNo.length > 0) {
+          try {
+            outResNo = await executeDownstreamOutputs({
+              automation,
+              user: reqUser,
+              companyId: targetCompanyIdStr,
+              companyInfo: automationCompany,
+              outputsToExecute: outputsToExecuteNo,
+              responseText: preNoResultText,
+              generatedAppReports: [],
+              activeBranch: 'no',
+              nodeConfigs: allNodeCfg,
+              capturedEvidences: runCapturedEvidences,
+              generatedConvoId: null,
+              hasCriticalSignal: false,
+              logId: log._id,
+            });
+          } catch (preOutErr) {
+            console.warn(
+              '[AutomationScheduler] Non-blocking executeDownstreamOutputs (pre_agent NO) error:',
+              preOutErr?.message || preOutErr,
+            );
+          }
+        }
+
+        if (
+          Array.isArray(outResNo?.workspaceLinks) &&
+          outResNo.workspaceLinks.length > 0 &&
+          !preNoResultText.includes(outResNo.workspaceLinks[0].url)
+        ) {
+          const linksMd =
+            '\n\n---\n### 🔗 Documentos Generados en Google Workspace\n' +
+            outResNo.workspaceLinks
+              .map((l) => `- **[${l.type.toUpperCase()}]** [${l.title}](${l.url})`)
+              .join('\n');
+          preNoResultText += linksMd;
+        }
+
+        const cronNextRunPatchPre =
+          isManual && automation.status === 'active'
+            ? {
+                nextRunAt: hasCronTrigger(automation)
+                  ? calculateNextRun(automation.scheduleType, automation.scheduleConfig)
+                  : null,
+              }
+            : {};
+
+        await Promise.all([
+          AutomationLog.updateOne(
+            { _id: log._id },
+            {
+              $set: {
+                status: 'success',
+                result: preNoResultText,
+                conversationId: null,
+                evidenceFiles: cleanPreEvidenceFiles,
+                evidences: cleanPreEvidenceFiles,
+                dedupWindowUsed: dedupLedger.dedupWindow || '',
+                executionTrace: {
+                  triggerSource,
+                  ifPlacement: 'pre_agent',
+                  activeBranch: 'no',
+                  ifConditionPassed: false,
+                  hasCriticalSignal: false,
+                  llmSkippedByPreIf: true,
+                  ifReason: preIfRes.reason,
+                  totalAuditedRecords: totalAuditedRecordsCount,
+                  freshCriticalCount: 0,
+                  deduplicatedCount: totalDedupSkipped,
+                  executedOutputs: outResNo?.executedOutputs || [],
+                  workspaceLinks: outResNo?.workspaceLinks || [],
+                  ...(outResNo?.errors?.length ? { outputWarnings: outResNo.errors } : {}),
+                  ...preExtractionTraceMeta,
+                },
+              },
+            },
+          ),
+          Automation.updateOne(
+            { _id: automation._id },
+            {
+              $set: {
+                lastRunAt: new Date(),
+                lastRunStatus: 'success',
+                lastRunResult: preNoResultText.substring(0, 500),
+                ...cronNextRunPatchPre,
+              },
+            },
+          ),
+        ]);
+
+        console.log(
+          `[AutomationScheduler] PRE-AGENT IF GATE -> Branch NO taken for "${automation.name}" (0 LLM tokens used). Outputs executed: [${(outResNo?.executedOutputs || []).join(', ')}]`,
+        );
+        return;
+      }
+    }
+
+    const postAgentIfContractDirective =
+      includeIfNodeFlag && !isPreAgentIf
+        ? `\n\n🔀 [CONTRATO OBLIGATORIO DE COMPUERTA CONDICIONAL POST-AGENTE]: Evalúa estrictamente la condición "${ifConditionLabelStr || '¿Existen hallazgos críticos que requieran escalamiento?'}" y escribe en la ÚLTIMA LÍNEA de tu respuesta exactamente [VEREDICTO_IF: SI] (si se cumple) o [VEREDICTO_IF: NO] (si NO se cumple / todo está al día / es observación menor).`
+        : '';
 
     const realTimeEventHeader = eventPayload
       ? `🚨 [EVENTO DISPARADOR EN TIEMPO REAL (${String(triggerSource || 'event').toUpperCase()}) — PRIORIDAD #1]:\n` +
@@ -3356,7 +4061,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
       : `${realTimeEventHeader}${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}${livePreExtractionBlock}${liveAntigravityScraperBlock}`;
-    const effectivePrompt = `${companyHeaderBlock}${automation.prompt}`;
+    const effectivePrompt = `${companyHeaderBlock}${automation.prompt}${postAgentIfContractDirective}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
     if (effectiveAiModel) {
@@ -3405,68 +4110,86 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       json: function() { return this; }
     };
 
-    // 5. Construct endpointOption
-    const endpointOption = {
-      endpoint: 'agents',
-      agent_id: agent.id,
-      model_parameters: agent.model_parameters || {},
-      agent: Promise.resolve(agent)
-    };
+    // 5-8. Construct endpointOption & execute agent call (supports programmatic agentExecutorOverride for deterministic logical test suites)
+    let response = null;
+    if (typeof runOpts.agentExecutorOverride === 'function') {
+      console.log(`[AutomationScheduler] STEP 3: Executing programmatic agentExecutorOverride for "${automation.name}"...`);
+      response = await runOpts.agentExecutorOverride({
+        effectivePrompt,
+        agent,
+        req,
+        automation,
+        structuredSourceRes,
+        preRes,
+        dedupLedger,
+      });
+      if (response?.conversationId) {
+        generatedConvoId = response.conversationId;
+      }
+      clearTimeout(timeoutId);
+    } else {
+      const endpointOption = {
+        endpoint: 'agents',
+        agent_id: agent.id,
+        model_parameters: agent.model_parameters || {},
+        agent: Promise.resolve(agent)
+      };
 
-    req.body.endpointOption = endpointOption;
+      req.body.endpointOption = endpointOption;
 
-    // 6. Initialize agent client
-    const { client, userMCPAuthMap } = await initializeClient({
-      req,
-      res: mockRes,
-      endpointOption,
-      signal: prelimAbortController.signal
-    });
+      // 6. Initialize agent client
+      const { client, userMCPAuthMap } = await initializeClient({
+        req,
+        res: mockRes,
+        endpointOption,
+        signal: prelimAbortController.signal
+      });
 
-    // 7. Message options
-    const messageOptions = {
-      user: automation.user.toString(),
-      getReqData: (data) => {
-        if (data?.conversationId) {
-          generatedConvoId = data.conversationId;
+      // 7. Message options
+      const messageOptions = {
+        user: automation.user.toString(),
+        getReqData: (data) => {
+          if (data?.conversationId) {
+            generatedConvoId = data.conversationId;
+          }
+        },
+        conversationId: null,
+        parentMessageId: '00000000-0000-0000-0000-000000000000', // NO_PARENT
+        abortController: prelimAbortController,
+        userMCPAuthMap
+      };
+
+      // 8. Execute agent call with safety limit of 8 minutes
+      console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}" (companyId: ${targetCompanyIdStr || 'none'})...`);
+      let raceTimeoutId = null;
+      response = await Promise.race([
+        client.sendMessage(effectivePrompt, messageOptions),
+        new Promise((_, reject) => {
+          raceTimeoutId = setTimeout(() => {
+            prelimAbortController.abort();
+            reject(new Error('Tiempo límite de ejecución superado (8 minutos).'));
+          }, 480000);
+        }),
+      ]);
+      if (raceTimeoutId) {
+        clearTimeout(raceTimeoutId);
+      }
+
+      // Desactivar el temporizador de 10 minutos de inmediato
+      clearTimeout(timeoutId);
+      console.log(`[AutomationScheduler] STEP 4: Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
+
+      if (response?.databasePromise) {
+        try {
+          console.log(`[AutomationScheduler] STEP 4.1: Awaiting response.databasePromise (max 5s)...`);
+          await Promise.race([
+            response.databasePromise,
+            new Promise((r) => setTimeout(r, 5000))
+          ]);
+          console.log(`[AutomationScheduler] STEP 4.2: databasePromise resolved.`);
+        } catch (dbErr) {
+          console.warn('[AutomationScheduler] databasePromise non-blocking notice:', dbErr.message);
         }
-      },
-      conversationId: null,
-      parentMessageId: '00000000-0000-0000-0000-000000000000', // NO_PARENT
-      abortController: prelimAbortController,
-      userMCPAuthMap
-    };
-
-    // 8. Execute agent call with safety limit of 8 minutes
-    console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}" (companyId: ${targetCompanyIdStr || 'none'})...`);
-    let raceTimeoutId = null;
-    const response = await Promise.race([
-      client.sendMessage(effectivePrompt, messageOptions),
-      new Promise((_, reject) => {
-        raceTimeoutId = setTimeout(() => {
-          prelimAbortController.abort();
-          reject(new Error('Tiempo límite de ejecución superado (8 minutos).'));
-        }, 480000);
-      }),
-    ]);
-    if (raceTimeoutId) {
-      clearTimeout(raceTimeoutId);
-    }
-    
-    // Desactivar el temporizador de 10 minutos de inmediato
-    clearTimeout(timeoutId);
-    console.log(`[AutomationScheduler] STEP 4: Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
-
-    if (response?.databasePromise) {
-      try {
-        console.log(`[AutomationScheduler] STEP 4.1: Awaiting response.databasePromise (max 5s)...`);
-        await Promise.race([
-          response.databasePromise,
-          new Promise((r) => setTimeout(r, 5000))
-        ]);
-        console.log(`[AutomationScheduler] STEP 4.2: databasePromise resolved.`);
-      } catch (dbErr) {
-        console.warn('[AutomationScheduler] databasePromise non-blocking notice:', dbErr.message);
       }
     }
 
@@ -3548,7 +4271,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             `Actúas como **${rev.name}** (${rev.role}).\n\n` +
             `[BORRADOR / DICTAMEN DEL AGENTE PREVIO EN LA CADENA]:\n"""\n${resultText.slice(0, 18000)}\n"""\n\n` +
             `[TU MISIÓN E INSTRUCCIÓN ESPECIALIZADA]:\n${rev.instruction}\n\n` +
-            `Entrega el informe ejecutivo consolidado final en Markdown (conservando todos los datos verificados, tablas, hallazgos críticos y complementando con tu dictamen experto sin perder trazabilidad).`;
+            `Entrega el informe ejecutivo consolidado final en Markdown (conservando todos los datos verificados, tablas, hallazgos críticos y complementando con tu dictamen experto sin perder trazabilidad).${postAgentIfContractDirective}`;
           const enriched = await callSgsstGemini({
             userId: automation.user.toString(),
             modelName: rev.model,
@@ -3568,22 +4291,68 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       }
     }
 
-    // 9.8. Puente Universal de Informes Oficiales HTML (`req._generatedAppReports`) para TODOS los Aplicativos Hito 1–8
+    // 9.7. Evaluación Causal de Compuerta Condicional (`pre_agent` ya verificado o `post_agent` inmune a negaciones)
+    let ifConditionPassed = true;
+    let activeBranch = 'direct';
+    let hasCriticalSignalInResult = false;
+    let ifEvaluationReason = 'Flujo directo sin compuerta condicional.';
+
+    if (!includeIfNodeFlag) {
+      activeBranch = 'direct';
+      ifConditionPassed = true;
+      const semanticSignal = evaluatePostAgentSemanticIf({
+        resultText,
+        ifCfg,
+        watchesDriveNewFiles,
+      });
+      hasCriticalSignalInResult =
+        semanticSignal.passed ||
+        (Array.isArray(structuredSourceRes?.freshCriticalRecords) &&
+          structuredSourceRes.freshCriticalRecords.length > 0) ||
+        runScraperBreachCount > 0;
+    } else if (isPreAgentIf) {
+      // Si llegamos aquí con isPreAgentIf === true es porque preIfRes.passed === true (Rama SÍ)
+      ifConditionPassed = true;
+      activeBranch = 'yes';
+      hasCriticalSignalInResult = true;
+      ifEvaluationReason =
+        preIfRes?.reason || 'Condición determinista pre_agent cumplida -> Rama SÍ activa.';
+    } else {
+      const postIfRes = evaluatePostAgentSemanticIf({
+        resultText,
+        ifCfg,
+        watchesDriveNewFiles,
+      });
+      ifConditionPassed = postIfRes.passed;
+      activeBranch = ifConditionPassed ? 'yes' : 'no';
+      hasCriticalSignalInResult = ifConditionPassed;
+      ifEvaluationReason = postIfRes.reason;
+    }
+
+    // 9.8. Puente Universal de Informes Oficiales HTML (`req._generatedAppReports`) SOLO para Hitos `target_write_report` y SOLO en Rama SÍ / Flujo Directo (JAMÁS en Rama NO)
     const workflowHitosList = Array.isArray(automation.workflowNodes?.hitos)
       ? automation.workflowNodes.hitos.filter(Boolean)
       : [];
-    if (workflowHitosList.length > 0) {
+    if ((activeBranch === 'yes' || activeBranch === 'direct') && workflowHitosList.length > 0) {
       const pipeline = getHitoReportPipeline();
       if (pipeline) {
         for (const rawHitoId of workflowHitosList) {
           const hitoNodeId = sstAppSourceAliasMap[rawHitoId] || rawHitoId;
           const cfg =
+            postNodeConfigs[`tool_hitos_${rawHitoId}`] ||
             postNodeConfigs[`hito_${rawHitoId}`] ||
             postNodeConfigs[rawHitoId] ||
+            postNodeConfigs[`tool_hitos_${hitoNodeId}`] ||
             postNodeConfigs[`hito_${hitoNodeId}`] ||
             postNodeConfigs[hitoNodeId] ||
             {};
-          const alreadyCollected = Array.isArray(req._generatedAppReports) &&
+          const hitoRole = resolveWorkflowHitoRole(postNodeConfigs, rawHitoId);
+          if (hitoRole !== 'target_write_report' && cfg.includeLatestReport !== true) {
+            continue;
+          }
+
+          const alreadyCollected =
+            Array.isArray(req._generatedAppReports) &&
             req._generatedAppReports.some(
               (r) =>
                 r &&
@@ -3595,9 +4364,13 @@ async function runAutomation(automation, optionsOrIsManual = false) {
 
           try {
             if (
-              cfg.generateAppReport === true ||
-              cfg.appActionMode === 'generate_report' ||
-              cfg.appActionMode === 'write_and_report'
+              hitoRole === 'target_write_report' &&
+              (cfg.generateAppReport === true ||
+                cfg.appActionMode === 'generate_report' ||
+                cfg.appActionMode === 'write_and_report' ||
+                cfg.appActionMode === 'write_and_update' ||
+                cfg.hitoOperationMode === 'write_register' ||
+                cfg.hitoOperationMode === 'audit_and_update')
             ) {
               if (typeof pipeline.generateOrExtractOfficialAppReport === 'function') {
                 await pipeline.generateOrExtractOfficialAppReport({
@@ -3648,56 +4421,12 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       ? req._generatedAppReports.filter(Boolean)
       : [];
     const newAppReports = allGeneratedAppReports.filter((r) => r && !r.alreadyProcessed);
-
-    let hasCriticalSignalInResult =
-      /⚠️|❌|🚨|vencid[oa]|cr[ií]tic[oa]|multa|comparendo|incumpl|brecha|riesgo\s+alto|no\s+cumple|sin\s+registro|sin\s+afiliaci[oó]n/i.test(
-        resultText,
-      );
-    let ifConditionPassed = hasCriticalSignalInResult;
-    const ifCfg = postNodeConfigs.if_router || postNodeConfigs.if_condition || {};
-    if (automation.workflowNodes?.includeIfNode) {
-      const condType = String(ifCfg.ifConditionType || 'critical_findings');
-      const expr = String(ifCfg.ifRuleExpression || '').trim();
-      if (condType === 'keyword_match' && expr) {
-        ifConditionPassed = resultText.toLowerCase().includes(expr.toLowerCase());
-      } else if (condType === 'numeric_threshold' && expr) {
-        const thresholdNum = Number(expr.replace(/[^\d.-]/g, '')) || 1;
-        ifConditionPassed = cleanRunEvidenceFiles.length >= thresholdNum || hasCriticalSignalInResult;
-      }
-    }
-
-    const wfExtractorsForCondition = Array.isArray(automation.workflowNodes?.extractors)
-      ? automation.workflowNodes.extractors
-      : [];
-    const ifConditionLabelStr = String(
-      ifCfg.ifConditionLabel ||
-        ifCfg.customTitle ||
-        ifCfg.title ||
-        ifCfg.customInstruction ||
-        ifCfg.ifRuleExpression ||
-        automation.workflowNodes?.ifConditionLabel ||
-        '',
-    ).trim();
-    const watchesDriveNewFiles =
-      wfExtractorsForCondition.includes('extract_drive') ||
-      wfExtractorsForCondition.includes('google_drive') ||
-      /furat|drive|nuevo/i.test(ifConditionLabelStr);
-
-    const explicitNoNewDriveFiles =
-      /no\s+(se\s+encontraron|existen|hay)\s+archivos\s+nuevos|no\s+(se\s+encontraron|existen|hay)\s+(archivos|documentos|reportes|furat|eventos|accidentes)(\s+furat)?\s+nuevos|0\s+(archivos|furat|accidentes)\s+nuevos|google\s+drive\s+no\s+est[aá]\s+vinculado|sin\s+archivos\s+(furat\s+)?nuevos|conexi[oó]n\s+con\s+google\s+drive\s+ha\s+expirado|no\s+se\s+encontraron\s+archivos\s+ni\s+carpetas\s+en\s+google\s+drive|ya\s+(hab[ií]an\s+sido|fueron)\s+(procesados|investigados)\s+anteriormente/i.test(
-        resultText,
-      ) || (allGeneratedAppReports.length > 0 && newAppReports.length === 0);
-
-    if (newAppReports.length > 0) {
+    if ((activeBranch === 'yes' || activeBranch === 'direct') && newAppReports.length > 0) {
       hasCriticalSignalInResult = true;
-      ifConditionPassed = true;
-    } else if (newAppReports.length === 0 && watchesDriveNewFiles && explicitNoNewDriveFiles) {
-      hasCriticalSignalInResult = false;
-      ifConditionPassed = false;
     }
 
     const isOutputAllowedByIfBranch = (outNodeId) => {
-      if (!Boolean(automation.workflowNodes?.includeIfNode)) return true;
+      if (!includeIfNodeFlag) return true;
       const outIdx = Math.max(0, configuredOutputs.indexOf(outNodeId));
       const branch = resolveOutputBranchForIfRouter(
         outNodeId,
@@ -3709,12 +4438,32 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       return branch === 'no' ? !ifConditionPassed : ifConditionPassed;
     };
 
-    const activeBranch = Boolean(automation.workflowNodes?.includeIfNode)
-      ? ifConditionPassed
-        ? 'yes'
-        : 'no'
-      : 'direct';
     const outputsToExecute = configuredOutputs.filter((outId) => isOutputAllowedByIfBranch(outId));
+
+    const keysToPersist =
+      activeBranch === 'yes' || activeBranch === 'direct'
+        ? Array.from(
+            new Set(
+              [
+                ...(Array.isArray(structuredSourceRes?.candidateProcessedKeys)
+                  ? structuredSourceRes.candidateProcessedKeys
+                  : []),
+                ...(Array.isArray(preRes?.externalCandidateKeys)
+                  ? preRes.externalCandidateKeys
+                  : []),
+                ...runScraperCandidateKeys,
+                ...(gmailMessageId ? [`gmail:${gmailMessageId}`] : []),
+              ].filter(Boolean),
+            ),
+          )
+        : [];
+
+    const totalDedupSkippedPost =
+      (Array.isArray(structuredSourceRes?.deduplicatedSkippedRecords)
+        ? structuredSourceRes.deduplicatedSkippedRecords.length
+        : 0) +
+      Number(preRes?.traceMeta?.deduplicatedDriveFilesCount || 0) +
+      Number(preRes?.traceMeta?.deduplicatedGmailMessagesCount || 0);
 
     const humanApprovalNode = postLogicNodes.find(
       (ln) =>
@@ -3732,14 +4481,24 @@ async function runAutomation(automation, optionsOrIsManual = false) {
 
     const shouldGateForHumanApproval =
       Boolean(humanApprovalNode) &&
-      (activeBranch === 'yes' || !Boolean(automation.workflowNodes?.includeIfNode)) &&
+      (activeBranch === 'yes' || !includeIfNodeFlag) &&
       outputsToExecute.length > 0;
 
     const executionTraceSummary = {
       triggerSource,
+      ifPlacement: includeIfNodeFlag ? (isPreAgentIf ? 'pre_agent' : 'post_agent') : 'none',
       activeBranch,
       ifConditionPassed,
+      ifReason: ifEvaluationReason,
       hasCriticalSignal: hasCriticalSignalInResult,
+      llmSkippedByPreIf: false,
+      totalAuditedRecords: Array.isArray(structuredSourceRes?.allRecords)
+        ? structuredSourceRes.allRecords.length
+        : 0,
+      freshCriticalCount: Array.isArray(structuredSourceRes?.freshCriticalRecords)
+        ? structuredSourceRes.freshCriticalRecords.length
+        : 0,
+      deduplicatedCount: totalDedupSkippedPost,
       multiAgentPassesExecuted,
       officialReportsAttached: newAppReports.length,
       dynamicToolsInjected: dynamicWorkflowTools,
@@ -3808,6 +4567,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               conversationId: generatedConvoId,
               evidenceFiles: cleanRunEvidenceFiles,
               evidences: cleanRunEvidenceFiles,
+              processedEntityKeys: keysToPersist,
+              dedupWindowUsed: dedupLedger.dedupWindow || '',
               pendingApprovalPayload,
               executionTrace: executionTraceSummary,
             },
@@ -3891,8 +4652,65 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         }
       });
     } else {
+      if (generatedConvoId) {
+        try {
+          const ConvoModel = mongoose.models.Conversation;
+          if (ConvoModel) {
+            await ConvoModel.updateOne(
+              { conversationId: generatedConvoId },
+              { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
+            );
+          }
+        } catch (_) {}
+      }
+
+      let outRes = { executedOutputs: [], workspaceLinks: [], errors: [] };
+      if (outputsToExecute.length > 0) {
+        try {
+          outRes = await executeDownstreamOutputs({
+            automation,
+            user: reqUser,
+            companyId: targetCompanyIdStr,
+            companyInfo: automationCompany,
+            outputsToExecute,
+            responseText: resultText,
+            generatedAppReports: newAppReports,
+            activeBranch,
+            nodeConfigs: postNodeConfigs,
+            capturedEvidences: runCapturedEvidences,
+            generatedConvoId,
+            hasCriticalSignal: hasCriticalSignalInResult,
+            logId: log._id,
+          });
+        } catch (postErr) {
+          console.warn(
+            '[AutomationScheduler] Non-blocking executeDownstreamOutputs error:',
+            postErr?.message || postErr,
+          );
+        }
+      }
+
+      if (
+        Array.isArray(outRes?.workspaceLinks) &&
+        outRes.workspaceLinks.length > 0 &&
+        !resultText.includes(outRes.workspaceLinks[0].url)
+      ) {
+        const linksMd =
+          '\n\n---\n### 🔗 Documentos Generados en Google Workspace\n' +
+          outRes.workspaceLinks
+            .map((l) => `- **[${l.type.toUpperCase()}]** [${l.title}](${l.url})`)
+            .join('\n');
+        resultText += linksMd;
+      }
+
+      executionTraceSummary.executedOutputs = outRes?.executedOutputs || [];
+      executionTraceSummary.workspaceLinks = outRes?.workspaceLinks || [];
+      if (Array.isArray(outRes?.errors) && outRes.errors.length > 0) {
+        executionTraceSummary.outputWarnings = outRes.errors;
+      }
+
       console.log(
-        `[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} (${cleanRunEvidenceFiles.length} evidenceFiles) and Automation ${automation._id} to SUCCESS...`,
+        `[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} (${cleanRunEvidenceFiles.length} evidenceFiles, branch=${activeBranch}) and Automation ${automation._id} to SUCCESS...`,
       );
       await Promise.all([
         AutomationLog.updateOne(
@@ -3904,6 +4722,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               conversationId: generatedConvoId,
               evidenceFiles: cleanRunEvidenceFiles,
               evidences: cleanRunEvidenceFiles,
+              processedEntityKeys: keysToPersist,
+              dedupWindowUsed: dedupLedger.dedupWindow || '',
               executionTrace: executionTraceSummary,
             },
           },
@@ -3922,52 +4742,6 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         ),
       ]);
       console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
-
-      setImmediate(async () => {
-        if (generatedConvoId) {
-          try {
-            const ConvoModel = mongoose.models.Conversation;
-            if (ConvoModel) {
-              await ConvoModel.updateOne(
-                { conversationId: generatedConvoId },
-                { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
-              );
-            }
-          } catch (_) {}
-        }
-
-        try {
-          const outRes = await executeDownstreamOutputs({
-            automation,
-            user: reqUser,
-            companyId: targetCompanyIdStr,
-            companyInfo: automationCompany,
-            outputsToExecute,
-            responseText: resultText,
-            generatedAppReports: newAppReports,
-            activeBranch,
-            nodeConfigs: postNodeConfigs,
-            capturedEvidences: runCapturedEvidences,
-            generatedConvoId,
-            hasCriticalSignal: hasCriticalSignalInResult,
-            logId: log._id,
-          });
-          if (outRes?.workspaceLinks?.length > 0 || outRes?.executedOutputs?.length > 0) {
-            await AutomationLog.updateOne(
-              { _id: log._id },
-              {
-                $set: {
-                  'executionTrace.executedOutputs': outRes.executedOutputs || [],
-                  'executionTrace.workspaceLinks': outRes.workspaceLinks || [],
-                  ...(outRes.errors?.length ? { 'executionTrace.outputWarnings': outRes.errors } : {}),
-                },
-              },
-            ).catch(() => {});
-          }
-        } catch (postErr) {
-          console.warn('[AutomationScheduler] Non-blocking executeDownstreamOutputs error:', postErr?.message || postErr);
-        }
-      });
     }
 
   } catch (err) {
@@ -6140,6 +6914,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
   let stepCounter = 0;
   let totalExtractedRecords = 0;
   let totalCriticalRecords = 0;
+  let totalDeduplicatedRecords = 0;
+  let totalFreshExternalItems = 0;
 
   const outputTitleMap = {
     email_report: '📧 Reporte Ejecutivo por Correo Electrónico',
@@ -6162,7 +6938,37 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     : [];
 
   if (executionPlan.length === 0) {
-    // Fallback por defecto si no se envió executionPlan explícito
+    // Fallback causal DAG estilo n8n:
+    // triggers ➔ extractors + source_read Hitos ➔ preIfLogic (merge/loop) ➔ [if_router si pre_agent] ➔ sub_model + memories + tools + customNodes + agent_root ➔ [if_router si !pre_agent] ➔ target_write_report Hitos ➔ human_approval ➔ extraAgents ➔ outputs
+    const fallbackIfCfg = nodeConfigs.if_router || nodeConfigs.if_condition || {};
+    const isPreAgentIfFallback =
+      Boolean(wf.includeIfNode) && String(fallbackIfCfg.ifPlacement || '').trim() === 'pre_agent';
+    const sourceReadHitosFallback = configuredHitos.filter(
+      (hId) => resolveWorkflowHitoRole(nodeConfigs, hId) === 'source_read',
+    );
+    const targetWriteHitosFallback = configuredHitos.filter(
+      (hId) => resolveWorkflowHitoRole(nodeConfigs, hId) === 'target_write_report',
+    );
+    const preIfLogicFallback = configuredLogicNodes.filter(
+      (ln) => String(ln?.logicType || '').toLowerCase() !== 'human_approval',
+    );
+    const postApprovalLogicFallback = configuredLogicNodes.filter(
+      (ln) => String(ln?.logicType || '').toLowerCase() === 'human_approval',
+    );
+    const preIfScraperCustomFallback = isPreAgentIfFallback
+      ? configuredCustomNodes.filter((cn, i) => {
+          const cnKey = cn.key || cn.id || `custom_${i + 1}`;
+          return isAntigravityScraperIdentifier(cnKey, cn.nodeType || cnKey, cn);
+        })
+      : [];
+    const preIfScraperKeys = new Set(
+      preIfScraperCustomFallback.map((cn, i) => cn.key || cn.id || `custom_${i + 1}`),
+    );
+    const agentClusterCustomFallback = configuredCustomNodes.filter((cn, i) => {
+      const cnKey = cn.key || cn.id || `custom_${i + 1}`;
+      return !preIfScraperKeys.has(cnKey);
+    });
+
     configuredTriggers.forEach((trigId, i) => {
       executionPlan.push({
         nodeKey: i === 0 ? 'trigger_root' : `trigger_${trigId}`,
@@ -6177,6 +6983,37 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'extractor',
       });
     });
+    sourceReadHitosFallback.forEach((hId) => {
+      executionPlan.push({
+        nodeKey: `hito_${hId}`,
+        nodeId: hId,
+        category: 'hito',
+      });
+    });
+    preIfScraperCustomFallback.forEach((cn, i) => {
+      const cnKey = cn.key || cn.id || `custom_${i + 1}`;
+      executionPlan.push({
+        nodeKey: cnKey,
+        nodeId: cn.nodeType || cnKey,
+        category: 'custom_node',
+      });
+    });
+    preIfLogicFallback.forEach((ln, idx) => {
+      const lKey = ln.key || `logic_${ln.logicType || 'step'}_${idx + 1}`;
+      executionPlan.push({
+        nodeKey: lKey,
+        nodeId: `logic_${ln.logicType || 'step'}`,
+        category: 'logic',
+        title: ln.title || `Nodo Lógico (${ln.logicType || 'step'})`,
+      });
+    });
+    if (Boolean(wf.includeIfNode) && isPreAgentIfFallback) {
+      executionPlan.push({
+        nodeKey: 'if_router',
+        nodeId: 'if_condition',
+        category: 'condition',
+      });
+    }
     executionPlan.push({
       nodeKey: 'sub_model',
       nodeId: wf?.aiModel || 'gemini-3.6-flash',
@@ -6196,7 +7033,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'tool',
       });
     });
-    configuredCustomNodes.forEach((cn, i) => {
+    agentClusterCustomFallback.forEach((cn, i) => {
       const cnKey = cn.key || cn.id || `custom_${i + 1}`;
       executionPlan.push({
         nodeKey: cnKey,
@@ -6209,35 +7046,20 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       nodeId: agentId || 'agent_root',
       category: 'agent',
     });
-    configuredHitos.forEach((hId) => {
-      executionPlan.push({
-        nodeKey: `hito_${hId}`,
-        nodeId: hId,
-        category: 'hito',
-      });
-    });
-    const preIfLogicFallback = configuredLogicNodes.filter(
-      (ln) => String(ln?.logicType || '').toLowerCase() !== 'human_approval',
-    );
-    const postApprovalLogicFallback = configuredLogicNodes.filter(
-      (ln) => String(ln?.logicType || '').toLowerCase() === 'human_approval',
-    );
-    preIfLogicFallback.forEach((ln, idx) => {
-      const lKey = ln.key || `logic_${ln.logicType || 'step'}_${idx + 1}`;
-      executionPlan.push({
-        nodeKey: lKey,
-        nodeId: `logic_${ln.logicType || 'step'}`,
-        category: 'logic',
-        title: ln.title || `Nodo Lógico (${ln.logicType || 'step'})`,
-      });
-    });
-    if (Boolean(wf.includeIfNode)) {
+    if (Boolean(wf.includeIfNode) && !isPreAgentIfFallback) {
       executionPlan.push({
         nodeKey: 'if_router',
         nodeId: 'if_condition',
         category: 'condition',
       });
     }
+    targetWriteHitosFallback.forEach((hId) => {
+      executionPlan.push({
+        nodeKey: `hito_${hId}`,
+        nodeId: hId,
+        category: 'hito',
+      });
+    });
     postApprovalLogicFallback.forEach((ln, idx) => {
       const lKey = ln.key || `logic_human_approval_${idx + 1}`;
       executionPlan.push({
@@ -6269,6 +7091,20 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
   // Conjuntos de nodos REALMENTE conectados según `executionPlan`
   const connectedNodeKeys = new Set(executionPlan.map((s) => String(s.nodeKey)));
   const connectedNodeIds = new Set(executionPlan.map((s) => String(s.nodeId)));
+
+  // Cargar Ledger Anti-Duplicados real en Sandbox cuando `wappy_memory_antiduplicate` esté conectado y exista automationId
+  const simAutomationId = params.automationId || params._id || wf?.automationId || null;
+  const hasSimAntiDuplicate =
+    configuredMemories.includes('wappy_memory_antiduplicate') ||
+    connectedNodeIds.has('wappy_memory_antiduplicate') ||
+    connectedNodeKeys.has('sub_memory_wappy_memory_antiduplicate');
+  let simDedupLedger = { keysSet: new Set(), dedupWindow: '' };
+  if (hasSimAntiDuplicate && simAutomationId) {
+    simDedupLedger = await loadProcessedEntityKeysForAutomation({
+      automationId: simAutomationId,
+      nodeConfigs,
+    });
+  }
 
   // Resolver Agente IA Principal y configuración de modelo
   const isTenshiAvatarAgent =
@@ -6475,9 +7311,72 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       }
     }
 
-    const critCount = filteredRecords.filter((r) => r.isCritical).length;
+    const canonicalStepId = normalizeInspectorNodeId(effectiveInspectNodeId);
+    const isExternalDriveStep =
+      canonicalStepId === 'extract_drive' || canonicalStepId === 'google_drive';
+    const isExternalGmailStep =
+      canonicalStepId === 'extract_gmail' || canonicalStepId === 'google_gmail';
+    const isTargetWriteHitoStep =
+      category === 'hito' && resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'target_write_report';
+
+    let stepDedupSkipped = 0;
+    let critCount = 0;
+    if (isExternalDriveStep) {
+      const nextDriveRecords = [];
+      for (const r of filteredRecords) {
+        if (r.badge === 'CARPETA') {
+          nextDriveRecords.push(r);
+          continue;
+        }
+        const dKey = `drive:${r.id}`;
+        if (simDedupLedger.keysSet.size > 0 && simDedupLedger.keysSet.has(dKey)) {
+          stepDedupSkipped += 1;
+          totalDeduplicatedRecords += 1;
+        } else {
+          totalFreshExternalItems += 1;
+          nextDriveRecords.push(r);
+        }
+      }
+      if (simDedupLedger.keysSet.size > 0) {
+        filteredRecords = nextDriveRecords;
+      }
+    } else if (isExternalGmailStep) {
+      const nextGmailRecords = [];
+      for (const r of filteredRecords) {
+        const gKey = `gmail:${r.id}`;
+        if (simDedupLedger.keysSet.size > 0 && simDedupLedger.keysSet.has(gKey)) {
+          stepDedupSkipped += 1;
+          totalDeduplicatedRecords += 1;
+        } else {
+          totalFreshExternalItems += 1;
+          nextGmailRecords.push(r);
+        }
+      }
+      if (simDedupLedger.keysSet.size > 0) {
+        filteredRecords = nextGmailRecords;
+      }
+    } else if (!isTargetWriteHitoStep && category !== 'memory') {
+      const nextSourceRecords = [];
+      for (const r of filteredRecords) {
+        if (r.isCritical) {
+          const eKey = extractWorkflowEntityDedupKey(canonicalStepId, r);
+          if (simDedupLedger.keysSet.size > 0 && simDedupLedger.keysSet.has(eKey)) {
+            stepDedupSkipped += 1;
+            totalDeduplicatedRecords += 1;
+            if (filterMode !== 'critical_only') {
+              nextSourceRecords.push(r);
+            }
+            continue;
+          }
+          critCount += 1;
+        }
+        nextSourceRecords.push(r);
+      }
+      filteredRecords = nextSourceRecords;
+      totalCriticalRecords += critCount;
+    }
+
     totalExtractedRecords += filteredRecords.length;
-    totalCriticalRecords += critCount;
 
     const kpiLine = Array.isArray(liveData?.kpis)
       ? liveData.kpis.map((k) => `${k.label}: ${k.value}`).join(' · ')
@@ -6486,6 +7385,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     const previewLines = [];
     if (kpiLine) {
       previewLines.push(`📊 KPIs en Vivo: ${kpiLine}`);
+    }
+    if (stepDedupSkipped > 0) {
+      previewLines.push(
+        `🛡️ Filtro Anti-Duplicados Activo (${simDedupLedger.dedupWindow || '7d'}): ${stepDedupSkipped} registro(s)/archivo(s) ya procesados en corridas previas fueron omitidos.`,
+      );
+      addStepLog(
+        'info',
+        `Ledger Anti-Duplicados (${simDedupLedger.dedupWindow || '7d'}): ${stepDedupSkipped} ítem(s) omitidos por haber sido procesados previamente`,
+      );
     }
     if (surgicalFields.length > 0) {
       previewLines.push(`🎯 Filtro Quirúrgico Activo (${surgicalFields.length}): [${surgicalFields.join(', ')}]`);
@@ -7231,6 +8139,56 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       category === 'tool' ||
       category === 'hito'
     ) {
+      if (
+        category === 'hito' &&
+        resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'target_write_report' &&
+        ifHasEvaluated &&
+        ifEvaluation.branchTaken === 'NO'
+      ) {
+        await emitProgress({
+          type: 'step_start',
+          nodeKey,
+          nodeId,
+          category: 'hito',
+        });
+        const skippedHitoStep = {
+          stepIndex: ++stepCounter,
+          nodeKey,
+          nodeId,
+          category: 'hito',
+          title: `${stepCustomTitle || nodeId} (⏭️ Omitido — Rama SÍ no activa · 0 tokens IA)`,
+          status: 'skipped',
+          durationMs: 2,
+          recordsCount: 0,
+          surgicalFields: [],
+          inputSummary: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+          inputContext: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+          outputPreview:
+            '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: Este aplicativo Hito tiene rol de destino (target_write_report) en la Rama SÍ y la compuerta condicional tomó la Rama NO.',
+          sourceNodeKey: lastProducerNode.nodeKey,
+          sourceNodeTitle: lastProducerNode.title,
+          inputItems: [],
+          outputItems: [],
+          evidences: [],
+          logs: [
+            {
+              timestamp: new Date().toISOString(),
+              level: 'info',
+              message: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+            },
+          ],
+          error: null,
+        };
+        nodeTrace.push(skippedHitoStep);
+        await emitProgress({
+          type: 'step_done',
+          nodeKey,
+          nodeId,
+          step: skippedHitoStep,
+        });
+        continue;
+      }
+
       await executeDataStep({
         nodeKey,
         nodeId,
@@ -7310,6 +8268,44 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         logicSummary = `Iteración por Lotes (Loop): ${logicOutputItems.length} registro(s) recorridos en ${totalBatches} lote(s)`;
         logicPreview = `🔁 **LOOP EJECUTADO:** Se iteraron **${logicOutputItems.length}** registro(s) de "${logicSource.title}" (${totalBatches} lote(s) de máx. ${batchSize} ítems) listos para procesamiento individual.`;
       } else if (rawLogicType.includes('human_approval') || rawLogicType.includes('approval')) {
+        if (ifHasEvaluated && ifEvaluation.branchTaken === 'NO') {
+          const skippedApprovalStep = {
+            stepIndex: ++stepCounter,
+            nodeKey,
+            nodeId: nodeId || nodeKey,
+            category: 'logic',
+            title: `${logicTitle} (⏭️ Omitido — Rama SÍ no activa · 0 tokens IA)`,
+            status: 'skipped',
+            durationMs: 2,
+            recordsCount: 0,
+            surgicalFields: [],
+            inputSummary: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+            inputContext: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+            outputPreview:
+              '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: No se requiere Visto Bueno Humano cuando la compuerta condicional toma la Rama NO.',
+            sourceNodeKey: logicSource.nodeKey,
+            sourceNodeTitle: logicSource.title,
+            inputItems: [],
+            outputItems: [],
+            evidences: [],
+            logs: [
+              {
+                timestamp: new Date().toISOString(),
+                level: 'info',
+                message: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+              },
+            ],
+            error: null,
+          };
+          nodeTrace.push(skippedApprovalStep);
+          await emitProgress({
+            type: 'step_done',
+            nodeKey,
+            nodeId: skippedApprovalStep.nodeId,
+            step: skippedApprovalStep,
+          });
+          continue;
+        }
         const approver = String(lnCfg.approverEmail || validEmails[0] || 'responsable.sst@empresa.com').trim();
         logicOutputItems =
           logicIncoming.length > 0
@@ -7423,6 +8419,34 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         });
 
         totalExtractedRecords += realScraper.recordsCount || 0;
+        if (Array.isArray(realScraper.outputItems) && realScraper.outputItems.length > 0) {
+          for (const sItem of realScraper.outputItems) {
+            const stTxt = String(
+              sItem?.estadoPortal || sItem?.detalleOficial || sItem?.estado || sItem?.alerta || '',
+            ).toLowerCase();
+            const isBreach =
+              Boolean(sItem?.isCritical) ||
+              /sin\s+registro|sin\s+curso|vencid|no\s+afiliad|inactiv|comparendo|multa|brecha|cr[ií]tic|no\s+encontrad/i.test(
+                stTxt,
+              );
+            if (isBreach) {
+              const rawDoc = String(
+                sItem?.cedula || sItem?.['Cédula / Documento'] || sItem?.documento || sItem?.placa || sItem?.id || '',
+              )
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]/g, '');
+              const sKey = `scraper:${cn.nodeType || nodeId || nodeKey}:${rawDoc || 'item'}`;
+              if (simDedupLedger.keysSet.size > 0 && simDedupLedger.keysSet.has(sKey)) {
+                totalDeduplicatedRecords += 1;
+              } else {
+                totalCriticalRecords += 1;
+              }
+            }
+          }
+        } else if (Number(realScraper.verifiedNoCoursesCount || 0) > 0) {
+          totalCriticalRecords += Number(realScraper.verifiedNoCoursesCount);
+        }
         const antigravityMode = String(
           cnCfg?.antigravityMode || cn?.antigravityMode || realScraper?.antigravityMode || 'auto',
         );
@@ -7499,6 +8523,43 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       // Caso Especial: Sub-Agente Especialista o Buscador Web en Vivo (`subagent` / `web_search`)
       if (cnTypeLower === 'subagent' || cnTypeLower === 'web_search') {
         const subTitle = stepCustomTitle || cn.title || (cnTypeLower === 'web_search' ? 'Buscador Web SST' : 'Sub-Agente Especialista');
+        if (ifHasEvaluated && ifEvaluation.branchTaken === 'NO') {
+          const skippedSubStep = {
+            stepIndex: ++stepCounter,
+            nodeKey,
+            nodeId: cn.nodeType || nodeId || nodeKey,
+            category,
+            title: `🧑‍🔬 ${subTitle} (⏭️ Omitido — Rama SÍ no activa · 0 tokens IA)`,
+            status: 'skipped',
+            durationMs: 2,
+            recordsCount: 0,
+            surgicalFields: [],
+            inputSummary: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+            inputContext: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+            outputPreview: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+            sourceNodeKey: cnIncomingSource.nodeKey,
+            sourceNodeTitle: cnIncomingSource.title,
+            inputItems: [],
+            outputItems: [],
+            evidences: [],
+            logs: [
+              {
+                timestamp: new Date().toISOString(),
+                level: 'info',
+                message: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+              },
+            ],
+            error: null,
+          };
+          nodeTrace.push(skippedSubStep);
+          await emitProgress({
+            type: 'step_done',
+            nodeKey,
+            nodeId: skippedSubStep.nodeId,
+            step: skippedSubStep,
+          });
+          continue;
+        }
         const subInstruction =
           cn.content ||
           cnCfg.customInstruction ||
@@ -7781,14 +8842,51 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           respLower,
         );
 
-      if (condType === 'keyword_match' && ruleExpr) {
+      const hasAgentRunBefore = agentOutputs.length > 0;
+      const watchesExternalSim =
+        connectedNodeIds.has('extract_drive') ||
+        connectedNodeIds.has('google_drive') ||
+        connectedNodeIds.has('extract_gmail') ||
+        connectedNodeIds.has('trigger_email') ||
+        connectedNodeIds.has('trigger_email_in') ||
+        connectedNodeIds.has('trigger_webhook') ||
+        connectedNodeIds.has('trigger_webhook_in');
+      const hasPositiveMockInput = Boolean(mockLower) && !explicitNoInMock;
+
+      const evalSimOp = (observed, operator, target) => {
+        if (operator === '>') return observed > target;
+        if (operator === '>=') return observed >= target;
+        if (operator === '<') return observed < target;
+        if (operator === '<=') return observed <= target;
+        if (operator === '!=' || operator === '!==') return observed !== target;
+        return observed === target;
+      };
+
+      if (condType === 'new_external_items') {
+        const numMatch = ruleExpr.match(/(>=|<=|>|<|===|==|=|!=|!==)\s*(\d+(?:\.\d+)?)/);
+        const threshold = numMatch ? Number(numMatch[2]) : 1;
+        const op = numMatch ? numMatch[1] : '>=';
+        const observedExt = explicitNoInMock
+          ? 0
+          : totalFreshExternalItems + (hasPositiveMockInput ? 1 : 0);
+        const passed = evalSimOp(observedExt, op, threshold);
+        ifEvaluation = {
+          enabled: true,
+          branchTaken: passed ? 'SI' : 'NO',
+          reason: passed
+            ? `Se detectaron ${observedExt} elemento(s) externo(s) nuevo(s) sin procesar (${observedExt} ${op} ${threshold}) -> Se activa la Rama SÍ.`
+            : `0 elementos externos nuevos que cumplan (${observedExt} ${op} ${threshold})${totalDeduplicatedRecords > 0 ? ` · ${totalDeduplicatedRecords} ya procesado(s) omitido(s)` : ''} -> Se activa la Rama NO.`,
+        };
+      } else if (condType === 'keyword_match' && ruleExpr) {
         const keywords = ruleExpr
           .split(/[,;|]+/)
           .map((s) => s.trim().toLowerCase())
           .filter(Boolean);
-        const matchedKw = keywords.find(
-          (kw) => respLower.includes(kw) || pipelineStrLower.includes(kw) || mockLower.includes(kw),
-        );
+        const matchedKw = explicitNoInMock
+          ? null
+          : keywords.find(
+              (kw) => respLower.includes(kw) || pipelineStrLower.includes(kw) || mockLower.includes(kw),
+            );
         ifEvaluation = {
           enabled: true,
           branchTaken: matchedKw ? 'SI' : 'NO',
@@ -7796,39 +8894,50 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             ? `Coincidencia exacta de palabra clave "${matchedKw}" detectada en el flujo -> Se activa la Rama SÍ.`
             : `Ninguna palabra clave de [${ruleExpr}] apareció en los datos evaluados -> Se activa la Rama NO.`,
         };
-      } else if (condType === 'numeric_threshold' && ruleExpr) {
-        const numMatch = ruleExpr.match(/(>=|<=|>|<|==|=)\s*(\d+(?:\.\d+)?)/);
+      } else if (condType === 'numeric_threshold') {
+        const numMatch = ruleExpr.match(/(>=|<=|>|<|===|==|=|!=|!==)\s*(\d+(?:\.\d+)?)/);
         const threshold = numMatch ? Number(numMatch[2]) : 1;
         const op = numMatch ? numMatch[1] : '>=';
-        const observed = totalCriticalRecords > 0 ? totalCriticalRecords : totalExtractedRecords;
-        const passed =
-          op === '>'
-            ? observed > threshold
-            : op === '>='
-              ? observed >= threshold
-              : op === '<'
-                ? observed < threshold
-                : op === '<='
-                  ? observed <= threshold
-                  : observed === threshold;
+        // NUNCA sustituir totalCriticalRecords === 0 por totalExtractedRecords
+        const baseMetric = watchesExternalSim ? totalFreshExternalItems : totalCriticalRecords;
+        const observed = explicitNoInMock
+          ? 0
+          : baseMetric + (hasPositiveMockInput && baseMetric === 0 ? 1 : 0);
+        const passed = evalSimOp(observed, op, threshold);
         ifEvaluation = {
           enabled: true,
           branchTaken: passed ? 'SI' : 'NO',
-          reason: `Evaluación de umbral numérico (${observed} ${op} ${threshold}) -> Se activa la Rama ${passed ? 'SÍ' : 'NO'}.`,
+          reason: `Evaluación de umbral numérico sobre hallazgos nuevos (${observed} ${op} ${threshold})${totalDeduplicatedRecords > 0 ? ` · ${totalDeduplicatedRecords} omitido(s) por anti-duplicados` : ''} -> Se activa la Rama ${passed ? 'SÍ' : 'NO'}.`,
         };
-      } else if (explicitNoInMock || explicitNoInResp) {
+      } else if (explicitNoInMock) {
         ifEvaluation = {
           enabled: true,
           branchTaken: 'NO',
-          reason: explicitNoInMock
-            ? 'El evento simulado en el Escenario de Desarrollo indica ausencia de novedades/hallazgos críticos -> Se activa la Rama NO.'
-            : 'El análisis determinó que no existen brechas críticas ni archivos pendientes por escalar -> Se activa la Rama NO.',
+          reason:
+            'El evento simulado en el Escenario de Desarrollo indica ausencia de novedades/hallazgos críticos -> Se activa la Rama NO.',
         };
-      } else {
+      } else if (hasAgentRunBefore) {
+        const postSimRes = evaluatePostAgentSemanticIf({
+          resultText: previousAgentResponse || finalResponse,
+          ifCfg,
+          watchesDriveNewFiles: watchesExternalSim,
+        });
         ifEvaluation = {
           enabled: true,
-          branchTaken: 'SI',
-          reason: `Se validaron ${totalExtractedRecords} registro(s) en los pasos conectados previos (${totalCriticalRecords} críticos/en brecha) -> Se activa la Rama SÍ hacia los siguientes nodos del flujo.`,
+          branchTaken: postSimRes.passed ? 'SI' : 'NO',
+          reason: `${postSimRes.reason} -> Se activa la Rama ${postSimRes.passed ? 'SÍ' : 'NO'}.`,
+        };
+      } else {
+        const effectiveCrit = watchesExternalSim
+          ? totalCriticalRecords + totalFreshExternalItems
+          : totalCriticalRecords;
+        const passedPreSim = effectiveCrit > 0 || hasPositiveMockInput;
+        ifEvaluation = {
+          enabled: true,
+          branchTaken: passedPreSim ? 'SI' : 'NO',
+          reason: passedPreSim
+            ? `Se detectaron ${effectiveCrit > 0 ? `${effectiveCrit} hallazgo(s)/elemento(s) nuevo(s) en brecha` : 'novedades en la entrada simulada'} (${totalExtractedRecords} registros inspeccionados) -> Se activa la Rama SÍ.`
+            : `100 % al día: 0 brechas críticas nuevas de ${totalExtractedRecords} registro(s) verificado(s)${totalDeduplicatedRecords > 0 ? ` (${totalDeduplicatedRecords} ya gestionado(s) omitido(s) por anti-duplicados)` : ''} -> Se activa la Rama NO (0 tokens IA).`,
         };
       }
       ifHasEvaluated = true;
@@ -7905,13 +9014,6 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
     // 6. NODO AGENTE IA (agent_root o extra_agent_N)
     if (category === 'agent') {
-      await emitProgress({
-        type: 'step_start',
-        nodeKey,
-        nodeId,
-        category: 'agent',
-      });
-
       const isPrimaryAgent = nodeKey === 'agent_root';
       const eaObj = !isPrimaryAgent
         ? extraAgentsList.find(
@@ -7935,6 +9037,58 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         !isPrimaryAgent && allowedTextModels.includes(requestedEaModel)
           ? requestedEaModel
           : effectiveAiModel;
+
+      if (ifHasEvaluated && ifEvaluation.branchTaken === 'NO') {
+        await emitProgress({
+          type: 'step_start',
+          nodeKey,
+          nodeId,
+          category: 'agent',
+        });
+        const skippedAgentStep = {
+          stepIndex: ++stepCounter,
+          nodeKey,
+          nodeId: nodeId || nodeKey,
+          category: 'agent',
+          title: `${stepCustomTitle || `🤖 ${currentAgentRole}: ${currentAgentName}`} (⏭️ Omitido — Rama SÍ no activa · 0 tokens IA)`,
+          status: 'skipped',
+          durationMs: 2,
+          recordsCount: 0,
+          surgicalFields: [],
+          inputSummary: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+          inputContext: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+          outputPreview:
+            '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: La compuerta determinista previa activó la Rama NO al no existir brechas nuevas pendientes, ahorrando el 100 % de tokens del modelo IA.',
+          sourceNodeKey: lastProducerNode.nodeKey,
+          sourceNodeTitle: lastProducerNode.title,
+          inputItems: [],
+          outputItems: [],
+          evidences: [],
+          logs: [
+            {
+              timestamp: new Date().toISOString(),
+              level: 'info',
+              message: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
+            },
+          ],
+          error: null,
+        };
+        nodeTrace.push(skippedAgentStep);
+        await emitProgress({
+          type: 'step_done',
+          nodeKey,
+          nodeId: skippedAgentStep.nodeId,
+          step: skippedAgentStep,
+        });
+        continue;
+      }
+
+      await emitProgress({
+        type: 'step_start',
+        nodeKey,
+        nodeId,
+        category: 'agent',
+      });
 
       // Construir el contexto ESTRICTAMENTE con los nodos que YA se ejecutaron antes de este Agente en el flujo conectado
       const upstreamSteps = nodeTrace.slice();
@@ -8016,6 +9170,29 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       );
       const evidencesPromptDirective = buildScraperEvidencesPromptBlock(upstreamEvidences);
 
+      const hasDownstreamPostIfSim =
+        !ifHasEvaluated &&
+        downstreamSteps.some(
+          (s) =>
+            s.category === 'condition' ||
+            s.nodeKey === 'if_router' ||
+            s.nodeKey === 'if_condition' ||
+            s.nodeId === 'if_condition',
+        );
+      const simIfCfgForAgent = resolveNodeConfig('if_router', 'if_condition');
+      const simIfConditionLabel = String(
+        simIfCfgForAgent.ifConditionLabel ||
+          simIfCfgForAgent.customTitle ||
+          simIfCfgForAgent.title ||
+          simIfCfgForAgent.customInstruction ||
+          simIfCfgForAgent.ifRuleExpression ||
+          wf?.ifConditionLabel ||
+          '',
+      ).trim();
+      const simPostAgentIfDirective = hasDownstreamPostIfSim
+        ? `\n\n🔀 [CONTRATO OBLIGATORIO DE COMPUERTA CONDICIONAL POST-AGENTE]: Evalúa estrictamente la condición "${simIfConditionLabel || '¿Existen hallazgos críticos que requieran escalamiento?'}" y escribe en la ÚLTIMA LÍNEA de tu respuesta exactamente [VEREDICTO_IF: SI] (si se cumple) o [VEREDICTO_IF: NO] (si NO se cumple / todo está al día / es observación menor).`
+        : '';
+
       const fullAgentPrompt =
         `[CONTEXTO DE EMPRESA ACTIVA]: "${companyName}" (NIT: ${automationCompany?.nit || 'N/A'})\n` +
         connectedMemoriesPromptBlock +
@@ -8031,7 +9208,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           : '') +
         `[INSTRUCCIÓN PARA ${currentAgentName.toUpperCase()} (${currentAgentRole}) EN EL PASO #${stepCounter + 1}]:\n` +
         `${baseInstructionForAgent}\n\n` +
-        `Entrega una respuesta ejecutiva en Markdown clara, concisa y estructurada que RESPONDA DIRECTAMENTE a la entrada recibida usando fielmente el orden y los datos extraídos en los pasos conectados de este flujo.`;
+        `Entrega una respuesta ejecutiva en Markdown clara, concisa y estructurada que RESPONDA DIRECTAMENTE a la entrada recibida usando fielmente el orden y los datos extraídos en los pasos conectados de este flujo.${simPostAgentIfDirective}`;
 
       if (isPrimaryAgent) {
         effectiveUserPrompt = baseInstructionForAgent;
@@ -8493,5 +9670,8 @@ module.exports = {
   executeDownstreamOutputs,
   isSafePublicHttpsUrl,
   fetchSafeWebhookApiData,
+  loadProcessedEntityKeysForAutomation,
+  evaluatePreAgentDeterministicIf,
+  evaluatePostAgentSemanticIf,
 };
 

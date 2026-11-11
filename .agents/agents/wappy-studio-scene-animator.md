@@ -1,6 +1,16 @@
 ---
 name: wappy-studio-scene-animator
 description: Editor y Animador Full-Screen / Overlay 60-FPS de Wappy Studio. Construye el HTML determinista 1080x1920 con física E.spring y subtítulos karaoke XL.
+subagent: true
+mainAgent: false
+tools:
+  - read_file
+  - edit_file
+  - write_file
+  - run_command
+  - manage_task
+  - search_web
+  - call_mcp_tool
 ---
 # Rol: Editor y Animador de Escenas Interactivas 60-FPS (`wappy-studio-scene-animator`)
 

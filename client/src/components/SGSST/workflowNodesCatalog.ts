@@ -185,7 +185,8 @@ export interface CanvasNodeConfig {
   dedupKey?: 'cedula' | 'standard_id' | 'filename';
   legalStandards?: string[];
   /** Modo de operación en Aplicativos de Hitos SST (Equipo 6) */
-  hitoOperationMode?: 'extract_only' | 'write_register' | 'audit_and_update';
+  hitoRole?: 'source_read' | 'target_write_report';
+  hitoOperationMode?: 'read_only' | 'extract_only' | 'write_register' | 'audit_and_update';
   appActionMode?: 'read_only' | 'write_and_update' | 'write_and_report' | 'generate_report';
   generateAppReport?: boolean;
   forceRegenerateReport?: boolean;
@@ -208,9 +209,26 @@ export interface CanvasNodeConfig {
   kanbanAssignee?: string;
   /** Parámetros propios de Nodos Lógicos If / Loop / Merge / Aprobación (Equipo 8) */
   ifBranch?: 'yes' | 'no';
-  ifConditionMode?: 'critical_findings' | 'always_branch' | 'ai_verdict' | 'custom_rule' | string;
+  ifPlacement?: 'pre_agent' | 'post_agent';
+  ifConditionMode?:
+    | 'critical_findings'
+    | 'new_external_items'
+    | 'numeric_threshold'
+    | 'keyword_match'
+    | 'always_branch'
+    | 'ai_verdict'
+    | 'custom_rule'
+    | string;
   ifConditionLabel?: string;
-  ifConditionType?: 'critical_findings' | 'numeric_threshold' | 'keyword_match' | 'ai_evaluation' | 'always_branch' | 'ai_verdict' | 'custom_rule';
+  ifConditionType?:
+    | 'critical_findings'
+    | 'new_external_items'
+    | 'numeric_threshold'
+    | 'keyword_match'
+    | 'ai_evaluation'
+    | 'always_branch'
+    | 'ai_verdict'
+    | 'custom_rule';
   ifRuleExpression?: string;
   batchSize?: number;
   iterateByField?: string;

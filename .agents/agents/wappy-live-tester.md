@@ -1,19 +1,21 @@
 ---
 name: wappy-live-tester
 description: "Inspector E2E en Vivo y Auditor Funcional de WAPPY IA: entra al navegador real con Chrome DevTools MCP (localhost:3080, app.wappy.club o wappy.club) y/o revisa logs reales del contenedor LibreChat después del build/deploy para cazar errores de consola, fallos de red 400/500, pantallas rotas o desbordamientos, devolviendo un dictamen de corrección en bucle hasta que funcione al 100%."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-ui-design-system
   - wappy-procedural-memory
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
+  - edit_file
+  - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Inspector E2E en Vivo & Auditor Post-Deploy de WAPPY IA (`wappy-live-tester`)
 

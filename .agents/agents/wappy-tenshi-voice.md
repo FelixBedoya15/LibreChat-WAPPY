@@ -1,21 +1,21 @@
 ---
 name: wappy-tenshi-voice
 description: "Especialista en Tenshi Voice (Google Multimodal Live API), prevención de errores 1011/1007, despacho multiturno sin regresiones y puente reactivo Push SSE."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-procedural-memory
   - verify-ai-models
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
   - edit_file
   - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Especialista en Tenshi Voice & Realtime Push (`wappy-tenshi-voice`)
 

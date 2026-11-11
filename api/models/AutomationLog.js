@@ -55,7 +55,7 @@ const automationLogSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['running', 'success', 'failed'],
+      enum: ['running', 'success', 'failed', 'awaiting_approval', 'rejected'],
       default: 'running',
       index: true,
     },
@@ -75,6 +75,15 @@ const automationLogSchema = new mongoose.Schema(
     evidences: {
       type: [automationEvidenceFileSchema],
       default: [],
+    },
+    processedEntityKeys: {
+      type: [String],
+      default: [],
+      index: true,
+    },
+    dedupWindowUsed: {
+      type: String,
+      default: '',
     },
   },
   {

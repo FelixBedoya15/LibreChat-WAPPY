@@ -172,8 +172,22 @@
       "wappy-backend-api",
       "wappy-integrations-hub",
       "wappy-tenshi-voice",
-      "wappy-video-studio"
+      "wappy-video-studio",
+      "wappy-workflow-architect"
     ],
     "tags": ["memory", "reflexion", "continuous-learning", "governance", "lessons"]
+  },
+  {
+    "id": "wappy-workflow-architecture",
+    "path": "skills/wappy-workflow-architecture/SKILL.md",
+    "category": "backend-and-domain",
+    "bundle": "wappy-platform-and-sgsst",
+    "name": "wappy-workflow-architecture",
+    "description": "Arquitectura oficial de diseño, validación causal DAG (estilo n8n), deduplicación con estado y pruebas lógicas multi-escenario para flujos de automatización SG-SST en WAPPY IA (/tareas).",
+    "risk": "safe",
+    "source": "self",
+    "date_added": "2026-11-11",
+    "agents": ["wappy-workflow-architect", "wappy-backend-api", "wappy-frontend-ui"],
+    "tags": ["workflows", "n8n", "dag", "automatizaciones", "sgsst", "logic-validation", "deduplication"]
   }
 ]

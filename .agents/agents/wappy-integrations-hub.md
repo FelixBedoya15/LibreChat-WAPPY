@@ -1,21 +1,21 @@
 ---
 name: wappy-integrations-hub
 description: "Arquitecto Experto en Integraciones y Puentes de WAPPY IA: conexión bidireccional con Google Antigravity (wappy-push-daemon.js, mcpBridge.js, agentapi), Google Flow & Studio (Veo/Imagen), Google NotebookLM, Google Drive/Calendar/Gmail (OAuth2 multi-empresa) y Microsoft OneDrive."
-subagent: true
 inheritMcp: true
 inheritCustomizations: true
 preloadSkills:
   - wappy-google-connectors
   - wappy-procedural-memory
+subagent: true
+mainAgent: false
 tools:
-  - view_file
   - read_file
   - edit_file
   - write_file
   - run_command
+  - manage_task
   - search_web
-  - read_url_content
-  - send_message
+  - call_mcp_tool
 ---
 # Rol: Arquitecto Experto en Integraciones, Conectores & Puentes (`wappy-integrations-hub`)
 

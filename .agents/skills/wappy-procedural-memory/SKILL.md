@@ -49,6 +49,9 @@ Todas las memorias residen en `/Users/venta/.gemini/teams/wappy-dev-agency/memor
 5. 🛡️ **`/Users/venta/.gemini/teams/wappy-dev-agency/memory/qa-build-lessons.md`**
    - **Dueños:** `wappy-qa-devops` y el **Orquestador Principal**.
    - **Qué guarda:** Errores de compilación (`npm run build:client`), sincronización de `client/dist`, Docker y despliegues en el VPS (`srv999875`).
+6. 🔀 **`/Users/venta/.gemini/teams/wappy-dev-agency/memory/workflow-logic-lessons.md`**
+   - **Dueño:** `wappy-workflow-architect`.
+   - **Qué guarda:** Reglas aprendidas sobre causalidad DAG de izquierda a derecha (estilo `n8n`), roles `source_read` vs `target_write_report` en aplicativos Hito, compuertas `pre_agent` vs `post_agent`, deduplicación con estado (`processedEntityKeys`), cero nodos redundantes y pruebas lógicas multi-escenario.
 
 ---
 
