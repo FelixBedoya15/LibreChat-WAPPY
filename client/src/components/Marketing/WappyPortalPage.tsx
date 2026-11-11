@@ -192,6 +192,11 @@ export default function WappyPortalPage() {
     const refQuery = getRefQuery();
     // Si el navegador ya tiene sesión activa, entrar directo sin pasar por /login (evita el parpadeo).
     if (isAuthenticated) {
+      try {
+        sessionStorage.removeItem('tenshi_mobile_hero_minimized');
+        sessionStorage.removeItem('tenshi_mobile_hero_exited');
+        sessionStorage.setItem('tenshi_mobile_just_logged_in', 'true');
+      } catch (_) {}
       navigate(user && !hasActivePlan(user) ? '/planes' : '/c/new');
       return;
     }

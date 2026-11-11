@@ -992,7 +992,7 @@ export default function TenshiChat() {
   const location = useLocation();
   const { isAuthenticated, token, user } = useAuthContext();
 
-  // ─── Modo Protagonista en Celular (Hero Mode) ───────────────────────────────
+  // ─── Modo Protagonista Universal (PC, Portátil, Tablet y Celular) ───────────
   const checkIsMobile = useCallback(() => {
     if (typeof window === 'undefined') return false;
     return (
@@ -1011,32 +1011,87 @@ export default function TenshiChat() {
     );
   });
 
+  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }));
+
   const [isHeroChatOpen, setIsHeroChatOpen] = useState(false);
 
+  // Controla si el usuario ya salió voluntariamente a Wappy normal dentro de esta sesión montada
+  const hasExitedHeroInMountRef = useRef<boolean>(
+    typeof window !== 'undefined' &&
+      (window.location.search.includes('agent_id=') || window.location.search.includes('prompt=')),
+  );
+
+  // Al entrar a WAPPY (/c/new o /c/*) SIEMPRE inicia en Modo Protagonista a pantalla completa en todos los dispositivos
   const [isMobileHeroMode, setIsMobileHeroMode] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    const isMobile =
-      window.innerWidth < 768 ||
-      window.matchMedia('(max-width: 767px)').matches ||
-      (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && window.innerWidth < 1024);
-    if (!isMobile) return false;
     if (sessionStorage.getItem('tenshi_mobile_hero_forced') === 'true') return true;
     const isChatRoute =
       window.location.pathname === '/' ||
       window.location.pathname === '/c/new' ||
       window.location.pathname.startsWith('/c/');
-    const alreadyMinimized = sessionStorage.getItem('tenshi_mobile_hero_minimized') === 'true';
-    return isChatRoute && !alreadyMinimized;
+    const hasSpecialistAutoDispatch =
+      window.location.search.includes('agent_id=') ||
+      window.location.search.includes('prompt=');
+    if (isChatRoute && !hasSpecialistAutoDispatch) {
+      try {
+        sessionStorage.removeItem('tenshi_mobile_hero_minimized');
+        sessionStorage.removeItem('tenshi_mobile_hero_exited');
+      } catch (_) {}
+      return true;
+    }
+    return false;
   });
+
+  const exitHeroModeToWorkspace = useCallback(() => {
+    hasExitedHeroInMountRef.current = true;
+    setIsMobileHeroMode(false);
+    setIsHeroChatOpen(false);
+    try {
+      sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
+      sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
+      sessionStorage.removeItem('tenshi_mobile_hero_forced');
+    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
+    }
+  }, []);
+
+  // Sincronizar atributo global y evento reactivo para MobileBottomNav y NavToggle
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.tenshiHero = isMobileHeroMode ? 'true' : 'false';
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('tenshi-hero-state-change', { detail: { active: isMobileHeroMode } }),
+      );
+    }
+  }, [isMobileHeroMode]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.documentElement.dataset.tenshiHero = 'false';
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('tenshi-hero-state-change', { detail: { active: false } }),
+        );
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
       const mobile = checkIsMobile();
       setIsMobileScreen(mobile);
-      if (!mobile) {
-        setIsMobileHeroMode(false);
-        setIsHeroChatOpen(false);
-      }
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -1045,6 +1100,7 @@ export default function TenshiChat() {
 
   useEffect(() => {
     const handleExitHero = () => {
+      hasExitedHeroInMountRef.current = true;
       setIsMobileHeroMode(false);
       setIsHeroChatOpen(false);
       try {
@@ -1053,6 +1109,7 @@ export default function TenshiChat() {
       } catch (_) {}
     };
     const handleEnterHero = () => {
+      hasExitedHeroInMountRef.current = false;
       try {
         sessionStorage.removeItem('tenshi_mobile_hero_minimized');
         sessionStorage.removeItem('tenshi_mobile_hero_exited');
@@ -1069,30 +1126,48 @@ export default function TenshiChat() {
     };
   }, []);
 
-  // Activación al cargar o loguearse en celular
+  // Activación universal al entrar a WAPPY o iniciar sesión (PC, Portátil, Tablet y Celular)
   const prevAuthRef = useRef(isAuthenticated);
   useEffect(() => {
-    const isMobile = checkIsMobile();
-    if (!isMobile) return;
-
     const isChatRoute =
       location.pathname === '/' ||
       location.pathname === '/c/new' ||
       location.pathname.startsWith('/c/');
 
-    const justLoggedIn = sessionStorage.getItem('tenshi_mobile_just_logged_in') === 'true';
+    if (!isChatRoute) {
+      setIsMobileHeroMode((prev) => {
+        if (prev) {
+          hasExitedHeroInMountRef.current = true;
+          setIsHeroChatOpen(false);
+        }
+        return false;
+      });
+      prevAuthRef.current = isAuthenticated;
+      return;
+    }
 
-    if (isAuthenticated && isChatRoute) {
-      if (justLoggedIn || sessionStorage.getItem('tenshi_mobile_hero_minimized') !== 'true') {
+    const justLoggedIn = sessionStorage.getItem('tenshi_mobile_just_logged_in') === 'true';
+    const hasSpecialistAutoDispatch =
+      location.search.includes('agent_id=') || location.search.includes('prompt=');
+
+    if (isAuthenticated && isChatRoute && !hasSpecialistAutoDispatch) {
+      if (
+        justLoggedIn ||
+        (!hasExitedHeroInMountRef.current &&
+          sessionStorage.getItem('tenshi_mobile_hero_minimized') !== 'true')
+      ) {
+        hasExitedHeroInMountRef.current = false;
         setIsMobileHeroMode(true);
         try {
           sessionStorage.removeItem('tenshi_mobile_just_logged_in');
+          sessionStorage.removeItem('tenshi_mobile_hero_minimized');
+          sessionStorage.removeItem('tenshi_mobile_hero_exited');
         } catch (_) {}
       }
     }
 
     prevAuthRef.current = isAuthenticated;
-  }, [location.pathname, isAuthenticated, checkIsMobile]);
+  }, [location.pathname, location.search, isAuthenticated]);
 
   const agentsMap = useAgentsMapContext();
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
@@ -1153,13 +1228,22 @@ export default function TenshiChat() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && lightboxImage) {
+      if (e.key !== 'Escape') return;
+      if (lightboxImage) {
         setLightboxImage(null);
+        return;
+      }
+      if (isMobileHeroMode) {
+        if (isHeroChatOpen) {
+          setIsHeroChatOpen(false);
+        } else {
+          exitHeroModeToWorkspace();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxImage]);
+  }, [lightboxImage, isMobileHeroMode, isHeroChatOpen, exitHeroModeToWorkspace]);
   const lastActivityRef = useRef<number>(Date.now());
   const lastUserTranscriptionRef = useRef<string>('');
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -1169,6 +1253,15 @@ export default function TenshiChat() {
 
   // ─── Tenshi Vision Mode State & Video Infrastructure ──────────────────────────
   const [isVisionActive, setIsVisionActive] = useState(false);
+
+  const heroAvatarSize = useMemo(() => {
+    const reservedVertical = isVisionActive && !isHeroChatOpen ? 470 : 320;
+    if (viewportSize.width < 768) {
+      return Math.min(315, Math.max(190, viewportSize.height - reservedVertical));
+    }
+    const maxDesktopAvatar = isHeroChatOpen ? 315 : 355;
+    return Math.min(maxDesktopAvatar, Math.max(185, viewportSize.height - (reservedVertical - 10)));
+  }, [viewportSize.width, viewportSize.height, isVisionActive, isHeroChatOpen]);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const isCameraOnRef = useRef(true);
   isCameraOnRef.current = isCameraOn;
@@ -2561,6 +2654,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               // Consumir la bandera de forzar nuevo chat
               pendingForceNewChatRef.current = false;
 
+              // Mostrar el chat del especialista debajo saliendo del Modo Hero, conservando la voz en vivo activa
+              exitHeroModeToWorkspace();
+
               // CASO A: CONTINUIDAD (Mismo especialista y NO se solicitó nuevo chat)
               if (isSameAgentActive && !requestedNewChat) {
                 console.log(`[TenshiChat] Continuidad de chat detectada con ${agentName} (${targetAgentId}) en conversación ${conversation?.conversationId || 'actual'}`);
@@ -2640,6 +2736,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const title = action.args?.title || (action as any).title || 'Documento SG-SST';
             const content = (action as any).data?.content || action.args?.content || (action as any).content || '';
             const canvasId = (action as any).canvasId || (action as any).data?.canvasId || `canvas-${Date.now()}`;
+
+            // Salir del Modo Hero para que el usuario vea el Editor Canvas a pantalla completa
+            exitHeroModeToWorkspace();
 
             // 1. Asegurar que estamos en una vista compatible con el editor Canvas si no estamos en chat
             if (!window.location.pathname.startsWith('/c/')) {
@@ -4609,6 +4708,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     try {
       tenshiAudio.playBlip();
     } catch (_) {}
+    hasExitedHeroInMountRef.current = false;
     try {
       sessionStorage.removeItem('tenshi_mobile_hero_minimized');
       sessionStorage.removeItem('tenshi_mobile_hero_exited');
@@ -4649,10 +4749,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     tapTimestampsRef.current = tapTimestampsRef.current.filter((t) => now - t < 850);
     tapTimestampsRef.current.push(now);
 
-    const isMobile = checkIsMobile();
-
-    // 🌟 TRIPLE TAP (3 Toques seguidos en Móvil): Expansión a Pantalla Completa / Modo Protagonista
-    if (tapTimestampsRef.current.length >= 3 && isMobile) {
+    // 🌟 TRIPLE TAP / TRIPLE CLIC (PC, Portátil, Tablet y Celular): Expansión a Pantalla Completa / Modo Protagonista
+    if (tapTimestampsRef.current.length >= 3) {
       tapTimestampsRef.current = [];
       if (clickTimeoutRef.current) {
         clearTimeout(clickTimeoutRef.current);
@@ -5343,6 +5441,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       // Si NO es una simple pregunta conversacional ni una copia de archivo original, y sí se generó un documento o aplicativo,
       // abrirlo automáticamente en el Canvas (Editor de Documentos de WAPPY / LiveEditor) incluso si el usuario está en /aplicaciones
       if (!isConversationalReply && !isOriginalFileCopy && fileObj && contenido) {
+        exitHeroModeToWorkspace();
         const canvasPayload = {
           id: fileObj.canvasId,
           title: finalTitle,
@@ -5800,6 +5899,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               lastContentChangeRef.current = { text: '', time: now };
               setIsWaitingConsultation(true);
             }
+
+            exitHeroModeToWorkspace();
 
             if (isSameAgentActive && !requestedNewChat) {
               activeConsultationAgentIdRef.current = targetAgentId || currentAgentId || null;
@@ -6354,8 +6455,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       // Minimizar el panel de chat para que el usuario vea el Canvas a pantalla completa,
       // pero manteniendo a Tenshi visible y flotando en la esquina superior de z-index.
       setIsOpen(false);
-      setIsHeroChatOpen(false);
-      setIsMobileHeroMode(false);
+      exitHeroModeToWorkspace();
 
       const needsNavigation = !window.location.pathname.startsWith('/c/');
       if (needsNavigation) {
@@ -6529,24 +6629,28 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         document.body
       )}
 
-      {/* 📱 1. MODO HEROICO / PANTALLA COMPLETA EN CELULAR */}
-      {isMobileHeroMode && isMobileScreen ? (
+      {/* 🌟 1. MODO PROTAGONISTA / PANTALLA COMPLETA UNIVERSAL (PC, PORTÁTIL, TABLET Y CELULAR) */}
+      {isMobileHeroMode ? (
         <div
           id="tenshi-mobile-hero-container"
-          className="fixed inset-x-0 top-0 bottom-0 z-[50] flex flex-col md:hidden bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
+          className="fixed inset-0 z-[55] flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
           style={{
             paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
           }}
         >
-          {/* Cabecera Móvil (Con respeto de Notch/Dynamic Island en iPhone) */}
+          {/* Luces ambientales sutiles WAPPY Design System */}
+          <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-teal-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-emerald-500/10 dark:bg-teal-500/[0.06] blur-3xl" />
+
+          {/* Cabecera Superior (Con respeto de Notch/Dynamic Island en iPhone y padding amplio en PC/Tablet) */}
           <div
-            className="flex items-center justify-between px-4 pb-2.5 border-b border-slate-200/60 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md shrink-0 select-none"
+            className="relative z-10 flex items-center justify-between px-4 md:px-8 lg:px-12 pb-2.5 md:pb-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md shrink-0 select-none"
             style={{
               paddingTop: 'max(14px, env(safe-area-inset-top, 0px))',
             }}
           >
-            <div className="flex items-center gap-2">
-              <div className="relative flex h-8 w-8 items-center justify-center">
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex h-8 w-8 md:h-9 md:w-9 items-center justify-center">
                 <TenshiAvatar
                   size={32}
                   mood={derivedAvatarMood}
@@ -6566,14 +6670,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 leading-none">
+                  <h3 className="text-xs md:text-sm font-bold text-slate-900 dark:text-zinc-100 leading-none">
                     {activeAvatarProfile?.name || config?.effectiveAvatar?.name || config?.name || 'Tenshi'}
                   </h3>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-bold">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-bold">
                     WAPPY SST
                   </span>
                 </div>
-                <p className="mt-0.5 text-[9px] font-medium text-slate-500 dark:text-zinc-400">
+                <p className="mt-0.5 text-[9px] md:text-[11px] font-medium text-slate-500 dark:text-zinc-400">
                   {isTenshiSpeaking
                     ? 'Hablando contigo...'
                     : isVoiceActive
@@ -6583,15 +6687,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 md:gap-2">
               {/* Botón SFX */}
               <button
                 type="button"
                 onClick={handleToggleSFX}
                 title={isSFXMuted ? 'Activar efectos de sonido' : 'Silenciar efectos de sonido'}
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
               >
-                {isSFXMuted ? <VolumeX className="h-3.5 w-3.5 text-emerald-500" /> : <Volume2 className="h-3.5 w-3.5" />}
+                {isSFXMuted ? <VolumeX className="h-3.5 w-3.5 md:h-4 md:w-4 text-emerald-500" /> : <Volume2 className="h-3.5 w-3.5 md:h-4 md:w-4" />}
               </button>
 
               {/* Botón Salir a WAPPY normal */}
@@ -6599,209 +6703,239 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 type="button"
                 onClick={() => {
                   tenshiAudio.playBlip();
-                  setIsMobileHeroMode(false);
-                  setIsHeroChatOpen(false);
-                  try {
-                    sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
-                    sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
-                    sessionStorage.removeItem('tenshi_mobile_hero_forced');
-                  } catch (_) {}
-                  navigate('/c/new');
+                  exitHeroModeToWorkspace();
+                  if (!location.pathname.startsWith('/c/')) {
+                    navigate('/c/new');
+                  }
                 }}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 shadow-2xs active:scale-95 transition-all"
+                className="flex items-center gap-1.5 px-3 md:px-4 py-1.5 rounded-xl text-xs md:text-sm font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:border-teal-500/40 shadow-2xs active:scale-95 transition-all cursor-pointer"
                 title="Ir a interfaz normal de WAPPY"
               >
                 <span>Ir a Wappy</span>
-                <ArrowRight className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4 text-teal-600 dark:text-teal-400" />
               </button>
             </div>
           </div>
 
-          {/* Área Central Hero: SOLO Tenshi Grande, su Saludo y su Botonera Cápsula Activa */}
-          <div className="flex-1 px-4 py-4 flex flex-col items-center justify-center -mt-4 select-none relative">
-            {/* 1. Avatar Grande de Tenshi (315px) */}
+          {/* Cuerpo Central Adaptativo: En Celular superpone el chat; en PC/Portátil/Tablet divide la pantalla (Chat a la izquierda + Tenshi a la derecha) */}
+          <div className="relative z-10 flex-1 min-h-0 w-full max-w-[1680px] mx-auto flex flex-col md:flex-row items-stretch justify-center overflow-hidden md:px-6 lg:px-10 md:py-3 md:gap-6 lg:gap-8">
+            {/* Escenario Hero de Tenshi: Centrado cuando el chat está cerrado; desplazado suavemente a la derecha en pantallas grandes cuando el chat se abre */}
             <div
-              className="relative flex flex-col items-center my-1 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
-              onClick={() => {
-                tenshiAudio.playBlip();
-                if (!isVoiceActive) {
-                  startVoiceMode();
-                } else {
-                  stopVoiceMode();
-                }
-              }}
-              title="Tócame para hablar"
+              className={cn(
+                'flex-1 min-h-0 px-4 py-2 flex flex-col items-center justify-center select-none relative transition-all duration-500 ease-out md:order-2',
+                isHeroChatOpen ? 'md:w-[46%] lg:w-[48%] xl:w-[50%]' : 'w-full'
+              )}
             >
-              <TenshiAvatar
-                size={315}
-                mood={derivedAvatarMood}
-                isSpeaking={isTenshiSpeaking}
-                outputAmplitude={outputAmplitude}
-                isVoiceActive={isVoiceActive}
-                isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
-                statusText={liveActionPill || tenshiStatus || undefined}
-                interactive={true}
-                showHaloEffect={true}
-                showHUD={true}
-              />
-            </div>
-
-            {/* 2. Saludo & Subtítulo */}
-            <div className="text-center max-w-xs mt-7 mb-4">
-              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-snug font-medium">
-                {isVoiceActive
-                  ? isMicMuted
-                    ? 'Micrófono silenciado (Mute activo). Tenshi no te escucha.'
-                    : 'Voz en vivo activa. Te estoy escuchando...'
-                  : 'Soy tu copiloto en SG-SST. Tócame para hablar o pulsa el micrófono.'}
-              </p>
-            </div>
-
-            {/* PiP en Pantalla Hero Móvil cuando el chat está cerrado */}
-            {isVisionActive && !isHeroChatOpen && (
-              <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/60 bg-zinc-950 shadow-2xl w-full max-w-xs h-40 mb-3 shrink-0 animate-in fade-in zoom-in-95">
-                <video
-                  ref={setVisionVideoNode}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover rounded-xl bg-black"
+              {/* 1. Avatar Grande Adaptativo de Tenshi */}
+              <div
+                className="relative flex flex-col items-center my-1 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
+                onClick={() => {
+                  tenshiAudio.playBlip();
+                  if (!isVoiceActive) {
+                    startVoiceMode();
+                  } else {
+                    stopVoiceMode();
+                  }
+                }}
+                title={isMobileScreen ? 'Tócame para hablar' : 'Haz clic para hablar'}
+              >
+                <TenshiAvatar
+                  size={heroAvatarSize}
+                  mood={derivedAvatarMood}
+                  isSpeaking={isTenshiSpeaking}
+                  outputAmplitude={outputAmplitude}
+                  isVoiceActive={isVoiceActive}
+                  isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
+                  statusText={liveActionPill || tenshiStatus || undefined}
+                  interactive={true}
+                  showHaloEffect={true}
+                  showHUD={true}
                 />
-                <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md text-[9px] text-white font-bold border border-white/20">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                  </span>
-                  <span>EN VIVO ({facingMode === 'user' ? 'Frontal' : 'Trasera'})</span>
-                </div>
-                <div className="absolute top-2 right-2 flex items-center gap-1">
-                  {visionSource === 'camera' && (
+              </div>
+
+              {/* 2. Saludo & Subtítulo */}
+              <div className="text-center max-w-xs md:max-w-md mt-4 md:mt-5 mb-3 md:mb-4">
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
+                </h2>
+                <p className="text-xs md:text-sm text-slate-500 dark:text-zinc-400 mt-1 leading-snug font-medium">
+                  {isVoiceActive
+                    ? isMicMuted
+                      ? 'Micrófono silenciado (Mute activo). Tenshi no te escucha.'
+                      : 'Voz en vivo activa. Te estoy escuchando...'
+                    : isMobileScreen
+                    ? 'Soy tu copiloto en SG-SST. Tócame para hablar o pulsa el micrófono.'
+                    : 'Soy tu copiloto en SG-SST. Haz clic en mí para hablar o pulsa el micrófono.'}
+                </p>
+              </div>
+
+              {/* PiP en Pantalla Hero cuando el chat está cerrado */}
+              {isVisionActive && !isHeroChatOpen && (
+                <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/60 bg-zinc-950 shadow-2xl w-full max-w-xs md:max-w-sm h-40 md:h-44 mb-3 shrink-0 animate-in fade-in zoom-in-95">
+                  <video
+                    ref={setVisionVideoNode}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover rounded-xl bg-black"
+                  />
+                  <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md text-[9px] text-white font-bold border border-white/20">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span>
+                      {visionSource === 'screen'
+                        ? 'PANTALLA EN VIVO'
+                        : `EN VIVO (${facingMode === 'user' ? 'Frontal' : 'Trasera'})`}
+                    </span>
+                  </div>
+                  <div className="absolute top-2 right-2 flex items-center gap-1">
+                    {visionSource === 'camera' && (
+                      <button
+                        type="button"
+                        onClick={switchCamera}
+                        title="Girar cámara"
+                        className="p-1 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 active:scale-95 shadow-md"
+                      >
+                        <SwitchCamera className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={switchCamera}
-                      title="Girar cámara"
-                      className="p-1 rounded-full bg-black/70 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 active:scale-95 shadow-md"
+                      onClick={stopVision}
+                      title="Detener visión"
+                      className="p-1 rounded-full bg-red-600/80 hover:bg-red-700 text-white backdrop-blur-md active:scale-95 shadow-md"
                     >
-                      <SwitchCamera className="h-3.5 w-3.5" />
+                      <CameraOff className="h-3.5 w-3.5" />
                     </button>
+                  </div>
+                  <div className="absolute bottom-2 inset-x-2 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md border border-white/10">
+                    <span className="text-[9px] text-zinc-300 font-medium truncate">Tenshi analiza en vivo</span>
+                    <button
+                      type="button"
+                      onClick={() => captureVisionSnapshot('📸 Evidencia visual')}
+                      className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[10px] font-bold shadow-md active:scale-95"
+                    >
+                      <Camera className="h-3 w-3" />
+                      <span>Tomar Foto</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono Live] [Mute] [Cámara] + [Compartir Pantalla en PC]) */}
+              <div className="inline-flex items-center gap-3 md:gap-3.5 p-1.5 md:px-3 md:py-2 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40">
+                {/* Botón Chat */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    tenshiAudio.playBlip();
+                    setIsHeroChatOpen((prev) => !prev);
+                  }}
+                  title={isHeroChatOpen ? 'Cerrar chat' : 'Abrir chat con Tenshi'}
+                  className={cn(
+                    'p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
+                    isHeroChatOpen ? 'text-emerald-400 bg-white/15' : 'text-zinc-300 hover:text-white hover:bg-white/10'
                   )}
+                >
+                  <MessageSquare className="h-5 w-5" />
+                </button>
+
+                {/* Botón Micrófono / Live Mode */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    tenshiAudio.playBlip();
+                    if (isVoiceActive) {
+                      stopVoiceMode();
+                    } else {
+                      startVoiceMode();
+                    }
+                  }}
+                  title={isVoiceActive ? 'Pausar modo voz' : 'Activar modo voz (Live)'}
+                  className={cn(
+                    'p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
+                    isVoiceActive
+                      ? 'text-emerald-400 bg-white/20 shadow-lg shadow-emerald-500/30 animate-pulse'
+                      : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                  )}
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
+
+                {/* Botón 3: Silenciar Micrófono (Mute de audio del usuario) */}
+                <button
+                  type="button"
+                  onClick={handleToggleMicMute}
+                  title={isMicMuted ? 'Micrófono en silencio - Clic para reactivar' : 'Silenciar mi micrófono (Mute)'}
+                  className={cn(
+                    'p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
+                    isMicMuted
+                      ? 'text-red-400 bg-red-500/25 border border-red-500/50 shadow-lg shadow-red-500/30'
+                      : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                  )}
+                >
+                  {isMicMuted ? (
+                    <MicOff className="h-5 w-5 text-red-400" />
+                  ) : (
+                    <MicOff className="h-5 w-5 text-zinc-400 hover:text-white opacity-70" />
+                  )}
+                </button>
+
+                {/* Botón 4: Modo Visión (Cámara en Vivo) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    tenshiAudio.playBlip();
+                    if (isVisionActive && visionSource === 'camera') {
+                      stopVision();
+                    } else {
+                      startVision('camera');
+                    }
+                  }}
+                  title={isVisionActive && visionSource === 'camera' ? 'Detener cámara de visión' : 'Activar cámara de visión en vivo'}
+                  className={cn(
+                    'p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
+                    isVisionActive && visionSource === 'camera'
+                      ? 'text-emerald-400 bg-white/20 shadow-lg shadow-emerald-500/30 animate-pulse'
+                      : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                  )}
+                >
+                  {isVisionActive && visionSource === 'camera' ? <CameraOff className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
+                </button>
+
+                {/* Botón 5: Compartir Pantalla en Vivo (PC / Portátil / Tablet con DisplayMedia) */}
+                {typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getDisplayMedia) && (
                   <button
                     type="button"
-                    onClick={stopVision}
-                    title="Detener visión"
-                    className="p-1 rounded-full bg-red-600/80 hover:bg-red-700 text-white backdrop-blur-md active:scale-95 shadow-md"
+                    onClick={() => {
+                      tenshiAudio.playBlip();
+                      if (isVisionActive && visionSource === 'screen') {
+                        stopVision();
+                      } else {
+                        startVision('screen');
+                      }
+                    }}
+                    title={isVisionActive && visionSource === 'screen' ? 'Dejar de compartir pantalla' : 'Compartir mi pantalla con Tenshi'}
+                    className={cn(
+                      'hidden md:inline-flex p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
+                      isVisionActive && visionSource === 'screen'
+                        ? 'text-cyan-400 bg-white/20 shadow-lg shadow-cyan-500/30 animate-pulse'
+                        : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                    )}
                   >
-                    <CameraOff className="h-3.5 w-3.5" />
+                    {isVisionActive && visionSource === 'screen' ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
                   </button>
-                </div>
-                <div className="absolute bottom-2 inset-x-2 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md border border-white/10">
-                  <span className="text-[9px] text-zinc-300 font-medium truncate">Tenshi analiza en vivo</span>
-                  <button
-                    type="button"
-                    onClick={() => captureVisionSnapshot('📸 Evidencia visual')}
-                    className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[10px] font-bold shadow-md active:scale-95"
-                  >
-                    <Camera className="h-3 w-3" />
-                    <span>Tomar Foto</span>
-                  </button>
-                </div>
+                )}
               </div>
-            )}
-
-            {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono Live] [Silenciar Micrófono/Mute]) */}
-            <div className="inline-flex items-center gap-3 p-1.5 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40">
-              {/* Botón Chat */}
-              <button
-                type="button"
-                onClick={() => {
-                  tenshiAudio.playBlip();
-                  setIsHeroChatOpen((prev) => !prev);
-                }}
-                title={isHeroChatOpen ? 'Cerrar chat' : 'Abrir chat con Tenshi'}
-                className={cn(
-                  'p-2.5 rounded-full transition-all active:scale-90',
-                  isHeroChatOpen ? 'text-emerald-400 bg-white/15' : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                )}
-              >
-                <MessageSquare className="h-5 w-5" />
-              </button>
-
-              {/* Botón Micrófono / Live Mode */}
-              <button
-                type="button"
-                onClick={() => {
-                  tenshiAudio.playBlip();
-                  if (isVoiceActive) {
-                    stopVoiceMode();
-                  } else {
-                    startVoiceMode();
-                  }
-                }}
-                title={isVoiceActive ? 'Pausar modo voz' : 'Activar modo voz (Live)'}
-                className={cn(
-                  'p-2.5 rounded-full transition-all active:scale-90',
-                  isVoiceActive
-                    ? 'text-emerald-400 bg-white/20 shadow-lg shadow-emerald-500/30 animate-pulse'
-                    : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                )}
-              >
-                <Mic className="h-5 w-5" />
-              </button>
-
-              {/* Botón 3: Silenciar Micrófono (Mute de audio del usuario) */}
-              <button
-                type="button"
-                onClick={handleToggleMicMute}
-                title={isMicMuted ? 'Micrófono en silencio - Clic para reactivar' : 'Silenciar mi micrófono (Mute)'}
-                className={cn(
-                  'p-2.5 rounded-full transition-all active:scale-90',
-                  isMicMuted
-                    ? 'text-red-400 bg-red-500/25 border border-red-500/50 shadow-lg shadow-red-500/30'
-                    : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                )}
-              >
-                {isMicMuted ? (
-                  <MicOff className="h-5 w-5 text-red-400" />
-                ) : (
-                  <MicOff className="h-5 w-5 text-zinc-400 hover:text-white opacity-70" />
-                )}
-              </button>
-
-              {/* Botón 4: Modo Visión (Cámara en Vivo) */}
-              <button
-                type="button"
-                onClick={() => {
-                  tenshiAudio.playBlip();
-                  if (isVisionActive) {
-                    stopVision();
-                  } else {
-                    startVision('camera');
-                  }
-                }}
-                title={isVisionActive ? 'Detener cámara de visión' : 'Activar cámara de visión en vivo'}
-                className={cn(
-                  'p-2.5 rounded-full transition-all active:scale-90',
-                  isVisionActive
-                    ? 'text-emerald-400 bg-white/20 shadow-lg shadow-emerald-500/30 animate-pulse'
-                    : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                )}
-              >
-                {isVisionActive ? <CameraOff className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
-              </button>
             </div>
-          </div>
 
-          {/* 4. Panel Desplegable de Chat (SOLO cuando el usuario lo abre desde la botonera de Tenshi) */}
-          {isHeroChatOpen && (
-            <div
-              className="absolute inset-x-0 bottom-0 top-14 z-50 flex flex-col bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl rounded-t-3xl border-t border-slate-200/80 dark:border-zinc-800 shadow-2xl animate-in slide-in-from-bottom duration-300 overflow-hidden"
-              style={{
-                paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 74px)',
-              }}
-            >
+            {/* 4. Panel de Chat: En Celular sube sobre la pantalla; en PC/Portátil/Tablet se abre A LA IZQUIERDA desplazando a Tenshi a la derecha */}
+            {isHeroChatOpen && (
+              <div
+                className="absolute inset-0 z-50 md:relative md:inset-auto md:z-20 md:order-1 md:w-[54%] lg:w-[52%] xl:w-[50%] md:h-full flex flex-col bg-white/95 dark:bg-zinc-950/95 md:bg-white/90 dark:md:bg-zinc-900/90 backdrop-blur-2xl rounded-t-3xl md:rounded-3xl border-t md:border border-slate-200/80 dark:border-zinc-800/90 shadow-2xl animate-in slide-in-from-bottom md:slide-in-from-left-8 fade-in duration-300 overflow-hidden"
+              >
               {/* Cabecera del Panel de Chat */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/80 shrink-0">
                 <div className="flex items-center gap-2">
@@ -7379,7 +7513,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                           <TenshiGenerativeWidget
                             widget={msg.widget}
                             token={token}
-                            onNavigate={(route) => navigate(route)}
+                            onNavigate={(route) => {
+                              exitHeroModeToWorkspace();
+                              navigate(route);
+                            }}
                             onSendPrompt={(promptText) => handleSend(promptText)}
                           />
                         )}
@@ -7476,7 +7613,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={isVoiceActive ? 'Habla por micrófono o escribe...' : 'Escribe una actividad o consulta...'}
-                    className="flex-1 border-none bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
+                    className="flex-1 border-none bg-transparent text-xs md:text-sm text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
                     disabled={isTyping}
                   />
 
@@ -7529,6 +7666,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </div>
             </div>
           )}
+          </div>
         </div>
       ) : (
         <>
@@ -7612,21 +7750,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 {isSFXMuted ? <VolumeX className="h-3.5 w-3.5 text-emerald-500" /> : <Volume2 className="h-3.5 w-3.5" />}
               </button>
 
-              {/* Botón Pantalla Completa */}
+              {/* Botón Pantalla Completa (Abre el Modo Protagonista / Vista Dividida en PC y Celular) */}
               <button
                 type="button"
                 onClick={() => {
-                  if (checkIsMobile()) {
-                    handleMaximizeMobile();
-                    setIsHeroChatOpen(true);
-                  } else {
-                    setIsFullscreen((prev) => !prev);
-                  }
+                  handleMaximizeMobile();
+                  setIsHeroChatOpen(true);
                 }}
-                title={isFullscreen ? 'Restaurar' : 'Pantalla completa'}
+                title="Abrir Tenshi en Pantalla Completa"
                 className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               >
-                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                <Maximize2 className="h-3.5 w-3.5" />
               </button>
 
               {/* Botón Reiniciar conversación */}
@@ -8970,7 +9104,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             {isMicMuted ? <MicOff className="h-3.5 w-3.5 text-red-400" /> : <MicOff className="h-3.5 w-3.5 opacity-60" />}
           </button>
 
-          {/* Botón 4: Maximizar a Pantalla Completa (EXCLUSIVO PARA CELULAR) */}
+          {/* Botón 4: Maximizar a Pantalla Completa (PC, Portátil, Tablet y Celular) */}
           <button
             type="button"
             id="tenshi-mobile-maximize-btn"
@@ -8989,9 +9123,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               handleMaximizeMobile(e);
             }}
             title="Tenshi en Pantalla Completa"
-            className="flex md:hidden w-8 h-8 min-w-[32px] min-h-[32px] items-center justify-center p-1.5 rounded-full text-teal-300 hover:text-teal-100 bg-teal-500/40 border border-teal-400/60 hover:bg-teal-500/60 shadow-md transition-all active:scale-90 touch-manipulation cursor-pointer z-50 pointer-events-auto"
+            className="flex w-7 h-7 md:w-7 md:h-7 items-center justify-center p-1.5 rounded-full text-teal-300 hover:text-teal-100 bg-teal-500/40 border border-teal-400/60 hover:bg-teal-500/60 shadow-md transition-all active:scale-90 touch-manipulation cursor-pointer z-50 pointer-events-auto"
           >
-            <Maximize2 className="h-4 w-4 pointer-events-none" />
+            <Maximize2 className="h-3.5 w-3.5 pointer-events-none" />
           </button>
         </div>
 

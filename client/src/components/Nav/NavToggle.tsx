@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRecoilValue } from 'recoil';
 import { TooltipAnchor } from '@librechat/client';
@@ -25,8 +26,35 @@ export default function NavToggle({
   const localize = useLocalize();
   const showVoiceModal = useRecoilValue(store.showVoiceModal);
   const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
+  const [isTenshiHeroActive, setIsTenshiHeroActive] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    return document.documentElement.dataset.tenshiHero === 'true';
+  });
 
-  if (showVoiceModal || showLiveAnalysisModal) {
+  useEffect(() => {
+    const syncState = (e?: Event) => {
+      const custom = e as CustomEvent<{ active?: boolean }> | undefined;
+      if (typeof custom?.detail?.active === 'boolean') {
+        setIsTenshiHeroActive(custom.detail.active);
+      } else if (typeof document !== 'undefined') {
+        setIsTenshiHeroActive(document.documentElement.dataset.tenshiHero === 'true');
+      }
+    };
+    const handleEnter = () => setIsTenshiHeroActive(true);
+    const handleExit = () => setIsTenshiHeroActive(false);
+
+    syncState();
+    window.addEventListener('tenshi-hero-state-change', syncState);
+    window.addEventListener('tenshi-enter-mobile-hero', handleEnter);
+    window.addEventListener('tenshi-exit-mobile-hero', handleExit);
+    return () => {
+      window.removeEventListener('tenshi-hero-state-change', syncState);
+      window.removeEventListener('tenshi-enter-mobile-hero', handleEnter);
+      window.removeEventListener('tenshi-exit-mobile-hero', handleExit);
+    };
+  }, []);
+
+  if (showVoiceModal || showLiveAnalysisModal || isTenshiHeroActive) {
     return null;
   }
   

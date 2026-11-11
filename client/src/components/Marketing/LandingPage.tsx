@@ -415,6 +415,11 @@ export default function LandingPage() {
 
   /** Entrada directa a WAPPY para usuarios con sesión activa (respeta la regla de plan activo). */
   const handleEnterWappy = () => {
+    try {
+      sessionStorage.removeItem('tenshi_mobile_hero_minimized');
+      sessionStorage.removeItem('tenshi_mobile_hero_exited');
+      sessionStorage.setItem('tenshi_mobile_just_logged_in', 'true');
+    } catch (_) {}
     navigate(sessionNeedsPlan ? '/planes' : '/c/new');
   };
 

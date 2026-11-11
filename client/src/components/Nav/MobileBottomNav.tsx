@@ -64,15 +64,47 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
   const { user } = useAuthContext();
   const isVital = isVitalUser(user);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isTenshiHeroActive, setIsTenshiHeroActive] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    return document.documentElement.dataset.tenshiHero === 'true';
+  });
+
+  useEffect(() => {
+    const syncState = (e?: Event) => {
+      const custom = e as CustomEvent<{ active?: boolean }> | undefined;
+      if (typeof custom?.detail?.active === 'boolean') {
+        setIsTenshiHeroActive(custom.detail.active);
+      } else if (typeof document !== 'undefined') {
+        setIsTenshiHeroActive(document.documentElement.dataset.tenshiHero === 'true');
+      }
+    };
+    const handleEnter = () => setIsTenshiHeroActive(true);
+    const handleExit = () => setIsTenshiHeroActive(false);
+
+    syncState();
+    window.addEventListener('tenshi-hero-state-change', syncState);
+    window.addEventListener('tenshi-enter-mobile-hero', handleEnter);
+    window.addEventListener('tenshi-exit-mobile-hero', handleExit);
+    return () => {
+      window.removeEventListener('tenshi-hero-state-change', syncState);
+      window.removeEventListener('tenshi-enter-mobile-hero', handleEnter);
+      window.removeEventListener('tenshi-exit-mobile-hero', handleExit);
+    };
+  }, []);
 
   const setIsCollapsed = useSetRecoilState(store.sidePanelCollapsed);
   const setFullCollapse = useSetRecoilState(store.sidePanelFullCollapse);
   const isRightCollapsed = useRecoilValue(store.sidePanelCollapsed);
   const isRightPanelOpen = !isRightCollapsed;
 
-  // Toggle left side drawer
-  const toggleLeftPanel = () => {
+  // Toggle left side drawer (en escritorio desde Hero Mode asegura abrir el panel en vez de cerrarlo)
+  const toggleLeftPanel = (forceOpenOnDesktop = false) => {
     if (setNavVisible) {
+      if (forceOpenOnDesktop && typeof window !== 'undefined' && window.innerWidth >= 768) {
+        localStorage.setItem('navVisible', 'true');
+        setNavVisible(true);
+        return;
+      }
       setNavVisible((prev) => {
         localStorage.setItem('navVisible', JSON.stringify(!prev));
         return !prev;
@@ -80,15 +112,24 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     }
   };
 
-  // Toggle right side drawer
-  const toggleRightPanel = () => {
+  // Toggle right side drawer (en escritorio desde Hero Mode asegura abrir el panel derecho)
+  const toggleRightPanel = (forceOpenOnDesktop = false) => {
+    if (forceOpenOnDesktop && typeof window !== 'undefined' && window.innerWidth >= 768) {
+      setIsCollapsed(false);
+      setFullCollapse(false);
+      return;
+    }
     setIsCollapsed((prev) => !prev);
     setFullCollapse((prev) => !prev);
   };
 
-  // Detect virtual keyboard on mobile via input/textarea focus
+  // Detect virtual keyboard on mobile/touch devices via input/textarea focus
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
+      const isTouchOrMobile =
+        typeof window !== 'undefined' &&
+        (window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+      if (!isTouchOrMobile) return;
       const target = e.target as HTMLElement;
       if (
         target &&
@@ -156,7 +197,8 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
     <div
       id="wappy-mobile-bottom-nav-wrapper"
       className={cn(
-        'fixed bottom-0 inset-x-0 md:hidden flex-shrink-0 w-full z-[60] px-3 transition-all duration-200 ease-out pointer-events-none',
+        'fixed bottom-0 inset-x-0 flex-shrink-0 w-full z-[60] px-3 transition-all duration-200 ease-out pointer-events-none',
+        isTenshiHeroActive ? 'block' : 'md:hidden',
         isKeyboardOpen
           ? 'max-h-0 opacity-0 pointer-events-none overflow-hidden pb-0'
           : 'max-h-24 opacity-100 overflow-visible',
@@ -180,13 +222,14 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         <motion.button
           whileTap={{ scale: 0.88 }}
           onClick={() => {
+            const wasHero = isTenshiHeroActive;
             window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
             try {
               sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
               sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
               sessionStorage.removeItem('tenshi_mobile_hero_forced');
             } catch (_) {}
-            toggleLeftPanel();
+            toggleLeftPanel(wasHero);
           }}
           aria-label="Abrir panel izquierdo"
           className={cn(
@@ -289,13 +332,14 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
         <motion.button
           whileTap={{ scale: 0.88 }}
           onClick={() => {
+            const wasHero = isTenshiHeroActive;
             window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
             try {
               sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
               sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
               sessionStorage.removeItem('tenshi_mobile_hero_forced');
             } catch (_) {}
-            toggleRightPanel();
+            toggleRightPanel(wasHero);
           }}
           aria-label="Abrir panel derecho"
           className={cn(
