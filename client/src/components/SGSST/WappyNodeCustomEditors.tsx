@@ -558,7 +558,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-44 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
           {filteredChecklistFields.map((fieldLabel) => {
             const active = selectedFields.includes(fieldLabel);
             return (
@@ -1145,7 +1145,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2">
               1. ¿Con qué frecuencia debe dispararse automáticamente?
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {[
                 {
                   id: 'daily',
@@ -1569,7 +1569,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (cleanId === 'email' || cleanId.includes('email') || cleanId.includes('gmail')) {
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
                 📧 Remitente (De:) que dispara el flujo
@@ -1685,7 +1685,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {QR_PORTAL_OPTIONS.map((portal) => {
               const active = selectedQr === portal.id;
               return (
@@ -1862,7 +1862,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     const isExtraAgent = activeNode.key.startsWith('agent_extra_');
     return (
       <div className="space-y-3.5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div>
             <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
               1. Especialista IA o Avatar Asignado
@@ -1962,7 +1962,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               Principal: Tenshi (Gato) · #2: Suri (Suricato) · #3: Max (Perro) · #4: Paz (Paloma) · #5: Capi (Capibara)
             </span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {WAPPY_AGENT_AVATAR_ROTATION.slice(0, 5).map((av, idx) => {
               const defaultAvatar = getRotatedAgentAvatar(
                 isExtraAgent
@@ -2056,100 +2056,165 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     );
   }
 
-  // 3.2 SUB-NODO CIRCULAR MODELO IA (CERO pastillas de campos)
+  // 3.2 SUB-NODO CIRCULAR MODELO IA (CERO pastillas de campos — Diseño horizontal limpio sin desbordamiento)
   if (activeNode.shape === 'circle_model') {
+    const isAntigravityEngineSelected =
+      aiEngine === 'antigravity' || aiEngine === 'antigravity_cloud';
     return (
-      <div className="space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-          {AI_ENGINE_MODELS.map((m) => {
-            const isSel =
-              (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
-              (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
-              (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  onSelectAiEngineModel(m.engine, m.model);
-                  if (m.engine === 'antigravity') {
-                    onUpdateNodeConfig(activeNode.key, {
-                      antigravityMode: currentCfg.antigravityMode === 'auto' ? 'auto' : 'local',
-                    });
-                  } else if (m.engine === 'antigravity_cloud') {
-                    onUpdateNodeConfig(activeNode.key, {
-                      antigravityMode: currentCfg.antigravityMode === 'auto' ? 'auto' : 'cloud',
-                    });
-                  }
-                }}
-                className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                  isSel
-                    ? 'bg-indigo-50/90 dark:bg-slate-800 border-indigo-500 dark:border-[#C7F303] ring-2 ring-indigo-500/20 shadow-sm'
-                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-400'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                      {m.shortLabel}
-                    </span>
-                    {isSel && (
-                      <span className="w-4 h-4 rounded-full bg-indigo-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      </span>
+      <div className="space-y-3.5">
+        <div>
+          <label className="block text-[11px] font-black uppercase tracking-wider text-purple-800 dark:text-[#C7F303] mb-2">
+            ✨ 1. Selecciona el Motor y Modelo de IA del Flujo
+          </label>
+          <div className="grid grid-cols-1 gap-2">
+            {AI_ENGINE_MODELS.map((m) => {
+              const isSel =
+                (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
+                (m.engine === 'antigravity' && aiEngine === 'antigravity') ||
+                (m.engine === 'wappy' && aiEngine === 'wappy' && aiModel === m.model);
+              const isLocalAgy = m.engine === 'antigravity';
+              const isCloudAgy = m.engine === 'antigravity_cloud';
+              const isLite = m.model.includes('lite');
+
+              const iconBoxClass = isCloudAgy
+                ? 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/30'
+                : isLocalAgy
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30'
+                  : isLite
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30'
+                    : 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border-indigo-500/30';
+
+              const subtitleBadgeClass = isCloudAgy
+                ? 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/25'
+                : isLocalAgy
+                  ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/25'
+                  : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/25';
+
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectAiEngineModel(m.engine, m.model);
+                    if (m.engine === 'antigravity') {
+                      onUpdateNodeConfig(activeNode.key, {
+                        antigravityMode: currentCfg.antigravityMode === 'auto' ? 'auto' : 'local',
+                      });
+                    } else if (m.engine === 'antigravity_cloud') {
+                      onUpdateNodeConfig(activeNode.key, {
+                        antigravityMode: currentCfg.antigravityMode === 'auto' ? 'auto' : 'cloud',
+                      });
+                    }
+                  }}
+                  className={`w-full min-w-0 p-3 rounded-2xl border-2 text-left transition-all flex items-start gap-3 ${
+                    isSel
+                      ? 'bg-indigo-50/90 dark:bg-slate-800/95 border-indigo-500 dark:border-[#C7F303] ring-2 ring-indigo-500/20 dark:ring-[#C7F303]/20 shadow-sm'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div
+                    className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${iconBoxClass}`}
+                  >
+                    {isCloudAgy ? (
+                      <Cloud className="w-4 h-4" />
+                    ) : isLocalAgy ? (
+                      <Laptop className="w-4 h-4" />
+                    ) : isLite ? (
+                      <Zap className="w-4 h-4" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
                     )}
                   </div>
-                  <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    {m.subtitle}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs font-black text-slate-900 dark:text-white">
+                        {m.shortLabel}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-md border text-[10px] font-extrabold leading-tight ${subtitleBadgeClass}`}
+                      >
+                        {m.subtitle}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug break-words">
+                      {m.description}
+                    </p>
                   </div>
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 leading-snug">
-                  {m.description}
-                </p>
-              </button>
-            );
-          })}
+
+                  <div className="shrink-0 mt-0.5">
+                    {isSel ? (
+                      <span className="w-5 h-5 rounded-full bg-indigo-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center shadow-xs">
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </span>
+                    ) : (
+                      <span className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-700 block" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
-          {[
-            {
-              id: '0.1',
-              title: '🎯 Precisión Normativa Estricta (Temp 0.1)',
-              desc: 'Cero invención. Ideal para cruce de cédulas, afiliaciones y auditorías 0312.',
-            },
-            {
-              id: '0.4',
-              title: '⚖️ Equilibrado Analítico (Temp 0.4)',
-              desc: 'Balance entre exactitud técnica y redacción ejecutiva de planes de acción.',
-            },
-            {
-              id: '0.7',
-              title: '✨ Redacción Creativa / Académica (Temp 0.7)',
-              desc: 'Ideal para crear cursos LMS, artículos de blog, guiones o comunicados.',
-            },
-          ].map((tempOpt) => {
-            const active = (currentCfg.temperature || '0.1') === tempOpt.id;
-            return (
-              <button
-                key={tempOpt.id}
-                type="button"
-                onClick={() => onUpdateNodeConfig(activeNode.key, { temperature: tempOpt.id })}
-                className={`p-2.5 rounded-xl border text-left transition ${
-                  active
-                    ? 'bg-teal-50/80 dark:bg-teal-950/30 border-teal-500 font-bold'
-                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <div className="text-xs font-extrabold text-slate-900 dark:text-white">
-                  {tempOpt.title}
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  {tempOpt.desc}
-                </div>
-              </button>
-            );
-          })}
+        {/* Selector de Modo Antigravity solo cuando se elige un motor Antigravity */}
+        {isAntigravityEngineSelected && renderAntigravityModeSelectorPanel()}
+
+        <div>
+          <label className="block text-[11px] font-black uppercase tracking-wider text-teal-800 dark:text-teal-300 mb-2">
+            🎯 2. Nivel de Precisión y Temperatura del Modelo
+          </label>
+          <div className="grid grid-cols-1 gap-2">
+            {[
+              {
+                id: '0.1',
+                title: '🎯 Precisión Normativa Estricta (Temp 0.1)',
+                desc: 'Cero invención. Ideal para cruce de cédulas, afiliaciones y auditorías 0312.',
+              },
+              {
+                id: '0.4',
+                title: '⚖️ Equilibrado Analítico (Temp 0.4)',
+                desc: 'Balance entre exactitud técnica y redacción ejecutiva de planes de acción.',
+              },
+              {
+                id: '0.7',
+                title: '✨ Redacción Creativa / Académica (Temp 0.7)',
+                desc: 'Ideal para crear cursos LMS, artículos de blog, guiones o comunicados.',
+              },
+            ].map((tempOpt) => {
+              const active = (currentCfg.temperature || '0.1') === tempOpt.id;
+              return (
+                <button
+                  key={tempOpt.id}
+                  type="button"
+                  onClick={() => onUpdateNodeConfig(activeNode.key, { temperature: tempOpt.id })}
+                  className={`w-full min-w-0 p-2.5 px-3 rounded-xl border text-left transition flex items-center justify-between gap-3 ${
+                    active
+                      ? 'bg-teal-50/90 dark:bg-teal-950/30 border-teal-500 dark:border-[#C7F303] ring-1 ring-teal-500/20'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-teal-400'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      {tempOpt.title}
+                    </div>
+                    <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                      {tempOpt.desc}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {active ? (
+                      <span className="w-4 h-4 rounded-full bg-teal-600 dark:bg-[#C7F303] text-white dark:text-[#0E1300] flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </span>
+                    ) : (
+                      <span className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-700 block" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -2505,7 +2570,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
 
           {/* Cuadrícula Seleccionable de las 100 Normas en Markdown (.md) de Tenshi */}
-          <div className="max-h-[340px] overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="max-h-[340px] overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {filteredNormativeDocs.map((doc) => {
               const active =
                 selectedNorms.includes(doc.id) || selectedNorms.includes(doc.title);
@@ -2809,7 +2874,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (cleanId.includes('calendar')) {
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
                 📅 Título del Evento / Inspección / Comité
@@ -2936,7 +3001,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
                 🛡️ 2. Tipo de Acción (ACPM)
@@ -3560,7 +3625,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {/* 1. Nombre Editable del Sub-Agente */}
             <div>
               <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
@@ -3845,7 +3910,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (cleanId.includes('gmail')) {
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
                 📧 Filtrar por Remitente (De:)
@@ -3931,7 +3996,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (cleanId.includes('drive') || cleanId.includes('onedrive')) {
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
                 📁 Nombre de la Carpeta o Archivo a Leer
@@ -4447,7 +4512,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2">
             1. ¿Qué debe hacer el flujo en «{resolvedNodeDisplayTitle}» ({resolvedCompanyFull})?
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 gap-2">
             {[
               {
                 id: 'extract_only',
@@ -4587,8 +4652,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         )}
 
-        {/* Cuadrícula Ordenada de Checkboxes en 3 Columnas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+        {/* Cuadrícula Ordenada de Checkboxes en 2 Columnas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
           {filteredPresetFields.map((fieldLabel) => {
             const active = selectedFields.includes(fieldLabel);
             return (
@@ -4672,9 +4737,16 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   );
   };
 
+  const shouldRenderTopAntigravityBanner =
+    requiresAntigravity &&
+    activeNode.shape !== 'circle_model' &&
+    (activeNode.shape !== 'agent' ||
+      effectiveNodeAiEngine === 'antigravity' ||
+      effectiveNodeAiEngine === 'antigravity_cloud');
+
   return (
-    <div className="space-y-4">
-      {requiresAntigravity && renderAntigravityModeSelectorPanel()}
+    <div className="space-y-4 min-w-0">
+      {shouldRenderTopAntigravityBanner && renderAntigravityModeSelectorPanel()}
       {renderSpecificNodeEditor()}
     </div>
   );

@@ -4478,7 +4478,7 @@ export default function WappyWorkflowCanvas({
               </div>
             </div>
           ) : paletteTab === 'ai_engine' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
               {AI_ENGINE_MODELS.map((m) => {
                 const isSelected =
                   (m.engine === 'antigravity_cloud' && aiEngine === 'antigravity_cloud') ||
@@ -7476,11 +7476,11 @@ export default function WappyWorkflowCanvas({
                     </div>
 
                     {/* ─── CUERPO PRINCIPAL EN 3 COLUMNAS ESTILO n8n (`INPUT` | `CONFIGURACIÓN` | `OUTPUT / LOGS`) ─── */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 overflow-hidden mt-2.5">
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,3.2fr)_minmax(430px,5.6fr)_minmax(260px,3.2fr)] gap-3 flex-1 min-h-0 overflow-hidden mt-2.5">
                       {/* ════════════════════════════════════════════════════════════════════════
-                          COLUMNA 1 (IZQUIERDA - lg:col-span-4): `📥 INPUT · LO QUE ENTRÓ AL NODO`
+                          COLUMNA 1 (IZQUIERDA): `📥 INPUT · LO QUE ENTRÓ AL NODO`
                          ════════════════════════════════════════════════════════════════════════ */}
-                      <div className="lg:col-span-4 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-lg">
+                      <div className="min-w-0 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-lg">
                         {/* Cabecera INPUT */}
                         <div className="px-3.5 py-2.5 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2 shrink-0">
                           <div className="flex items-center gap-2 min-w-0">
@@ -7838,9 +7838,9 @@ export default function WappyWorkflowCanvas({
                       </div>
 
                       {/* ════════════════════════════════════════════════════════════════════════
-                          COLUMNA 2 (CENTRO ELEVADO - lg:col-span-4): `⚙️ CONFIGURACIÓN DEL NODO`
+                          COLUMNA 2 (CENTRO ELEVADO): `⚙️ CONFIGURACIÓN DEL NODO`
                          ════════════════════════════════════════════════════════════════════════ */}
-                      <div className="lg:col-span-4 bg-white dark:bg-slate-900 border-2 border-purple-500 dark:border-[#C7F303] rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-2xl ring-4 ring-purple-500/10 dark:ring-[#C7F303]/10">
+                      <div className="min-w-0 bg-white dark:bg-slate-900 border-2 border-purple-500 dark:border-[#C7F303] rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-2xl ring-4 ring-purple-500/10 dark:ring-[#C7F303]/10">
                         {/* Cabecera del Nodo Activo estilo Popup Central n8n */}
                         <div className="px-3.5 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-purple-500/10 via-transparent to-emerald-500/10 flex items-center justify-between gap-2 shrink-0">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -8181,9 +8181,9 @@ export default function WappyWorkflowCanvas({
                       </div>
 
                       {/* ════════════════════════════════════════════════════════════════════════
-                          COLUMNA 3 (DERECHA - lg:col-span-4): `📤 OUTPUT (LO QUE ENVIÓ)` + `📜 LOGS / ERRORES`
+                          COLUMNA 3 (DERECHA): `📤 OUTPUT (LO QUE ENVIÓ)` + `📜 LOGS / ERRORES`
                          ════════════════════════════════════════════════════════════════════════ */}
-                      <div className="lg:col-span-4 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-lg">
+                      <div className="min-w-0 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-lg">
                         {/* Cabecera Principal con las 2 Pestañas solicitadas por el usuario (`📤 Salida` | `📜 Logs / Errores`) */}
                         <div className="px-3.5 py-2.5 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2 shrink-0">
                           <div className="flex items-center gap-2 py-0.5 px-0.5">
