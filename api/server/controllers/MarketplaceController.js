@@ -9,6 +9,31 @@ const MarketplaceCategory = require('~/models/MarketplaceCategory');
 const MarketplaceCoupon = require('~/models/MarketplaceCoupon');
 const { getAppConfig } = require('~/server/services/Config');
 const { logger } = require('~/config');
+const { sendMetaCapiEvent } = require('../services/MetaCapiService');
+
+const cleanWompiSecret = (val) => String(val || '').split('INSTAGRAM_')[0].trim();
+
+const enrichOrderCustomerFromWompi = (order, tx) => {
+  if (!order || !tx) return;
+  if (!order.customer) order.customer = {};
+  const email = (tx.customer_email || '').trim().toLowerCase();
+  const fullName = (tx.customer_data?.full_name || '').trim();
+  const phone = (tx.customer_data?.phone_number || '').trim();
+  const legalId = (tx.customer_data?.legal_id || '').trim();
+
+  if (email && (!order.customer.email || order.customer.email === 'cliente@wappy.club' || order.customer.email === 'pendiente@wappy.club')) {
+    order.customer.email = email;
+  }
+  if (fullName && (!order.customer.fullName || order.customer.fullName.includes('Cliente Campaña'))) {
+    order.customer.fullName = fullName;
+  }
+  if (phone && (!order.customer.phone || order.customer.phone === '3000000000')) {
+    order.customer.phone = phone;
+  }
+  if (legalId && (!order.customer.documentId || order.customer.documentId === 'CC-WOMPI' || order.customer.documentId === 'PENDIENTE')) {
+    order.customer.documentId = legalId;
+  }
+};
 
 // Default initial categories for Occupational Health & SG-SST
 const DEFAULT_CATEGORIES = [
@@ -1164,8 +1189,8 @@ const createCheckout = async (req, res) => {
     // Determine Payment Recipient & Wompi Gateway (WAPPY vs Provider)
     let orderPaymentRecipient = 'WAPPY';
     let orderProviderName = 'WAPPY Oficial';
-    let targetWompiPublicKey = process.env.WOMPI_PUBLIC_KEY;
-    let targetWompiIntegritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+    let targetWompiPublicKey = cleanWompiSecret(process.env.WOMPI_PUBLIC_KEY);
+    let targetWompiIntegritySecret = cleanWompiSecret(process.env.WOMPI_INTEGRITY_SECRET);
 
     const providerProducts = loadedProducts.filter(p => p.paymentRecipient === 'PROVIDER');
     const wappyProducts = loadedProducts.filter(p => p.paymentRecipient !== 'PROVIDER');
@@ -1309,28 +1334,302 @@ const createCheckout = async (req, res) => {
   }
 };
 
+// GET /pago-matrizipvr & GET /api/marketplace/promo-ipvr-checkout
+// Direct promotional checkout ($38.000 COP) -> Wompi Payment Gateway -> Redirects back to /matrizipvr with payment unlocked
+const redirectToPromoIpvrCheckout = async (req, res) => {
+  try {
+    await ensureCatalogSeeded();
+    let product = await MarketplaceProduct.findOne({
+      $or: [{ sku: 'WAPPY-MATRIZ-IPVR-APP' }, { slug: 'aplicativo-descargable-matriz-ipvr' }]
+    }).lean();
+
+    if (!product) {
+      const created = new MarketplaceProduct(OFFICIAL_MATRIZ_IPVR_APP_PRODUCT);
+      await created.save();
+      product = created.toObject();
+    }
+
+    const promoPrice = 38000;
+    const regularPrice = product.regularPrice || 50000;
+    const discountAmount = Math.max(0, regularPrice - promoPrice);
+    const amountInCents = Math.round(promoPrice * 100);
+
+    const orderNumber = `ORD-WAP-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const reference = `WAP-MKT-IPVR-${Math.random().toString(36).substring(2, 7).toUpperCase()}-${Date.now().toString().slice(-5)}`;
+
+    const prefillEmail = String(req.query.email || 'cliente@wappy.club').trim().toLowerCase();
+    const prefillName = String(req.query.name || 'Cliente Campaña Matriz IPVR').trim();
+    const prefillPhone = String(req.query.phone || '3000000000').trim();
+
+    const order = new MarketplaceOrder({
+      orderNumber,
+      customer: {
+        fullName: prefillName,
+        companyName: '',
+        documentId: 'CC-WOMPI',
+        email: prefillEmail,
+        phone: prefillPhone,
+        city: 'Colombia',
+        address: '',
+        notes: 'Campaña Directa Meta Ads — Promo Aplicativo Descargable Matriz IPVR ($38.000 COP)'
+      },
+      items: [
+        {
+          productId: product._id,
+          title: product.title || 'Aplicativo Descargable Matriz IPVR (GTC-45 Offline + IA)',
+          sku: product.sku || 'WAPPY-MATRIZ-IPVR-APP',
+          unitPrice: promoPrice,
+          quantity: 1,
+          subtotal: promoPrice
+        }
+      ],
+      subtotal: regularPrice,
+      discountAmount,
+      promoCode: 'CAMPANA38K',
+      totalAmount: promoPrice,
+      currency: 'COP',
+      paymentRecipient: 'WAPPY',
+      providerName: 'WAPPY Oficial',
+      paymentMethod: 'WOMPI',
+      paymentStatus: 'PENDING',
+      fulfillmentStatus: 'NUEVO',
+      wompiReference: reference,
+      serviceTimeline: [
+        {
+          status: 'NUEVO',
+          comment: 'Orden promocional ($38.000 COP) generada desde campaña directa Meta Ads (/pago-matrizipvr).',
+          updatedAt: new Date(),
+          updatedBy: 'Campaña Meta Ads'
+        }
+      ]
+    });
+
+    await order.save();
+
+    const publicKey = cleanWompiSecret(process.env.WOMPI_PUBLIC_KEY);
+    const integritySecret = cleanWompiSecret(process.env.WOMPI_INTEGRITY_SECRET);
+    const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;
+    const signature = crypto.createHash('sha256').update(stringToSign, 'utf-8').digest('hex');
+
+    const redirectUrl = `https://wappy.club/matrizipvr?order=${encodeURIComponent(orderNumber)}&ref=${encodeURIComponent(reference)}#descargar-aplicativo`;
+    const wompiCheckoutUrl = `https://checkout.wompi.co/p/?public-key=${encodeURIComponent(publicKey)}&currency=COP&amount-in-cents=${amountInCents}&reference=${encodeURIComponent(reference)}&signature%3Aintegrity=${encodeURIComponent(signature)}&redirect-url=${encodeURIComponent(redirectUrl)}`;
+
+    sendMetaCapiEvent({
+      eventName: 'InitiateCheckout',
+      eventId: `ic_${reference}`,
+      email: prefillEmail !== 'cliente@wappy.club' ? prefillEmail : undefined,
+      phone: prefillPhone !== '3000000000' ? prefillPhone : undefined,
+      fullName: !prefillName.includes('Cliente Campaña') ? prefillName : undefined,
+      customData: {
+        content_name: 'Aplicativo Descargable Matriz IPVR (.HTML)',
+        content_ids: ['WAPPY-MATRIZ-IPVR-APP'],
+        content_type: 'product',
+        value: promoPrice,
+        currency: 'COP'
+      },
+      eventSourceUrl: 'https://wappy.club/pago-matrizipvr',
+      req
+    }).catch(() => {});
+
+    if (req.query.format === 'json') {
+      return res.json({
+        success: true,
+        orderNumber,
+        reference,
+        amountInCents,
+        promoPrice,
+        wompiCheckoutUrl,
+        redirectUrl
+      });
+    }
+
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      Pragma: 'no-cache',
+      Expires: '0',
+      'Content-Type': 'text/html; charset=UTF-8'
+    });
+
+    return res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pasarela Segura Wompi · Matriz IPVR Descargable ($38.000 COP) | WAPPY IA</title>
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '1552188416261002');
+    fbq('track', 'PageView');
+    fbq('track', 'InitiateCheckout', {
+      content_name: 'Aplicativo Descargable Matriz IPVR (.HTML)',
+      content_ids: ['WAPPY-MATRIZ-IPVR-APP'],
+      content_type: 'product',
+      value: 38000,
+      currency: 'COP',
+      num_items: 1
+    }, { eventID: 'ic_${reference}' });
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, #132a13 0%, #0e1300 70%);
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", "Segoe UI", Roboto, sans-serif;
+      padding: 20px;
+    }
+    .card {
+      max-width: 440px;
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(199, 243, 3, 0.45);
+      border-radius: 24px;
+      padding: 28px 24px;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+      backdrop-filter: blur(12px);
+    }
+    .badge {
+      display: inline-block;
+      background: #c7f303;
+      color: #0e1300;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 21px;
+      font-weight: 900;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+    .price {
+      font-size: 32px;
+      font-weight: 900;
+      color: #c7f303;
+      margin: 8px 0 4px;
+    }
+    .price del {
+      font-size: 15px;
+      color: #94a3b8;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+    p {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(199, 243, 3, 0.25);
+      border-top-color: #c7f303;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 14px 18px;
+      background: #c7f303;
+      color: #0e1300;
+      font-weight: 900;
+      font-size: 14px;
+      text-decoration: none;
+      border-radius: 14px;
+      transition: transform 0.15s ease;
+    }
+    .order-ref {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #94a3b8;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">⚡ Oferta Promocional · Descarga Inmediata</div>
+    <h1>Aplicativo Matriz IPVR (.HTML) · GTC-45:2012</h1>
+    <div class="price"><del>$50.000</del> $38.000 COP</div>
+    <p>Conectando con la pasarela segura de <strong>Wompi Bancolombia</strong> (PSE, Nequi, Bancolombia o Tarjeta). Al finalizar tu pago serás redirigido automáticamente a <strong>wappy.club/matrizipvr</strong> con tu descarga desbloqueada.</p>
+    <div class="spinner"></div>
+    <a class="btn" id="wompiDirectBtn" href="${wompiCheckoutUrl}">Ir al Pago Seguro en Wompi ($38.000 COP) →</a>
+    <div class="order-ref">Orden asignada: ${orderNumber}</div>
+  </div>
+  <script>
+    try {
+      localStorage.setItem('wappy_ipvr_pending_order', JSON.stringify({
+        orderNumber: ${JSON.stringify(orderNumber)},
+        reference: ${JSON.stringify(reference)},
+        amount: 38000,
+        ts: Date.now()
+      }));
+    } catch (e) {}
+    setTimeout(function() {
+      window.location.replace(${JSON.stringify(wompiCheckoutUrl)});
+    }, 250);
+  </script>
+</body>
+</html>`);
+  } catch (error) {
+    logger.error('[Marketplace] redirectToPromoIpvrCheckout error:', error);
+    return res.redirect('/matrizipvr#descargar-aplicativo');
+  }
+};
+
 // POST /api/marketplace/verify-payment
 const verifyPayment = async (req, res) => {
   try {
-    const { reference, transactionId } = req.body;
-    if (!reference && !transactionId) {
-      return res.status(400).json({ error: 'Referencia o ID de transacción requeridos.' });
+    const { reference, transactionId, orderNumber } = req.body || {};
+    if (!reference && !transactionId && !orderNumber) {
+      return res.status(400).json({ error: 'Referencia, Número de Orden o ID de transacción requeridos.' });
     }
 
-    const query = reference ? { wompiReference: reference } : { wompiTransactionId: transactionId };
-    const order = await MarketplaceOrder.findOne(query);
+    const orConditions = [];
+    if (reference) orConditions.push({ wompiReference: reference });
+    if (orderNumber) orConditions.push({ orderNumber }, { wompiReference: orderNumber });
+    if (transactionId) orConditions.push({ wompiTransactionId: transactionId });
+
+    const order = await MarketplaceOrder.findOne({ $or: orConditions });
 
     if (!order) {
       return res.status(404).json({ error: 'Orden no encontrada.' });
     }
 
     if (order.paymentStatus === 'APPROVED') {
-      return res.json({ success: true, paymentStatus: 'APPROVED', orderNumber: order.orderNumber });
+      return res.json({
+        success: true,
+        paymentStatus: 'APPROVED',
+        orderNumber: order.orderNumber,
+        reference: order.wompiReference,
+        totalAmount: order.totalAmount
+      });
     }
 
     // Determine Wompi environment & credentials from product if PROVIDER, else WAPPY env
-    let publicKey = process.env.WOMPI_PUBLIC_KEY || '';
-    let privateKey = process.env.WOMPI_PRIVATE_KEY || '';
+    let publicKey = cleanWompiSecret(process.env.WOMPI_PUBLIC_KEY);
+    let privateKey = cleanWompiSecret(process.env.WOMPI_PRIVATE_KEY);
 
     if (order.paymentRecipient === 'PROVIDER' && order.items?.length > 0) {
       const firstProduct = await MarketplaceProduct.findById(order.items[0].productId).lean();
@@ -1344,34 +1643,54 @@ const verifyPayment = async (req, res) => {
     const primaryBaseUrl = isSandbox ? 'https://sandbox.wompi.co/v1' : 'https://production.wompi.co/v1';
     const fallbackBaseUrl = isSandbox ? 'https://production.wompi.co/v1' : 'https://sandbox.wompi.co/v1';
 
-    // If transactionId provided, consult Wompi API
+    const headers = {};
+    if (privateKey) {
+      headers['Authorization'] = `Bearer ${privateKey}`;
+    }
+
     let isApproved = false;
+    let wompiData = null;
+
     if (transactionId) {
       order.wompiTransactionId = transactionId;
-      const headers = {};
-      if (privateKey) {
-        headers['Authorization'] = `Bearer ${privateKey}`;
-      }
-
-      let wompiData = null;
       try {
-        const wompiRes = await axios.get(`${primaryBaseUrl}/transactions/${transactionId}`, {
+        const wompiRes = await axios.get(`${primaryBaseUrl}/transactions/${encodeURIComponent(transactionId)}`, {
           headers,
           timeout: 10000
         });
         wompiData = wompiRes.data?.data;
       } catch (err) {
         try {
-          const fallbackRes = await axios.get(`${fallbackBaseUrl}/transactions/${transactionId}`, {
+          const fallbackRes = await axios.get(`${fallbackBaseUrl}/transactions/${encodeURIComponent(transactionId)}`, {
             timeout: 10000
           });
           wompiData = fallbackRes.data?.data;
         } catch (fallbackErr) {
-          logger.warn('[Marketplace] Could not verify directly with Wompi API:', err.message);
+          logger.warn('[Marketplace] Could not verify transactionId directly with Wompi API:', err.message);
         }
       }
+    }
 
-      const status = wompiData?.status;
+    // Fallback: query Wompi by reference if transactionId was not provided or did not return data
+    if (!wompiData && order.wompiReference) {
+      try {
+        const refRes = await axios.get(
+          `${primaryBaseUrl}/transactions?reference=${encodeURIComponent(order.wompiReference)}`,
+          { headers, timeout: 10000 }
+        );
+        const txList = Array.isArray(refRes.data?.data) ? refRes.data.data : [];
+        wompiData = txList.find((t) => t.status === 'APPROVED') || txList[0] || null;
+        if (wompiData?.id) {
+          order.wompiTransactionId = wompiData.id;
+        }
+      } catch (refErr) {
+        logger.warn('[Marketplace] Could not query Wompi by reference:', refErr.message);
+      }
+    }
+
+    if (wompiData) {
+      enrichOrderCustomerFromWompi(order, wompiData);
+      const status = wompiData.status;
       if (status === 'APPROVED') {
         isApproved = true;
       } else if (status === 'DECLINED' || status === 'ERROR' || status === 'VOIDED') {
@@ -1396,13 +1715,32 @@ const verifyPayment = async (req, res) => {
       }
 
       await provisionMarketplaceAddons(order);
+
+      sendMetaCapiEvent({
+        eventName: 'Purchase',
+        eventId: `purchase_${order.wompiReference || order.orderNumber}`,
+        email: order.customer?.email !== 'cliente@wappy.club' ? order.customer?.email : undefined,
+        phone: order.customer?.phone !== '3000000000' ? order.customer?.phone : undefined,
+        fullName: !String(order.customer?.fullName || '').includes('Cliente Campaña') ? order.customer?.fullName : undefined,
+        customData: {
+          content_name: order.items?.[0]?.title || 'Aplicativo Descargable Matriz IPVR (.HTML)',
+          content_ids: [order.items?.[0]?.sku || 'WAPPY-MATRIZ-IPVR-APP'],
+          content_type: 'product',
+          value: order.totalAmount || 38000,
+          currency: 'COP'
+        },
+        eventSourceUrl: 'https://wappy.club/matrizipvr',
+        req
+      }).catch(() => {});
     }
 
     await order.save();
     return res.json({
       success: true,
       paymentStatus: order.paymentStatus,
-      orderNumber: order.orderNumber
+      orderNumber: order.orderNumber,
+      reference: order.wompiReference,
+      totalAmount: order.totalAmount
     });
 
   } catch (error) {
@@ -1451,6 +1789,7 @@ const handleWebhook = async (req, res) => {
           }
 
           order.wompiTransactionId = transactionId;
+          enrichOrderCustomerFromWompi(order, tx);
           if (status === 'APPROVED' && order.paymentStatus !== 'APPROVED') {
             order.paymentStatus = 'APPROVED';
             order.serviceTimeline.push({
@@ -1468,6 +1807,23 @@ const handleWebhook = async (req, res) => {
             }
 
             await provisionMarketplaceAddons(order);
+
+            sendMetaCapiEvent({
+              eventName: 'Purchase',
+              eventId: `purchase_${order.wompiReference || order.orderNumber}`,
+              email: order.customer?.email !== 'cliente@wappy.club' ? order.customer?.email : undefined,
+              phone: order.customer?.phone !== '3000000000' ? order.customer?.phone : undefined,
+              fullName: !String(order.customer?.fullName || '').includes('Cliente Campaña') ? order.customer?.fullName : undefined,
+              customData: {
+                content_name: order.items?.[0]?.title || 'Aplicativo Descargable Matriz IPVR (.HTML)',
+                content_ids: [order.items?.[0]?.sku || 'WAPPY-MATRIZ-IPVR-APP'],
+                content_type: 'product',
+                value: order.totalAmount || 38000,
+                currency: 'COP'
+              },
+              eventSourceUrl: 'https://wappy.club/matrizipvr',
+              req
+            }).catch(() => {});
           } else if (status === 'DECLINED' && order.paymentStatus === 'PENDING') {
             order.paymentStatus = 'DECLINED';
           }
@@ -1751,10 +2107,11 @@ const prepareDownloadedPortableHtml = (rawHtml) => {
   );
   html = html.replace(/<section\s+id="descargar-aplicativo"[\s\S]*?<\/section>/gi, '');
 
-  // 2. Eliminar accesos directos a la sección de compra en barra superior y menú móvil
+  // 2. Eliminar accesos directos a la sección de compra en barra superior y menú móvil + Meta Pixel web
   html = html.replace(/<a\s+id="navLinkDownloadApp"[\s\S]*?<\/a>/gi, '');
   html = html.replace(/<button[^>]*id="drawerDownloadAppBtn"[\s\S]*?<\/button>/gi, '');
   html = html.replace(/<button[^>]*onclick="navigateToDownloadApp\(\)[^"]*"[\s\S]*?<\/button>/gi, '');
+  html = html.replace(/<script[^>]*id="wappy-meta-pixel-ipvr"[\s\S]*?<\/script>/gi, '');
 
   // 3. Inyectar bandera y regla CSS defensiva para garantizar que no se muestre en la copia descargada
   const downloadedFlagAndStyle = `
@@ -1792,9 +2149,42 @@ const downloadMatrizIpvrApp = async (req, res) => {
       }
 
       if (order.paymentStatus !== 'APPROVED' && !isAdmin) {
-        return res.status(403).json({
-          error: `La orden ${order.orderNumber} aún se encuentra en estado "${order.paymentStatus}". La descarga se habilita automáticamente en cuanto el pago es aprobado.`
-        });
+        // Auto-check Wompi API in real time before rejecting download
+        if (order.wompiReference) {
+          try {
+            const privateKey = cleanWompiSecret(process.env.WOMPI_PRIVATE_KEY);
+            const publicKey = cleanWompiSecret(process.env.WOMPI_PUBLIC_KEY);
+            const isSandbox = publicKey.startsWith('pub_test_') || privateKey.startsWith('prv_test_');
+            const baseUrl = isSandbox ? 'https://sandbox.wompi.co/v1' : 'https://production.wompi.co/v1';
+            const headers = privateKey ? { Authorization: `Bearer ${privateKey}` } : {};
+            const refRes = await axios.get(
+              `${baseUrl}/transactions?reference=${encodeURIComponent(order.wompiReference)}`,
+              { headers, timeout: 8000 }
+            );
+            const txList = Array.isArray(refRes.data?.data) ? refRes.data.data : [];
+            const approvedTx = txList.find((t) => t.status === 'APPROVED');
+            if (approvedTx) {
+              order.paymentStatus = 'APPROVED';
+              order.wompiTransactionId = approvedTx.id;
+              enrichOrderCustomerFromWompi(order, approvedTx);
+              order.serviceTimeline.push({
+                status: 'PAGO_APROBADO',
+                comment: `Pago verificado automáticamente en Wompi al descargar (${approvedTx.id})`,
+                updatedAt: new Date(),
+                updatedBy: 'Wompi Auto-Verify'
+              });
+              await order.save();
+            }
+          } catch (autoErr) {
+            logger.warn('[Marketplace] Auto-verify on download failed:', autoErr.message);
+          }
+        }
+
+        if (order.paymentStatus !== 'APPROVED') {
+          return res.status(403).json({
+            error: `La orden ${order.orderNumber} aún se encuentra en estado "${order.paymentStatus}". La descarga se habilita automáticamente en cuanto el pago es aprobado.`
+          });
+        }
       }
 
       const hasMatrizApp = (order.items || []).some(
@@ -1871,9 +2261,42 @@ const downloadWappyStudioApp = async (req, res) => {
       }
 
       if (order.paymentStatus !== 'APPROVED' && !isAdmin) {
-        return res.status(403).json({
-          error: `La orden ${order.orderNumber} aún se encuentra en estado "${order.paymentStatus}". La descarga se habilita automáticamente en cuanto el pago es aprobado.`
-        });
+        // Auto-check Wompi API in real time before rejecting download
+        if (order.wompiReference) {
+          try {
+            const privateKey = cleanWompiSecret(process.env.WOMPI_PRIVATE_KEY);
+            const publicKey = cleanWompiSecret(process.env.WOMPI_PUBLIC_KEY);
+            const isSandbox = publicKey.startsWith('pub_test_') || privateKey.startsWith('prv_test_');
+            const baseUrl = isSandbox ? 'https://sandbox.wompi.co/v1' : 'https://production.wompi.co/v1';
+            const headers = privateKey ? { Authorization: `Bearer ${privateKey}` } : {};
+            const refRes = await axios.get(
+              `${baseUrl}/transactions?reference=${encodeURIComponent(order.wompiReference)}`,
+              { headers, timeout: 8000 }
+            );
+            const txList = Array.isArray(refRes.data?.data) ? refRes.data.data : [];
+            const approvedTx = txList.find((t) => t.status === 'APPROVED');
+            if (approvedTx) {
+              order.paymentStatus = 'APPROVED';
+              order.wompiTransactionId = approvedTx.id;
+              enrichOrderCustomerFromWompi(order, approvedTx);
+              order.serviceTimeline.push({
+                status: 'PAGO_APROBADO',
+                comment: `Pago verificado automáticamente en Wompi al descargar (${approvedTx.id})`,
+                updatedAt: new Date(),
+                updatedBy: 'Wompi Auto-Verify'
+              });
+              await order.save();
+            }
+          } catch (autoErr) {
+            logger.warn('[Marketplace] Auto-verify on download failed:', autoErr.message);
+          }
+        }
+
+        if (order.paymentStatus !== 'APPROVED') {
+          return res.status(403).json({
+            error: `La orden ${order.orderNumber} aún se encuentra en estado "${order.paymentStatus}". La descarga se habilita automáticamente en cuanto el pago es aprobado.`
+          });
+        }
       }
 
       const hasStudioApp = (order.items || []).some(
@@ -2196,6 +2619,7 @@ module.exports = {
   getProductBySlugOrId,
   validateCoupon,
   createCheckout,
+  redirectToPromoIpvrCheckout,
   verifyPayment,
   handleWebhook,
   getOrderDetails,

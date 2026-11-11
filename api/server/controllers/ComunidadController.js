@@ -296,7 +296,7 @@ const createComunidadCheckout = async (req, res) => {
             throw new Error('WOMPI_PUBLIC_KEY no configurada en las variables de entorno');
         }
 
-        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        const integritySecret = String(process.env.WOMPI_INTEGRITY_SECRET || '').split('INSTAGRAM_')[0].trim();
         let signature = '';
         if (integritySecret) {
             const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;

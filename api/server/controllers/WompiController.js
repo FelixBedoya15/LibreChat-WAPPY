@@ -542,7 +542,7 @@ const createTransaction = async (req, res) => {
         }
 
         // Provide INTEGRITY signature since it's required in modern Wompi Accounts to prevent manipulation
-        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        const integritySecret = String(process.env.WOMPI_INTEGRITY_SECRET || '').split('INSTAGRAM_')[0].trim();
         let signature = '';
         if (integritySecret) {
             // hash = sha256(reference + amountInCents + currency + integritySecret)
@@ -732,6 +732,76 @@ const handleWebhook = async (req, res) => {
             console.log(`[Wompi Webhook] Updated ComunidadPurchase ${reference} to ${status}. Paid: ${purchase.isPaid}`);
             
             await logDoc.save();
+            return res.status(200).send('OK');
+        }
+
+        if (reference && reference.startsWith('WAP-MKT-')) {
+            const MarketplaceOrder = require('../../models/MarketplaceOrder');
+            const MarketplaceProduct = require('../../models/MarketplaceProduct');
+            const order = await MarketplaceOrder.findOne({ wompiReference: reference });
+            if (!order) {
+                console.error('[Wompi Webhook] Unknown Marketplace reference:', reference);
+                logDoc.error = `Unknown Marketplace reference: ${reference}`;
+                await logDoc.save();
+                return res.status(200).send('Reference unknown');
+            }
+            const wasAlreadyApproved = order.paymentStatus === 'APPROVED';
+            order.wompiTransactionId = transactionId;
+
+            if (!order.customer) order.customer = {};
+            const txEmail = (transactionData.customer_email || '').trim().toLowerCase();
+            const txName = (transactionData.customer_data?.full_name || '').trim();
+            const txPhone = (transactionData.customer_data?.phone_number || '').trim();
+            const txLegalId = (transactionData.customer_data?.legal_id || '').trim();
+            if (txEmail && (!order.customer.email || order.customer.email === 'cliente@wappy.club' || order.customer.email === 'pendiente@wappy.club')) {
+                order.customer.email = txEmail;
+            }
+            if (txName && (!order.customer.fullName || order.customer.fullName.includes('Cliente Campaña'))) {
+                order.customer.fullName = txName;
+            }
+            if (txPhone && (!order.customer.phone || order.customer.phone === '3000000000')) {
+                order.customer.phone = txPhone;
+            }
+            if (txLegalId && (!order.customer.documentId || order.customer.documentId === 'CC-WOMPI' || order.customer.documentId === 'PENDIENTE')) {
+                order.customer.documentId = txLegalId;
+            }
+
+            if (status === 'APPROVED' && !wasAlreadyApproved) {
+                order.paymentStatus = 'APPROVED';
+                order.serviceTimeline.push({
+                    status: 'PAGO_APROBADO',
+                    comment: `Pago confirmado vía webhook Wompi (${transactionId})`,
+                    updatedAt: new Date(),
+                    updatedBy: 'Wompi Webhook'
+                });
+                for (const item of order.items || []) {
+                    if (item.productId) {
+                        await MarketplaceProduct.findByIdAndUpdate(item.productId, { $inc: { salesCount: item.quantity || 1 } });
+                    }
+                }
+                sendMetaCapiEvent({
+                    eventName: 'Purchase',
+                    eventId: `purchase_${reference}`,
+                    email: order.customer?.email !== 'cliente@wappy.club' ? order.customer?.email : undefined,
+                    phone: order.customer?.phone !== '3000000000' ? order.customer?.phone : undefined,
+                    fullName: !String(order.customer?.fullName || '').includes('Cliente Campaña') ? order.customer?.fullName : undefined,
+                    customData: {
+                        content_name: order.items?.[0]?.title || 'Aplicativo Descargable Matriz IPVR (.HTML)',
+                        content_ids: [order.items?.[0]?.sku || 'WAPPY-MATRIZ-IPVR-APP'],
+                        content_type: 'product',
+                        value: order.totalAmount || 38000,
+                        currency: 'COP'
+                    },
+                    eventSourceUrl: 'https://wappy.club/matrizipvr',
+                    req
+                }).catch(() => {});
+            } else if (status === 'DECLINED' && order.paymentStatus === 'PENDING') {
+                order.paymentStatus = 'DECLINED';
+            }
+
+            await order.save();
+            await logDoc.save();
+            console.log(`[Wompi Webhook] Updated MarketplaceOrder ${order.orderNumber} (${reference}) to ${status}`);
             return res.status(200).send('OK');
         }
 
@@ -1372,7 +1442,7 @@ const guestCheckout = async (req, res) => {
         const publicKey = process.env.WOMPI_PUBLIC_KEY;
         if (!publicKey) return res.status(500).json({ error: 'WOMPI_PUBLIC_KEY no configurada' });
 
-        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        const integritySecret = String(process.env.WOMPI_INTEGRITY_SECRET || '').split('INSTAGRAM_')[0].trim();
         let signature = '';
         if (integritySecret) {
             const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;
@@ -1662,7 +1732,7 @@ const createCustomTransaction = async (req, res) => {
         const publicKey = process.env.WOMPI_PUBLIC_KEY;
         if (!publicKey) throw new Error('WOMPI_PUBLIC_KEY no configurada');
 
-        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        const integritySecret = String(process.env.WOMPI_INTEGRITY_SECRET || '').split('INSTAGRAM_')[0].trim();
         let signature = '';
         if (integritySecret) {
             const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;
@@ -1773,7 +1843,7 @@ const guestCustomCheckout = async (req, res) => {
         const publicKey = process.env.WOMPI_PUBLIC_KEY;
         if (!publicKey) return res.status(500).json({ error: 'WOMPI_PUBLIC_KEY no configurada' });
 
-        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        const integritySecret = String(process.env.WOMPI_INTEGRITY_SECRET || '').split('INSTAGRAM_')[0].trim();
         let signature = '';
         if (integritySecret) {
             const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;

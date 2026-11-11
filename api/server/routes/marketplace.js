@@ -44,6 +44,7 @@ router.get('/products/:idOrSlug', checkJwtAuth, controller.getProductBySlugOrId)
 router.get('/customer-profile', checkJwtAuth, controller.getCustomerProfile);
 router.post('/validate-coupon', controller.validateCoupon);
 router.post('/checkout', checkJwtAuth, controller.createCheckout);
+router.get('/promo-ipvr-checkout', controller.redirectToPromoIpvrCheckout);
 router.post('/verify-payment', controller.verifyPayment);
 router.post('/webhook', express.json(), controller.handleWebhook);
 router.get('/orders/:orderNumber/download-ipvr', checkJwtAuth, controller.downloadMatrizIpvrApp);
