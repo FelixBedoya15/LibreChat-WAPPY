@@ -159,3 +159,7 @@ __pycache__/
 
 # Build intermedio de WAPPY Studio portable
 client/portable-dist/
+
+# Repositorio local de activos audiovisuales WAPPY Studio
+/repositoria imagenes videos/
+/produccion_videos_matrizipvr/
