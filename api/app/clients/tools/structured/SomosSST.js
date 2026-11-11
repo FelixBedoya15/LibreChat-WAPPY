@@ -128,16 +128,16 @@ class SomosSST extends Tool {
       fecha_accidente: z
         .string()
         .optional()
-        .describe('Fecha del accidente o evento ATEL en formato YYYY-MM-DD. Requerido para registrar_accidente_atel.'),
+        .describe('Fecha del accidente o evento ATEL en formato YYYY-MM-DD (o extraída automáticamente si envías texto_furat_completo).'),
       tipo_evento: z
         .string()
         .optional()
-        .describe('Tipo de evento ATEL: "AT" (Accidente de Trabajo), "EL" (Enfermedad Laboral), "Ausentismo".'),
+        .describe('Tipo de evento ATEL: "AT" (Accidente de Trabajo), "EL" (Enfermedad Laboral), "Incidente", "Ausentismo".'),
       descripcion_accidente: z
         .string()
         .optional()
         .describe('Descripción detallada del accidente o suceso.'),
-      dias_incapacidad: z
+      dias_incapacidad: z.coerce
         .number()
         .optional()
         .describe('Número de días de incapacidad generados por el evento ATEL.'),
@@ -149,6 +149,42 @@ class SomosSST extends Tool {
         .string()
         .optional()
         .describe('Parte del cuerpo afectada en el accidente.'),
+      cedula_trabajador: z
+        .string()
+        .optional()
+        .describe('Cédula o número de documento del trabajador afectado en el evento ATEL.'),
+      hora_accidente: z
+        .string()
+        .optional()
+        .describe('Hora del accidente o incidente ATEL en formato HH:MM (24 horas).'),
+      lugar_accidente: z
+        .string()
+        .optional()
+        .describe('Sitio, área o sede donde ocurrió el accidente o incidente ATEL.'),
+      actividad_momento: z
+        .string()
+        .optional()
+        .describe('Actividad u ocupación que realizaba el trabajador en el momento del evento ATEL.'),
+      agente_causal: z
+        .string()
+        .optional()
+        .describe('Máquina, herramienta, superficie o agente causante del evento ATEL.'),
+      naturaleza_lesion: z
+        .string()
+        .optional()
+        .describe('Naturaleza de la lesión (ej: "Golpe / Contusión", "Herida / Laceración", "Fractura", "Esguince / Torcedura", "Sin lesión (Incidente)").'),
+      texto_furat_completo: z
+        .string()
+        .optional()
+        .describe('Texto completo extraído del formulario FURAT o reporte de accidente (ej. leído desde Google Drive) para mapear sus 23 campos y ejecutar la investigación Res. 1401 dentro del aplicativo.'),
+      archivo_drive_id: z
+        .string()
+        .optional()
+        .describe('ID del archivo origen en Google Drive para control de idempotencia y trazabilidad en Investigación ATEL.'),
+      nombre_archivo_drive: z
+        .string()
+        .optional()
+        .describe('Nombre del archivo origen en Google Drive (ej: "FURAT_Trabajador.pdf").'),
       nombre_tarea_o_hito: z
         .string()
         .optional()
@@ -1482,110 +1518,86 @@ class SomosSST extends Tool {
 
       // ── ACTION: REGISTRAR ACCIDENTE ATEL ────────────────────────────────────
       if (accion === 'registrar_accidente_atel') {
-        if (!input.fecha_accidente) {
-          return JSON.stringify({ error: 'Debes proporcionar la fecha_accidente (YYYY-MM-DD).' });
-        }
-        const eventDateStr = input.fecha_accidente;
-        const eventDate = new Date(eventDateStr);
-        const year = isNaN(eventDate.getFullYear()) ? new Date().getFullYear() : eventDate.getFullYear();
-        const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        const monthIdx = isNaN(eventDate.getMonth()) ? new Date().getMonth() : eventDate.getMonth();
-        const monthKey = monthNames[monthIdx] || 'enero';
-
-        const eventType = input.tipo_evento === 'EL' || input.tipo_evento === 'Enfermedad Laboral' ? 'EL' : (input.tipo_evento === 'Ausentismo' ? 'Ausentismo' : 'AT');
-
-        // Load ATELAnnualData
-        let atelDoc = ATELAnnualModel ? await ATELAnnualModel.findOne({ user: userId, companyId, year }) : null;
-        if (!atelDoc && ATELAnnualModel) {
-          atelDoc = new ATELAnnualModel({ user: userId, companyId, year, months: {} });
-        }
-
-        if (atelDoc) {
-          let monthsObj = atelDoc.months;
-          if (monthsObj instanceof Map) {
-            monthsObj = Object.fromEntries(monthsObj);
-          } else if (!monthsObj) {
-            monthsObj = {};
-          }
-
-          if (!monthsObj[monthKey]) {
-            monthsObj[monthKey] = { numTrabajadores: '', diasProgramados: '', events: [] };
-          }
-          if (!monthsObj[monthKey].events) {
-            monthsObj[monthKey].events = [];
-          }
-
-          const normWorker = String(nombre_o_cargo || 'Sin documento').trim().toLowerCase();
-          const normCause = String(input.descripcion_accidente || 'Accidente reportado vía asistente IA').trim().toLowerCase();
-          const existingEvt = monthsObj[monthKey].events.find(
-            (ev) =>
-              String(ev.fecha || '') === String(eventDateStr) &&
-              String(ev.tipo || '') === String(eventType) &&
-              (String(ev.documento || '').trim().toLowerCase() === normWorker ||
-                String(ev.causaInmediata || '').trim().toLowerCase() === normCause)
-          );
-
-          if (!existingEvt) {
-            const newEvent = {
-              id: `event_${Date.now()}`,
-              fecha: eventDateStr,
-              tipo: eventType,
-              causaInmediata: input.descripcion_accidente || 'Accidente reportado vía asistente IA',
-              peligro: 'Riesgo Ocupacional',
-              consecuencia: input.gravedad || 'Leve',
-              diasIncapacidad: Number(input.dias_incapacidad) || 0,
-              diasCargados: 0,
-              parteCuerpo: input.parte_cuerpo || 'Cuerpo general',
-              documento: nombre_o_cargo || 'Sin documento',
-            };
-
-            monthsObj[monthKey].events.push(newEvent);
-            atelDoc.months = monthsObj;
-            atelDoc.markModified('months');
-            atelDoc.updatedAt = new Date();
-            await atelDoc.save();
-          }
-        }
-
-        // Also create InvestigacionAtelData record if model exists (idempotent check)
-        if (InvestigacionAtelModel) {
+        let extraJsonFields = {};
+        if (input.datos_json && typeof input.datos_json === 'string') {
           try {
-            const existingInv = await InvestigacionAtelModel.findOne({
-              user: userId,
-              companyId,
-              'formData.fechaAccidente': eventDateStr,
-              'formData.afectadoNombre': nombre_o_cargo || 'Trabajador',
-            });
-            if (!existingInv) {
-              await InvestigacionAtelModel.create({
-                user: userId,
-                companyId,
-                formData: {
-                  fechaAccidente: eventDateStr,
-                  tipoEvento: eventType === 'AT' ? 'Accidente de Trabajo' : (eventType === 'EL' ? 'Enfermedad Laboral' : 'Ausentismo'),
-                  afectadoNombre: nombre_o_cargo || 'Trabajador',
-                  descripcionAccidente: input.descripcion_accidente || 'Reportado conversacionalmente',
-                  causasInmediatas: input.descripcion_accidente || '',
-                  gravedad: input.gravedad || 'Leve'
-                },
-                updatedAt: new Date()
-              });
+            const parsed = JSON.parse(input.datos_json);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              extraJsonFields = parsed;
             }
-          } catch (e) {
-            console.warn('[SomosSST Tool] Error log InvestigacionAtel:', e.message);
+          } catch (_) {
+            // Si datos_json es texto libre, sumarlo como apoyo documental
           }
         }
+
+        const rawDocText =
+          input.texto_furat_completo ||
+          (input.datos_json && Object.keys(extraJsonFields).length === 0 ? input.datos_json : '') ||
+          '';
+
+        if (!input.fecha_accidente && !extraJsonFields.fechaEvento && !extraJsonFields.fecha_accidente && !rawDocText.trim()) {
+          return JSON.stringify({
+            error: 'Debes proporcionar la fecha_accidente (YYYY-MM-DD) o el texto_furat_completo del reporte ATEL.',
+          });
+        }
+
+        const {
+          runAtelAppInvestigationPipeline,
+        } = require('~/server/services/investigacionAtelPipelineService');
+
+        const pipelineRes = await runAtelAppInvestigationPipeline({
+          req: this.req,
+          userId,
+          companyId,
+          inputFields: {
+            ...extraJsonFields,
+            nombre_o_cargo: nombre_o_cargo || extraJsonFields.afectadoNombre || '',
+            afectadoNombre: extraJsonFields.afectadoNombre || nombre_o_cargo || '',
+            cedula_trabajador: input.cedula_trabajador || extraJsonFields.afectadoCedula || '',
+            cargo_trabajador: input.cargo_trabajador || extraJsonFields.afectadoCargo || '',
+            fecha_accidente: input.fecha_accidente || extraJsonFields.fechaEvento || extraJsonFields.fecha_accidente || '',
+            hora_accidente: input.hora_accidente || extraJsonFields.horaEvento || '',
+            lugar_accidente: input.lugar_accidente || extraJsonFields.lugarEvento || '',
+            departamento: input.departamento || extraJsonFields.departamento || '',
+            municipio: input.ciudad || extraJsonFields.municipio || '',
+            actividad_momento: input.actividad_momento || extraJsonFields.actividadMomento || '',
+            tipo_evento: input.tipo_evento || extraJsonFields.tipoEvento || '',
+            gravedad: input.gravedad || extraJsonFields.gravedad || '',
+            descripcion_accidente: input.descripcion_accidente || extraJsonFields.descripcionHechos || '',
+            naturaleza_lesion: input.naturaleza_lesion || extraJsonFields.naturalezaLesion || '',
+            parte_cuerpo: input.parte_cuerpo || extraJsonFields.parteCuerpo || '',
+            dias_incapacidad:
+              input.dias_incapacidad !== undefined
+                ? input.dias_incapacidad
+                : extraJsonFields.diasIncapacidad,
+            agente_causal: input.agente_causal || extraJsonFields.agenteCausal || '',
+            afectadoArl: input.arl || extraJsonFields.afectadoArl || '',
+          },
+          rawDocumentText: rawDocText,
+          sourceDriveFileId: input.archivo_drive_id || extraJsonFields.sourceDriveFileId || '',
+          fileName: input.nombre_archivo_drive || extraJsonFields.sourceDriveFileName || '',
+          generateOfficialReport: true,
+          modelName: 'gemini-3.6-flash',
+        });
 
         return JSON.stringify({
           exito: true,
-          mensaje: `Se registró exitosamente el evento ATEL (${eventType}) del ${eventDateStr} y se actualizaron las estadísticas e indicadores de accidentalidad de la empresa.`,
-          detalles: {
-            fecha: eventDateStr,
-            mes: monthKey,
-            tipo: eventType,
-            diasIncapacidad: input.dias_incapacidad || 0,
-            trabajador: nombre_o_cargo || 'General'
-          }
+          alreadyProcessed: Boolean(pipelineRes.alreadyProcessed),
+          caseId: pipelineRes.caseId,
+          aplicativoAlimentado: 'Investigación de Accidentes e Incidentes ATEL (Hito 7)',
+          informeGeneradoEnAplicativo: Boolean(pipelineRes.reportHtml),
+          reportConversationId: pipelineRes.reportConversationId || null,
+          reportTitle: pipelineRes.reportTitle || null,
+          urlInformeOficial: pipelineRes.reportConversationId
+            ? `https://wappy.club/c/${pipelineRes.reportConversationId}`
+            : null,
+          mensaje: pipelineRes.alreadyProcessed
+            ? `El caso ATEL (${pipelineRes.formData?.afectadoNombre || 'Trabajador'} — ${pipelineRes.formData?.fechaEvento || ''}) ya se encontraba registrado e investigado previamente en el aplicativo Investigación ATEL (control idempotente activo; no se duplicó el registro).`
+            : `Se ejecutó exitosamente el pipeline real en el aplicativo Investigación ATEL (Hito 7): 1) Mapeo de los 23 campos FURAT y cruce 360° con Trabajadores/COPASST, 2) Registro en InvestigacionAtelData + ATELAnnualData + Hoja de Vida Bio-Individual, 3) Generación y guardado en Historial del Informe Oficial HTML Res. 1401 de 2007 (con 5 Porqués, Diagrama de Ishikawa SVG, Árbol de Causas y Firmas Digitales), y 4) Extracción del informe oficial hacia el flujo.`,
+          formData: pipelineRes.formData,
+          equipoList: pipelineRes.equipoList,
+          testigosList: pipelineRes.testigosList,
+          summaryMarkdown: pipelineRes.summaryMarkdown,
         });
       }
 

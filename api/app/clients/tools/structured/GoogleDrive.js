@@ -21,6 +21,7 @@ const {
   getScopedAuthValue,
   updateScopedAuthValue,
 } = require('~/server/services/googleAuthHelper');
+const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
 
 class GoogleDriveTool extends Tool {
   static lc_name() {
@@ -31,7 +32,7 @@ class GoogleDriveTool extends Tool {
     super(fields);
     this.name = 'google_drive';
     this.description = 
-      'Permite interactuar con Google Drive del usuario. Puedes buscar archivos y carpetas, leer el contenido de documentos (Google Docs, Google Sheets, Word .docx, Excel .xlsx/.xls, PDFs, txt) y crear o actualizar documentos y carpetas. Úsalo cuando necesites analizar archivos del usuario o guardar reportes.';
+      'Permite interactuar con Google Drive del usuario. Puedes buscar archivos y carpetas, leer el contenido de documentos (Google Docs, Google Sheets, Word .docx, Excel .xlsx/.xls, PDFs digitales o escaneados con OCR Multimodal, imágenes JPG/PNG/WEBP de formularios FURAT, txt) y crear o actualizar documentos y carpetas. Úsalo cuando necesites analizar archivos del usuario o guardar reportes.';
     
     this.req = fields.req;
     this.userId = fields.userId || fields.user?.id || fields.req?.user?.id || (typeof fields.req?.user === 'string' ? fields.req.user : null);
@@ -173,8 +174,12 @@ class GoogleDriveTool extends Tool {
       }
 
       const fileList = files.map(file => {
-        const type = file.mimeType === 'application/vnd.google-apps.folder' ? '[Carpeta]' : '[Archivo]';
-        return `- ${file.name} (ID: ${file.id}) ${type} - URL: ${file.webViewLink}`;
+        const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+        const type = isFolder
+          ? '[Carpeta — mimeType: application/vnd.google-apps.folder]'
+          : `[Archivo — mimeType: ${file.mimeType || 'desconocido'}]`;
+        const modifiedInfo = file.modifiedTime ? ` | Modificado: ${file.modifiedTime}` : '';
+        return `- ${file.name} (ID: ${file.id}) ${type}${modifiedInfo} - URL: ${file.webViewLink || 'N/A'}`;
       }).join('\n');
 
       return `Resultados de búsqueda en Google Drive:\n${fileList}`;
@@ -185,8 +190,55 @@ class GoogleDriveTool extends Tool {
   }
 
   /**
+   * Extrae texto mediante OCR Multimodal real con gemini-3.6-flash (rotación de claves activa)
+   * para PDFs escaneados (ej. formularios FURAT) e imágenes (.jpg, .png, .webp).
+   */
+  async extractMultimodalOcrText(buffer, mimeType, fileName) {
+    const resolvedUserId =
+      this.userId ||
+      this.req?.user?.id ||
+      (typeof this.req?.user === 'string' ? this.req.user : null);
+
+    const ocrPrompt =
+      `Transcribe de forma íntegra, exacta y fiel TODO el contenido visible del documento "${fileName || 'Adjunto'}" (${mimeType}). ` +
+      `Incluye todas las secciones, casillas marcadas, tablas, fechas, horas, nombres completos, números de cédula/documento, cargos, EPS, ARL, lugar del evento, descripción detallada de los hechos, naturaleza de la lesión, parte del cuerpo, agente causal, testigos y firmas. ` +
+      `IMPORTANTE: NO inventes, resumas ni asumas ningún dato que no esté escrito en el documento.`;
+
+    const geminiResult = await generateWithKeyRotation(
+      {
+        model: 'gemini-3.6-flash',
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 16384,
+        },
+      },
+      resolvedUserId,
+      [
+        { text: ocrPrompt },
+        {
+          inlineData: {
+            mimeType: mimeType || 'application/pdf',
+            data: buffer.toString('base64'),
+          },
+        },
+      ],
+    );
+
+    if (typeof geminiResult?.response?.text === 'function') {
+      return (geminiResult.response.text() || '').trim();
+    }
+    if (geminiResult?.text) {
+      return (typeof geminiResult.text === 'function' ? geminiResult.text() : String(geminiResult.text)).trim();
+    }
+    if (typeof geminiResult === 'string') {
+      return geminiResult.trim();
+    }
+    return '';
+  }
+
+  /**
    * Reads content of a file. Supports exporting Google Docs to text and Sheets to CSV.
-   * Uses pdf-parse to read PDFs.
+   * Uses pdf-parse to read PDFs with multimodal OCR fallback (gemini-3.6-flash), and supports images.
    */
   async readFileContent(drive, fileId) {
     try {
@@ -263,7 +315,7 @@ class GoogleDriveTool extends Tool {
         }
       }
 
-      // Handle PDF files
+      // Handle PDF files (with automatic multimodal OCR fallback for scanned PDFs / FURAT)
       if (mimeType === 'application/pdf') {
         try {
           const response = await drive.files.get({
@@ -273,27 +325,63 @@ class GoogleDriveTool extends Tool {
           
           const buffer = Buffer.from(response.data);
           let text = '';
-          const PDFParseClass = pdf.PDFParse || (pdf.default && pdf.default.PDFParse);
-          if (typeof PDFParseClass === 'function') {
-            const parser = new PDFParseClass({ data: buffer });
-            try {
-              const data = await parser.getText();
-              text = (data && data.text) ? data.text.trim() : '';
-            } finally {
-              if (typeof parser.destroy === 'function') await parser.destroy();
+          try {
+            const PDFParseClass = pdf.PDFParse || (pdf.default && pdf.default.PDFParse);
+            if (typeof PDFParseClass === 'function') {
+              const parser = new PDFParseClass({ data: buffer });
+              try {
+                const data = await parser.getText();
+                text = (data && data.text) ? data.text.trim() : '';
+              } finally {
+                if (typeof parser.destroy === 'function') await parser.destroy();
+              }
+            } else if (typeof pdf === 'function') {
+              const pdfData = await pdf(buffer);
+              text = (pdfData && pdfData.text) ? pdfData.text.trim() : '';
+            } else if (pdf.default && typeof pdf.default === 'function') {
+              const pdfData = await pdf.default(buffer);
+              text = (pdfData && pdfData.text) ? pdfData.text.trim() : '';
             }
-          } else if (typeof pdf === 'function') {
-            const pdfData = await pdf(buffer);
-            text = (pdfData && pdfData.text) ? pdfData.text.trim() : '';
-          } else if (pdf.default && typeof pdf.default === 'function') {
-            const pdfData = await pdf.default(buffer);
-            text = (pdfData && pdfData.text) ? pdfData.text.trim() : '';
+          } catch (innerPdfErr) {
+            logger.warn(`[GoogleDriveTool] pdf-parse local extraction failed for "${name}", falling back to multimodal OCR: ${innerPdfErr.message}`);
           }
           text = (text || '').replace(/\n+/g, '\n').trim();
-          return `Contenido extraído del PDF "${name}":\n\n${text || '(PDF sin texto extraíble)'}`;
+
+          let usedMultimodalOcr = false;
+          if (!text || text.length < 45) {
+            try {
+              logger.info(`[GoogleDriveTool] PDF "${name}" has < 45 text chars (${text.length}); running multimodal OCR (gemini-3.6-flash)...`);
+              const ocrText = await this.extractMultimodalOcrText(buffer, 'application/pdf', name);
+              if (ocrText) {
+                text = ocrText;
+                usedMultimodalOcr = true;
+              }
+            } catch (ocrErr) {
+              logger.warn(`[GoogleDriveTool] Multimodal OCR fallback warning for PDF "${name}": ${ocrErr.message}`);
+            }
+          }
+
+          return `Contenido extraído del PDF "${name}" (ID: ${fileId}${usedMultimodalOcr ? ' · OCR Multimodal' : ''}):\n\n${text || '(PDF sin texto extraíble)'}`;
         } catch (pdfErr) {
           logger.warn(`[GoogleDriveTool] PDF parse warning for "${name}": ${pdfErr.message}`);
           return `El PDF "${name}" (ID: ${fileId}) no pudo ser procesado (${pdfErr.message}). Se continuará con los demás archivos.`;
+        }
+      }
+
+      // Handle Image files (.jpg, .png, .webp, etc. — e.g., photo/scan of a FURAT) via Multimodal OCR
+      if (mimeType && mimeType.startsWith('image/')) {
+        try {
+          const response = await drive.files.get({
+            fileId: fileId,
+            alt: 'media',
+          }, { responseType: 'arraybuffer' });
+
+          const buffer = Buffer.from(response.data);
+          const ocrText = await this.extractMultimodalOcrText(buffer, mimeType, name);
+          return `Contenido extraído por OCR Multimodal de la imagen "${name}" (ID: ${fileId}, ${mimeType}):\n\n${ocrText || '(Imagen sin texto legible detectado)'}`;
+        } catch (imgErr) {
+          logger.warn(`[GoogleDriveTool] Image multimodal OCR warning for "${name}": ${imgErr.message}`);
+          return `La imagen "${name}" (ID: ${fileId}) no pudo ser transcrita con OCR Multimodal (${imgErr.message}). Se continuará con los demás archivos.`;
         }
       }
 

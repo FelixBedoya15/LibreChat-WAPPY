@@ -1302,11 +1302,12 @@ async function runAutomation(automation, isManual = false) {
       };
     }
 
-    // Build mock request & response with explicit companyId and isAutomation flag
+    // Build mock request & response with explicit companyId, isAutomation flag, and app reports collector
     const req = {
       user: reqUser,
       companyId: targetCompanyIdStr,
       isAutomation: true,
+      _generatedAppReports: [],
       body: {
         text: effectivePrompt,
         companyId: targetCompanyIdStr,
@@ -1467,13 +1468,18 @@ async function runAutomation(automation, isManual = false) {
       : [];
 
     // Evaluar condición lógica real (if_router) y aprobación humana (human_approval) para que Ejecución Real y Sandbox sean 100% coherentes
-    const hasCriticalSignalInResult =
+    const allGeneratedAppReports = Array.isArray(req._generatedAppReports)
+      ? req._generatedAppReports.filter(Boolean)
+      : [];
+    const newAppReports = allGeneratedAppReports.filter((r) => r && !r.alreadyProcessed);
+
+    let hasCriticalSignalInResult =
       /⚠️|❌|🚨|vencid[oa]|cr[ií]tic[oa]|multa|comparendo|incumpl|brecha|riesgo\s+alto|no\s+cumple|sin\s+registro|sin\s+afiliaci[oó]n/i.test(
         resultText,
       );
     let ifConditionPassed = hasCriticalSignalInResult;
+    const ifCfg = postNodeConfigs.if_router || postNodeConfigs.if_condition || {};
     if (automation.workflowNodes?.includeIfNode) {
-      const ifCfg = postNodeConfigs.if_router || postNodeConfigs.if_condition || {};
       const condType = String(ifCfg.ifConditionType || 'critical_findings');
       const expr = String(ifCfg.ifRuleExpression || '').trim();
       if (condType === 'keyword_match' && expr) {
@@ -1482,6 +1488,36 @@ async function runAutomation(automation, isManual = false) {
         const thresholdNum = Number(expr.replace(/[^\d.-]/g, '')) || 1;
         ifConditionPassed = cleanRunEvidenceFiles.length >= thresholdNum || hasCriticalSignalInResult;
       }
+    }
+
+    const wfExtractorsForCondition = Array.isArray(automation.workflowNodes?.extractors)
+      ? automation.workflowNodes.extractors
+      : [];
+    const ifConditionLabelStr = String(
+      ifCfg.ifConditionLabel ||
+        ifCfg.customTitle ||
+        ifCfg.title ||
+        ifCfg.customInstruction ||
+        ifCfg.ifRuleExpression ||
+        automation.workflowNodes?.ifConditionLabel ||
+        '',
+    ).trim();
+    const watchesDriveNewFiles =
+      wfExtractorsForCondition.includes('extract_drive') ||
+      wfExtractorsForCondition.includes('google_drive') ||
+      /furat|drive|nuevo/i.test(ifConditionLabelStr);
+
+    const explicitNoNewDriveFiles =
+      /no\s+(se\s+encontraron|existen|hay)\s+archivos\s+nuevos|no\s+(se\s+encontraron|existen|hay)\s+(archivos|documentos|reportes|furat|eventos|accidentes)(\s+furat)?\s+nuevos|0\s+(archivos|furat|accidentes)\s+nuevos|google\s+drive\s+no\s+est[aá]\s+vinculado|sin\s+archivos\s+(furat\s+)?nuevos|conexi[oó]n\s+con\s+google\s+drive\s+ha\s+expirado|no\s+se\s+encontraron\s+archivos\s+ni\s+carpetas\s+en\s+google\s+drive|ya\s+(hab[ií]an\s+sido|fueron)\s+(procesados|investigados)\s+anteriormente/i.test(
+        resultText,
+      ) || (allGeneratedAppReports.length > 0 && newAppReports.length === 0);
+
+    if (newAppReports.length > 0) {
+      hasCriticalSignalInResult = true;
+      ifConditionPassed = true;
+    } else if (newAppReports.length === 0 && watchesDriveNewFiles && explicitNoNewDriveFiles) {
+      hasCriticalSignalInResult = false;
+      ifConditionPassed = false;
     }
 
     const isOutputAllowedByIfBranch = (outNodeId) => {
@@ -1613,7 +1649,18 @@ async function runAutomation(automation, isManual = false) {
             const docCfg = postNodeConfigs.out_canvas_doc || postNodeConfigs.canvas_doc || {};
             const customDocTitle = String(docCfg.documentTitle || '').trim();
             const docTitle = customDocTitle || `📄 Informe Automatizado: ${automation.name} (${compLabel})`;
-            const htmlContent = formatMarkdownToEmailHtml(resultText) || `<p>${resultText}</p>`;
+            const execSummaryHtml = formatMarkdownToEmailHtml(resultText) || `<p>${resultText}</p>`;
+            const extractedOfficialHtmlBlocks = newAppReports
+              .filter((rep) => rep && typeof rep.reportHtml === 'string' && rep.reportHtml.trim())
+              .map(
+                (rep) =>
+                  `<hr style="margin:28px 0;border:none;border-top:2px solid #cbd5e1;" />` +
+                  `<div class="wappy-extracted-atel-report" style="margin-top:16px;">${rep.reportHtml}</div>`,
+              )
+              .join('\n');
+            const htmlContent = extractedOfficialHtmlBlocks
+              ? `<div style="margin-bottom:24px;">${execSummaryHtml}</div>\n${extractedOfficialHtmlBlocks}`
+              : execSummaryHtml;
             const validCompanyObjId =
               targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
                 ? targetCompanyIdStr
@@ -1762,6 +1809,56 @@ async function runAutomation(automation, isManual = false) {
             }
 
             let emailHtmlResult = formatMarkdownToEmailHtml(resultText);
+            if (newAppReports.length > 0) {
+              for (const rep of newAppReports) {
+                if (!rep || typeof rep.reportHtml !== 'string' || !rep.reportHtml.trim()) continue;
+                const rawSlug = `${rep.formData?.afectadoNombre || rep.caseId || 'Evento'}_${rep.formData?.fechaEvento || new Date().toISOString().slice(0, 10)}`;
+                const safeSlug = rawSlug
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-zA-Z0-9_-]+/g, '_')
+                  .replace(/^_+|_+$/g, '')
+                  .slice(0, 72) || 'ATEL';
+                const reportUrl = rep.reportConversationId
+                  ? `https://wappy.club/c/${rep.reportConversationId}`
+                  : null;
+                const standaloneReportHtml =
+                  `<!DOCTYPE html>\n<html lang="es">\n<head>\n` +
+                  `<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n` +
+                  `<title>${(rep.reportTitle || 'Informe Oficial de Investigación ATEL').replace(/[<>&"]/g, '')}</title>\n` +
+                  `<style>body{font-family:Arial,Helvetica,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:24px;} .atel-sheet{max-width:1060px;margin:0 auto;background:#ffffff;padding:28px;border-radius:16px;box-shadow:0 10px 25px rgba(15,23,42,0.08);} @media print{body{background:#fff;padding:0;} .atel-sheet{box-shadow:none;padding:0;max-width:100%;}}</style>\n` +
+                  `</head>\n<body>\n<div class="atel-sheet">\n${rep.reportHtml}\n</div>\n</body>\n</html>`;
+                const htmlAttachmentBuf = Buffer.from(standaloneReportHtml, 'utf8');
+                if (totalAttachmentBytes + htmlAttachmentBuf.length <= MAX_EMAIL_ATTACHMENT_BYTES) {
+                  emailAttachments.push({
+                    filename: `Informe_Investigacion_ATEL_${safeSlug}.html`,
+                    content: htmlAttachmentBuf,
+                    contentType: 'text/html; charset=utf-8',
+                  });
+                  totalAttachmentBytes += htmlAttachmentBuf.length;
+                }
+
+                emailHtmlResult += `
+                  <div style="border: 2px solid #0d9488; background: linear-gradient(135deg, rgba(13, 148, 136, 0.14), rgba(14, 165, 233, 0.10)); border-radius: 14px; padding: 16px 18px; margin: 22px 0 14px 0;">
+                    <h3 style="color: #0d9488; margin: 0 0 8px 0; font-size: 16px; font-weight: 800;">📋 Informe Oficial Extraído del Aplicativo Investigación ATEL (Res. 1401 de 2007)</h3>
+                    <p style="margin: 0 0 10px 0; font-size: 13px; color: #334155; line-height: 1.5;">
+                      <strong>Trabajador:</strong> ${rep.formData?.afectadoNombre || 'N/A'} (CC: ${rep.formData?.afectadoCedula || 'N/A'}) &bull;
+                      <strong>Evento:</strong> ${rep.formData?.tipoEvento || 'ATEL'} &bull;
+                      <strong>Fecha:</strong> ${rep.formData?.fechaEvento || 'N/A'} &bull;
+                      <strong>Expediente:</strong> <code>${rep.caseId || 'N/A'}</code>
+                    </p>
+                    ${
+                      reportUrl
+                        ? `<a href="${reportUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0d9488; color: #ffffff; font-weight: 700; font-size: 13px; padding: 8px 16px; border-radius: 8px; text-decoration: none;">🔗 Abrir Informe Oficial en el Historial de WAPPY &rarr;</a>`
+                        : ''
+                    }
+                  </div>
+                  <div style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 14px; padding: 20px; margin: 12px 0 22px 0; overflow-x: auto;">
+                    ${rep.reportHtml}
+                  </div>
+                `;
+              }
+            }
             if (runCapturedEvidences.length > 0) {
               const evItemsHtml = runCapturedEvidences
                 .map((ev, idx) => {
@@ -4328,6 +4425,48 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           previewLines.push(
             `🛡️ [MODO OPERATIVO EN HITO (${modeLabel} — SIMULADO EN SANDBOX)]: En ejecución real se impactará "${resolvedTitle}" a partir de ${incomingItems.length} item(s) entrantes sin alterar la base de datos durante esta prueba (dryRun: true).`,
           );
+          if (nodeId === 'hito7_investigacion_atel') {
+            const atelStages = [
+              '1) Mapeo IA de los 23 campos FURAT + cruce con Trabajadores 360° (SgsstWorker, CompanyInfo y COPASST)',
+              '2) Registro idempotente del expediente en InvestigacionAtelData + ATELAnnualData + Hoja de Vida Bio-Individual',
+              '3) Análisis IA Res. 1401 dentro del aplicativo (5 Porqués + Ishikawa SVG + Árbol de Causas + Firmas) y guardado en Historial (sgsst-investigacion-atel)',
+              '4) Extracción del Informe Oficial HTML hacia el flujo (Condición Si/No ➔ ACPM / Correo)',
+            ];
+            previewLines.push(
+              `🔬 [PIPELINE NATIVO DE 4 SUB-ETAPAS EN H7: INVESTIGACIÓN ATEL]:\n  • ${atelStages.join('\n  • ')}`,
+            );
+            const atelStageFields = {
+              modoOperativoHito: hitoMode,
+              subEtapa1_MapeoYCruce360: atelStages[0],
+              subEtapa2_RegistroExpediente: atelStages[1],
+              subEtapa3_AnalisisRes1401EHistorial: atelStages[2],
+              subEtapa4_ExtraccionInformeAlFlujo: atelStages[3],
+            };
+            if (Array.isArray(stepOutputItems) && stepOutputItems.length > 0) {
+              stepOutputItems = stepOutputItems.map((it) => ({
+                ...it,
+                ...atelStageFields,
+              }));
+            } else {
+              stepOutputItems = [
+                {
+                  index: 1,
+                  id: `${nodeKey}_atel_pipeline_preview`,
+                  nodo: resolvedTitle,
+                  nodeId,
+                  categoria: category,
+                  empresa: companyName,
+                  estado: 'pipeline_4_subetapas_listo_sandbox',
+                  registrosEncontrados: filteredRecords.length,
+                  ...atelStageFields,
+                },
+              ];
+            }
+            addStepLog(
+              'success',
+              'Pipeline de 4 sub-etapas de H7: Investigación ATEL (Mapeo 23 campos + Cruce 360° ➔ Registro InvestigacionAtelData ➔ Análisis IA Res. 1401 en Historial ➔ Extracción HTML Oficial al flujo) verificado',
+            );
+          }
           addStepLog(
             'info',
             `Modo Hito "${modeLabel}" validado en Sandbox (${incomingItems.length} item(s) evaluados; escritura bloqueada por dryRun: true)`,

@@ -3560,17 +3560,114 @@ async function inspectOtherNodeTeams(ctx) {
   ) {
     let scopedEmail = company?.googleDrive?.email || '';
     let hasToken = Boolean(company?.googleDrive?.isConnected);
+    let resolvedAccessToken = null;
+    let resolvedRefreshToken = null;
+    let resolvedExpiry = null;
     const folderName = company?.googleDrive?.folderName || `SG-SST ${company?.companyName || ''}`.trim();
     try {
       const { getScopedAuthValue } = require('~/server/services/googleAuthHelper');
-      const [em, rt, at] = await Promise.all([
+      const [em, rt, at, exp] = await Promise.all([
         getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_EMAIL', false).catch(() => null),
         getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_REFRESH_TOKEN', false).catch(() => null),
         getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_ACCESS_TOKEN', false).catch(() => null),
+        getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_EXPIRY', false).catch(() => null),
       ]);
       if (em) scopedEmail = em;
+      resolvedRefreshToken = rt || null;
+      resolvedAccessToken = at || null;
+      resolvedExpiry = exp ? Number(exp) : null;
       if (rt || at || em) hasToken = true;
     } catch (_) {}
+
+    let liveDriveRecords = [];
+    if (
+      (canonicalId === 'extract_drive' || canonicalId === 'google_drive') &&
+      hasToken &&
+      (resolvedAccessToken || resolvedRefreshToken)
+    ) {
+      try {
+        const { google } = require('googleapis');
+        const { updateScopedAuthValue } = require('~/server/services/googleAuthHelper');
+        const serverDomain = (process.env.DOMAIN_SERVER || 'https://wappy.club')
+          .replace(/https?:\/\/wappy-ia\.com/g, 'https://wappy.club')
+          .replace(/\/+$/, '');
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.GOOGLE_CLIENT_ID,
+          process.env.GOOGLE_CLIENT_SECRET,
+          `${serverDomain}/api/google-drive/callback`,
+        );
+        oauth2Client.setCredentials({
+          access_token: resolvedAccessToken || undefined,
+          refresh_token: resolvedRefreshToken || undefined,
+          expiry_date: resolvedExpiry || undefined,
+        });
+
+        const fetchLiveDriveFiles = async () => {
+          const isExpired = resolvedExpiry ? resolvedExpiry - Date.now() < 60000 : !resolvedAccessToken;
+          if (isExpired && resolvedRefreshToken) {
+            const { credentials } = await oauth2Client.refreshAccessToken();
+            oauth2Client.setCredentials(credentials);
+            if (credentials.access_token) {
+              await updateScopedAuthValue(
+                userId,
+                companyIdStr,
+                'GOOGLE_DRIVE_ACCESS_TOKEN',
+                credentials.access_token,
+              ).catch(() => {});
+            }
+            if (credentials.expiry_date) {
+              await updateScopedAuthValue(
+                userId,
+                companyIdStr,
+                'GOOGLE_DRIVE_EXPIRY',
+                String(credentials.expiry_date),
+              ).catch(() => {});
+            }
+          }
+          const drive = google.drive({ version: 'v3', auth: oauth2Client });
+          const driveRes = await drive.files.list({
+            q: 'trashed = false',
+            fields: 'files(id, name, mimeType, webViewLink, modifiedTime)',
+            pageSize: 15,
+            orderBy: 'folder,modifiedTime desc',
+          });
+          return Array.isArray(driveRes?.data?.files) ? driveRes.data.files : [];
+        };
+
+        let driveTimer = null;
+        const driveFiles = await Promise.race([
+          fetchLiveDriveFiles(),
+          new Promise((resolve) => {
+            driveTimer = setTimeout(() => resolve([]), 4000);
+          }),
+        ]);
+        if (driveTimer) clearTimeout(driveTimer);
+
+        liveDriveRecords = driveFiles.map((file) => {
+          const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+          const modFormatted = file.modifiedTime
+            ? new Date(file.modifiedTime).toLocaleString('es-CO')
+            : 'Sin fecha';
+          return {
+            id: String(file.id),
+            label: `${isFolder ? '📁' : '📄'} ${file.name || 'Sin nombre'}`,
+            sublabel: `${isFolder ? 'Carpeta' : file.mimeType || 'Archivo'} • Modificado: ${modFormatted} • ID: ${file.id}`,
+            badge: isFolder ? 'CARPETA' : 'ARCHIVO',
+            badgeTone: isFolder ? 'amber' : 'teal',
+            isCritical: false,
+            fields: {
+              'Nombre del Archivo / Carpeta': file.name || '',
+              'Tipo': isFolder ? 'Carpeta' : `Archivo (${file.mimeType || 'desconocido'})`,
+              'Fecha de Modificación': file.modifiedTime || '',
+              'ID de Google Drive': file.id || '',
+              'Enlace Google Drive (webViewLink)': file.webViewLink || '',
+            },
+          };
+        });
+      } catch (_) {
+        liveDriveRecords = [];
+      }
+    }
 
     const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
     const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
@@ -3582,7 +3679,7 @@ async function inspectOtherNodeTeams(ctx) {
         label: hasToken
           ? `✅ Google Workspace Conectado (${scopedEmail || company?.email || 'Cuenta vinculada'})`
           : `⚠️ Google Workspace No Vinculado en ${company?.companyName || 'esta empresa'}`,
-        sublabel: `Carpeta/Scope: ${folderName} • Servicio: ${canonicalId.toUpperCase()}`,
+        sublabel: `Carpeta/Scope: ${folderName} • Servicio: ${canonicalId.toUpperCase()}${liveDriveRecords.length > 0 ? ` • ${liveDriveRecords.length} elemento(s) recientes` : ''}`,
         badge: hasToken ? 'CONECTADO' : 'SIN VINCULAR',
         badgeTone: hasToken ? 'emerald' : 'rose',
         isCritical: !hasToken,
@@ -3590,9 +3687,11 @@ async function inspectOtherNodeTeams(ctx) {
           'Estado de Conexión OAuth2 Google Workspace': hasToken ? 'Conectado y Activo' : 'Desconectado',
           'Cuenta de Google Vinculada': scopedEmail || 'Sin vincular',
           'Carpeta / Repositorio de la Empresa': folderName,
+          'Archivos / Carpetas Recientes en Drive': liveDriveRecords.length,
           'Empresa Activa': company?.companyName || '',
         },
       },
+      ...liveDriveRecords,
       ...logs.map((l, idx) => ({
         id: String(l._id || `gws_log_${idx}`),
         label: `[Sincronización ${l.status}] ${l.agentName || 'Agente'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
@@ -3608,11 +3707,18 @@ async function inspectOtherNodeTeams(ctx) {
 
     return {
       moduleTitle: `Equipo 2/5 · Conector Google Workspace (${canonicalId.replace(/^(extract_|google_)/, '').toUpperCase()})`,
-      sourceCollection: 'CompanyInfo + GoogleOAuth + AutomationLog',
+      sourceCollection:
+        canonicalId === 'extract_drive' || canonicalId === 'google_drive'
+          ? 'Google Drive API v3 (En Vivo) + CompanyInfo + AutomationLog'
+          : 'CompanyInfo + GoogleOAuth + AutomationLog',
       kpis: [
         { label: 'Estado Google OAuth', value: hasToken ? 'CONECTADO' : 'NO CONECTADO', tone: hasToken ? 'emerald' : 'rose' },
         { label: 'Cuenta Vinculada', value: scopedEmail || 'Pendiente', tone: hasToken ? 'teal' : 'amber' },
-        { label: 'Carpeta SG-SST', value: folderName, tone: 'indigo' },
+        {
+          label: canonicalId === 'extract_drive' || canonicalId === 'google_drive' ? 'Archivos Recientes Drive' : 'Carpeta SG-SST',
+          value: canonicalId === 'extract_drive' || canonicalId === 'google_drive' ? liveDriveRecords.length : folderName,
+          tone: 'indigo',
+        },
         { label: 'Sincronizaciones', value: logs.length, tone: 'purple' },
       ],
       records,

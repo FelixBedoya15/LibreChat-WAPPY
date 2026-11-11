@@ -4,7 +4,7 @@
  * 100% libre de nodos en construcción y con bifurcación real Condición Si/No (Rama SÍ vs Rama NO).
  */
 
-const SYSTEM_WORKFLOW_PRESETS_VERSION = '2026.11.10-v54-all-branches-audited';
+const SYSTEM_WORKFLOW_PRESETS_VERSION = '2026.11.10-v55-furat-drive-atel-pipeline';
 
 const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
   {
@@ -1374,6 +1374,104 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     "prompt": "Procesa el payload recibido por Webhook de RRHH/Nómina o el barrido diario de novedades de personal (extract_sst_workers). Verifica que cada trabajador recién vinculado esté creado en Perfil Sociodemográfico (hito2_perfil_socio), tenga asignado su Perfil de Cargo (hito2_perfiles_cargo) y cuente con programación de Inducción SG-SST (hito5_capacitaciones, Art. 2.2.4.6.11 Dec. 1072). Si detectas nuevos ingresos pendientes de inducción o examen (Rama SÍ), actualiza Somos SST, crea tarea en ACPM y notifica por correo; si no hay pendientes (Rama NO), confirma sincronización en WAPPY."
   },
   {
+    "presetKey": "preset_drive_furat_investigacion_correo",
+    "presetCategory": "atel_inspecciones",
+    "name": "📂 Carpeta Drive (FURAT) ➔ Investigación en Aplicativo ATEL (Res. 1401) ➔ Informe Oficial al Correo",
+    "presetDescription": "Vigila la carpeta \"Accidentes / FURAT\" en Google Drive (con lectura digital y OCR IA para escaneados), envía los datos al aplicativo Investigación ATEL para registrar el caso, ejecuta el análisis IA propio del aplicativo (5 Porqués + Ishikawa SVG + Árbol de Causas + Firmas), extrae el Informe Oficial HTML y lo envía por correo.",
+    "agentTargetName": "Investigador ATEL",
+    "scheduleType": "daily",
+    "scheduleConfig": {
+      "hour": 7,
+      "minute": 15,
+      "dayOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "dayOfMonth": 1,
+      "intervalHours": 4
+    },
+    "cronExpression": "15 7 * * 1,2,3,4,5,6",
+    "workflowNodes": {
+      "trigger": "schedule_cron",
+      "triggers": [
+        "schedule_cron",
+        "trigger_tenshi"
+      ],
+      "extractors": [
+        "extract_drive",
+        "extract_sst_workers"
+      ],
+      "aiEngine": "wappy",
+      "aiModel": "gemini-3.8-flash",
+      "memoryNode": "wappy_memory_company",
+      "memories": [
+        "wappy_memory_company",
+        "wappy_memory_antiduplicate"
+      ],
+      "inputs": [
+        "google_drive",
+        "somos_sst_trabajadores",
+        "somos_sst_perfiles_cargo"
+      ],
+      "includeIfNode": true,
+      "hitos": [
+        "hito7_investigacion_atel"
+      ],
+      "outputs": [
+        "somos_sst_update",
+        "canvas_doc",
+        "acpm_task",
+        "email_report",
+        "wappy_notification"
+      ],
+      "canvasLayout": {
+        "nodeConfigs": {
+          "extractor_extract_drive": {
+            "driveFolderName": "Accidentes",
+            "customInstruction": "Vigila la carpeta \"Accidentes\" o \"FURAT\" en Google Drive y detecta únicamente archivos FURAT nuevos no procesados (PDF digital, PDF escaneado con OCR IA, imagen, Word o Excel)."
+          },
+          "hito_hito7_investigacion_atel": {
+            "hitoOperationMode": "write_register",
+            "customInstruction": "1) Mapea los 23 campos del FURAT al formulario de Investigación ATEL cruzando cédula con Trabajadores 360°, 2) Registra el expediente en InvestigacionAtelData, 3) Ejecuta el Análisis IA Res. 1401 dentro del aplicativo (5 Porqués + Ishikawa SVG + Árbol de Causas + Firmas) guardándolo en el Historial del Aplicativo, y 4) Extrae el Informe Oficial HTML generado para continuar el flujo hacia el correo."
+          },
+          "out_canvas_doc": {
+            "ifBranch": "yes",
+            "documentTitle": "Informe Oficial Investigación ATEL (Extraído del Aplicativo)"
+          },
+          "out_acpm_task": {
+            "ifBranch": "yes",
+            "kanbanStatus": "todo",
+            "kanbanPriority": "high",
+            "kanbanActionType": "correctiva",
+            "kanbanDueDays": 10,
+            "kanbanTaskTitle": "Ejecutar plan de intervención ATEL antes de 15 días calendario (Res. 1401)"
+          },
+          "out_email_report": {
+            "ifBranch": "yes",
+            "emailSubject": "🚨 Informe Oficial de Investigación ATEL (Res. 1401) — FURAT Procesado desde Drive"
+          },
+          "if_router": {
+            "ifConditionLabel": "¿Hay FURAT Nuevo en Carpeta Drive?",
+            "ifConditionType": "critical_findings",
+            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito7_investigacion_atel): \"¿Hay FURAT Nuevo en Carpeta Drive?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, canvas_doc, acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+          },
+          "out_somos_sst_update": {
+            "ifBranch": "yes"
+          },
+          "out_wappy_notification": {
+            "ifBranch": "no"
+          }
+        }
+      }
+    },
+    "prompt": "Conéctate a Google Drive mediante la herramienta google_drive: 1) Ejecuta list_files_and_folders buscando la carpeta \"Accidentes\" o archivos con nombre \"FURAT\" / \"Accidente\" y verifica contra la memoria antiduplicados cuáles archivos son nuevos y aún no han sido investigados. Si Google Drive no está vinculado a esta empresa o existen 0 archivos FURAT nuevos reales, informa literalmente \"0 archivos FURAT nuevos en Google Drive\" y detén el proceso sin simular ni inventar datos (para activar limpiamente la Rama NO). 2) Por cada archivo FURAT nuevo real, lee su contenido íntegro con read_document_content (soporta PDF digital, PDF escaneado vía OCR IA, imagen, Excel o Word) y cruza la cédula del colaborador en Trabajadores 360° (extract_sst_workers). 3) Invoca somos_sst con accion: \"registrar_accidente_atel\" enviando archivo_drive_id, nombre_archivo_drive, cedula_trabajador, nombre_o_cargo, fecha_accidente (YYYY-MM-DD), hora_accidente, lugar_accidente, actividad_momento, agente_causal, naturaleza_lesion, parte_cuerpo, dias_incapacidad, gravedad, descripcion_accidente y texto_furat_completo: esto enviará la información al aplicativo Investigación ATEL (hito7_investigacion_atel), registrará los 23 campos del caso, ejecutará el Análisis IA interno Res. 1401 del aplicativo (5 Porqués + Diagrama de Ishikawa SVG + Árbol de Causas + Firmas), guardará el informe en el Historial del aplicativo y extraerá el Informe Oficial HTML para adjuntarlo y enviarlo automáticamente al correo electrónico configurado."
+  },
+  {
     "presetKey": "preset_voz_tenshi_furat_investigacion_atel_360",
     "presetCategory": "atel_inspecciones",
     "name": "🎙️ Orden por Voz a Tenshi ➔ FURAT en Drive ➔ Investigación de Accidente ATEL 360° (Res. 1401)",
@@ -1411,6 +1509,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
         "wappy_memory_procedural"
       ],
       "inputs": [
+        "google_drive",
         "somos_sst_perfiles_cargo",
         "somos_sst_epp",
         "somos_sst_examenes"
