@@ -218,9 +218,7 @@
     .ico svg { width: 24px; height: 24px; }
     .card h3 { font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; }
     .card p { font-size: 15px; color: var(--muted); }
-    .tools-line { text-align: center; margin-top: 34px; font-size: 14px; color: var(--muted); }
-    .tools-line b { color: var(--ink-2); font-weight: 700; }
-
+    
     .steps-bg { background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; counter-reset: s; }
     @media (max-width: 820px) { .steps { grid-template-columns: 1fr; } }
@@ -236,16 +234,49 @@
     .step h3 { font-family: var(--display); font-size: 19px; font-weight: 800; margin-bottom: 6px; }
     .step p { font-size: 15px; color: var(--muted); }
 
-    .mentor {
-      display: flex; align-items: center; gap: 22px;
-      max-width: 760px; margin: 0 auto;
+    /* Conferencistas */
+    .speakers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; max-width: 900px; margin: 0 auto; }
+    @media (max-width: 720px) { .speakers { grid-template-columns: 1fr; } }
+    .speaker {
+      display: flex; align-items: center; gap: 18px;
       background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
-      padding: 22px 26px;
+      padding: 22px;
     }
-    .mentor img { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; object-position: top; background: #e2f3f1; flex-shrink: 0; }
-    .mentor b { font-family: var(--display); font-size: 19px; font-weight: 800; }
-    .mentor p { font-size: 15px; color: var(--muted); margin-top: 4px; }
-    @media (max-width: 560px) { .mentor { flex-direction: column; text-align: center; } }
+    .speaker img {
+      width: 92px; height: 92px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(180deg, #bfe3fa, #eaf6fe);
+      border: 3px solid var(--lime);
+    }
+    .speaker .role { display: inline-block; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--teal); margin-bottom: 4px; }
+    .speaker b { display: block; font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+    .speaker p { font-size: 14.5px; color: var(--muted); margin-top: 4px; }
+
+    /* Herramientas */
+    .tools-band { background: var(--ink); color: #fff; }
+    .tools-band h2 { color: #fff; }
+    .tools-band .head p { color: #94a3b8; }
+    .tools-band .kicker { color: var(--lime); }
+    .tools { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    @media (max-width: 960px) { .tools { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 560px) { .tools { grid-template-columns: repeat(2, 1fr); } }
+    .tool {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 20px; padding: 22px 18px; text-align: center;
+    }
+    .tool .logo {
+      width: 60px; height: 60px; margin: 0 auto 14px; border-radius: 16px;
+      background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .tool .logo img { width: 36px; height: 36px; object-fit: contain; }
+    .tool .logo img.full { width: 60px; height: 60px; object-fit: cover; }
+    .tool b { display: block; font-family: var(--display); font-size: 16.5px; font-weight: 800; }
+    .tool span { display: block; font-size: 13px; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+    .seats {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #fff; border: 1px solid var(--line); color: var(--ink);
+      font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 999px; margin-top: 14px;
+    }
+    .seats i { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.18); }
 
     .faq { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; }
     .faq details {
@@ -353,6 +384,37 @@
       outline: none; border-color: var(--teal); background: #fff;
       box-shadow: 0 0 0 4px rgba(13, 148, 136, .14);
     }
+    .field select {
+      appearance: none; -webkit-appearance: none;
+      padding-right: 44px; cursor: pointer; font-weight: 600;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%230d9488' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center;
+    }
+    @supports (appearance: base-select) {
+      .field select, .field select::picker(select) { appearance: base-select; }
+      .field select { background-image: none; display: flex; align-items: center; }
+      .field select::picker-icon {
+        content: ""; width: 20px; height: 20px;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%230d9488' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+        transition: rotate .2s;
+      }
+      .field select:open::picker-icon { rotate: 180deg; }
+      .field select:open { border-color: var(--teal); background: #fff; box-shadow: 0 0 0 4px rgba(13,148,136,.14); }
+      .field select::picker(select) {
+        margin-top: 6px; padding: 6px;
+        border: 1px solid var(--line); border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 22px 50px -16px rgba(14, 19, 0, .35);
+      }
+      .field select option {
+        padding: 11px 12px; border-radius: 11px;
+        font-size: 14.5px; font-weight: 600; color: var(--ink-2);
+        cursor: pointer;
+      }
+      .field select option:hover, .field select option:focus-visible { background: var(--teal-soft); color: var(--ink); outline: none; }
+      .field select option:checked { background: var(--ink); color: var(--lime); }
+      .field select option::checkmark { color: var(--lime); }
+    }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; border: 0; }
     .chips legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; }
     .chip input { position: absolute; opacity: 0; pointer-events: none; }
@@ -405,6 +467,7 @@
       <div class="nav-links">
         <a href="#crear">Qué vas a crear</a>
         <a href="#como">Cómo funciona</a>
+        <a href="#herramientas">Herramientas</a>
         <a href="#faq">Preguntas</a>
       </div>
       <div class="nav-right">
@@ -425,13 +488,13 @@
     <img class="hero-tenshi" src="/assets/tenshi.png?v=orig20261109" alt="" width="170" height="227">
 
     <div class="wrap hero-inner">
-      <span class="pill"><i></i>Clase gratuita en vivo · IA aplicada al SG-SST</span>
+      <span class="pill"><i></i>Clase gratuita en vivo · Máximo 50 cupos</span>
       <h1>
         Automatiza tu SG-SST con IA,
         <span class="grad">sin saber programar.</span>
       </h1>
       <p class="hero-sub">
-        Una clase práctica con el Ing. Félix Bedoya donde aprenderás a crear videos, podcasts, matrices de riesgo, infografías, automatizaciones y tu propio asistente SST.
+        Una clase práctica con Mauricio Posada y el Ing. Félix Bedoya donde aprenderás a crear videos, podcasts, matrices de riesgo, infografías, automatizaciones y tu propio asistente SST.
       </p>
       <div class="hero-cta">
         <button type="button" class="btn btn-dark" data-open-reg id="heroCta">
@@ -441,7 +504,7 @@
       </div>
       <div class="trust">
         <span>100% gratis</span>
-        <span>En vivo</span>
+        <span>Solo 50 cupos</span>
         <span>Cero código</span>
       </div>
     </div>
@@ -490,7 +553,46 @@
           </article>
         </div>
 
-        <p class="tools-line">Con <b>Google Antigravity</b> · <b>NotebookLM</b> · <b>Google Flow</b> · <b>WappyDots</b> · <b>WAPPY IA</b></p>
+      </div>
+    </section>
+
+    <!-- HERRAMIENTAS -->
+    <section id="herramientas" class="tools-band">
+      <div class="wrap">
+        <div class="head">
+          <div class="kicker">Las herramientas</div>
+          <h2>Lo que vamos a usar en la clase</h2>
+          <p>Todas tienen versión gratuita. Solo necesitas una cuenta de Google.</p>
+        </div>
+        <div class="tools">
+          <div class="tool">
+            <div class="logo"><img src="/marketing/tools/antigravity.svg" alt="" width="36" height="36"></div>
+            <b>Google Antigravity</b>
+            <span>Tu agente de IA en el computador</span>
+          </div>
+          <div class="tool">
+            <div class="logo"><img src="/marketing/tools/notebooklm.svg" alt="" width="36" height="36"></div>
+            <b>NotebookLM</b>
+            <span>Normas, podcasts e infografías</span>
+          </div>
+          <div class="tool">
+            <div class="logo"><img class="full" src="/marketing/tools/googleflow.png" alt="" width="60" height="60"></div>
+            <b>Google Flow</b>
+            <span>Videos de capacitación con IA</span>
+          </div>
+          <div class="tool">
+            <div class="logo" style="background:var(--lime);">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="#0e1300" aria-hidden="true"><circle cx="6" cy="6" r="2.3"/><circle cx="12" cy="6" r="2.3"/><circle cx="18" cy="6" r="2.3"/><circle cx="6" cy="12" r="2.3"/><circle cx="12" cy="12" r="2.3"/><circle cx="18" cy="12" r="2.3"/><circle cx="6" cy="18" r="2.3"/><circle cx="12" cy="18" r="2.3"/><circle cx="18" cy="18" r="2.3"/></svg>
+            </div>
+            <b>WappyDots</b>
+            <span>Controla tu PC desde el celular</span>
+          </div>
+          <div class="tool">
+            <div class="logo" style="background:#fff;"><img class="full" src="/marketing/wappy-cat-logo.png" alt="" width="60" height="60"></div>
+            <b>WAPPY IA</b>
+            <span>Matrices, automatizaciones y asistentes SST</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -518,15 +620,30 @@
       </div>
     </section>
 
-    <!-- MENTOR -->
-    <section style="padding-bottom: 40px;">
+    <!-- CONFERENCISTAS -->
+    <section id="conferencistas" style="padding-bottom: 40px;">
       <div class="wrap">
-        <div class="mentor">
-          <img src="/marketing/felix-bedoya-3d.png" alt="Ing. Félix Bedoya" width="84" height="84" loading="lazy">
-          <div>
-            <b>Ing. Félix Bedoya</b>
-            <p>Creador de WAPPY IA, la plataforma de inteligencia artificial para Seguridad y Salud en el Trabajo en Colombia. Te muestra su propio flujo de trabajo, sin rodeos.</p>
-          </div>
+        <div class="head">
+          <div class="kicker">Tus conferencistas</div>
+          <h2>Aprende de quienes lo usan todos los días</h2>
+        </div>
+        <div class="speakers">
+          <article class="speaker">
+            <img src="/marketing/mauricio-posada-busto.png" alt="Mauricio Posada" width="92" height="92" loading="lazy">
+            <div>
+              <span class="role">Conferencista de IA para SST</span>
+              <b>Mauricio Posada</b>
+              <p>Profesional en Seguridad y Salud en el Trabajo. Lleva la inteligencia artificial a la gestión diaria del SG-SST en empresas y auditorios.</p>
+            </div>
+          </article>
+          <article class="speaker">
+            <img src="/marketing/felix-bedoya-busto.png" alt="Ing. Félix Bedoya" width="92" height="92" loading="lazy">
+            <div>
+              <span class="role">Desarrollador senior · Experto en SST</span>
+              <b>Ing. Félix Bedoya</b>
+              <p>Creador de WAPPY IA. Te muestra su propio flujo de trabajo con IA, paso a paso y sin rodeos.</p>
+            </div>
+          </article>
         </div>
       </div>
     </section>
@@ -542,6 +659,10 @@
           <details name="faq">
             <summary>¿Tiene algún costo?</summary>
             <p>No. La clase, el grupo VIP de WhatsApp y los materiales iniciales son 100% gratuitos.</p>
+          </details>
+          <details name="faq">
+            <summary>¿Cuántos cupos hay?</summary>
+            <p>Máximo 50. Así la clase es práctica y alcanzamos a resolver las preguntas de todos. Cuando se llenen, cerramos el registro.</p>
           </details>
           <details name="faq">
             <summary>¿Necesito saber programar?</summary>
@@ -571,7 +692,7 @@
             <img src="/assets/tenshi.png?v=orig20261109" alt="" width="96" height="128" loading="lazy">
             <div>
               <h2>Trabaja menos en formatos y más en prevención.</h2>
-              <p>Los cupos de la clase en vivo son limitados.</p>
+              <p>Solo 50 cupos para la clase en vivo.</p>
             </div>
           </div>
           <button type="button" class="btn btn-lime" data-open-reg>Separar mi cupo <span class="pip">→</span></button>
@@ -598,7 +719,7 @@
       <img src="/assets/tenshi.png?v=orig20261109" alt="" width="64" height="85">
       <div>
         <h2 id="regTitle">Separa tu cupo gratis</h2>
-        <p>Clase gratuita en vivo</p>
+        <p>Clase en vivo · máximo 50 cupos</p>
       </div>
       <button type="button" class="x" data-close aria-label="Cerrar">✕</button>
     </div>
@@ -647,7 +768,7 @@
       <div class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="#0e1300" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
       <h2 id="doneTitle">¡Cupo separado!</h2>
       <p><b>Último paso:</b> únete al grupo VIP de WhatsApp. Ahí enviamos la fecha, el enlace de la clase y los materiales.</p>
-      <a class="btn btn-wa" href="https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy?s=cl&p=i&ilr=4" target="_blank" rel="noopener" data-wa-track="Click unirse grupo VIP">
+      <a class="btn btn-wa" id="groupLink" href="https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy" target="_blank" rel="noopener" data-wa-track="Click unirse grupo VIP">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg>
         Unirme al grupo VIP
       </a>
@@ -676,6 +797,9 @@
 
   <script>
     (function () {
+      /* Enlace del grupo de WhatsApp de la clase: cambia solo esta línea */
+      var GROUP_URL = 'https://chat.whatsapp.com/GDoaMdEN5m5GhogIL7TGhy';
+      document.getElementById('groupLink').href = GROUP_URL;
       var FUNNEL = 'cursoadelantoregistro';
       var PIXEL = '1552188416261002';
       var STORE = 'wappy_adelanto_registered_lead';
