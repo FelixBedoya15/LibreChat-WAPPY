@@ -18,7 +18,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Productor Audiovisual & Motion Graphics (`wappy-video-studio`)
 

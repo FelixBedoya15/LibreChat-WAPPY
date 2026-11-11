@@ -17,7 +17,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Director de Arte & Especialista Senior UI/UX (`wappy-design-director`)
 

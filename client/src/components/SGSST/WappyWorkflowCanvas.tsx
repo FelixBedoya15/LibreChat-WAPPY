@@ -7543,7 +7543,11 @@ export default function WappyWorkflowCanvas({
 
           let filtered = safeList;
           const filterMode = String(nodeCfg?.recordFilterMode || '');
-          if (filterMode === 'critical' || filterMode === 'critical_only') {
+          if (
+            filterMode === 'critical' ||
+            filterMode === 'critical_only' ||
+            filterMode === 'expiry_only'
+          ) {
             filtered = safeList.filter((r) => Boolean(r?.isCritical));
           } else if (
             nodeCfg?.recordFilterMode === 'selected' &&
@@ -7558,9 +7562,13 @@ export default function WappyWorkflowCanvas({
           const limit =
             typeof rawMaxRecords === 'number' && rawMaxRecords > 0 ? rawMaxRecords : 30;
           const sliced = filtered.slice(0, limit);
-          const chosenFields = Array.isArray(nodeCfg?.fields)
-            ? nodeCfg!.fields.filter(Boolean)
-            : [];
+          const rawChosen =
+            Array.isArray(nodeCfg?.fields) && nodeCfg!.fields.length > 0
+              ? nodeCfg!.fields
+              : Array.isArray(nodeCfg?.selectedFields)
+                ? nodeCfg!.selectedFields!
+                : [];
+          const chosenFields = rawChosen.filter(Boolean);
 
           return sliced.map((rec, idx) => {
             if (chosenFields.length > 0) {

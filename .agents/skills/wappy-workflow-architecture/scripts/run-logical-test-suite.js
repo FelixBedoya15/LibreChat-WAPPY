@@ -167,10 +167,16 @@ async function runFullLogicalTestSuite() {
 
   assert.strictEqual(totalPresetErrors, 0, `Existen ${totalPresetErrors} errores lógicos en el catálogo`);
   assert.strictEqual(totalPresetWarnings, 0, `Existen ${totalPresetWarnings} advertencias en el catálogo`);
+  const preset1Check = SYSTEM_WORKFLOW_PRESETS.find((p) => p.presetKey === 'preset_vencimientos_emo_epp');
+  assert.strictEqual(preset1Check?.agentTargetName, 'Consultor SG-SST');
+  assert.ok(
+    !preset1Check?.workflowNodes?.hitos?.includes('hito3_alturas'),
+    'preset_vencimientos_emo_epp NO debe conectar hito3_alturas (Permiso Diario en Campo)',
+  );
   recordAssertion(
     'BLOQUE_1',
     'B1.1',
-    '55/55 Presets superan las 14 leyes formales del validador DAG sin errores ni avisos',
+    '55/55 Presets superan las 17 leyes formales (14 DAG + Reglas 15, 16 y 17 de Fidelidad de Dominio 8 Hitos) sin errores ni avisos',
     `errores=0, avisos=0`,
   );
   recordAssertion(
@@ -501,24 +507,6 @@ async function runFullLogicalTestSuite() {
       ],
     });
 
-    await PermisoAlturasData.create({
-      user: testUserId,
-      companyId: testCompanyIdStr,
-      formData: {
-        actividadGlobal: 'Mantenimiento preventivo cubierta',
-        ubicacion: 'Bodega Central',
-        fecha: formatOffsetDateYmd(0),
-        seguridadSocial: 'Sí',
-        aptitudMedica: 'Sí',
-        certificacionAlturas: 'Sí',
-      },
-      trabajadoresList: [
-        { cedula: '99887766', nombre: 'Carlos Prueba EMO', cargo: 'Liniero de Alta Tensión' },
-        { cedula: '55443322', nombre: 'Laura Operativa Alturas', cargo: 'Montajista Estructural' },
-      ],
-      responsablesList: [{ rol: 'Coordinador Alturas', nombre: 'Ing. Auditor DAG', cedula: '80111222' }],
-    });
-
     // Instanciar automatización real en MongoDB clonando `preset_vencimientos_emo_epp`
     // Quitamos salidas externas de red (email/calendar) o usamos destinatario vacío para evaluar exactamente Kanban vs Notificación WAPPY
     const emoWorkflowNodes = JSON.parse(JSON.stringify(emoPreset.workflowNodes));
@@ -536,8 +524,8 @@ async function runFullLogicalTestSuite() {
       user: testUserId,
       companyId: testCompanyIdStr,
       name: '[TEST SUITE] Alerta Temprana Vencimientos EMO, Alturas y EPP',
-      agentId: emoPreset.agentId || 'medico_laboral',
-      agentName: emoPreset.agentName || emoPreset.agentTargetName || 'Médico Laboral',
+      agentId: emoPreset.agentId || 'agent_consultor_sg_sst',
+      agentName: emoPreset.agentName || emoPreset.agentTargetName || 'Consultor SG-SST',
       prompt: emoPreset.prompt,
       scheduleType: 'daily',
       scheduleConfig: { time: '07:00', timezone: 'America/Bogota' },
@@ -1030,6 +1018,317 @@ async function runFullLogicalTestSuite() {
       'B5.C',
       'Arquetipo 4 (logic_human_approval): Retiene las salidas de Rama SÍ en AutomationLog.status="awaiting_approval" sin despacharlas prematuramente',
     );
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // BLOQUE 7: FIDELIDAD MULTI-DOMINIO EMO + CURSO ALTURAS (SÍ APLICA VS NO APLICA) + EPP + MERGE SIN PÉRDIDA
+    // ═══════════════════════════════════════════════════════════════════════════
+    console.log(
+      '\n▶ BLOQUE 7: Fidelidad Multi-Dominio EMO + Curso Alturas [Sí aplica vs No aplica] + EPP + Merge sin Pérdida',
+    );
+
+    const SgsstWorker =
+      mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+
+    // Limpiar colecciones de trabajadores y EPP de la empresa temporal antes de sembrar los 5 casos exactos
+    await Promise.all([
+      PerfilSociodemograficoData.deleteMany({ companyId: { $in: [testCompanyDoc._id, testCompanyIdStr] } }),
+      SgsstEppData.deleteMany({ companyId: { $in: [testCompanyDoc._id, testCompanyIdStr] } }),
+      SgsstWorker.deleteMany({ companyId: { $in: [testCompanyDoc._id, testCompanyIdStr] } }),
+    ]);
+
+    // Sembrar exactamente los 5 trabajadores especificados en MongoDB real:
+    // 1) Solo EMO por vencer en 10d (fechaCursoAlturasAutorizado: "" -> aplicaCursoAlturas: No aplica, 0 falsa alerta de alturas)
+    // 2) EMO vigente (+200d), pero fechaCursoAlturasAutorizado hace 380d -> Entra con Curso Alturas Autorizado VENCIDO
+    // 3) EMO vigente (+200d), Alturas "", pero en SgsstEppData tiene Botas Dieléctricas con estado: 'Vencido' -> Entra desde Hito 5 EPP
+    // 4) Misma cédula con AMBAS brechas (EMO vencido en Hito 2 Y Casco Dieléctrico 'Fuera de Servicio' en Hito 5 EPP) -> Merge sin pérdida
+    // 5) EMO vigente (+200d), Alturas "" (No aplica), EPP 'Entregado' vigente, pero fitScore: 65 y enfermedades: "Miopía" -> 0 contaminación clínica
+    await PerfilSociodemograficoData.create({
+      user: testUserId,
+      companyId: testCompanyIdStr,
+      trabajadores: [
+        {
+          identificacion: '70000001',
+          nombre: 'Camilo Solo EMO 10d',
+          cargo: 'Analista Contable',
+          areaTrabajo: 'Administración',
+          eps: 'Sanitas',
+          arl: 'SURA',
+          estadoLaboral: 'Activo',
+          fechaExamenMedico: formatOffsetDateYmd(-355), // +365d -> vence en 10 días (<= 30d)
+          fechaCursoAlturasAutorizado: '', // NO APLICA -> 0 falsa alerta de alturas
+          fechaCursoAlturasCoordinador: '',
+          biocentricScore: 92,
+        },
+        {
+          identificacion: '70000002',
+          nombre: 'Diana Alturas Vencida',
+          cargo: 'Técnica de Telecomunicaciones',
+          areaTrabajo: 'Torres y Antenas',
+          eps: 'Sura EPS',
+          arl: 'SURA',
+          estadoLaboral: 'Activo',
+          fechaExamenMedico: formatOffsetDateYmd(-165), // +365d -> faltan 200 días (VIGENTE)
+          fechaCursoAlturasAutorizado: formatOffsetDateYmd(-380), // hace 380d -> venció hace 15 días (VENCIDO)
+          fechaCursoAlturasCoordinador: '',
+          biocentricScore: 90,
+        },
+        {
+          identificacion: '70000003',
+          nombre: 'Esteban Solo EPP Botas',
+          cargo: 'Electricista Industrial',
+          areaTrabajo: 'Subestaciones',
+          eps: 'Compensar',
+          arl: 'SURA',
+          estadoLaboral: 'Activo',
+          fechaExamenMedico: formatOffsetDateYmd(-165), // +200d (VIGENTE)
+          fechaCursoAlturasAutorizado: '', // NO APLICA
+          fechaCursoAlturasCoordinador: '',
+          biocentricScore: 91,
+        },
+        {
+          identificacion: '70000004',
+          nombre: 'Fernanda Doble Brecha Merge',
+          cargo: 'Supervisora Electromecánica',
+          areaTrabajo: 'Montajes',
+          eps: 'Nueva EPS',
+          arl: 'SURA',
+          estadoLaboral: 'Activo',
+          fechaExamenMedico: formatOffsetDateYmd(-400), // venció hace 35 días (VENCIDO)
+          fechaCursoAlturasAutorizado: '', // NO APLICA
+          fechaCursoAlturasCoordinador: '',
+          biocentricScore: 89,
+        },
+        {
+          identificacion: '70000005',
+          nombre: 'Gabriel Sano Vencimientos Con Miopia',
+          cargo: 'Diseñador CAD',
+          areaTrabajo: 'Ingeniería',
+          eps: 'Famisanar',
+          arl: 'SURA',
+          estadoLaboral: 'Activo',
+          fechaExamenMedico: formatOffsetDateYmd(-165), // +200d (VIGENTE)
+          fechaCursoAlturasAutorizado: '', // NO APLICA
+          fechaCursoAlturasCoordinador: '',
+          enfermedades: 'Miopía',
+          diagnosticoMedico: 'Miopía leve bilateral corregida con lentes',
+          biocentricScore: 65,
+        },
+      ],
+    });
+
+    await SgsstWorker.create({
+      user: testUserId,
+      companyId: testCompanyDoc._id,
+      perfilId: 'perfil_70000005',
+      documento: '70000005',
+      nombre: 'Gabriel Sano Vencimientos Con Miopia',
+      cargo: 'Diseñador CAD',
+      estadoLaboral: 'Activo',
+      fitScore: 65,
+      condicionesSalud: 'Miopía',
+      fitAlerts: ['Control optométrico anual'],
+    });
+
+    await SgsstEppData.insertMany([
+      {
+        user: testUserId,
+        companyId: testCompanyDoc._id,
+        workerId: '70000003',
+        documento: '70000003',
+        nombreTrabajador: 'Esteban Solo EPP Botas',
+        cargo: 'Electricista Industrial',
+        entregas: [
+          {
+            id: 'epp_botas_esteban',
+            nombre: 'Botas Dieléctricas',
+            normaTecnica: 'ASTM F2413',
+            talla: '41',
+            cantidad: 1,
+            fechaEntrega: formatOffsetDateYmd(-370),
+            fechaVencimiento: formatOffsetDateYmd(-5),
+            estado: 'Vencido',
+            firmaTrabajador: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        ],
+      },
+      {
+        user: testUserId,
+        companyId: testCompanyDoc._id,
+        workerId: '70000004',
+        documento: '70000004',
+        nombreTrabajador: 'Fernanda Doble Brecha Merge',
+        cargo: 'Supervisora Electromecánica',
+        entregas: [
+          {
+            id: 'epp_casco_fernanda',
+            nombre: 'Casco Dieléctrico',
+            normaTecnica: 'ANSI Z89.1',
+            talla: 'Única',
+            cantidad: 1,
+            fechaEntrega: formatOffsetDateYmd(-180),
+            fechaVencimiento: formatOffsetDateYmd(180),
+            estado: 'Fuera de Servicio',
+            observaciones: 'Fisura lateral detectada en inspección',
+            firmaTrabajador: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        ],
+      },
+      {
+        user: testUserId,
+        companyId: testCompanyDoc._id,
+        workerId: '70000005',
+        documento: '70000005',
+        nombreTrabajador: 'Gabriel Sano Vencimientos Con Miopia',
+        cargo: 'Diseñador CAD',
+        entregas: [
+          {
+            id: 'epp_gafas_gabriel',
+            nombre: 'Gafas de Seguridad Antirreflejo',
+            normaTecnica: 'ANSI Z87.1',
+            talla: 'Única',
+            cantidad: 1,
+            fechaEntrega: formatOffsetDateYmd(-30),
+            fechaVencimiento: formatOffsetDateYmd(335),
+            estado: 'Entregado',
+            firmaTrabajador: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        ],
+      },
+    ]);
+
+    // Verificar directamente el inspector de Hito 2 en modo expiry_only (alcance ['emo', 'alturas'])
+    const hito2ExpiryInspect = await inspectNodeLiveData({
+      userId: testUserId,
+      companyId: testCompanyIdStr,
+      nodeId: 'hito2_perfil_socio',
+      nodeConfig: emoPreset.workflowNodes.canvasLayout.nodeConfigs.tool_hitos_hito2_perfil_socio,
+    });
+    const recMap7 = new Map(hito2ExpiryInspect.records.map((r) => [String(r.id), r]));
+
+    // Caso 1: Camilo (EMO <= 30d, Alturas vacío -> No aplica)
+    const rCamilo = recMap7.get('70000001');
+    assert.strictEqual(rCamilo?.isCritical, true);
+    assert.strictEqual(rCamilo?.fields?.aplicaCursoAlturas, 'No aplica');
+    assert.strictEqual(rCamilo?.fields?.estadoCursoAlturasAutorizado, 'NO APLICA');
+    assert.ok(
+      String(rCamilo?.fields?.estadoExamenMedicoEMO || '').startsWith('PRÓXIMO A VENCER'),
+      `Camilo debe tener EMO PRÓXIMO A VENCER, obtenido: ${rCamilo?.fields?.estadoExamenMedicoEMO}`,
+    );
+    assert.ok(
+      !String(rCamilo?.fields?.motivosVencimientoDetectados || '').includes('Alturas'),
+      'Camilo con casilla de alturas vacía JAMÁS debe tener motivo de vencimiento en Alturas',
+    );
+    recordAssertion(
+      'BLOQUE_7',
+      'B7.1',
+      'Caso 1 (CC 70000001): EMO a 10d entra en alerta temprana y casilla vacía de Alturas resuelve aplicaCursoAlturas="No aplica" con 0 falsa alerta',
+    );
+
+    // Caso 2: Diana (EMO vigente +200d, Curso Alturas Autorizado hace 380d -> VENCIDO)
+    const rDiana = recMap7.get('70000002');
+    assert.strictEqual(rDiana?.isCritical, true);
+    assert.strictEqual(rDiana?.fields?.aplicaCursoAlturas, 'Sí aplica');
+    assert.ok(
+      String(rDiana?.fields?.estadoExamenMedicoEMO || '').startsWith('VIGENTE'),
+      `Diana debe tener EMO VIGENTE, obtenido: ${rDiana?.fields?.estadoExamenMedicoEMO}`,
+    );
+    assert.ok(
+      String(rDiana?.fields?.estadoCursoAlturasAutorizado || '').startsWith('VENCIDO'),
+      `Diana debe tener Curso Alturas Autorizado VENCIDO, obtenido: ${rDiana?.fields?.estadoCursoAlturasAutorizado}`,
+    );
+    assert.ok(
+      String(rDiana?.fields?.motivosVencimientoDetectados || '').includes('Curso Alturas Autorizado: VENCIDO'),
+    );
+    recordAssertion(
+      'BLOQUE_7',
+      'B7.2',
+      'Caso 2 (CC 70000002): EMO vigente (+200d) + fechaCursoAlturasAutorizado hace 380d entra con aplicaCursoAlturas="Sí aplica" y Curso Alturas Autorizado VENCIDO',
+    );
+
+    // Ejecutar la automatización completa clonada de `preset_vencimientos_emo_epp` para verificar Casos 3, 4 y 5 extremo a extremo
+    const block7WfNodes = JSON.parse(JSON.stringify(emoPreset.workflowNodes));
+    block7WfNodes.outputs = ['acpm_task', 'wappy_notification'];
+    block7WfNodes.canvasLayout.nodeConfigs.out_acpm_task = { ifBranch: 'yes' };
+    block7WfNodes.canvasLayout.nodeConfigs.out_wappy_notification = { ifBranch: 'no' };
+
+    const block7Auto = await Automation.create({
+      user: testUserId,
+      companyId: testCompanyIdStr,
+      name: '[TEST SUITE B7] Auditoría Multi-Dominio EMO + Alturas + EPP',
+      agentId: 'agent_consultor_sg_sst',
+      agentName: 'Consultor SG-SST',
+      prompt: emoPreset.prompt,
+      scheduleType: 'daily',
+      scheduleConfig: { time: '07:00', timezone: 'America/Bogota' },
+      status: 'inactive',
+      workflowNodes: block7WfNodes,
+    });
+    createdAutomationIds.push(block7Auto._id);
+
+    let block7Prompt = '';
+    await runAutomation(block7Auto.toObject(), {
+      isManual: true,
+      agentExecutorOverride: async ({ effectivePrompt }) => {
+        block7Prompt = effectivePrompt;
+        return {
+          text:
+            '### Informe Consolidado Consultor SG-SST\n' +
+            '1. **EMO (Hito 2):** Camilo (70000001) próximo a vencer; Fernanda (70000004) vencido.\n' +
+            '2. **Alturas Res. 4272/2021 (Hito 2):** Diana (70000002) vencido.\n' +
+            '3. **EPP (Hito 5):** Esteban (70000003) Botas Dieléctricas vencidas; Fernanda (70000004) Casco Dieléctrico fuera de servicio.',
+        };
+      },
+    });
+
+    // Caso 3: Esteban (EMO vigente, Alturas "", Botas Dieléctricas Vencido en Hito 5 EPP)
+    assert.strictEqual(recMap7.get('70000003')?.isCritical, false, 'Esteban NO debe ser crítico en Hito 2');
+    assert.ok(
+      block7Prompt.includes('70000003') &&
+        block7Prompt.includes('Esteban Solo EPP Botas') &&
+        block7Prompt.includes('Botas Dieléctricas'),
+      'Esteban DEBE entrar al prompt por Botas Dieléctricas vencidas desde Hito 5 · Entrega y Seguimiento de EPP',
+    );
+    recordAssertion(
+      'BLOQUE_7',
+      'B7.3',
+      'Caso 3 (CC 70000003): Sin brechas en Hito 2, entra limpiamente desde Hito 5 EPP por Botas Dieléctricas con estado="Vencido"',
+    );
+
+    // Caso 4: Fernanda (Misma cédula 70000004 con EMO vencido en Hito 2 Y Casco Dieléctrico Fuera de Servicio en Hito 5 EPP)
+    const mergeSectionB7 =
+      block7Prompt.split('🔀 [REGISTROS CONSOLIDADOS Y DEDUPLICADOS POR NODO MERGE')[1] || '';
+    const fernandaMergeIdx = mergeSectionB7.indexOf('70000004');
+    assert.ok(fernandaMergeIdx >= 0, 'Fernanda (70000004) debe figurar en la sección consolidada de logic_merge');
+    const fernandaMergeSlice = mergeSectionB7.slice(fernandaMergeIdx, fernandaMergeIdx + 900);
+    assert.ok(
+      /EMO:\s*VENCIDO/i.test(fernandaMergeSlice) &&
+        /Casco Dieléctrico/i.test(fernandaMergeSlice) &&
+        /Fuera de Servicio/i.test(fernandaMergeSlice),
+      `logic_merge DEBE conservar TANTO el EMO vencido (Hito 2) COMO el Casco Dieléctrico Fuera de Servicio (Hito 5 EPP) para CC 70000004 sin pisar ninguno. Obtenido:\n${fernandaMergeSlice}`,
+    );
+    recordAssertion(
+      'BLOQUE_7',
+      'B7.4',
+      'Caso 4 (CC 70000004 — Merge sin Pérdida): logic_merge preserva simultáneamente el EMO vencido de Hito 2 y el Casco Dieléctrico Fuera de Servicio de Hito 5 EPP bajo la misma cédula',
+    );
+
+    // Caso 5: Gabriel (EMO vigente +200d, Alturas "", EPP Entregado vigente, fitScore: 65 y enfermedades: "Miopía")
+    assert.strictEqual(
+      recMap7.get('70000005')?.isCritical,
+      false,
+      'Gabriel con EMO vigente y Alturas No aplica NO debe ser crítico en modo expiry_only aunque tenga fitScore=65 y Miopía',
+    );
+    assert.ok(
+      !block7Prompt.includes('70000005') &&
+        !block7Prompt.includes('Gabriel Sano Vencimientos') &&
+        !block7Prompt.includes('Miopía'),
+      'Cero contaminación clínica: Gabriel (fitScore=65, Miopía, EMO y EPP vigentes) JAMÁS debe entrar al prompt de vencimientos',
+    );
+    recordAssertion(
+      'BLOQUE_7',
+      'B7.5',
+      'Caso 5 (CC 70000005 — Cero Contaminación Clínica): Trabajador con EMO/EPP vigentes, Alturas="", fitScore=65 y enfermedades="Miopía" queda 100% excluido del prompt de vencimientos',
+    );
   } finally {
     try {
       stopAutomationScheduler();
@@ -1053,6 +1352,9 @@ async function runFullLogicalTestSuite() {
         PerfilSociodemograficoData.deleteMany({ companyId: { $in: [cidObj, cidStr] } }),
         SgsstEppData.deleteMany({ companyId: { $in: [cidObj, cidStr] } }),
         PermisoAlturasData.deleteMany({ companyId: { $in: [cidObj, cidStr] } }),
+        (mongoose.models.SgsstWorker
+          ? mongoose.models.SgsstWorker.deleteMany({ companyId: { $in: [cidObj, cidStr] } })
+          : Promise.resolve()),
         CompanyInfo.deleteOne({ _id: cidObj }),
       ]);
 

@@ -1,6 +1,6 @@
 # Especificación Oficial de Arquitectura de Flujos Lógicos — WAPPY IA (`/tareas`)
 
-> **Versión:** `2026.11-v2.0`  
+> **Versión:** `2026.11-v3.0 (Fidelidad de Dominio 8 Hitos Reales + Esquemas Mongoose Somos SST)`  
 > **Inspiración Arquitectónica:** [Documentación Oficial de n8n (`docs.n8n.io`)](https://docs.n8n.io/) adaptada al ecosistema multi-agente y normativo SG-SST de **WAPPY IA (`Somos SST`)**.  
 > ** Subagente Guardián:** [`wappy-workflow-architect`](../.agents/agents/wappy-workflow-architect.md)  
 > **Validador Determinista:** [`.agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js`](../.agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js)
@@ -61,7 +61,7 @@ Un nodo de aplicativo Somos SST (`hito1_*` a `hito8_*`) **NUNCA** es un adorno i
 1. **`hitoRole: "source_read"` (`hitoOperationMode: "read_only"`):**
    - **Qué hace:** Extrae registros, casillas quirúrgicas (`selectedFields`) y KPIs reales de la base de datos de ese aplicativo.
    - **Dónde se pinta y ejecuta:** **Etapa 2 (A la IZQUIERDA de `Condición Sí/No` y a la IZQUIERDA del `Agente IA`)**.
-   - **Ejemplo:** En *Alerta de Vencimientos EMO, Alturas y EPP*, `hito2_perfil_socio`, `hito3_epp` y `hito3_alturas` son **fuentes de lectura (`source_read`)** que alimentan la compuerta determinista `¿Nuevos vencimientos <= 30d?`.
+   - **Ejemplo:** En *Alerta de Vencimientos EMO, Alturas y EPP*, `hito2_perfil_socio` (`Hito 2 · Perfil Sociodemográfico`, con `recordFilterMode: 'expiry_only'`) y `hito3_epp` (`Hito 5 · Entrega y Seguimiento de EPP`, con `recordFilterMode: 'critical_only'`) son **fuentes de lectura (`source_read`)** que alimentan `logic_merge` y la compuerta determinista `¿Nuevos vencimientos <= 30d?`.
 
 2. **`hitoRole: "target_write_report"` (`appActionMode: "write_and_report" | "write_and_update" | "generate_report"`):**
    - **Qué hace:** Recibe el análisis estructurado del `Agente IA`, **registra o actualiza el expediente en MongoDB** y/o **genera el Informe Oficial HTML del aplicativo** para entregarlo a las salidas documentales (`email_report`, `canvas_doc`, `google_docs`).
@@ -119,10 +119,27 @@ Todo flujo con `includeIfNode: true` debe tener:
 
 ### Ley 7 — Verificación Lógica Multi-Escenario Obligatoria
 Está prohibido aprobar un flujo con una sola prueba superficial. Todo arquetipo debe superar:
-1. **Validación Estática y Topológica (`validate-workflow-logic.js`):** 0 errores en las 14 reglas formales.
+1. **Validación Estática y Topológica (`validate-workflow-logic.js`):** 0 errores en las **17 reglas formales y de fidelidad de dominio**.
 2. **Escenario A (`Caso Positivo / Brecha Real`):** Con registros en brecha o archivo nuevo ➔ activa `Rama SÍ`, ejecuta `Agente IA` (+ `targetHito` si aplica), ejecuta salidas `YES`, guarda `processedEntityKeys` y **omite salidas `NO`**.
 3. **Escenario B (`Re-Ejecución Inmediata / Anti-Duplicados`):** Segunda corrida sobre los mismos registros ya alertados ➔ `wappy_memory_antiduplicate` filtra el 100 % de duplicados ➔ `freshCriticalRecords === 0` ➔ toma `Rama NO`, **0 llamadas al LLM**, **0 tarjetas Kanban duplicadas**.
 4. **Escenario C (`Caso Limpio / 100 % al Día`):** Con 0 brechas en BD o 0 archivos nuevos en Drive ➔ toma `Rama NO` en milisegundos (`llmSkippedByPreIf: true`), **0 tokens gastados**, ejecuta únicamente la bitácora silenciosa `NO`.
+
+---
+
+### Ley 8 — Fidelidad de Dominio a los 8 Hitos Reales, Filtro `expiry_only` y Merge sin Pérdida (Reglas 15, 16 y 17)
+1. **Verdad Única de los 8 Hitos (`Regla 15 — DOMAIN_HITO_NUMBER_MISMATCH`):**
+   - La asignación real `Hito 1..8` proviene exclusivamente de `HITO_APP_NODES` (`client/src/components/SGSST/workflowNodesCatalog.ts`), **nunca** del prefijo histórico del ID interno (ej. `hito3_epp` pertenece realmente al **Hito 5 · Entrega y Seguimiento de EPP**; `hito4_comites` al **Hito 3 · COPASST / Vigía**; `hito2_matriz_ipevar` al **Hito 1 · Matriz IPEVR GTC 45**).
+   - Queda prohibido mencionar un `Hito N` desconectado en `name`, `presetDescription`, `prompt` o `customInstruction`, o exponer IDs legacy engañosos en prosa.
+2. **Bloqueo de Aplicativos en Construcción (`Regla 16 — DOMAIN_CONSTRUCTION_APP_BLOCKED`):**
+   - Ningún flujo oficial puede conectar nodos marcados con `defaultConstruction: true`.
+3. **Permiso Operativo Diario vs. Certificado Anual de Formación en Alturas (`Regla 17 — DOMAIN_PERMISO_ALTURAS_MISUSE`):**
+   - `hito3_alturas` (`Hito 5 · Permiso de Trabajo en Alturas`, `PermisoAlturasData`) es un permiso operativo diario de tarea en campo, **NO** la base de certificados de formación.
+   - Los certificados y reentrenamientos anuales bajo `Res. 4272/2021` viven en `hito2_perfil_socio` (`PerfilSociodemograficoData`: `fechaCursoAlturasAutorizado` y `fechaCursoAlturasCoordinador`).
+   - **Regla Inquebrantable (`No aplica`):** Si la casilla está vacía (`""`) o dice `"No aplica"` / `"N/A"`, resuelve `aplicaCursoAlturas = 'No aplica'` (`alturasAlert = false`). Jamás se marca alerta de alturas a un cargo al que no le aplica.
+4. **Modo Quirúrgico `recordFilterMode: "expiry_only"` + `expiryAuditScope`:**
+   - Evalúa únicamente vencimientos documentales reales (`['emo', 'alturas', 'licencia_vial']` o el subconjunto declarado en `expiryAuditScope`), excluyendo condiciones clínicas vigentes (`fitScore < 75`, `Miopía`, etc.) y suprimiendo la inyección del `latestReportBlock` HTML histórico salvo `includeLatestReport === true`.
+5. **Unión Multi-Fuente Sin Pérdida (`logic_merge` con `_mergedFindings`):**
+   - Cuando un mismo trabajador (`cedula`) presenta hallazgos simultáneos en múltiples fuentes (ej. EMO vencido en `Hito 2 · Perfil Sociodemográfico` **y** EPP `Fuera de Servicio` en `Hito 5 · Entrega y Seguimiento de EPP`), `logic_merge` acumula todos los hallazgos en `_mergedFindings: string[]` sin que una fuente sobrescriba los campos de la otra.
 
 ---
 
@@ -202,7 +219,7 @@ flowchart LR
 
 | Dimensión | ❌ Diseño Anterior (Defectuoso) | ✅ Diseño Nuevo (`wappy-workflow-architect`) |
 | :--- | :--- | :--- |
-| **Fuentes de Trabajadores / EMO / EPP** | **7 nodos redundantes** leyendo lo mismo: `extract_sst_workers` + `somos_sst_trabajadores` + `somos_sst_examenes` (truncado a 40) + `somos_sst_epp` + `hito2_perfil_socio` + `hito3_epp` + `hito3_alturas`. | **Solo las 3 fuentes canónicas exactas en Etapa 2 (`source_read`):** `hito2_perfil_socio` (EMO y restricciones), `hito3_epp` (entregas EPP) y `hito3_alturas` (certificados TSA Res. 4272). **0 duplicados.** |
+| **Fuentes de Trabajadores / EMO / Alturas / EPP** | **7 nodos redundantes o de dominio equivocado:** `extract_sst_workers` + `somos_sst_trabajadores` + `somos_sst_examenes` + `somos_sst_epp` + `hito2_perfil_socio` + `hito3_epp` + `hito3_alturas` (*Permiso Operativo Diario*). | **Solo las 2 fuentes maestras reales en Etapa 2 (`source_read`):** `Hito 2 · Perfil Sociodemográfico` (`recordFilterMode: 'expiry_only'`, `expiryAuditScope: ['emo', 'alturas']`, `No aplica` cuando casilla vacía) y `Hito 5 · Entrega y Seguimiento de EPP` (`recordFilterMode: 'critical_only'`), unificadas sin pérdida con `_mergedFindings` en `logic_merge`. |
 | **Posición de los Aplicativos Hito** | Pintados **después** del Agente IA (Pasos #11–#13) aunque el Agente ya había respondido en el Paso #10. | Pintados y ejecutados **antes** de la `Condición Sí/No` y **antes** del `Agente IA` (Pasos #3–#5), porque son **fuentes de lectura**. |
 | **Posición y Lógica de `Condición Sí/No`** | Paso #14 al final del flujo con regex ingenuo que daba falso positivo cuando el Agente decía *«0 exámenes vencidos»*. | **Paso #6 (`pre_agent` Determinista):** Evalúa `freshCriticalRecords.length >= 1` directo sobre las fechas reales de BD. Si es `0`, va directo a `Notificar en WAPPY` con **`0 tokens LLM`**. |
 | **Memoria Anti-Duplicados** | Solo inyectaba `600 caracteres` del texto anterior en el prompt y creaba tarjetas Kanban duplicadas cada mañana. | **Ledger estructurado en `AutomationLog.processedEntityKeys`** (`dedupWindow: '7d'`) + **upsert idempotente en `KanbanTask`**. Si el trabajador ya fue alertado esta semana, no repite el correo ni duplica la tarea. |

@@ -412,7 +412,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     });
   }
   // Incluir también cualquier casilla personalizada añadida por el usuario para que aparezca marcada en la grilla
-  const selectedFields = Array.isArray(currentCfg.fields) ? currentCfg.fields : [];
+  const selectedFields =
+    Array.isArray(currentCfg.fields) && currentCfg.fields.length > 0
+      ? currentCfg.fields
+      : Array.isArray(currentCfg.selectedFields)
+        ? currentCfg.selectedFields
+        : [];
   selectedFields.forEach((sf) => {
     const cleanSf = String(sf || '').trim();
     if (cleanSf && !mergedPresetFields.includes(cleanSf)) {
@@ -451,7 +456,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             .replace(/\s*\(Empresa Activa\)/gi, '')
             .replace(/Empresa Activa/gi, resolvedCompanyName)}`
         : moduleMeta.moduleTitle;
-  const recordFilterMode: 'all' | 'critical_only' | 'selected' =
+  const recordFilterMode: 'all' | 'critical_only' | 'expiry_only' | 'selected' =
     currentCfg.recordFilterMode || 'all';
   const selectedRecordIds = currentCfg.selectedRecordIds || [];
   const selectedRecordLabels = currentCfg.selectedRecordLabels || [];
@@ -466,6 +471,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       : [...selectedFields, fieldLabel];
     onUpdateNodeConfig(activeNode.key, {
       fields: nextFields,
+      selectedFields: nextFields,
       reportTags: moduleMeta.reportTags,
     });
   };
@@ -474,8 +480,10 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     const allAlreadySelected =
       comboFields.length === selectedFields.length &&
       comboFields.every((cf) => selectedFields.includes(cf));
+    const resolvedCombo = allAlreadySelected ? [] : comboFields;
     onUpdateNodeConfig(activeNode.key, {
-      fields: allAlreadySelected ? [] : comboFields,
+      fields: resolvedCombo,
+      selectedFields: resolvedCombo,
       strictFieldFilter: true,
       reportTags: moduleMeta.reportTags,
     });
@@ -485,15 +493,19 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     const val = customFieldInput.trim();
     if (!val) return;
     if (!selectedFields.includes(val)) {
+      const next = [...selectedFields, val];
       onUpdateNodeConfig(activeNode.key, {
-        fields: [...selectedFields, val],
+        fields: next,
+        selectedFields: next,
         reportTags: moduleMeta.reportTags,
       });
     }
     setCustomFieldInput('');
   };
 
-  const handleSetRecordFilterMode = (mode: 'all' | 'critical_only' | 'selected') => {
+  const handleSetRecordFilterMode = (
+    mode: 'all' | 'critical_only' | 'expiry_only' | 'selected',
+  ) => {
     onUpdateNodeConfig(activeNode.key, {
       recordFilterMode: mode,
       reportTags: moduleMeta.reportTags,
@@ -533,7 +545,10 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   };
 
   const filteredLiveRecords = (nodeLiveInspectorData.records || []).filter((rec) => {
-    if (recordFilterMode === 'critical_only' && !rec.isCritical) {
+    if (
+      (recordFilterMode === 'critical_only' || recordFilterMode === 'expiry_only') &&
+      !rec.isCritical
+    ) {
       return false;
     }
     if (!liveRecordSearch.trim()) return true;
@@ -829,6 +844,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               badge={nodeLiveInspectorData.criticalCount}
               label="Solo Críticos / En Brecha"
               onClick={() => handleSetRecordFilterMode('critical_only')}
+            />
+            <ExpandableButton
+              size="sm"
+              variant="amber"
+              isActive={recordFilterMode === 'expiry_only'}
+              icon={<Clock className="w-3.5 h-3.5" />}
+              badge={nodeLiveInspectorData.criticalCount}
+              label="Solo vencimientos próximos o vencidos (<= 30 días)"
+              onClick={() => handleSetRecordFilterMode('expiry_only')}
             />
             <ExpandableButton
               size="sm"

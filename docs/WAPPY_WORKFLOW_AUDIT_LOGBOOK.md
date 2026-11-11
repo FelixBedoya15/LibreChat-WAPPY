@@ -3,8 +3,41 @@
 > **Subagente Custodio:** `wappy-workflow-architect`  
 > **Especificación Rectora:** [`docs/WAPPY_WORKFLOW_ARCHITECTURE_SPEC.md`](./WAPPY_WORKFLOW_ARCHITECTURE_SPEC.md) (fundamentada en `https://docs.n8n.io/`)  
 > **Scripts Oficiales de Verificación Determinista y E2E:**
-> 1. Validador Estático y Topológico DAG (14 Leyes Formales): `.agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js`
-> 2. Suite Dinámica Multi-Escenario E2E en MongoDB Real: `.agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.js`
+> 1. Validador Estático, Topológico DAG y Fidelidad de Dominio (17 Leyes Formales): `.agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js`
+> 2. Suite Dinámica Multi-Escenario E2E en MongoDB Real (21 Aserciones): `.agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.js`
+
+---
+
+## Registro #002 — Remediación Integral de Fidelidad de Dominio (8 Hitos Reales + Esquemas Mongoose Somos SST + Merge sin Pérdida)
+
+- **Fecha:** `2026-11-11`
+- **Versión del Catálogo:** `2026.11.11-v57-8hitos-domain-verified` (`55` flujos oficiales SG-SST sincronizados en Backend y Frontend)
+- **Estado Global:** ✅ **100 % APROBADO (`55/55` presets válidos en las `17` leyes formales con `0` errores y `0` avisos; `21/21` pruebas E2E superadas contra MongoDB real con `0` residuos)**
+
+### 1. Defectos de Dominio Resueltos de Raíz
+
+1. **Separación Estricta entre Permiso Diario de Alturas (`PermisoAlturasData`) y Certificados Anuales (`PerfilSociodemograficoData`):**
+   - Eliminado `hito3_alturas` (`Hito 5 · Permiso de Trabajo en Alturas`) de `#1 preset_vencimientos_emo_epp`, `#24 preset_inspeccion_equipos_alturas_certificados` y `#45 preset_certificacion_tareas_alto_riesgo_mintrabajo`.
+   - En `#1 preset_vencimientos_emo_epp`, conectadas exclusivamente las **2 fuentes maestras reales**: `Hito 2 · Perfil Sociodemográfico` (`recordFilterMode: 'expiry_only'`, `expiryAuditScope: ['emo', 'alturas']`, `includeLatestReport: false`) y `Hito 5 · Entrega y Seguimiento de EPP` (`recordFilterMode: 'critical_only'`, `includeLatestReport: false`), asignado al agente **`Consultor SG-SST`** con salida estructurada en 3 secciones obligatorias (EMO Hito 2, Certificados Alturas Res. 4272/2021 Hito 2 y EPP Hito 5).
+2. **Regla Inquebrantable `aplicaCursoAlturas` (`Sí aplica` vs. `No aplica`) y Modo `expiry_only` (`workflowNodeInspectorService.js`):**
+   - Casilla vacía (`""`) o `"No aplica"` / `"N/A"` en `fechaCursoAlturasAutorizado` y `fechaCursoAlturasCoordinador` evalúa determinísticamente `'NO APLICA'` (`alturasAlert = false`), eliminando el 100 % de falsas alarmas de alturas en personal administrativo u operativo sin tareas de alturas.
+   - Modo `recordFilterMode: 'expiry_only'` con `expiryAuditScope` aísla exclusivamente brechas de vencimiento documental (`EMO`, `Alturas`, `Licencia Vial`), impidiendo contaminación clínica (`fitScore < 75`, `Miopía`) y suprimiendo la inyección de `latestReportBlock` HTML antiguo.
+3. **Corrección de Sobrescritura por Cédula en `logic_merge` (`automationScheduler.js`):**
+   - Sustituido `{ ...rec, ...prev }` por acumulación en `_mergedFindings: string[]` por cada fuente conectada, preservando simultáneamente las brechas de `Hito 2` (EMO/Alturas) y `Hito 5` (cada fila de EPP vencido o fuera de servicio) para un mismo documento de identidad.
+4. **Alineación Total de los 55 Presets con los 8 Hitos Oficiales (`HITO_APP_NODES`) y Nuevas Reglas 15, 16 y 17 (`validate-workflow-logic.js`):**
+   - Reemplazado `extract_sst_workers` por `hito2_perfil_socio` (`source_read`) en `#13`, `#26`, `#32`, `#47` y `#52`.
+   - Limpiadas todas las referencias erróneas de `Hito N` e IDs legacy engañosos (`hito3_epp`, `hito4_comites`, `hito2_matriz_ipevar`, `hito6_vulnerabilidad`, `hito5_capacitaciones`, etc.) en los 55 flujos (`35` presets con `98` errores detectados por las nuevas reglas -> **`0` errores y `0` avisos**).
+
+### 2. Resultados Medidos del Bloque 7 E2E en MongoDB Real (`run-logical-test-suite.js`)
+
+| Código | Escenario Sembrado en MongoDB Real | Resultado Medido | Estado |
+| :-: | :--- | :--- | :-: |
+| **B7.1** | `CC 70000001`: EMO vence en `10d`, `fechaCursoAlturasAutorizado: ""` | `isCritical=true`, `estadoExamenMedicoEMO="PRÓXIMO A VENCER"`, `aplicaCursoAlturas="No aplica"`, `0` mención de Alturas en motivos | ✅ PASS |
+| **B7.2** | `CC 70000002`: EMO vigente (`+200d`), `fechaCursoAlturasAutorizado` hace `380d` | `isCritical=true`, `estadoExamenMedicoEMO="VIGENTE"`, `aplicaCursoAlturas="Sí aplica"`, `Curso Alturas Autorizado: VENCIDO` | ✅ PASS |
+| **B7.3** | `CC 70000003`: Hito 2 al día, `SgsstEppData` con `Botas Dieléctricas` en `'Vencido'` | `isCritical=false` en Hito 2; entra al prompt desde `Hito 5 · Entrega y Seguimiento de EPP` con `Botas Dieléctricas` | ✅ PASS |
+| **B7.4** | `CC 70000004`: Misma cédula con `EMO vencido` (Hito 2) **Y** `Casco Dieléctrico` `'Fuera de Servicio'` (Hito 5 EPP) | Sección `logic_merge` del prompt conserva **AMBOS** hallazgos bajo `CC 70000004` sin pisar ninguno | ✅ PASS |
+| **B7.5** | `CC 70000005`: EMO vigente (`+200d`), Alturas `""`, EPP `'Entregado'` vigente, `fitScore: 65` y `enfermedades: "Miopía"` | `isCritical=false` en modo `expiry_only`; `0` aparición en el prompt recibido por el Agente IA (`0` contaminación clínica) | ✅ PASS |
+| **CLEAN.1** | Limpieza atómica post-suite en todas las colecciones MongoDB | `0` documentos temporales residuales (`21/21` pruebas en `9.46s`) | ✅ PASS |
 
 ---
 

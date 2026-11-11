@@ -15,7 +15,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Arquitecto Experto en Integraciones, Conectores & Puentes (`wappy-integrations-hub`)
 

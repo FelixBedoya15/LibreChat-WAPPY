@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Validador Determinista de Coherencia Lógica y Topológica DAG para Flujos WAPPY IA (estilo n8n)
- * Verifica las 14 invariantes arquitectónicas sobre systemWorkflowPresetsCatalog.js o un archivo JSON.
+ * Validador Determinista de Coherencia Lógica, Topológica DAG y Fidelidad de Dominio 8 Hitos para Flujos WAPPY IA (estilo n8n)
+ * Verifica las 17 invariantes arquitectónicas y de dominio real sobre systemWorkflowPresetsCatalog.js o un archivo JSON.
  *
  * Uso:
  *   node .agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js
@@ -10,6 +10,77 @@
 
 const path = require('path');
 const fs = require('fs');
+
+const MISLEADING_LEGACY_HITO_IDS = [
+  'hito3_epp',
+  'hito4_comites',
+  'hito2_matriz_ipevar',
+  'hito6_vulnerabilidad',
+  'hito5_capacitaciones',
+  'hito4_actos_condiciones',
+  'hito3_owas',
+  'hito3_estudio_puesto',
+  'hito3_ats',
+  'hito3_alturas',
+  'hito3_vehiculos',
+  'hito3_matriz_pesv',
+  'hito3_quimicos_sga',
+];
+
+function loadRealCatalogMetadata() {
+  const hitoNodesMap = new Map();
+  const constructionNodeIds = new Set();
+  try {
+    const tsPath = path.resolve(
+      __dirname,
+      '../../../../client/src/components/SGSST/workflowNodesCatalog.ts',
+    );
+    const tsSource = fs.readFileSync(tsPath, 'utf8');
+
+    // Extraer todos los nodos con defaultConstruction: true en cualquier arreglo del catálogo TS
+    for (const objMatch of tsSource.matchAll(/\{\s*id:\s*'([^']+)'([\s\S]*?)\n  \},/g)) {
+      const nodeId = objMatch[1];
+      const body = objMatch[2] || '';
+      if (/defaultConstruction:\s*true/.test(body)) {
+        constructionNodeIds.add(nodeId);
+      }
+    }
+
+    // Extraer HITO_APP_NODES reales con su hitoId ('hito1'..'hito8') y etiqueta oficial
+    const hitoArrayMatch = tsSource.match(
+      /export const HITO_APP_NODES:\s*WorkflowNodeDef\[\]\s*=\s*\[([\s\S]*?)\n\];/,
+    );
+    if (hitoArrayMatch && hitoArrayMatch[1]) {
+      for (const m of hitoArrayMatch[1].matchAll(
+        /\{\s*id:\s*'([^']+)'[\s\S]*?hitoId:\s*'hito(\d+)'([\s\S]*?)\n  \},/g,
+      )) {
+        const id = m[1];
+        const hitoNumber = Number(m[2]);
+        const rest = m[3] || '';
+        const labelMatch = rest.match(/label:\s*'([^']+)'/);
+        const defaultConstruction = /defaultConstruction:\s*true/.test(m[0]);
+        if (defaultConstruction) {
+          constructionNodeIds.add(id);
+        }
+        hitoNodesMap.set(id, {
+          id,
+          hitoId: `hito${hitoNumber}`,
+          hitoNumber,
+          label: labelMatch ? labelMatch[1] : id,
+          defaultConstruction,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[validate-workflow-logic] Aviso leyendo workflowNodesCatalog.ts:', err.message);
+  }
+  return { hitoNodesMap, constructionNodeIds };
+}
+
+const {
+  hitoNodesMap: REAL_HITO_NODES_MAP,
+  constructionNodeIds: REAL_CONSTRUCTION_NODE_IDS,
+} = loadRealCatalogMetadata();
 
 const ALLOWED_TEXT_MODELS = new Set([
   'gemini-3.5-flash-lite',
@@ -410,6 +481,87 @@ function validateSingleWorkflow(preset, index = 0) {
     if (promptStr.includes(ghostId) && !activeSet.has(ghostId)) {
       errors.push(
         `[Inv-14] El prompt menciona el identificador "${ghostId}" pero ese nodo NO existe en el grafo del flujo.`,
+      );
+    }
+  }
+
+  // Regla 15 (DOMAIN_HITO_NUMBER_MISMATCH): Fidelidad de numeración de Hito (1..8) contra HITO_APP_NODES reales y prohibición de IDs legacy engañosos en texto natural
+  const connectedHitoNumbers = new Set();
+  for (const hId of hitos) {
+    const meta = REAL_HITO_NODES_MAP.get(hId);
+    if (meta && Number.isFinite(meta.hitoNumber)) {
+      connectedHitoNumbers.add(meta.hitoNumber);
+    } else {
+      const fallbackMatch = String(hId).match(/^hito([1-8])_/i);
+      if (fallbackMatch) connectedHitoNumbers.add(Number(fallbackMatch[1]));
+    }
+  }
+
+  const textSurfaces = [
+    { surface: 'name', text: String(preset.name || '') },
+    {
+      surface: 'presetDescription',
+      text: String(preset.presetDescription || preset.description || ''),
+    },
+    { surface: 'prompt', text: promptStr },
+  ];
+  for (const [cfgKey, cfgObj] of Object.entries(nodeConfigs)) {
+    if (cfgObj && typeof cfgObj.customInstruction === 'string' && cfgObj.customInstruction.trim()) {
+      textSurfaces.push({
+        surface: `nodeConfigs.${cfgKey}.customInstruction`,
+        text: cfgObj.customInstruction,
+      });
+    }
+  }
+
+  for (const { surface, text } of textSurfaces) {
+    if (!text) continue;
+    for (const hMatch of text.matchAll(/\bHito\s*([1-8])\b/gi)) {
+      const mentionedNum = Number(hMatch[1]);
+      if (!connectedHitoNumbers.has(mentionedNum)) {
+        errors.push(
+          `[Inv-15 / DOMAIN_HITO_NUMBER_MISMATCH] "${surface}" menciona "Hito ${mentionedNum}", pero los únicos Hitos reales conectados en el flujo son [${
+            Array.from(connectedHitoNumbers)
+              .sort((a, b) => a - b)
+              .map((n) => `Hito ${n}`)
+              .join(', ') || 'Ninguno'
+          }].`,
+        );
+      }
+    }
+    for (const legacyId of MISLEADING_LEGACY_HITO_IDS) {
+      if (text.includes(legacyId)) {
+        const realMeta = REAL_HITO_NODES_MAP.get(legacyId);
+        const suggestion = realMeta ? realMeta.label : legacyId;
+        errors.push(
+          `[Inv-15 / DOMAIN_HITO_NUMBER_MISMATCH] "${surface}" contiene el ID interno legacy engañoso "${legacyId}". Reemplázalo por su etiqueta de dominio real «${suggestion}».`,
+        );
+      }
+    }
+  }
+
+  // Regla 16 (DOMAIN_CONSTRUCTION_APP_BLOCKED): Bloqueo estricto de cualquier nodo con defaultConstruction: true en workflowNodesCatalog.ts
+  for (const id of activeSet) {
+    if (REAL_CONSTRUCTION_NODE_IDS.has(id)) {
+      errors.push(
+        `[Inv-16 / DOMAIN_CONSTRUCTION_APP_BLOCKED] El flujo usa el nodo "${id}" marcado con \`defaultConstruction: true\` en \`workflowNodesCatalog.ts\`.`,
+      );
+    }
+  }
+
+  // Regla 17 (DOMAIN_PERMISO_ALTURAS_MISUSE): Prohibido usar hito3_alturas (Permiso operativo diario de tarea en campo) como fuente de vencimientos de cursos/certificados de formación
+  if (hitos.includes('hito3_alturas')) {
+    const combinedDomainText = `${key} ${preset.name || ''} ${preset.presetDescription || ''} ${promptStr}`.toLowerCase();
+    const isTrainingOrCertAudit =
+      /(?:vencimiento|vigencia|certificad|curso|reentrenamiento|formaci[oó]n|mintrabajo|sena|emo\b)/i.test(
+        combinedDomainText,
+      ) &&
+      !/\b(?:an[aá]lisis de trabajo seguro|ats\b|pron[oó]stico|clima|meteorol|tormenta|lluvia|viento)\b/i.test(
+        `${key} ${preset.name || ''}`,
+      );
+    if (isTrainingOrCertAudit) {
+      errors.push(
+        '[Inv-17 / DOMAIN_PERMISO_ALTURAS_MISUSE] El flujo audita vencimientos de certificados/cursos de formación o equipos pero conecta "hito3_alturas" (Hito 5 · Permiso de Trabajo en Alturas — permiso diario de tarea en campo). Usa "hito2_perfil_socio" (fechaCursoAlturasAutorizado / fechaCursoAlturasCoordinador) o "hito5_equipos_alturas".',
       );
     }
   }

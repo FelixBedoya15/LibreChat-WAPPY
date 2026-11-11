@@ -15,7 +15,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Especialista en Tenshi Voice & Realtime Push (`wappy-tenshi-voice`)
 

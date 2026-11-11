@@ -10,7 +10,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Editor y Animador de Escenas Interactivas 60-FPS (`wappy-studio-scene-animator`)
 

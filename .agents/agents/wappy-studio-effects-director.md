@@ -10,7 +10,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Director de Efectos y Coreografía Dinámica XL (`wappy-studio-effects-director`)
 

@@ -57,7 +57,7 @@ Para inspeccionar un preset puntual con detalle completo:
 node .agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js --preset preset_vencimientos_emo_epp
 ```
 
-El comando debe devolver **`0 errores`** en las **14 invariantes lógicas** antes de pasar a las pruebas dinámicas en MongoDB.
+El comando debe devolver **`0 errores`** en las **17 invariantes lógicas y de fidelidad de dominio (8 Hitos reales)** antes de pasar a las pruebas dinámicas en MongoDB.
 
 ---
 

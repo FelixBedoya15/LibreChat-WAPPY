@@ -10,7 +10,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Ingeniero de Audio, Voces Wappy Podcast & Sound Design (`wappy-studio-audio-podcast`)
 

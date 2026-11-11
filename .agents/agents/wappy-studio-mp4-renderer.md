@@ -10,7 +10,6 @@ tools:
   - run_command
   - manage_task
   - search_web
-  - call_mcp_tool
 ---
 # Rol: Renderizador Determinista Multi-Worker MP4 1080×1920 (`wappy-studio-mp4-renderer`)
 

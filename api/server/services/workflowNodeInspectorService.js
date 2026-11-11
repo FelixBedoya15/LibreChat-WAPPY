@@ -980,7 +980,7 @@ async function fetchLatestReportsForTags(userId, company, tags = [], limit = 5) 
  * INSPECTORES EN VIVO DE HITOS 1 Y 2 (19 APLICATIVOS + EMPRESA ACTIVA)
  * ═══════════════════════════════════════════════════════════════════════════
  */
-async function inspectHito1And2(canonicalId, userId, company) {
+async function inspectHito1And2(canonicalId, userId, company, nodeConfig = {}) {
   const companyName = company?.companyName || 'Empresa Activa';
 
   // 0. Contexto de Empresa Activa (tool_sst_company)
@@ -2500,20 +2500,23 @@ async function inspectHito1And2(canonicalId, userId, company) {
     const seenCedulas = new Set();
     const matchedWorkerIds = new Set();
 
+    const isExpiryOnlyFilter =
+      nodeConfig?.recordFilterMode === 'expiry_only' || Array.isArray(nodeConfig?.expiryAuditScope);
+
     for (const sw of socioList) {
       const ced = String(sw.identificacion || sw.documento || sw.cedula || '').trim();
       const nm = String(sw.nombre || '').trim().toLowerCase();
       if (ced) seenCedulas.add(ced);
       const wDoc = (ced ? workerByCedula.get(ced) : null) || (nm ? workerByName.get(nm) : null) || null;
       if (wDoc?._id) matchedWorkerIds.add(String(wDoc._id));
-      unifiedWorkers.push(buildUnifiedWorkerRecord(sw, wDoc, canonicalId));
+      unifiedWorkers.push(buildUnifiedWorkerRecord(sw, wDoc, canonicalId, nodeConfig));
     }
 
     for (const wDoc of workerDocs) {
       const ced = String(wDoc.documento || '').trim();
       if ((ced && seenCedulas.has(ced)) || (wDoc?._id && matchedWorkerIds.has(String(wDoc._id)))) continue;
       if (ced) seenCedulas.add(ced);
-      unifiedWorkers.push(buildUnifiedWorkerRecord({}, wDoc, canonicalId));
+      unifiedWorkers.push(buildUnifiedWorkerRecord({}, wDoc, canonicalId, nodeConfig));
     }
 
     const pendingRecords = [];
@@ -2530,7 +2533,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
           sublabel: `Cargo: ${pd.cargo || ''} • EPS: ${pd.eps || ''} • Tel: ${pd.telefono || ''}`,
           badge: 'PENDIENTE APROBAR QR',
           badgeTone: 'amber',
-          isCritical: true,
+          isCritical: !isExpiryOnlyFilter,
           fields: {
             nombre: nom,
             documento: ced,
@@ -2560,7 +2563,7 @@ async function inspectHito1And2(canonicalId, userId, company) {
           sublabel: `Enfermedades: ${pd.enfermedades || 'N/A'} • Limitaciones: ${pd.limitacionesBiomecanicas || 'N/A'}`,
           badge: 'AUTORREPORTE SALUD PENDIENTE',
           badgeTone: 'rose',
-          isCritical: true,
+          isCritical: !isExpiryOnlyFilter,
           fields: {
             nombre: nom,
             documento: ced,
@@ -2630,8 +2633,12 @@ function parseFlexibleDateMs(rawVal) {
   }
   const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmy) {
-    const dt = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
-    const ms = dt.getTime();
+    const ms = Date.UTC(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+    return Number.isFinite(ms) ? ms : null;
+  }
+  const ymd = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ymd) {
+    const ms = Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return Number.isFinite(ms) ? ms : null;
   }
   const dt = new Date(s);
@@ -2639,22 +2646,31 @@ function parseFlexibleDateMs(rawVal) {
   return Number.isFinite(ms) ? ms : null;
 }
 
+function formatMsToIsoDate(ms) {
+  if (!Number.isFinite(ms)) return '';
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
 function isDateExpiredOrWithinDays(rawVal, daysThreshold = 30) {
   const targetMs = parseFlexibleDateMs(rawVal);
   if (targetMs === null) return false;
-  const horizonMs = Date.now() + Number(daysThreshold) * 86400000;
+  const now = new Date();
+  const todayUtcMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const horizonMs = todayUtcMs + Number(daysThreshold) * 86400000;
   return targetMs <= horizonMs;
 }
 
 function isAnnualDateExpiredOrWithinDays(rawStartDateVal, daysThreshold = 30) {
   const startMs = parseFlexibleDateMs(rawStartDateVal);
   if (startMs === null) return false;
+  const now = new Date();
+  const todayUtcMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const annualExpiryMs = startMs + 365 * 86400000;
-  const horizonMs = Date.now() + Number(daysThreshold) * 86400000;
+  const horizonMs = todayUtcMs + Number(daysThreshold) * 86400000;
   return annualExpiryMs <= horizonMs;
 }
 
-function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
+function buildUnifiedWorkerRecord(sw, wDoc, canonicalId, nodeConfig = {}) {
   const cedula = String(sw.identificacion || sw.documento || sw.cedula || wDoc?.documento || '').trim() || 'S/D';
   const nombre = String(sw.nombre || wDoc?.nombre || 'Colaborador').trim();
   const cargo = String(sw.cargo || wDoc?.cargo || 'Sin cargo asignado').trim();
@@ -2675,8 +2691,8 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
   const motivoRetiro = String(sw.motivoRetiro || wDoc?.motivoRetiro || '').trim();
   const aptitud = String(sw.bioScoreIAAptitud || sw.aptitudMedica || sw.conceptoAptitud || wDoc?.aptitud || 'Apto sin restricciones').trim();
   const fechaEmo = String(
-    sw.fechaUltimoExamen ||
-      sw.fechaExamenMedico ||
+    sw.fechaExamenMedico ||
+      sw.fechaUltimoExamen ||
       (wDoc?.fechaUltimoExamen instanceof Date
         ? wDoc.fechaUltimoExamen.toISOString().slice(0, 10)
         : wDoc?.fechaUltimoExamen || '') ||
@@ -2697,8 +2713,9 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
         ? wDoc.fechaVencimientoAlturas.toISOString().slice(0, 10)
         : wDoc?.fechaVencimientoAlturas || ''),
   ).trim();
-  const fechaCursoAlturas = String(sw.fechaCursoAlturasAutorizado || '').trim();
-  const fechaVencLicencia = String(sw.licenciaConduccionVencimiento || '').trim();
+  const fechaCursoAlturas = String(sw.fechaCursoAlturasAutorizado || wDoc?.fechaCursoAlturasAutorizado || '').trim();
+  const fechaCursoAlturasCoord = String(sw.fechaCursoAlturasCoordinador || wDoc?.fechaCursoAlturasCoordinador || '').trim();
+  const fechaVencLicencia = String(sw.licenciaConduccionVencimiento || wDoc?.licenciaConduccionVencimiento || '').trim();
   const fechaSeguimiento = String(sw.fechaSeguimiento || '').trim();
   const diagnosticos = String(sw.diagnosticoMedico || sw.condicionesSalud || wDoc?.condicionesSalud || wDoc?.diagnosticoMedico || '').trim();
   const enfermedades = String(sw.enfermedades || wDoc?.enfermedades || '').trim();
@@ -2741,37 +2758,190 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
       ? fitAlertsArr.map((a) => (typeof a === 'string' ? a : a.title || a.message || JSON.stringify(a))).join(' | ')
       : restricciones || recomendaciones || enfermedades || 'Sin alertas clínico-operativas activas';
 
-  const emoExpiredOrSoon =
-    parseFlexibleDateMs(fechaProxEmo) !== null
-      ? isDateExpiredOrWithinDays(fechaProxEmo, 30)
-      : isAnnualDateExpiredOrWithinDays(fechaEmo, 30);
-  const alturasExpiredOrSoon =
-    parseFlexibleDateMs(fechaVencAlturas) !== null
-      ? isDateExpiredOrWithinDays(fechaVencAlturas, 30)
-      : isAnnualDateExpiredOrWithinDays(fechaCursoAlturas, 30);
-  const licenciaVialExpiredOrSoon = isDateExpiredOrWithinDays(fechaVencLicencia, 30);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CÁLCULO DETERMINISTA DE VENCIMIENTOS POR DOMINIO (EMO / ALTURAS / LICENCIA VIAL)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const nowUtcRef = new Date();
+  const todayUtcMs = Date.UTC(
+    nowUtcRef.getUTCFullYear(),
+    nowUtcRef.getUTCMonth(),
+    nowUtcRef.getUTCDate(),
+  );
+  const horizon30UtcMs = todayUtcMs + 30 * 86400000;
+
+  // 1. EMO (Examen Médico Ocupacional Periódico / Ingreso)
+  const emoStartMs = parseFlexibleDateMs(fechaEmo);
+  const emoProxMs = parseFlexibleDateMs(fechaProxEmo);
+  const emoExpiryMs =
+    emoProxMs !== null ? emoProxMs : emoStartMs !== null ? emoStartMs + 365 * 86400000 : null;
+  const vencimientoExamenMedico = emoExpiryMs !== null ? formatMsToIsoDate(emoExpiryMs) : 'Pendiente';
+
+  let estadoExamenMedicoEMO = 'NO APLICA (Retirado)';
+  let emoAlert = false;
+  if (isActivo) {
+    if (emoExpiryMs === null) {
+      estadoExamenMedicoEMO = 'SIN SOPORTE EMO';
+      emoAlert = true;
+    } else if (emoExpiryMs < todayUtcMs) {
+      estadoExamenMedicoEMO = `VENCIDO (venció ${vencimientoExamenMedico})`;
+      emoAlert = true;
+    } else if (emoExpiryMs <= horizon30UtcMs) {
+      estadoExamenMedicoEMO = `PRÓXIMO A VENCER (vence ${vencimientoExamenMedico})`;
+      emoAlert = true;
+    } else {
+      estadoExamenMedicoEMO = `VIGENTE (vence ${vencimientoExamenMedico})`;
+      emoAlert = false;
+    }
+  } else if (emoExpiryMs !== null) {
+    estadoExamenMedicoEMO = `RETIRADO (último venc. ${vencimientoExamenMedico})`;
+  }
+
+  // 2. Certificado / Reentrenamiento Anual de Alturas (Res. 4272/2021 en PerfilSociodemograficoData)
+  // REGLA INQUEBRANTABLE DEL DOMINIO: casilla vacía ("") o "No aplica" / "N/A" -> 'NO APLICA' (false)
+  const alturasAutStartMs = parseFlexibleDateMs(fechaCursoAlturas);
+  const alturasCoordStartMs = parseFlexibleDateMs(fechaCursoAlturasCoord);
+  const explicitAlturasVencMs = parseFlexibleDateMs(fechaVencAlturas);
+  const hasAlturasAutDate = alturasAutStartMs !== null;
+  const hasAlturasCoordDate = alturasCoordStartMs !== null;
+  const aplicaCursoAlturas = hasAlturasAutDate || hasAlturasCoordDate ? 'Sí aplica' : 'No aplica';
+
+  let estadoCursoAlturasAutorizado = 'NO APLICA';
+  let alturasAutAlert = false;
+  if (hasAlturasAutDate) {
+    const autExpMs =
+      explicitAlturasVencMs !== null ? explicitAlturasVencMs : alturasAutStartMs + 365 * 86400000;
+    const autExpStr = formatMsToIsoDate(autExpMs);
+    if (autExpMs < todayUtcMs) {
+      estadoCursoAlturasAutorizado = `VENCIDO (venció ${autExpStr})`;
+      alturasAutAlert = Boolean(isActivo);
+    } else if (autExpMs <= horizon30UtcMs) {
+      estadoCursoAlturasAutorizado = `PRÓXIMO A VENCER (vence ${autExpStr})`;
+      alturasAutAlert = Boolean(isActivo);
+    } else {
+      estadoCursoAlturasAutorizado = `VIGENTE (vence ${autExpStr})`;
+      alturasAutAlert = false;
+    }
+  }
+
+  let estadoCursoAlturasCoordinador = 'NO APLICA';
+  let alturasCoordAlert = false;
+  if (hasAlturasCoordDate) {
+    const coordExpMs =
+      explicitAlturasVencMs !== null && !hasAlturasAutDate
+        ? explicitAlturasVencMs
+        : alturasCoordStartMs + 365 * 86400000;
+    const coordExpStr = formatMsToIsoDate(coordExpMs);
+    if (coordExpMs < todayUtcMs) {
+      estadoCursoAlturasCoordinador = `VENCIDO (venció ${coordExpStr})`;
+      alturasCoordAlert = Boolean(isActivo);
+    } else if (coordExpMs <= horizon30UtcMs) {
+      estadoCursoAlturasCoordinador = `PRÓXIMO A VENCER (vence ${coordExpStr})`;
+      alturasCoordAlert = Boolean(isActivo);
+    } else {
+      estadoCursoAlturasCoordinador = `VIGENTE (vence ${coordExpStr})`;
+      alturasCoordAlert = false;
+    }
+  }
+  const alturasAlert = alturasAutAlert || alturasCoordAlert;
+
+  // 3. Licencia de Conducción (Seguridad Vial PESV)
+  const licenciaVencMs = parseFlexibleDateMs(fechaVencLicencia);
+  let estadoLicenciaConduccion = 'NO APLICA';
+  let licenciaVialAlert = false;
+  if (licenciaVencMs !== null) {
+    const licExpStr = formatMsToIsoDate(licenciaVencMs);
+    if (licenciaVencMs < todayUtcMs) {
+      estadoLicenciaConduccion = `VENCIDO (venció ${licExpStr})`;
+      licenciaVialAlert = Boolean(isActivo);
+    } else if (licenciaVencMs <= horizon30UtcMs) {
+      estadoLicenciaConduccion = `PRÓXIMO A VENCER (vence ${licExpStr})`;
+      licenciaVialAlert = Boolean(isActivo);
+    } else {
+      estadoLicenciaConduccion = `VIGENTE (vence ${licExpStr})`;
+      licenciaVialAlert = false;
+    }
+  }
+
+  const isExpiryFilterMode =
+    nodeConfig?.recordFilterMode === 'expiry_only' || Array.isArray(nodeConfig?.expiryAuditScope);
+  const normalizedScope =
+    Array.isArray(nodeConfig?.expiryAuditScope) && nodeConfig.expiryAuditScope.length > 0
+      ? nodeConfig.expiryAuditScope.map((s) => String(s).toLowerCase().trim())
+      : ['emo', 'alturas', 'licencia_vial'];
+
+  const allExpiryReasons = [];
+  const scopedExpiryReasons = [];
+  if (emoAlert) {
+    const r = `EMO: ${estadoExamenMedicoEMO}`;
+    allExpiryReasons.push(r);
+    if (normalizedScope.includes('emo')) scopedExpiryReasons.push(r);
+  }
+  if (alturasAutAlert) {
+    const r = `Curso Alturas Autorizado: ${estadoCursoAlturasAutorizado}`;
+    allExpiryReasons.push(r);
+    if (normalizedScope.includes('alturas')) scopedExpiryReasons.push(r);
+  }
+  if (alturasCoordAlert) {
+    const r = `Curso Alturas Coordinador: ${estadoCursoAlturasCoordinador}`;
+    allExpiryReasons.push(r);
+    if (normalizedScope.includes('alturas')) scopedExpiryReasons.push(r);
+  }
+  if (licenciaVialAlert) {
+    const r = `Licencia de Conducción: ${estadoLicenciaConduccion}`;
+    allExpiryReasons.push(r);
+    if (
+      normalizedScope.includes('licencia_vial') ||
+      normalizedScope.includes('licencia') ||
+      normalizedScope.includes('vial')
+    ) {
+      scopedExpiryReasons.push(r);
+    }
+  }
+
+  const activeReasonsList = isExpiryFilterMode ? scopedExpiryReasons : allExpiryReasons;
+  const motivosVencimientoDetectados =
+    activeReasonsList.length > 0 ? activeReasonsList.join(' ; ') : 'Sin vencimientos pendientes';
+  const hasScopedExpiryAlert = scopedExpiryReasons.length > 0;
+
   const aptitudOrPilaAlert =
     Boolean(aptitud && /no\s*apto|aplazad|con\s*restricci/i.test(aptitud) && !/sin\s*restricci/i.test(aptitud)) ||
     Boolean(estadoPila && /mora|inactiv|suspendid/i.test(estadoPila));
 
-  const hasAlert =
+  const hasGeneralAlert =
     isActivo &&
     (biocentricIsLethal ||
       fitScore < 75 ||
       fitAlertsArr.length > 0 ||
-      emoExpiredOrSoon ||
-      alturasExpiredOrSoon ||
-      licenciaVialExpiredOrSoon ||
+      emoAlert ||
+      alturasAlert ||
+      licenciaVialAlert ||
       aptitudOrPilaAlert ||
       Boolean(restricciones && !/ningun|apto sin|no aplica/i.test(restricciones)) ||
       Boolean(enfermedades && !/ningun|sano|no aplica/i.test(enfermedades)));
 
-  const badgeByMode =
-    canonicalId === 'hito2_oraculo_predictivo'
-      ? `FIT ${fitScore}% • ${fitAlertsArr.length || (hasAlert ? 1 : 0)} Tarjeta(s) Preventiva(s)`
+  const effectiveIsCritical = isExpiryFilterMode
+    ? Boolean(isActivo && hasScopedExpiryAlert)
+    : hasGeneralAlert;
+
+  const badgeByMode = isExpiryFilterMode
+    ? effectiveIsCritical
+      ? `BRECHA: ${motivosVencimientoDetectados}`
+      : `VIGENTE • EMO: ${estadoExamenMedicoEMO}`
+    : canonicalId === 'hito2_oraculo_predictivo'
+      ? `FIT ${fitScore}% • ${fitAlertsArr.length || (hasGeneralAlert ? 1 : 0)} Tarjeta(s) Preventiva(s)`
       : canonicalId === 'hito2_condiciones_salud'
         ? `${aptitud} • FIT ${fitScore}%`
         : `${estadoLaboral} • EPS: ${eps || 'N/A'} • ARL: ${arl || 'N/A'}`;
+
+  const effectiveBadgeTone = isExpiryFilterMode
+    ? effectiveIsCritical
+      ? 'rose'
+      : 'emerald'
+    : hasGeneralAlert
+      ? 'rose'
+      : fitScore < 85
+        ? 'amber'
+        : 'emerald';
 
   const fechaNacStr =
     sw.fechaNacimiento ||
@@ -2789,8 +2959,8 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
     label: `${nombre} (CC ${cedula})`,
     sublabel: `Cargo: ${cargo} • Área: ${area}${edad ? ` • ${edad} años` : ''}${rhFull ? ` • RH ${rhFull}` : ''}`,
     badge: badgeByMode,
-    badgeTone: hasAlert ? 'rose' : fitScore < 85 ? 'amber' : 'emerald',
-    isCritical: hasAlert,
+    badgeTone: effectiveBadgeTone,
+    isCritical: effectiveIsCritical,
     _fitScore: fitScore,
     _activo: estadoLaboral !== 'Retirado',
     fields: {
@@ -2828,11 +2998,19 @@ function buildUnifiedWorkerRecord(sw, wDoc, canonicalId) {
       jornadaLaboral: sw.jornadaLaboral || sw.turnoTrabajo || 'Diurna',
       salario: sw.salario || sw.ingresos || '',
       estadoPila,
-      fechaCursoAlturasAutorizado: sw.fechaCursoAlturasAutorizado || '',
-      fechaCursoAlturasCoordinador: sw.fechaCursoAlturasCoordinador || '',
+      fechaExamenMedico: fechaEmo || 'Sin registro',
+      vencimientoExamenMedico,
+      estadoExamenMedicoEMO,
+      aplicaCursoAlturas,
+      fechaCursoAlturasAutorizado: fechaCursoAlturas || '',
+      estadoCursoAlturasAutorizado,
+      fechaCursoAlturasCoordinador: fechaCursoAlturasCoord || '',
+      estadoCursoAlturasCoordinador,
       licenciaConduccion: sw.licenciaConduccion || '',
       licenciaCategoria: sw.licenciaCategoria || '',
-      licenciaConduccionVencimiento: sw.licenciaConduccionVencimiento || '',
+      licenciaConduccionVencimiento: fechaVencLicencia || '',
+      estadoLicenciaConduccion,
+      motivosVencimientoDetectados,
       curso50h: sw.curso50h || '',
       curso20h: sw.curso20h || '',
       esCopasst: sw.esCopasst || 'No',
@@ -3896,9 +4074,15 @@ async function inspectHito3To5(canonicalId, userId, company) {
     for (let sIdx = 0; sIdx < solDocs.length; sIdx++) {
       const sol = solDocs[sIdx];
       const isPend = sol.estado !== 'entregado' && sol.estado !== 'aprobado' && sol.estado !== 'cerrado';
+      const solElemSummary =
+        sol.elementoSolicitado ||
+        sol.epp ||
+        (Array.isArray(sol.items) && sol.items.length > 0
+          ? sol.items.map((it) => `${it.nombre || it.elemento || 'EPP'} x${it.cantidad || 1}`).join(', ')
+          : 'EPP');
       records.push({
         id: String(sol._id || `epp_sol_${sIdx}`),
-        label: `[Solicitud QR EPP] ${sol.nombreTrabajador || sol.nombre || 'Colaborador'} (CC ${sol.documento || sol.cedula || 'S/D'}) — ${sol.elementoSolicitado || sol.epp || 'EPP'}`,
+        label: `[Solicitud QR EPP] ${sol.nombreTrabajador || sol.nombre || 'Colaborador'} (CC ${sol.documento || sol.cedula || 'S/D'}) — ${solElemSummary}`,
         sublabel: `Motivo: ${sol.motivo || 'Reposición'} • Talla: ${sol.talla || 'Única'} • Estado: ${sol.estado || 'pendiente'}`,
         badge: isPend ? 'SOLICITUD QR PENDIENTE' : String(sol.estado || 'Atendida').toUpperCase(),
         badgeTone: isPend ? 'amber' : 'emerald',
@@ -3906,7 +4090,9 @@ async function inspectHito3To5(canonicalId, userId, company) {
         fields: {
           'Trabajador Receptor (Cédula, Nombre y Cargo)': `${sol.nombreTrabajador || sol.nombre || ''} (CC ${sol.documento || sol.cedula || ''}) - ${sol.cargo || ''}`,
           'Cédula / Documento': String(sol.documento || sol.cedula || ''),
-          'Elemento de Protección Personal Entregado y Norma Técnica': sol.elementoSolicitado || sol.epp || '',
+          'Nombre Completo': String(sol.nombreTrabajador || sol.nombre || 'Colaborador'),
+          'Cargo': String(sol.cargo || 'Operativo'),
+          'Elemento de Protección Personal Entregado y Norma Técnica': solElemSummary,
           'Motivo de Entrega y Observaciones': `Solicitud QR (${sol.motivo || 'Reposición'}): ${sol.observaciones || ''}`,
         },
       });
@@ -6938,7 +7124,7 @@ async function inspectNodeLiveData(params = {}) {
     });
   }
 
-  let result = await inspectHito1And2(canonicalId, userId, company);
+  let result = await inspectHito1And2(canonicalId, userId, company, effectiveNodeConfig);
   if (!result) {
     result = await inspectHito3To5(canonicalId, userId, company);
   }
@@ -7125,7 +7311,7 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
   // Panel 3: SALIDA REAL PROYECTADA (Items JSON limpios + Archivos de Evidencia + Informes HTML)
   let filteredRecords = baseData.records || [];
   if (!baseData.underConstruction) {
-    if (filterMode === 'critical_only') {
+    if (filterMode === 'critical_only' || filterMode === 'expiry_only') {
       filteredRecords = filteredRecords.filter((r) => r.isCritical);
     } else if (filterMode === 'selected' && selectedRecordIds.length > 0) {
       const idSet = new Set(selectedRecordIds);
@@ -7140,12 +7326,13 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
       const entries = Object.entries(recFields);
       for (const sf of selectedFields) {
         const sfLow = sf.toLowerCase().trim();
-        const match = entries.find(
-          ([fk]) =>
-            fk.toLowerCase().trim() === sfLow ||
-            fk.toLowerCase().includes(sfLow) ||
-            sfLow.includes(fk.toLowerCase().trim()),
-        );
+        const match =
+          entries.find(([fk]) => fk.toLowerCase().trim() === sfLow) ||
+          entries.find(
+            ([fk]) =>
+              fk.toLowerCase().includes(sfLow) ||
+              sfLow.includes(fk.toLowerCase().trim()),
+          );
         projected[sf] = match ? formatCleanScalar(match[1], 'No registra') : 'No registra';
       }
       return projected;
@@ -7668,12 +7855,13 @@ async function collectStructuredWorkflowSourceData(
         const projected = [];
         for (const sf of selectedFields) {
           const sfNorm = sf.toLowerCase().trim();
-          const match = fieldEntries.find(
-            ([fk]) =>
-              fk.toLowerCase().trim() === sfNorm ||
-              fk.toLowerCase().includes(sfNorm) ||
-              sfNorm.includes(fk.toLowerCase().trim()),
-          );
+          const match =
+            fieldEntries.find(([fk]) => fk.toLowerCase().trim() === sfNorm) ||
+            fieldEntries.find(
+              ([fk]) =>
+                fk.toLowerCase().includes(sfNorm) ||
+                sfNorm.includes(fk.toLowerCase().trim()),
+            );
           if (match && match[1] !== undefined && match[1] !== '') {
             projected.push(`${sf}: ${match[1]}`);
           }
@@ -7771,7 +7959,7 @@ async function collectStructuredWorkflowSourceData(
       // Si existen registros deduplicados por ventana anti-duplicados, se priorizan los freshCriticalRecords
       // y se omiten los críticos ya gestionados para no repetir alertas.
       let recordsForPrompt = [];
-      if (filterMode === 'critical_only') {
+      if (filterMode === 'critical_only' || filterMode === 'expiry_only') {
         recordsForPrompt = nodeFreshCritical;
       } else if (safeProcessedSet.size > 0 && nodeDedupSkipped.length > 0) {
         recordsForPrompt = [...nodeFreshCritical, ...nodeNonCritical];
@@ -7789,9 +7977,14 @@ async function collectStructuredWorkflowSourceData(
           ? `\n   • 🛡️ Filtro Anti-Duplicados Activo: ${nodeDedupSkipped.length} hallazgo(s) crítico(s) ya gestionado(s) en corridas recientes fue(ron) omitido(s) automáticamente (${nodeFreshCritical.length} brecha(s) nueva(s) pendiente(s) de gestión). NO repitas alertas sobre los registros ya gestionados.`
           : '';
 
+      const shouldIncludeLatestReport =
+        filterMode === 'critical_only' || filterMode === 'expiry_only'
+          ? cfg.includeLatestReport === true
+          : cfg.includeLatestReport !== false;
+
       let latestReportBlock = '';
       if (
-        cfg.includeLatestReport !== false &&
+        shouldIncludeLatestReport &&
         Array.isArray(liveData.latestReports) &&
         liveData.latestReports.length > 0
       ) {
@@ -7809,11 +8002,13 @@ async function collectStructuredWorkflowSourceData(
         `📦 NODO FUENTE EN VIVO «${liveData.moduleTitle}» (${liveData.companyName}):\n` +
           `   • Indicadores Actuales: ${kpiText || 'N/A'}\n` +
           `   • Filtro de Registros: ${
-            filterMode === 'critical_only'
-              ? `Solo Críticos / Nuevas Brechas (${recordsForPrompt.length} nuevos de ${auditedRecords.length} verificados)`
-              : filterMode === 'selected'
-                ? `Seleccionados Específicos (${recordsForPrompt.length})`
-                : `Auditados (${auditedRecords.length} total | ${nodeFreshCritical.length} brechas nuevas)`
+            filterMode === 'expiry_only'
+              ? `Solo Vencimientos Próximos o Vencidos <= 30 días (${recordsForPrompt.length} nuevos de ${auditedRecords.length} verificados)`
+              : filterMode === 'critical_only'
+                ? `Solo Críticos / Nuevas Brechas (${recordsForPrompt.length} nuevos de ${auditedRecords.length} verificados)`
+                : filterMode === 'selected'
+                  ? `Seleccionados Específicos (${recordsForPrompt.length})`
+                  : `Auditados (${auditedRecords.length} total | ${nodeFreshCritical.length} brechas nuevas)`
           }${strictFilter ? ` | Campos Quirúrgicos Extraídos: [${selectedFields.join(', ')}]` : ''}` +
           dedupNoticeLine +
           `\n` +

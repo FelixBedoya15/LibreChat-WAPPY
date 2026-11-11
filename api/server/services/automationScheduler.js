@@ -2117,7 +2117,7 @@ async function buildLivePreExtractionAndLogicBlocks({
           });
           if (Array.isArray(inspected?.records)) {
             let sourceFiltered = inspected.records;
-            if (srcFilterMode === 'critical_only') {
+            if (srcFilterMode === 'critical_only' || srcFilterMode === 'expiry_only') {
               sourceFiltered = sourceFiltered.filter((r) => r && r.isCritical === true);
             } else if (srcFilterMode === 'selected' && srcSelectedIds && srcSelectedIds.size > 0) {
               sourceFiltered = sourceFiltered.filter((r) => srcSelectedIds.has(String(r.id)));
@@ -2133,6 +2133,7 @@ async function buildLivePreExtractionAndLogicBlocks({
             for (const rec of sourceFiltered.slice(0, 150)) {
               collectedRecords.push({
                 _sourceModule: inspected.moduleTitle || srcId,
+                _canonicalSourceId: canonicalSrcId,
                 id: rec.id,
                 label: rec.label,
                 sublabel: rec.sublabel,
@@ -2147,6 +2148,22 @@ async function buildLivePreExtractionAndLogicBlocks({
 
       let workingRecords = collectedRecords;
 
+      const formatMergedSourceFinding = (rec) => {
+        const cId = rec._canonicalSourceId || '';
+        if (cId === 'hito2_perfil_socio') {
+          const detail =
+            rec.motivosVencimientoDetectados &&
+            rec.motivosVencimientoDetectados !== 'Sin vencimientos pendientes'
+              ? rec.motivosVencimientoDetectados
+              : `${rec.sublabel || ''} (${rec.badge || ''})`;
+          return `[${rec._sourceModule}]: ${detail}`;
+        }
+        if (cId === 'hito3_epp') {
+          return `[${rec._sourceModule}]: EPP «${rec['Elemento de Protección Personal Entregado y Norma Técnica'] || rec.label}» — Estado: ${rec.badge || 'Alerta'} (${rec['Talla, Cantidad, Fecha de Entrega y Fecha de Próxima Reposición'] || rec.sublabel || ''})`;
+        }
+        return `[${rec._sourceModule}]: ${rec.label || rec.id} — ${rec.sublabel || ''} (${rec.badge || 'Alerta'})`;
+      };
+
       if (mergeNode && workingRecords.length > 0) {
         const mergeCfg = {
           ...(mergeNode.config || {}),
@@ -2157,9 +2174,9 @@ async function buildLivePreExtractionAndLogicBlocks({
 
         const extractRecordKey = (rec, idx) => {
           if (rawMergeKey) {
-            const matchedEntry = Object.entries(rec).find(
-              ([k]) => k.toLowerCase().trim() === rawMergeKey || k.toLowerCase().includes(rawMergeKey),
-            );
+            const matchedEntry =
+              Object.entries(rec).find(([k]) => k.toLowerCase().trim() === rawMergeKey) ||
+              Object.entries(rec).find(([k]) => k.toLowerCase().includes(rawMergeKey));
             if (matchedEntry && matchedEntry[1]) {
               return String(matchedEntry[1]).trim().toLowerCase();
             }
@@ -2182,27 +2199,57 @@ async function buildLivePreExtractionAndLogicBlocks({
           for (let i = 0; i < workingRecords.length; i++) {
             const rec = workingRecords[i];
             const key = extractRecordKey(rec, i);
+            const findingLine = formatMergedSourceFinding(rec);
             if (!mergedMap.has(key)) {
-              mergedMap.set(key, { ...rec, _mergedSources: [rec._sourceModule] });
+              mergedMap.set(key, {
+                ...rec,
+                _mergedSources: [rec._sourceModule],
+                _mergedFindings: [findingLine],
+              });
             } else {
               const prev = mergedMap.get(key);
+              const nextFindings = Array.isArray(prev._mergedFindings) ? [...prev._mergedFindings] : [];
+              if (!nextFindings.includes(findingLine)) {
+                nextFindings.push(findingLine);
+              }
               mergedMap.set(key, {
                 ...rec,
                 ...prev,
+                isCritical: Boolean(prev.isCritical || rec.isCritical),
                 _mergedSources: Array.from(new Set([...(prev._mergedSources || []), rec._sourceModule])),
+                _mergedFindings: nextFindings,
               });
             }
           }
           workingRecords = Array.from(mergedMap.values());
+        } else {
+          workingRecords = workingRecords.map((rec) => ({
+            ...rec,
+            _mergedSources: [rec._sourceModule],
+            _mergedFindings: [formatMergedSourceFinding(rec)],
+          }));
         }
 
         traceMeta.mergedRecordsCount = workingRecords.length;
-        const mergeLines = workingRecords.slice(0, 80).map(
-          (r, idx) =>
-            `  ${idx + 1}. ${r.label || r.id} [${(r._mergedSources || [r._sourceModule]).join(' + ')}] — ${r.sublabel || ''} (${r.badge || 'OK'})`,
-        );
+        const mergeLines = workingRecords.slice(0, 80).map((r, idx) => {
+          const personName = String(r['Nombre Completo'] || r.nombre || '').trim();
+          const personDoc = String(
+            r['Cédula / Documento'] || r.documento || r.cedula || r.identificacion || '',
+          ).trim();
+          const personCargo = String(r['Cargo'] || r.cargo || '').trim();
+          const header = personName
+            ? `${personName}${personDoc ? ` (CC ${personDoc})` : ''}${personCargo ? ` — ${personCargo}` : ''}`
+            : r.label || r.id;
+          const findings = Array.isArray(r._mergedFindings) && r._mergedFindings.length > 0
+            ? r._mergedFindings
+            : [formatMergedSourceFinding(r)];
+          return (
+            `  ${idx + 1}. ${header} [Fuentes: ${(r._mergedSources || [r._sourceModule]).join(' + ')}]\n` +
+            findings.map((f) => `     • ${f}`).join('\n')
+          );
+        });
         blocks.push(
-          `🔀 [REGISTROS CONSOLIDADOS Y DEDUPLICADOS POR NODO MERGE (${workingRecords.length} registro(s) únicos de ${collectedRecords.length} totales | Llave: ${rawMergeKey || 'documento/id'})]:\n${mergeLines.join('\n')}`,
+          `🔀 [REGISTROS CONSOLIDADOS Y DEDUPLICADOS POR NODO MERGE (${workingRecords.length} sujeto(s)/ítem(s) únicos de ${collectedRecords.length} hallazgo(s) totales | Llave: ${rawMergeKey || 'documento/id'})]:\n${mergeLines.join('\n')}`,
         );
       }
 
@@ -2245,7 +2292,13 @@ async function buildLivePreExtractionAndLogicBlocks({
         traceMeta.batchesProcessed = batches.length;
         const batchBlocks = batches.slice(0, 20).map((b, bIdx) => {
           const rows = b.items
-            .map((it, rIdx) => `    ${rIdx + 1}) ${it.label || it.id}${it.sublabel ? ` — ${it.sublabel}` : ''} [${it.badge || 'Activo'}]`)
+            .map((it, rIdx) => {
+              const mergedInfo =
+                Array.isArray(it._mergedFindings) && it._mergedFindings.length > 0
+                  ? ` -> ${it._mergedFindings.join(' || ')}`
+                  : `${it.sublabel ? ` — ${it.sublabel}` : ''} [${it.badge || 'Activo'}]`;
+              return `    ${rIdx + 1}) ${it.label || it.id}${mergedInfo}`;
+            })
             .join('\n');
           return `  📦 [LOTE #${bIdx + 1} de #${batches.length} (${b.label} · ${b.items.length} reg.)]:\n${rows}`;
         });
@@ -6004,7 +6057,7 @@ async function executeRealAntigravityScraperVerification({
       ? workerExtCfg.selectedRecordIds.map(String)
       : [];
 
-  if (filterMode === 'critical_only') {
+  if (filterMode === 'critical_only' || filterMode === 'expiry_only') {
     const critFiltered = companyWorkers.filter((w) => w.isCritical);
     if (critFiltered.length > 0) {
       companyWorkers = critFiltered;
@@ -7287,7 +7340,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     const allRecords = Array.isArray(liveData?.records) ? liveData.records : [];
     let filteredRecords = allRecords;
 
-    if (filterMode === 'critical_only') {
+    if (filterMode === 'critical_only' || filterMode === 'expiry_only') {
       filteredRecords = allRecords.filter((r) => r.isCritical);
     } else if (filterMode === 'selected' && selectedRecordIds.length > 0) {
       const idSet = new Set(selectedRecordIds.map(String));
@@ -7363,7 +7416,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           if (simDedupLedger.keysSet.size > 0 && simDedupLedger.keysSet.has(eKey)) {
             stepDedupSkipped += 1;
             totalDeduplicatedRecords += 1;
-            if (filterMode !== 'critical_only') {
+            if (filterMode !== 'critical_only' && filterMode !== 'expiry_only') {
               nextSourceRecords.push(r);
             }
             continue;
@@ -7544,11 +7597,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     }
 
     const inputModeLabel =
-      filterMode === 'critical_only'
-        ? 'Solo registros críticos/en brecha'
-        : filterMode === 'selected'
-          ? `Registros seleccionados (${selectedRecordIds.length})`
-          : 'Todos los registros de la empresa activa';
+      filterMode === 'expiry_only'
+        ? 'Solo vencimientos próximos o vencidos (<= 30 días)'
+        : filterMode === 'critical_only'
+          ? 'Solo registros críticos/en brecha'
+          : filterMode === 'selected'
+            ? `Registros seleccionados (${selectedRecordIds.length})`
+            : 'Todos los registros de la empresa activa';
     let inputSummaryText = `${inputModeLabel}${surgicalFields.length > 0 ? ` · ${surgicalFields.length} campo(s) quirúrgico(s)` : ''}`;
     let finalRecordsCount = filteredRecords.length;
     let stepEvidences = [];
