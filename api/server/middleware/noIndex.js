@@ -64,6 +64,7 @@ const noIndex = (req, res, next) => {
     reqPath.includes('matrizipvr') ||
     reqPath.includes('propuesta-curso-ia-sgsst') ||
     reqPath.includes('clase1') ||
+    reqPath.includes('cursoadelantoregistro') ||
     reqPath.includes('cursowappy');
 
   if (isStrictlyPrivate) {

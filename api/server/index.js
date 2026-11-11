@@ -154,6 +154,7 @@ const startServer = async () => {
   app.get(['/wappystudio', '/wappystudio.html', '/wappy-studio', '/wappy-studio.html'], servePortableAppNoCache('wappystudio.html'));
   app.get(['/wappypodcast', '/wappypodcast.html', '/wappy-podcast', '/wappy-podcast.html'], servePortableAppNoCache('wappypodcast.html'));
   app.get(['/matrizipvr', '/matrizipvr.html', '/matriz-ipvr', '/matriz-ipvr.html'], servePortableAppNoCache('matrizipvr.html'));
+  app.get(['/cursoadelantoregistro', '/cursoadelantoregistro.html'], servePortableAppNoCache('cursoadelantoregistro.html'));
 
   app.use(staticCache(appConfig.paths.dist));
   app.use(staticCache(appConfig.paths.fonts));
@@ -739,6 +740,21 @@ const startServer = async () => {
       path.resolve(__dirname, '../../client/dist/clase1.html'),
       path.resolve(__dirname, '../../client/public/clase1.html'),
       path.resolve(__dirname, '../../clase1.html'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return res.sendFile(p);
+      }
+    }
+    next();
+  });
+
+  app.get(['/cursoadelantoregistro', '/cursoadelantoregistro.html'], (req, res, next) => {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../client/dist/cursoadelantoregistro.html'),
+      path.resolve(__dirname, '../../client/public/cursoadelantoregistro.html'),
+      path.resolve(__dirname, '../../cursoadelantoregistro.html'),
     ];
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {

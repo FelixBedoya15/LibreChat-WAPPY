@@ -165,6 +165,11 @@ const Clase1Route = () => {
   return null;
 };
 
+const CursoAdelantoRegistroRoute = () => {
+  window.location.replace('/cursoadelantoregistro.html');
+  return null;
+};
+
 const Clase2Route = () => {
   window.location.replace('/clase2.html');
   return null;
@@ -715,6 +720,16 @@ export const router = createBrowserRouter(
     {
       path: 'clase1.html',
       element: <Clase1Route />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'cursoadelantoregistro',
+      element: <CursoAdelantoRegistroRoute />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'cursoadelantoregistro.html',
+      element: <CursoAdelantoRegistroRoute />,
       errorElement: <RouteErrorBoundary />,
     },
     {
