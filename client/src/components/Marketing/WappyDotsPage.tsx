@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '~/hooks/AuthContext';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 type OsTab = 'all' | 'macos' | 'windows' | 'linux';
 
@@ -14,7 +15,7 @@ export default function WappyDotsPage() {
 
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem('wappy_shared_theme') === 'dark';
+    return safeGetItem('wappy_shared_theme') === 'dark';
   });
   const [osTab, setOsTab] = useState<OsTab>('all');
   const [detectedOs, setDetectedOs] = useState<'macos' | 'windows' | 'linux'>('macos');
@@ -34,7 +35,7 @@ export default function WappyDotsPage() {
   const isPreviewAdmin =
     typeof window !== 'undefined' &&
     (new URLSearchParams(window.location.search).get('admin') === '1' ||
-      localStorage.getItem('wappy_dots_admin') === '1');
+      safeGetItem('wappy_dots_admin') === '1');
 
   const isAdmin = isContextAdmin || serverAdminVerified || isPreviewAdmin;
 
@@ -110,11 +111,7 @@ export default function WappyDotsPage() {
   const toggleTheme = () => {
     const next = !isDark;
     setIsDark(next);
-    try {
-      localStorage.setItem('wappy_shared_theme', next ? 'dark' : 'light');
-    } catch (_e) {
-      // ignore
-    }
+    safeSetItem('wappy_shared_theme', next ? 'dark' : 'light');
   };
 
   const handleCopyCommand = (cmd: string, id: string) => {

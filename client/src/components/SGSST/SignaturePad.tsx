@@ -95,8 +95,25 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ isOpen, onClose, onS
     const handleSave = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        
-        const base64 = canvas.toDataURL('image/png');
+
+        let exportCanvas = canvas;
+        if (canvas.width > 500) {
+            const scale = 500 / canvas.width;
+            const targetW = 500;
+            const targetH = Math.max(1, Math.round(canvas.height * scale));
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = targetW;
+            tempCanvas.height = targetH;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (tempCtx) {
+                tempCtx.imageSmoothingEnabled = true;
+                tempCtx.imageSmoothingQuality = 'high';
+                tempCtx.drawImage(canvas, 0, 0, targetW, targetH);
+                exportCanvas = tempCanvas;
+            }
+        }
+
+        const base64 = exportCanvas.toDataURL('image/png');
         onSave(base64);
         onClose();
     };

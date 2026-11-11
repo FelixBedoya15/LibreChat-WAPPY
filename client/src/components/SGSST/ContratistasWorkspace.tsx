@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExpandableButton from '~/components/Common/ExpandableButton';
@@ -589,9 +590,9 @@ export const ContratistasWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSaving(true);
     try {
-      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-      localStorage.setItem(`wappy_iso45001_contratistas_${companySuffix}`, JSON.stringify(contratistas));
-      localStorage.setItem(
+      const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+      safeSetItem(`wappy_iso45001_contratistas_${companySuffix}`, JSON.stringify(contratistas));
+      safeSetItem(
         `wappy_iso45001_contratistas_checklist_${companySuffix}`,
         JSON.stringify(checklistRequisitos)
       );

@@ -15,6 +15,7 @@ import type { TMessage, TPreset, TConversation, TSubmission } from 'librechat-da
 import type { TOptionSettings, ExtendedFile } from '~/common';
 import { useSetConvoContext } from '~/Providers/SetConvoContext';
 import { storeEndpointSettings, logger, createChatSearchParams } from '~/utils';
+import { safeSetItem } from '~/utils/safeStorage';
 import { createSearchParams } from 'react-router-dom';
 
 const latestMessageKeysAtom = atom<(string | number)[]>({
@@ -78,19 +79,19 @@ const conversationByIndex = atomFamily<TConversation | null, string | number>({
         const index = Number(node.key.split('__')[1]);
         logger.log('conversation', 'Setting conversation:', { index, newValue, oldValue });
         if (newValue?.assistant_id != null && newValue.assistant_id) {
-          localStorage.setItem(
+          safeSetItem(
             `${LocalStorageKeys.ASST_ID_PREFIX}${index}${newValue.endpoint}`,
             newValue.assistant_id,
           );
         }
         if (newValue?.agent_id != null && newValue.agent_id) {
-          localStorage.setItem(`${LocalStorageKeys.AGENT_ID_PREFIX}${index}`, newValue.agent_id);
+          safeSetItem(`${LocalStorageKeys.AGENT_ID_PREFIX}${index}`, newValue.agent_id);
         }
         if (newValue?.spec != null && newValue.spec) {
-          localStorage.setItem(LocalStorageKeys.LAST_SPEC, newValue.spec);
+          safeSetItem(LocalStorageKeys.LAST_SPEC, newValue.spec);
         }
         if (newValue?.tools && Array.isArray(newValue.tools)) {
-          localStorage.setItem(
+          safeSetItem(
             LocalStorageKeys.LAST_TOOLS,
             JSON.stringify(newValue.tools.filter((el) => !!el)),
           );
@@ -101,7 +102,7 @@ const conversationByIndex = atomFamily<TConversation | null, string | number>({
         }
 
         storeEndpointSettings(newValue);
-        localStorage.setItem(
+        safeSetItem(
           `${LocalStorageKeys.LAST_CONVO_SETUP}_${index}`,
           JSON.stringify(newValue),
         );

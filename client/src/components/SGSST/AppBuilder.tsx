@@ -7,6 +7,7 @@ import {
 import { Button, useToastContext } from '@librechat/client';
 import * as XLSX from 'xlsx';
 import { cn } from '~/utils';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import { useAuthContext } from '~/hooks';
 import SGSSTHeroHeader from './SGSSTHeroHeader';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
@@ -97,8 +98,8 @@ export default function AppBuilder() {
     // Load custom apps on mount and when active company changes
     useEffect(() => {
         const loadAppsForCompany = () => {
-            const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-            const saved = localStorage.getItem(`wappy_custom_apps_${companySuffix}`);
+            const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+            const saved = safeGetItem(`wappy_custom_apps_${companySuffix}`);
             if (saved) {
                 try {
                     setApps(JSON.parse(saved));
@@ -136,8 +137,8 @@ export default function AppBuilder() {
     // Save apps utility
     const saveToLocalStorage = (updatedApps: WappyApp[]) => {
         setApps(updatedApps);
-        const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-        localStorage.setItem(`wappy_custom_apps_${companySuffix}`, JSON.stringify(updatedApps));
+        const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+        safeSetItem(`wappy_custom_apps_${companySuffix}`, JSON.stringify(updatedApps));
     };
 
     // ─── ACTIONS ───

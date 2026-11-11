@@ -144,6 +144,10 @@ const companyInfoSchema = new mongoose.Schema({
         type: String,
         default: 'No',
     },
+    customSignatures: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+    },
     sedes: {
         type: [{
             nombre: { type: String, trim: true, default: '' },

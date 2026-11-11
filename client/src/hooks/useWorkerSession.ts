@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '~/utils/safeStorage';
 
 export interface WorkerSessionData {
   companyId?: string;
@@ -13,6 +14,15 @@ export interface WorkerSessionData {
   fitScore?: number;
   nivel?: string;
   firmaDigital?: string | null;
+}
+
+const MAX_STORED_SIGNATURE_CHARS = 50_000;
+
+function compactWorkerSessionForStorage(data: WorkerSessionData): WorkerSessionData {
+  if (typeof data.firmaDigital === 'string' && data.firmaDigital.length > MAX_STORED_SIGNATURE_CHARS) {
+    return { ...data, firmaDigital: null };
+  }
+  return data;
 }
 
 export function useWorkerSession(companyIdParam?: string) {
@@ -32,17 +42,17 @@ export function useWorkerSession(companyIdParam?: string) {
 
       // 1. Scoped session for effectiveCompanyId has priority
       if (effectiveCompanyId) {
-        const scopedRaw = localStorage.getItem(`wappy_worker_session_${effectiveCompanyId}`);
+        const scopedRaw = safeGetItem(`wappy_worker_session_${effectiveCompanyId}`);
         if (scopedRaw) {
           const parsed = JSON.parse(scopedRaw);
           if (parsed?.cedula && String(parsed.cedula).trim()) return String(parsed.cedula).trim();
         }
-        const scopedCed = localStorage.getItem(`wappy_worker_cedula_${effectiveCompanyId}`);
+        const scopedCed = safeGetItem(`wappy_worker_cedula_${effectiveCompanyId}`);
         if (scopedCed && scopedCed.trim()) return scopedCed.trim();
       }
 
       // 2. Global legacy session ONLY if it strictly matches effectiveCompanyId
-      const rawSession = localStorage.getItem('wappy_worker_session');
+      const rawSession = safeGetItem('wappy_worker_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         const matches = !effectiveCompanyId ||
@@ -54,7 +64,7 @@ export function useWorkerSession(companyIdParam?: string) {
       }
 
       if (!effectiveCompanyId) {
-        const directCed = localStorage.getItem('wappy_worker_cedula');
+        const directCed = safeGetItem('wappy_worker_cedula');
         if (directCed && directCed.trim()) return directCed.trim();
       }
     } catch (e) {
@@ -68,7 +78,7 @@ export function useWorkerSession(companyIdParam?: string) {
     try {
       // 1. Scoped session for effectiveCompanyId
       if (effectiveCompanyId) {
-        const scopedRaw = localStorage.getItem(`wappy_worker_session_${effectiveCompanyId}`);
+        const scopedRaw = safeGetItem(`wappy_worker_session_${effectiveCompanyId}`);
         if (scopedRaw) {
           const parsed = JSON.parse(scopedRaw);
           if (parsed?.cedula && parsed?.nombre) {
@@ -83,14 +93,18 @@ export function useWorkerSession(companyIdParam?: string) {
               cargo: parsed.cargo || '',
               fitScore: parsed.fitScore,
               nivel: parsed.nivel,
-              firmaDigital: parsed.firmaDigital || null,
+              firmaDigital:
+                typeof parsed.firmaDigital === 'string' &&
+                parsed.firmaDigital.length <= MAX_STORED_SIGNATURE_CHARS
+                  ? parsed.firmaDigital
+                  : null,
             };
           }
         }
       }
 
       // 2. Global legacy session ONLY if it strictly matches effectiveCompanyId
-      const rawSession = localStorage.getItem('wappy_worker_session');
+      const rawSession = safeGetItem('wappy_worker_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         const matches = !effectiveCompanyId ||
@@ -108,7 +122,11 @@ export function useWorkerSession(companyIdParam?: string) {
             cargo: parsed.cargo || '',
             fitScore: parsed.fitScore,
             nivel: parsed.nivel,
-            firmaDigital: parsed.firmaDigital || null,
+            firmaDigital:
+              typeof parsed.firmaDigital === 'string' &&
+              parsed.firmaDigital.length <= MAX_STORED_SIGNATURE_CHARS
+                ? parsed.firmaDigital
+                : null,
           };
         }
       }
@@ -145,12 +163,13 @@ export function useWorkerSession(companyIdParam?: string) {
         };
 
         setSession(newSession);
+        const serialized = JSON.stringify(compactWorkerSessionForStorage(newSession));
         if (targetCompanyId) {
-          localStorage.setItem(`wappy_worker_session_${targetCompanyId}`, JSON.stringify(newSession));
-          localStorage.setItem(`wappy_worker_cedula_${targetCompanyId}`, newSession.cedula);
+          safeSetItem(`wappy_worker_session_${targetCompanyId}`, serialized);
+          safeSetItem(`wappy_worker_cedula_${targetCompanyId}`, newSession.cedula);
         }
-        localStorage.setItem('wappy_worker_session', JSON.stringify(newSession));
-        localStorage.setItem('wappy_worker_cedula', newSession.cedula);
+        safeSetItem('wappy_worker_session', serialized);
+        safeSetItem('wappy_worker_cedula', newSession.cedula);
       }
     } catch (err) {
       // No alert, allow graceful fallback to manual form if worker not found
@@ -171,9 +190,9 @@ export function useWorkerSession(companyIdParam?: string) {
 
     if (session && session.cedula === ced && session.nombre && matchesCompany) {
       if (effectiveCompanyId) {
-        localStorage.setItem(`wappy_worker_cedula_${effectiveCompanyId}`, ced);
+        safeSetItem(`wappy_worker_cedula_${effectiveCompanyId}`, ced);
       }
-      localStorage.setItem('wappy_worker_cedula', ced);
+      safeSetItem('wappy_worker_cedula', ced);
       return;
     }
 
@@ -224,30 +243,29 @@ export function useWorkerSession(companyIdParam?: string) {
     }
 
     setSession(updated);
-    try {
-      const cid = updated.companyId || updated.urlCompanyId || effectiveCompanyId;
-      if (cid) {
-        localStorage.setItem(`wappy_worker_session_${cid}`, JSON.stringify(updated));
-        localStorage.setItem(`wappy_worker_cedula_${cid}`, updated.cedula);
-      }
-      localStorage.setItem('wappy_worker_session', JSON.stringify(updated));
-      localStorage.setItem('wappy_worker_cedula', updated.cedula);
-    } catch (e) {}
+    const cid = updated.companyId || updated.urlCompanyId || effectiveCompanyId;
+    const serialized = JSON.stringify(compactWorkerSessionForStorage(updated));
+    if (cid) {
+      safeSetItem(`wappy_worker_session_${cid}`, serialized);
+      safeSetItem(`wappy_worker_cedula_${cid}`, updated.cedula);
+    }
+    safeSetItem('wappy_worker_session', serialized);
+    safeSetItem('wappy_worker_cedula', updated.cedula);
   }, [effectiveCompanyId, session]);
 
   const clearSession = useCallback(() => {
     setSession(null);
     try {
       if (effectiveCompanyId) {
-        localStorage.removeItem(`wappy_worker_session_${effectiveCompanyId}`);
-        localStorage.removeItem(`wappy_worker_cedula_${effectiveCompanyId}`);
+        safeRemoveItem(`wappy_worker_session_${effectiveCompanyId}`);
+        safeRemoveItem(`wappy_worker_cedula_${effectiveCompanyId}`);
       }
-      const rawSession = localStorage.getItem('wappy_worker_session');
+      const rawSession = safeGetItem('wappy_worker_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         if (!effectiveCompanyId || parsed?.companyId === effectiveCompanyId || parsed?.urlCompanyId === effectiveCompanyId) {
-          localStorage.removeItem('wappy_worker_session');
-          localStorage.removeItem('wappy_worker_cedula');
+          safeRemoveItem('wappy_worker_session');
+          safeRemoveItem('wappy_worker_cedula');
         }
       }
     } catch (e) {}

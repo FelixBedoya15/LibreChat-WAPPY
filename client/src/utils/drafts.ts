@@ -1,8 +1,9 @@
 import debounce from 'lodash/debounce';
 import { LocalStorageKeys } from 'librechat-data-provider';
+import { safeGetItem, safeSetItem, safeRemoveItem } from './safeStorage';
 
 export const clearDraft = debounce((id?: string | null) => {
-  localStorage.removeItem(`${LocalStorageKeys.TEXT_DRAFT}${id ?? ''}`);
+  safeRemoveItem(`${LocalStorageKeys.TEXT_DRAFT}${id ?? ''}`);
 }, 2500);
 
 export const encodeBase64 = (plainText: string): string => {
@@ -29,11 +30,11 @@ export const decodeBase64 = (base64String: string): string => {
 
 export const setDraft = ({ id, value }: { id: string; value?: string }) => {
   if (value && value.length > 1) {
-    localStorage.setItem(`${LocalStorageKeys.TEXT_DRAFT}${id}`, encodeBase64(value));
+    safeSetItem(`${LocalStorageKeys.TEXT_DRAFT}${id}`, encodeBase64(value));
     return;
   }
-  localStorage.removeItem(`${LocalStorageKeys.TEXT_DRAFT}${id}`);
+  safeRemoveItem(`${LocalStorageKeys.TEXT_DRAFT}${id}`);
 };
 
 export const getDraft = (id?: string): string | null =>
-  decodeBase64((localStorage.getItem(`${LocalStorageKeys.TEXT_DRAFT}${id ?? ''}`) ?? '') || '');
+  decodeBase64((safeGetItem(`${LocalStorageKeys.TEXT_DRAFT}${id ?? ''}`) ?? '') || '');

@@ -12,6 +12,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { EModelEndpoint, LocalStorageKeys, QueryKeys } from 'librechat-data-provider';
 import type { TConversation, GroupedConversations } from 'librechat-data-provider';
 import type { InfiniteData } from '@tanstack/react-query';
+import { safeGetItem, safeSetItem } from './safeStorage';
 
 // Date group helpers
 export const dateKeys = {
@@ -310,12 +311,17 @@ export function storeEndpointSettings(conversation: TConversation | null) {
   if (!endpoint) {
     return;
   }
-  const lastModel = JSON.parse(localStorage.getItem(LocalStorageKeys.LAST_MODEL) ?? '{}');
+  let lastModel: Record<string, unknown> = {};
+  try {
+    lastModel = JSON.parse(safeGetItem(LocalStorageKeys.LAST_MODEL) ?? '{}') || {};
+  } catch {
+    lastModel = {};
+  }
   lastModel[endpoint] = model;
   if (endpoint === EModelEndpoint.gptPlugins) {
     lastModel.secondaryModel = agentOptions?.model ?? model ?? '';
   }
-  localStorage.setItem(LocalStorageKeys.LAST_MODEL, JSON.stringify(lastModel));
+  safeSetItem(LocalStorageKeys.LAST_MODEL, JSON.stringify(lastModel));
 }
 
 // Add
@@ -461,11 +467,7 @@ export function togglePinnedConvoLocal(conversationId: string, shouldPin: boolea
   }
   const updatedList = Array.from(currentSet);
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-    try {
-      localStorage.setItem(PINNED_CONVOS_STORAGE_KEY, JSON.stringify(updatedList));
-    } catch {
-      // ignore storage quota errors
-    }
+    safeSetItem(PINNED_CONVOS_STORAGE_KEY, JSON.stringify(updatedList));
     window.dispatchEvent(
       new CustomEvent('wappy-pinned-updated', {
         detail: { conversationId: cleanId, isPinned: shouldPin, pinnedIds: updatedList },

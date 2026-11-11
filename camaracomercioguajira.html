@@ -832,7 +832,8 @@
             setupSignatureCanvas();
 
             // Load saved theme on startup
-            const savedTheme = localStorage.getItem('theme');
+            let savedTheme = null;
+            try { savedTheme = localStorage.getItem('theme'); } catch (e) {}
             const htmlElement = document.documentElement;
             if (savedTheme === 'light') {
                 htmlElement.classList.remove('dark');
@@ -846,7 +847,7 @@
             const htmlElement = document.documentElement;
             htmlElement.classList.toggle('dark');
             const isDark = htmlElement.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
         }
 
         // Signature modal functions

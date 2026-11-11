@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExpandableButton from '~/components/Common/ExpandableButton';
@@ -535,8 +536,8 @@ export const GestionCambioWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSaving(true);
     try {
-      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-      localStorage.setItem(`wappy_iso45001_gestion_cambio_${companySuffix}`, JSON.stringify(mocList));
+      const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+      safeSetItem(`wappy_iso45001_gestion_cambio_${companySuffix}`, JSON.stringify(mocList));
 
       if (token) {
         const res = await fetch('/api/sgsst/gestion-cambio/data', {

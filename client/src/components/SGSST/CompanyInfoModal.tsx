@@ -18,6 +18,14 @@ import McpAntigravityModal from './McpAntigravityModal';
 import { PenTool } from 'lucide-react';
 import SingleSelect from './SingleSelect';
 import ExpandingButton from './ExpandingButton';
+import {
+    safeGetItem,
+    safeSetItem,
+    safeRemoveItem,
+    compactSignaturesForStorage,
+    compressLogoDataUrl,
+    compressSignatureDataUrl,
+} from '~/utils/safeStorage';
 
 export interface SedeData {
     nombre: string;
@@ -210,9 +218,49 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         showToastRef.current = showToast;
     }, [showToast]);
 
+    const isDirtyRef = useRef<boolean>(false);
+
+    const persistGlobalLogoSafely = useCallback((logoBase64?: string | null) => {
+        if (!logoBase64) {
+            safeRemoveItem('wappy_sst_global_logo');
+            return;
+        }
+        if (logoBase64.length > 50_000) {
+            compressLogoDataUrl(logoBase64)
+                .then((compressed) => {
+                    safeSetItem('wappy_sst_global_logo', compressed);
+                })
+                .catch(() => {
+                    safeSetItem('wappy_sst_global_logo', logoBase64);
+                });
+        } else {
+            safeSetItem('wappy_sst_global_logo', logoBase64);
+        }
+    }, []);
+
+    const clearCompanyDrafts = useCallback((specificId?: string) => {
+        if (specificId) {
+            safeRemoveItem(`wappy_company_draft_${specificId}`);
+        }
+        safeRemoveItem('wappy_company_draft_new');
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+                for (let i = window.localStorage.length - 1; i >= 0; i--) {
+                    const k = window.localStorage.key(i);
+                    if (k && k.startsWith('wappy_company_draft_')) {
+                        window.localStorage.removeItem(k);
+                    }
+                }
+            } catch {
+                // ignore
+            }
+        }
+    }, []);
+
     const loadCompanies = useCallback(async () => {
         if (!token) return;
         setLoading(true);
+        isDirtyRef.current = false;
         try {
             const res = await fetch('/api/sgsst/company-info/all', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -222,22 +270,22 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 setCompanies(dataArr);
                 const active = dataArr.find(c => c.isActive) || dataArr[0];
                 if (active) {
-                    if (active._id) localStorage.setItem('wappy_active_company_id', active._id);
-                    if (active.companyName) localStorage.setItem('wappy_active_company_name', active.companyName);
-                    if (active.nit) localStorage.setItem('wappy_active_company_nit', active.nit);
-                    if (active.arl) localStorage.setItem('wappy_active_company_arl', active.arl);
-                    if (active.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(active.workerCount));
-                    if (active.riskLevel) localStorage.setItem('wappy_active_company_risk', active.riskLevel);
-                    if (active.logoBase64) localStorage.setItem('wappy_sst_global_logo', active.logoBase64);
-                    if (active.antigravityWorkspace) localStorage.setItem('wappy_active_company_workspace', active.antigravityWorkspace);
+                    if (active._id) safeSetItem('wappy_active_company_id', active._id);
+                    if (active.companyName) safeSetItem('wappy_active_company_name', active.companyName);
+                    if (active.nit) safeSetItem('wappy_active_company_nit', active.nit);
+                    if (active.arl) safeSetItem('wappy_active_company_arl', active.arl);
+                    if (active.workerCount !== undefined) safeSetItem('wappy_active_company_workers', String(active.workerCount));
+                    if (active.riskLevel) safeSetItem('wappy_active_company_risk', active.riskLevel);
+                    if (active.logoBase64) persistGlobalLogoSafely(active.logoBase64);
+                    if (active.antigravityWorkspace) safeSetItem('wappy_active_company_workspace', active.antigravityWorkspace);
                 }
                 
                 const draftKey = `wappy_company_draft_${active._id || 'new'}`;
-                const draftStr = localStorage.getItem(draftKey);
+                const draftStr = safeGetItem(draftKey);
                 if (draftStr) {
                     try {
                         const parsed = JSON.parse(draftStr);
-                        setData(parsed);
+                        setData({ ...active, ...parsed });
                     } catch (e) {
                         setData(active);
                     }
@@ -248,11 +296,11 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             } else {
                 setCompanies([]);
                 const draftKey = `wappy_company_draft_new`;
-                const draftStr = localStorage.getItem(draftKey);
+                const draftStr = safeGetItem(draftKey);
                 if (draftStr) {
                     try {
                         const parsed = JSON.parse(draftStr);
-                        setData(parsed);
+                        setData({ ...INITIAL_DATA, ...parsed });
                     } catch (e) {
                         setData(INITIAL_DATA);
                     }
@@ -265,7 +313,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         } finally {
             setLoading(false);
         }
-    }, [token]);
+    }, [token, persistGlobalLogoSafely]);
 
     useEffect(() => {
         if (isOpen) {
@@ -275,9 +323,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     }, [isOpen, loadCompanies, loadPlanLimit]);
 
     useEffect(() => {
-        if (loading) return;
+        if (loading || !isDirtyRef.current) return;
         
         const timer = setTimeout(() => {
+            if (!isDirtyRef.current) return;
             const isInitial = Object.keys(INITIAL_DATA).every(key => {
                 const val = data[key as keyof CompanyInfoData];
                 const initVal = INITIAL_DATA[key as keyof CompanyInfoData];
@@ -289,8 +338,16 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             
             if (isInitial) return;
 
+            const draftPayload: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(data)) {
+                if (typeof v === 'string' && v.length > 50_000) {
+                    continue;
+                }
+                draftPayload[k] = v;
+            }
+
             const draftKey = `wappy_company_draft_${data._id || 'new'}`;
-            localStorage.setItem(draftKey, JSON.stringify(data));
+            safeSetItem(draftKey, JSON.stringify(draftPayload));
         }, 1000);
 
         return () => clearTimeout(timer);
@@ -298,9 +355,12 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
 
     function syncSignaturesToLocal(info: CompanyInfoData) {
         try {
-            const activeCompanyId = info._id || localStorage.getItem('wappy_active_company_id') || 'default';
+            const activeCompanyId = info._id || safeGetItem('wappy_active_company_id') || 'default';
             const sigKey = `wappy_signatures_${activeCompanyId}`;
-            const namedSigsStr = localStorage.getItem(sigKey) || localStorage.getItem('wappy_signatures');
+            const namedSigsStr =
+                activeCompanyId !== 'default'
+                    ? safeGetItem(sigKey)
+                    : safeGetItem(sigKey) || safeGetItem('wappy_signatures');
             const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
             let updated = false;
 
@@ -314,17 +374,19 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             }
 
             if (updated) {
-                localStorage.setItem(sigKey, JSON.stringify(namedSignatures));
+                safeSetItem(sigKey, JSON.stringify(compactSignaturesForStorage(namedSignatures)));
                 window.dispatchEvent(new Event('storage'));
             }
         } catch (err) { }
     };
 
     const handleChange = useCallback((field: keyof CompanyInfoData, value: string | number | null) => {
+        isDirtyRef.current = true;
         setData(prev => ({ ...prev, [field]: value }));
     }, []);
 
     const handleAddSede = useCallback(() => {
+        isDirtyRef.current = true;
         setData(prev => ({
             ...prev,
             sedes: [...(Array.isArray(prev.sedes) ? prev.sedes : []), { nombre: '', address: '', city: '', departamento: '', phone: '', email: '', generalActivities: '' }]
@@ -332,6 +394,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     }, []);
 
     const handleSedeChange = useCallback((index: number, field: keyof SedeData, value: string) => {
+        isDirtyRef.current = true;
         setData(prev => {
             const newSedes = [...(Array.isArray(prev.sedes) ? prev.sedes : [])];
             newSedes[index] = { ...newSedes[index], [field]: value };
@@ -340,31 +403,34 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     }, []);
 
     const handleRemoveSede = useCallback((index: number) => {
+        isDirtyRef.current = true;
         setData(prev => ({
             ...prev,
             sedes: (Array.isArray(prev.sedes) ? prev.sedes : []).filter((_, i) => i !== index)
         }));
     }, []);
 
-    const handleFirmaUpload = useCallback((field: 'legalRepSignature' | 'sstRespSignature', e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFirmaUpload = useCallback(async (field: 'legalRepSignature' | 'sstRespSignature', e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (readerEvent) => {
-                handleChange(field, readerEvent.target?.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
         e.target.value = '';
+        if (file) {
+            try {
+                const compressed = await compressSignatureDataUrl(file);
+                handleChange(field, compressed);
+            } catch (err) {
+                console.error('Error compressing signature:', err);
+            }
+        }
     }, [handleChange]);
 
     const handleSelectCompany = (comp: CompanyInfoData) => {
+        isDirtyRef.current = false;
         const draftKey = `wappy_company_draft_${comp._id || 'new'}`;
-        const draftStr = localStorage.getItem(draftKey);
+        const draftStr = safeGetItem(draftKey);
         if (draftStr) {
             try {
                 const parsed = JSON.parse(draftStr);
-                setData(parsed);
+                setData({ ...comp, ...parsed });
             } catch (e) {
                 setData(comp);
             }
@@ -374,8 +440,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     };
 
     const handleNewCompany = () => {
+        isDirtyRef.current = false;
         const draftKey = `wappy_company_draft_new`;
-        localStorage.removeItem(draftKey);
+        safeRemoveItem(draftKey);
         setData({ ...INITIAL_DATA, workerCount: 0 });
     };
 
@@ -435,6 +502,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
+                isDirtyRef.current = false;
                 showToast({ message: 'Empresa activada correctamente. Recargando el sistema...', status: 'success' });
                 // Limpiar drafts en localStorage que puedan contaminar entre empresas
                 const keysToRemove = [
@@ -448,22 +516,17 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     'wappy_matriz_legal_custom_items',
                     'wappy_company_draft_new',
                 ];
-                keysToRemove.forEach(k => {
-                    try { localStorage.removeItem(k); } catch (e) {}
-                });
+                keysToRemove.forEach(k => safeRemoveItem(k));
+                clearCompanyDrafts(id);
                 const activated = companies.find(c => c._id === id);
                 if (activated) {
-                    localStorage.setItem('wappy_active_company_id', id);
-                    if (activated.companyName) localStorage.setItem('wappy_active_company_name', activated.companyName);
-                    if (activated.nit) localStorage.setItem('wappy_active_company_nit', activated.nit);
-                    if (activated.arl) localStorage.setItem('wappy_active_company_arl', activated.arl);
-                    if (activated.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(activated.workerCount));
-                    if (activated.riskLevel) localStorage.setItem('wappy_active_company_risk', activated.riskLevel);
-                    if (activated.logoBase64) {
-                        localStorage.setItem('wappy_sst_global_logo', activated.logoBase64);
-                    } else {
-                        localStorage.removeItem('wappy_sst_global_logo');
-                    }
+                    safeSetItem('wappy_active_company_id', id);
+                    if (activated.companyName) safeSetItem('wappy_active_company_name', activated.companyName);
+                    if (activated.nit) safeSetItem('wappy_active_company_nit', activated.nit);
+                    if (activated.arl) safeSetItem('wappy_active_company_arl', activated.arl);
+                    if (activated.workerCount !== undefined) safeSetItem('wappy_active_company_workers', String(activated.workerCount));
+                    if (activated.riskLevel) safeSetItem('wappy_active_company_risk', activated.riskLevel);
+                    persistGlobalLogoSafely(activated.logoBase64);
                     const evtDetail = {
                         companyId: id,
                         empresaId: id,
@@ -503,28 +566,24 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             });
             
             if (res.ok) {
+                isDirtyRef.current = false;
                 const savedCompany = await res.json().catch(() => null);
                 const resolvedId = savedCompany?._id || data._id;
                 showToast({ message: 'Información de la empresa guardada', status: 'success', severity: 'success' });
-                const draftKey = `wappy_company_draft_${data._id || 'new'}`;
-                localStorage.removeItem(draftKey);
+                clearCompanyDrafts(resolvedId || data._id || 'new');
 
                 if (isNew || savedCompany?.isActive || data.isActive || companies.length === 0 || companies.find(c => c._id === data._id)?.isActive) {
                     if (resolvedId) {
-                        localStorage.setItem('wappy_active_company_id', resolvedId);
+                        safeSetItem('wappy_active_company_id', resolvedId);
                         syncSignaturesToLocal({ ...data, _id: resolvedId });
                     }
-                    if (data.companyName) localStorage.setItem('wappy_active_company_name', data.companyName);
-                    if (data.nit) localStorage.setItem('wappy_active_company_nit', data.nit);
-                    if (data.arl) localStorage.setItem('wappy_active_company_arl', data.arl);
-                    if (data.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(data.workerCount));
-                    if (data.riskLevel) localStorage.setItem('wappy_active_company_risk', data.riskLevel);
+                    if (data.companyName) safeSetItem('wappy_active_company_name', data.companyName);
+                    if (data.nit) safeSetItem('wappy_active_company_nit', data.nit);
+                    if (data.arl) safeSetItem('wappy_active_company_arl', data.arl);
+                    if (data.workerCount !== undefined) safeSetItem('wappy_active_company_workers', String(data.workerCount));
+                    if (data.riskLevel) safeSetItem('wappy_active_company_risk', data.riskLevel);
 
-                    if (data.logoBase64) {
-                        localStorage.setItem('wappy_sst_global_logo', data.logoBase64);
-                    } else {
-                        localStorage.removeItem('wappy_sst_global_logo');
-                    }
+                    persistGlobalLogoSafely(data.logoBase64);
 
                     if (isNew) {
                         const keysToRemove = [
@@ -538,9 +597,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             'wappy_matriz_legal_custom_items',
                             'wappy_company_draft_new',
                         ];
-                        keysToRemove.forEach(k => {
-                            try { localStorage.removeItem(k); } catch (e) {}
-                        });
+                        keysToRemove.forEach(k => safeRemoveItem(k));
                         try { sessionStorage.clear(); } catch {}
                     }
 
@@ -560,7 +617,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         } finally {
             setSaving(false);
         }
-    }, [data, token, showToast, loadCompanies, companies]);
+    }, [data, token, showToast, loadCompanies, companies, clearCompanyDrafts, persistGlobalLogoSafely]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -577,7 +634,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         if (!isOpen) return;
 
         const handleEmpresaCambiada = (e: any) => {
-            const { companyId, companyData } = e.detail || {};
+            isDirtyRef.current = false;
+            const { companyData } = e.detail || {};
             if (companyData) {
                 setData(companyData);
             }
@@ -599,6 +657,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             if (detail.formulario && !['empresa', 'company', 'perfil_empresa', 'company_info'].includes(detail.formulario)) {
                 return;
             }
+            isDirtyRef.current = true;
             setData(prev => ({ ...prev, ...campos }));
         };
 
@@ -938,16 +997,17 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                 ref={fileInputRef}
                                                 type="file" 
                                                 accept="image/*" 
-                                                onChange={(e) => {
+                                                onChange={async (e) => {
                                                     const file = e.target.files?.[0];
-                                                    if (file) {
-                                                        const reader = new FileReader();
-                                                        reader.onload = (readerEvent) => {
-                                                            handleChange('logoBase64', readerEvent.target?.result as string);
-                                                        };
-                                                        reader.readAsDataURL(file);
-                                                    }
                                                     e.target.value = '';
+                                                    if (file) {
+                                                        try {
+                                                            const compressed = await compressLogoDataUrl(file);
+                                                            handleChange('logoBase64', compressed);
+                                                        } catch (err) {
+                                                            console.error('Error compressing logo:', err);
+                                                        }
+                                                    }
                                                 }} 
                                                 className="hidden" 
                                             />
@@ -1469,8 +1529,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         <div id="btn-cancelar-empresa" data-action="cancelar-empresa">
                             <ExpandingButton
                                 onClick={() => {
+                                    isDirtyRef.current = false;
                                     const draftKey = `wappy_company_draft_${data._id || 'new'}`;
-                                    localStorage.removeItem(draftKey);
+                                    safeRemoveItem(draftKey);
                                     onClose();
                                 }}
                                 icon={X}

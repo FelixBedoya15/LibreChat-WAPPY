@@ -1062,6 +1062,47 @@
     <!-- SCRIPT DE FUNCIONALIDAD COMPLETA -->
     <script>
         // Inicializar Lucide Icons
+        function safeSimGetStorage(key) {
+            try { return localStorage.getItem(key); } catch (e) { console.warn('localStorage.getItem blocked:', e); return null; }
+        }
+        function safeSimSetStorage(key, value) {
+            try { localStorage.setItem(key, value); return true; } catch (e) { console.warn('localStorage.setItem blocked:', e); return false; }
+        }
+        function compressSimulacroLogo(file, maxW, maxH) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxW / w0, maxH / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const ctx = c.getContext('2d');
+                            if (!ctx) { resolve(rawUrl); return; }
+                            ctx.clearRect(0, 0, cw, ch);
+                            ctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL('image/webp', 0.85);
+                            if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/png');
+                            resolve(out);
+                        } catch (err) { resolve(rawUrl); }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) {
                 lucide.createIcons();
@@ -1071,7 +1112,7 @@
             updateChecklistProgress();
             
             // Cargar key almacenada
-            const savedKey = localStorage.getItem('wappy_gemini_key');
+            const savedKey = safeSimGetStorage('wappy_gemini_key');
             if (savedKey) {
                 const keyInput = document.getElementById('gemini-api-key');
                 if (keyInput) keyInput.value = savedKey;
@@ -1098,9 +1139,9 @@
         // Alternar Modo Oscuro
         function toggleDarkMode() {
             document.documentElement.classList.toggle('dark');
-            localStorage.setItem('wappy_dark_mode', document.documentElement.classList.contains('dark') ? '1' : '0');
+            safeSimSetStorage('wappy_dark_mode', document.documentElement.classList.contains('dark') ? '1' : '0');
         }
-        if (localStorage.getItem('wappy_dark_mode') === '1') {
+        if (safeSimGetStorage('wappy_dark_mode') === '1') {
             document.documentElement.classList.add('dark');
         }
 
@@ -1345,19 +1386,18 @@
 
         // MANEJO DE LOGO INSTITUCIONAL
         function handleLogoUpload(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
+            if (input && input.files && input.files[0]) {
+                compressSimulacroLogo(input.files[0], 420, 420).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = document.getElementById('logo-preview-img');
                     const placeholder = document.getElementById('logo-placeholder-icon');
                     if (img && placeholder) {
-                        img.src = e.target.result;
+                        img.src = compressedUrl;
                         img.classList.remove('hidden');
                         placeholder.classList.add('hidden');
-                        localStorage.setItem('wappy_simulacro_logo', e.target.result);
+                        safeSimSetStorage('wappy_simulacro_logo', compressedUrl);
                     }
-                };
-                reader.readAsDataURL(input.files[0]);
+                });
             }
         }
 
@@ -1377,7 +1417,7 @@
                     calcRealSegundos: document.getElementById('calc-real-segundos')?.value,
                     checklist: Array.from(document.querySelectorAll('.chk-item')).map(c => c.checked)
                 };
-                localStorage.setItem('wappy_simulacro_data', JSON.stringify(data));
+                safeSimSetStorage('wappy_simulacro_data', JSON.stringify(data));
             } catch (e) {
                 console.warn('Storage saving failed:', e);
             }
@@ -1386,7 +1426,7 @@
         // CARGAR DATOS DESDE LOCALSTORAGE
         function loadData() {
             try {
-                const logo = localStorage.getItem('wappy_simulacro_logo');
+                const logo = safeSimGetStorage('wappy_simulacro_logo');
                 if (logo) {
                     const img = document.getElementById('logo-preview-img');
                     const placeholder = document.getElementById('logo-placeholder-icon');
@@ -1397,7 +1437,7 @@
                     }
                 }
 
-                const raw = localStorage.getItem('wappy_simulacro_data');
+                const raw = safeSimGetStorage('wappy_simulacro_data');
                 if (!raw) return;
                 const data = JSON.parse(raw);
 
@@ -1472,7 +1512,9 @@
             chatBox.scrollTop = chatBox.scrollHeight;
             if (window.lucide) lucide.createIcons();
 
-            const apiKey = document.getElementById('gemini-api-key')?.value || localStorage.getItem('wappy_gemini_key');
+            const enteredKey = document.getElementById('gemini-api-key')?.value?.trim();
+            if (enteredKey) safeSimSetStorage('wappy_gemini_key', enteredKey);
+            const apiKey = enteredKey || safeSimGetStorage('wappy_gemini_key');
             const model = document.getElementById('gemini-model-select')?.value || 'gemini-2.5-flash';
 
             if (!apiKey) {

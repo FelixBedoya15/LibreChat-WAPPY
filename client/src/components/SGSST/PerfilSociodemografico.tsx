@@ -33,6 +33,12 @@ import SignaturePad from '~/components/SGSST/SignaturePad';
 import SubUserManagerModal from '~/components/SGSST/SubUserManagerModal';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
+import {
+    safeGetItem,
+    safeSetItem,
+    compactSignaturesForStorage,
+    compressSignatureDataUrl,
+} from '~/utils/safeStorage';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
@@ -332,9 +338,12 @@ const PerfilSociodemografico = () => {
     // ─── Sync Signatures ────────────────────────────────────────
     const syncWorkersSignaturesToStorage = (workers: WorkerEntry[], companyIdOverride?: string) => {
         try {
-            const companyId = companyIdOverride || localStorage.getItem('wappy_active_company_id') || 'default';
+            const companyId = companyIdOverride || safeGetItem('wappy_active_company_id') || 'default';
             const sigKey = `wappy_signatures_${companyId}`;
-            const namedSigsStr = localStorage.getItem(sigKey) || localStorage.getItem('wappy_signatures');
+            const namedSigsStr =
+                companyId !== 'default'
+                    ? safeGetItem(sigKey)
+                    : safeGetItem(sigKey) || safeGetItem('wappy_signatures');
             const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
             let updated = false;
 
@@ -346,7 +355,7 @@ const PerfilSociodemografico = () => {
             }
 
             if (updated) {
-                localStorage.setItem(sigKey, JSON.stringify(namedSignatures));
+                safeSetItem(sigKey, JSON.stringify(compactSignaturesForStorage(namedSignatures)));
                 window.dispatchEvent(new Event('storage'));
             }
         } catch (e) {
@@ -613,14 +622,16 @@ const PerfilSociodemografico = () => {
         }));
     };
 
-    const handleFirmaUpload = (workerId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFirmaUpload = async (workerId: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        e.target.value = '';
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (readerEvent) => {
-                updateWorkerField(workerId, 'firmaDigital', readerEvent.target?.result);
-            };
-            reader.readAsDataURL(file);
+            try {
+                const compressed = await compressSignatureDataUrl(file);
+                updateWorkerField(workerId, 'firmaDigital', compressed);
+            } catch (err) {
+                console.error('Error compressing worker signature:', err);
+            }
         }
     };
 

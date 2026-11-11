@@ -1201,6 +1201,30 @@ Como parte de la investigación, el equipo formuló acciones correctivas y de me
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) delete parsed.appDocHeader.logoBase64;
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) delete parsed.currentWizard.signatures[sigKey];
+                                    });
+                                }
+                            }
+                            try { localStorage.setItem(key, JSON.stringify(parsed)); return; } catch (retryErr) {
+                                if (parsed.currentWizard) parsed.currentWizard.signatures = {};
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) { console.warn("localStorage.setItem fallback failed:", fallbackErr); }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }

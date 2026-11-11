@@ -6,6 +6,7 @@ import { useAvailablePluginsQuery } from 'librechat-data-provider/react-query';
 import type { TStartupConfig, TPlugin, TUser } from 'librechat-data-provider';
 import { mapPlugins, selectPlugins, processPlugins } from '~/utils';
 import { cleanupTimestampedStorage } from '~/utils/timestamps';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import useSpeechSettingsInit from './useSpeechSettingsInit';
 import { useMCPToolsQuery } from '~/data-provider';
 import store from '~/store';
@@ -52,7 +53,7 @@ export default function useAppStartup({
       return;
     }
     document.title = appTitle;
-    localStorage.setItem(LocalStorageKeys.APP_TITLE, appTitle);
+    safeSetItem(LocalStorageKeys.APP_TITLE, appTitle);
   }, [startupConfig]);
 
   /** Set the default spec's preset as default */
@@ -102,17 +103,23 @@ export default function useAppStartup({
       .filter((el: TPlugin | undefined): el is TPlugin => el !== undefined);
 
     /* Filter Last Selected Tools */
-    const localStorageItem = localStorage.getItem(LocalStorageKeys.LAST_TOOLS) ?? '';
+    const localStorageItem = safeGetItem(LocalStorageKeys.LAST_TOOLS) ?? '';
     if (!localStorageItem) {
       return setAvailableTools({ pluginStore, ...mapPlugins(tools) });
     }
-    const lastSelectedTools = processPlugins(JSON.parse(localStorageItem) ?? [], allPlugins.map);
+    let parsedLastTools: unknown = [];
+    try {
+      parsedLastTools = JSON.parse(localStorageItem) ?? [];
+    } catch {
+      parsedLastTools = [];
+    }
+    const lastSelectedTools = processPlugins(Array.isArray(parsedLastTools) ? parsedLastTools : [], allPlugins.map);
     const filteredTools = lastSelectedTools
       .filter((tool: TPlugin) =>
         tools.some((existingTool) => existingTool.pluginKey === tool.pluginKey),
       )
       .filter((tool: TPlugin | undefined) => !!tool);
-    localStorage.setItem(LocalStorageKeys.LAST_TOOLS, JSON.stringify(filteredTools));
+    safeSetItem(LocalStorageKeys.LAST_TOOLS, JSON.stringify(filteredTools));
 
     setAvailableTools({ pluginStore, ...mapPlugins(tools) });
   }, [allPlugins, user, setAvailableTools]);

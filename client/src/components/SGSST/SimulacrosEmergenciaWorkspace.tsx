@@ -21,6 +21,7 @@ import SGSSTLegalBadge from './SGSSTLegalBadge';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 const SimulacrosEmergenciaWorkspace: React.FC = () => {
   const { token, user } = useAuthContext();
@@ -53,8 +54,8 @@ const SimulacrosEmergenciaWorkspace: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const loadSimulacrosDraft = useCallback(() => {
-    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-    const raw = localStorage.getItem(`wappy_simulacros_emergencia_draft_${companySuffix}`);
+    const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+    const raw = safeGetItem(`wappy_simulacros_emergencia_draft_${companySuffix}`);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -91,8 +92,8 @@ const SimulacrosEmergenciaWorkspace: React.FC = () => {
   const handleSaveLocal = () => {
     setIsSavingLocal(true);
     setTimeout(() => {
-      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-      localStorage.setItem(`wappy_simulacros_emergencia_draft_${companySuffix}`, JSON.stringify(simulacros));
+      const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+      safeSetItem(`wappy_simulacros_emergencia_draft_${companySuffix}`, JSON.stringify(simulacros));
       setIsSavingLocal(false);
       showToast({
         message: 'Registro de Simulacros guardado localmente',

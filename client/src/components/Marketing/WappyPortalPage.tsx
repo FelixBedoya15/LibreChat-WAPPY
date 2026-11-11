@@ -12,6 +12,7 @@ import InstagramFollowGateModal, {
 } from '~/components/WappyApps/InstagramFollowGateModal';
 import { useAuthContext } from '~/hooks';
 import { hasActivePlan } from '~/utils/planAccess';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import './marketing.css';
 
 interface WappyAppCardItem {
@@ -60,7 +61,7 @@ export default function WappyPortalPage() {
   const isPreviewAdmin =
     typeof window !== 'undefined' &&
     (new URLSearchParams(window.location.search).get('admin') === '1' ||
-      localStorage.getItem('wappy_dots_admin') === '1');
+      safeGetItem('wappy_dots_admin') === '1');
   const isAdmin = isContextAdmin || serverAdminVerified || isPreviewAdmin;
 
   useEffect(() => {
@@ -112,7 +113,7 @@ export default function WappyPortalPage() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('wappy_theme_mode', isDarkMode ? 'dark' : 'light');
+      safeSetItem('wappy_theme_mode', isDarkMode ? 'dark' : 'light');
       if (isDarkMode) {
         document.documentElement.classList.add('dark');
       } else {

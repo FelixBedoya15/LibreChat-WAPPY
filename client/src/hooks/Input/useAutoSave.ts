@@ -5,6 +5,7 @@ import { LocalStorageKeys, Constants } from 'librechat-data-provider';
 import type { TFile } from 'librechat-data-provider';
 import type { ExtendedFile } from '~/common';
 import { clearDraft, getDraft, setDraft } from '~/utils';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '~/utils/safeStorage';
 import { useChatFormContext } from '~/Providers';
 import { useGetFiles } from '~/data-provider';
 import store from '~/store';
@@ -173,28 +174,28 @@ export const useAutoSave = ({
         conversationId !== Constants.PENDING_CONVO &&
         conversationId.length > 3
       ) {
-        const pendingDraft = localStorage.getItem(
+        const pendingDraft = safeGetItem(
           `${LocalStorageKeys.TEXT_DRAFT}${Constants.PENDING_CONVO}`,
         );
 
         // Clear the pending text draft, if it exists, and save the current draft to the new conversationId;
         // otherwise, save the current text area value to the new conversationId
-        localStorage.removeItem(`${LocalStorageKeys.TEXT_DRAFT}${Constants.PENDING_CONVO}`);
+        safeRemoveItem(`${LocalStorageKeys.TEXT_DRAFT}${Constants.PENDING_CONVO}`);
         if (pendingDraft) {
-          localStorage.setItem(`${LocalStorageKeys.TEXT_DRAFT}${conversationId}`, pendingDraft);
+          safeSetItem(`${LocalStorageKeys.TEXT_DRAFT}${conversationId}`, pendingDraft);
         } else if (textAreaRef?.current?.value) {
           setDraft({ id: conversationId, value: textAreaRef.current.value });
         }
-        const pendingFileDraft = localStorage.getItem(
+        const pendingFileDraft = safeGetItem(
           `${LocalStorageKeys.FILES_DRAFT}${Constants.PENDING_CONVO}`,
         );
 
         if (pendingFileDraft) {
-          localStorage.setItem(
+          safeSetItem(
             `${LocalStorageKeys.FILES_DRAFT}${conversationId}`,
             pendingFileDraft,
           );
-          localStorage.removeItem(`${LocalStorageKeys.FILES_DRAFT}${Constants.PENDING_CONVO}`);
+          safeRemoveItem(`${LocalStorageKeys.FILES_DRAFT}${Constants.PENDING_CONVO}`);
           const filesDraft = JSON.parse(pendingFileDraft || '[]') as string[];
           if (filesDraft.length > 0) {
             restoreFiles(conversationId);
@@ -239,9 +240,9 @@ export const useAutoSave = ({
     }
 
     if (fileIds.length === 0) {
-      localStorage.removeItem(`${LocalStorageKeys.FILES_DRAFT}${conversationId}`);
+      safeRemoveItem(`${LocalStorageKeys.FILES_DRAFT}${conversationId}`);
     } else {
-      localStorage.setItem(
+      safeSetItem(
         `${LocalStorageKeys.FILES_DRAFT}${conversationId}`,
         JSON.stringify(fileIds),
       );

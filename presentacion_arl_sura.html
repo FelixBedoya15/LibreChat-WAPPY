@@ -830,15 +830,16 @@
             const html = document.documentElement;
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
+                try { localStorage.setItem('theme', 'light'); } catch (e) {}
             } else {
                 html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
+                try { localStorage.setItem('theme', 'dark'); } catch (e) {}
             }
         }
 
         // Apply saved theme on load
-        const savedTheme = localStorage.getItem('theme');
+        let savedTheme = null;
+        try { savedTheme = localStorage.getItem('theme'); } catch (e) {}
         if (savedTheme === 'light') {
             document.documentElement.classList.remove('dark');
         } else {

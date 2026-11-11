@@ -26,6 +26,7 @@ import { exportModuleDataToExcel } from './columnMapperEngine';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 const EquiposEmergenciaWorkspace: React.FC = () => {
   const { token, user } = useAuthContext();
@@ -169,8 +170,8 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
   };
 
   const loadEquiposDraft = useCallback(() => {
-    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-    const raw = localStorage.getItem(`wappy_equipos_emergencia_draft_${companySuffix}`);
+    const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+    const raw = safeGetItem(`wappy_equipos_emergencia_draft_${companySuffix}`);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -206,8 +207,8 @@ const EquiposEmergenciaWorkspace: React.FC = () => {
   const handleSaveLocal = () => {
     setIsSavingLocal(true);
     setTimeout(() => {
-      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-      localStorage.setItem(`wappy_equipos_emergencia_draft_${companySuffix}`, JSON.stringify(equipos));
+      const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+      safeSetItem(`wappy_equipos_emergencia_draft_${companySuffix}`, JSON.stringify(equipos));
       setIsSavingLocal(false);
       showToast({
         message: 'Inventario de equipos de emergencia guardado localmente',

@@ -9,6 +9,7 @@ import {
 } from 'librechat-data-provider';
 import type * as t from 'librechat-data-provider';
 import type { LocalizeFunction, IconsRecord } from '~/common';
+import { safeGetItem, safeSetItem } from './safeStorage';
 
 export const getEntityName = ({
   name = '',
@@ -99,20 +100,27 @@ export function updateLastSelectedModel({
     return;
   }
   /* Note: an empty string value is possible */
-  const lastConversationSetup = JSON.parse(
-    (localStorage.getItem(firstLocalConvoKey) ?? '{}') || '{}',
-  );
+  let lastConversationSetup: Record<string, unknown> = {};
+  try {
+    lastConversationSetup = JSON.parse((safeGetItem(firstLocalConvoKey) ?? '{}') || '{}') || {};
+  } catch {
+    lastConversationSetup = {};
+  }
 
   if (lastConversationSetup.endpoint === endpoint) {
     lastConversationSetup.model = model;
-    localStorage.setItem(firstLocalConvoKey, JSON.stringify(lastConversationSetup));
+    safeSetItem(firstLocalConvoKey, JSON.stringify(lastConversationSetup));
   }
 
-  const lastSelectedModels = JSON.parse(
-    (localStorage.getItem(LocalStorageKeys.LAST_MODEL) ?? '{}') || '{}',
-  );
+  let lastSelectedModels: Record<string, unknown> = {};
+  try {
+    lastSelectedModels =
+      JSON.parse((safeGetItem(LocalStorageKeys.LAST_MODEL) ?? '{}') || '{}') || {};
+  } catch {
+    lastSelectedModels = {};
+  }
   lastSelectedModels[endpoint] = model;
-  localStorage.setItem(LocalStorageKeys.LAST_MODEL, JSON.stringify(lastSelectedModels));
+  safeSetItem(LocalStorageKeys.LAST_MODEL, JSON.stringify(lastSelectedModels));
 }
 
 interface ConversationInitParams {

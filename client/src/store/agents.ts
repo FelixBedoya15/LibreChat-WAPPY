@@ -2,6 +2,33 @@ import { Constants } from 'librechat-data-provider';
 import { atomFamily, useRecoilCallback } from 'recoil';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { logger } from '~/utils';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '~/utils/safeStorage';
+
+const MAX_EPHEMERAL_AGENTS = 25;
+
+function pruneExcessEphemeralAgents(preserveKey: string) {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+  try {
+    const ephKeys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith('ephemeralAgent__') && !k.endsWith('_TIMESTAMP') && k !== preserveKey) {
+        ephKeys.push(k);
+      }
+    }
+    if (ephKeys.length >= MAX_EPHEMERAL_AGENTS) {
+      const evictCount = ephKeys.length - (MAX_EPHEMERAL_AGENTS - 1);
+      for (let i = 0; i < evictCount; i++) {
+        safeRemoveItem(ephKeys[i]);
+        safeRemoveItem(`${ephKeys[i]}_TIMESTAMP`);
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
 
 export const ephemeralAgentByConvoId = atomFamily<TEphemeralAgent | null, string>({
   key: 'ephemeralAgentByConvoId',
@@ -13,7 +40,7 @@ export const ephemeralAgentByConvoId = atomFamily<TEphemeralAgent | null, string
       const storageKey = `ephemeralAgent__${convoKey}`;
 
       if (!isNewConvo && typeof window !== 'undefined') {
-        const savedValue = localStorage.getItem(storageKey);
+        const savedValue = safeGetItem(storageKey);
         if (savedValue != null) {
           try {
             setSelf(JSON.parse(savedValue));
@@ -29,9 +56,10 @@ export const ephemeralAgentByConvoId = atomFamily<TEphemeralAgent | null, string
         if (isNewConvo || typeof window === 'undefined') return;
 
         if (isReset || newValue === null) {
-          localStorage.removeItem(storageKey);
+          safeRemoveItem(storageKey);
         } else {
-          localStorage.setItem(storageKey, JSON.stringify(newValue));
+          pruneExcessEphemeralAgents(storageKey);
+          safeSetItem(storageKey, JSON.stringify(newValue));
         }
       });
     },

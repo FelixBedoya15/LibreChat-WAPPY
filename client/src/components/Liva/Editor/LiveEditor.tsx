@@ -39,6 +39,13 @@ import {
 import { useLocalize } from '~/hooks';
 import { useAuthContext } from '~/hooks/AuthContext';
 import SignaturePad from '~/components/SGSST/SignaturePad';
+import {
+  safeGetItem,
+  safeSetItem,
+  compactSignaturesForStorage,
+  compressPhotoDataUrl,
+  compressSignatureDataUrl,
+} from '~/utils/safeStorage';
 
 interface LiveEditorProps {
   initialContent: string;
@@ -275,22 +282,40 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       return () => document.removeEventListener('fullscreenchange', updatePortal);
     }, []);
 
+    const signaturesCompanyIdRef = useRef<string>(
+      safeGetItem('wappy_active_company_id') || 'default',
+    );
+    const signaturesHydratedRef = useRef<boolean>(false);
+    const sigFetchReqIdRef = useRef<number>(0);
+
     const getCompanySignaturesKey = () => {
-      const companyId = localStorage.getItem('wappy_active_company_id') || 'default';
+      const companyId = safeGetItem('wappy_active_company_id') || 'default';
       return `wappy_signatures_${companyId}`;
     };
 
     useEffect(() => {
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
       const loadCompanySignatures = () => {
-        const sigKey = getCompanySignaturesKey();
-        const namedSigsStr = localStorage.getItem(sigKey) || localStorage.getItem('wappy_signatures');
+        const companyId = safeGetItem('wappy_active_company_id') || 'default';
+        const sigKey = `wappy_signatures_${companyId}`;
+        signaturesCompanyIdRef.current = companyId;
+
+        const namedSigsStr =
+          companyId !== 'default'
+            ? safeGetItem(sigKey)
+            : safeGetItem(sigKey) || safeGetItem('wappy_signatures');
+
         let initialNamed: Record<string, string> = {};
         if (namedSigsStr) {
           try {
-            initialNamed = JSON.parse(namedSigsStr);
+            const parsed = JSON.parse(namedSigsStr);
+            if (parsed && typeof parsed === 'object') {
+              initialNamed = parsed;
+            }
           } catch (e) {}
-        } else {
-          const oldSigsStr = localStorage.getItem('sgsst_signatures');
+        } else if (companyId === 'default') {
+          const oldSigsStr = safeGetItem('sgsst_signatures');
           if (oldSigsStr) {
             try {
               const parsed = JSON.parse(oldSigsStr);
@@ -302,32 +327,56 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
             } catch (e) {}
           }
         }
+
+        signaturesHydratedRef.current = true;
         setNamedSignatures(initialNamed);
-        // Also fetch from backend for mobile/cross-device syncing
+
+        // Fetch from backend scoped to active company (never call localStorage.setItem inside setState)
         if (token) {
-          fetch('/api/sgsst/signatures', {
+          const reqId = ++sigFetchReqIdRef.current;
+          fetch(`/api/sgsst/signatures?companyId=${encodeURIComponent(companyId)}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
             .then((res) => res.json())
             .then((data) => {
-              if (data.signatures && Object.keys(data.signatures).length > 0) {
-                setNamedSignatures((prev) => {
-                  const merged = { ...prev, ...data.signatures };
-                  localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(merged));
-                  return merged;
-                });
+              const currentActiveId = safeGetItem('wappy_active_company_id') || 'default';
+              if (reqId !== sigFetchReqIdRef.current || currentActiveId !== companyId) {
+                return;
+              }
+              if (
+                data?.companyId &&
+                companyId !== 'default' &&
+                String(data.companyId) !== companyId
+              ) {
+                return;
+              }
+              if (data?.signatures && typeof data.signatures === 'object' && Object.keys(data.signatures).length > 0) {
+                setNamedSignatures((prev) => ({
+                  ...(signaturesCompanyIdRef.current === companyId ? prev : {}),
+                  ...data.signatures,
+                }));
               }
             })
             .catch((err) => console.error('Error fetching signatures for sync:', err));
         }
       };
 
+      const scheduleLoadCompanySignatures = () => {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+        debounceTimer = setTimeout(loadCompanySignatures, 80);
+      };
+
       loadCompanySignatures();
-      window.addEventListener('wappy-company-changed', loadCompanySignatures);
-      window.addEventListener('wappy-empresa-cambiada', loadCompanySignatures);
+      window.addEventListener('wappy-company-changed', scheduleLoadCompanySignatures);
+      window.addEventListener('wappy-empresa-cambiada', scheduleLoadCompanySignatures);
       return () => {
-        window.removeEventListener('wappy-company-changed', loadCompanySignatures);
-        window.removeEventListener('wappy-empresa-cambiada', loadCompanySignatures);
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+        window.removeEventListener('wappy-company-changed', scheduleLoadCompanySignatures);
+        window.removeEventListener('wappy-empresa-cambiada', scheduleLoadCompanySignatures);
       };
     }, [token]);
 
@@ -522,19 +571,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     // ────────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
-      try {
-        if (Object.keys(namedSignatures).length > 0) {
-          localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(namedSignatures));
-        }
-      } catch (e) {
-        console.warn('Storage quota exceeded for signatures.');
-        // Only keep the newest 10 if quota is hit
-        const entries = Object.entries(namedSignatures);
-        if (entries.length > 5) {
-          const sliced = Object.fromEntries(entries.slice(entries.length - 5));
-          setNamedSignatures(sliced);
-        }
-      }
+      if (!signaturesHydratedRef.current) return;
+      const targetCompanyId =
+        signaturesCompanyIdRef.current || safeGetItem('wappy_active_company_id') || 'default';
+      const sigKey = `wappy_signatures_${targetCompanyId}`;
+      safeSetItem(sigKey, JSON.stringify(compactSignaturesForStorage(namedSignatures)));
     }, [namedSignatures]);
 
     // Auto-inject signatures automatically if they exist in state
@@ -608,12 +649,12 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
               );
               try {
                 const activeTag = (window as any).__wappyActiveSgsstReportTag;
-                const companyId = localStorage.getItem('wappy_active_company_id') || 'default';
-                if (activeTag) {
+                const companyId = safeGetItem('wappy_active_company_id') || 'default';
+                if (activeTag && safeHtml.length <= 260_000) {
                   const key = `wappy_sgsst_report_${companyId}_${activeTag}`;
-                  const prevRaw = localStorage.getItem(key);
+                  const prevRaw = safeGetItem(key);
                   const prev = prevRaw ? JSON.parse(prevRaw) : {};
-                  localStorage.setItem(
+                  safeSetItem(
                     key,
                     JSON.stringify({
                       ...prev,
@@ -902,40 +943,42 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       editorRef.current?.focus();
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (readerEvent) => {
-          const imageUrl = readerEvent.target?.result as string;
-          execCmd('insertImage', imageUrl);
-        };
-        reader.readAsDataURL(file);
-      }
-      // Reset input
       e.target.value = '';
+      if (file) {
+        try {
+          const imageUrl = await compressPhotoDataUrl(file);
+          if (imageUrl) {
+            execCmd('insertImage', imageUrl);
+          }
+        } catch (err) {
+          console.error('Error compressing uploaded image:', err);
+        }
+      }
     };
 
     // Persist signatures to backend
     const persistSignaturesToBackend = async (signatures: Record<string, string>) => {
       if (!token) return;
+      const companyId = safeGetItem('wappy_active_company_id') || 'default';
       try {
         await fetch('/api/sgsst/signatures', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ signatures }),
+          body: JSON.stringify({ signatures, companyId }),
         });
       } catch (err) {
         console.error('Error saving signatures to backend:', err);
       }
     };
 
-    const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
+      e.target.value = '';
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (readerEvent) => {
-          const signatureUrl = readerEvent.target?.result as string;
+        try {
+          const signatureUrl = await compressSignatureDataUrl(file);
           let nameToUse = activeSignatureName;
           if (!nameToUse || nameToUse === 'DESCONOCIDO') {
             nameToUse =
@@ -945,7 +988,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
 
           const updated = { ...namedSignatures, [nameToUse]: signatureUrl };
           setNamedSignatures(updated);
-          localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(updated));
+          safeSetItem(
+            getCompanySignaturesKey(),
+            JSON.stringify(compactSignaturesForStorage(updated)),
+          );
           persistSignaturesToBackend(updated);
 
           // Insert into placeholder or at cursor
@@ -969,10 +1015,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           setActiveSignaturePlaceholder(null);
           setIsSignatureModalOpen(false);
           setIsDrawingPadOpen(false);
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+          console.error('Error compressing uploaded signature:', err);
+        }
       }
-      e.target.value = '';
     };
 
     const insertSignature = (signatureUrl: string, existingName: string) => {
@@ -994,7 +1040,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
       setIsSignatureModalOpen(false);
     };
 
-    const saveDrawnSignature = (base64: string) => {
+    const saveDrawnSignature = async (rawDataUrl: string) => {
+      const base64 = await compressSignatureDataUrl(rawDataUrl);
       let nameToUse = activeSignatureName;
       if (!nameToUse || nameToUse === 'DESCONOCIDO') {
         nameToUse =
@@ -1004,7 +1051,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
 
       const updated = { ...namedSignatures, [nameToUse]: base64 };
       setNamedSignatures(updated);
-      localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(updated));
+      safeSetItem(getCompanySignaturesKey(), JSON.stringify(compactSignaturesForStorage(updated)));
       persistSignaturesToBackend(updated);
 
       // Immediately insert into the placeholder or at cursor
@@ -1028,13 +1075,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
     };
 
     const deleteSignature = (name: string) => {
-      setNamedSignatures((prev) => {
-        const next = { ...prev };
-        delete next[name];
-        localStorage.setItem(getCompanySignaturesKey(), JSON.stringify(next));
-        persistSignaturesToBackend(next);
-        return next;
-      });
+      const next = { ...namedSignatures };
+      delete next[name];
+      setNamedSignatures(next);
+      safeSetItem(getCompanySignaturesKey(), JSON.stringify(compactSignaturesForStorage(next)));
+      persistSignaturesToBackend(next);
     };
 
     // Image manipulation functions

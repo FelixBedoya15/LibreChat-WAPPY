@@ -4,6 +4,7 @@ import { Button } from '@librechat/client';
 import { useRouteError } from 'react-router-dom';
 import { useLocalize } from '~/hooks';
 import logger from '~/utils/logger';
+import { evictWappyStorageBloat, isQuotaExceededError } from '~/utils/safeStorage';
 
 interface UserAgentData {
   getHighEntropyValues(hints: string[]): Promise<{ platform: string; platformVersion: string }>;
@@ -179,13 +180,73 @@ export default function RouteErrorBoundary() {
           errorDetails.stack.includes('Importing a module script failed')),
     );
 
-  const lastReload = typeof window !== 'undefined' ? sessionStorage.getItem('auto_reload_chunk_error') : null;
-  const shouldAutoReload =
-    isChunkError && (!lastReload || Date.now() - parseInt(lastReload, 10) > 15000);
+  const isQuotaError =
+    isQuotaExceededError(typedError) ||
+    errorDetails.message.includes('QuotaExceededError') ||
+    errorDetails.message.includes('exceeded the quota') ||
+    errorDetails.message.includes('NS_ERROR_DOM_QUOTA_REACHED') ||
+    Boolean(
+      errorDetails.stack &&
+        (errorDetails.stack.includes('QuotaExceededError') ||
+          errorDetails.stack.includes('exceeded the quota') ||
+          errorDetails.stack.includes('NS_ERROR_DOM_QUOTA_REACHED')),
+    );
+
+  let lastChunkReload: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      lastChunkReload = sessionStorage.getItem('auto_reload_chunk_error');
+    } catch {
+      lastChunkReload = null;
+    }
+  }
+  const shouldAutoReloadChunk =
+    isChunkError && (!lastChunkReload || Date.now() - parseInt(lastChunkReload, 10) > 15000);
+
+  const getLastQuotaReloadMs = () => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const ss = sessionStorage.getItem('auto_reload_quota_error');
+      if (ss) return parseInt(ss, 10) || 0;
+    } catch {
+      // ignore
+    }
+    const match = (window.name || '').match(/__wappy_quota_reload=(\d+)/);
+    return match ? parseInt(match[1], 10) || 0 : 0;
+  };
+
+  const lastQuotaReloadMs = getLastQuotaReloadMs();
+  const shouldAutoReloadQuota =
+    isQuotaError && (!lastQuotaReloadMs || Date.now() - lastQuotaReloadMs > 15000);
+
+  const shouldAutoReload = shouldAutoReloadChunk || shouldAutoReloadQuota;
 
   useEffect(() => {
     if (!shouldAutoReload) return;
-    sessionStorage.setItem('auto_reload_chunk_error', Date.now().toString());
+
+    if (shouldAutoReloadQuota) {
+      const nowStr = Date.now().toString();
+      try {
+        sessionStorage.setItem('auto_reload_quota_error', nowStr);
+      } catch {
+        // ignore
+      }
+      try {
+        const cleaned = (window.name || '').replace(/__wappy_quota_reload=\d+;?/g, '');
+        window.name = `${cleaned}__wappy_quota_reload=${nowStr};`;
+      } catch {
+        // ignore
+      }
+      evictWappyStorageBloat();
+      window.location.reload();
+      return;
+    }
+
+    try {
+      sessionStorage.setItem('auto_reload_chunk_error', Date.now().toString());
+    } catch {
+      // ignore
+    }
 
     const clearCachesAndReload = async () => {
       try {
@@ -205,16 +266,25 @@ export default function RouteErrorBoundary() {
     };
 
     clearCachesAndReload();
-  }, [shouldAutoReload]);
+  }, [shouldAutoReload, shouldAutoReloadQuota]);
 
   if (shouldAutoReload) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-surface-primary p-6 text-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-teal-500 border-t-transparent mb-4" />
-        <p className="text-sm font-bold text-text-primary">Actualizando WAPPY a la versión más reciente...</p>
+        <p className="text-sm font-bold text-text-primary">
+          {shouldAutoReloadQuota
+            ? 'Optimizando memoria local del navegador y recuperando sesión...'
+            : 'Actualizando WAPPY a la versión más reciente...'}
+        </p>
       </div>
     );
   }
+
+  const handleCleanStorageRecovery = () => {
+    evictWappyStorageBloat();
+    window.location.reload();
+  };
 
   const handleDownloadLogs = async () => {
     try {
@@ -337,15 +407,24 @@ export default function RouteErrorBoundary() {
             <li>Verificar su conexión a Internet</li>
             <li>Contactar al administrador si el problema persiste</li>
           </ul>
-          <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:flex-wrap sm:justify-center">
             <Button
               variant="submit"
-              onClick={() => window.location.reload()}
+              onClick={isQuotaError ? handleCleanStorageRecovery : () => window.location.reload()}
               className="w-full sm:w-auto"
               aria-label={localize('com_ui_refresh_page')}
             >
-              {localize('com_ui_refresh_page')}
+              {isQuotaError ? 'Optimizar memoria y recuperar' : localize('com_ui_refresh_page')}
             </Button>
+            {!isQuotaError && (
+              <Button
+                variant="outline"
+                onClick={handleCleanStorageRecovery}
+                className="w-full sm:w-auto"
+              >
+                Liberar caché local y recargar
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={handleDownloadLogs}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import { 
   Trello, 
   Plus, 
@@ -176,7 +177,7 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
       }));
     }
     if (typeof window !== 'undefined') {
-      localStorage.setItem('acpm_active_tab', tab);
+      safeSetItem('acpm_active_tab', tab);
     }
   };
 
@@ -208,17 +209,15 @@ export default function KanbanDashboard({ inline = false, hideMainHeader = false
 
   const [showDashboard, setShowDashboard] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('acpm_show_dashboard') !== 'false';
+      return safeGetItem('acpm_show_dashboard') !== 'false';
     }
     return true;
   });
 
   const toggleDashboard = () => {
-    setShowDashboard(prev => {
-      const next = !prev;
-      localStorage.setItem('acpm_show_dashboard', String(next));
-      return next;
-    });
+    const next = !showDashboard;
+    setShowDashboard(next);
+    safeSetItem('acpm_show_dashboard', String(next));
   };
 
   // Excel & AI File Import states (3 Herramientas de Importación como Perfil Sociodemográfico)

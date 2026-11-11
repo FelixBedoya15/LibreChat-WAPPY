@@ -1,4 +1,5 @@
 import { atom } from 'recoil';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 // Improved helper function to create atoms with localStorage
 export function atomWithLocalStorage<T>(key: string, defaultValue: T) {
@@ -7,7 +8,7 @@ export function atomWithLocalStorage<T>(key: string, defaultValue: T) {
     default: defaultValue,
     effects_UNSTABLE: [
       ({ setSelf, onSet }) => {
-        const savedValue = localStorage.getItem(key);
+        const savedValue = safeGetItem(key);
         if (savedValue !== null) {
           try {
             const parsedValue = JSON.parse(savedValue);
@@ -17,13 +18,13 @@ export function atomWithLocalStorage<T>(key: string, defaultValue: T) {
               `Error parsing localStorage key "${key}", \`savedValue\`: defaultValue, error:`,
               e,
             );
-            localStorage.setItem(key, JSON.stringify(defaultValue));
+            safeSetItem(key, JSON.stringify(defaultValue));
             setSelf(defaultValue);
           }
         }
 
         onSet((newValue: T) => {
-          localStorage.setItem(key, JSON.stringify(newValue));
+          safeSetItem(key, JSON.stringify(newValue));
         });
       },
     ],

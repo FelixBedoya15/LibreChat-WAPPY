@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import {
   MessageSquare,
   Mic,
@@ -616,12 +617,12 @@ export default function WappyDotsMobilePage() {
       const params = new URLSearchParams(window.location.search);
       const customParam = params.get('tunnel')?.trim();
       if (customParam) {
-        localStorage.setItem('wappydots_custom_tunnel', customParam);
+        safeSetItem('wappydots_custom_tunnel', customParam);
       }
       const res = await fetch('/api/tenshi/wappydots-link');
       if (res.ok) {
         const data = await res.json();
-        const savedCustom = localStorage.getItem('wappydots_custom_tunnel')?.trim();
+        const savedCustom = safeGetItem('wappydots_custom_tunnel')?.trim();
         const resolvedPublic = savedCustom || data.publicUrl || null;
         const nextState: TunnelLinkState = {
           ok: true,

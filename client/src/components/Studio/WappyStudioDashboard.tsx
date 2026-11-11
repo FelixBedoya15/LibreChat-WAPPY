@@ -2511,6 +2511,96 @@ function injectStudioRuntimeBridge(rawHtml: string): string {
 
 const LOCAL_LIBRARY_STORAGE = 'wappy_studio_audio_library';
 const GEMINI_KEYS_STORAGE = 'wappy_gemini_api_keys';
+const STUDIO_MAX_INLINE_BASE64_CHARS = 45 * 1024; // ~45 KB límite para persistir binarios en localStorage
+
+function stripHeavyCompanyBinariesForStorage<T extends Record<string, any> | null | undefined>(
+  comp: T,
+  maxChars: number = STUDIO_MAX_INLINE_BASE64_CHARS,
+): T {
+  if (!comp || typeof comp !== 'object') return comp;
+  const clone: Record<string, any> = { ...comp };
+  const binaryFields = ['logoBase64', 'legalRepSignature', 'sstRespSignature'];
+  for (const field of binaryFields) {
+    if (typeof clone[field] === 'string' && clone[field].length > maxChars) {
+      delete clone[field];
+    }
+  }
+  if (clone.signatures && typeof clone.signatures === 'object') {
+    const cleanSigs: Record<string, any> = { ...clone.signatures };
+    for (const k of Object.keys(cleanSigs)) {
+      if (typeof cleanSigs[k] === 'string' && cleanSigs[k].length > maxChars) {
+        delete cleanSigs[k];
+      }
+    }
+    clone.signatures = cleanSigs;
+  }
+  return clone as T;
+}
+
+function evictStudioRegenerableCaches(): void {
+  try {
+    const keysToRemove: string[] = [];
+    let hasScopedMatrixRows = false;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (
+        k.startsWith('wappy_sgsst_report_') ||
+        k === 'wappy_gtc45_history' ||
+        k.startsWith('wappy_gtc45_history_') ||
+        k.startsWith('wappy_company_draft_')
+      ) {
+        keysToRemove.push(k);
+      } else if (k.startsWith('wappy_gtc45_matrix_rows_')) {
+        hasScopedMatrixRows = true;
+      }
+    }
+    if (hasScopedMatrixRows) {
+      keysToRemove.push('wappy_gtc45_matrix_rows');
+    }
+    for (const k of keysToRemove) {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        /* ignore */
+      }
+    }
+    const rawCompanies = localStorage.getItem('wappy_sgsst_companies');
+    if (rawCompanies && rawCompanies.length > STUDIO_MAX_INLINE_BASE64_CHARS) {
+      const parsed = JSON.parse(rawCompanies);
+      if (Array.isArray(parsed)) {
+        const slimmed = parsed.map((c) => stripHeavyCompanyBinariesForStorage(c));
+        localStorage.setItem('wappy_sgsst_companies', JSON.stringify(slimmed));
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function safeStudioSetLocalStorage(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    evictStudioRegenerableCaches();
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (retryErr) {
+      console.warn(`[WappyStudio] No se pudo persistir "${key}" en localStorage (cuota llena):`, retryErr);
+      return false;
+    }
+  }
+}
+
+function safeStudioRemoveLocalStorage(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
 
 function getActiveStudioCompanyId(): string {
   try {
@@ -3106,11 +3196,48 @@ export default function WappyStudioDashboard({
   );
 
   useEffect(() => {
-    const syncLocalCompany = () => {
+    const isServerCompanyReady = (c: any): boolean => {
+      if (!c) return false;
+      const required = [
+        'companyName',
+        'companyType',
+        'nit',
+        'legalRepresentative',
+        'sector',
+        'arl',
+        'riskLevel',
+        'responsibleSST',
+        'city',
+        'phone',
+        'email',
+        'generalActivities',
+      ];
+      for (const f of required) {
+        const v = String(c[f] ?? '').trim();
+        if (!v || v === 'N/A' || v === 'No registrado') return false;
+      }
+      return Number(c.workerCount) > 0;
+    };
+
+    const syncLocalCompany = (serverActiveOverride?: Record<string, any> | null) => {
       const next = readActiveWappyCompanyState();
-      setActiveCompanyInfo(next.company);
-      setIsCompanyReady(next.isReady);
-      const activeCompanyId = next.company?._id || localStorage.getItem('wappy_active_company_id') || 'default';
+      const validOverride =
+        serverActiveOverride &&
+        typeof serverActiveOverride === 'object' &&
+        !('type' in serverActiveOverride && 'target' in serverActiveOverride)
+          ? serverActiveOverride
+          : null;
+      const resolvedCompany = validOverride ? { ...(next.company || {}), ...validOverride } : next.company;
+      const resolvedReady = validOverride ? next.isReady || isServerCompanyReady(resolvedCompany) : next.isReady;
+      setActiveCompanyInfo(resolvedCompany);
+      setIsCompanyReady(resolvedReady);
+      let fallbackCompanyId = 'default';
+      try {
+        fallbackCompanyId = localStorage.getItem('wappy_active_company_id') || 'default';
+      } catch {
+        /* ignore */
+      }
+      const activeCompanyId = resolvedCompany?._id || fallbackCompanyId;
       try {
         const rawLib = localStorage.getItem(`${LOCAL_LIBRARY_STORAGE}_${activeCompanyId}`);
         setLibraryItems(rawLib ? JSON.parse(rawLib) : []);
@@ -3147,6 +3274,7 @@ export default function WappyStudioDashboard({
         .then((r) => (r.ok ? r.json() : null))
         .then((serverCompanies) => {
           if (Array.isArray(serverCompanies)) {
+            let activeFull: Record<string, any> | null = null;
             if (serverCompanies.length > 0) {
               const mapped = serverCompanies.map((sc: any) => ({
                 ...sc,
@@ -3154,23 +3282,26 @@ export default function WappyStudioDashboard({
                 userSaved: true,
                 fromSgsstServer: true,
               }));
-              const active = mapped.find((c: any) => c.isActive) || mapped[0];
-              localStorage.setItem('wappy_sgsst_companies', JSON.stringify(mapped));
-              localStorage.setItem('wappy_active_company_id', active._id);
-              localStorage.setItem('wappy_gtc45_company', JSON.stringify(active));
-              localStorage.setItem('wappy_active_company_name', active.companyName || '');
-              localStorage.setItem('wappy_active_company_nit', active.nit || '');
+              activeFull = mapped.find((c: any) => c.isActive) || mapped[0];
+              const slimMapped = mapped.map((c: any) => stripHeavyCompanyBinariesForStorage(c));
+              const slimActive = stripHeavyCompanyBinariesForStorage(activeFull);
+              safeStudioSetLocalStorage('wappy_sgsst_companies', JSON.stringify(slimMapped));
+              safeStudioSetLocalStorage('wappy_active_company_id', activeFull._id);
+              safeStudioSetLocalStorage('wappy_gtc45_company', JSON.stringify(slimActive));
+              safeStudioSetLocalStorage('wappy_active_company_name', activeFull.companyName || '');
+              safeStudioSetLocalStorage('wappy_active_company_nit', activeFull.nit || '');
             } else {
-              localStorage.removeItem('wappy_gtc45_company');
-              localStorage.setItem('wappy_sgsst_companies', JSON.stringify([]));
+              safeStudioRemoveLocalStorage('wappy_gtc45_company');
+              safeStudioSetLocalStorage('wappy_sgsst_companies', JSON.stringify([]));
             }
-            syncLocalCompany();
+            syncLocalCompany(activeFull);
           }
         })
         .catch(() => {});
     }
 
     const onCustomCompanyUpdate = () => syncLocalCompany();
+    const onWindowFocus = () => syncLocalCompany();
     const onStorageChange = (e: StorageEvent) => {
       if (
         !e.key ||
@@ -3186,13 +3317,13 @@ export default function WappyStudioDashboard({
     window.addEventListener('wappy-empresa-cambiada', onCustomCompanyUpdate);
     window.addEventListener('wappy-company-updated', onCustomCompanyUpdate);
     window.addEventListener('storage', onStorageChange);
-    window.addEventListener('focus', syncLocalCompany);
+    window.addEventListener('focus', onWindowFocus);
     return () => {
       window.removeEventListener('wappy-company-changed', onCustomCompanyUpdate);
       window.removeEventListener('wappy-empresa-cambiada', onCustomCompanyUpdate);
       window.removeEventListener('wappy-company-updated', onCustomCompanyUpdate);
       window.removeEventListener('storage', onStorageChange);
-      window.removeEventListener('focus', syncLocalCompany);
+      window.removeEventListener('focus', onWindowFocus);
     };
   }, [isAuthenticated, token]);
 
@@ -3293,13 +3424,18 @@ export default function WappyStudioDashboard({
       }
       setCustomApiKeys(updated);
       const nonEmpty = updated.filter((k) => k.key.trim().length > 0);
-      localStorage.setItem(GEMINI_KEYS_STORAGE, JSON.stringify(nonEmpty));
+      const persisted = safeStudioSetLocalStorage(GEMINI_KEYS_STORAGE, JSON.stringify(nonEmpty));
       window.dispatchEvent(new CustomEvent('wappy-keys-updated'));
       setKeyValidationMsg(
         nonEmpty.length === 0
           ? 'Claves personalizadas limpiadas. Se utilizarán las claves del servidor WAPPY.'
-          : `¡Guardadas ${nonEmpty.length} clave(s) (${validCount} verificada(s) en vivo con Google Gemini)!`,
+          : persisted
+            ? `¡Guardadas ${nonEmpty.length} clave(s) (${validCount} verificada(s) en vivo con Google Gemini)!`
+            : `¡Validadas ${nonEmpty.length} clave(s) en memoria (${validCount} verificada(s)); almacenamiento local al límite!`,
       );
+    } catch (err) {
+      console.warn('[WappyStudio] Error al guardar/validar claves Gemini:', err);
+      setKeyValidationMsg('No se pudieron guardar las claves en el almacenamiento local, pero siguen activas en esta sesión.');
     } finally {
       setIsValidatingKeys(false);
     }
@@ -7074,18 +7210,19 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
         const resolvedKey = String(data.apiKey || data.guestKey || data.key || '').trim();
         if (resolvedKey) {
           setAntigravityBridgeKey(resolvedKey);
-          try {
-            localStorage.setItem('wappy_antigravity_bridge_key', resolvedKey);
-          } catch {
-            /* ignore */
-          }
+          safeStudioSetLocalStorage('wappy_antigravity_bridge_key', resolvedKey);
           return resolvedKey;
         }
       }
     } catch {
       /* Fallback local */
     }
-    const existing = localStorage.getItem('wappy_antigravity_bridge_key') || '';
+    let existing = '';
+    try {
+      existing = localStorage.getItem('wappy_antigravity_bridge_key') || '';
+    } catch {
+      /* ignore */
+    }
     if (existing && !forceRefresh && !(isUserLoggedIn && existing.startsWith('wpy_guest_'))) {
       setAntigravityBridgeKey(existing);
       return existing;
@@ -7095,11 +7232,7 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
     }
     const generated = `wpy_guest_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
     setAntigravityBridgeKey(generated);
-    try {
-      localStorage.setItem('wappy_antigravity_bridge_key', generated);
-    } catch {
-      /* ignore */
-    }
+    safeStudioSetLocalStorage('wappy_antigravity_bridge_key', generated);
     return generated;
   };
 
@@ -13010,7 +13143,7 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                         { key: '', label: 'Clave Respaldo #3', status: 'unchecked' },
                       ];
                       setCustomApiKeys(reset);
-                      localStorage.removeItem(GEMINI_KEYS_STORAGE);
+                      safeStudioRemoveLocalStorage(GEMINI_KEYS_STORAGE);
                       window.dispatchEvent(new CustomEvent('wappy-keys-updated'));
                       setKeyValidationMsg('Claves eliminadas del navegador.');
                     }}

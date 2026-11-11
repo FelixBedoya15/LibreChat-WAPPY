@@ -1170,6 +1170,41 @@ Escribe el objetivo de tu tarea y las condiciones del entorno en la Pestaña 2 y
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -1180,6 +1215,45 @@ Escribe el objetivo de tu tarea y las condiciones del entorno en la Pestaña 2 y
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -1302,11 +1376,11 @@ Escribe el objetivo de tu tarea y las condiciones del entorno en la Pestaña 2 y
         }
 
         function bindDocHeaderToUI() {
-            const activeCompName = localStorage.getItem('wappy_active_company_name') || "";
-            const activeCompNit = localStorage.getItem('wappy_active_company_nit') || "";
-            const activeCompArl = localStorage.getItem('wappy_active_company_arl') || "";
-            const activeCompWorkers = localStorage.getItem('wappy_active_company_workers') || "";
-            const activeCompRisk = localStorage.getItem('wappy_active_company_risk') || "";
+            const activeCompName = safeGetLocalStorage('wappy_active_company_name') || "";
+            const activeCompNit = safeGetLocalStorage('wappy_active_company_nit') || "";
+            const activeCompArl = safeGetLocalStorage('wappy_active_company_arl') || "";
+            const activeCompWorkers = safeGetLocalStorage('wappy_active_company_workers') || "";
+            const activeCompRisk = safeGetLocalStorage('wappy_active_company_risk') || "";
 
             document.getElementById('app-document-title').innerText = appDocHeader.companyName ? appDocHeader.appTitle || "Análisis de Trabajo Seguro (ATS)" : (appDocHeader.appTitle || "Análisis de Trabajo Seguro (ATS)");
             document.getElementById('app-document-subtitle').innerText = appDocHeader.appSubtitle || "SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO";
@@ -1434,8 +1508,8 @@ Escribe el objetivo de tu tarea y las condiciones del entorno en la Pestaña 2 y
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -1452,9 +1526,8 @@ Escribe el objetivo de tu tarea y las condiciones del entorno en la Pestaña 2 y
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -5018,6 +5091,41 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -5028,6 +5136,45 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -5267,8 +5414,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -5285,9 +5432,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -7636,6 +7782,41 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -7646,6 +7827,45 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -7885,8 +8105,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -7903,9 +8123,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -11262,6 +11481,41 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -11272,6 +11526,45 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -11511,8 +11804,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -11529,9 +11822,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -14772,6 +15064,41 @@ Como parte de la investigación, el equipo formuló acciones correctivas y de me
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -14782,6 +15109,45 @@ Como parte de la investigación, el equipo formuló acciones correctivas y de me
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -15021,8 +15387,8 @@ Como parte de la investigación, el equipo formuló acciones correctivas y de me
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -15039,9 +15405,8 @@ Como parte de la investigación, el equipo formuló acciones correctivas y de me
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -18267,6 +18632,41 @@ Consta de:
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -18277,6 +18677,45 @@ Consta de:
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -18516,8 +18955,8 @@ Consta de:
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -18534,9 +18973,8 @@ Consta de:
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -21747,6 +22185,41 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -21757,6 +22230,45 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -21996,8 +22508,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -22014,9 +22526,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -25296,6 +25807,41 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -25306,6 +25852,45 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -25545,8 +26130,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -25563,9 +26148,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -28709,6 +29293,135 @@ Respuesta 5: \${w5}\`;
             }
         }
 
+        function safeGetLocalStorage(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch (e) {
+                console.warn("localStorage.getItem blocked:", e);
+                return null;
+            }
+        }
+
+        function safeSetLocalStorage(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
+                console.warn("localStorage.setItem blocked:", e);
+            }
+        }
+
+        function safeRemoveLocalStorage(key) {
+            try {
+                localStorage.removeItem(key);
+            } catch (e) {
+                console.warn("localStorage.removeItem blocked:", e);
+            }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function exportCanvasCompactDataUrl(canvas) {
+            try {
+                const maxW = 500;
+                const maxH = 200;
+                const w0 = canvas.width || 300;
+                const h0 = canvas.height || 120;
+                let targetCanvas = canvas;
+                if (w0 > maxW || h0 > maxH) {
+                    const scale = Math.min(1, maxW / w0, maxH / h0);
+                    const cw = Math.max(1, Math.round(w0 * scale));
+                    const ch = Math.max(1, Math.round(h0 * scale));
+                    const tmp = document.createElement('canvas');
+                    tmp.width = cw;
+                    tmp.height = ch;
+                    const tctx = tmp.getContext('2d');
+                    if (tctx) {
+                        tctx.drawImage(canvas, 0, 0, cw, ch);
+                        targetCanvas = tmp;
+                    }
+                }
+                let out = targetCanvas.toDataURL('image/webp', 0.85);
+                if (out.indexOf('data:image/webp') !== 0) {
+                    out = targetCanvas.toDataURL('image/png');
+                }
+                return out;
+            } catch (e) {
+                return canvas.toDataURL();
+            }
+        }
+
         window.onload = function() {
             try {
                 if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -28734,23 +29447,22 @@ Respuesta 5: \${w5}\`;
 
         function uploadLogoImage() {
             const input = document.getElementById('logo-upload-input');
-            const file = input.files[0];
+            const file = input && input.files ? input.files[0] : null;
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 420, 420, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const previewImg = document.getElementById('logo-preview-img');
                     const placeholderIcon = document.getElementById('logo-placeholder-icon');
                     if (previewImg) {
-                        previewImg.src = e.target.result;
+                        previewImg.src = compressedUrl;
                         previewImg.classList.remove('hidden');
                     }
                     if (placeholderIcon) {
                         placeholderIcon.classList.add('hidden');
                     }
-                    appDocHeader.logoBase64 = e.target.result;
+                    appDocHeader.logoBase64 = compressedUrl;
                     saveLocalData();
-                };
-                reader.readAsDataURL(file);
+                });
             }
         }
 
@@ -28907,8 +29619,8 @@ Respuesta 5: \${w5}\`;
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -28925,9 +29637,8 @@ Respuesta 5: \${w5}\`;
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -29113,7 +29824,7 @@ Respuesta 5: \${w5}\`;
         }
 
         async function triggerIAGeneration() {
-            const apiKey = localStorage.getItem('wappy_gemini_key') || '';
+            const apiKey = safeGetLocalStorage('wappy_gemini_key') || '';
             if (!apiKey) {
                 alert("Por favor ingrese su API Key de Gemini en la barra de configuración lateral.");
                 toggleAISidebar();
@@ -29577,7 +30288,7 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             addChatMessage('user', messageText);
             inputEl.value = '';
 
-            const apiKey = localStorage.getItem('wappy_gemini_key');
+            const apiKey = safeGetLocalStorage('wappy_gemini_key');
             if (!apiKey) {
                 addChatMessage('assistant', "⚠️ Por favor, ingrese y guarde su API Key de Gemini arriba para poder ayudarle.");
                 return;
@@ -30308,7 +31019,8 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
 
         function resetSSTForm() {
             if (confirm("¿Está seguro de que desea reiniciar este formulario? Se borrarán todos los cambios locales guardados.")) {
-                localStorage.removeItem(storageKey);
+                safeRemoveLocalStorage(storageKey);
+                safeRemoveLocalStorage('wappy_sst_alturas_logo');
                 window.location.reload();
             }
         }
@@ -30355,29 +31067,45 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
             currentWizard.signatures = {};
             document.querySelectorAll('canvas').forEach(canvas => {
                 if (canvas.hasDrawn) {
-                    currentWizard.signatures[canvas.id] = canvas.toDataURL();
+                    currentWizard.signatures[canvas.id] = exportCanvasCompactDataUrl(canvas);
                 }
             });
 
+            const strippedDocHeader = { ...appDocHeader };
+            delete strippedDocHeader.logoBase64;
+            if (appDocHeader.logoBase64 && appDocHeader.logoBase64.length <= 40960) {
+                safeSetLocalStorage('wappy_sst_alturas_logo', appDocHeader.logoBase64);
+            }
+
+            const compactSignatures = {};
+            Object.keys(currentWizard.signatures).forEach(sigKey => {
+                const sigVal = currentWizard.signatures[sigKey];
+                if (typeof sigVal === 'string' && sigVal.length <= 40960) {
+                    compactSignatures[sigKey] = sigVal;
+                }
+            });
+
+            const strippedWizard = { ...currentWizard, signatures: compactSignatures };
+
             const data = {
-                appDocHeader,
-                currentWizard
+                appDocHeader: strippedDocHeader,
+                currentWizard: strippedWizard
             };
-            localStorage.setItem(storageKey, JSON.stringify(data));
+            safeSetLocalStorage(storageKey, JSON.stringify(data));
         }
 
         function loadState() {
             isLoadingState = true;
             try {
-                const key = localStorage.getItem('wappy_gemini_key') || '';
+                const key = safeGetLocalStorage('wappy_gemini_key') || '';
                 const keyEl = document.getElementById('gemini-key');
                 if (keyEl) keyEl.value = key;
 
-                const model = localStorage.getItem('wappy_gemini_model') || 'gemini-3.6-flash';
+                const model = safeGetLocalStorage('wappy_gemini_model') || 'gemini-3.6-flash';
                 const modelEl = document.getElementById('gemini-model');
                 if (modelEl) modelEl.value = model;
 
-                const saved = localStorage.getItem(storageKey);
+                const saved = safeGetLocalStorage(storageKey);
                 if (saved) {
                     const data = JSON.parse(saved);
                     if (data.appDocHeader) appDocHeader = data.appDocHeader;
@@ -30389,6 +31117,10 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
                         if (!currentWizard.averiasNodes) currentWizard.averiasNodes = [];
                         if (!currentWizard.arbolCausasNodes) currentWizard.arbolCausasNodes = [];
                     }
+                }
+                const savedLogo = safeGetLocalStorage('wappy_sst_alturas_logo');
+                if (savedLogo && !appDocHeader.logoBase64) {
+                    appDocHeader.logoBase64 = savedLogo;
                 }
             } catch(e) {
                 console.error("Error loading local state", e);
@@ -30465,13 +31197,13 @@ No incluyas códigos estructurados ni corchetes. Responde en un tono amigable, c
 
         function saveAPIKey() {
             const key = document.getElementById('gemini-key').value.trim();
-            localStorage.setItem('wappy_gemini_key', key);
+            safeSetLocalStorage('wappy_gemini_key', key);
             alert("API Key guardada localmente.");
         }
 
         function saveSelectedModel() {
             const model = document.getElementById('gemini-model').value;
-            localStorage.setItem('wappy_gemini_model', model);
+            safeSetLocalStorage('wappy_gemini_model', model);
         }
 
         async function exportUpdatedHTML() {
@@ -31694,6 +32426,41 @@ Consta de:
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -31704,6 +32471,45 @@ Consta de:
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -31943,8 +32749,8 @@ Consta de:
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -31961,9 +32767,8 @@ Consta de:
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -35161,6 +35966,41 @@ Consta de:
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -35171,6 +36011,45 @@ Consta de:
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -35410,8 +36289,8 @@ Consta de:
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -35428,9 +36307,8 @@ Consta de:
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -39630,6 +40508,41 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -39640,6 +40553,45 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -39879,8 +40831,8 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -39897,9 +40849,8 @@ Para el diagrama de Ishikawa (at-ishikawa-*), cada una de las 6 categorías (Man
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 
@@ -43164,6 +44115,41 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             try {
                 localStorage.setItem(key, value);
             } catch (e) {
+                try {
+                    if (typeof value === 'string' && value.charAt(0) === '{') {
+                        const parsed = JSON.parse(value);
+                        if (parsed && typeof parsed === 'object') {
+                            if (parsed.appDocHeader && parsed.appDocHeader.logoBase64) {
+                                delete parsed.appDocHeader.logoBase64;
+                            }
+                            if (parsed.currentWizard && typeof parsed.currentWizard === 'object') {
+                                delete parsed.currentWizard.photos;
+                                delete parsed.currentWizard.audioBase64;
+                                delete parsed.currentWizard.videoBase64;
+                                if (parsed.currentWizard.signatures && typeof parsed.currentWizard.signatures === 'object') {
+                                    Object.keys(parsed.currentWizard.signatures).forEach(function(sigKey) {
+                                        const sigVal = parsed.currentWizard.signatures[sigKey];
+                                        if (typeof sigVal === 'string' && sigVal.length > 40960) {
+                                            delete parsed.currentWizard.signatures[sigKey];
+                                        }
+                                    });
+                                }
+                            }
+                            try {
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            } catch (retryErr) {
+                                if (parsed.currentWizard) {
+                                    parsed.currentWizard.signatures = {};
+                                }
+                                localStorage.setItem(key, JSON.stringify(parsed));
+                                return;
+                            }
+                        }
+                    }
+                } catch (fallbackErr) {
+                    console.warn("localStorage.setItem fallback failed:", fallbackErr);
+                }
                 console.warn("localStorage.setItem blocked:", e);
             }
         }
@@ -43174,6 +44160,45 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             } catch (e) {
                 console.warn("localStorage.removeItem blocked:", e);
             }
+        }
+
+        function compressImageToDataUrl(file, maxWidth, maxHeight, mimeType, quality) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxWidth / w0, maxHeight / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL(mimeType || 'image/webp', quality || 0.85);
+                            if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+                                out = c.toDataURL('image/png');
+                            }
+                            resolve(out);
+                        } catch (err) {
+                            resolve(rawUrl);
+                        }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
         }
 
         window.onload = async function() {
@@ -43413,8 +44438,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
             const fileInput = document.getElementById('upload-sig-' + canvasId);
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                compressImageToDataUrl(file, 500, 200, 'image/webp', 0.85).then(function(compressedUrl) {
+                    if (!compressedUrl) return;
                     const img = new Image();
                     img.onload = function() {
                         const cvs = document.getElementById(canvasId);
@@ -43431,9 +44456,8 @@ Como parte del proceso de investigación, se han formulado acciones de mejora, l
                             saveLocalData();
                         }
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    img.src = compressedUrl;
+                });
             }
         }
 

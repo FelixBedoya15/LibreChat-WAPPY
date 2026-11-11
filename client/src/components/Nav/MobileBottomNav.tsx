@@ -8,6 +8,7 @@ import { useAuthContext } from '~/hooks';
 import { isVitalUser } from '~/utils/planAccess';
 import store from '~/store';
 import { cn } from '~/utils';
+import { safeSetItem } from '~/utils/safeStorage';
 
 interface MobileBottomNavProps {
   navVisible?: boolean;
@@ -101,13 +102,14 @@ function MobileBottomNav({ navVisible, setNavVisible }: MobileBottomNavProps) {
   const toggleLeftPanel = (forceOpenOnDesktop = false) => {
     if (setNavVisible) {
       if (forceOpenOnDesktop && typeof window !== 'undefined' && window.innerWidth >= 768) {
-        localStorage.setItem('navVisible', 'true');
+        safeSetItem('navVisible', 'true');
         setNavVisible(true);
         return;
       }
       setNavVisible((prev) => {
-        localStorage.setItem('navVisible', JSON.stringify(!prev));
-        return !prev;
+        const next = !prev;
+        safeSetItem('navVisible', JSON.stringify(next));
+        return next;
       });
     }
   };

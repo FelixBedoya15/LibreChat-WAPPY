@@ -55,6 +55,12 @@ import Markdown from '~/components/Chat/Messages/Content/Markdown';
 import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../Chat/TenshiPageController';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn, clearMessagesCache } from '~/utils';
+import {
+  safeGetItem,
+  safeSetItem,
+  safeRemoveItem,
+  compressLogoDataUrl,
+} from '~/utils/safeStorage';
 import { Constants, QueryKeys, EModelEndpoint } from 'librechat-data-provider';
 import {
   TenshiAvatar,
@@ -1049,12 +1055,10 @@ export default function TenshiChat() {
     hasExitedHeroInMountRef.current = true;
     setIsMobileHeroMode(false);
     setIsHeroChatOpen(false);
-    try {
-      sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
-      sessionStorage.setItem('tenshi_mobile_hero_exited', 'true');
-      sessionStorage.removeItem('tenshi_mobile_hero_forced');
-    } catch (_) {}
     if (typeof window !== 'undefined') {
+      safeSetItem('tenshi_mobile_hero_minimized', 'true', window.sessionStorage);
+      safeSetItem('tenshi_mobile_hero_exited', 'true', window.sessionStorage);
+      safeRemoveItem('tenshi_mobile_hero_forced', window.sessionStorage);
       window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
     }
   }, []);
@@ -1103,18 +1107,18 @@ export default function TenshiChat() {
       hasExitedHeroInMountRef.current = true;
       setIsMobileHeroMode(false);
       setIsHeroChatOpen(false);
-      try {
-        sessionStorage.setItem('tenshi_mobile_hero_minimized', 'true');
-        sessionStorage.removeItem('tenshi_mobile_hero_forced');
-      } catch (_) {}
+      if (typeof window !== 'undefined') {
+        safeSetItem('tenshi_mobile_hero_minimized', 'true', window.sessionStorage);
+        safeRemoveItem('tenshi_mobile_hero_forced', window.sessionStorage);
+      }
     };
     const handleEnterHero = () => {
       hasExitedHeroInMountRef.current = false;
-      try {
-        sessionStorage.removeItem('tenshi_mobile_hero_minimized');
-        sessionStorage.removeItem('tenshi_mobile_hero_exited');
-        sessionStorage.setItem('tenshi_mobile_hero_forced', 'true');
-      } catch (_) {}
+      if (typeof window !== 'undefined') {
+        safeRemoveItem('tenshi_mobile_hero_minimized', window.sessionStorage);
+        safeRemoveItem('tenshi_mobile_hero_exited', window.sessionStorage);
+        safeSetItem('tenshi_mobile_hero_forced', 'true', window.sessionStorage);
+      }
       setIsMobileHeroMode(true);
       setIsHeroChatOpen(false);
     };
@@ -1742,9 +1746,7 @@ export default function TenshiChat() {
   const handleSelectPersonality = useCallback((mode: 'express' | 'consultor' | 'auditor') => {
     tenshiAudio.playBlip();
     setPersonalityMode(mode);
-    try {
-      localStorage.setItem('wappy_tenshi_personality', mode);
-    } catch (_) {}
+    safeSetItem('wappy_tenshi_personality', mode);
     if (sendPersonalityRef.current) {
       sendPersonalityRef.current(mode);
     }
@@ -2799,14 +2801,24 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const companyId = resData?.companyId || resData?.empresa?._id || action.args?.id || action.args?.companyId;
             const companyData = resData?.companyData || resData?.empresa;
 
-            if (companyId) localStorage.setItem('wappy_active_company_id', String(companyId));
-            if (companyName) localStorage.setItem('wappy_active_company_name', String(companyName));
-            if (companyData?.nit) localStorage.setItem('wappy_active_company_nit', String(companyData.nit));
-            if (companyData?.arl) localStorage.setItem('wappy_active_company_arl', String(companyData.arl));
-            if (companyData?.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(companyData.workerCount));
-            if (companyData?.riskLevel) localStorage.setItem('wappy_active_company_risk', String(companyData.riskLevel));
-            if (companyData?.logoBase64) {
-              localStorage.setItem('wappy_sst_global_logo', companyData.logoBase64);
+            if (companyId) safeSetItem('wappy_active_company_id', String(companyId));
+            if (companyName) safeSetItem('wappy_active_company_name', String(companyName));
+            if (companyData?.nit) safeSetItem('wappy_active_company_nit', String(companyData.nit));
+            if (companyData?.arl) safeSetItem('wappy_active_company_arl', String(companyData.arl));
+            if (companyData?.workerCount !== undefined) safeSetItem('wappy_active_company_workers', String(companyData.workerCount));
+            if (companyData?.riskLevel) safeSetItem('wappy_active_company_risk', String(companyData.riskLevel));
+            if (companyData?.logoBase64 && typeof companyData.logoBase64 === 'string') {
+              if (companyData.logoBase64.length <= 50_000) {
+                safeSetItem('wappy_sst_global_logo', companyData.logoBase64);
+              } else {
+                compressLogoDataUrl(companyData.logoBase64)
+                  .then((compressed) => {
+                    if (compressed && compressed.length <= 120_000) {
+                      safeSetItem('wappy_sst_global_logo', compressed);
+                    }
+                  })
+                  .catch(() => {});
+              }
             }
 
             resultMsg = `Empresa "${companyName}" seleccionada y activa en el sistema.`;
@@ -2839,16 +2851,26 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const companyId = companyData?._id || action.args?.id || action.args?.companyId;
 
             // Si es la empresa activa actual, actualizar localStorage
-            const activeId = localStorage.getItem('wappy_active_company_id');
+            const activeId = safeGetItem('wappy_active_company_id');
             if (!activeId || activeId === companyId || companyData?.isActive) {
-              if (companyId) localStorage.setItem('wappy_active_company_id', String(companyId));
-              if (companyName) localStorage.setItem('wappy_active_company_name', String(companyName));
-              if (companyData?.nit) localStorage.setItem('wappy_active_company_nit', String(companyData.nit));
-              if (companyData?.arl) localStorage.setItem('wappy_active_company_arl', String(companyData.arl));
-              if (companyData?.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(companyData.workerCount));
-              if (companyData?.riskLevel) localStorage.setItem('wappy_active_company_risk', String(companyData.riskLevel));
-              if (companyData?.logoBase64) {
-                localStorage.setItem('wappy_sst_global_logo', companyData.logoBase64);
+              if (companyId) safeSetItem('wappy_active_company_id', String(companyId));
+              if (companyName) safeSetItem('wappy_active_company_name', String(companyName));
+              if (companyData?.nit) safeSetItem('wappy_active_company_nit', String(companyData.nit));
+              if (companyData?.arl) safeSetItem('wappy_active_company_arl', String(companyData.arl));
+              if (companyData?.workerCount !== undefined) safeSetItem('wappy_active_company_workers', String(companyData.workerCount));
+              if (companyData?.riskLevel) safeSetItem('wappy_active_company_risk', String(companyData.riskLevel));
+              if (companyData?.logoBase64 && typeof companyData.logoBase64 === 'string') {
+                if (companyData.logoBase64.length <= 50_000) {
+                  safeSetItem('wappy_sst_global_logo', companyData.logoBase64);
+                } else {
+                  compressLogoDataUrl(companyData.logoBase64)
+                    .then((compressed) => {
+                      if (compressed && compressed.length <= 120_000) {
+                        safeSetItem('wappy_sst_global_logo', compressed);
+                      }
+                    })
+                    .catch(() => {});
+                }
               }
             }
 
@@ -4710,12 +4732,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       tenshiAudio.playBlip();
     } catch (_) {}
     hasExitedHeroInMountRef.current = false;
-    try {
-      sessionStorage.removeItem('tenshi_mobile_hero_minimized');
-      sessionStorage.removeItem('tenshi_mobile_hero_exited');
-      sessionStorage.removeItem('tenshi_mobile_just_logged_in');
-      sessionStorage.setItem('tenshi_mobile_hero_forced', 'true');
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      safeRemoveItem('tenshi_mobile_hero_minimized', window.sessionStorage);
+      safeRemoveItem('tenshi_mobile_hero_exited', window.sessionStorage);
+      safeRemoveItem('tenshi_mobile_just_logged_in', window.sessionStorage);
+      safeSetItem('tenshi_mobile_hero_forced', 'true', window.sessionStorage);
+    }
     setIsMobileHeroMode(true);
     setIsHeroChatOpen(false);
     setIsOpen(false);
@@ -4847,9 +4869,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         personality: config.defaultPersonality || '',
       };
       setActiveAvatarProfile(eff);
+      safeSetItem('wappy_active_avatar_id', eff.avatarId || 'gato');
+      safeSetItem('wappy_active_avatar_profile', JSON.stringify(eff));
       try {
-        localStorage.setItem('wappy_active_avatar_id', eff.avatarId || 'gato');
-        localStorage.setItem('wappy_active_avatar_profile', JSON.stringify(eff));
         window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
       } catch (_) {}
     }
@@ -4916,9 +4938,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               personality: cfgRes.data.defaultPersonality || '',
             };
             setActiveAvatarProfile(eff);
+            safeSetItem('wappy_active_avatar_id', eff.avatarId || 'gato');
+            safeSetItem('wappy_active_avatar_profile', JSON.stringify(eff));
             try {
-              localStorage.setItem('wappy_active_avatar_id', eff.avatarId || 'gato');
-              localStorage.setItem('wappy_active_avatar_profile', JSON.stringify(eff));
               window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
             } catch (_) {}
           }

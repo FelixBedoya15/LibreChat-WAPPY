@@ -9,6 +9,7 @@ import {
 import { useAuthContext } from '~/hooks';
 import { ThemeSelector } from '@librechat/client';
 import axios from 'axios';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 // Declare global types for YouTube Iframe Player API
 declare global {
@@ -574,10 +575,10 @@ export default function MatrizPage() {
           const response = await axios.post('/api/comunidad/verify', { transactionId, funnelKey });
           if (response.data.success) {
             const { email, fullName, phone, reference, amountInCents } = response.data;
-            localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
+            safeSetItem(getStorageKey('wappy_comunidad_email'), email);
             setUserEmail(email);
             if (phone) {
-              localStorage.setItem(getStorageKey('wappy_comunidad_phone'), phone);
+              safeSetItem(getStorageKey('wappy_comunidad_phone'), phone);
               setUserPhone(phone);
             }
             setIsAccessGranted(true);
@@ -608,10 +609,11 @@ export default function MatrizPage() {
   }, []);
 
   const [sessionId] = useState(() => {
-    let id = sessionStorage.getItem('wappy_sess_id');
+    const ss = typeof window !== 'undefined' ? window.sessionStorage : undefined;
+    let id = safeGetItem('wappy_sess_id', ss);
     if (!id) {
       id = 'wappy_sess_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-      sessionStorage.setItem('wappy_sess_id', id);
+      safeSetItem('wappy_sess_id', id, ss);
     }
     return id;
   });
@@ -722,8 +724,8 @@ export default function MatrizPage() {
       funnelKey
     })
     .then(() => {
-      localStorage.setItem(getStorageKey('wappy_lead_captured'), 'true');
-      localStorage.setItem(getStorageKey('wappy_lead_data'), JSON.stringify({ 
+      safeSetItem(getStorageKey('wappy_lead_captured'), 'true');
+      safeSetItem(getStorageKey('wappy_lead_data'), JSON.stringify({ 
         fullName, 
         email, 
         phone 
@@ -796,7 +798,7 @@ export default function MatrizPage() {
               // Save progress locally if video is not finished yet
               const savedFinished = localStorage.getItem(getStorageKey('wappy_comunidad_video_finished')) === 'true';
               if (time > 1 && !savedFinished && (!totalDuration || time < totalDuration - 2)) {
-                localStorage.setItem(getStorageKey('wappy_comunidad_video_progress'), time.toString());
+                safeSetItem(getStorageKey('wappy_comunidad_video_progress'), time.toString());
               }
 
               // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
@@ -861,7 +863,7 @@ export default function MatrizPage() {
       // Save progress locally if video is not finished yet
       const savedFinished = localStorage.getItem(getStorageKey('wappy_comunidad_video_finished')) === 'true';
       if (time > 1 && !savedFinished && (!video.duration || time < video.duration - 2)) {
-        localStorage.setItem(getStorageKey('wappy_comunidad_video_progress'), time.toString());
+        safeSetItem(getStorageKey('wappy_comunidad_video_progress'), time.toString());
       }
       
       // Check if playback should be gated (Free Mode lead capture or Paid Mode payment popup)
@@ -958,7 +960,7 @@ export default function MatrizPage() {
   // Video completion callback
   const handleVideoFinished = async () => {
     setIsVideoFinished(true);
-    localStorage.setItem(getStorageKey('wappy_comunidad_video_finished'), 'true');
+    safeSetItem(getStorageKey('wappy_comunidad_video_finished'), 'true');
     localStorage.removeItem(getStorageKey('wappy_comunidad_video_progress'));
 
     if (funnelKey === 'wappyvital' && !isAccessGranted) {
@@ -1162,7 +1164,7 @@ export default function MatrizPage() {
         });
 
         if (data.freeAccess || data.alreadyPaid) {
-          localStorage.setItem(getStorageKey('wappy_comunidad_email'), checkoutEmail.trim());
+          safeSetItem(getStorageKey('wappy_comunidad_email'), checkoutEmail.trim());
           setUserEmail(checkoutEmail.trim());
           setIsAccessGranted(true);
           setShowLeadModal(false);
@@ -1225,10 +1227,10 @@ export default function MatrizPage() {
           setIsAccessChecking(true);
           const response = await axios.post('/api/comunidad/verify', { transactionId: transaction.id, funnelKey });
           if (response.data.success) {
-            localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
+            safeSetItem(getStorageKey('wappy_comunidad_email'), email);
             setUserEmail(email);
             if (checkoutPhone) {
-              localStorage.setItem(getStorageKey('wappy_comunidad_phone'), checkoutPhone);
+              safeSetItem(getStorageKey('wappy_comunidad_phone'), checkoutPhone);
               setUserPhone(checkoutPhone);
             }
             setIsAccessGranted(true);
@@ -1292,10 +1294,10 @@ export default function MatrizPage() {
           } else {
             await axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id });
           }
-          localStorage.setItem(getStorageKey('wappy_comunidad_email'), email);
+          safeSetItem(getStorageKey('wappy_comunidad_email'), email);
           setUserEmail(email);
           if (checkoutPhone) {
-            localStorage.setItem(getStorageKey('wappy_comunidad_phone'), checkoutPhone);
+            safeSetItem(getStorageKey('wappy_comunidad_phone'), checkoutPhone);
             setUserPhone(checkoutPhone);
           }
           await triggerMetaPurchasePixel(
@@ -1349,7 +1351,7 @@ export default function MatrizPage() {
     try {
       const response = await axios.post('/api/comunidad/check-access', { email: recoveryEmail.trim(), funnelKey });
       if (response.data.isPaid) {
-        localStorage.setItem(getStorageKey('wappy_comunidad_email'), recoveryEmail.trim());
+        safeSetItem(getStorageKey('wappy_comunidad_email'), recoveryEmail.trim());
         setUserEmail(recoveryEmail.trim());
         setIsAccessGranted(true);
         setRecoverySuccess('¡Acceso recuperado con éxito! Bienvenido de vuelta.');
@@ -1409,8 +1411,8 @@ export default function MatrizPage() {
         funnelKey
       });
 
-      localStorage.setItem(getStorageKey('wappy_lead_captured'), 'true');
-      localStorage.setItem(getStorageKey('wappy_lead_data'), JSON.stringify({ 
+      safeSetItem(getStorageKey('wappy_lead_captured'), 'true');
+      safeSetItem(getStorageKey('wappy_lead_data'), JSON.stringify({ 
         fullName: checkoutFullName, 
         email: checkoutEmail, 
         phone: checkoutPhone 

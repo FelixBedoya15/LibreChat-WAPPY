@@ -1,4 +1,5 @@
 import { LocalStorageKeys } from 'librechat-data-provider';
+import { safeGetItem, safeSetItem, safeRemoveItem } from './safeStorage';
 
 /** Suffix for timestamp entries */
 const TIMESTAMP_SUFFIX = '_TIMESTAMP';
@@ -23,15 +24,15 @@ const TIMESTAMPED_KEYS = [
  * Set only a timestamp for a key (when the value is handled elsewhere)
  */
 export function setTimestamp(key: string): void {
-  localStorage.setItem(`${key}${TIMESTAMP_SUFFIX}`, Date.now().toString());
+  safeSetItem(`${key}${TIMESTAMP_SUFFIX}`, Date.now().toString());
 }
 
 /**
  * Set a value in localStorage with an associated timestamp
  */
 export function setTimestampedValue(key: string, value: any): void {
-  localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-  localStorage.setItem(`${key}${TIMESTAMP_SUFFIX}`, Date.now().toString());
+  safeSetItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+  safeSetItem(`${key}${TIMESTAMP_SUFFIX}`, Date.now().toString());
 }
 
 /**
@@ -40,30 +41,30 @@ export function setTimestampedValue(key: string, value: any): void {
  */
 export function getTimestampedValue(key: string): string | null {
   const timestampKey = `${key}${TIMESTAMP_SUFFIX}`;
-  const timestamp = localStorage.getItem(timestampKey);
+  const timestamp = safeGetItem(timestampKey);
 
   if (!timestamp) {
     // No timestamp exists, return the value but it will be cleaned up on next startup
-    return localStorage.getItem(key);
+    return safeGetItem(key);
   }
 
   const age = Date.now() - parseInt(timestamp, 10);
   if (age > CLEANUP_THRESHOLD) {
     // Value is too old, clean it up
-    localStorage.removeItem(key);
-    localStorage.removeItem(timestampKey);
+    safeRemoveItem(key);
+    safeRemoveItem(timestampKey);
     return null;
   }
 
-  return localStorage.getItem(key);
+  return safeGetItem(key);
 }
 
 /**
  * Remove a value and its timestamp from localStorage
  */
 export function removeTimestampedValue(key: string): void {
-  localStorage.removeItem(key);
-  localStorage.removeItem(`${key}${TIMESTAMP_SUFFIX}`);
+  safeRemoveItem(key);
+  safeRemoveItem(`${key}${TIMESTAMP_SUFFIX}`);
 }
 
 /**
@@ -132,11 +133,11 @@ export function migrateExistingEntries(): void {
 
     if (isTimestampedKey && !key.endsWith(TIMESTAMP_SUFFIX)) {
       const timestampKey = `${key}${TIMESTAMP_SUFFIX}`;
-      const hasTimestamp = localStorage.getItem(timestampKey);
+      const hasTimestamp = safeGetItem(timestampKey);
 
       if (!hasTimestamp) {
         // Add timestamp to existing entry
-        localStorage.setItem(timestampKey, now);
+        safeSetItem(timestampKey, now);
       }
     }
   }

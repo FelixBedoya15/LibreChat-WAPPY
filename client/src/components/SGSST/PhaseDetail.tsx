@@ -10,6 +10,7 @@ import {
     Award, HeartHandshake, Compass, ShoppingBag, Sparkles
 } from 'lucide-react';
 import { cn } from '~/utils';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
 import { Button, useToastContext } from '@librechat/client';
@@ -334,7 +335,7 @@ const PhaseDetail = ({
     }, [user?.isSubUser, user?.subUserPermissions, CATEGORY_PERMISSION_MAP]);
 
     useEffect(() => {
-        const saved = localStorage.getItem(storageKey);
+        const saved = safeGetItem(storageKey);
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
@@ -349,7 +350,7 @@ const PhaseDetail = ({
 
     const saveFiles = (newFiles: any[]) => {
         setFiles(newFiles);
-        localStorage.setItem(storageKey, JSON.stringify(newFiles));
+        safeSetItem(storageKey, JSON.stringify(newFiles));
     };
 
     const uploadMutation = useUploadFileMutation({

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '~/hooks';
 import { hasActivePlan } from '~/utils/planAccess';
+import { safeSetItem } from '~/utils/safeStorage';
 import './marketing.css';
 
 interface AmbassadorProfile {
@@ -104,7 +105,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('wappy_theme_mode', isDarkMode ? 'dark' : 'light');
+      safeSetItem('wappy_theme_mode', isDarkMode ? 'dark' : 'light');
       if (isDarkMode) {
         document.documentElement.classList.add('dark');
       } else {
@@ -169,7 +170,7 @@ export default function LandingPage() {
 
       if (urlRef) {
         try {
-          localStorage.setItem('wappy_ref', urlRef);
+          safeSetItem('wappy_ref', urlRef);
           sessionStorage.setItem('wappy_ref', urlRef);
         } catch (e) {}
       }
@@ -195,7 +196,7 @@ export default function LandingPage() {
             const canonicalSlug = data.slug || resolvedRef;
             setActiveRef(canonicalSlug);
             try {
-              localStorage.setItem('wappy_ref', canonicalSlug);
+              safeSetItem('wappy_ref', canonicalSlug);
               sessionStorage.setItem('wappy_ref', canonicalSlug);
             } catch (e) {}
             setAmbassador(data);
@@ -405,7 +406,7 @@ export default function LandingPage() {
     const refToUse = activeRef || ambassador?.slug || '';
     if (refToUse) {
       try {
-        localStorage.setItem('wappy_ref', refToUse);
+        safeSetItem('wappy_ref', refToUse);
         sessionStorage.setItem('wappy_ref', refToUse);
       } catch (e) {}
       return `?ref=${encodeURIComponent(refToUse)}`;

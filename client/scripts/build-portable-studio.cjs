@@ -99,6 +99,7 @@ if (fs.existsSync(matrizSourceHtml)) {
   const matrizOutputs = [
     path.join(clientDir, 'public/matrizipvr.html'),
     path.join(clientDir, 'public/assets/matrizipvr.html'),
+    path.join(clientDir, 'public/matriz_ipvr_gtc45_offline.html'),
   ];
   for (const out of matrizOutputs) {
     fs.writeFileSync(out, matrizHtml);

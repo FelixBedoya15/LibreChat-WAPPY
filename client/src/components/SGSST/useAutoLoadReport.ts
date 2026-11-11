@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '~/utils/safeStorage';
 
 export interface AutoLoadReportParams {
   token?: string | null;
@@ -16,12 +17,15 @@ export interface AutoLoadReportParams {
 
 export function getActiveCompanyId(): string {
   if (typeof window === 'undefined') return 'default';
-  return localStorage.getItem('wappy_active_company_id') || 'default';
+  return safeGetItem('wappy_active_company_id') || 'default';
 }
 
 export function getReportCacheKey(companyId: string, primaryTag: string): string {
   return `wappy_sgsst_report_${companyId || 'default'}_${primaryTag || 'report'}`;
 }
+
+const MAX_REPORT_CACHE_CHARS = 260_000;
+const MAX_REPORT_CACHE_ENTRIES = 8;
 
 export function saveReportToLocalCache(
   primaryTag: string,
@@ -31,10 +35,13 @@ export function saveReportToLocalCache(
   companyIdOverride?: string | null,
 ) {
   if (typeof window === 'undefined' || !primaryTag || !content) return;
+  if (content.length > MAX_REPORT_CACHE_CHARS) {
+    return;
+  }
   try {
     const companyId = companyIdOverride || getActiveCompanyId();
     const key = getReportCacheKey(companyId, primaryTag);
-    const prevRaw = localStorage.getItem(key);
+    const prevRaw = safeGetItem(key);
     let prev: any = null;
     if (prevRaw) {
       try {
@@ -43,6 +50,34 @@ export function saveReportToLocalCache(
         prev = null;
       }
     }
+
+    // Enforce LRU limit of 8 wappy_sgsst_report_* keys before writing
+    if (window.localStorage) {
+      const existingReports: Array<{ key: string; updatedAt: number }> = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k && k.startsWith('wappy_sgsst_report_') && k !== key) {
+          let upd = 0;
+          try {
+            const raw = window.localStorage.getItem(k);
+            if (raw) {
+              upd = Number(JSON.parse(raw)?.updatedAt) || 0;
+            }
+          } catch {
+            upd = 0;
+          }
+          existingReports.push({ key: k, updatedAt: upd });
+        }
+      }
+      if (existingReports.length >= MAX_REPORT_CACHE_ENTRIES) {
+        existingReports.sort((a, b) => a.updatedAt - b.updatedAt);
+        const evictCount = existingReports.length - (MAX_REPORT_CACHE_ENTRIES - 1);
+        for (let e = 0; e < evictCount; e++) {
+          safeRemoveItem(existingReports[e].key);
+        }
+      }
+    }
+
     const payload = {
       content,
       conversationId: conversationId ?? prev?.conversationId ?? null,
@@ -51,7 +86,7 @@ export function saveReportToLocalCache(
       tag: primaryTag,
       updatedAt: Date.now(),
     };
-    localStorage.setItem(key, JSON.stringify(payload));
+    safeSetItem(key, JSON.stringify(payload));
   } catch (err) {
     console.warn('[useAutoLoadReport] Could not write to localStorage cache:', err);
   }
@@ -278,9 +313,9 @@ export function useAutoLoadReport(
               serverCompanyId = String(data.companyId);
               if (
                 typeof window !== 'undefined' &&
-                !localStorage.getItem('wappy_active_company_id')
+                !safeGetItem('wappy_active_company_id')
               ) {
-                localStorage.setItem('wappy_active_company_id', serverCompanyId);
+                safeSetItem('wappy_active_company_id', serverCompanyId);
               }
             }
             const list =

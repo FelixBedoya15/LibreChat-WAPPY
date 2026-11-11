@@ -1,5 +1,6 @@
 import { useEffect, useContext } from 'react';
 import { ThemeContext } from '@librechat/client';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 export default function ThemeManager() {
     const context = useContext(ThemeContext);
@@ -7,9 +8,9 @@ export default function ThemeManager() {
 
     // Reset default back to 'light' for all users while preserving manual selections
     useEffect(() => {
-        const isLightDefaultSet = localStorage.getItem('wappy_light_default_v2');
+        const isLightDefaultSet = safeGetItem('wappy_light_default_v2');
         if (!isLightDefaultSet && setTheme) {
-            localStorage.setItem('wappy_light_default_v2', 'true');
+            safeSetItem('wappy_light_default_v2', 'true');
             setTheme('light');
         }
     }, [setTheme]);

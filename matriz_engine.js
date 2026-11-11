@@ -7,6 +7,297 @@ const TENSHI_AVATAR_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAbAAAAJ
 // By Wappy LTDA - Somos SST · 100% Offline y Portable con Conexión API a Gemini
 // ═══════════════════════════════════════════════════════════════════════════
 
+(function ensureWappyEngineStorageShield() {
+  if (typeof window === 'undefined' || window.wappySafeSetItem) return;
+  var MAX_BOOT_CHARS = 3200000;
+  var MAX_COMPANY_B64_CHARS = 51200;
+  var MAX_HISTORY_ENTRIES = 5;
+  var origSetItem = typeof Storage !== 'undefined' && Storage.prototype ? Storage.prototype.setItem : null;
+  var origGetItem = typeof Storage !== 'undefined' && Storage.prototype ? Storage.prototype.getItem : null;
+  var origRemoveItem = typeof Storage !== 'undefined' && Storage.prototype ? Storage.prototype.removeItem : null;
+
+  function isQuotaError(err) {
+    if (!err) return false;
+    var name = String(err.name || '');
+    var msg = String(err.message || err || '');
+    return (
+      name === 'QuotaExceededError' ||
+      name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      err.code === 22 ||
+      err.code === 1014 ||
+      /quota|exceeded|storage/i.test(msg)
+    );
+  }
+
+  function shouldRethrowForStudioFallback(key) {
+    var k = String(key || '');
+    return (
+      k.indexOf('wappy_studio_library') === 0 ||
+      k.indexOf('wappy_studio_audio_library') === 0 ||
+      k.indexOf('wappy_cloned_voices') === 0 ||
+      k.indexOf('wappy_studio_cloned_voices') === 0
+    );
+  }
+
+  function stripHeavyFieldsFromCompany(comp, shouldStrip) {
+    if (!comp || typeof comp !== 'object') return comp;
+    var clone = Object.assign({}, comp);
+    if (!shouldStrip) return clone;
+    var fields = ['logoBase64', 'legalRepSignature', 'sstRespSignature'];
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      if (typeof clone[f] === 'string' && clone[f].length > MAX_COMPANY_B64_CHARS) {
+        delete clone[f];
+      }
+    }
+    if (clone.signatures && typeof clone.signatures === 'object') {
+      var sigClone = Object.assign({}, clone.signatures);
+      var skeys = Object.keys(sigClone);
+      for (var j = 0; j < skeys.length; j++) {
+        var sk = skeys[j];
+        if (typeof sigClone[sk] === 'string' && sigClone[sk].length > MAX_COMPANY_B64_CHARS) {
+          delete sigClone[sk];
+        }
+      }
+      clone.signatures = sigClone;
+    }
+    return clone;
+  }
+
+  window.wappySerializeCompaniesForStorage = function (list, activeId, forceLogged) {
+    if (!Array.isArray(list)) return '[]';
+    var isLogged = Boolean(forceLogged || window.isPlatformLoggedIn);
+    var resolvedActiveId = activeId || (window.wappySafeGetItem ? window.wappySafeGetItem('wappy_active_company_id') : '');
+    var slim = list.map(function (c) {
+      if (!c || typeof c !== 'object') return c;
+      var isInactive = Boolean(resolvedActiveId && c._id && c._id !== resolvedActiveId && !c.isActive);
+      return stripHeavyFieldsFromCompany(c, isLogged || isInactive);
+    });
+    return JSON.stringify(slim);
+  };
+
+  window.wappySerializeSingleCompanyForStorage = function (comp, forceLogged) {
+    if (!comp || typeof comp !== 'object') return '{}';
+    var isLogged = Boolean(forceLogged || window.isPlatformLoggedIn);
+    return JSON.stringify(stripHeavyFieldsFromCompany(comp, isLogged));
+  };
+
+  window.wappyPurgeStorageCaches = function (aggressive) {
+    if (!origSetItem || !origGetItem || !origRemoveItem) return;
+    try {
+      var ls = window.localStorage;
+      var toRemove = [];
+      var hasScopedRows = false;
+      for (var i = 0; i < ls.length; i++) {
+        var k = ls.key(i);
+        if (!k) continue;
+        if (k.indexOf('wappy_sgsst_report_') === 0 || k.indexOf('wappy_company_draft_') === 0) {
+          toRemove.push(k);
+        } else if (k.indexOf('wappy_gtc45_matrix_rows_') === 0) {
+          hasScopedRows = true;
+        }
+      }
+      if (hasScopedRows) toRemove.push('wappy_gtc45_matrix_rows');
+      if (aggressive) toRemove.push('wappy_signatures');
+      for (var r = 0; r < toRemove.length; r++) {
+        try { origRemoveItem.call(ls, toRemove[r]); } catch (e) {}
+      }
+      try {
+        var rawHist = origGetItem.call(ls, 'wappy_gtc45_history');
+        if (rawHist) {
+          var parsedHist = JSON.parse(rawHist);
+          if (Array.isArray(parsedHist)) {
+            var cap = aggressive ? 3 : MAX_HISTORY_ENTRIES;
+            if (parsedHist.length > cap) {
+              origSetItem.call(ls, 'wappy_gtc45_history', JSON.stringify(parsedHist.slice(0, cap)));
+            }
+          } else {
+            origRemoveItem.call(ls, 'wappy_gtc45_history');
+          }
+        }
+      } catch (eh) {
+        try { origRemoveItem.call(ls, 'wappy_gtc45_history'); } catch (e2) {}
+      }
+      try {
+        var rawComps = origGetItem.call(ls, 'wappy_sgsst_companies');
+        if (rawComps && rawComps.length > MAX_COMPANY_B64_CHARS) {
+          var parsedComps = JSON.parse(rawComps);
+          if (Array.isArray(parsedComps)) {
+            var actId = origGetItem.call(ls, 'wappy_active_company_id') || '';
+            var isLogged = Boolean(window.isPlatformLoggedIn);
+            var cleanedComps = parsedComps.map(function (c) {
+              if (!c || typeof c !== 'object') return c;
+              var shouldStrip = aggressive || isLogged || Boolean(actId && c._id !== actId && !c.isActive);
+              return stripHeavyFieldsFromCompany(c, shouldStrip);
+            });
+            origSetItem.call(ls, 'wappy_sgsst_companies', JSON.stringify(cleanedComps));
+          }
+        }
+      } catch (ec) {}
+    } catch (e) {}
+  };
+
+  if (origSetItem && !Storage.prototype.__wappyShieldInstalled) {
+    Object.defineProperty(Storage.prototype, '__wappyShieldInstalled', {
+      value: true,
+      enumerable: false,
+      configurable: true
+    });
+    Storage.prototype.setItem = function (key, value) {
+      var strVal = String(value);
+      try {
+        return origSetItem.call(this, key, strVal);
+      } catch (err) {
+        if (this === window.localStorage && isQuotaError(err)) {
+          window.wappyPurgeStorageCaches(true);
+          try {
+            return origSetItem.call(this, key, strVal);
+          } catch (retryErr) {
+            if (shouldRethrowForStudioFallback(key)) throw retryErr;
+            console.warn('[WAPPY Storage Shield] Cuota agotada al guardar "' + key + '":', retryErr);
+            return;
+          }
+        }
+        if (this === window.sessionStorage && isQuotaError(err)) {
+          console.warn('[WAPPY Storage Shield] sessionStorage lleno para "' + key + '":', err);
+          return;
+        }
+        throw err;
+      }
+    };
+  }
+
+  window.wappySafeSetItem = function (key, value, targetStorage) {
+    var store = targetStorage || window.localStorage;
+    if (!store) return false;
+    var strVal = String(value);
+    try {
+      if (origSetItem) origSetItem.call(store, key, strVal);
+      else store.setItem(key, strVal);
+      return true;
+    } catch (err) {
+      if (store === window.localStorage) {
+        window.wappyPurgeStorageCaches(true);
+        try {
+          if (origSetItem) origSetItem.call(store, key, strVal);
+          else store.setItem(key, strVal);
+          return true;
+        } catch (retryErr) {
+          console.warn('[WAPPY SafeStorage] No se pudo guardar "' + key + '":', retryErr);
+          return false;
+        }
+      }
+      return false;
+    }
+  };
+
+  window.wappySafeGetItem = function (key, targetStorage) {
+    var store = targetStorage || window.localStorage;
+    if (!store) return null;
+    try {
+      return origGetItem ? origGetItem.call(store, key) : store.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  };
+
+  window.wappySafeRemoveItem = function (key, targetStorage) {
+    var store = targetStorage || window.localStorage;
+    if (!store) return;
+    try {
+      if (origRemoveItem) origRemoveItem.call(store, key);
+      else store.removeItem(key);
+    } catch (e) {}
+  };
+
+  window.wappyCompressImageDataUrl = function (fileOrDataUrl, opts) {
+    var options = opts || {};
+    var maxWidth = Number(options.maxWidth) || 420;
+    var maxHeight = Number(options.maxHeight) || 420;
+    var mimeType = options.mimeType || 'image/webp';
+    var quality = typeof options.quality === 'number' ? options.quality : 0.85;
+    var fallbackMime = options.fallbackMimeType || 'image/png';
+    return new Promise(function (resolve, reject) {
+      if (!fileOrDataUrl) { reject(new Error('Imagen vacía')); return; }
+      var objectUrl = null;
+      var img = new Image();
+      img.onload = function () {
+        if (objectUrl) { try { URL.revokeObjectURL(objectUrl); } catch (e) {} }
+        try {
+          var srcW = img.naturalWidth || img.width || maxWidth;
+          var srcH = img.naturalHeight || img.height || maxHeight;
+          var ratio = Math.min(1, maxWidth / srcW, maxHeight / srcH);
+          var targetW = Math.max(1, Math.round(srcW * ratio));
+          var targetH = Math.max(1, Math.round(srcH * ratio));
+          var canvas = document.createElement('canvas');
+          canvas.width = targetW;
+          canvas.height = targetH;
+          var ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, targetW, targetH);
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+          var out = canvas.toDataURL(mimeType, quality);
+          if (mimeType === 'image/webp' && out.indexOf('data:image/webp') !== 0) {
+            out = canvas.toDataURL(fallbackMime);
+          }
+          resolve(out);
+        } catch (ce) { reject(ce); }
+      };
+      img.onerror = function () {
+        if (objectUrl) { try { URL.revokeObjectURL(objectUrl); } catch (e) {} }
+        reject(new Error('No se pudo decodificar la imagen'));
+      };
+      if (typeof fileOrDataUrl === 'string') img.src = fileOrDataUrl;
+      else if (typeof Blob !== 'undefined' && fileOrDataUrl instanceof Blob && typeof URL !== 'undefined' && URL.createObjectURL) {
+        objectUrl = URL.createObjectURL(fileOrDataUrl);
+        img.src = objectUrl;
+      } else {
+        var reader = new FileReader();
+        reader.onload = function (ev) { img.src = ev.target.result; };
+        reader.onerror = function () { reject(new Error('Error leyendo archivo')); };
+        reader.readAsDataURL(fileOrDataUrl);
+      }
+    });
+  };
+
+  window.wappyExportSignatureCanvas = function (sourceCanvas, maxWidth, maxHeight) {
+    if (!sourceCanvas) return '';
+    var maxW = Number(maxWidth) || 500;
+    var maxH = Number(maxHeight) || 200;
+    try {
+      var dpr = Math.max(window.devicePixelRatio || 1, 1);
+      var cssW = sourceCanvas.offsetWidth || Math.round(sourceCanvas.width / dpr) || maxW;
+      var cssH = sourceCanvas.offsetHeight || Math.round(sourceCanvas.height / dpr) || maxH;
+      var scale = Math.min(1, maxW / cssW, maxH / cssH);
+      var outW = Math.max(1, Math.round(cssW * scale));
+      var outH = Math.max(1, Math.round(cssH * scale));
+      var off = document.createElement('canvas');
+      off.width = outW;
+      off.height = outH;
+      var ctx = off.getContext('2d');
+      ctx.clearRect(0, 0, outW, outH);
+      ctx.drawImage(sourceCanvas, 0, 0, outW, outH);
+      var dataUrl = off.toDataURL('image/webp', 0.85);
+      if (dataUrl.indexOf('data:image/webp') !== 0) dataUrl = off.toDataURL('image/png');
+      return dataUrl;
+    } catch (e) {
+      try { return sourceCanvas.toDataURL('image/png'); } catch (e2) { return ''; }
+    }
+  };
+
+  try {
+    var lsBoot = window.localStorage;
+    if (lsBoot && origGetItem) {
+      var total = 0;
+      for (var b = 0; b < lsBoot.length; b++) {
+        var bk = lsBoot.key(b) || '';
+        var bv = origGetItem.call(lsBoot, bk) || '';
+        total += bk.length + bv.length;
+      }
+      if (total > MAX_BOOT_CHARS) window.wappyPurgeStorageCaches(false);
+    }
+  } catch (e) {}
+})();
+
 const GTC45_CATEGORIES = {
   'Condiciones de seguridad': [
     'Mecánico (elementos o partes de máquinas, herramientas, equipos)',
@@ -608,12 +899,14 @@ function handleManualSaveMatrix() {
 
 function saveToLocalStorage(showFeedback = false) {
   try {
+    const serializedRows = JSON.stringify(matrixRows);
     const key = activeCompanyId ? `wappy_gtc45_matrix_rows_${activeCompanyId}` : 'wappy_gtc45_matrix_rows';
-    localStorage.setItem(key, JSON.stringify(matrixRows));
-    // Guardar espejo en la clave general para retrocompatibilidad
-    localStorage.setItem('wappy_gtc45_matrix_rows', JSON.stringify(matrixRows));
-    localStorage.setItem('wappy_gtc45_company', JSON.stringify(companyInfo));
-    if (showFeedback) showToast('Matriz guardada localmente en tu navegador', 'success');
+    const ok = window.wappySafeSetItem(key, serializedRows);
+    if (activeCompanyId) {
+      window.wappySafeRemoveItem('wappy_gtc45_matrix_rows');
+    }
+    window.wappySafeSetItem('wappy_gtc45_company', window.wappySerializeSingleCompanyForStorage(companyInfo));
+    if (showFeedback) showToast(ok ? 'Matriz guardada localmente en tu navegador' : 'Matriz activa en memoria (almacenamiento local al límite)', ok ? 'success' : 'warning');
   } catch (e) {
     console.error('Error saving local:', e);
     if (showFeedback) showToast('Error al guardar localmente', 'error');
@@ -662,33 +955,35 @@ function loadSavedMatrix(targetCompanyId = null) {
 function syncCompanyToLocalStorage(comp) {
   if (!comp) return;
   try {
-    if (comp._id) localStorage.setItem('wappy_active_company_id', comp._id);
-    if (comp.companyName) localStorage.setItem('wappy_active_company_name', comp.companyName);
-    if (comp.nit) localStorage.setItem('wappy_active_company_nit', comp.nit);
-    if (comp.arl) localStorage.setItem('wappy_active_company_arl', comp.arl);
-    if (comp.workerCount !== undefined) localStorage.setItem('wappy_active_company_workers', String(comp.workerCount));
-    if (comp.riskLevel) localStorage.setItem('wappy_active_company_risk', comp.riskLevel);
-    if (comp.logoBase64) {
-      localStorage.setItem('wappy_sst_global_logo', comp.logoBase64);
-    } else {
-      localStorage.removeItem('wappy_sst_global_logo');
+    const isLogged = Boolean(window.isPlatformLoggedIn);
+    if (comp._id) window.wappySafeSetItem('wappy_active_company_id', comp._id);
+    if (comp.companyName) window.wappySafeSetItem('wappy_active_company_name', comp.companyName);
+    if (comp.nit) window.wappySafeSetItem('wappy_active_company_nit', comp.nit);
+    if (comp.arl) window.wappySafeSetItem('wappy_active_company_arl', comp.arl);
+    if (comp.workerCount !== undefined) window.wappySafeSetItem('wappy_active_company_workers', String(comp.workerCount));
+    if (comp.riskLevel) window.wappySafeSetItem('wappy_active_company_risk', comp.riskLevel);
+    if (comp.logoBase64 && (!isLogged || comp.logoBase64.length <= 51200)) {
+      window.wappySafeSetItem('wappy_sst_global_logo', comp.logoBase64);
+    } else if (!comp.logoBase64) {
+      window.wappySafeRemoveItem('wappy_sst_global_logo');
     }
-    localStorage.setItem('wappy_gtc45_company', JSON.stringify(comp));
+    window.wappySafeSetItem('wappy_gtc45_company', window.wappySerializeSingleCompanyForStorage(comp, isLogged));
 
-    // Sincronizar firmas nombradas en wappy_signatures
-    const rawSigs = localStorage.getItem('wappy_signatures');
+    // Sincronizar firmas nombradas aisladas por empresa en wappy_signatures_<id>
+    const sigStorageKey = `wappy_signatures_${comp._id || activeCompanyId || 'default'}`;
+    const rawSigs = window.wappySafeGetItem(sigStorageKey);
     const sigs = rawSigs ? JSON.parse(rawSigs) : {};
     let sigsUpdated = false;
-    if (comp.legalRepConsent === 'Sí' && comp.legalRepSignature && comp.legalRepresentative) {
+    if (comp.legalRepConsent === 'Sí' && comp.legalRepSignature && comp.legalRepresentative && (!isLogged || comp.legalRepSignature.length <= 51200)) {
       sigs[comp.legalRepresentative.trim().toUpperCase()] = comp.legalRepSignature;
       sigsUpdated = true;
     }
-    if (comp.sstRespConsent === 'Sí' && comp.sstRespSignature && comp.responsibleSST) {
+    if (comp.sstRespConsent === 'Sí' && comp.sstRespSignature && comp.responsibleSST && (!isLogged || comp.sstRespSignature.length <= 51200)) {
       sigs[comp.responsibleSST.trim().toUpperCase()] = comp.sstRespSignature;
       sigsUpdated = true;
     }
     if (sigsUpdated) {
-      localStorage.setItem('wappy_signatures', JSON.stringify(sigs));
+      window.wappySafeSetItem(sigStorageKey, JSON.stringify(sigs));
     }
   } catch (e) {
     console.warn('Error syncing company to local storage:', e);
@@ -697,8 +992,8 @@ function syncCompanyToLocalStorage(comp) {
 
 function loadCompanyInfo() {
   try {
-    let rawList = localStorage.getItem('wappy_sgsst_companies');
-    if (!rawList) rawList = localStorage.getItem('wappy_sgsst_companies_offline');
+    let rawList = window.wappySafeGetItem('wappy_sgsst_companies');
+    if (!rawList) rawList = window.wappySafeGetItem('wappy_sgsst_companies_offline');
 
     if (rawList) {
       try {
@@ -713,7 +1008,7 @@ function loadCompanyInfo() {
 
     if (!companiesList || companiesList.length === 0) {
       let baseComp = { ...INITIAL_COMPANY_DATA };
-      const rawLegacy = localStorage.getItem('wappy_gtc45_company');
+      const rawLegacy = window.wappySafeGetItem('wappy_gtc45_company');
       if (rawLegacy) {
         try {
           const parsedLegacy = JSON.parse(rawLegacy);
@@ -721,18 +1016,18 @@ function loadCompanyInfo() {
         } catch (e) {}
       }
 
-      if (localStorage.getItem('wappy_active_company_name')) baseComp.companyName = localStorage.getItem('wappy_active_company_name');
-      if (localStorage.getItem('wappy_active_company_nit')) baseComp.nit = localStorage.getItem('wappy_active_company_nit');
-      if (localStorage.getItem('wappy_active_company_arl')) baseComp.arl = localStorage.getItem('wappy_active_company_arl');
-      if (localStorage.getItem('wappy_active_company_risk')) baseComp.riskLevel = localStorage.getItem('wappy_active_company_risk');
-      if (localStorage.getItem('wappy_active_company_workers')) baseComp.workerCount = parseInt(localStorage.getItem('wappy_active_company_workers')) || baseComp.workerCount;
-      if (localStorage.getItem('wappy_sst_global_logo')) baseComp.logoBase64 = localStorage.getItem('wappy_sst_global_logo');
+      if (window.wappySafeGetItem('wappy_active_company_name')) baseComp.companyName = window.wappySafeGetItem('wappy_active_company_name');
+      if (window.wappySafeGetItem('wappy_active_company_nit')) baseComp.nit = window.wappySafeGetItem('wappy_active_company_nit');
+      if (window.wappySafeGetItem('wappy_active_company_arl')) baseComp.arl = window.wappySafeGetItem('wappy_active_company_arl');
+      if (window.wappySafeGetItem('wappy_active_company_risk')) baseComp.riskLevel = window.wappySafeGetItem('wappy_active_company_risk');
+      if (window.wappySafeGetItem('wappy_active_company_workers')) baseComp.workerCount = parseInt(window.wappySafeGetItem('wappy_active_company_workers')) || baseComp.workerCount;
+      if (window.wappySafeGetItem('wappy_sst_global_logo')) baseComp.logoBase64 = window.wappySafeGetItem('wappy_sst_global_logo');
 
       companiesList = [baseComp];
-      localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
+      window.wappySafeSetItem('wappy_sgsst_companies', window.wappySerializeCompaniesForStorage(companiesList, baseComp._id));
     }
 
-    const storedActiveId = localStorage.getItem('wappy_active_company_id');
+    const storedActiveId = window.wappySafeGetItem('wappy_active_company_id');
     let activeComp = companiesList.find(c => c._id === storedActiveId);
     if (!activeComp) activeComp = companiesList.find(c => c.isActive) || companiesList[0];
 
@@ -743,8 +1038,8 @@ function loadCompanyInfo() {
     companyInfo = JSON.parse(JSON.stringify(activeComp));
     editingCompany = JSON.parse(JSON.stringify(activeComp));
 
-    localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
-    localStorage.setItem('wappy_active_company_id', activeCompanyId);
+    window.wappySafeSetItem('wappy_sgsst_companies', window.wappySerializeCompaniesForStorage(companiesList, activeCompanyId));
+    window.wappySafeSetItem('wappy_active_company_id', activeCompanyId);
     syncCompanyToLocalStorage(activeComp);
     updateHeroCompanyBanner();
   } catch (err) {
@@ -757,7 +1052,7 @@ function loadCompanyInfo() {
 
 // ─── CLAVES IA Y ROTACIÓN ───────────────────────────────────────────
 function getApiKeysList() {
-  const raw = localStorage.getItem('wappy_gemini_api_keys') || '';
+  const raw = window.wappySafeGetItem('wappy_gemini_api_keys') || '';
   return raw.split(',').map(k => k.trim()).filter(k => k.length > 5);
 }
 
@@ -793,7 +1088,7 @@ function closeApiKeyModal() {
 
 function saveApiKeys() {
   const val = document.getElementById('apiKeyInput').value.trim();
-  localStorage.setItem('wappy_gemini_api_keys', val);
+  window.wappySafeSetItem('wappy_gemini_api_keys', val);
   loadSavedKeys();
   closeApiKeyModal();
   const keys = getApiKeysList();
@@ -3093,7 +3388,7 @@ function saveTemplate(name, mapping) {
     };
     if (idx >= 0) list[idx] = newEntry;
     else list.push(newEntry);
-    localStorage.setItem(MAPPER_STORAGE_KEY, JSON.stringify(list));
+    window.wappySafeSetItem(MAPPER_STORAGE_KEY, JSON.stringify(list));
     showToast(`Plantilla "${name}" guardada con éxito`, 'success');
   } catch (err) {
     console.error('Error guardando plantilla:', err);
@@ -3104,7 +3399,7 @@ function deleteSavedTemplate(name) {
   try {
     const list = getSavedTemplates();
     const filtered = list.filter(t => t.name.toLowerCase() !== name.toLowerCase());
-    localStorage.setItem(MAPPER_STORAGE_KEY, JSON.stringify(filtered));
+    window.wappySafeSetItem(MAPPER_STORAGE_KEY, JSON.stringify(filtered));
     showToast(`Plantilla "${name}" eliminada`, 'info');
   } catch (err) {
     console.error('Error eliminando plantilla:', err);
@@ -5051,8 +5346,9 @@ function closeHistoryModal() {
 
 function saveHistorySnapshot(customName = '') {
   try {
-    const rawHistory = localStorage.getItem('wappy_gtc45_history') || '[]';
-    const history = JSON.parse(rawHistory);
+    const rawHistory = window.wappySafeGetItem('wappy_gtc45_history') || '[]';
+    const parsed = JSON.parse(rawHistory);
+    const history = Array.isArray(parsed) ? parsed : [];
     const newSnapshot = {
       id: 'snap_' + Date.now(),
       name: customName || `Versión ${history.length + 1} (${new Date().toLocaleDateString('es-CO')} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
@@ -5061,10 +5357,10 @@ function saveHistorySnapshot(customName = '') {
       data: matrixRows
     };
     history.unshift(newSnapshot);
-    if (history.length > 20) history.pop();
-    localStorage.setItem('wappy_gtc45_history', JSON.stringify(history));
+    if (history.length > 5) history.length = 5;
+    window.wappySafeSetItem('wappy_gtc45_history', JSON.stringify(history));
     renderHistoryList();
-    showToast('Versión guardada en el historial', 'success');
+    showToast('Versión guardada en el historial (máx. 5 recientes)', 'success');
   } catch (err) {
     console.error('Error saving history snapshot:', err);
   }
@@ -5072,7 +5368,7 @@ function saveHistorySnapshot(customName = '') {
 
 function restoreHistorySnapshot(snapshotId) {
   try {
-    const rawHistory = localStorage.getItem('wappy_gtc45_history') || '[]';
+    const rawHistory = window.wappySafeGetItem('wappy_gtc45_history') || '[]';
     const history = JSON.parse(rawHistory);
     const snap = history.find(s => s.id === snapshotId);
     if (snap && Array.isArray(snap.data)) {
@@ -5094,10 +5390,10 @@ function restoreHistorySnapshot(snapshotId) {
 
 function deleteHistorySnapshot(snapshotId) {
   try {
-    const rawHistory = localStorage.getItem('wappy_gtc45_history') || '[]';
+    const rawHistory = window.wappySafeGetItem('wappy_gtc45_history') || '[]';
     let history = JSON.parse(rawHistory);
     history = history.filter(s => s.id !== snapshotId);
-    localStorage.setItem('wappy_gtc45_history', JSON.stringify(history));
+    window.wappySafeSetItem('wappy_gtc45_history', JSON.stringify(history));
     renderHistoryList();
     showToast('Versión eliminada del historial', 'info');
   } catch (err) {
@@ -5257,9 +5553,7 @@ function handleActivateCompany(id) {
 
   // 1. Guardar la matriz de la empresa actual antes de cambiar
   if (activeCompanyId) {
-    try {
-      localStorage.setItem(`wappy_gtc45_matrix_rows_${activeCompanyId}`, JSON.stringify(matrixRows));
-    } catch (e) {}
+    window.wappySafeSetItem(`wappy_gtc45_matrix_rows_${activeCompanyId}`, JSON.stringify(matrixRows));
   }
 
   // 2. Establecer como ÚNICA activa
@@ -5270,8 +5564,8 @@ function handleActivateCompany(id) {
   editingCompany = JSON.parse(JSON.stringify(found));
 
   // 3. Persistir empresas y empresa activa
-  localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
-  localStorage.setItem('wappy_active_company_id', id);
+  window.wappySafeSetItem('wappy_sgsst_companies', window.wappySerializeCompaniesForStorage(companiesList, id));
+  window.wappySafeSetItem('wappy_active_company_id', id);
   syncCompanyToLocalStorage(companyInfo);
 
   // 4. Cargar la matriz exclusiva de esta empresa
@@ -5315,9 +5609,7 @@ function handleNewCompany() {
 
   // 1. Guardar matriz de la empresa actual antes de cambiar
   if (activeCompanyId) {
-    try {
-      localStorage.setItem(`wappy_gtc45_matrix_rows_${activeCompanyId}`, JSON.stringify(matrixRows));
-    } catch (e) {}
+    window.wappySafeSetItem(`wappy_gtc45_matrix_rows_${activeCompanyId}`, JSON.stringify(matrixRows));
   }
 
   const newId = 'comp_' + Date.now();
@@ -5363,13 +5655,11 @@ function handleNewCompany() {
 
   // 4. Inicializar su matriz vacía aislada
   matrixRows = [];
-  try {
-    localStorage.setItem(`wappy_gtc45_matrix_rows_${newId}`, JSON.stringify(matrixRows));
-  } catch (e) {}
+  window.wappySafeSetItem(`wappy_gtc45_matrix_rows_${newId}`, JSON.stringify(matrixRows));
 
   // 5. Persistir en localStorage
-  localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
-  localStorage.setItem('wappy_active_company_id', newId);
+  window.wappySafeSetItem('wappy_sgsst_companies', window.wappySerializeCompaniesForStorage(companiesList, newId));
+  window.wappySafeSetItem('wappy_active_company_id', newId);
   syncCompanyToLocalStorage(companyInfo);
 
   // 6. Actualizar toda la aplicación: Hero, Matriz, Gráficas e Informe
@@ -5399,10 +5689,9 @@ function handleDeleteCompany(id) {
     return;
   }
 
-  // Eliminar datos de la matriz de esa empresa
-  try {
-    localStorage.removeItem(`wappy_gtc45_matrix_rows_${id}`);
-  } catch (e) {}
+  // Eliminar datos de la matriz y firmas de esa empresa
+  window.wappySafeRemoveItem(`wappy_gtc45_matrix_rows_${id}`);
+  window.wappySafeRemoveItem(`wappy_signatures_${id}`);
 
   // Remover de la lista
   companiesList = companiesList.filter(c => c._id !== id);
@@ -5420,8 +5709,8 @@ function handleDeleteCompany(id) {
     editingCompany = JSON.parse(JSON.stringify(companyInfo));
   }
 
-  localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
-  localStorage.setItem('wappy_active_company_id', activeCompanyId);
+  window.wappySafeSetItem('wappy_sgsst_companies', window.wappySerializeCompaniesForStorage(companiesList, activeCompanyId));
+  window.wappySafeSetItem('wappy_active_company_id', activeCompanyId);
 
   updateHeroCompanyBanner();
   populateCompanyModalFields();
@@ -5483,24 +5772,33 @@ function handleFieldInput(field, val) {
   validateCompanyForm();
 }
 
-function handleLogoFileInputChange(input) {
+async function handleLogoFileInputChange(input) {
   const file = input.files && input.files[0];
   if (!file) return;
+  input.value = '';
 
-  if (file.size > 1.5 * 1024 * 1024) {
-    showToast('La imagen supera 1.5 MB. Sube una imagen más liviana.', 'warning');
-    input.value = '';
+  if (file.size > 15 * 1024 * 1024) {
+    showToast('La imagen supera 15 MB. Sube una imagen más liviana.', 'warning');
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    editingCompany.logoBase64 = e.target.result;
+  try {
+    const compressed = await window.wappyCompressImageDataUrl(file, {
+      maxWidth: 420,
+      maxHeight: 420,
+      mimeType: 'image/webp',
+      quality: 0.85,
+      fallbackMimeType: 'image/png'
+    });
+    if (editingCompany) {
+      editingCompany.logoBase64 = compressed;
+    }
     updateLogoPreviewUI();
-    showToast('Logotipo cargado correctamente', 'success');
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
+    showToast('Logotipo optimizado y cargado correctamente', 'success');
+  } catch (err) {
+    console.warn('Error comprimiendo logotipo:', err);
+    showToast('No se pudo procesar la imagen del logotipo.', 'error');
+  }
 }
 
 function handleRemoveLogo() {
@@ -5583,23 +5881,37 @@ function renderSignatureBoxes() {
   }
 }
 
-function handleSignatureFileUpload(field, input) {
+async function handleSignatureFileUpload(field, input) {
   const file = input.files && input.files[0];
   if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    editingCompany[field] = e.target.result;
-    renderSignatureBoxes();
-    showToast('Firma digital cargada', 'success');
-  };
-  reader.readAsDataURL(file);
   input.value = '';
+
+  try {
+    const base64 = await window.wappyCompressImageDataUrl(file, {
+      maxWidth: 500,
+      maxHeight: 200,
+      mimeType: 'image/webp',
+      quality: 0.85,
+      fallbackMimeType: 'image/png'
+    });
+    if (editingCompany) {
+      editingCompany[field] = base64;
+      if (field === 'sstRespSignature') editingCompany.sstRespConsent = 'Sí';
+      if (field === 'legalRepSignature') editingCompany.legalRepConsent = 'Sí';
+    }
+    renderSignatureBoxes();
+    showToast('Firma digital optimizada y cargada', 'success');
+  } catch (err) {
+    console.warn('Error comprimiendo firma subida:', err);
+    showToast('No se pudo procesar la imagen de la firma.', 'error');
+  }
 }
 
 function removeSignature(field) {
   if (!editingCompany) return;
   editingCompany[field] = null;
+  if (field === 'sstRespSignature') editingCompany.sstRespConsent = 'No';
+  if (field === 'legalRepSignature') editingCompany.legalRepConsent = 'No';
   renderSignatureBoxes();
 }
 
@@ -5686,11 +5998,17 @@ function clearSignatureCanvas() {
 
 function saveSignatureFromCanvas() {
   if (!sigCanvas || !activeSignatureField) return;
-  const base64 = sigCanvas.toDataURL('image/png');
-  editingCompany[activeSignatureField] = base64;
+  const base64 = window.wappyExportSignatureCanvas
+    ? window.wappyExportSignatureCanvas(sigCanvas, 500, 200)
+    : sigCanvas.toDataURL('image/png');
+  if (editingCompany) {
+    editingCompany[activeSignatureField] = base64;
+    if (activeSignatureField === 'sstRespSignature') editingCompany.sstRespConsent = 'Sí';
+    if (activeSignatureField === 'legalRepSignature') editingCompany.legalRepConsent = 'Sí';
+  }
   renderSignatureBoxes();
   closeSignaturePad();
-  showToast('Firma digital guardada', 'success');
+  showToast('Firma digital optimizada y guardada', 'success');
 }
 
 function handleAddSede() {
@@ -5836,8 +6154,8 @@ function saveCompanyInfo() {
     syncCompanyToLocalStorage(companyInfo);
   }
 
-  localStorage.setItem('wappy_sgsst_companies', JSON.stringify(companiesList));
-  localStorage.setItem('wappy_active_company_id', activeCompanyId);
+  window.wappySafeSetItem('wappy_sgsst_companies', window.wappySerializeCompaniesForStorage(companiesList, activeCompanyId));
+  window.wappySafeSetItem('wappy_active_company_id', activeCompanyId);
 
   updateHeroCompanyBanner();
   renderCompanyCards();

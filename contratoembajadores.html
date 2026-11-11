@@ -853,17 +853,18 @@ function toggleTheme(){
   if(body.classList.contains('light-theme')){
     body.classList.remove('light-theme');
     btn.textContent='☀️ Modo Claro';
-    localStorage.setItem('theme','dark');
+    try{localStorage.setItem('theme','dark');}catch(e){}
   }else{
     body.classList.add('light-theme');
     btn.textContent='🌙 Modo Oscuro';
-    localStorage.setItem('theme','light');
+    try{localStorage.setItem('theme','light');}catch(e){}
   }
 }
 
 /* Init */
 document.addEventListener('DOMContentLoaded',()=>{
-  const savedTheme=localStorage.getItem('theme');
+  let savedTheme=null;
+  try{savedTheme=localStorage.getItem('theme');}catch(e){}
   if(savedTheme==='light'){
     document.body.classList.add('light-theme');
     const btn=document.getElementById('theme-toggle');

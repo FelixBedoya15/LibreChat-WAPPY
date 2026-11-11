@@ -33,6 +33,7 @@ import SGSSTToolbar from './SGSSTToolbar';
 import SGSSTHeroHeader from './SGSSTHeroHeader';
 import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
 import UniversalColumnMapperModal from './UniversalColumnMapperModal';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import ImportMethodModal from './ImportMethodModal';
 import { read, utils } from 'xlsx';
 import { MATRIZ_LEGAL_FIELDS } from './moduleFieldDefinitions';
@@ -313,12 +314,10 @@ const MatrizLegal = () => {
         });
 
         if (newCustom.length > 0) {
-            setCustomItems(prev => {
-                const updated = [...prev, ...newCustom];
-                const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-                localStorage.setItem(`wappy_matriz_legal_custom_items_${companySuffix}`, JSON.stringify(updated));
-                return updated;
-            });
+            const updatedCustom = [...customItems, ...newCustom];
+            setCustomItems(updatedCustom);
+            const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+            safeSetItem(`wappy_matriz_legal_custom_items_${companySuffix}`, JSON.stringify(updatedCustom));
         }
         setStatuses(newStatuses);
         setSeguimientos(newSeguimientos);

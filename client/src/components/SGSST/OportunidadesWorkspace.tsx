@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import {
   Sparkles,
   TrendingUp,
@@ -896,9 +897,9 @@ export const OportunidadesWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSavingData(true);
     try {
-      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-      localStorage.setItem(`wappy_iso45001_oportunidades_${companySuffix}`, JSON.stringify(oportunidades));
-      localStorage.setItem(`wappy_iso45001_riesgos_sistema_${companySuffix}`, JSON.stringify(riesgosSistema));
+      const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+      safeSetItem(`wappy_iso45001_oportunidades_${companySuffix}`, JSON.stringify(oportunidades));
+      safeSetItem(`wappy_iso45001_riesgos_sistema_${companySuffix}`, JSON.stringify(riesgosSistema));
 
       if (token) {
         await fetch('/api/sgsst/oportunidades/data', {

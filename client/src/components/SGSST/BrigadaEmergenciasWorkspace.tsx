@@ -23,6 +23,7 @@ import SGSSTLegalBadge from './SGSSTLegalBadge';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import ExpandingButton from './ExpandingButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 const BrigadaEmergenciasWorkspace: React.FC = () => {
   const { token, user } = useAuthContext();
@@ -48,10 +49,10 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const loadBrigadaData = useCallback(() => {
-    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
+    const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
     const draftKey = `wappy_brigada_emergencias_draft_${companySuffix}`;
     const loadFromDraftOrReset = () => {
-      const draft = localStorage.getItem(draftKey);
+      const draft = safeGetItem(draftKey);
       if (draft) {
         try {
           const parsed = JSON.parse(draft);
@@ -110,8 +111,8 @@ const BrigadaEmergenciasWorkspace: React.FC = () => {
 
   const handleSaveLocal = async () => {
     setIsSavingLocal(true);
-    const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-    localStorage.setItem(`wappy_brigada_emergencias_draft_${companySuffix}`, JSON.stringify(brigadistas));
+    const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+    safeSetItem(`wappy_brigada_emergencias_draft_${companySuffix}`, JSON.stringify(brigadistas));
     try {
       if (token) {
         await fetch('/api/sgsst/brigada/sync', {

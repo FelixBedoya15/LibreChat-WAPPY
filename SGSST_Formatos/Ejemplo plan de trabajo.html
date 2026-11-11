@@ -550,13 +550,57 @@
 
     let state = JSON.parse(JSON.stringify(defaultState));
 
+    function safeGetStorage(key) {
+      try { return localStorage.getItem(key); } catch (e) { console.warn('localStorage.getItem blocked:', e); return null; }
+    }
+    function safeSetStorage(key, value) {
+      try { localStorage.setItem(key, value); return true; } catch (e) { console.warn('localStorage.setItem blocked:', e); return false; }
+    }
+    function safeRemoveStorage(key) {
+      try { localStorage.removeItem(key); } catch (e) { console.warn('localStorage.removeItem blocked:', e); }
+    }
+    function compressPlanImage(file, maxW, maxH) {
+      return new Promise(function(resolve) {
+        if (!file) { resolve(''); return; }
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+          if (!rawUrl) { resolve(''); return; }
+          const img = new Image();
+          img.onload = function() {
+            try {
+              const w0 = img.naturalWidth || img.width || 1;
+              const h0 = img.naturalHeight || img.height || 1;
+              const scale = Math.min(1, maxW / w0, maxH / h0);
+              const cw = Math.max(1, Math.round(w0 * scale));
+              const ch = Math.max(1, Math.round(h0 * scale));
+              const c = document.createElement('canvas');
+              c.width = cw;
+              c.height = ch;
+              const ctx = c.getContext('2d');
+              if (!ctx) { resolve(rawUrl); return; }
+              ctx.clearRect(0, 0, cw, ch);
+              ctx.drawImage(img, 0, 0, cw, ch);
+              let out = c.toDataURL('image/webp', 0.85);
+              if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/png');
+              resolve(out);
+            } catch (err) { resolve(rawUrl); }
+          };
+          img.onerror = function() { resolve(rawUrl); };
+          img.src = rawUrl;
+        };
+        reader.onerror = function() { resolve(''); };
+        reader.readAsDataURL(file);
+      });
+    }
+
     // Initialize Application
     window.addEventListener('DOMContentLoaded', () => {
       loadState();
       renderAll();
       
       // Load API Key from localStorage if exists
-      const savedApiKey = localStorage.getItem('wappy_sst_gemini_key');
+      const savedApiKey = safeGetStorage('wappy_sst_gemini_key');
       if (savedApiKey) {
         document.getElementById('ai-api-key').value = savedApiKey;
       }
@@ -565,7 +609,7 @@
     // Load State from LocalStorage
     function loadState() {
       try {
-        const saved = localStorage.getItem('wappy_sst_plan_2026');
+        const saved = safeGetStorage('wappy_sst_plan_2026');
         if (saved) {
           state = JSON.parse(saved);
           // Ensure structure is complete
@@ -580,8 +624,8 @@
         }
 
         // Load independent signatures from localStorage if they exist
-        const savedSignRep = localStorage.getItem('wappy_sst_sign_rep');
-        const savedSignSst = localStorage.getItem('wappy_sst_sign_sst');
+        const savedSignRep = safeGetStorage('wappy_sst_sign_rep');
+        const savedSignSst = safeGetStorage('wappy_sst_sign_sst');
         if (savedSignRep) state.signatures.rep.img = savedSignRep;
         if (savedSignSst) state.signatures.sst.img = savedSignSst;
 
@@ -596,7 +640,19 @@
       try {
         localStorage.setItem('wappy_sst_plan_2026', JSON.stringify(state));
       } catch (e) {
-        console.error("Error saving state to localStorage", e);
+        try {
+          const slimState = {
+            ...state,
+            logo: state.logo && state.logo.length <= 40960 ? state.logo : '',
+            signatures: {
+              rep: { ...(state.signatures?.rep || {}), img: '' },
+              sst: { ...(state.signatures?.sst || {}), img: '' }
+            }
+          };
+          localStorage.setItem('wappy_sst_plan_2026', JSON.stringify(slimState));
+        } catch (retryErr) {
+          console.warn("Error saving state to localStorage", e);
+        }
       }
     }
 
@@ -844,13 +900,12 @@
     function handleLogoUpload(event) {
       const file = event.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          state.logo = e.target.result;
+        compressPlanImage(file, 420, 420).then(function(compressedUrl) {
+          if (!compressedUrl) return;
+          state.logo = compressedUrl;
           saveState();
           renderLogo();
-        };
-        reader.readAsDataURL(file);
+        });
       }
     }
 
@@ -893,18 +948,13 @@
       event.stopPropagation();
       const file = event.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const base64Data = e.target.result;
+        compressPlanImage(file, 500, 200).then(function(base64Data) {
+          if (!base64Data) return;
           state.signatures[type].img = base64Data;
-          
-          // Save independently in localStorage as requested
-          localStorage.setItem(`wappy_sst_sign_${type}`, base64Data);
-          
+          safeSetStorage(`wappy_sst_sign_${type}`, base64Data);
           saveState();
           renderSignatures();
-        };
-        reader.readAsDataURL(file);
+        });
       }
     }
 
@@ -948,7 +998,7 @@
       event.stopPropagation();
       if (confirm("¿Desea eliminar esta firma?")) {
         state.signatures[type].img = "";
-        localStorage.removeItem(`wappy_sst_sign_${type}`);
+        safeRemoveStorage(`wappy_sst_sign_${type}`);
         saveState();
         renderSignatures();
       }
@@ -977,9 +1027,9 @@
     // Reset to Default
     function resetToDefault() {
       if (confirm("¿Está seguro de que desea restablecer todo el plan de trabajo a los valores predeterminados? Se perderán todos los cambios, firmas y logos.")) {
-        localStorage.removeItem('wappy_sst_plan_2026');
-        localStorage.removeItem('wappy_sst_sign_rep');
-        localStorage.removeItem('wappy_sst_sign_sst');
+        safeRemoveStorage('wappy_sst_plan_2026');
+        safeRemoveStorage('wappy_sst_sign_rep');
+        safeRemoveStorage('wappy_sst_sign_sst');
         state = JSON.parse(JSON.stringify(defaultState));
         renderAll();
       }
@@ -1005,7 +1055,7 @@
       }
 
       // Save API Key locally
-      localStorage.setItem('wappy_sst_gemini_key', apiKey);
+      safeSetStorage('wappy_sst_gemini_key', apiKey);
 
       // Show Status Console
       statusContainer.classList.remove('hidden');

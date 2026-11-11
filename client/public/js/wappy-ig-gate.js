@@ -13,30 +13,54 @@
   const STORAGE_USER_KEY = 'wappy_ig_follow_username';
   const STORAGE_CODE_KEY = 'wappy_ig_gate_code_v4';
 
-  function getOrCreateGateCode() {
+  const memStore = (window.__wappyIgMemStore = window.__wappyIgMemStore || {});
+
+  function igSafeGet(key) {
     try {
-      localStorage.removeItem('wappy_ig_follow_pass_v2');
-      localStorage.removeItem('wappy_ig_gate_code_v2');
-      localStorage.removeItem('wappy_ig_follow_pass_v3');
-      localStorage.removeItem('wappy_ig_gate_code_v3');
-      const existing = localStorage.getItem(STORAGE_CODE_KEY);
-      if (existing && /^WAPPY-\d{4}$/.test(existing)) {
-        return existing;
+      const val = localStorage.getItem(key);
+      if (val !== null && val !== undefined) {
+        memStore[key] = val;
+        return val;
       }
-      const code = 'WAPPY-' + Math.floor(1000 + Math.random() * 9000);
-      localStorage.setItem(STORAGE_CODE_KEY, code);
-      return code;
-    } catch (e) {
-      return 'WAPPY-' + Math.floor(1000 + Math.random() * 9000);
+    } catch (e) {}
+    return Object.prototype.hasOwnProperty.call(memStore, key) ? memStore[key] : null;
+  }
+
+  function igSafeSet(key, value) {
+    const strVal = String(value);
+    memStore[key] = strVal;
+    try {
+      localStorage.setItem(key, strVal);
+    } catch (e) {}
+  }
+
+  function igSafeRemove(key) {
+    delete memStore[key];
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {}
+  }
+
+  function getOrCreateGateCode() {
+    igSafeRemove('wappy_ig_follow_pass_v2');
+    igSafeRemove('wappy_ig_gate_code_v2');
+    igSafeRemove('wappy_ig_follow_pass_v3');
+    igSafeRemove('wappy_ig_gate_code_v3');
+    const existing = igSafeGet(STORAGE_CODE_KEY);
+    if (existing && /^WAPPY-\d{4}$/.test(existing)) {
+      return existing;
     }
+    const code = 'WAPPY-' + Math.floor(1000 + Math.random() * 9000);
+    igSafeSet(STORAGE_CODE_KEY, code);
+    return code;
   }
 
   function savePass(passToken, username) {
+    igSafeSet(STORAGE_PASS_KEY, passToken);
+    if (username) {
+      igSafeSet(STORAGE_USER_KEY, username);
+    }
     try {
-      localStorage.setItem(STORAGE_PASS_KEY, passToken);
-      if (username) {
-        localStorage.setItem(STORAGE_USER_KEY, username);
-      }
       document.cookie =
         'wappy_ig_follow_pass_v4=' +
         encodeURIComponent(passToken) +
@@ -45,13 +69,9 @@
   }
 
   function getStoredPass() {
-    try {
-      localStorage.removeItem('wappy_ig_follow_pass_v2');
-      localStorage.removeItem('wappy_ig_follow_pass_v3');
-      return localStorage.getItem(STORAGE_PASS_KEY) || '';
-    } catch (e) {
-      return '';
-    }
+    igSafeRemove('wappy_ig_follow_pass_v2');
+    igSafeRemove('wappy_ig_follow_pass_v3');
+    return igSafeGet(STORAGE_PASS_KEY) || '';
   }
 
   let pollTimer = null;
@@ -173,19 +193,13 @@
 
     function markActionStarted() {
       actionClicked = true;
-      try {
-        localStorage.setItem('wappy_ig_action_started', String(Date.now()));
-      } catch (e) {}
+      igSafeSet('wappy_ig_action_started', String(Date.now()));
     }
 
     function hasStartedActionReady() {
       if (actionClicked) return true;
-      try {
-        const ts = Number(localStorage.getItem('wappy_ig_action_started') || '0');
-        return ts > 0 && Date.now() - ts <= 24 * 60 * 60 * 1000;
-      } catch (e) {
-        return false;
-      }
+      const ts = Number(igSafeGet('wappy_ig_action_started') || '0');
+      return ts > 0 && Date.now() - ts <= 24 * 60 * 60 * 1000;
     }
 
     function copyCode() {

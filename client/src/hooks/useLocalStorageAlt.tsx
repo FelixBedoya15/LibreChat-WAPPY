@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 
 export default function useLocalStorage<T>(
   key: string,
@@ -16,15 +17,22 @@ export default function useLocalStorage<T>(
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
-    const item = localStorage.getItem(key);
+    const item = safeGetItem(key);
 
     if (!item && !storageCondition) {
-      localStorage.setItem(key, JSON.stringify(defaultValue));
+      safeSetItem(key, JSON.stringify(defaultValue));
     } else if (!item && storageCondition && storageCondition(defaultValue)) {
-      localStorage.setItem(key, JSON.stringify(defaultValue));
+      safeSetItem(key, JSON.stringify(defaultValue));
     }
 
-    const initialValue = item && item !== 'undefined' ? JSON.parse(item) : defaultValue;
+    let initialValue = defaultValue;
+    if (item && item !== 'undefined') {
+      try {
+        initialValue = JSON.parse(item);
+      } catch {
+        initialValue = defaultValue;
+      }
+    }
     setValue(initialValue);
     if (globalSetState) {
       globalSetState(initialValue);
@@ -35,8 +43,14 @@ export default function useLocalStorage<T>(
         return;
       }
 
-      const lsi = localStorage.getItem(key);
-      setValue(JSON.parse(lsi ?? ''));
+      const lsi = safeGetItem(key);
+      if (lsi) {
+        try {
+          setValue(JSON.parse(lsi));
+        } catch {
+          setValue(defaultValue);
+        }
+      }
     }
 
     window.addEventListener('storage', handler);
@@ -52,12 +66,12 @@ export default function useLocalStorage<T>(
       try {
         setValue(value);
         const storeLocal = () => {
-          localStorage.setItem(key, JSON.stringify(value));
+          safeSetItem(key, JSON.stringify(value));
           window?.dispatchEvent(new StorageEvent('storage', { key }));
         };
         if (!storageCondition) {
           storeLocal();
-        } else if (storageCondition(value, localStorage.getItem(key))) {
+        } else if (storageCondition(value, safeGetItem(key))) {
           storeLocal();
         }
         globalSetState?.(value);

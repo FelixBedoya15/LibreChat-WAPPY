@@ -760,18 +760,84 @@
             lucide.createIcons();
         };
 
+        function safeGcGetStorage(key) {
+            try { return localStorage.getItem(key); } catch (e) { console.warn("localStorage.getItem blocked:", e); return null; }
+        }
+        function safeGcSetStorage(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                try {
+                    if (key === 'wappy_sst_master_matrix' && Array.isArray(masterSavedChanges)) {
+                        const slim = masterSavedChanges.map(function(c) {
+                            return {
+                                ...c,
+                                evidencePhoto: (c.evidencePhoto && c.evidencePhoto.length <= 40960) ? c.evidencePhoto : '',
+                                evidenceAudio: '',
+                                signatureBase64: (c.signatureBase64 && c.signatureBase64.length <= 40960) ? c.signatureBase64 : ''
+                            };
+                        });
+                        localStorage.setItem(key, JSON.stringify(slim));
+                        return true;
+                    }
+                    if (key === 'wappy_sst_doc_header' && appDocHeader) {
+                        const slimHeader = { ...appDocHeader, logoBase64: '' };
+                        localStorage.setItem(key, JSON.stringify(slimHeader));
+                        return true;
+                    }
+                } catch (fallbackErr) {}
+                console.warn("localStorage.setItem blocked:", e);
+                return false;
+            }
+        }
+        function compressGcImage(file, maxW, maxH) {
+            return new Promise(function(resolve) {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const rawUrl = ev && ev.target ? String(ev.target.result || '') : '';
+                    if (!rawUrl) { resolve(''); return; }
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const w0 = img.naturalWidth || img.width || 1;
+                            const h0 = img.naturalHeight || img.height || 1;
+                            const scale = Math.min(1, maxW / w0, maxH / h0);
+                            const cw = Math.max(1, Math.round(w0 * scale));
+                            const ch = Math.max(1, Math.round(h0 * scale));
+                            const c = document.createElement('canvas');
+                            c.width = cw;
+                            c.height = ch;
+                            const cctx = c.getContext('2d');
+                            if (!cctx) { resolve(rawUrl); return; }
+                            cctx.clearRect(0, 0, cw, ch);
+                            cctx.drawImage(img, 0, 0, cw, ch);
+                            let out = c.toDataURL('image/webp', 0.85);
+                            if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/png');
+                            resolve(out);
+                        } catch (err) { resolve(rawUrl); }
+                    };
+                    img.onerror = function() { resolve(rawUrl); };
+                    img.src = rawUrl;
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            });
+        }
+
         // LocalStorage loading & database management
         function loadDatabase() {
             try {
                 // Theme config
-                const storedTheme = localStorage.getItem('wappy_sst_theme');
+                const storedTheme = safeGcGetStorage('wappy_sst_theme');
                 if (storedTheme) {
                     currentTheme = storedTheme;
                 }
                 applyTheme();
 
                 // Document Header info
-                const storedHeader = localStorage.getItem('wappy_sst_doc_header');
+                const storedHeader = safeGcGetStorage('wappy_sst_doc_header');
                 if (storedHeader) {
                     appDocHeader = JSON.parse(storedHeader);
                 }
@@ -780,17 +846,17 @@
 
 
                 // Master Matrix database
-                const storedMatrix = localStorage.getItem('wappy_sst_master_matrix');
+                const storedMatrix = safeGcGetStorage('wappy_sst_master_matrix');
                 if (storedMatrix) {
                     masterSavedChanges = JSON.parse(storedMatrix);
                 } else {
                     // Populate with 5 mock changes on first load
                     masterSavedChanges = getDemoExamples();
-                    localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+                    safeGcSetStorage('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
                 }
 
                 // AI key
-                const geminiKey = localStorage.getItem('wappy_gemini_key') || '';
+                const geminiKey = safeGcGetStorage('wappy_gemini_key') || '';
                 document.getElementById('gemini-key').value = geminiKey;
 
             } catch (err) {
@@ -939,7 +1005,7 @@
                         masterSavedChanges.push(demo);
                     }
                 });
-                localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+                safeGcSetStorage('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
                 renderMasterTable();
                 lucide.createIcons();
                 alert("Se han cargado los 5 ejemplos demo correctamente en la Matriz General de Gestión del Cambio.");
@@ -1007,7 +1073,7 @@
         function saveDocHeader() {
             appDocHeader.appTitle = document.getElementById('app-document-title').innerText;
             appDocHeader.appSubtitle = document.getElementById('app-document-subtitle').innerText;
-            localStorage.setItem('wappy_sst_doc_header', JSON.stringify(appDocHeader));
+            safeGcSetStorage('wappy_sst_doc_header', JSON.stringify(appDocHeader));
         }
 
         function saveField(id) {
@@ -1020,7 +1086,7 @@
             if (id === 'change-code') appDocHeader.changeCode = val;
             if (id === 'last-updated-text') appDocHeader.lastUpdated = val;
             
-            localStorage.setItem('wappy_sst_doc_header', JSON.stringify(appDocHeader));
+            safeGcSetStorage('wappy_sst_doc_header', JSON.stringify(appDocHeader));
         }
 
         function bindHeaderToUI() {
@@ -1039,7 +1105,7 @@
         // Theme management
         function toggleTheme() {
             currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('wappy_sst_theme', currentTheme);
+            safeGcSetStorage('wappy_sst_theme', currentTheme);
             applyTheme();
         }
 
@@ -1242,7 +1308,8 @@
         }
 
         function saveSignature() {
-            const dataUrl = canvas.toDataURL();
+            let dataUrl = canvas.toDataURL('image/webp', 0.85);
+            if (dataUrl.indexOf('data:image/webp') !== 0) dataUrl = canvas.toDataURL('image/png');
             currentWizard.signatureBase64 = dataUrl;
             document.getElementById('signature-saved-status').classList.remove('hidden');
         }
@@ -1251,13 +1318,12 @@
         function uploadLogo(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                appDocHeader.logoBase64 = e.target.result;
+            compressGcImage(file, 420, 420).then(function(compressedUrl) {
+                if (!compressedUrl) return;
+                appDocHeader.logoBase64 = compressedUrl;
                 renderLogo();
                 saveField('company-name');
-            };
-            reader.readAsDataURL(file);
+            });
         }
 
         function renderLogo() {
@@ -1276,12 +1342,11 @@
         function uploadEvidencePhoto(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                currentWizard.evidencePhoto = e.target.result;
+            compressGcImage(file, 800, 800).then(function(compressedUrl) {
+                if (!compressedUrl) return;
+                currentWizard.evidencePhoto = compressedUrl;
                 renderEvidenceAssets();
-            };
-            reader.readAsDataURL(file);
+            });
         }
 
         function removeEvidencePhoto(event) {
@@ -1489,7 +1554,7 @@
 
         // Trigger AI analysis directly from the Tab 2 end-block
         async function triggerIAGenerationFromTab2() {
-            const apiKey = localStorage.getItem('wappy_gemini_key') || '';
+            const apiKey = safeGcGetStorage('wappy_gemini_key') || '';
             if (!apiKey) {
                 alert("Por favor ingrese su API Key de Gemini en la barra de configuración lateral.");
                 toggleAISidebar();
@@ -1627,7 +1692,7 @@ Empresa Contratista: "${currentWizard.contractorName || 'No aplica'}"
             }
 
             // Sync matrix to localStorage
-            localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+            safeGcSetStorage('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
             
             // Clean up wizard and switch to Identification tab
             clearFormWizard();
@@ -1728,7 +1793,7 @@ Empresa Contratista: "${currentWizard.contractorName || 'No aplica'}"
         function deleteChangeFromMatrix(id) {
             if (confirm("¿Está seguro de eliminar permanentemente este cambio de la matriz consolidada?")) {
                 masterSavedChanges = masterSavedChanges.filter(c => c.id !== id);
-                localStorage.setItem('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
+                safeGcSetStorage('wappy_sst_master_matrix', JSON.stringify(masterSavedChanges));
                 renderMasterTable();
                 
                 // If current editing is the deleted one, clear it
@@ -1748,7 +1813,7 @@ Empresa Contratista: "${currentWizard.contractorName || 'No aplica'}"
         // API Key configs
         function saveAPIKey() {
             const key = document.getElementById('gemini-key').value.trim();
-            localStorage.setItem('wappy_gemini_key', key);
+            safeGcSetStorage('wappy_gemini_key', key);
         }
 
         function toggleAISidebar() {

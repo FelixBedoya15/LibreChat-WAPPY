@@ -6,6 +6,7 @@ import axios from 'axios';
 import { useAuthContext } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import { WappyExpandButton } from '../WappyExpandButton';
+import { safeSetItem, safeRemoveItem, compressLogoDataUrl } from '~/utils/safeStorage';
 
 interface CompanyGoogleSummary {
   _id: string;
@@ -124,26 +125,32 @@ export default function GoogleDriveConnect() {
         throw new Error('No se pudo activar la empresa');
       }
       const activated = await res.json();
-      localStorage.setItem('wappy_active_company_id', targetComp._id);
+      safeSetItem('wappy_active_company_id', targetComp._id);
       if (activated.companyName) {
-        localStorage.setItem('wappy_active_company_name', activated.companyName);
+        safeSetItem('wappy_active_company_name', activated.companyName);
       }
       if (activated.nit) {
-        localStorage.setItem('wappy_active_company_nit', activated.nit);
+        safeSetItem('wappy_active_company_nit', activated.nit);
       }
       if (activated.arl) {
-        localStorage.setItem('wappy_active_company_arl', activated.arl);
+        safeSetItem('wappy_active_company_arl', activated.arl);
       }
       if (activated.workerCount !== undefined) {
-        localStorage.setItem('wappy_active_company_workers', String(activated.workerCount));
+        safeSetItem('wappy_active_company_workers', String(activated.workerCount));
       }
       if (activated.riskLevel) {
-        localStorage.setItem('wappy_active_company_risk', activated.riskLevel);
+        safeSetItem('wappy_active_company_risk', activated.riskLevel);
       }
       if (activated.logoBase64) {
-        localStorage.setItem('wappy_sst_global_logo', activated.logoBase64);
+        if (activated.logoBase64.length > 50_000) {
+          compressLogoDataUrl(activated.logoBase64)
+            .then((c) => safeSetItem('wappy_sst_global_logo', c))
+            .catch(() => safeSetItem('wappy_sst_global_logo', activated.logoBase64));
+        } else {
+          safeSetItem('wappy_sst_global_logo', activated.logoBase64);
+        }
       } else {
-        localStorage.removeItem('wappy_sst_global_logo');
+        safeRemoveItem('wappy_sst_global_logo');
       }
 
       const detail = {

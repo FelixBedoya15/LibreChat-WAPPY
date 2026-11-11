@@ -18,6 +18,7 @@ import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
 import SGSSTLegalBadge from './SGSSTLegalBadge';
 import SGSSTHeroHeader from './SGSSTHeroHeader';
+import { compressPhotoDataUrl } from '~/utils/safeStorage';
 
 // ─── Styled Tooltip ───────────────────────────────────────────────────
 const Tip = ({ children, text }: { children: React.ReactNode; text: string }) => (
@@ -354,10 +355,9 @@ const MatrizPeligrosGTC45 = () => {
         setProcesos(prev => prev.map(p => p.id === procesoId ? { ...p, [field]: value } : p));
     };
 
-    const handleImageUpload = (procesoId: string, key: string, file: File) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64 = reader.result as string;
+    const handleImageUpload = async (procesoId: string, key: string, file: File) => {
+        try {
+            const base64 = await compressPhotoDataUrl(file);
             setProcesos(prev => prev.map(p => {
                 if (p.id !== procesoId) return p;
                 return {
@@ -368,8 +368,9 @@ const MatrizPeligrosGTC45 = () => {
                     }
                 };
             }));
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+            console.error('Error compressing GTC45 image:', err);
+        }
     };
 
     const handleVideoUpload = (procesoId: string, file: File) => {

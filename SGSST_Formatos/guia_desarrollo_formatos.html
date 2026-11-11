@@ -843,7 +843,7 @@ function handleDrop(ev, columnName) {
                 floatIcon.classList.add('text-slate-650');
                 themeText.innerText = 'Modo Oscuro';
                 currentTheme = 'light';
-                localStorage.setItem('wappy-theme', 'light');
+                try { localStorage.setItem('wappy-theme', 'light'); } catch (e) {}
             } else {
                 document.documentElement.classList.add('dark');
                 body.classList.remove('light');
@@ -853,7 +853,7 @@ function handleDrop(ev, columnName) {
                 floatIcon.classList.add('text-amber-400');
                 themeText.innerText = 'Modo Claro';
                 currentTheme = 'dark';
-                localStorage.setItem('wappy-theme', 'dark');
+                try { localStorage.setItem('wappy-theme', 'dark'); } catch (e) {}
             }
             lucide.createIcons();
         }
@@ -2786,7 +2786,8 @@ Escribe el código completo de la aplicación en español, limpio, robusto, 100%
 
         // Initialize Theme from localStorage if exists
         function initTheme() {
-            const savedTheme = localStorage.getItem('wappy-theme');
+            let savedTheme = null;
+            try { savedTheme = localStorage.getItem('wappy-theme'); } catch (e) {}
             if (savedTheme === 'light') {
                 toggleTheme(); // switches from default dark to light
             }

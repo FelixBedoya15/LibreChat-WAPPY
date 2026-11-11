@@ -4,6 +4,7 @@ import { useAuthContext } from '~/hooks';
 import { Building2, AlertTriangle, ChevronRight } from 'lucide-react';
 import type { ContextType } from '~/common';
 import { isProUser } from '~/utils/planAccess';
+import { safeSetItem, safeRemoveItem, compressLogoDataUrl } from '~/utils/safeStorage';
 
 import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
@@ -71,9 +72,15 @@ export default function HuellaBiocentricaDashboard() {
       .then((info) => {
         setCompanyInfo(info);
         if (info && info.logoBase64) {
-          localStorage.setItem('wappy_sst_global_logo', info.logoBase64);
+          if (info.logoBase64.length > 50_000) {
+            compressLogoDataUrl(info.logoBase64)
+              .then((c) => safeSetItem('wappy_sst_global_logo', c))
+              .catch(() => safeSetItem('wappy_sst_global_logo', info.logoBase64));
+          } else {
+            safeSetItem('wappy_sst_global_logo', info.logoBase64);
+          }
         } else {
-          localStorage.removeItem('wappy_sst_global_logo');
+          safeRemoveItem('wappy_sst_global_logo');
         }
         if (!info || Object.keys(info).length === 0) {
           setMissingFields([...REQUIRED_FIELDS]);

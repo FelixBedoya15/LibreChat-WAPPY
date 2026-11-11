@@ -1,5 +1,6 @@
 import { atom } from 'jotai';
-import { atomWithStorage } from 'jotai/utils';
+import { atomWithStorage, createJSONStorage } from 'jotai/utils';
+import { safeGetItem, safeSetItem, safeLocalStorageAdapter } from '~/utils/safeStorage';
 
 /**
  * Create a simple atom with localStorage persistence
@@ -10,9 +11,14 @@ import { atomWithStorage } from 'jotai/utils';
  * @returns Jotai atom with localStorage persistence
  */
 export function createStorageAtom<T>(key: string, defaultValue: T) {
-  return atomWithStorage<T>(key, defaultValue, undefined, {
-    getOnInit: true,
-  });
+  return atomWithStorage<T>(
+    key,
+    defaultValue,
+    createJSONStorage<T>(() => safeLocalStorageAdapter),
+    {
+      getOnInit: true,
+    },
+  );
 }
 
 /**
@@ -61,7 +67,7 @@ export function initializeFromStorage<T>(
   }
 
   try {
-    const savedValue = localStorage.getItem(key);
+    const savedValue = safeGetItem(key);
     const value = savedValue ? (JSON.parse(savedValue) as T) : defaultValue;
 
     if (onInit) {
@@ -73,11 +79,7 @@ export function initializeFromStorage<T>(
     console.error(`Error initializing ${key} from localStorage, using default. Error:`, error);
 
     // Reset corrupted value
-    try {
-      localStorage.setItem(key, JSON.stringify(defaultValue));
-    } catch (setError) {
-      console.error(`Error resetting corrupted ${key} in localStorage:`, setError);
-    }
+    safeSetItem(key, JSON.stringify(defaultValue));
 
     if (onInit) {
       onInit(defaultValue);

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExpandableButton from '~/components/Common/ExpandableButton';
@@ -623,9 +624,9 @@ export const ComprasWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSaving(true);
     try {
-      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-      localStorage.setItem(`wappy_iso45001_compras_${companySuffix}`, JSON.stringify(compras));
-      localStorage.setItem(`wappy_iso45001_compras_criterios_${companySuffix}`, JSON.stringify(criteriosMatriz));
+      const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+      safeSetItem(`wappy_iso45001_compras_${companySuffix}`, JSON.stringify(compras));
+      safeSetItem(`wappy_iso45001_compras_criterios_${companySuffix}`, JSON.stringify(criteriosMatriz));
 
       if (token) {
         const payloadCompras = compras.map((c) => ({

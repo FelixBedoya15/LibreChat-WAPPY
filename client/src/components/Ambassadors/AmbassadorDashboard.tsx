@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { safeSetItem } from '~/utils/safeStorage';
 import { 
   Award, 
   Users, 
@@ -548,11 +549,9 @@ export default function AmbassadorDashboard({ isEmbedded = false }: AmbassadorDa
   }, []);
 
   const toggleDashboard = () => {
-    setShowDashboard(prev => {
-      const next = !prev;
-      localStorage.setItem('embajadores_show_dashboard', String(next));
-      return next;
-    });
+    const next = !showDashboard;
+    setShowDashboard(next);
+    safeSetItem('embajadores_show_dashboard', String(next));
   };
 
   const [selectedAmbassadorFilter, setSelectedAmbassadorFilter] = useState<string>('all');

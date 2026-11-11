@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { cn } from '~/utils';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import { useParams } from 'react-router-dom';
 import { UpgradeWall } from './UpgradeWall';
 
@@ -852,11 +853,11 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   const checkHtmlPreviewLimit = (): boolean => {
     if (isPro) return true;
     const key = `wappy_html_export_count_${conversationId || docId || 'global'}`;
-    const count = parseInt(localStorage.getItem(key) || '0', 10);
+    const count = parseInt(safeGetItem(key) || '0', 10);
     if (count >= 3) {
       return false;
     }
-    localStorage.setItem(key, String(count + 1));
+    safeSetItem(key, String(count + 1));
     return true;
   };
 

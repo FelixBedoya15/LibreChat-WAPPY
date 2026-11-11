@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import {
   Compass,
   Users,
@@ -1197,10 +1198,10 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
   const handleSaveData = async () => {
     setIsSavingData(true);
     try {
-      const companySuffix = localStorage.getItem('wappy_active_company_id') || 'default';
-      localStorage.setItem(`wappy_iso45001_dofa_${companySuffix}`, JSON.stringify(dofaList));
-      localStorage.setItem(`wappy_iso45001_stakeholders_${companySuffix}`, JSON.stringify(stakeholders));
-      localStorage.setItem(`wappy_iso45001_strategies_${companySuffix}`, JSON.stringify(crossStrategies));
+      const companySuffix = safeGetItem('wappy_active_company_id') || 'default';
+      safeSetItem(`wappy_iso45001_dofa_${companySuffix}`, JSON.stringify(dofaList));
+      safeSetItem(`wappy_iso45001_stakeholders_${companySuffix}`, JSON.stringify(stakeholders));
+      safeSetItem(`wappy_iso45001_strategies_${companySuffix}`, JSON.stringify(crossStrategies));
 
       if (token) {
         await fetch('/api/sgsst/contexto/data', {

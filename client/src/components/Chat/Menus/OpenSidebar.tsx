@@ -1,6 +1,7 @@
 import { TooltipAnchor, Button, Sidebar } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
+import { safeSetItem } from '~/utils/safeStorage';
 
 export default function OpenSidebar({
   setNavVisible,
@@ -25,8 +26,9 @@ export default function OpenSidebar({
           )}
           onClick={() =>
             setNavVisible((prev) => {
-              localStorage.setItem('navVisible', JSON.stringify(!prev));
-              return !prev;
+              const next = !prev;
+              safeSetItem('navVisible', JSON.stringify(next));
+              return next;
             })
           }
         >

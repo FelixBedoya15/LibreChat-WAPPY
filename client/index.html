@@ -4,6 +4,258 @@
 <head>
   <meta charset="utf-8" />
   <base href="/" />
+  <script>
+    (function () {
+      if (typeof window === 'undefined' || window.__wappyStorageShieldInstalled) return;
+      window.__wappyStorageShieldInstalled = true;
+      try {
+        var ls = window.localStorage;
+        if (!ls || typeof Storage === 'undefined' || !Storage.prototype) return;
+        var origSetItem = Storage.prototype.setItem;
+
+        function isQuotaErr(err) {
+          if (!err) return false;
+          if (err.code === 22 || err.code === 1014) return true;
+          var name = String(err.name || '');
+          if (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED') return true;
+          var msg = String(err.message || '');
+          return /quota/i.test(msg);
+        }
+
+        function isProtected(k, preserveKey) {
+          if (!k || k === preserveKey) return true;
+          if (
+            k === 'token' ||
+            k === 'refreshToken' ||
+            k === 'accessToken' ||
+            k === 'wappy_active_company_id' ||
+            k === 'wappy_active_company_name' ||
+            k === 'wappy_active_company_nit' ||
+            k === 'wappy_active_company_arl' ||
+            k === 'wappy_active_company_workers' ||
+            k === 'wappy_active_company_risk' ||
+            k === 'wappy_active_company_workspace' ||
+            k === 'color-theme' ||
+            k === 'wappy_theme_mode' ||
+            k === 'wappy_shared_theme' ||
+            k === 'wappy_light_default_v2' ||
+            k === 'wappy_api_key' ||
+            k === 'wappy_studio_api_key'
+          ) {
+            return true;
+          }
+          if (
+            k.indexOf('GEMINI_KEYS') === 0 ||
+            k.indexOf('wpy_live_') === 0 ||
+            k.indexOf('wpy_guest_') === 0
+          ) {
+            return true;
+          }
+          return false;
+        }
+
+        function pruneCompanyObj(obj, maxChars) {
+          if (!obj || typeof obj !== 'object') return false;
+          var changed = false;
+          var fields = ['logoBase64', 'legalRepSignature', 'sstRespSignature'];
+          for (var i = 0; i < fields.length; i++) {
+            var f = fields[i];
+            if (typeof obj[f] === 'string' && obj[f].length > maxChars) {
+              delete obj[f];
+              changed = true;
+            }
+          }
+          return changed;
+        }
+
+        function pruneCompaniesKey(compKey, maxChars) {
+          try {
+            var raw = ls.getItem(compKey);
+            if (!raw || raw.length <= maxChars) return;
+            var parsed = JSON.parse(raw);
+            var mutated = false;
+            if (Array.isArray(parsed)) {
+              for (var i = 0; i < parsed.length; i++) {
+                if (pruneCompanyObj(parsed[i], maxChars)) mutated = true;
+              }
+            } else if (parsed && typeof parsed === 'object') {
+              if (pruneCompanyObj(parsed, maxChars)) mutated = true;
+              var vals = Object.keys(parsed);
+              for (var j = 0; j < vals.length; j++) {
+                if (pruneCompanyObj(parsed[vals[j]], maxChars)) mutated = true;
+              }
+            }
+            if (mutated) {
+              origSetItem.call(ls, compKey, JSON.stringify(parsed));
+            }
+          } catch (e) {}
+        }
+
+        function runHygiene(aggressive, preserveKey) {
+          try {
+            var keys = [];
+            var totalChars = 0;
+            var reportList = [];
+            var heavyDrafts = [];
+            var companiesLen = 0;
+
+            for (var i = 0; i < ls.length; i++) {
+              var k = ls.key(i);
+              if (!k) continue;
+              keys.push(k);
+              var v = ls.getItem(k) || '';
+              totalChars += k.length + v.length;
+              if (k === 'wappy_sgsst_companies') companiesLen = v.length;
+              if (k.indexOf('wappy_company_draft_') === 0 && (aggressive || v.length > 100000)) {
+                heavyDrafts.push(k);
+              }
+              if (k.indexOf('wappy_sgsst_report_') === 0) {
+                var upd = 0;
+                try {
+                  upd = Number(JSON.parse(v).updatedAt) || 0;
+                } catch (e) {}
+                reportList.push({ key: k, updatedAt: upd });
+              }
+            }
+
+            var needsHygiene =
+              aggressive ||
+              totalChars > 3200000 ||
+              heavyDrafts.length > 0 ||
+              reportList.length > 8 ||
+              companiesLen > 300000;
+
+            if (!needsHygiene) return;
+
+            if (!isProtected('sgsst_signatures', preserveKey)) ls.removeItem('sgsst_signatures');
+            if (aggressive || totalChars > 3200000) {
+              if (!isProtected('wappy_gtc45_history', preserveKey)) ls.removeItem('wappy_gtc45_history');
+              if (!isProtected('wappy_gtc45_matrix_rows', preserveKey)) ls.removeItem('wappy_gtc45_matrix_rows');
+              if (!isProtected('wappy_signatures', preserveKey)) ls.removeItem('wappy_signatures');
+            }
+
+            for (var d = 0; d < heavyDrafts.length; d++) {
+              if (!isProtected(heavyDrafts[d], preserveKey)) {
+                ls.removeItem(heavyDrafts[d]);
+              }
+            }
+
+            if (reportList.length > 0) {
+              reportList.sort(function (a, b) {
+                return a.updatedAt - b.updatedAt;
+              });
+              var keepCount = aggressive ? 0 : totalChars > 3200000 ? 3 : 8;
+              var removeUntil = Math.max(0, reportList.length - keepCount);
+              for (var r = 0; r < removeUntil; r++) {
+                if (!isProtected(reportList[r].key, preserveKey)) {
+                  ls.removeItem(reportList[r].key);
+                }
+              }
+            }
+
+            var binThreshold = aggressive ? 40000 : 60000;
+            if (!isProtected('wappy_sgsst_companies', preserveKey)) {
+              pruneCompaniesKey('wappy_sgsst_companies', binThreshold);
+            }
+            if (!isProtected('wappy_gtc45_company', preserveKey)) {
+              pruneCompaniesKey('wappy_gtc45_company', binThreshold);
+            }
+
+            if (aggressive || totalChars > 3200000) {
+              var gLogo = ls.getItem('wappy_sst_global_logo');
+              if (gLogo && gLogo.length > 60000 && !isProtected('wappy_sst_global_logo', preserveKey)) {
+                ls.removeItem('wappy_sst_global_logo');
+              }
+              var activeCompId = ls.getItem('wappy_active_company_id') || 'default';
+              var activeSigKey = 'wappy_signatures_' + activeCompId;
+              for (var m = 0; m < keys.length; m++) {
+                var mk = keys[m];
+                if (isProtected(mk, preserveKey)) continue;
+                if (
+                  aggressive &&
+                  (mk.indexOf('textDraft_') === 0 ||
+                    mk.indexOf('filesDraft_') === 0 ||
+                    mk.indexOf('ephemeralAgent__') === 0)
+                ) {
+                  ls.removeItem(mk);
+                } else if (mk.indexOf('wappy_signatures_') === 0 && mk !== activeSigKey) {
+                  ls.removeItem(mk);
+                } else if (mk === activeSigKey) {
+                  try {
+                    var sRaw = ls.getItem(mk);
+                    if (sRaw && sRaw.length > 250000) {
+                      var sObj = JSON.parse(sRaw);
+                      var sKeys = Object.keys(sObj || {});
+                      var compact = {};
+                      var kept = 0;
+                      for (var si = Math.max(0, sKeys.length - 25); si < sKeys.length; si++) {
+                        var sk = sKeys[si];
+                        if (typeof sObj[sk] === 'string' && sObj[sk].length <= 120000) {
+                          compact[sk] = sObj[sk];
+                          kept++;
+                        }
+                      }
+                      if (kept >= 0) {
+                        origSetItem.call(ls, mk, JSON.stringify(compact));
+                      }
+                    }
+                  } catch (e) {}
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 1. Preventive self-healing on initial page load
+        runHygiene(false, '');
+
+        // 2. Safe Storage.prototype.setItem shield
+        Storage.prototype.setItem = function (key, value) {
+          var k = String(key);
+          try {
+            return origSetItem.call(this, key, value);
+          } catch (err) {
+            var isStudioManaged =
+              k.indexOf('wappy_studio_library') === 0 || k.indexOf('wappy_cloned_voices') === 0;
+            if (isQuotaErr(err)) {
+              if (this === window.localStorage) {
+                runHygiene(true, k);
+                try {
+                  return origSetItem.call(this, key, value);
+                } catch (retryErr) {
+                  if (isStudioManaged) throw retryErr;
+                  console.warn('[WAPPY Storage Shield] Quota exceeded for', k);
+                  return;
+                }
+              }
+              if (this === window.sessionStorage) {
+                try {
+                  for (var s = this.length - 1; s >= 0; s--) {
+                    var sk = this.key(s);
+                    if (
+                      sk &&
+                      sk !== k &&
+                      sk.indexOf('auto_reload_') !== 0 &&
+                      sk.indexOf('token') === -1
+                    ) {
+                      this.removeItem(sk);
+                    }
+                  }
+                  return origSetItem.call(this, key, value);
+                } catch (ssErr) {
+                  if (isStudioManaged) throw ssErr;
+                  console.warn('[WAPPY Storage Shield] sessionStorage quota exceeded for', k);
+                  return;
+                }
+              }
+            }
+            if (isStudioManaged) throw err;
+            console.warn('[WAPPY Storage Shield] Storage setItem prevented crash for', k);
+          }
+        };
+      } catch (e) {}
+    })();
+  </script>
   <meta name="theme-color" content="#171717" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />

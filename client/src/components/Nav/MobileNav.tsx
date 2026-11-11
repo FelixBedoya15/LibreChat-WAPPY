@@ -3,6 +3,7 @@ import { useSetRecoilState } from 'recoil';
 import type { Dispatch, SetStateAction } from 'react';
 import { useLocalize } from '~/hooks';
 import store from '~/store';
+import { safeSetItem } from '~/utils/safeStorage';
 
 export default function MobileNav({
   setNavVisible,
@@ -32,8 +33,9 @@ export default function MobileNav({
         className="m-1 inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-hover text-text-primary transition-colors"
         onClick={() =>
           setNavVisible((prev) => {
-            localStorage.setItem('navVisible', JSON.stringify(!prev));
-            return !prev;
+            const next = !prev;
+            safeSetItem('navVisible', JSON.stringify(next));
+            return next;
           })
         }
       >

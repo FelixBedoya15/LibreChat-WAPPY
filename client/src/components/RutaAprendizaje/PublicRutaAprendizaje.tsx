@@ -7,6 +7,7 @@ import RutaCertificate from './RutaCertificate';
 import { useWorkerSession } from '../../hooks/useWorkerSession';
 import PublicWorkerHeader from '../SGSST/PublicWorkerHeader';
 import WorkerSessionBadge from '../SGSST/WorkerSessionBadge';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '~/utils/safeStorage';
 
 interface WorkerSession {
     companyId: string;
@@ -16,6 +17,13 @@ interface WorkerSession {
     cedula: string;
     cargo: string;
     firmaDigital?: string | null;
+}
+
+function compactSessionForStorage(s: WorkerSession): WorkerSession {
+    if (typeof s.firmaDigital === 'string' && s.firmaDigital.length > 50_000) {
+        return { ...s, firmaDigital: null };
+    }
+    return s;
 }
 
 export default function PublicRutaAprendizaje() {
@@ -44,7 +52,7 @@ export default function PublicRutaAprendizaje() {
 
     // Initial session load & Company detail retrieval
     useEffect(() => {
-        const stored = localStorage.getItem('wappy_worker_session');
+        const stored = safeGetItem('wappy_worker_session');
         if (stored) {
             try {
                 const parsed = JSON.parse(stored) as WorkerSession;
@@ -52,7 +60,7 @@ export default function PublicRutaAprendizaje() {
                     setSession(parsed);
                 }
             } catch (e) {
-                localStorage.removeItem('wappy_worker_session');
+                safeRemoveItem('wappy_worker_session');
             }
         }
 
@@ -87,7 +95,7 @@ export default function PublicRutaAprendizaje() {
                     cargo: resolvedCargo,
                     firmaDigital: hookSession?.firmaDigital || null
                 };
-                localStorage.setItem('wappy_worker_session', JSON.stringify(autoSession));
+                safeSetItem('wappy_worker_session', JSON.stringify(compactSessionForStorage(autoSession)));
                 setSession(autoSession);
             }
         }
@@ -166,8 +174,8 @@ export default function PublicRutaAprendizaje() {
                 };
 
                 saveSession(newSession);
-                localStorage.setItem('wappy_worker_session', JSON.stringify(newSession));
-                localStorage.setItem('wappy_worker_cedula', newSession.cedula);
+                safeSetItem('wappy_worker_session', JSON.stringify(compactSessionForStorage(newSession)));
+                safeSetItem('wappy_worker_cedula', newSession.cedula);
                 setSession(newSession);
                 showToast({ message: `¡Bienvenido(a), ${newSession.nombre}!`, status: 'success' });
             }
@@ -182,8 +190,8 @@ export default function PublicRutaAprendizaje() {
 
     const handleLogout = () => {
         clearSession();
-        localStorage.removeItem('wappy_worker_session');
-        localStorage.removeItem('wappy_worker_cedula');
+        safeRemoveItem('wappy_worker_session');
+        safeRemoveItem('wappy_worker_cedula');
         setSession(null);
         setCourses([]);
         setCoursesProgress({});
