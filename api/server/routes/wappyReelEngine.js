@@ -3,4005 +3,1851 @@
 const fs = require('fs');
 const path = require('path');
 
-/**
- * Orden de los 12 Arquetipos Cinéticos Oficiales de Antigravity (Skills: animaciones-17-efectos-reels + animaciones-dark-tech-hud + animaciones-wappy-brand + animaciones-explicativas-sst)
- */
+let OFFICIAL_LOGOS = {};
+try {
+  OFFICIAL_LOGOS = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'wappyReelLogos.json'), 'utf8'),
+  );
+} catch (_) {
+  OFFICIAL_LOGOS = {};
+}
+
 const ARCHETYPE_ROTATION = [
   'hook-vs-wall',
-  'wappy-n8n-workflow',
-  'visor-normativo-real',
+  'bento-kpi',
   'flow-split-before-after',
+  'visor-normativo-real',
   'suri-voice-live-hud',
-  'cuadricula-50-herramientas',
-  'iphone-split-showcase',
-  'signature-pad-live',
-  'chart-grow-math',
+  'wappy-n8n-workflow',
   'pentagon-orbital',
-  'tenshi-specialists-grid',
-  'cta-viral-bubbles',
 ];
 
-/**
- * Mapea los identificadores de efectos de las 7 Skills Oficiales
- * a los 12 Arquetipos Cinéticos de Antigravity (Modo Móvil XL).
- */
-function resolveArchetypeFromEffect(effectId, idx = 0, isFirst = false, isLast = false) {
-  const clean = String(effectId || '').toLowerCase().trim();
-  if (ARCHETYPE_ROTATION.includes(clean)) return clean;
+const EFFECT_TO_ARCHETYPE = {
+  'hero-cover-2s-xl': 'hook-vs-wall',
+  '08-headline-wall': 'hook-vs-wall',
+  '07-zoom-through': 'bento-kpi',
+  '02-frame-break': 'bento-kpi',
+  '03-ui-world': 'bento-kpi',
+  'flow-split-before-after': 'flow-split-before-after',
+  '04-split-compare': 'flow-split-before-after',
+  'visor-normativo-real': 'visor-normativo-real',
+  '05-doc-highlighter': 'visor-normativo-real',
+  'suri-voice-live-hud': 'suri-voice-live-hud',
+  'iphone-16-dynamic-island': 'suri-voice-live-hud',
+  'n8n-workflow-wappy': 'wappy-n8n-workflow',
+  'cuadricula-50-ia': 'wappy-n8n-workflow',
+  '01-orbit-3d': 'pentagon-orbital',
+  '09-chart-grow': 'pentagon-orbital',
+};
 
-  if (/n8n|workflow|flujo|automatiza|cron|nodo|pipeline/.test(clean)) return 'wappy-n8n-workflow';
-  if (/visor|normativo-real|decreto|1072|0312|resaltador|fluor|flúor|alucinacion|norma/.test(clean)) return 'visor-normativo-real';
-  if (/flow-split|before-after|antes-despues|antes.*despu|split-before|transformacion|cambio|bento/.test(clean)) return 'flow-split-before-after';
-  if (/suri|voice-live|podcast|24khz|consola-voz|onda-reactiva/.test(clean)) return 'suri-voice-live-hud';
-  if (/cuadricula|50-ia|50-herramientas|ecosistema|ahorro|matriz-50/.test(clean)) return 'cuadricula-50-herramientas';
-
-  if (/hook|wall|06|08-headline|headline|19|cover|hero-cover|portada|vs|14|corte/.test(clean)) return 'hook-vs-wall';
-  if (/phone|05|iphone|mockup|island|16|green/.test(clean)) return 'iphone-split-showcase';
-  if (/check|13|firma|signature|09-doodle|doodle|17|paper|expediente/.test(clean)) return 'signature-pad-live';
-  if (/chart|08|09-chart|grow|math|04|reticula|digital-zoom|kpi/.test(clean)) return 'chart-grow-math';
-  if (/orbit|01|pentagon|gtc|11|giro|07|zoom-through|18|vertigo|dolly/.test(clean)) return 'pentagon-orbital';
-  if (/ui-world|03|grid|tenshi|10|glass|cristal|02|frame/.test(clean)) return 'tenshi-specialists-grid';
-  if (/couch|12|cta|bubble|15|zoom-out|avatar|felix|sfx/.test(clean)) {
-    return isFirst ? 'hook-vs-wall' : isLast ? 'cta-viral-bubbles' : 'suri-voice-live-hud';
-  }
-
-  if (isFirst) return 'hook-vs-wall';
-  if (isLast) return 'cta-viral-bubbles';
-  const midArchetypes = [
-    'wappy-n8n-workflow',
-    'visor-normativo-real',
-    'flow-split-before-after',
-    'suri-voice-live-hud',
-    'cuadricula-50-herramientas',
-    'iphone-split-showcase',
-    'signature-pad-live',
-    'chart-grow-math',
-    'pentagon-orbital',
-    'tenshi-specialists-grid',
-  ];
-  return midArchetypes[Math.max(0, idx - 1) % midArchetypes.length];
+function resolveArchetypeFromEffect(effectId = '', fallbackIdx = 0) {
+  const clean = String(effectId || '').trim().toLowerCase();
+  if (EFFECT_TO_ARCHETYPE[clean]) return EFFECT_TO_ARCHETYPE[clean];
+  return ARCHETYPE_ROTATION[fallbackIdx % ARCHETYPE_ROTATION.length];
 }
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function renderOfficialBrandLogoSvg(brand = 'wappy', size = 36) {
+  const s = Number(size) || 36;
+  const b = String(brand || 'wappy').toLowerCase();
+  const src =
+    b.includes('antigravity') && OFFICIAL_LOGOS.antigravity
+      ? OFFICIAL_LOGOS.antigravity
+      : b.includes('flow') && OFFICIAL_LOGOS.flow
+        ? OFFICIAL_LOGOS.flow
+        : b.includes('notebook') && OFFICIAL_LOGOS.notebooklm
+          ? OFFICIAL_LOGOS.notebooklm
+          : b.includes('suri') && OFFICIAL_LOGOS.suri
+            ? OFFICIAL_LOGOS.suri
+            : b.includes('tenshi') && OFFICIAL_LOGOS.tenshi
+              ? OFFICIAL_LOGOS.tenshi
+              : OFFICIAL_LOGOS.wappyCircle || '';
+  if (src) {
+    return `<img src="${src}" alt="${b}" style="width:${s}px;height:${s}px;object-fit:contain;border-radius:${Math.round(s * 0.24)}px;" />`;
+  }
+  return `<span style="display:inline-flex;width:${s}px;height:${s}px;border-radius:50%;background:#C7F303;color:#0E1300;align-items:center;justify-content:center;font-weight:900;font-size:${Math.round(s * 0.5)}px;">W</span>`;
 }
 
 /**
- * Analiza un Buffer WAV (PCM 16-bit) en el servidor para extraer:
- * 1. Envolvente de voz a 60 FPS (vozData: 0..1) para Lip-Sync exacto de Félix 3D Voxel y el ecualizador HUD.
- * 2. Pausas de silencio reales en la locución para alinear los cortes de escena (startSec / endSec) al milisegundo.
- * 3. Tiempos palabra por palabra ajustados exclusivamente a los fotogramas con voz activa.
+ * Extrae envolvente RMS a 60 FPS y alinea marcas de tiempo con un buffer WAV real (16-bit PCM)
  */
-function alignTimelineMapWithWavBuffer(timelineMap, wavBuffer) {
-  if (!wavBuffer || !Buffer.isBuffer(wavBuffer) || wavBuffer.length < 100) {
-    return { ...timelineMap, vozData: [] };
-  }
+function alignTimelineMapWithWavBuffer(timelineMap = {}, wavBuffer) {
+  if (!Buffer.isBuffer(wavBuffer) || wavBuffer.length < 128) return timelineMap;
 
+  let dataOffset = 44;
+  let sampleRate = 24000;
   try {
-    const numChannels = wavBuffer.readUInt16LE(22) || 1;
-    const sampleRate = wavBuffer.readUInt32LE(24) || 24000;
-    const bitsPerSample = wavBuffer.readUInt16LE(34) || 16;
-    const bytesPerSample = Math.max(2, Math.floor(bitsPerSample / 8));
-
-    let offset = 12;
-    let dataOffset = 44;
-    let dataSize = wavBuffer.length - 44;
-    while (offset < wavBuffer.length - 8) {
-      const chunkId = wavBuffer.toString('ascii', offset, offset + 4);
-      const chunkSize = wavBuffer.readUInt32LE(offset + 4);
-      if (chunkId === 'data') {
-        dataOffset = offset + 8;
-        dataSize = Math.min(chunkSize, wavBuffer.length - dataOffset);
-        break;
-      }
-      offset += 8 + chunkSize;
-    }
-
-    const totalSamples = Math.floor(dataSize / (numChannels * bytesPerSample));
-    const exactDuration = Number((totalSamples / sampleRate).toFixed(3));
-    if (exactDuration < 1.5) {
-      return { ...timelineMap, vozData: [] };
-    }
-
-    const fps = 60;
-    const totalFrames = Math.ceil(exactDuration * fps);
-    const samplesPerFrame = Math.max(1, Math.floor(sampleRate / fps));
-    const rawRms = new Array(totalFrames);
-    let maxRms = 0.01;
-
-    for (let f = 0; f < totalFrames; f++) {
-      const s0 = f * samplesPerFrame;
-      const s1 = Math.min(totalSamples, s0 + samplesPerFrame);
-      let sumSq = 0;
-      let count = 0;
-      for (let s = s0; s < s1; s++) {
-        const byteIdx = dataOffset + s * numChannels * bytesPerSample;
-        if (byteIdx + 1 < wavBuffer.length) {
-          const val = wavBuffer.readInt16LE(byteIdx) / 32768;
-          sumSq += val * val;
-          count++;
+    if (wavBuffer.toString('ascii', 0, 4) === 'RIFF') {
+      sampleRate = wavBuffer.readUInt32LE(24) || 24000;
+      let pos = 12;
+      while (pos + 8 <= wavBuffer.length) {
+        const chunkId = wavBuffer.toString('ascii', pos, pos + 4);
+        const chunkSize = wavBuffer.readUInt32LE(pos + 4);
+        if (chunkId === 'data') {
+          dataOffset = pos + 8;
+          break;
         }
-      }
-      const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
-      if (rms > maxRms) maxRms = rms;
-      rawRms[f] = rms;
-    }
-
-    const vozData = rawRms.map((v) => Number(Math.min(1, v / (maxRms * 0.65)).toFixed(3)));
-
-    // Detectar pausas de silencio reales (>= 0.24s con nivel < 0.045)
-    const silences = [];
-    let inSil = false;
-    let silStart = 0;
-    for (let f = 0; f < vozData.length; f++) {
-      if (vozData[f] < 0.045) {
-        if (!inSil) {
-          inSil = true;
-          silStart = f / fps;
-        }
-      } else if (inSil) {
-        const silEnd = f / fps;
-        const dur = silEnd - silStart;
-        if (dur >= 0.22 && silStart > 0.6 && silEnd < exactDuration - 0.6) {
-          silences.push({
-            start: silStart,
-            end: silEnd,
-            mid: Number(((silStart + silEnd) / 2).toFixed(2)),
-            dur: Number(dur.toFixed(2)),
-          });
-        }
-        inSil = false;
+        pos += 8 + chunkSize;
       }
     }
+  } catch (_) {}
 
-    const beats = (timelineMap.beats || []).map((b) => ({ ...b }));
-    if (beats.length > 1 && silences.length > 0) {
-      const usedSilences = new Set();
-      for (let i = 0; i < beats.length - 1; i++) {
-        const expectedBoundary = (beats[i].endPct || (i + 1) / beats.length) * exactDuration;
-        let bestSil = null;
-        let bestScore = Infinity;
-        for (let sIdx = 0; sIdx < silences.length; sIdx++) {
-          if (usedSilences.has(sIdx)) continue;
-          const sil = silences[sIdx];
-          const dist = Math.abs(sil.mid - expectedBoundary);
-          // Buscar la pausa real más cercana dentro de una ventana de ±2.4s
-          if (dist < 2.4) {
-            const score = dist - sil.dur * 0.6;
-            if (score < bestScore) {
-              bestScore = score;
-              bestSil = { sil, sIdx };
-            }
-          }
-        }
-        if (bestSil) {
-          usedSilences.add(bestSil.sIdx);
-          beats[i].endSec = bestSil.sil.mid;
-          beats[i + 1].startSec = bestSil.sil.mid;
-        } else {
-          const fallbackSec = Number(expectedBoundary.toFixed(2));
-          beats[i].endSec = fallbackSec;
-          beats[i + 1].startSec = fallbackSec;
-        }
-      }
-      beats[0].startSec = 0;
-      beats[beats.length - 1].endSec = Number(exactDuration.toFixed(2));
-      for (let i = 0; i < beats.length; i++) {
-        if (i > 0 && beats[i].startSec <= beats[i - 1].startSec + 0.8) {
-          beats[i].startSec = Number((beats[i - 1].startSec + 1.2).toFixed(2));
-          beats[i - 1].endSec = beats[i].startSec;
-        }
-        beats[i].durationSec = Number(Math.max(0.8, beats[i].endSec - beats[i].startSec).toFixed(2));
-        beats[i].startPct = Number((beats[i].startSec / exactDuration).toFixed(4));
-        beats[i].endPct = Number((beats[i].endSec / exactDuration).toFixed(4));
+  const pcmBytes = wavBuffer.length - dataOffset;
+  const totalSamples = Math.max(1, Math.floor(pcmBytes / 2));
+  const realDurationSec = Math.max(4, Number((totalSamples / sampleRate).toFixed(2)));
+  const fps = 60;
+  const totalFrames = Math.ceil(realDurationSec * fps);
+  const samplesPerFrame = Math.max(1, Math.floor(sampleRate / fps));
+  const vozData = [];
+
+  for (let f = 0; f < totalFrames; f++) {
+    const startSample = f * samplesPerFrame;
+    const endSample = Math.min(totalSamples, startSample + samplesPerFrame);
+    let sumSq = 0;
+    let count = 0;
+    for (let s = startSample; s < endSample; s++) {
+      const bytePos = dataOffset + s * 2;
+      if (bytePos + 2 <= wavBuffer.length) {
+        const val = wavBuffer.readInt16LE(bytePos) / 32768;
+        sumSq += val * val;
+        count++;
       }
     }
+    const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
+    vozData.push(Number(Math.min(1, rms * 3.2).toFixed(3)));
+  }
 
-    // Ajustar los tiempos de cada palabra dentro de su beat usando los frames con voz activa
-    const newWordTimings = [];
-    const oldWords = timelineMap.wordTimings || [];
-    for (let bIdx = 0; bIdx < beats.length; bIdx++) {
-      const beat = beats[bIdx];
-      const beatWords = oldWords.filter((w) => w.beatIndex === bIdx);
-      if (beatWords.length === 0) continue;
+  const introSec = Math.max(0, Math.min(3.5, Number(timelineMap.introDurationSeconds) || 2.0));
+  const spokenDur = Math.max(1.0, realDurationSec - introSec);
+  const rawBeats = Array.isArray(timelineMap.beats) ? timelineMap.beats : [];
 
-      const fStart = Math.max(0, Math.floor(beat.startSec * fps));
-      const fEnd = Math.min(vozData.length - 1, Math.ceil(beat.endSec * fps));
-      const voicedFrames = [];
-      for (let f = fStart; f <= fEnd; f++) {
-        if (vozData[f] >= 0.04) voicedFrames.push(f);
+  // Detectar valles acústicos reales (pausas de respiración) cerca de las fronteras ponderadas por sílabas
+  const weights = rawBeats.map((b) => {
+    const clean = String(b.text || '').replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9]/g, '');
+    return Math.max(8, clean.length);
+  });
+  const totalW = weights.reduce((a, v) => a + v, 0) || 1;
+
+  const boundaries = [introSec];
+  let accW = 0;
+  for (let i = 0; i < rawBeats.length - 1; i++) {
+    accW += weights[i];
+    const expectedSec = introSec + (accW / totalW) * spokenDur;
+    const minSearchSec = Math.max(boundaries[i] + 1.1, expectedSec - 1.1);
+    const maxSearchSec = Math.min(realDurationSec - 1.1, expectedSec + 1.1);
+    const minFrame = Math.max(0, Math.floor(minSearchSec * fps));
+    const maxFrame = Math.min(totalFrames - 1, Math.ceil(maxSearchSec * fps));
+
+    let bestFrame = Math.round(expectedSec * fps);
+    let bestScore = Infinity;
+    for (let f = minFrame; f <= maxFrame; f++) {
+      // Ventana de 8 frames (~133ms) para detectar pausa real de respiración
+      let winEnergy = 0;
+      let cnt = 0;
+      for (let k = -4; k <= 4; k++) {
+        const idx = f + k;
+        if (idx >= 0 && idx < totalFrames) {
+          winEnergy += vozData[idx];
+          cnt++;
+        }
       }
-
-      if (voicedFrames.length >= beatWords.length * 2) {
-        // Ponderar cada palabra por longitud + puntuación sobre los fotogramas hablados reales
-        const weights = beatWords.map((w) => {
-          const cleanLen = w.word.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9]/g, '').length;
-          let wt = Math.max(2, cleanLen);
-          if (/[,;:]$/.test(w.word)) wt += 2;
-          return wt;
-        });
-        const sumW = weights.reduce((a, b) => a + b, 0) || 1;
-        let accW = 0;
-        for (let wIdx = 0; wIdx < beatWords.length; wIdx++) {
-          const f0Idx = Math.min(
-            voicedFrames.length - 1,
-            Math.floor((accW / sumW) * voicedFrames.length),
-          );
-          accW += weights[wIdx];
-          const f1Idx = Math.min(
-            voicedFrames.length - 1,
-            Math.max(f0Idx, Math.floor((accW / sumW) * voicedFrames.length) - 1),
-          );
-          const startSecW = voicedFrames[f0Idx] / fps;
-          const endSecW =
-            wIdx + 1 < beatWords.length
-              ? voicedFrames[Math.min(voicedFrames.length - 1, f1Idx + 1)] / fps
-              : beat.endSec;
-          newWordTimings.push({
-            word: beatWords[wIdx].word,
-            startPct: Number((startSecW / exactDuration).toFixed(4)),
-            endPct: Number((Math.max(startSecW + 0.04, endSecW) / exactDuration).toFixed(4)),
-            beatIndex: bIdx,
-          });
-        }
-      } else {
-        // Distribución proporcional dentro de la ventana del beat
-        const bDur = Math.max(0.5, beat.endSec - beat.startSec);
-        const weights = beatWords.map((w) => Math.max(2, w.word.length));
-        const sumW = weights.reduce((a, b) => a + b, 0) || 1;
-        let accW = 0;
-        for (let wIdx = 0; wIdx < beatWords.length; wIdx++) {
-          const sSec = beat.startSec + (accW / sumW) * bDur;
-          accW += weights[wIdx];
-          const eSec = beat.startSec + (accW / sumW) * bDur;
-          newWordTimings.push({
-            word: beatWords[wIdx].word,
-            startPct: Number((sSec / exactDuration).toFixed(4)),
-            endPct: Number((eSec / exactDuration).toFixed(4)),
-            beatIndex: bIdx,
-          });
-        }
+      const avgEnergy = cnt > 0 ? winEnergy / cnt : 0;
+      const distPenalty = Math.abs(f / fps - expectedSec) * 0.12;
+      const score = avgEnergy + distPenalty;
+      if (score < bestScore) {
+        bestScore = score;
+        bestFrame = f;
       }
     }
+    boundaries.push(Number((bestFrame / fps).toFixed(2)));
+  }
+  boundaries.push(realDurationSec);
 
+  const beats = rawBeats.map((b, i) => {
+    const startSec = Number((boundaries[i] ?? introSec).toFixed(2));
+    const endSec = Number((boundaries[i + 1] ?? realDurationSec).toFixed(2));
+    const durationSec = Number(Math.max(0.8, endSec - startSec).toFixed(2));
     return {
-      beats,
-      wordTimings: newWordTimings.length > 0 ? newWordTimings : timelineMap.wordTimings,
-      totalDurationSeconds: exactDuration,
-      vozData,
-    };
-  } catch (_) {
-    return { ...timelineMap, vozData: [] };
-  }
-}
-
-/**
- * Renderiza iconos vectoriales SVG Duotone animados de nivel After Effects (WAPPY_LOTTIE)
- * reemplazando los emojis genéricos por iconografía técnica de alta gama.
- */
-function renderWappySvgIcon(kind = 'escudo', color = '#c7f303', size = 40) {
-  const k = String(kind || '').toLowerCase();
-  let inner = '';
-  if (/alerta|bad|riesgo|peligro|error|❌|⚠️/.test(k)) {
-    const c = color === '#c7f303' ? '#ef4444' : color;
-    inner = `
-      <polygon points="50,12 90,84 10,84" fill="${c}" fill-opacity="0.22" stroke="${c}" stroke-width="5.5" stroke-linejoin="round"/>
-      <line x1="50" y1="36" x2="50" y2="58" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round"/>
-      <circle cx="50" cy="72" r="4.2" fill="#ffffff"/>`;
-  } else if (/cerebro|ia|tenshi|ai|neuronal|✨|🤖|🧠/.test(k)) {
-    inner = `
-      <circle cx="50" cy="50" r="36" fill="${color}" fill-opacity="0.16" stroke="${color}" stroke-width="4" stroke-dasharray="8 5"/>
-      <path d="M35 38 C25 38 22 50 30 56 C25 65 34 74 44 70 L46 70 L46 32 C38 30 35 34 35 38 Z" fill="${color}" fill-opacity="0.28" stroke="${color}" stroke-width="4.5"/>
-      <path d="M65 38 C75 38 78 50 70 56 C75 65 66 74 56 70 L54 70 L54 32 C62 30 65 34 65 38 Z" fill="#22d3ee" fill-opacity="0.28" stroke="#22d3ee" stroke-width="4.5"/>
-      <circle cx="50" cy="50" r="6" fill="#ffffff"/>`;
-  } else if (/grafica|chart|kpi|metric|ind|📊|📈/.test(k)) {
-    inner = `
-      <rect x="16" y="54" width="14" height="30" rx="4" fill="#2dd4bf" fill-opacity="0.35" stroke="#2dd4bf" stroke-width="4"/>
-      <rect x="43" y="36" width="14" height="48" rx="4" fill="#22d3ee" fill-opacity="0.4" stroke="#22d3ee" stroke-width="4"/>
-      <rect x="70" y="18" width="14" height="66" rx="4" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="4"/>
-      <path d="M16 44 L48 26 L78 12" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>`;
-  } else if (/firma|sig|check|legal|norma|✍️|✅|📋/.test(k)) {
-    inner = `
-      <rect x="16" y="14" width="68" height="72" rx="12" fill="${color}" fill-opacity="0.16" stroke="${color}" stroke-width="4.5"/>
-      <path d="M30 52 L44 66 L72 34" fill="none" stroke="#c7f303" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="30" y1="28" x2="58" y2="28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.7"/>`;
-  } else if (/radar|orbit|core|gtc|🎯|🌐/.test(k)) {
-    inner = `
-      <circle cx="50" cy="50" r="38" fill="${color}" fill-opacity="0.15" stroke="${color}" stroke-width="4.5"/>
-      <circle cx="50" cy="50" r="22" fill="none" stroke="#22d3ee" stroke-width="3.5" stroke-dasharray="6 4"/>
-      <circle cx="50" cy="50" r="8" fill="#c7f303"/>
-      <line x1="50" y1="50" x2="78" y2="24" stroke="#c7f303" stroke-width="4.5" stroke-linecap="round"/>`;
-  } else if (/bolt|rayo|fast|⚡|🔥|🚀/.test(k)) {
-    inner = `
-      <polygon points="56,10 22,54 48,54 42,90 78,44 52,44" fill="${color}" fill-opacity="0.32" stroke="${color}" stroke-width="5" stroke-linejoin="round"/>`;
-  } else {
-    // Escudo SST por defecto
-    inner = `
-      <path d="M50 10 L84 24 V48 C84 70 68 85 50 92 C32 85 16 70 16 48 V24 L50 10 Z" fill="${color}" fill-opacity="0.22" stroke="${color}" stroke-width="5" stroke-linejoin="round"/>
-      <path d="M36 50 L46 60 L66 38" fill="none" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-  }
-  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" style="overflow:visible;filter:drop-shadow(0 0 10px ${color}66);">${inner}</svg>`;
-}
-
-/**
- * Renderiza los Logos Oficiales Vectoriales SVG del Ecosistema WAPPY IA & Google Antigravity
- * (Antigravity, NotebookLM, WAPPY IA, Google Flow, Suri/Tenshi, Gemini) en tamaño Móvil XL.
- */
-function renderOfficialBrandLogoSvg(brand = 'wappy', size = 34) {
-  const b = String(brand || '').toLowerCase();
-  if (b.includes('antigravity') || b.includes('agy')) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(34,211,238,0.55));">
-      <circle cx="32" cy="32" r="28" fill="rgba(12,25,46,0.92)" stroke="#22d3ee" stroke-width="3.2"/>
-      <ellipse cx="32" cy="32" rx="24" ry="10" transform="rotate(-24 32 32)" stroke="#c7f303" stroke-width="2.6" stroke-dasharray="5 3"/>
-      <path d="M32 13 L46 47 H38.5 L35.5 39 H28.5 L25.5 47 H18 L32 13 Z M30.2 33 H33.8 L32 27.5 L30.2 33 Z" fill="#ffffff"/>
-      <circle cx="48" cy="18" r="4" fill="#c7f303"/>
-    </svg>`;
-  }
-  if (b.includes('notebook')) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(74,222,128,0.55));">
-      <rect x="8" y="8" width="48" height="48" rx="14" fill="rgba(13,148,136,0.28)" stroke="#4ade80" stroke-width="3.2"/>
-      <path d="M18 36 C22 20, 28 20, 32 32 C36 44, 42 44, 46 26" stroke="#c7f303" stroke-width="4.2" stroke-linecap="round" fill="none"/>
-      <line x1="18" y1="20" x2="34" y2="20" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
-      <line x1="18" y1="46" x2="44" y2="46" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
-    </svg>`;
-  }
-  if (b.includes('flow') || b.includes('veo')) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(245,158,11,0.55));">
-      <rect x="8" y="8" width="48" height="48" rx="14" fill="rgba(245,158,11,0.22)" stroke="#f59e0b" stroke-width="3.2"/>
-      <polygon points="24,19 47,32 24,45" fill="#c7f303" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>
-      <circle cx="19" cy="22" r="3" fill="#22d3ee"/>
-    </svg>`;
-  }
-  if (b.includes('suri') || b.includes('tenshi') || b.includes('podcast')) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(199,243,3,0.6));">
-      <circle cx="32" cy="32" r="28" fill="rgba(14,19,0,0.92)" stroke="#c7f303" stroke-width="3.2"/>
-      <rect x="26" y="15" width="12" height="22" rx="6" fill="#22d3ee" stroke="#ffffff" stroke-width="2.4"/>
-      <path d="M19 29 C19 37 25 43 32 43 C39 43 45 37 45 29" stroke="#c7f303" stroke-width="3.4" stroke-linecap="round"/>
-      <line x1="32" y1="43" x2="32" y2="50" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>
-      <line x1="24" y1="50" x2="40" y2="50" stroke="#c7f303" stroke-width="3.4" stroke-linecap="round"/>
-    </svg>`;
-  }
-  if (b.includes('gemini')) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" style="overflow:visible;filter:drop-shadow(0 0 8px rgba(56,189,248,0.65));">
-      <path d="M32 6 C34 22 42 30 58 32 C42 34 34 42 32 58 C30 42 22 34 6 32 C22 30 30 22 32 6 Z" fill="url(#gemGrad)" stroke="#ffffff" stroke-width="2"/>
-      <defs>
-        <linearGradient id="gemGrad" x1="6" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#22d3ee"/>
-          <stop offset="100%" stop-color="#c7f303"/>
-        </linearGradient>
-      </defs>
-    </svg>`;
-  }
-  return `<img src="/assets/brandbook/isotipo_w_favicon.png" alt="WAPPY IA" style="width:${size}px;height:${size}px;border-radius:8px;object-fit:contain;box-shadow:0 0 10px rgba(199,243,3,0.5);">`;
-}
-
-/**
- * Construye un plan de escenas rico e inteligente de forma determinista a partir del guion real del usuario,
- * sin textos hardcodeados ajenos al tema y con iconografía vectorial SVG Duotone + Arquetipos Móvil XL.
- */
-function buildSmartScenePlanFromScript(scriptText, beats = [], options = {}) {
-  const companyName = options.companyName || 'WAPPY IA';
-  const totalBeats = beats.length || 1;
-  const userEffects = Array.isArray(options.selectedEffects)
-    ? options.selectedEffects
-    : Array.isArray(options.selectedSkillEffects)
-      ? options.selectedSkillEffects
-      : Array.isArray(options.effects)
-        ? options.effects
-        : [];
-  const customSteps = Array.isArray(options.scriptSteps)
-    ? options.scriptSteps
-    : Array.isArray(options.scenesBreakdown)
-      ? options.scenesBreakdown
-      : [];
-
-  const fullScriptLower = String(scriptText || '').toLowerCase();
-  const isGtc45 = /gtc\s*45|ipevr|matriz\s+de\s+peligros|nivel\s+de\s+riesgo/i.test(fullScriptLower);
-  const isRes0312 = /0312|est[aá]ndares\s+m[ií]nimos|1072|sg-?sst/i.test(fullScriptLower);
-  const normTags = isGtc45
-    ? ['✦ GTC 45 Oficial', '✦ Matriz IPEVR IA', '✦ Decreto 1072', '✦ WAPPY.CLUB']
-    : isRes0312
-      ? ['✦ Resolución 0312', '✦ Decreto 1072', '✦ SG-SST en Vivo', '✦ WAPPY.CLUB']
-      : ['✦ Prevención SST', '✦ IA en Tiempo Real', '✦ Cumplimiento Legal', '✦ WAPPY.CLUB'];
-
-  // Extraer todas las frases útiles del guion completo para que ninguna tarjeta quede vacía ni use rellenos ajenos
-  const allScriptClauses = String(scriptText || '')
-    .replace(/\[pausa\s+[\d.]+s\]/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .split(/(?<=[.!?])\s+|[,;:]|\s+y\s+|\s+para\s+/i)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 8);
-
-  const midArchetypesPool = [
-    'wappy-n8n-workflow',
-    'visor-normativo-real',
-    'flow-split-before-after',
-    'suri-voice-live-hud',
-    'cuadricula-50-herramientas',
-    'iphone-split-showcase',
-    'signature-pad-live',
-    'chart-grow-math',
-    'pentagon-orbital',
-    'tenshi-specialists-grid',
-  ];
-
-  let prevArchetype = '';
-
-  return beats.map((beat, idx) => {
-    const isFirst = idx === 0;
-    const isLast = idx === totalBeats - 1 && totalBeats > 1;
-    const stepMeta = customSteps[idx] && typeof customSteps[idx] === 'object' ? customSteps[idx] : null;
-    const effectCandidate =
-      stepMeta?.archetype ||
-      stepMeta?.visualEffect ||
-      stepMeta?.effect ||
-      (userEffects.length > 0 ? userEffects[idx % userEffects.length] : '');
-
-    const rawText = String(
-      stepMeta?.narration || stepMeta?.voiceover || stepMeta?.text || beat.text || '',
-    )
-      .replace(/\[pausa\s+[\d.]+s\]/gi, '')
-      .replace(/\[énfasis\]/gi, '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\|[^|]+\|/g, '')
-      .trim();
-
-    const lowerBeatText = rawText.toLowerCase();
-
-    let archetype;
-    if (effectCandidate) {
-      archetype = resolveArchetypeFromEffect(effectCandidate, idx, isFirst, isLast);
-    } else if (isLast) {
-      archetype = 'cta-viral-bubbles';
-    } else if (/automatiza|n8n|cron|flujo|correo|whatsapp|alerta\s+autom/i.test(lowerBeatText)) {
-      archetype = 'wappy-n8n-workflow';
-    } else if (/decreto|1072|resoluci[oó]n|0312|norma|ley|gtc\s*45|auditor|alucina/i.test(lowerBeatText)) {
-      archetype = 'visor-normativo-real';
-    } else if (/antes|despu[eé]s|manual|papel|excel|transforma|cambio|flow/i.test(lowerBeatText)) {
-      archetype = 'flow-split-before-after';
-    } else if (/voz|habla|suri|podcast|audio|pregunta|tenshi\s+en\s+vivo/i.test(lowerBeatText)) {
-      archetype = 'suri-voice-live-hud';
-    } else if (/50|herramienta|ecosistema|ahorr|tiempo|m[oó]dulo/i.test(lowerBeatText)) {
-      archetype = 'cuadricula-50-herramientas';
-    } else if (isFirst) {
-      archetype = 'hook-vs-wall';
-    } else {
-      archetype = midArchetypesPool[(idx - 1) % midArchetypesPool.length];
-    }
-
-    // Garantizar cero repetición consecutiva de arquetipos
-    if (archetype === prevArchetype && !isLast) {
-      const nextIdx = (midArchetypesPool.indexOf(archetype) + 1 + idx) % midArchetypesPool.length;
-      archetype = midArchetypesPool[nextIdx] || 'wappy-n8n-workflow';
-    }
-    prevArchetype = archetype;
-
-    let stepPrefix = '';
-    let bodyText = rawText;
-    const ordinalMatch = rawText.match(
-      /^(?:Y\s+)?(Primero|Segundo|Tercero|Cuarto|Quinto|Sexto|Paso\s*\d+|Regla\s*\d+)\s*[:.-]\s*(.+)$/i,
-    );
-    if (ordinalMatch) {
-      stepPrefix = ordinalMatch[1].toUpperCase();
-      bodyText = ordinalMatch[2].trim();
-    }
-
-    const bodyWords = bodyText.split(/\s+/).filter(Boolean);
-    const cleanWordSlice = (arr) =>
-      arr
-        .join(' ')
-        .replace(/^[,;:.!?-]+|[,;:.!?-]+$/g, '')
-        .trim();
-    const leadCount = Math.min(3, Math.max(1, Math.ceil(Math.min(bodyWords.length, 6) * 0.5)));
-    const defaultTitleBefore = stepPrefix
-      ? `${idx + 1}. ${cleanWordSlice(bodyWords.slice(0, 2))}`
-      : cleanWordSlice(bodyWords.slice(0, leadCount));
-    const defaultTitleHighlight = stepPrefix
-      ? cleanWordSlice(bodyWords.slice(2, Math.min(6, bodyWords.length))) || stepPrefix
-      : cleanWordSlice(bodyWords.slice(leadCount, Math.min(leadCount + 4, bodyWords.length))) || 'WAPPY IA';
-
-    let customTitleBefore = stepMeta?.titleBefore || '';
-    let customTitleHighlight = stepMeta?.titleHighlight || '';
-    if (!customTitleBefore && !customTitleHighlight && stepMeta?.title) {
-      const cleanStepTitle = String(stepMeta.title)
-        .replace(/^Portada Magnética\s*\(2s\)\s*[:·-]?\s*/i, '')
-        .trim();
-      const tWords = cleanStepTitle.split(/\s+/).filter(Boolean);
-      if (tWords.length >= 2) {
-        const half = Math.ceil(tWords.length / 2);
-        customTitleBefore = tWords.slice(0, half).join(' ');
-        customTitleHighlight = tWords.slice(half).join(' ');
-      }
-    }
-
-    const titleBefore =
-      customTitleBefore ||
-      (isFirst && options.headlineText ? String(options.headlineText).split(/\s+/).slice(0, 3).join(' ') : defaultTitleBefore);
-    const titleHighlight =
-      customTitleHighlight ||
-      (isFirst && options.headlineText ? String(options.headlineText).split(/\s+/).slice(3, 6).join(' ') || defaultTitleHighlight : defaultTitleHighlight);
-
-    const highlightStyles = ['lime', 'cyan', 'lime', 'cyan', 'lime', 'cyan', 'lime'];
-    const highlightStyle = stepMeta?.highlightStyle || (isFirst ? 'lime' : highlightStyles[idx % highlightStyles.length]);
-
-    // Extraer cláusulas reales del beat actual + contexto del guion
-    const clauses = bodyText
-      .split(/[,;:]|\s+y\s+|\s+con\s+|\s+para\s+|\s+mediante\s+|\s+que\s+/i)
-      .map((c) => c.trim())
-      .filter((c) => c.length > 4);
-
-    const c0 = clauses[0] || bodyText.slice(0, 42) || 'Diagnóstico Inteligente SG-SST';
-    const c1 = clauses[1] || allScriptClauses[(idx + 1) % Math.max(1, allScriptClauses.length)] || 'Control y trazabilidad en tiempo real';
-    const c2 = clauses[2] || allScriptClauses[(idx + 2) % Math.max(1, allScriptClauses.length)] || 'Evidencia verificada en segundos';
-    const c3 = clauses[3] || allScriptClauses[(idx + 3) % Math.max(1, allScriptClauses.length)] || 'Cumplimiento normativo automatizado';
-    const c4 = clauses[4] || allScriptClauses[(idx + 4) % Math.max(1, allScriptClauses.length)] || 'Prevención activa con Tenshi IA';
-
-    const shortTitle = (txt, fallback) => {
-      const w = String(txt || '').split(/\s+/).filter(Boolean).slice(0, 4).join(' ');
-      return (w || fallback).replace(/^[,;:.!?-]+|[,;:.!?-]+$/g, '').slice(0, 26);
-    };
-
-    const defaultSideCards = [
-      {
-        icon: 'cerebro_ia',
-        title: shortTitle(c0, 'Análisis con IA'),
-        desc: c0.slice(0, 58),
-        color: 'cyan',
-      },
-      {
-        icon: 'firma',
-        title: shortTitle(c1, 'Control Verificado'),
-        desc: c1.slice(0, 58),
-        color: 'teal',
-      },
-      {
-        icon: 'escudo',
-        title: shortTitle(c2, `Ecosistema ${companyName}`),
-        desc: c2.slice(0, 58),
-        color: 'lime',
-      },
-    ];
-
-    const defaultSigCards = [
-      { role: shortTitle(c0, 'Validación Técnica'), icon: 'escudo', status: '✓ VERIFICADO' },
-      { role: shortTitle(c1, 'Control Operativo SST'), icon: 'firma', status: '✓ APLICADO' },
-      { role: shortTitle(c2, 'Firma Digital WAPPY'), icon: 'check', status: '✓ FIRMADO' },
-    ];
-
-    const defaultOrbitalNodes = [
-      { icon: 'cerebro_ia', title: shortTitle(c0, 'Motor IA'), sub: c0.slice(0, 26) },
-      { icon: 'escudo', title: shortTitle(c1, 'Control SST'), sub: c1.slice(0, 26) },
-      { icon: 'grafica', title: shortTitle(c2, 'Métricas en Vivo'), sub: c2.slice(0, 26) },
-      { icon: 'firma', title: shortTitle(c3, 'Firma Digital'), sub: c3.slice(0, 26) },
-      { icon: 'radar', title: shortTitle(c4, 'Trazabilidad 360°'), sub: c4.slice(0, 26) },
-    ];
-
-    const defaultGridSpecs = [
-      { icon: 'cerebro_ia', title: shortTitle(c0, 'Automatización IA'), sub: c0.slice(0, 32), color: 'teal' },
-      { icon: 'grafica', title: shortTitle(c1, 'Analítica en Vivo'), sub: c1.slice(0, 32), color: 'cyan' },
-      { icon: 'firma', title: shortTitle(c2, 'Respaldo Legal'), sub: c2.slice(0, 32), color: 'amber' },
-      { icon: 'escudo', title: shortTitle(c3, 'Cero Papel'), sub: c3.slice(0, 32), color: 'lime' },
-    ];
-
-    const formulaLeft = isGtc45 ? 'PELIGRO × EXPOSICIÓN' : shortTitle(c0, 'DIAGNÓSTICO IA').toUpperCase().slice(0, 18);
-    const formulaMid = isGtc45 ? 'NP = ND × NE' : shortTitle(c1, 'CONTROL EN VIVO').toUpperCase().slice(0, 18);
-    const formulaRight = isGtc45 ? 'VALORACIÓN GTC 45' : '100% CUMPLIMIENTO';
-
-    const n8nWorkflow = stepMeta?.n8nWorkflow || {
-      triggerTitle: 'Cron SST ⚡',
-      triggerSub: 'Lun 7:00 AM · Automático',
-      agentTitle: 'Agente IA · Tenshi',
-      agentSub: shortTitle(c0, 'Análisis SG-SST en Vivo'),
-      subNodeLeft: '✦ Google Gemini 3.8',
-      subNodeRight: '🛡️ Memoria ARL / SENA',
-      outputTitle: 'Gmail / WhatsApp ✅',
-      outputSub: shortTitle(c1, 'Reporte y Alerta Enviada'),
-      resultBanner: rawText.slice(0, 86) || 'Flujo autónomo ejecutado en 1.8 segundos con trazabilidad completa.',
-    };
-
-    const normativeDoc = stepMeta?.normativeDoc || {
-      headerCode: isGtc45 ? 'GUÍA TÉCNICA GTC 45 · MATRIZ IPEVR' : 'DECRETO 1072 DE 2015 · RES. 0312 DE 2019',
-      articleTitle: shortTitle(titleHighlight, 'Estándar Obligatorio SG-SST'),
-      clauseBefore: c0.slice(0, 62),
-      clauseHighlight: c1.slice(0, 74) || rawText.slice(0, 74),
-      clauseAfter: c2.slice(0, 62),
-      stampText: 'VERIFICADO SIN ALUCINACIONES',
-      sourceBadge: 'NotebookLM + Biblioteca Legal WAPPY',
-    };
-
-    const splitBeforeAfter = stepMeta?.splitBeforeAfter || {
-      beforeBadge: 'ANTES (GENÉRICO / MANUAL)',
-      beforeTitle: stepMeta?.badCardTitle || (isGtc45 ? 'Matrices en Excel Desactualizadas' : 'Procesos Manuales y Reprocesos'),
-      beforeItems: [
-        stepMeta?.badCardDesc || 'Horas perdidas transcribiendo formatos y evidencia dispersa',
-        'Riesgo de errores humanos y hallazgos en auditoría',
-      ],
-      centerBadge: '⚡ TRANSFORMACIÓN IA',
-      afterBadge: 'AHORA CON WAPPY IA (60 FPS + IA)',
-      afterTitle: stepMeta?.goodCardTitle || `${shortTitle(titleHighlight, companyName)} Automatizado`,
-      afterItems: [
-        stepMeta?.goodCardDesc || rawText.slice(0, 72),
-        c1.slice(0, 68) || 'Cumplimiento verificado en tiempo real con firma digital',
-      ],
-    };
-
-    const suriConsole = stepMeta?.suriConsole || {
-      hostName: 'Suri 3D & Tenshi Live · 24 kHz',
-      statusBadge: 'ON AIR · -14 LUFS · GEMINI LIVE',
-      userPromptBubble: `«¿Cómo aplicamos ${shortTitle(titleHighlight, 'este control SST')} hoy en planta?»`,
-      aiResponseBubble: rawText.slice(0, 96) || c0.slice(0, 84),
-      actionPill: `✓ ${shortTitle(c1, 'Acción ejecutada en WAPPY Cloud')}`,
-    };
-
-    const toolsGrid50 = stepMeta?.toolsGrid50 || {
-      modules: [
-        { code: 'GTC 45', name: 'Matriz IPEVR IA', status: 'ACTIVO' },
-        { code: '0312', name: 'Autoevaluación', status: '100%' },
-        { code: 'PESV', name: 'Seguridad Vial', status: 'LIVE' },
-        { code: 'ATEL', name: 'Investigación IA', status: 'ACTIVO' },
-        { code: 'SGA', name: 'Riesgo Químico', status: 'OK' },
-        { code: 'EPP', name: 'Entregas & Firma', status: 'DIGITAL' },
-        { code: 'LOTO', name: 'Permisos Trabajo', status: 'QR' },
-        { code: 'LMS', name: 'Academia & Quiz', status: '24/7' },
-        { code: 'N8N', name: 'Tareas Crons IA', status: 'AUTO' },
-      ],
-      savingHeadline: '-85% PAPELEO OPERATIVO',
-      savingSub: rawText.slice(0, 78) || '+50 Especialistas y Herramientas IA trabajando 24/7 por tu seguridad.',
-    };
-
-    return {
-      index: idx + 1,
-      startSec: beat.startSec,
-      endSec: beat.endSec,
-      durationSec: beat.durationSec,
-      archetype,
-      visualEffect: stepMeta?.visualEffect || stepMeta?.effect || effectCandidate || archetype,
-      cameraAndMotion: stepMeta?.cameraAndMotion || '',
-      eyebrow:
-        stepMeta?.eyebrow ||
-        stepMeta?.tag ||
-        (isFirst && options.badgeText
-          ? String(options.badgeText).toUpperCase().slice(0, 32)
-          : stepPrefix
-            ? `PUNTO CLAVE #${idx + 1} • ${stepPrefix}`
-            : isFirst
-              ? `ECOSISTEMA IA • ${companyName}`
-              : isLast
-                ? `PREVENCIÓN EN VIVO • ${companyName}`
-                : `MÓDULO ACTIVO • ESCENA 0${idx + 1}`),
-      titleBefore: String(titleBefore || 'GESTIÓN').slice(0, 26),
-      titleHighlight: String(titleHighlight || 'WAPPY IA').slice(0, 26),
-      highlightStyle,
-      subtitle: isFirst && options.subtitleText && !stepMeta?.narration ? String(options.subtitleText) : rawText,
-      badCardTitle: stepMeta?.badCardTitle || (isGtc45 ? 'Hojas de Excel Manuales' : 'Gestión Manual y Lenta'),
-      badCardDesc: stepMeta?.badCardDesc || 'Semanas de reprocesos, errores de cálculo y riesgo de incumplimiento normativo',
-      badCardBadge: 'TRADICIONAL',
-      goodCardTitle: stepMeta?.goodCardTitle || `${shortTitle(titleHighlight, companyName)} con IA`,
-      goodCardDesc: stepMeta?.goodCardDesc || rawText.slice(0, 82),
-      goodCardBadge: 'WAPPY IA',
-      wallPills: [
-        String(titleHighlight || 'WAPPY IA').toUpperCase(),
-        `${companyName} • SOMOS SST`,
-        shortTitle(c0, 'INTELIGENCIA ARTIFICIAL').toUpperCase(),
-        shortTitle(c1, 'PREVENCIÓN EN SEGUNDOS').toUpperCase(),
-      ],
-      islandText: stepMeta?.islandText || stepPrefix || `WAPPY 0${idx + 1} LIVE`,
-      phoneQrTitle: (titleHighlight || 'WAPPY IA').toUpperCase().slice(0, 18),
-      phonePills: [
-        { icon: 'cerebro_ia', text: c0.slice(0, 30) },
-        { icon: 'escudo', text: c1.slice(0, 30) },
-        { icon: 'grafica', text: c2.slice(0, 30) },
-        { icon: 'check', text: 'Sincronizado en WAPPY Cloud' },
-      ],
-      sideCards:
-        Array.isArray(stepMeta?.sideCards) && stepMeta.sideCards.length >= 3
-          ? stepMeta.sideCards.slice(0, 3).map((c, cIdx) => ({
-              icon: c.icon || defaultSideCards[cIdx].icon,
-              title: c.title || defaultSideCards[cIdx].title,
-              desc: c.desc || defaultSideCards[cIdx].desc,
-              color: c.color || defaultSideCards[cIdx].color,
-            }))
-          : defaultSideCards,
-      sigCards:
-        Array.isArray(stepMeta?.sigCards) && stepMeta.sigCards.length >= 3
-          ? stepMeta.sigCards.slice(0, 3).map((s, sIdx) => ({
-              role: s.role || defaultSigCards[sIdx].role,
-              icon: s.icon || defaultSigCards[sIdx].icon,
-              status: s.status || defaultSigCards[sIdx].status,
-            }))
-          : defaultSigCards,
-      formulaLeft,
-      formulaMid,
-      formulaRight,
-      riskCards: [
-        {
-          title: shortTitle(c0, 'Efectividad Operativa'),
-          pillPrefix: 'IMPACTO:',
-          val: 100,
-          unit: '%',
-          sub: c0.slice(0, 52),
-          widthPct: 100,
-          color: 'green',
-        },
-        {
-          title: shortTitle(c1, 'Precisión Normativa'),
-          pillPrefix: 'CUMPLIMIENTO:',
-          val: 99,
-          unit: '%',
-          sub: c1.slice(0, 52),
-          widthPct: 96,
-          color: 'cyan',
-        },
-        {
-          title: shortTitle(c2, 'Ahorro de Tiempo'),
-          pillPrefix: 'VELOCIDAD:',
-          val: 10,
-          unit: 'x',
-          sub: c2.slice(0, 52),
-          widthPct: 92,
-          color: 'lime',
-        },
-      ],
-      coreIcon: 'radar',
-      coreLabel: (stepPrefix || shortTitle(titleHighlight, 'NÚCLEO WAPPY')).toUpperCase().slice(0, 18),
-      coreBadge: 'IA ACTIVA 360°',
-      orbitalNodes:
-        Array.isArray(stepMeta?.orbitalNodes) && stepMeta.orbitalNodes.length >= 5
-          ? stepMeta.orbitalNodes.slice(0, 5).map((n, nIdx) => ({
-              icon: n.icon || defaultOrbitalNodes[nIdx].icon,
-              title: n.title || defaultOrbitalNodes[nIdx].title,
-              sub: n.sub || defaultOrbitalNodes[nIdx].sub,
-            }))
-          : defaultOrbitalNodes,
-      tenshiTitle: `Tenshi IA • ${shortTitle(titleHighlight, 'Copiloto SG-SST')}`,
-      tenshiSub: rawText.slice(0, 64),
-      gridSpecs:
-        Array.isArray(stepMeta?.gridSpecs) && stepMeta.gridSpecs.length >= 4
-          ? stepMeta.gridSpecs.slice(0, 4).map((g, gIdx) => ({
-              icon: g.icon || defaultGridSpecs[sIdxOr(gIdx)].icon,
-              title: g.title || defaultGridSpecs[sIdxOr(gIdx)].title,
-              sub: g.sub || defaultGridSpecs[sIdxOr(gIdx)].sub,
-              color: g.color || defaultGridSpecs[sIdxOr(gIdx)].color,
-            }))
-          : defaultGridSpecs,
-      cloudTags: normTags,
-      n8nWorkflow,
-      normativeDoc,
-      splitBeforeAfter,
-      suriConsole,
-      toolsGrid50,
-      ctaHeader: `${companyName} • ECOSISTEMA INTELIGENTE • SG-SST`,
-      ctaInstruction: '👇 Escribe en los comentarios o entra ahora:',
-      ctaKeyword: stepMeta?.ctaKeyword || 'SOMOS SST',
-      ctaGift: `⚡ ${shortTitle(c0, 'ACCESO INMEDIATO EN WAPPY.CLUB').toUpperCase()}`,
-      socialBubbles: [
-        { icon: 'bolt', text: `💬 ${shortTitle(c0, 'Increíble velocidad con IA')} 🔥` },
-        { icon: 'escudo', text: `💬 ${shortTitle(c1, 'Cumplimiento al 100%')} 🚀` },
-        { icon: 'cerebro_ia', text: '💬 SOMOS SST evolución total ⚡' },
-        { icon: 'check', text: '💬 Adiós a semanas de Excel 🙌' },
-      ],
+      ...b,
+      startSec,
+      endSec,
+      durationSec,
+      startPct: Number((startSec / realDurationSec).toFixed(4)),
+      endPct: Number((endSec / realDurationSec).toFixed(4)),
     };
   });
+
+  const wordTimings = [];
+  for (let i = 0; i < beats.length; i++) {
+    const b = beats[i];
+    const words = String(b.text || '').split(/\s+/).filter(Boolean);
+    const wList = words.map((w) => {
+      const cleanLen = w.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9]/g, '').length;
+      let weight = Math.max(2, cleanLen);
+      if (/[,;:]$/.test(w)) weight += 3;
+      if (/[.!?…]$/.test(w)) weight += 5;
+      return { word: w, weight };
+    });
+    const sumW = wList.reduce((acc, it) => acc + it.weight, 0) || 1;
+    // Dejar 150ms de cola de respiración al final del beat
+    const activeSpan = Math.max(0.5, b.durationSec - 0.15);
+    let wAcc = 0;
+    for (const wIt of wList) {
+      const wStart = Number((b.startSec + (wAcc / sumW) * activeSpan).toFixed(2));
+      wAcc += wIt.weight;
+      const wEnd = Number((b.startSec + (wAcc / sumW) * activeSpan).toFixed(2));
+      wordTimings.push({
+        word: wIt.word,
+        startSec: wStart,
+        endSec: wEnd,
+        startPct: Number((wStart / realDurationSec).toFixed(4)),
+        endPct: Number((wEnd / realDurationSec).toFixed(4)),
+        beatIndex: i,
+      });
+    }
+  }
+
+  return {
+    ...timelineMap,
+    introDurationSeconds: introSec,
+    totalDurationSeconds: realDurationSec,
+    beats,
+    wordTimings,
+    vozData,
+    wavAligned: true,
+  };
 }
 
-function sIdxOr(i) {
-  return Math.max(0, Math.min(3, Number(i) || 0));
+function cleanPhrase(str = '', maxWords = 6, fallback = 'Automatización SG-SST') {
+  const words = String(str || '')
+    .replace(/[¿?¡!«»"']/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return fallback;
+  return words.slice(0, maxWords).join(' ');
+}
+
+function extractSmartSceneFields(sentence = '', idx = 0, total = 5, options = {}) {
+  const s = String(sentence || '').trim();
+  const low = s.toLowerCase();
+
+  let toolKey = 'wappyCircle';
+  let eyebrow = `ESCENA 0${idx + 1} / 0${total} · ECOSISTEMA IA SST`;
+  let titleBefore = `#${idx + 1} · WAPPY IA`;
+  let titleHighlight = 'SG-SST AUTOMATIZADO';
+  let subtitle = s.length <= 78 ? s : cleanPhrase(s, 11, 'Control y trazabilidad en tiempo real');
+
+  if (low.includes('antigravity') || low.includes('excel') || low.includes('matriz') || low.includes('matrices')) {
+    toolKey = 'antigravity';
+    eyebrow = `PASO 0${idx + 1} · ENTORNO AGÉNTICO SG-SST`;
+    titleBefore = 'DE EXCEL MANUAL A';
+    titleHighlight = 'MATRICES CON IA';
+  } else if (low.includes('flow') || low.includes('antes') || low.includes('video') || low.includes('riesgo')) {
+    toolKey = 'flow';
+    eyebrow = `PASO 0${idx + 1} · SIMULACIÓN DE CONTROLES 4K`;
+    titleBefore = 'ANTES VS DESPUÉS';
+    titleHighlight = 'CONTROLES SG-SST';
+  } else if (low.includes('notebook') || low.includes('1072') || low.includes('0312') || low.includes('gtc') || low.includes('norma') || low.includes('alucinac')) {
+    toolKey = 'notebooklm';
+    eyebrow = `PASO 0${idx + 1} · CERO ALUCINACIONES LEGALES`;
+    titleBefore = 'DECRETO 1072 & 0312';
+    titleHighlight = '100% VERIFICADO';
+  } else if (low.includes('suri') || low.includes('voz') || low.includes('podcast') || low.includes('asistente') || low.includes('habla')) {
+    toolKey = 'suri';
+    eyebrow = `PASO 0${idx + 1} · COPILOTO DE VOZ 24 KHZ`;
+    titleBefore = 'SURI 3D & TENSHI';
+    titleHighlight = 'ASISTENTE EN VIVO';
+  } else if (low.includes('n8n') || low.includes('flujo') || low.includes('lunes') || low.includes('7 am') || low.includes('autom')) {
+    toolKey = 'tenshi';
+    eyebrow = `PASO 0${idx + 1} · WORKFLOW AUTOMÁTICO N8N`;
+    titleBefore = 'FLUJOS N8N + TENSHI';
+    titleHighlight = '+50 HERRAMIENTAS IA';
+  } else if (idx === total - 1 || low.includes('wappy.club') || low.includes('curso') || low.includes('entra')) {
+    toolKey = 'wappyCircle';
+    eyebrow = '★ ENTRENAMIENTO & PLATAFORMA OFICIAL';
+    titleBefore = 'AUTOMATIZA TU SST EN';
+    titleHighlight = 'WAPPY.CLUB';
+  }
+
+  const clauses = s
+    .split(/[,;:.?!]+/)
+    .map((c) => c.trim())
+    .filter((c) => c.length > 4);
+
+  const step1 = cleanPhrase(clauses[0] || s, 4, 'Diagnóstico IA');
+  const step2 = cleanPhrase(clauses[1] || 'Trazabilidad Decreto 1072', 4, 'Control Normativo');
+  const step3 = cleanPhrase(clauses[2] || 'Evidencia Auditable 100%', 4, 'Cero Papel');
+
+  return {
+    toolKey,
+    eyebrow,
+    titleBefore,
+    titleHighlight,
+    subtitle,
+    step1,
+    step2,
+    step3,
+    narration: s,
+    companyName: options.companyName || 'WAPPY IA',
+  };
 }
 
 /**
- * Opcionalmente enriquece el plan de escenas con Gemini en formato JSON estructurado,
- * pero manteniendo SIEMPRE los 12 arquetipos cinéticos a 60 FPS de Antigravity (Modo Móvil XL).
+ * Construye el plan de escenas sincronizado con los beats del guion (con Portada Hero de 2.0s)
  */
-async function generateCreativeScenePlanWithAi(scriptText, beats, options, aiGeneratorFn) {
-  const basePlan = buildSmartScenePlanFromScript(scriptText, beats, options);
-  if (typeof aiGeneratorFn !== 'function' || beats.length === 0) {
-    return basePlan;
-  }
+function buildSmartScenePlanFromScript(scriptText = '', beats = [], options = {}) {
+  const selectedEffects = Array.isArray(options.selectedEffects) ? options.selectedEffects : [];
+  const safeBeats = Array.isArray(beats) && beats.length > 0 ? beats : [{ startSec: 2, endSec: 20, text: scriptText }];
 
-  // Si el Paso 1 (Super-Prompt IA) ya enriqueció las escenas con cameraAndMotion / badCardTitle y no es una corrección del Paso 3, usar directamente el plan IA sin doble latencia
-  const hasPreEnrichedAiSteps =
-    Array.isArray(options?.scriptSteps) &&
-    options.scriptSteps.some((s) => s && (s.cameraAndMotion || s.badCardTitle));
-  const isLiveEditRequest =
-    String(options?.prompt || '').includes('Edición solicitada:') ||
-    String(options?.prompt || '').includes('[CORRECCIÓN');
-  if (hasPreEnrichedAiSteps && !isLiveEditRequest) {
+  const usedArchetypes = [];
+  const scenes = safeBeats.map((b, idx) => {
+    const isLast = idx === safeBeats.length - 1;
+    let arch = isLast
+      ? 'pentagon-orbital'
+      : idx === 0
+        ? 'hook-vs-wall'
+        : selectedEffects[idx]
+          ? resolveArchetypeFromEffect(selectedEffects[idx], idx)
+          : ARCHETYPE_ROTATION[idx % ARCHETYPE_ROTATION.length];
+
+    const sentLow = String(b.text || '').toLowerCase();
+    if (!isLast && idx > 0) {
+      if (sentLow.includes('n8n') || sentLow.includes('flujo') || sentLow.includes('lunes')) {
+        arch = 'wappy-n8n-workflow';
+      } else if (sentLow.includes('1072') || sentLow.includes('0312') || sentLow.includes('notebook') || sentLow.includes('alucinac')) {
+        arch = 'visor-normativo-real';
+      } else if (sentLow.includes('suri') || sentLow.includes('voz') || sentLow.includes('habla')) {
+        arch = 'suri-voice-live-hud';
+      } else if (sentLow.includes('antes') || sentLow.includes('flow')) {
+        arch = 'flow-split-before-after';
+      }
+    }
+
+    if (usedArchetypes.length > 0 && usedArchetypes[usedArchetypes.length - 1] === arch) {
+      arch = ARCHETYPE_ROTATION[(ARCHETYPE_ROTATION.indexOf(arch) + 1) % ARCHETYPE_ROTATION.length];
+    }
+    usedArchetypes.push(arch);
+
+    const fields = extractSmartSceneFields(b.text || scriptText, idx, safeBeats.length, options);
+    return {
+      index: idx + 1,
+      archetype: arch,
+      startSec: Number(b.startSec || 0),
+      endSec: Number(b.endSec || 5),
+      durationSec: Number(Math.max(1.5, (b.endSec || 5) - (b.startSec || 0)).toFixed(2)),
+      ...fields,
+    };
+  });
+
+  return scenes;
+}
+
+async function generateCreativeScenePlanWithAi(scriptText = '', beats = [], options = {}, aiGeneratorFn = null) {
+  const basePlan = buildSmartScenePlanFromScript(scriptText, beats, options);
+  if (typeof aiGeneratorFn !== 'function' || basePlan.length === 0) {
     return basePlan;
   }
 
   try {
-    const beatsPrompt = beats
-      .map(
-        (b, idx) =>
-          `Beat ${idx + 1} [${b.startSec}s - ${b.endSec}s] (Arquetipo: ${basePlan[idx].archetype} | Efecto: ${basePlan[idx].visualEffect || basePlan[idx].archetype}): "${b.text}"`,
-      )
-      .join('\n');
+    const prompt = `Eres el Subagente Director de Efectos XL de Wappy Studio (Modo Móvil XL 1080x1920).
+Para cada una de estas ${basePlan.length} escenas del guion SG-SST, devuelve un JSON array con objetos de textos cortos, potentes y 100% coherentes con la oración hablada (máximo 4 palabras por campo):
+Escenas:
+${basePlan.map((s, i) => `${i + 1}. [${s.archetype}] Oración hablada: "${s.narration}"`).join('\n')}
 
-    const superPromptContext = options?.prompt
-      ? `\nDIRECTRICES DEL SUPER-PROMPT Y USUARIO:\n${String(options.prompt).slice(0, 1800)}\n`
-      : '';
-
-    const prompt = `Eres el Subagente 01 (Director de Efectos y Coreografía Dinámica XL) de WAPPY IA y Google Antigravity.
-Para cada uno de los siguientes ${beats.length} beats del guion de locución, genera los textos cortos, específicos y de alto impacto (Modo Móvil XL 1080x1920) que alimentarán nuestro motor de animación 3D a 60 FPS.
-- Dirección de Arte: ${options?.theme || 'dark-tech-hud'}
-- Insignia de Portada: ${options?.badgeText || 'CÁPSULA INTERACTIVA WAPPY'}
-- Titular de Portada: ${options?.headlineText || ''}
-- Subtítulo de Portada: ${options?.subtitleText || ''}
-- Efectos Seleccionados: ${Array.isArray(options?.selectedEffects) ? options.selectedEffects.join(', ') : ''}
-${superPromptContext}
-GUION POR BEATS:
-${beatsPrompt}
-
-ARQUETIPOS DISPONIBLES (asigna el mejor a cada escena sin repetir 2 seguidos):
-"hook-vs-wall" | "wappy-n8n-workflow" | "visor-normativo-real" | "flow-split-before-after" | "suri-voice-live-hud" | "cuadricula-50-herramientas" | "iphone-split-showcase" | "signature-pad-live" | "chart-grow-math" | "pentagon-orbital" | "tenshi-specialists-grid" | "cta-viral-bubbles"
-
-Devuelve ÚNICAMENTE un JSON válido (sin bloques markdown \`\`\`json) con un arreglo "scenes" de longitud exacta ${beats.length}, donde cada objeto tenga:
-{
-  "archetype": "Uno de los 12 arquetipos anteriores",
-  "eyebrow": "TEXTO CORTO EN MAYÚSCULAS (máx 28 caracteres)",
-  "titleBefore": "2 o 3 palabras iniciales del titular gigante XL (máx 20 caracteres)",
-  "titleHighlight": "Palabra o concepto clave a resaltar en verde lima/cian (máx 18 caracteres)",
-  "highlightStyle": "lime" | "cyan" | "red",
-  "badCardTitle": "Título corto del riesgo/error tradicional (máx 26 caracteres)",
-  "badCardDesc": "Consecuencia o peligro en 1 línea (máx 58 caracteres)",
-  "goodCardTitle": "Título corto de la solución segura WAPPY (máx 26 caracteres)",
-  "goodCardDesc": "Beneficio o regla clave en 1 línea (máx 58 caracteres)",
-  "islandText": "Texto corto Dynamic Island (máx 14 caracteres)",
-  "sideCards": [
-    { "icon": "EMOJI", "title": "Título tarjeta 1 (máx 24 chars)", "desc": "Descripción corta (máx 48 chars)" },
-    { "icon": "EMOJI", "title": "Título tarjeta 2 (máx 24 chars)", "desc": "Descripción corta (máx 48 chars)" },
-    { "icon": "EMOJI", "title": "Título tarjeta 3 (máx 24 chars)", "desc": "Descripción corta (máx 48 chars)" }
-  ],
-  "sigCards": [
-    { "role": "Paso o rol 1 (máx 22 chars)", "icon": "🔒", "status": "✓ VERIFICADO" },
-    { "role": "Paso o rol 2 (máx 22 chars)", "icon": "🏷️", "status": "✓ APLICADO" },
-    { "role": "Paso o rol 3 (máx 22 chars)", "icon": "✍️", "status": "✓ FIRMADO" }
-  ],
-  "orbitalNodes": [
-    { "icon": "EMOJI", "title": "Nodo 1 (máx 18 chars)", "sub": "Subtítulo (máx 22 chars)" },
-    { "icon": "EMOJI", "title": "Nodo 2 (máx 18 chars)", "sub": "Subtítulo (máx 22 chars)" },
-    { "icon": "EMOJI", "title": "Nodo 3 (máx 18 chars)", "sub": "Subtítulo (máx 22 chars)" },
-    { "icon": "EMOJI", "title": "Nodo 4 (máx 18 chars)", "sub": "Subtítulo (máx 22 chars)" },
-    { "icon": "EMOJI", "title": "Nodo 5 (máx 18 chars)", "sub": "Subtítulo (máx 22 chars)" }
-  ],
-  "gridSpecs": [
-    { "icon": "EMOJI", "title": "Pilar 1 (máx 20 chars)", "sub": "Detalle corto (máx 26 chars)" },
-    { "icon": "EMOJI", "title": "Pilar 2 (máx 20 chars)", "sub": "Detalle corto (máx 26 chars)" },
-    { "icon": "EMOJI", "title": "Pilar 3 (máx 20 chars)", "sub": "Detalle corto (máx 26 chars)" },
-    { "icon": "EMOJI", "title": "Pilar 4 (máx 20 chars)", "sub": "Detalle corto (máx 26 chars)" }
-  ],
-  "ctaKeyword": "SOMOS SST"
-}`;
-
-    const rawResp = await aiGeneratorFn(prompt);
-    const cleaned = String(rawResp || '')
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      const parsed = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
-      if (Array.isArray(parsed.scenes) && parsed.scenes.length > 0) {
-        let lastArch = '';
-        return basePlan.map((item, idx) => {
-          const aiItem = parsed.scenes[idx] || {};
-          let resolvedArch = aiItem.archetype && ARCHETYPE_ROTATION.includes(aiItem.archetype)
-            ? aiItem.archetype
-            : item.archetype;
-          if (resolvedArch === lastArch && idx < basePlan.length - 1) {
-            resolvedArch = item.archetype !== lastArch ? item.archetype : 'wappy-n8n-workflow';
-          }
-          lastArch = resolvedArch;
+Formato JSON exacto:
+[
+  {
+    "eyebrow": "PASO 01 · AUTOMATIZACIÓN IA",
+    "titleBefore": "DE EXCEL MANUAL A",
+    "titleHighlight": "WAPPY IA SST",
+    "subtitle": "Frase explicativa clara de máximo 10 palabras",
+    "step1": "Matriz GTC 45 IA",
+    "step2": "Diagnóstico 0312",
+    "step3": "Plan Decreto 1072"
+  }
+]`;
+    const raw = await aiGeneratorFn(prompt);
+    const jsonMatch = String(raw || '').match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed)) {
+        return basePlan.map((sc, i) => {
+          const aiSc = parsed[i] || {};
           return {
-            ...item,
-            archetype: resolvedArch,
-            eyebrow: aiItem.eyebrow || item.eyebrow,
-            titleBefore: aiItem.titleBefore || item.titleBefore,
-            titleHighlight: aiItem.titleHighlight || item.titleHighlight,
-            highlightStyle: ['lime', 'cyan', 'red'].includes(aiItem.highlightStyle)
-              ? aiItem.highlightStyle
-              : item.highlightStyle,
-            badCardTitle: aiItem.badCardTitle || item.badCardTitle,
-            badCardDesc: aiItem.badCardDesc || item.badCardDesc,
-            goodCardTitle: aiItem.goodCardTitle || item.goodCardTitle,
-            goodCardDesc: aiItem.goodCardDesc || item.goodCardDesc,
-            islandText: aiItem.islandText || item.islandText,
-            sideCards:
-              Array.isArray(aiItem.sideCards) && aiItem.sideCards.length >= 3
-                ? aiItem.sideCards.slice(0, 3).map((c, cIdx) => ({
-                    icon: c.icon || item.sideCards[cIdx].icon,
-                    title: c.title || item.sideCards[cIdx].title,
-                    desc: c.desc || item.sideCards[cIdx].desc,
-                    color: item.sideCards[cIdx].color,
-                  }))
-                : item.sideCards,
-            sigCards:
-              Array.isArray(aiItem.sigCards) && aiItem.sigCards.length >= 3
-                ? aiItem.sigCards.slice(0, 3).map((s, sIdx) => ({
-                    role: s.role || item.sigCards[sIdx].role,
-                    icon: s.icon || item.sigCards[sIdx].icon,
-                    status: s.status || item.sigCards[sIdx].status,
-                  }))
-                : item.sigCards,
-            orbitalNodes:
-              Array.isArray(aiItem.orbitalNodes) && aiItem.orbitalNodes.length >= 5
-                ? aiItem.orbitalNodes.slice(0, 5).map((n, nIdx) => ({
-                    icon: n.icon || item.orbitalNodes[nIdx].icon,
-                    title: n.title || item.orbitalNodes[nIdx].title,
-                    sub: n.sub || item.orbitalNodes[nIdx].sub,
-                  }))
-                : item.orbitalNodes,
-            gridSpecs:
-              Array.isArray(aiItem.gridSpecs) && aiItem.gridSpecs.length >= 4
-                ? aiItem.gridSpecs.slice(0, 4).map((g, gIdx) => ({
-                    icon: g.icon || item.gridSpecs[gIdx].icon,
-                    title: g.title || item.gridSpecs[gIdx].title,
-                    sub: g.sub || item.gridSpecs[gIdx].sub,
-                    color: item.gridSpecs[gIdx].color,
-                  }))
-                : item.gridSpecs,
-            ctaKeyword: aiItem.ctaKeyword || item.ctaKeyword,
+            ...sc,
+            eyebrow: String(aiSc.eyebrow || sc.eyebrow).slice(0, 44).toUpperCase(),
+            titleBefore: String(aiSc.titleBefore || sc.titleBefore).slice(0, 26).toUpperCase(),
+            titleHighlight: String(aiSc.titleHighlight || sc.titleHighlight).slice(0, 26).toUpperCase(),
+            subtitle: String(aiSc.subtitle || sc.subtitle).slice(0, 88),
+            step1: String(aiSc.step1 || sc.step1).slice(0, 28),
+            step2: String(aiSc.step2 || sc.step2).slice(0, 28),
+            step3: String(aiSc.step3 || sc.step3).slice(0, 28),
           };
         });
       }
     }
   } catch (_) {}
+
   return basePlan;
 }
 
 /**
- * Renderiza la Portada Magnética Obligatoria (0.00s – 2.00s, Escena 0) en Modo Móvil XL (1080×1920):
- * - Tipografía extragrande de impacto (clamp(52px, 8.5vw, 92px))
- * - Pastilla de gancho en #C7F303 con texto oscuro #0E1300 de alto contraste
- * - Fila de Logos Oficiales Grandes (Antigravity, NotebookLM, WAPPY IA, Google Flow, Suri/Tenshi)
- * - Avatar 3D de alta resolución + iPhone 16 Pro 3D inclinado con Dynamic Island e interfaz real en vivo
+ * Compila el HTML autónomo a 60 FPS en el Diseño Oficial Full-Screen Modo Móvil XL (1080×1920)
+ * idéntico al motor de preview_sin_personaje_7036.html (Cero temblor + Transiciones Spring/Zoom-Through + Audio Sincronizado)
  */
-function renderMagneticCoverMarkup(scenePlan = [], options = {}) {
-  const firstSc = scenePlan[0] || {};
-  const secondSc = scenePlan[1] || firstSc;
-  const thirdSc = scenePlan[2] || secondSc;
-  const companyName = options.companyName || 'WAPPY IA';
-
-  const rawHeadline = String(
-    options.headlineText || `${firstSc.titleBefore || 'GESTIÓN'} ${firstSc.titleHighlight || 'SG-SST CON IA'}`,
-  ).trim();
-  const hWords = rawHeadline.split(/\s+/).filter(Boolean);
-  const line1 = hWords.slice(0, Math.max(1, Math.min(2, Math.floor(hWords.length / 3) || 1))).join(' ') || 'DE SEMANAS';
-  const redBox = hWords.slice(1, Math.max(2, Math.min(4, Math.ceil((hWords.length * 2) / 3)))).join(' ') || firstSc.titleBefore || 'DE PAPELEO';
-  const limeBox = hWords.slice(Math.max(2, Math.min(4, Math.ceil((hWords.length * 2) / 3)))).join(' ') || firstSc.titleHighlight || 'A SEGUNDOS CON IA';
-
-  const badge1 = firstSc.sideCards?.[0]?.title || firstSc.titleHighlight || 'Matriz & Diagnóstico IA';
-  const badge2 = secondSc.sideCards?.[0]?.title || secondSc.titleHighlight || 'Firma Digital & Control';
-  const badge3 = thirdSc.sideCards?.[0]?.title || thirdSc.titleHighlight || 'Informe Gerencial en Vivo';
-
-  const fullTextForGratis = `${rawHeadline} ${options.subtitleText || ''} ${firstSc.subtitle || ''}`;
-  const mentionsGratis = /\bgratis\b|\bgratuito\b/i.test(fullTextForGratis);
-  const topPillLabel = mentionsGratis ? '🔥 100% GRATIS EN WAPPY.CLUB' : `⚡ ${options.badgeText || firstSc.eyebrow || 'ECOSISTEMA IA · SG-SST'}`;
-
-  return `
-    <div class="scene scene-cover" id="scene-0" data-archetype="magnetic-cover-2s" style="opacity:1;visibility:visible;">
-      <div class="cover-layout">
-        <div class="cover-top-brand-xl" id="s0-brand">
-          <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" class="cover-logo-w">
-          <span class="cover-brand-text-xl">${escapeHtml(topPillLabel)}</span>
-        </div>
-
-        <div class="cover-title-block" id="s0-title">
-          <div class="cover-t-line1">${escapeHtml(line1.toUpperCase())}</div>
-          <div class="cover-t-row">
-            <span class="hl-red-tilted">${escapeHtml(redBox.toUpperCase())}</span>
-            <span class="hl-lime-tilted">${escapeHtml(limeBox.toUpperCase())}</span>
-          </div>
-        </div>
-
-        <div class="cover-official-logos-strip" id="s0-logos-strip">
-          <div class="official-logo-pill">
-            ${renderOfficialBrandLogoSvg('antigravity', 34)}
-            <span>Antigravity</span>
-          </div>
-          <div class="official-logo-pill">
-            ${renderOfficialBrandLogoSvg('notebooklm', 34)}
-            <span>NotebookLM</span>
-          </div>
-          <div class="official-logo-pill official-logo-pill-lime">
-            ${renderOfficialBrandLogoSvg('wappy', 34)}
-            <span>WAPPY IA</span>
-          </div>
-          <div class="official-logo-pill">
-            ${renderOfficialBrandLogoSvg('flow', 34)}
-            <span>Google Flow</span>
-          </div>
-          <div class="official-logo-pill">
-            ${renderOfficialBrandLogoSvg('suri', 34)}
-            <span>Suri / Tenshi</span>
-          </div>
-        </div>
-
-        <div class="cover-hero-stage" id="s0-hero">
-          <div class="cover-avatar-card">
-            <div class="cover-avatar-aura"></div>
-            <img src="/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png" alt="Avatar 3D" class="cover-avatar-img">
-            <div class="cover-avatar-tag">
-              <span class="dot-live"></span> AVATAR 3D · IA ACTIVA
-            </div>
-          </div>
-
-          <div class="cover-iphone-tilted">
-            <div class="dynamic-island">
-              <span class="island-dot"></span>
-              <span class="island-text">WAPPY.CLUB</span>
-              <span style="font-size:11px;color:var(--w-lime);font-weight:900;">IA</span>
-            </div>
-            <div class="iphone-ui-real">
-              <div class="ui-app-header">
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" style="width:20px;height:20px;border-radius:5px;">
-                  <span style="font-weight:900;font-size:13px;color:#fff;">${escapeHtml(companyName)}</span>
-                </div>
-                <span class="ui-live-pill">99.4% OK</span>
-              </div>
-              <div class="ui-kpi-strip">
-                <div class="ui-kpi-mini"><span class="k-val" style="color:var(--w-lime);">100%</span><span class="k-lbl">IA SST</span></div>
-                <div class="ui-kpi-mini"><span class="k-val" style="color:var(--w-cyan-bright);">GTC 45</span><span class="k-lbl">NORMA</span></div>
-                <div class="ui-kpi-mini"><span class="k-val" style="color:#4ade80;">ACTIVO</span><span class="k-lbl">ESTADO</span></div>
-              </div>
-              <div class="ui-matrix-rows">
-                <div class="ui-m-row" style="border-left:3px solid #ef4444;">
-                  <div class="ui-m-txt"><strong>${escapeHtml(badge1.slice(0, 20))}</strong><span>Diagnóstico automático IA</span></div>
-                  <span class="ui-m-badge" style="background:rgba(239,68,68,0.25);color:#fca5a5;">CRÍTICO</span>
-                </div>
-                <div class="ui-m-row" style="border-left:3px solid #22d3ee;">
-                  <div class="ui-m-txt"><strong>${escapeHtml(badge2.slice(0, 20))}</strong><span>Control y trazabilidad</span></div>
-                  <span class="ui-m-badge" style="background:rgba(34,211,238,0.22);color:#22d3ee;">EN VIVO</span>
-                </div>
-                <div class="ui-m-row" style="border-left:3px solid #c7f303;">
-                  <div class="ui-m-txt"><strong>${escapeHtml(badge3.slice(0, 20))}</strong><span>Exportación A4 + Firmas</span></div>
-                  <span class="ui-m-badge" style="background:var(--w-lime);color:#0e1300;">LISTO</span>
-                </div>
-              </div>
-              <div class="ui-tenshi-bar">
-                <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi" style="width:26px;height:26px;border-radius:50%;object-fit:contain;">
-                <span>Tenshi IA · Copiloto SG-SST</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="cover-badges-row" id="s0-badges">
-          <div class="cover-glass-badge">
-            <div class="cgb-ico">${renderWappySvgIcon('cerebro_ia', '#c7f303', 36)}</div>
-            <span>${escapeHtml(badge1.slice(0, 24))}</span>
-          </div>
-          <div class="cover-glass-badge">
-            <div class="cgb-ico">${renderWappySvgIcon('firma', '#22d3ee', 36)}</div>
-            <span>${escapeHtml(badge2.slice(0, 24))}</span>
-          </div>
-          <div class="cover-glass-badge">
-            <div class="cgb-ico">${renderWappySvgIcon('grafica', '#2dd4bf', 36)}</div>
-            <span>${escapeHtml(badge3.slice(0, 24))}</span>
-          </div>
-        </div>
-
-        <div class="cover-footer-bar" id="s0-footer">
-          <span class="cf-domain">🌐 wappy.club</span>
-          <span class="cf-sep">•</span>
-          <span class="cf-cta">SOMOS SST · MODO MÓVIL XL</span>
-        </div>
-      </div>
-    </div>`;
-}
-
-/**
- * Renderiza el HTML interno de cada escena según su Arquetipo Antigravity (12 Arquetipos Modo Móvil XL)
- */
-function renderSceneMarkup(sc, idx) {
-  const num = idx + 1;
-  const hlClass =
-    sc.highlightStyle === 'red'
-      ? 'hl-red'
-      : sc.highlightStyle === 'cyan'
-        ? 'hl-cyan'
-        : 'hl-lime';
-
-  const headerHtml = `
-      <div class="header-box" id="s${num}-header">
-        <div class="eyebrow-pill"><span class="dot"></span> ${escapeHtml(sc.eyebrow)}</div>
-        <h1 class="title-hero">${escapeHtml(sc.titleBefore)} <span class="${hlClass}">${escapeHtml(sc.titleHighlight)}</span></h1>
-        <p class="sub-hero">${escapeHtml(sc.subtitle)}</p>
-      </div>`;
-
-  if (sc.archetype === 'wappy-n8n-workflow') {
-    const wf = sc.n8nWorkflow || {};
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="wappy-n8n-workflow">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="n8n-canvas-stage hud-glass-pro" id="s${num}-n8n-stage">
-          <div class="n8n-dot-grid"></div>
-          <div class="n8n-top-bar">
-            <span class="n8n-badge-live"><span class="dot-live"></span> WORKFLOW AUTOMATIZADO WAPPY IA</span>
-            <span class="n8n-exec-time">⚡ EJECUCIÓN: 1.4s · 0 ERRORES</span>
-          </div>
-
-          <div class="n8n-nodes-track">
-            <svg class="n8n-bezier-svg" viewBox="0 0 920 420" fill="none">
-              <path id="s${num}-n8n-wire-1" d="M 225 145 C 295 145, 305 145, 365 145" stroke="rgba(199,243,3,0.38)" stroke-width="5" stroke-dasharray="10 6"/>
-              <path id="s${num}-n8n-wire-2" d="M 565 145 C 630 145, 640 145, 700 145" stroke="rgba(34,211,238,0.42)" stroke-width="5" stroke-dasharray="10 6"/>
-              <path id="s${num}-n8n-wire-sub1" d="M 425 225 C 405 280, 340 295, 295 320" stroke="rgba(56,189,248,0.45)" stroke-width="4" stroke-dasharray="7 5"/>
-              <path id="s${num}-n8n-wire-sub2" d="M 505 225 C 525 280, 585 295, 630 320" stroke="rgba(45,212,191,0.45)" stroke-width="4" stroke-dasharray="7 5"/>
-              <circle id="s${num}-n8n-pkt-1" cx="250" cy="145" r="9" fill="#c7f303" filter="drop-shadow(0 0 12px #c7f303)"/>
-              <circle id="s${num}-n8n-pkt-2" cx="590" cy="145" r="9" fill="#22d3ee" filter="drop-shadow(0 0 12px #22d3ee)"/>
-            </svg>
-
-            <div class="n8n-node n8n-node-trigger" id="s${num}-n8n-n1">
-              <div class="n8n-node-ico" style="background:rgba(245,158,11,0.22);border:2.5px solid #f59e0b;">
-                ${renderWappySvgIcon('bolt', '#f59e0b', 42)}
-              </div>
-              <div class="n8n-node-title">${escapeHtml(wf.triggerTitle || 'Cron SST ⚡')}</div>
-              <div class="n8n-node-sub">${escapeHtml(wf.triggerSub || 'Lun 7:00 AM')}</div>
-            </div>
-
-            <div class="n8n-node n8n-node-agent" id="s${num}-n8n-n2">
-              <div class="n8n-node-badge">ORQUESTADOR</div>
-              <div class="n8n-node-ico" style="background:rgba(199,243,3,0.22);border:2.5px solid var(--w-lime);">
-                <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi" style="width:48px;height:48px;object-fit:contain;">
-              </div>
-              <div class="n8n-node-title" style="color:var(--w-lime);">${escapeHtml(wf.agentTitle || 'Agente IA · Tenshi')}</div>
-              <div class="n8n-node-sub">${escapeHtml(wf.agentSub || sc.titleHighlight)}</div>
-            </div>
-
-            <div class="n8n-node n8n-node-output" id="s${num}-n8n-n3">
-              <div class="n8n-node-ico" style="background:rgba(34,197,94,0.22);border:2.5px solid #22c55e;">
-                ${renderWappySvgIcon('check', '#22c55e', 42)}
-              </div>
-              <div class="n8n-node-title">${escapeHtml(wf.outputTitle || 'Gmail / WhatsApp ✅')}</div>
-              <div class="n8n-node-sub">${escapeHtml(wf.outputSub || 'Alerta & Informe PDF')}</div>
-            </div>
-
-            <div class="n8n-subnode n8n-subnode-left" id="s${num}-n8n-sub1">
-              ${renderOfficialBrandLogoSvg('gemini', 28)}
-              <span>${escapeHtml(wf.subNodeLeft || '✦ Google Gemini 3.8')}</span>
-            </div>
-
-            <div class="n8n-subnode n8n-subnode-right" id="s${num}-n8n-sub2">
-              ${renderWappySvgIcon('escudo', '#2dd4bf', 28)}
-              <span>${escapeHtml(wf.subNodeRight || '🛡️ Memoria ARL / SENA')}</span>
-            </div>
-          </div>
-
-          <div class="n8n-result-banner" id="s${num}-n8n-res">
-            <div class="n8n-res-pill">RESULTADO EN VIVO</div>
-            <div class="n8n-res-text">${escapeHtml(wf.resultBanner || sc.goodCardDesc || sc.subtitle)}</div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'visor-normativo-real') {
-    const nd = sc.normativeDoc || {};
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="visor-normativo-real">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="norma-sheet-paper" id="s${num}-norma-paper">
-          <div class="norma-paper-header">
-            <div class="norma-seal-ico">${renderOfficialBrandLogoSvg('notebooklm', 42)}</div>
-            <div class="norma-header-meta">
-              <div class="norma-code-tag">${escapeHtml(nd.headerCode || 'DECRETO 1072 DE 2015 · RES. 0312 DE 2019')}</div>
-              <div class="norma-doc-title">${escapeHtml(nd.articleTitle || sc.titleHighlight)}</div>
-            </div>
-            <div class="norma-official-pill">OFICIAL COLOMBIA</div>
-          </div>
-
-          <div class="norma-paper-body">
-            <p class="norma-paragraph">
-              <span class="norma-txt-muted">«${escapeHtml(nd.clauseBefore || sc.badCardDesc)} — </span>
-              <span class="norma-fluor-wrap">
-                <span class="norma-fluor-bg" id="s${num}-hl-bar"></span>
-                <strong class="norma-fluor-text">${escapeHtml(nd.clauseHighlight || sc.goodCardDesc || sc.subtitle)}</strong>
-              </span>
-              <span class="norma-txt-muted"> — ${escapeHtml(nd.clauseAfter || 'Cumplimiento técnico obligatorio auditable en WAPPY IA.')}»</span>
-            </p>
-          </div>
-
-          <div class="norma-paper-footer">
-            <div class="norma-source-tag">
-              ${renderOfficialBrandLogoSvg('wappy', 28)}
-              <span>Fuente: ${escapeHtml(nd.sourceBadge || 'NotebookLM + Biblioteca Legal WAPPY')}</span>
-            </div>
-            <div class="norma-verified-stamp" id="s${num}-stamp">
-              ✓ ${escapeHtml(nd.stampText || 'VERIFICADO SIN ALUCINACIONES')}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'flow-split-before-after') {
-    const sp = sc.splitBeforeAfter || {};
-    const bItems = Array.isArray(sp.beforeItems) && sp.beforeItems.length > 0
-      ? sp.beforeItems
-      : [sc.badCardDesc || 'Semanas de reprocesos manuales', 'Riesgo de multas e incumplimiento'];
-    const aItems = Array.isArray(sp.afterItems) && sp.afterItems.length > 0
-      ? sp.afterItems
-      : [sc.goodCardDesc || sc.subtitle, 'Evidencia digital firmada en segundos'];
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="flow-split-before-after">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="flow-split-wrapper">
-          <div class="flow-panel flow-panel-before" id="s${num}-split-top">
-            <div class="flow-panel-top">
-              <span class="flow-tag-bad">❌ ${escapeHtml(sp.beforeBadge || 'ANTES (GENÉRICO / MANUAL)')}</span>
-              <span class="flow-time-bad">LENTO · RIESGO ALTO</span>
-            </div>
-            <h3 class="flow-panel-title">${escapeHtml(sp.beforeTitle || sc.badCardTitle)}</h3>
-            <div class="flow-bullet-list">
-              ${bItems.map((it) => `<div class="flow-bullet-item flow-bullet-bad"><span>✕</span><span>${escapeHtml(it)}</span></div>`).join('')}
-            </div>
-          </div>
-
-          <div class="flow-center-divider" id="s${num}-split-badge">
-            ${renderOfficialBrandLogoSvg('flow', 34)}
-            <span>${escapeHtml(sp.centerBadge || '⚡ TRANSFORMACIÓN IA')}</span>
-          </div>
-
-          <div class="flow-panel flow-panel-after" id="s${num}-split-bot">
-            <div class="corner-bracket cb-tl"></div><div class="corner-bracket cb-tr"></div>
-            <div class="corner-bracket cb-bl"></div><div class="corner-bracket cb-br"></div>
-            <div class="flow-panel-top">
-              <span class="flow-tag-good">✅ ${escapeHtml(sp.afterBadge || 'AHORA CON WAPPY IA (60 FPS + IA)')}</span>
-              <span class="flow-time-good">10X MÁS RÁPIDO</span>
-            </div>
-            <h3 class="flow-panel-title" style="color:var(--w-lime);">${escapeHtml(sp.afterTitle || sc.goodCardTitle)}</h3>
-            <div class="flow-bullet-list">
-              ${aItems.map((it) => `<div class="flow-bullet-item flow-bullet-good"><span>✓</span><span>${escapeHtml(it)}</span></div>`).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'suri-voice-live-hud') {
-    const sr = sc.suriConsole || {};
-    const waveBars = Array.from({ length: 18 })
-      .map((_, wIdx) => `<div class="suri-wave-bar" id="s${num}-swb-${wIdx + 1}"></div>`)
-      .join('');
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="suri-voice-live-hud">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="suri-console-card hud-glass-pro" id="s${num}-suri-card">
-          <div class="suri-console-header">
-            <div style="display:flex;align-items:center;gap:12px;">
-              ${renderOfficialBrandLogoSvg('suri', 38)}
-              <div>
-                <div class="suri-host-title">${escapeHtml(sr.hostName || 'Suri 3D & Tenshi Live · 24 kHz')}</div>
-                <div class="suri-host-sub">COPILOTO DE VOZ EN TIEMPO REAL · WAPPY PODCAST</div>
-              </div>
-            </div>
-            <span class="suri-onair-pill"><span class="dot-live"></span> ${escapeHtml(sr.statusBadge || 'ON AIR · 24 KHZ')}</span>
-          </div>
-
-          <div class="suri-stage-center">
-            <div class="suri-avatar-orb-wrap">
-              <div class="suri-pulse-ring" id="s${num}-suri-ring"></div>
-              <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Suri Tenshi 3D" class="suri-center-img">
-            </div>
-            <div class="suri-waveform-box" id="s${num}-suri-eq">
-              ${waveBars}
-            </div>
-          </div>
-
-          <div class="suri-dialog-stack">
-            <div class="suri-bubble suri-bubble-user" id="s${num}-bub-user">
-              <span class="suri-bub-tag">TÚ (VOZ EN VIVO):</span>
-              <p>${escapeHtml(sr.userPromptBubble || `«Necesito validar ${sc.titleHighlight} en terreno ahora mismo»`)}</p>
-            </div>
-            <div class="suri-bubble suri-bubble-ai" id="s${num}-bub-ai">
-              <span class="suri-bub-tag" style="color:#0e1300;background:var(--w-lime);">RESPUESTA TENSHI 24KHZ:</span>
-              <p>${escapeHtml(sr.aiResponseBubble || sc.goodCardDesc || sc.subtitle)}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'cuadricula-50-herramientas') {
-    const tg = sc.toolsGrid50 || {};
-    const mods = Array.isArray(tg.modules) && tg.modules.length >= 9
-      ? tg.modules.slice(0, 9)
-      : [
-          { code: 'GTC 45', name: 'Matriz IPEVR IA', status: 'ACTIVO' },
-          { code: '0312', name: 'Autoevaluación', status: '100%' },
-          { code: 'PESV', name: 'Seguridad Vial', status: 'LIVE' },
-          { code: 'ATEL', name: 'Investigación IA', status: 'ACTIVO' },
-          { code: 'SGA', name: 'Riesgo Químico', status: 'OK' },
-          { code: 'EPP', name: 'Entregas & Firma', status: 'DIGITAL' },
-          { code: 'LOTO', name: 'Permisos Trabajo', status: 'QR' },
-          { code: 'LMS', name: 'Academia & Quiz', status: '24/7' },
-          { code: 'N8N', name: 'Tareas Crons IA', status: 'AUTO' },
-        ];
-    const cellsHtml = mods
-      .map(
-        (m, mIdx) => `
-          <div class="tools50-cell hud-glass-pro" id="s${num}-mcell-${mIdx + 1}">
-            <div class="tools50-cell-top">
-              <span class="tools50-code">${escapeHtml(m.code)}</span>
-              <span class="tools50-status">${escapeHtml(m.status)}</span>
-            </div>
-            <div class="tools50-name">${escapeHtml(m.name)}</div>
-          </div>`,
-      )
-      .join('');
-
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="cuadricula-50-herramientas">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="tools50-wrapper">
-          <div class="tools50-grid">
-            ${cellsHtml}
-          </div>
-          <div class="tools50-saving-card hud-glass-pro" id="s${num}-save-card">
-            <div class="tools50-ring-badge">-85%</div>
-            <div class="tools50-saving-info">
-              <div class="tools50-saving-title">${escapeHtml(tg.savingHeadline || '-85% PAPELEO OPERATIVO CON +50 HERRAMIENTAS IA')}</div>
-              <div class="tools50-saving-sub">${escapeHtml(tg.savingSub || sc.goodCardDesc || sc.subtitle)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'hook-vs-wall') {
-    const pillsHtml = (sc.wallPills || [])
-      .map(
-        (p, pIdx) =>
-          `<span class="${pIdx % 2 === 0 ? 'headline-pill-lime' : 'headline-pill-dark'}">${escapeHtml(p)}</span>`,
-      )
-      .join('');
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="hook-vs-wall">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="hook-box" style="position:relative;">
-          <div class="hook-card hook-card-bad hud-glass-pro" id="s${num}-card-1">
-            <div class="hook-ico-box" style="background: rgba(239, 68, 68, 0.22); border: 2.5px solid #ef4444;">
-              ${renderWappySvgIcon('alerta', '#ef4444', 52)}
-            </div>
-            <div class="hook-text">
-              <h3>${escapeHtml(sc.badCardTitle)}</h3>
-              <p>${escapeHtml(sc.badCardDesc)}</p>
-            </div>
-            <div class="hook-badge" style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 2px solid #ef4444;">${escapeHtml(sc.badCardBadge)}</div>
-          </div>
-
-          <div class="vs-badge-circle">VS</div>
-
-          <div class="hook-card hook-card-good hud-glass-pro" id="s${num}-card-2">
-            <div class="corner-bracket cb-tl"></div><div class="corner-bracket cb-tr"></div>
-            <div class="corner-bracket cb-bl"></div><div class="corner-bracket cb-br"></div>
-            <div class="hook-ico-box" style="background: rgba(199, 243, 3, 0.22); border: 2.5px solid var(--w-lime);">
-              ${renderWappySvgIcon('escudo', '#c7f303', 52)}
-            </div>
-            <div class="hook-text">
-              <h3>${escapeHtml(sc.goodCardTitle)}</h3>
-              <p>${escapeHtml(sc.goodCardDesc)}</p>
-            </div>
-            <div class="hook-badge" style="background: var(--w-lime); color: #0e1300;">${escapeHtml(sc.goodCardBadge)}</div>
-          </div>
-
-          <div class="tenshi-terminal-strip hud-glass-pro">
-            <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi" class="tt-avatar">
-            <div class="tt-body">
-              <div class="tt-label">TENSHI IA · MOTOR DE PREVENCIÓN EN VIVO</div>
-              <div class="tt-text">${escapeHtml((sc.sideCards?.[0]?.desc || sc.subtitle || '').slice(0, 72))}</div>
-            </div>
-            <span class="tt-status">✓ ACTIVO</span>
-          </div>
-        </div>
-
-        <div class="headline-wall-wrap">
-          <div class="headline-track" id="s${num}-track">
-            ${pillsHtml}${pillsHtml}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'iphone-split-showcase') {
-    const phonePillsHtml = (sc.phonePills || [])
-      .map(
-        (p, pIdx) => `
-              <div class="iphone-alert-pill" id="s${num}-pp-${pIdx + 1}" style="${
-                pIdx === 1
-                  ? 'border-color: var(--w-cyan-bright); background: rgba(6,182,212,0.18);'
-                  : pIdx === 2
-                    ? 'border-color: var(--w-teal-bright); background: rgba(13,148,136,0.20);'
-                    : ''
-              }">
-                <span class="pill-svg-wrap">${renderWappySvgIcon(p.icon, pIdx === 1 ? '#22d3ee' : '#c7f303', 24)}</span>
-                <span>${escapeHtml(p.text)}</span>
-              </div>`,
-      )
-      .join('');
-
-    const sideCardsHtml = (sc.sideCards || [])
-      .map((c, cIdx) => {
-        const borderCol =
-          cIdx === 0
-            ? 'rgba(34, 211, 238, 0.65)'
-            : cIdx === 1
-              ? 'rgba(45, 212, 191, 0.65)'
-              : 'rgba(199, 243, 3, 0.75)';
-        const icoBg =
-          cIdx === 0
-            ? 'background: rgba(34, 211, 238, 0.2); border: 2px solid var(--w-cyan-bright);'
-            : cIdx === 1
-              ? 'background: rgba(13, 148, 136, 0.22); border: 2px solid var(--w-teal-bright);'
-              : 'background: rgba(199, 243, 3, 0.2); border: 2px solid var(--w-lime);';
-        const svgCol = cIdx === 0 ? '#22d3ee' : cIdx === 1 ? '#2dd4bf' : '#c7f303';
-        return `
-            <div class="side-card hud-glass-pro" id="s${num}-sc-${cIdx + 1}" style="border-color: ${borderCol};">
-              <div class="side-card-ico" style="${icoBg}">${renderWappySvgIcon(c.icon || c.title, svgCol, 42)}</div>
-              <div class="side-card-text">
-                <h4>${escapeHtml(c.title)}</h4>
-                <p>${escapeHtml(c.desc)}</p>
-              </div>
-            </div>`;
-      })
-      .join('');
-
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="iphone-split-showcase">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="split-showcase">
-          <div class="iphone-frame" id="s${num}-phone">
-            <div class="dynamic-island">
-              <span class="island-dot"></span>
-              <span class="island-text">${escapeHtml(sc.islandText)}</span>
-              <span style="font-size: 11px; color: var(--w-lime); font-weight: 900;">SG-SST</span>
-            </div>
-            <div class="iphone-screen">
-              <div class="iphone-qr-box">
-                <div class="qr-scan-line" id="s${num}-laser"></div>
-                <div class="ui-app-header" style="width:100%;margin-bottom:8px;">
-                  <div style="display:flex;align-items:center;gap:6px;">
-                    <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" style="width:18px;height:18px;border-radius:4px;">
-                    <span style="font-family:var(--mono);font-size:12px;font-weight:900;color:#fff;">WAPPY CLOUD</span>
-                  </div>
-                  <span class="ui-live-pill">LIVE</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:12px;width:100%;background:rgba(199,243,3,0.10);border:1.5px solid rgba(199,243,3,0.45);border-radius:14px;padding:10px 12px;">
-                  ${renderWappySvgIcon('cerebro_ia', '#c7f303', 38)}
-                  <div style="text-align:left;">
-                    <div style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--w-lime);">${escapeHtml(sc.phoneQrTitle)}</div>
-                    <div style="font-size:12px;font-weight:700;color:#cbd5e1;">Motor IA · Verificación Activa</div>
-                  </div>
-                </div>
-              </div>
-              ${phonePillsHtml}
-            </div>
-          </div>
-
-          <div class="side-cards-col">
-            ${sideCardsHtml}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'signature-pad-live') {
-    const sigPaths = [
-      'M 24 44 C 52 12, 74 54, 102 24 C 122 10, 140 50, 168 30 C 195 14, 220 42, 296 22',
-      'M 30 46 Q 70 10 110 38 T 190 26 T 275 36 L 310 18',
-      'M 28 38 C 65 8, 95 56, 135 22 C 165 6, 200 48, 245 28 L 308 24',
-    ];
-    const sigHtml = (sc.sigCards || [])
-      .map(
-        (sg, sIdx) => `
-            <div class="sig-card hud-glass-pro" id="s${num}-sig-${sIdx + 1}" style="${
-              sIdx === 1
-                ? 'border-color: rgba(34, 211, 238, 0.65);'
-                : sIdx === 2
-                  ? 'border-color: rgba(199, 243, 3, 0.72);'
-                  : ''
-            }">
-              <div class="sig-header">
-                <div class="sig-role">
-                  <span class="pill-svg-wrap">${renderWappySvgIcon(sg.icon || 'firma', sIdx === 1 ? '#22d3ee' : '#c7f303', 28)}</span>
-                  ${escapeHtml(sg.role)}
-                </div>
-                <div class="sig-status">${escapeHtml(sg.status)}</div>
-              </div>
-              <div class="sig-pad-canvas">
-                <svg class="sig-svg" viewBox="0 0 340 64">
-                  <path class="sig-path" id="s${num}-sigpath-${sIdx + 1}" stroke="${
-                    sIdx === 1 ? '#22d3ee' : '#c7f303'
-                  }" d="${sigPaths[sIdx % sigPaths.length]}"/>
-                </svg>
-              </div>
-            </div>`,
-      )
-      .join('');
-
-    const docRole1 = sc.sigCards?.[0]?.role || sc.sideCards?.[0]?.title || 'Diagnóstico Técnico';
-    const docRole2 = sc.sigCards?.[1]?.role || sc.sideCards?.[1]?.title || 'Control Preventivo';
-    const docRole3 = sc.sigCards?.[2]?.role || 'Firma Digital A4';
-
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="signature-pad-live">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="split-showcase">
-          <div class="iphone-frame" id="s${num}-phone">
-            <div class="dynamic-island">
-              <span class="island-dot"></span>
-              <span class="island-text">${escapeHtml(sc.islandText || 'FIRMA DIGITAL')}</span>
-              <span style="font-size: 11px; color: var(--w-lime); font-weight: 900;">A4</span>
-            </div>
-            <div class="iphone-screen">
-              <div class="iphone-qr-box" style="border-color: var(--w-lime);">
-                <div class="qr-scan-line" id="s${num}-laser"></div>
-                <div style="display:flex;align-items:center;gap:10px;width:100%;">
-                  ${renderWappySvgIcon('firma', '#c7f303', 42)}
-                  <div style="text-align:left;">
-                    <div style="font-family: var(--mono); font-size: 15px; font-weight: 900; color: var(--w-lime);">${escapeHtml(sc.phoneQrTitle || 'EXPEDIENTE SST')}</div>
-                    <div style="font-size:12px;color:#cbd5e1;font-weight:700;">Validez Legal & QR Verificado</div>
-                  </div>
-                </div>
-                <div style="margin-top:10px;width:100%;background:rgba(254,240,138,0.16);border-left:3px solid #facc15;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:700;color:#fef08a;text-align:left;">
-                  «${escapeHtml((sc.subtitle || '').slice(0, 58))}»
-                </div>
-              </div>
-              <div class="iphone-alert-pill" style="border-color: var(--w-lime); background: rgba(199,243,3,0.18);">
-                <span class="pill-svg-wrap">${renderWappySvgIcon('escudo', '#c7f303', 22)}</span>
-                <span>${escapeHtml(docRole1.slice(0, 26))}</span>
-              </div>
-              <div class="iphone-alert-pill" style="border-color: var(--w-cyan-bright); background: rgba(6,182,212,0.18);">
-                <span class="pill-svg-wrap">${renderWappySvgIcon('cerebro_ia', '#22d3ee', 22)}</span>
-                <span>${escapeHtml(docRole2.slice(0, 26))}</span>
-              </div>
-              <div class="iphone-alert-pill" style="border-color: var(--w-teal-bright); background: rgba(13,148,136,0.22);">
-                <span class="pill-svg-wrap">${renderWappySvgIcon('check', '#2dd4bf', 22)}</span>
-                <span>${escapeHtml(docRole3.slice(0, 26))}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="side-cards-col">
-            ${sigHtml}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'chart-grow-math') {
-    const riskHtml = (sc.riskCards || [])
-      .map((rk, rIdx) => {
-        const bCol = rIdx === 0 ? '#22c55e' : rIdx === 1 ? '#22d3ee' : '#c7f303';
-        const grad =
-          rIdx === 0
-            ? 'linear-gradient(90deg, #22c55e, #c7f303)'
-            : rIdx === 1
-              ? 'linear-gradient(90deg, #06b6d4, #22d3ee)'
-              : 'linear-gradient(90deg, #14b8a6, #c7f303)';
-        return `
-            <div class="risk-card hud-glass-pro" id="s${num}-rk-${rIdx + 1}" style="border: 2.5px solid ${bCol};">
-              <div class="risk-top">
-                <div class="risk-title" style="display:flex;align-items:center;gap:10px;">
-                  ${renderWappySvgIcon(rIdx === 0 ? 'escudo' : rIdx === 1 ? 'grafica' : 'bolt', bCol, 28)}
-                  <span>${escapeHtml(rk.title)}</span>
-                </div>
-                <div class="risk-nr-pill" style="background: rgba(199,243,3,0.2); color:#c7f303; border:1.5px solid ${bCol};" id="s${num}-rknum-${rIdx + 1}" data-target="${rk.val}" data-prefix="${escapeHtml(rk.pillPrefix)}" data-unit="${escapeHtml(rk.unit)}">${escapeHtml(rk.pillPrefix)} ${rk.val}${escapeHtml(rk.unit)}</div>
-              </div>
-              <div class="risk-sub">${escapeHtml(rk.sub)}</div>
-              <div class="risk-bar-bg"><div class="risk-bar-fill" id="s${num}-rkbar-${rIdx + 1}" data-width="${rk.widthPct}" style="background: ${grad};"></div></div>
-            </div>`;
-      })
-      .join('');
-
-    const barsCols = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'IA']
-      .map(
-        (lbl, bIdx) => `
-                <div class="chart-col">
-                  <div class="col-bar" id="s${num}-cb-${bIdx + 1}"></div>
-                  <span class="col-label">${lbl}</span>
-                </div>`,
-      )
-      .join('');
-
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="chart-grow-math">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="formula-banner" id="s${num}-formula">
-          <span>${escapeHtml(sc.formulaLeft)}</span>
-          <span>➔</span>
-          <span style="color:var(--w-cyan-bright)">${escapeHtml(sc.formulaMid)}</span>
-          <span>➔</span>
-          <span style="color:var(--w-lime)">${escapeHtml(sc.formulaRight)}</span>
-        </div>
-
-        <div class="split-showcase">
-          <div class="iphone-frame" id="s${num}-phone" style="height: 680px;">
-            <div class="dynamic-island">
-              <span class="island-dot"></span>
-              <span class="island-text">ANALÍTICA IA</span>
-              <span style="font-size: 11px; color: var(--w-cyan-bright); font-weight: 900;">KPI</span>
-            </div>
-            <div class="iphone-screen">
-              <div class="iphone-qr-box" style="border-color: var(--w-cyan-bright);">
-                <div class="qr-scan-line" id="s${num}-laser"></div>
-                <div style="display:flex;align-items:center;gap:10px;width:100%;">
-                  ${renderWappySvgIcon('grafica', '#22d3ee', 40)}
-                  <div style="text-align:left;">
-                    <div style="font-family: var(--mono); font-size: 15px; font-weight: 900; color: var(--w-cyan-bright);">${escapeHtml(sc.phoneQrTitle || 'INDICADORES SST')}</div>
-                    <div style="font-size:12px;color:#cbd5e1;font-weight:700;">Cálculo Determinista en Vivo</div>
-                  </div>
-                </div>
-              </div>
-              <div class="chart-bars-wrap" style="height: 160px; margin-top: 18px;">
-                ${barsCols}
-              </div>
-              <div class="iphone-alert-pill" style="margin-top: auto; border-color: var(--w-lime); background: rgba(199,243,3,0.2);">
-                <span class="pill-svg-wrap">${renderWappySvgIcon('check', '#c7f303', 22)}</span>
-                <span>${escapeHtml(sc.formulaRight || '100% Cumplimiento')}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="side-cards-col">
-            ${riskHtml}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'pentagon-orbital') {
-    const nodesHtml = (sc.orbitalNodes || [])
-      .slice(0, 5)
-      .map((nd, nIdx) => {
-        const icoBgs = [
-          'background: rgba(45, 212, 191, 0.22); border: 2px solid var(--w-teal-bright);',
-          'background: rgba(34, 211, 238, 0.22); border: 2px solid var(--w-cyan-bright);',
-          'background: rgba(245, 158, 11, 0.22); border: 2px solid var(--w-amber);',
-          'background: rgba(239, 68, 68, 0.22); border: 2px solid #ef4444;',
-          'background: rgba(199, 243, 3, 0.22); border: 2px solid var(--w-lime);',
-        ];
-        const icoCols = ['#2dd4bf', '#22d3ee', '#f59e0b', '#ef4444', '#c7f303'];
-        return `
-          <div class="orbital-node pos-node-${nIdx + 1}" id="s${num}-node-${nIdx + 1}">
-            <div class="node-ico" style="${icoBgs[nIdx]}">${renderWappySvgIcon(nd.icon || nd.title, icoCols[nIdx], 36)}</div>
-            <div>
-              <div class="node-title">${escapeHtml(nd.title)}</div>
-              <div class="node-sub">${escapeHtml(nd.sub)}</div>
-            </div>
-          </div>`;
-      })
-      .join('');
-
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="pentagon-orbital">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="orbital-stage">
-          <svg class="laser-connections" viewBox="0 0 1010 850">
-            <polygon points="505,85 812,250 745,735 265,735 198,250"
-              fill="none" stroke="rgba(34, 211, 238, 0.28)" stroke-width="2.5" stroke-dasharray="8 8"/>
-            <line id="s${num}-laser-1" x1="505" y1="435" x2="505" y2="85"  stroke="#2dd4bf" stroke-width="4" stroke-dasharray="10 7"/>
-            <line id="s${num}-laser-2" x1="505" y1="435" x2="812" y2="250" stroke="#22d3ee" stroke-width="4" stroke-dasharray="10 7"/>
-            <line id="s${num}-laser-3" x1="505" y1="435" x2="745" y2="735" stroke="#f59e0b" stroke-width="4" stroke-dasharray="10 7"/>
-            <line id="s${num}-laser-4" x1="505" y1="435" x2="265" y2="735" stroke="#ef4444" stroke-width="4" stroke-dasharray="10 7"/>
-            <line id="s${num}-laser-5" x1="505" y1="435" x2="198" y2="250" stroke="#c7f303" stroke-width="4" stroke-dasharray="10 7"/>
-          </svg>
-
-          <div class="pulse-ring ring-1" id="s${num}-ring-1"></div>
-          <div class="pulse-ring ring-2" id="s${num}-ring-2"></div>
-
-          <div class="biocore-center" id="s${num}-core">
-            <div class="biocore-fingerprint">${renderWappySvgIcon(sc.coreIcon || 'radar', '#22d3ee', 92)}</div>
-            <div class="biocore-label">${escapeHtml(sc.coreLabel)}</div>
-            <div class="biocore-match">${escapeHtml(sc.coreBadge)}</div>
-          </div>
-
-          ${nodesHtml}
-        </div>
-      </div>
-    </div>`;
-  }
-
-  if (sc.archetype === 'tenshi-specialists-grid') {
-    const specsHtml = (sc.gridSpecs || [])
-      .slice(0, 4)
-      .map((sp, sIdx) => {
-        const borders = [
-          'border-left: 6px solid var(--w-teal-bright);',
-          'border-left: 6px solid var(--w-cyan-bright);',
-          'border-left: 6px solid var(--w-amber);',
-          'border-left: 6px solid var(--w-lime);',
-        ];
-        const bgs = [
-          'background: rgba(13, 148, 136, 0.25);',
-          'background: rgba(6, 182, 212, 0.25);',
-          'background: rgba(245, 158, 11, 0.25);',
-          'background: rgba(199, 243, 3, 0.25);',
-        ];
-        const cols = ['#2dd4bf', '#22d3ee', '#f59e0b', '#c7f303'];
-        return `
-            <div class="spec-item hud-glass-pro" id="s${num}-sp-${sIdx + 1}" style="${borders[sIdx]}">
-              <div class="spec-ico" style="${bgs[sIdx]}">${renderWappySvgIcon(sp.icon || sp.title, cols[sIdx], 38)}</div>
-              <div class="spec-text">
-                <h4>${escapeHtml(sp.title)}</h4>
-                <p>${escapeHtml(sp.sub)}</p>
-              </div>
-            </div>`;
-      })
-      .join('');
-
-    const tagsHtml = (sc.cloudTags || [])
-      .map((tg) => `<span class="spec-pill-tag">${escapeHtml(tg)}</span>`)
-      .join('');
-
-    return `
-    <div class="scene" id="scene-${num}" data-archetype="tenshi-specialists-grid">
-      ${headerHtml}
-      <div class="middle-container">
-        <div class="especialistas-box">
-          <div class="tenshi-header-card hud-glass-pro" id="s${num}-topbar">
-            <div class="corner-bracket cb-tl"></div><div class="corner-bracket cb-tr"></div>
-            <div class="tenshi-orb-img">
-              <img src="/assets/brandbook/mascota_tenshi_3d.png" alt="Tenshi IA">
-            </div>
-            <div class="tenshi-h-info">
-              <h3>${escapeHtml(sc.tenshiTitle)}</h3>
-              <p>${escapeHtml(sc.tenshiSub)}</p>
-            </div>
-          </div>
-
-          <div class="spec-list-grid">
-            ${specsHtml}
-          </div>
-
-          <div class="spec-cloud-tags">
-            ${tagsHtml}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  // Default / Final: cta-viral-bubbles
-  const bubblesHtml = (sc.socialBubbles || [])
-    .slice(0, 4)
-    .map(
-      (bb, bIdx) => `
-        <div class="social-comment-bubble bubble-${bIdx + 1}" id="s${num}-bub-${bIdx + 1}">
-          <span class="bubble-user">${renderWappySvgIcon(bb.icon || 'bolt', '#0e1300', 20)}</span> <span>${escapeHtml(bb.text)}</span>
-        </div>`,
-    )
-    .join('');
-
-  return `
-    <div class="scene" id="scene-${num}" data-archetype="cta-viral-bubbles">
-      ${headerHtml}
-      <div class="middle-container">
-        ${bubblesHtml}
-        <div class="cta-box hud-glass-pro" id="s${num}-cta-card">
-          <div class="corner-bracket cb-tl"></div><div class="corner-bracket cb-tr"></div>
-          <div class="corner-bracket cb-bl"></div><div class="corner-bracket cb-br"></div>
-
-          <div class="cta-header-line">${escapeHtml(sc.ctaHeader)}</div>
-
-          <div class="cta-keyword-box">
-            <div class="cta-instruction">${escapeHtml(sc.ctaInstruction)}</div>
-            <div class="cta-keyword-pill" id="s${num}-cta-glow">
-              ${escapeHtml(sc.ctaKeyword || 'SOMOS SST')}
-            </div>
-            <div class="cta-gift-pill">${escapeHtml(sc.ctaGift)}</div>
-          </div>
-
-          <div class="cta-btn-main" id="s${num}-cta-btn">
-            <img src="/assets/brandbook/isotipo_w_favicon.png" alt="W" style="width:34px;height:34px;border-radius:8px;">
-            <span>wappy.club</span> ↗
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-/**
- * Lee los motores oficiales de las skills (wappy-avatar-voxel3d.js, efectos-17-reels.js, wappy-brand.js)
- * para inyectarlos directamente en el HTML maestro sin depender de peticiones externas.
- */
-let CACHED_VOXEL_AVATAR_JS = null;
-let CACHED_SKILL_MOTORS_JS = null;
-function getVoxelAvatarInlineJs() {
-  if (CACHED_VOXEL_AVATAR_JS) return `${CACHED_VOXEL_AVATAR_JS}\n\n${CACHED_SKILL_MOTORS_JS || ''}`;
-  const candidates = [
-    path.join(process.cwd(), 'client', 'public', 'assets', 'wappy', 'wappy-avatar-voxel3d.js'),
-    path.join(__dirname, '..', '..', '..', 'client', 'public', 'assets', 'wappy', 'wappy-avatar-voxel3d.js'),
-  ];
-  for (const p of candidates) {
-    try {
-      if (fs.existsSync(p)) {
-        CACHED_VOXEL_AVATAR_JS = fs.readFileSync(p, 'utf8');
-        break;
-      }
-    } catch (_) {}
-  }
-  if (!CACHED_SKILL_MOTORS_JS) {
-    const motorFiles = [
-      path.join(process.cwd(), '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'efectos-17-reels.js'),
-      path.join(process.cwd(), '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'wappy-brand.js'),
-      path.join(__dirname, '..', '..', '..', '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'efectos-17-reels.js'),
-      path.join(__dirname, '..', '..', '..', '.agents', 'skills', 'animaciones-17-efectos-reels', 'plantilla', 'motor', 'wappy-brand.js'),
-    ];
-    const loaded = [];
-    const seenNames = new Set();
-    for (const mf of motorFiles) {
-      const bName = path.basename(mf);
-      if (seenNames.has(bName)) continue;
-      try {
-        if (fs.existsSync(mf)) {
-          seenNames.add(bName);
-          loaded.push(`/* === SKILL MOTOR: ${bName} === */\n` + fs.readFileSync(mf, 'utf8'));
-        }
-      } catch (_) {}
-    }
-    CACHED_SKILL_MOTORS_JS = loaded.join('\n\n');
-  }
-  return `${CACHED_VOXEL_AVATAR_JS || ''}\n\n${CACHED_SKILL_MOTORS_JS || ''}`;
-}
-
-/**
- * Compila el documento HTML5 maestro a 60 FPS con los 7 Arquetipos Cinéticos de Antigravity
- * y el Avatar 3D Minecraft Voxel en Three.js (WappyAvatarVoxel3D) sincronizado con la voz.
- */
-function compileAntigravityMasterReelHtml(scenePlan, timelineMap, options = {}) {
-  const totalDur = Math.max(4, Number(timelineMap.totalDurationSeconds) || 30);
-  const hasBaseVideo = Boolean(options.hasBaseVideo);
-  const aspectRatio = String(options.aspectRatio || '9:16').trim() === '16:9' ? '16:9' : '9:16';
-  const isHorizontal = aspectRatio === '16:9';
-  const stageW = isHorizontal ? 1920 : 1080;
-  const stageH = isHorizontal ? 1080 : 1920;
-
-  const rawTheme = String(options.theme || options.selectedArtDirection || 'dark-tech-hud').toLowerCase();
-  let stageBgGradient = 'radial-gradient(circle at 50% 18%, #0c192e 0%, #050a14 58%, #020409 100%)';
-  let bodyBgColor = '#020409';
-  if (rawTheme.includes('lima') || rawTheme.includes('oliva') || rawTheme.includes('wappy-dark')) {
-    stageBgGradient = 'radial-gradient(circle at 50% 18%, #1d2d04 0%, #0e1300 62%, #070a00 100%)';
-    bodyBgColor = '#070a00';
-  } else if (rawTheme.includes('cielo') || rawTheme.includes('sky') || rawTheme.includes('cloud')) {
-    stageBgGradient = 'radial-gradient(circle at 50% 18%, #0d3b66 0%, #071e36 58%, #030d1a 100%)';
-    bodyBgColor = '#030d1a';
-  } else if (rawTheme.includes('crema') || rawTheme.includes('cream') || rawTheme.includes('editorial') || rawTheme.includes('dummies')) {
-    stageBgGradient = 'radial-gradient(circle at 50% 18%, #132a2e 0%, #09171a 60%, #040b0d 100%)';
-    bodyBgColor = '#040b0d';
-  }
-
-  const customLime = '#c7f303';
-  const customCssBlock = options.customCss ? `\n/* Custom Studio AI Edits */\n${options.customCss}\n` : '';
-
-  const coverMarkup = renderMagneticCoverMarkup(scenePlan, options);
-  const scenesMarkup = `${coverMarkup}\n${scenePlan.map((sc, idx) => renderSceneMarkup(sc, idx)).join('\n')}`;
-  const voxelAvatarJs = getVoxelAvatarInlineJs();
-
-  const coverDur = Number(Math.min(2.0, Math.max(1.4, totalDur * 0.14)).toFixed(2));
-  const adjustedScenesTiming = [];
-  adjustedScenesTiming.push({
-    num: 0,
-    id: '#scene-0',
-    archetype: 'magnetic-cover-2s',
-    eyebrow: 'PORTADA HERO XL · 2.0S',
-    headline: String(scenePlan[0]?.headline || 'AUTOMATIZACIÓN IA SG-SST'),
-    subheadline: String(scenePlan[0]?.subheadline || ''),
-    start: 0,
-    end: coverDur,
-    isLast: false,
-  });
-
-  const remDur = Math.max(2, totalDur - coverDur);
-  const origSpan = Math.max(1, Number(scenePlan[scenePlan.length - 1]?.endSec || totalDur));
-  scenePlan.forEach((sc, idx) => {
-    const rawS = Number(sc.startSec) || 0;
-    const rawE = Number(sc.endSec) || totalDur;
-    const mappedStart = idx === 0 ? coverDur : Number((coverDur + (rawS / origSpan) * remDur).toFixed(2));
-    const mappedEnd =
-      idx === scenePlan.length - 1
-        ? Number(totalDur.toFixed(2))
-        : Number(Math.max(mappedStart + 1.0, coverDur + (rawE / origSpan) * remDur).toFixed(2));
-    adjustedScenesTiming.push({
-      num: idx + 1,
-      id: `#scene-${idx + 1}`,
-      archetype: sc.archetype,
-      eyebrow: String(sc.eyebrow || `ESCENA 0${idx + 1}`),
-      headline: String(sc.headline || ''),
-      subheadline: String(sc.subheadline || ''),
-      start: mappedStart,
-      end: mappedEnd,
-      isLast: idx === scenePlan.length - 1,
-    });
-  });
-
-  const scenesTimingJson = JSON.stringify(adjustedScenesTiming);
-
-  const vozDataJson = JSON.stringify(timelineMap.vozData || []);
-
-  return `<!doctype html>
-<html lang="es" data-wappy-template="true" data-wappy-master-reel="true" data-aspect-ratio="${aspectRatio}" data-art-direction="${escapeHtml(rawTheme)}">
-<head>
-<meta charset="utf-8">
-<title>WAPPY IA · Reel Dinámico Antigravity 60 FPS</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<script src="/assets/gsap.min.js"></script>
-<script src="/assets/wappy/three.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
-<script id="wappy-beat-sync-helper">
-  window.__wappyTimelineBeats = ${JSON.stringify(timelineMap.beats || [])};
-  window.__wappyWordTimings = ${JSON.stringify(timelineMap.wordTimings || [])};
-  window.VOZ = ${vozDataJson};
-</script>
-<style>
-:root {
-  --w-lime: ${customLime};
-  --w-lime-glow: rgba(199, 243, 3, 0.45);
-  --w-teal: #0d9488;
-  --w-teal-bright: #2dd4bf;
-  --w-cyan: #06b6d4;
-  --w-cyan-bright: #22d3ee;
-  --w-amber: #f59e0b;
-  --w-red: #ef4444;
-  --w-green: #22c55e;
-  --w-bg-dark: ${bodyBgColor};
-  --sans: 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --mono: 'JetBrains Mono', monospace;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-  width: 100vw; height: 100vh;
-  overflow: hidden;
-  background: ${hasBaseVideo ? 'transparent' : bodyBgColor};
-  font-family: var(--sans);
-  color: #fff;
-  -webkit-font-smoothing: antialiased;
-}
-
-#viewport {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-}
-
-#stage {
-  position: relative;
-  width: ${stageW}px; height: ${stageH}px;
-  overflow: hidden;
-  background: ${hasBaseVideo ? 'transparent' : stageBgGradient};
-  flex: none;
-  perspective: 1400px;
-  transform-origin: center center;
-}
-
-.bg-cyber-grid {
-  position: absolute; inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(6, 182, 212, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(20, 184, 166, 0.06) 1px, transparent 1px);
-  background-size: 54px 54px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.ambient-orb {
-  position: absolute; border-radius: 50%; pointer-events: none; z-index: 2;
-}
-.orb-teal {
-  width: 700px; height: 700px;
-  background: radial-gradient(circle, rgba(13, 148, 136, 0.25) 0%, rgba(13, 148, 136, 0.10) 35%, rgba(13, 148, 136, 0.03) 55%, transparent 70%);
-  top: 10%; left: -140px;
-}
-.orb-cyan {
-  width: 650px; height: 650px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.22) 0%, rgba(6, 182, 212, 0.08) 35%, rgba(6, 182, 212, 0.02) 55%, transparent 70%);
-  top: 35%; right: -140px;
-}
-.orb-lime {
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(199, 243, 3, 0.18) 0%, rgba(199, 243, 3, 0.06) 35%, rgba(199, 243, 3, 0.02) 55%, transparent 70%);
-  bottom: 20%; left: 100px;
-}
-
-#bg-radar {
-  position: absolute; top: 36px; right: 44px; width: 116px; height: 116px;
-  pointer-events: none; z-index: 20; opacity: 0.55;
-}
-
-.scanline-beam {
-  position: absolute; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, transparent 0%, rgba(34, 211, 238, 0.25) 15%, #22d3ee 50%, rgba(199, 243, 3, 0.25) 85%, transparent 100%);
-  box-shadow: 0 0 18px #22d3ee;
-  pointer-events: none; z-index: 10;
-}
-
-#top-progress-bar {
-  position: absolute; top: 0; left: 0; height: 8px; width: 0%;
-  background: linear-gradient(90deg, var(--w-teal-bright) 0%, var(--w-cyan-bright) 50%, var(--w-lime) 100%);
-  box-shadow: 0 0 16px var(--w-cyan-bright);
-  z-index: 50;
-}
-
-.eq-container {
-  position: absolute; top: 44px; left: 44px;
-  display: flex; align-items: flex-end; gap: 6px; height: 32px;
-  z-index: 20;
-}
-.eq-bar {
-  width: 6px; border-radius: 3px; background: var(--w-cyan-bright);
-  box-shadow: 0 0 8px var(--w-cyan-bright);
-}
-
-#digital-zoom-hud {
-  position: absolute; inset: 0; pointer-events: none; z-index: 40;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0;
-}
-.reticle-box { position: relative; width: 880px; height: 640px; }
-.reticle-corner {
-  position: absolute; width: 38px; height: 38px;
-  border-color: var(--w-lime); filter: drop-shadow(0 0 10px var(--w-lime));
-}
-.rc-tl { top: 0; left: 0; border-top: 4px solid; border-left: 4px solid; }
-.rc-tr { top: 0; right: 0; border-top: 4px solid; border-right: 4px solid; }
-.rc-bl { bottom: 0; left: 0; border-bottom: 4px solid; border-left: 4px solid; }
-.rc-br { bottom: 0; right: 0; border-bottom: 4px solid; border-right: 4px solid; }
-.reticle-crosshair {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 42px; height: 42px;
-}
-.reticle-crosshair::before, .reticle-crosshair::after {
-  content: ''; position: absolute; background: var(--w-lime);
-}
-.reticle-crosshair::before { top: 20px; left: 0; width: 42px; height: 2px; }
-.reticle-crosshair::after { top: 0; left: 20px; width: 2px; height: 42px; }
-
-.scene {
-  position: absolute; inset: 0;
-  opacity: 0; visibility: hidden;
-  z-index: 5;
-  transform-origin: center center;
-}
-
-/* TERCIO SUPERIOR (y: 40 - 300) — TIPOGRAFÍA GIGANTE MÓVIL XL */
-.header-box {
-  position: absolute; top: 40px; left: 40px; right: 40px;
-  display: flex; flex-direction: column; align-items: center; text-align: center;
-  z-index: 20;
-}
-.eyebrow-pill {
-  display: inline-flex; align-items: center; gap: 12px;
-  padding: 10px 28px; border-radius: 9999px;
-  font-family: var(--mono); font-size: 21px; font-weight: 800; letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: rgba(7, 13, 28, 0.92);
-  border: 2px solid rgba(34, 211, 238, 0.55);
-  color: var(--w-cyan-bright);
-  box-shadow: 0 0 25px rgba(6, 182, 212, 0.28);
-  margin-bottom: 12px;
-}
-.eyebrow-pill .dot {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--w-lime);
-  box-shadow: 0 0 12px var(--w-lime);
-}
-.title-hero {
-  font-size: clamp(54px, 7.2vw, 84px); font-weight: 900; line-height: 1.04;
-  letter-spacing: -0.03em; color: #ffffff;
-  max-width: min(1360px, 96%);
-  text-shadow: 0 6px 26px rgba(0,0,0,0.88);
-}
-.hl-lime {
-  display: inline-block; position: relative;
-  background: var(--w-lime); color: #0e1300;
-  padding: 4px 20px; border-radius: 18px;
-  box-shadow: 0 0 35px rgba(199, 243, 3, 0.65);
-}
-.hl-cyan {
-  display: inline-block; position: relative;
-  background: linear-gradient(90deg, #06b6d4, #22d3ee); color: #020409;
-  padding: 4px 20px; border-radius: 18px;
-  box-shadow: 0 0 35px rgba(34, 211, 238, 0.65);
-}
-.hl-red {
-  display: inline-block; position: relative;
-  background: linear-gradient(90deg, #ef4444, #f97316); color: #ffffff;
-  padding: 4px 20px; border-radius: 18px;
-  box-shadow: 0 0 35px rgba(239, 68, 68, 0.65);
-}
-.sub-hero {
-  font-size: 31px; font-weight: 700; line-height: 1.24;
-  color: #e2e8f0; margin-top: 10px;
-  max-width: min(1260px, 95%);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.7);
-}
-
-/* TERCIO MEDIO — ESCENARIO DINÁMICO 60 FPS MÓVIL XL */
-.middle-container {
-  position: absolute; top: 270px; left: 32px; right: 32px; height: 910px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  z-index: 15;
-}
-.hud-glass-pro {
-  background: linear-gradient(145deg, rgba(10, 19, 40, 0.96) 0%, rgba(5, 10, 22, 0.96) 100%);
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  border-radius: 28px;
-}
-.corner-bracket {
-  position: absolute; width: 24px; height: 24px;
-  border-color: var(--w-cyan-bright); pointer-events: none;
-  filter: drop-shadow(0 0 8px var(--w-cyan-bright));
-}
-.cb-tl { top: -2px; left: -2px; border-top: 3.5px solid; border-left: 3.5px solid; border-top-left-radius: 10px; }
-.cb-tr { top: -2px; right: -2px; border-top: 3.5px solid; border-right: 3.5px solid; border-top-right-radius: 10px; }
-.cb-bl { bottom: -2px; left: -2px; border-bottom: 3.5px solid; border-left: 3.5px solid; border-bottom-left-radius: 10px; }
-.cb-br { bottom: -2px; right: -2px; border-bottom: 3.5px solid; border-right: 3.5px solid; border-bottom-right-radius: 10px; }
-
-/* ARQUETIPO ESTRELLA 1: LIENZO NODOS N8N WAPPY (wappy-n8n-workflow) */
-.n8n-canvas-stage {
-  width: 96%; height: 780px; padding: 26px 28px; position: relative; overflow: hidden;
-  display: flex; flex-direction: column; justify-content: space-between;
-  border: 2.5px solid rgba(199, 243, 3, 0.55);
-}
-.n8n-dot-grid {
-  position: absolute; inset: 0;
-  background-image: radial-gradient(rgba(34, 211, 238, 0.28) 2px, transparent 2px);
-  background-size: 28px 28px; opacity: 0.65; pointer-events: none;
-}
-.n8n-top-bar {
-  position: relative; z-index: 4; display: flex; align-items: center; justify-content: space-between;
-}
-.n8n-badge-live {
-  display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px; border-radius: 999px;
-  background: rgba(14, 19, 0, 0.92); border: 2px solid var(--w-lime);
-  font-family: var(--mono); font-size: 18px; font-weight: 900; color: var(--w-lime);
-}
-.n8n-exec-time {
-  font-family: var(--mono); font-size: 18px; font-weight: 800; color: #4ade80;
-  background: rgba(34, 197, 94, 0.16); border: 1.5px solid #22c55e; padding: 6px 18px; border-radius: 999px;
-}
-.n8n-nodes-track {
-  position: relative; z-index: 4; width: 100%; height: 430px;
-}
-.n8n-bezier-svg {
-  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;
-}
-.n8n-node {
-  position: absolute; width: 250px; padding: 18px 16px; border-radius: 24px;
-  background: rgba(7, 13, 28, 0.96); border: 2.5px solid rgba(255,255,255,0.28);
-  box-shadow: 0 18px 40px rgba(0,0,0,0.85);
-  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; z-index: 3;
-}
-.n8n-node-trigger { top: 45px; left: 10px; border-color: #f59e0b; }
-.n8n-node-agent {
-  top: 28px; left: 50%; transform: translateX(-50%); width: 280px;
-  border: 3px solid var(--w-lime); box-shadow: 0 0 42px rgba(199,243,3,0.35);
-}
-.n8n-node-output { top: 45px; right: 10px; border-color: #22c55e; }
-.n8n-node-badge {
-  font-family: var(--mono); font-size: 13px; font-weight: 900; background: var(--w-lime); color: #0e1300;
-  padding: 2px 12px; border-radius: 999px;
-}
-.n8n-node-ico {
-  width: 68px; height: 68px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
-}
-.n8n-node-title { font-size: 24px; font-weight: 900; color: #fff; line-height: 1.1; }
-.n8n-node-sub { font-size: 18px; font-weight: 700; color: #cbd5e1; }
-.n8n-subnode {
-  position: absolute; bottom: 22px; padding: 12px 22px; border-radius: 18px;
-  background: rgba(12, 25, 46, 0.95); border: 2px solid var(--w-cyan-bright);
-  display: inline-flex; align-items: center; gap: 12px;
-  font-family: var(--mono); font-size: 19px; font-weight: 800; color: #fff; z-index: 3;
-}
-.n8n-subnode-left { left: 95px; }
-.n8n-subnode-right { right: 95px; border-color: var(--w-teal-bright); }
-.n8n-result-banner {
-  position: relative; z-index: 4; padding: 20px 26px; border-radius: 22px;
-  background: linear-gradient(90deg, rgba(199,243,3,0.22), rgba(13,148,136,0.25));
-  border: 2.5px solid var(--w-lime); display: flex; align-items: center; gap: 18px;
-}
-.n8n-res-pill {
-  padding: 8px 18px; border-radius: 999px; background: var(--w-lime); color: #0e1300;
-  font-family: var(--mono); font-size: 18px; font-weight: 900; flex-shrink: 0;
-}
-.n8n-res-text { font-size: 24px; font-weight: 800; color: #fff; line-height: 1.2; text-align: left; }
-
-/* ARQUETIPO ESTRELLA 2: VISOR DE NORMA REAL SST (visor-normativo-real) */
-.norma-sheet-paper {
-  width: 95%; padding: 34px 38px; border-radius: 30px;
-  background: #f6f5ef; color: #0e1300;
-  border: 4px solid #0d9488;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.9), 0 0 45px rgba(13,148,136,0.35);
-  display: flex; flex-direction: column; gap: 24px; position: relative;
-}
-.norma-paper-header {
-  display: flex; align-items: center; gap: 18px; border-bottom: 3px solid rgba(13,148,136,0.28); padding-bottom: 18px;
-}
-.norma-header-meta { flex: 1; text-align: left; }
-.norma-code-tag {
-  font-family: var(--mono); font-size: 20px; font-weight: 900; color: #0d9488; letter-spacing: 0.06em;
-}
-.norma-doc-title { font-size: 34px; font-weight: 900; color: #0e1300; line-height: 1.1; }
-.norma-official-pill {
-  padding: 8px 20px; border-radius: 999px; background: #0e1300; color: var(--w-lime);
-  font-family: var(--mono); font-size: 17px; font-weight: 900;
-}
-.norma-paper-body {
-  background: #ffffff; border: 2px solid #cbd5e1; border-radius: 22px; padding: 28px 30px;
-  text-align: left; box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
-}
-.norma-paragraph { font-size: 31px; font-weight: 700; line-height: 1.38; color: #1e293b; }
-.norma-txt-muted { color: #475569; }
-.norma-fluor-wrap { position: relative; display: inline; }
-.norma-fluor-bg {
-  position: absolute; left: 0; bottom: 0; top: 0; width: 0%;
-  background: #c7f303; border-radius: 8px; z-index: 1; pointer-events: none;
-  box-shadow: 0 0 18px rgba(199,243,3,0.65);
-}
-.norma-fluor-text { position: relative; z-index: 2; font-weight: 900; color: #0e1300; padding: 0 6px; }
-.norma-paper-footer {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-}
-.norma-source-tag {
-  display: inline-flex; align-items: center; gap: 10px;
-  font-family: var(--mono); font-size: 19px; font-weight: 800; color: #0f172a;
-}
-.norma-verified-stamp {
-  padding: 12px 26px; border-radius: 16px;
-  background: #16a34a; color: #ffffff; border: 3px solid #0e1300;
-  font-family: var(--mono); font-size: 22px; font-weight: 900; letter-spacing: 0.05em;
-  box-shadow: 0 10px 25px rgba(22,163,74,0.45);
-}
-
-/* ARQUETIPO ESTRELLA 3: SPLIT-SCREEN ANTES VS DESPUÉS (flow-split-before-after) */
-.flow-split-wrapper {
-  width: 96%; display: flex; flex-direction: column; gap: 18px; position: relative;
-}
-.flow-panel {
-  padding: 26px 32px; border-radius: 28px; display: flex; flex-direction: column; gap: 14px; position: relative;
-}
-.flow-panel-before {
-  background: linear-gradient(135deg, rgba(239,68,68,0.26) 0%, rgba(15,10,20,0.96) 100%);
-  border: 2.5px solid #ef4444; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-}
-.flow-panel-after {
-  background: linear-gradient(135deg, rgba(199,243,3,0.22) 0%, rgba(7,18,28,0.96) 100%);
-  border: 3px solid var(--w-lime); box-shadow: 0 20px 50px rgba(0,0,0,0.85), 0 0 42px rgba(199,243,3,0.32);
-}
-.flow-panel-top { display: flex; align-items: center; justify-content: space-between; }
-.flow-tag-bad {
-  padding: 6px 18px; border-radius: 999px; background: rgba(239,68,68,0.25); border: 1.5px solid #ef4444;
-  font-family: var(--mono); font-size: 19px; font-weight: 900; color: #fca5a5;
-}
-.flow-time-bad { font-family: var(--mono); font-size: 18px; font-weight: 800; color: #f87171; }
-.flow-tag-good {
-  padding: 6px 18px; border-radius: 999px; background: var(--w-lime); color: #0e1300;
-  font-family: var(--mono); font-size: 19px; font-weight: 900;
-}
-.flow-time-good { font-family: var(--mono); font-size: 18px; font-weight: 900; color: var(--w-lime); }
-.flow-panel-title { font-size: 36px; font-weight: 900; color: #fff; text-align: left; line-height: 1.1; }
-.flow-bullet-list { display: flex; flex-direction: column; gap: 10px; }
-.flow-bullet-item {
-  display: flex; align-items: center; gap: 14px; font-size: 25px; font-weight: 700; text-align: left;
-}
-.flow-bullet-bad { color: #fecaca; }
-.flow-bullet-good { color: #f8fafc; }
-.flow-center-divider {
-  align-self: center; margin: -12px 0; z-index: 25;
-  padding: 10px 30px; border-radius: 999px;
-  background: #0e1300; border: 3px solid var(--w-lime);
-  box-shadow: 0 0 32px rgba(199,243,3,0.75);
-  display: inline-flex; align-items: center; gap: 12px;
-  font-family: var(--mono); font-size: 22px; font-weight: 900; color: var(--w-lime);
-}
-
-/* ARQUETIPO ESTRELLA 4: CONSOLA DE VOZ SURI 3D / TENSHI LIVE 24KHZ (suri-voice-live-hud) */
-.suri-console-card {
-  width: 96%; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px;
-  border: 2.5px solid var(--w-cyan-bright);
-}
-.suri-console-header { display: flex; align-items: center; justify-content: space-between; }
-.suri-host-title { font-size: 30px; font-weight: 900; color: #fff; text-align: left; }
-.suri-host-sub { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--w-cyan-bright); text-align: left; }
-.suri-onair-pill {
-  display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 999px;
-  background: rgba(199,243,3,0.18); border: 2px solid var(--w-lime);
-  font-family: var(--mono); font-size: 18px; font-weight: 900; color: var(--w-lime);
-}
-.suri-stage-center {
-  display: flex; align-items: center; justify-content: center; gap: 34px; padding: 14px 0;
-}
-.suri-avatar-orb-wrap {
-  position: relative; width: 170px; height: 170px; display: flex; align-items: center; justify-content: center;
-}
-.suri-pulse-ring {
-  position: absolute; inset: -10px; border-radius: 50%;
-  border: 4px solid var(--w-lime); box-shadow: 0 0 38px rgba(199,243,3,0.65);
-}
-.suri-center-img { width: 155px; height: 155px; object-fit: contain; position: relative; z-index: 2; }
-.suri-waveform-box {
-  flex: 1; height: 120px; background: rgba(3,8,18,0.9); border: 2px solid rgba(34,211,238,0.4);
-  border-radius: 22px; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-}
-.suri-wave-bar {
-  flex: 1; height: 30%; border-radius: 999px;
-  background: linear-gradient(180deg, var(--w-lime) 0%, var(--w-cyan-bright) 100%);
-  box-shadow: 0 0 12px rgba(199,243,3,0.45);
-}
-.suri-dialog-stack { display: flex; flex-direction: column; gap: 16px; }
-.suri-bubble {
-  padding: 20px 26px; border-radius: 24px; text-align: left; display: flex; flex-direction: column; gap: 8px;
-}
-.suri-bubble-user {
-  background: rgba(15,23,42,0.95); border: 2px solid rgba(34,211,238,0.55);
-}
-.suri-bubble-ai {
-  background: linear-gradient(135deg, rgba(199,243,3,0.22), rgba(13,148,136,0.28));
-  border: 2.5px solid var(--w-lime);
-}
-.suri-bub-tag {
-  align-self: flex-start; padding: 4px 14px; border-radius: 999px;
-  background: rgba(34,211,238,0.22); color: var(--w-cyan-bright);
-  font-family: var(--mono); font-size: 16px; font-weight: 900;
-}
-.suri-bubble p { font-size: 26px; font-weight: 800; color: #ffffff; line-height: 1.25; }
-
-/* ARQUETIPO ESTRELLA 5: CUADRÍCULA +50 HERRAMIENTAS IA (cuadricula-50-herramientas) */
-.tools50-wrapper { width: 96%; display: flex; flex-direction: column; gap: 22px; }
-.tools50-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.tools50-cell {
-  padding: 20px 22px; border-radius: 22px; display: flex; flex-direction: column; gap: 8px;
-  border: 2px solid rgba(34,211,238,0.45); text-align: left;
-}
-.tools50-cell-top { display: flex; align-items: center; justify-content: space-between; }
-.tools50-code { font-family: var(--mono); font-size: 22px; font-weight: 900; color: var(--w-lime); }
-.tools50-status {
-  padding: 3px 10px; border-radius: 999px; background: rgba(34,197,94,0.22); border: 1px solid #22c55e;
-  font-family: var(--mono); font-size: 14px; font-weight: 900; color: #4ade80;
-}
-.tools50-name { font-size: 24px; font-weight: 800; color: #ffffff; }
-.tools50-saving-card {
-  padding: 24px 30px; border-radius: 28px; border: 3px solid var(--w-lime);
-  background: linear-gradient(135deg, rgba(199,243,3,0.24), rgba(7,13,28,0.96));
-  display: flex; align-items: center; gap: 24px;
-}
-.tools50-ring-badge {
-  width: 112px; height: 112px; border-radius: 50%; flex-shrink: 0;
-  background: var(--w-lime); color: #0e1300; border: 4px solid #ffffff;
-  font-family: var(--mono); font-size: 34px; font-weight: 900;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 35px rgba(199,243,3,0.75);
-}
-.tools50-saving-info { text-align: left; }
-.tools50-saving-title { font-size: 32px; font-weight: 900; color: var(--w-lime); line-height: 1.1; }
-.tools50-saving-sub { font-size: 23px; font-weight: 700; color: #f1f5f9; margin-top: 6px; }
-
-/* ARQUETIPO 1: HOOK VS + HEADLINE WALL */
-.hook-box {
-  width: min(1340px, 100%); display: flex; flex-direction: column; gap: 24px; margin-top: -16px;
-}
-.hook-card {
-  padding: 28px 32px; border-radius: 28px;
-  display: flex; align-items: center; gap: 26px; position: relative;
-}
-.hook-card-bad {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.24) 0%, rgba(15, 10, 20, 0.96) 100%);
-  border: 2.5px solid rgba(239, 68, 68, 0.75);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 35px rgba(239, 68, 68, 0.28);
-}
-.hook-card-good {
-  background: linear-gradient(135deg, rgba(199, 243, 3, 0.22) 0%, rgba(7, 18, 28, 0.96) 100%);
-  border: 3px solid var(--w-lime);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 42px rgba(199, 243, 3, 0.32);
-}
-.hook-ico-box {
-  width: 94px; height: 94px; border-radius: 24px;
-  display: flex; align-items: center; justify-content: center; font-size: 48px;
-  flex-shrink: 0;
-}
-.hook-text h3 { font-size: 36px; font-weight: 900; color: #fff; line-height: 1.1; }
-.hook-text p { font-size: 25px; font-weight: 600; color: #e2e8f0; margin-top: 6px; line-height: 1.25; }
-.hook-badge {
-  margin-left: auto; padding: 12px 24px; border-radius: 999px;
-  font-family: var(--mono); font-size: 21px; font-weight: 900; flex-shrink: 0;
-}
-.headline-wall-wrap {
-  position: absolute; bottom: 16px; left: -40px; right: -40px;
-  display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
-  transform: rotate(-1.5deg); z-index: 5; opacity: 0.92;
-}
-.headline-track {
-  display: flex; gap: 24px; white-space: nowrap; font-family: var(--sans);
-  font-size: 25px; font-weight: 900; text-transform: uppercase;
-}
-.headline-pill-lime {
-  background: var(--w-lime); color: #0e1300; padding: 6px 22px; border-radius: 999px;
-  box-shadow: 0 0 20px var(--w-lime-glow);
-}
-.headline-pill-dark {
-  background: rgba(14, 19, 0, 0.92); color: #fff; padding: 6px 22px; border-radius: 999px;
-  border: 2px solid var(--w-lime);
-}
-
-/* ARQUETIPO 2: IPHONE 3D SPLIT SHOWCASE */
-.split-showcase {
-  width: min(1340px, 100%); display: flex; align-items: center; justify-content: center; gap: 26px;
-}
-.iphone-frame {
-  width: 400px; height: 745px; border-radius: 52px;
-  background: #050a14; border: 5px solid #334155;
-  box-shadow: 0 35px 80px rgba(0,0,0,0.92), 0 0 40px rgba(6, 182, 212, 0.35);
-  position: relative; overflow: hidden; padding: 16px 14px;
-  display: flex; flex-direction: column; flex-shrink: 0;
-}
-.dynamic-island {
-  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-  width: 160px; height: 34px; border-radius: 999px; background: #000;
-  display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
-  border: 1.5px solid rgba(255,255,255,0.22); z-index: 30;
-}
-.island-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--w-lime); box-shadow: 0 0 8px var(--w-lime); }
-.island-text { font-family: var(--mono); font-size: 12px; font-weight: 800; color: #fff; }
-.iphone-screen {
-  flex: 1; border-radius: 38px; background: linear-gradient(180deg, #070d1c 0%, #03060c 100%);
-  border: 1px solid rgba(255,255,255,0.14); padding: 50px 14px 14px 14px;
-  display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden;
-}
-.iphone-qr-box {
-  background: #020611; border: 2.5px solid var(--w-teal-bright); border-radius: 22px;
-  padding: 18px; display: flex; flex-direction: column; align-items: center;
-  position: relative; box-shadow: 0 0 28px rgba(20, 184, 166, 0.35); overflow: hidden;
-}
-.qr-ico { font-size: 64px; line-height: 1; }
-.qr-scan-line {
-  position: absolute; left: 0; right: 0; height: 3px; background: var(--w-lime);
-  box-shadow: 0 0 14px var(--w-lime); top: 10%;
-}
-.iphone-alert-pill {
-  padding: 13px 16px; border-radius: 16px; background: rgba(199, 243, 3, 0.16);
-  border: 1.5px solid var(--w-lime); font-size: 19px; font-weight: 800; color: #fff;
-  display: flex; align-items: center; gap: 10px;
-}
-.side-cards-col {
-  flex: 1; display: flex; flex-direction: column; gap: 20px;
-}
-.side-card {
-  padding: 24px 26px; border-radius: 26px;
-  background: rgba(7, 13, 28, 0.95);
-  border: 2px solid rgba(34, 211, 238, 0.45);
-  display: flex; align-items: center; gap: 20px;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.75);
-}
-.side-card-ico {
-  width: 72px; height: 72px; border-radius: 20px;
-  display: flex; align-items: center; justify-content: center; font-size: 38px;
-  flex-shrink: 0;
-}
-.side-card-text h4 { font-size: 30px; font-weight: 900; color: #fff; line-height: 1.1; }
-.side-card-text p { font-size: 22px; font-weight: 700; color: #cbd5e1; margin-top: 5px; line-height: 1.2; }
-
-/* ARQUETIPO 3: PAD DE FIRMAS DIGITALES SVG EN VIVO */
-.sig-card {
-  padding: 20px 24px; border-radius: 24px;
-  background: rgba(7, 13, 28, 0.95);
-  border: 2px solid rgba(45, 212, 191, 0.55);
-  display: flex; flex-direction: column; gap: 10px;
-  box-shadow: 0 16px 36px rgba(0,0,0,0.75);
-}
-.sig-header { display: flex; align-items: center; justify-content: space-between; }
-.sig-role { font-size: 26px; font-weight: 900; color: #fff; display: flex; align-items: center; gap: 10px; }
-.sig-status {
-  padding: 6px 16px; border-radius: 999px;
-  background: rgba(34, 197, 94, 0.22); border: 1.5px solid #22c55e;
-  font-family: var(--mono); font-size: 17px; font-weight: 900; color: #4ade80;
-}
-.sig-pad-canvas {
-  height: 76px; border-radius: 16px;
-  background: rgba(2, 6, 14, 0.92);
-  border: 1.5px dashed rgba(34, 211, 238, 0.45);
-  display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden;
-}
-.sig-svg { width: 340px; height: 64px; }
-.sig-path {
-  fill: none; stroke: var(--w-lime); stroke-width: 4.5;
-  stroke-linecap: round; stroke-linejoin: round;
-  filter: drop-shadow(0 0 8px rgba(199, 243, 3, 0.6));
-  stroke-dasharray: 420; stroke-dashoffset: 420;
-}
-
-/* ARQUETIPO 4: MOTOR ANALÍTICO & CHART GROW */
-.formula-banner {
-  width: min(1340px, 100%); padding: 18px 28px; border-radius: 22px;
-  background: linear-gradient(90deg, rgba(6, 182, 212, 0.25) 0%, rgba(199, 243, 3, 0.22) 100%);
-  border: 2px solid var(--w-cyan-bright);
-  display: flex; align-items: center; justify-content: space-between;
-  font-family: var(--mono); font-size: 25px; font-weight: 900; color: #fff;
-  margin-bottom: 18px; box-shadow: 0 12px 30px rgba(0,0,0,0.7);
-}
-.risk-card {
-  padding: 20px 24px; border-radius: 24px;
-  background: rgba(7, 13, 28, 0.96);
-  display: flex; flex-direction: column; gap: 10px;
-  box-shadow: 0 16px 36px rgba(0,0,0,0.78);
-}
-.risk-top { display: flex; align-items: center; justify-content: space-between; }
-.risk-title { font-size: 28px; font-weight: 900; color: #fff; }
-.risk-nr-pill {
-  padding: 6px 18px; border-radius: 999px;
-  font-family: var(--mono); font-size: 22px; font-weight: 900;
-}
-.risk-sub { font-size: 21px; font-weight: 700; color: #cbd5e1; }
-.risk-bar-bg {
-  width: 100%; height: 16px; border-radius: 999px;
-  background: rgba(255,255,255,0.12); overflow: hidden;
-}
-.risk-bar-fill { height: 100%; width: 0%; border-radius: 999px; }
-.chart-bars-wrap {
-  display: flex; align-items: flex-end; justify-content: center; gap: 10px; height: 140px;
-  padding: 0 6px;
-}
-.chart-col {
-  flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px;
-}
-.col-bar {
-  width: 100%; height: 0%; border-radius: 8px 8px 0 0;
-  background: linear-gradient(180deg, var(--w-lime) 0%, var(--w-teal) 100%);
-  box-shadow: 0 0 16px rgba(199, 243, 3, 0.38);
-  min-height: 4px;
-}
-.col-label { font-family: var(--mono); font-size: 16px; color: #e2e8f0; font-weight: 800; }
-
-/* ARQUETIPO 5: PENTÁGONO ORBITAL CON RAYOS LÁSER */
-.orbital-stage { position: relative; width: 1010px; height: 845px; }
-.biocore-center {
-  position: absolute; top: 435px; left: 505px;
-  transform: translate(-50%, -50%);
-  width: 326px; height: 326px; border-radius: 50%;
-  background: radial-gradient(circle at 50% 40%, #0d2b45 0%, #070d1c 75%, #050a14 100%);
-  border: 4.5px solid var(--w-cyan-bright);
-  outline: 3.5px solid rgba(199, 243, 3, 0.72);
-  outline-offset: 10px;
-  box-shadow: 0 0 65px rgba(34, 211, 238, 0.7), inset 0 0 40px rgba(34, 211, 238, 0.45);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  z-index: 12; padding: 16px;
-}
-.biocore-fingerprint {
-  font-size: 112px; line-height: 1;
-  filter: drop-shadow(0 0 24px var(--w-cyan-bright));
-  margin-bottom: 6px;
-}
-.biocore-label {
-  font-family: var(--mono); font-size: 21px; font-weight: 900; color: var(--w-lime);
-  letter-spacing: 0.04em; margin-top: 2px; white-space: nowrap;
-}
-.biocore-match {
-  padding: 6px 20px; border-radius: 9999px; background: rgba(199, 243, 3, 0.25);
-  border: 2px solid var(--w-lime); font-size: 23px; font-weight: 900; color: var(--w-lime);
-  margin-top: 6px; white-space: nowrap;
-}
-.pulse-ring {
-  position: absolute; border-radius: 50%; border: 2.5px dashed rgba(34, 211, 238, 0.38);
-  pointer-events: none; top: 435px; left: 505px; transform: translate(-50%, -50%);
-}
-.ring-1 { width: 480px; height: 480px; }
-.ring-2 { width: 730px; height: 730px; border-color: rgba(13, 148, 136, 0.35); }
-.orbital-node {
-  position: absolute; width: 380px; padding: 18px 22px; border-radius: 24px;
-  background: rgba(7, 13, 28, 0.96);
-  border: 2.5px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 18px 40px rgba(0,0,0,0.85), 0 0 28px rgba(6, 182, 212, 0.28);
-  display: flex; align-items: center; gap: 16px;
-  z-index: 15; transform: translate(-50%, -50%);
-}
-.node-ico {
-  width: 64px; height: 64px; border-radius: 18px;
-  display: flex; align-items: center; justify-content: center; font-size: 34px; flex-shrink: 0;
-}
-.node-title { font-size: 27px; font-weight: 900; color: #fff; line-height: 1.1; white-space: nowrap; }
-.node-sub { font-size: 21px; font-weight: 700; color: #cbd5e1; margin-top: 4px; white-space: nowrap; }
-.pos-node-1 { top: 85px;  left: 505px; border-color: rgba(45, 212, 191, 0.9); }
-.pos-node-2 { top: 250px; left: 812px; border-color: rgba(34, 211, 238, 0.9); }
-.pos-node-3 { top: 735px; left: 745px; border-color: rgba(245, 158, 11, 0.9); }
-.pos-node-4 { top: 735px; left: 265px; border-color: rgba(239, 68, 68, 0.9); }
-.pos-node-5 { top: 250px; left: 198px; border-color: rgba(199, 243, 3, 0.95); }
-.laser-connections { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-
-/* ARQUETIPO 6: TENSHI & ESPECIALISTAS GRID */
-.especialistas-box {
-  width: min(1340px, 100%); display: flex; flex-direction: column; gap: 20px; perspective: 1200px;
-}
-.tenshi-header-card {
-  padding: 24px 30px; border-radius: 28px;
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.30) 0%, rgba(7, 13, 28, 0.96) 100%);
-  border: 2.5px solid var(--w-cyan-bright);
-  box-shadow: 0 0 40px rgba(6, 182, 212, 0.38);
-  display: flex; align-items: center; gap: 24px; position: relative;
-}
-.tenshi-orb-img {
-  width: 104px; height: 104px; border-radius: 50%;
-  background: #000; border: 3px solid var(--w-cyan-bright);
-  box-shadow: 0 0 32px var(--w-cyan-bright);
-  display: flex; align-items: center; justify-content: center;
-  overflow: visible; flex-shrink: 0; position: relative;
-}
-.tenshi-orb-img img {
-  width: 108%; height: 108%; object-fit: contain;
-  transform: translateY(-6px) scale(1.12);
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.8));
-}
-.tenshi-h-info h3 { font-size: 36px; font-weight: 900; color: #fff; line-height: 1.1; }
-.tenshi-h-info p { font-size: 24px; font-weight: 700; color: var(--w-cyan-bright); margin-top: 5px; }
-.spec-list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.spec-item {
-  padding: 22px 24px; border-radius: 24px;
-  background: rgba(7, 13, 28, 0.94); border: 2px solid rgba(255, 255, 255, 0.18);
-  display: flex; align-items: center; gap: 18px;
-  box-shadow: 0 14px 34px rgba(0,0,0,0.65);
-}
-.spec-ico {
-  width: 66px; height: 66px; border-radius: 16px;
-  display: flex; align-items: center; justify-content: center; font-size: 34px; flex-shrink: 0;
-}
-.spec-text h4 { font-size: 28px; font-weight: 900; color: #fff; line-height: 1.1; }
-.spec-text p { font-size: 21px; font-weight: 700; color: #cbd5e1; margin-top: 4px; }
-.spec-cloud-tags { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 6px; }
-.spec-pill-tag {
-  padding: 10px 22px; border-radius: 9999px;
-  background: rgba(13, 148, 136, 0.18); border: 1.5px solid rgba(45, 212, 191, 0.45);
-  font-family: var(--mono); font-size: 20px; font-weight: 800; color: var(--w-teal-bright);
-}
-
-/* ARQUETIPO 7: CTA VIRAL CON BURBUJAS SOCIALES */
-.cta-box {
-  width: min(1320px, 100%); padding: 34px 40px; border-radius: 36px;
-  display: flex; flex-direction: column; align-items: center; text-align: center;
-  background: rgba(7, 13, 28, 0.96);
-  border: 3px solid var(--w-lime);
-  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.92), 0 0 65px rgba(199, 243, 3, 0.35);
-  position: relative;
-}
-.cta-header-line {
-  font-family: var(--mono); font-size: 22px; font-weight: 800; color: var(--w-cyan-bright);
-  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px;
-}
-.cta-keyword-box {
-  margin-top: 14px; width: 100%; padding: 24px; border-radius: 28px;
-  background: rgba(14, 19, 0, 0.94); border: 2.5px solid var(--w-lime);
-  box-shadow: 0 0 45px rgba(199, 243, 3, 0.35);
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
-}
-.cta-instruction { font-size: 28px; font-weight: 800; color: #ffffff; }
-.cta-keyword-pill {
-  padding: 14px 60px; border-radius: 999px;
-  background: var(--w-lime); color: #0e1300;
-  font-size: 64px; font-weight: 900; letter-spacing: 0.08em;
-  box-shadow: 0 16px 45px rgba(199, 243, 3, 0.7), 0 0 35px #fff;
-  border: 3.5px solid #ffffff;
-}
-.cta-gift-pill {
-  padding: 10px 26px; border-radius: 999px;
-  background: rgba(13, 148, 136, 0.38); border: 2px solid var(--w-teal-bright);
-  font-family: var(--mono); font-size: 20px; font-weight: 900; color: var(--w-teal-bright);
-}
-.social-comment-bubble {
-  position: absolute; padding: 14px 24px; border-radius: 22px;
-  background: rgba(15, 23, 42, 0.96); border: 2px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 22px rgba(199, 243, 3, 0.32);
-  font-family: var(--sans); font-size: 23px; font-weight: 800; color: #ffffff;
-  display: flex; align-items: center; gap: 12px; z-index: 30; pointer-events: none;
-}
-.social-comment-bubble .bubble-user {
-  width: 34px; height: 34px; border-radius: 50%; background: var(--w-lime);
-  display: flex; align-items: center; justify-content: center; font-size: 18px; color: #000;
-}
-.bubble-1 { top: 18px; left: 0px; }
-.bubble-2 { bottom: 52px; left: 0px; }
-.bubble-3 { top: 18px; right: 0px; }
-.bubble-4 { bottom: 52px; right: 0px; }
-.cta-btn-main {
-  margin-top: 16px; padding: 14px 54px; border-radius: 9999px;
-  background: linear-gradient(90deg, var(--w-teal-bright), var(--w-lime));
-  border: 2.5px solid #ffffff;
-  box-shadow: 0 16px 45px rgba(199, 243, 3, 0.5);
-  font-size: 34px; font-weight: 900; color: #0e1300;
-  display: flex; align-items: center; gap: 14px;
-}
-
-/* PORTADA MAGNÉTICA OFICIAL 0.00s - 2.00s (ESTILO REEL MATRIZ GTC 45 & PLATAFORMA 40S) */
-#particles-canvas {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  pointer-events: none; z-index: 2; opacity: 0.72;
-}
-#hud-top-bar {
-  position: absolute; top: 14px; left: 40px; right: 40px; height: 36px;
-  display: flex; align-items: center; justify-content: space-between;
-  z-index: 35; pointer-events: none;
-}
-.hud-top-left {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(7, 13, 28, 0.85); border: 1.5px solid rgba(34, 211, 238, 0.45);
-  padding: 4px 14px; border-radius: 999px;
-  font-family: var(--mono); font-size: 13px; font-weight: 800; color: #e2e8f0;
-}
-.hud-top-right {
-  font-family: var(--mono); font-size: 13px; font-weight: 900;
-  color: var(--w-lime); background: rgba(14, 19, 0, 0.88);
-  border: 1.5px solid var(--w-lime); padding: 4px 14px; border-radius: 999px;
-}
-.cover-layout {
-  position: absolute; inset: 54px 38px 34px 38px;
-  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-  z-index: 25;
-}
-.cover-top-brand {
-  display: inline-flex; align-items: center; gap: 12px;
-  padding: 10px 26px; border-radius: 999px;
-  background: rgba(7, 13, 28, 0.94); border: 2px solid var(--w-lime);
-  box-shadow: 0 0 28px rgba(199, 243, 3, 0.35);
-}
-.cover-top-brand-xl {
-  background: var(--w-lime);
-  border: 2.5px solid #ffffff;
-  box-shadow: 0 12px 36px rgba(199, 243, 3, 0.55);
-  padding: 12px 32px;
-}
-.cover-top-brand-xl .cover-brand-text {
-  color: #0e1300;
-  font-size: 22px;
-  font-weight: 900;
-}
-.cover-logo-w { width: 34px; height: 34px; border-radius: 8px; object-fit: contain; }
-.cover-brand-text {
-  font-family: var(--mono); font-size: 20px; font-weight: 900;
-  color: var(--w-lime); letter-spacing: 0.08em; text-transform: uppercase;
-}
-.cover-title-block {
-  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
-}
-.cover-t-line1 {
-  font-size: clamp(52px, 8.5vw, 92px); font-weight: 900; color: #ffffff; letter-spacing: -0.03em;
-  text-shadow: 0 6px 24px rgba(0,0,0,0.85); line-height: 1.02;
-}
-.cover-t-row {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px;
-}
-.hl-red-tilted {
-  display: inline-block; padding: 6px 24px; border-radius: 18px;
-  background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff;
-  font-size: clamp(46px, 7.2vw, 76px); font-weight: 900; border: 2.5px solid #fca5a5;
-  transform: rotate(-1.5deg); box-shadow: 0 12px 32px rgba(239, 68, 68, 0.55);
-}
-.hl-lime-tilted {
-  display: inline-block; padding: 6px 24px; border-radius: 18px;
-  background: var(--w-lime); color: #0e1300;
-  font-size: clamp(46px, 7.2vw, 76px); font-weight: 900; border: 2.5px solid #ffffff;
-  transform: rotate(1.2deg); box-shadow: 0 12px 36px rgba(199, 243, 3, 0.65);
-}
-.cover-official-logos-strip {
-  width: min(1000px, 100%);
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px;
-  margin-top: 2px;
-}
-.official-logo-pill {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 8px 18px; border-radius: 999px;
-  background: rgba(7, 13, 28, 0.94); border: 1.8px solid rgba(34, 211, 238, 0.5);
-  box-shadow: 0 8px 22px rgba(0,0,0,0.65);
-  font-family: var(--mono); font-size: 16px; font-weight: 900; color: #f8fafc;
-}
-.official-logo-pill-highlight {
-  background: rgba(199, 243, 3, 0.18);
-  border-color: var(--w-lime);
-  color: var(--w-lime);
-  box-shadow: 0 0 24px rgba(199, 243, 3, 0.35);
-}
-.cover-hero-stage {
-  width: min(1000px, 100%); display: flex; align-items: center; justify-content: center; gap: 28px;
-  margin: 4px 0;
-}
-.cover-avatar-card {
-  position: relative; width: 400px; height: 490px;
-  border-radius: 34px; background: radial-gradient(circle at 50% 38%, rgba(34,211,238,0.26), rgba(7,13,28,0.95) 72%);
-  border: 2.5px solid rgba(199, 243, 3, 0.78);
-  box-shadow: 0 28px 65px rgba(0,0,0,0.88), 0 0 42px rgba(199, 243, 3, 0.28);
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  overflow: hidden; padding-bottom: 14px;
-}
-.cover-avatar-aura {
-  position: absolute; width: 320px; height: 320px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(199,243,3,0.34) 0%, transparent 70%);
-  top: 45px; left: 50%; transform: translateX(-50%); pointer-events: none;
-}
-.cover-avatar-img {
-  width: 94%; height: 88%; object-fit: contain; object-position: bottom center;
-  filter: drop-shadow(0 16px 28px rgba(0,0,0,0.85)); z-index: 2;
-}
-.cover-avatar-tag {
-  z-index: 3; margin-top: -12px; padding: 7px 18px; border-radius: 999px;
-  background: rgba(5, 10, 20, 0.94); border: 1.5px solid var(--w-cyan-bright);
-  font-family: var(--mono); font-size: 14px; font-weight: 900; color: #fff;
-  display: inline-flex; align-items: center; gap: 8px;
-}
-.dot-live {
-  width: 9px; height: 9px; border-radius: 50%; background: var(--w-lime);
-  box-shadow: 0 0 10px var(--w-lime);
-}
-.cover-iphone-tilted {
-  width: 345px; height: 505px; border-radius: 44px;
-  background: #050a14; border: 4.5px solid #38bdf8;
-  box-shadow: 0 32px 75px rgba(0,0,0,0.92), 0 0 42px rgba(34, 211, 238, 0.38);
-  position: relative; overflow: hidden; padding: 14px 12px;
-  display: flex; flex-direction: column; transform: rotate(3.5deg);
-}
-.iphone-ui-real {
-  flex: 1; border-radius: 32px; background: linear-gradient(180deg, #081226 0%, #030711 100%);
-  border: 1px solid rgba(255,255,255,0.16); padding: 42px 12px 12px 12px;
-  display: flex; flex-direction: column; gap: 10px; justify-content: space-between;
-}
-.ui-app-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,0.06);
-}
-.ui-live-pill {
-  padding: 3px 10px; border-radius: 999px; background: rgba(199, 243, 3, 0.22);
-  border: 1px solid var(--w-lime); font-family: var(--mono); font-size: 11px; font-weight: 900; color: var(--w-lime);
-}
-.ui-kpi-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.ui-kpi-mini {
-  background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(34,211,238,0.35);
-  border-radius: 10px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column;
-}
-.ui-kpi-mini .k-val { font-family: var(--mono); font-size: 14px; font-weight: 900; }
-.ui-kpi-mini .k-lbl { font-size: 10px; font-weight: 700; color: #94a3b8; }
-.ui-matrix-rows { display: flex; flex-direction: column; gap: 8px; }
-.ui-m-row {
-  background: rgba(10, 19, 38, 0.95); border-radius: 10px; padding: 8px 10px;
-  display: flex; align-items: center; justify-content: space-between; gap: 6px;
-}
-.ui-m-txt { display: flex; flex-direction: column; text-align: left; }
-.ui-m-txt strong { font-size: 13px; font-weight: 800; color: #fff; line-height: 1.1; }
-.ui-m-txt span { font-size: 11px; color: #94a3b8; }
-.ui-m-badge {
-  padding: 3px 8px; border-radius: 6px; font-family: var(--mono); font-size: 10px; font-weight: 900;
-}
-.ui-tenshi-bar {
-  display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 12px;
-  background: linear-gradient(90deg, rgba(13,148,136,0.32), rgba(6,182,212,0.22));
-  border: 1px solid var(--w-cyan-bright); font-size: 12px; font-weight: 800; color: #e2e8f0;
-}
-.cover-badges-row {
-  width: min(980px, 100%); display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
-}
-.cover-glass-badge {
-  padding: 16px 18px; border-radius: 22px;
-  background: rgba(7, 13, 28, 0.94); border: 2px solid rgba(34, 211, 238, 0.55);
-  box-shadow: 0 14px 32px rgba(0,0,0,0.75);
-  display: flex; align-items: center; gap: 12px;
-  font-size: 21px; font-weight: 800; color: #fff;
-}
-.cgb-ico { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.cover-footer-bar {
-  display: inline-flex; align-items: center; gap: 16px;
-  padding: 10px 34px; border-radius: 999px;
-  background: rgba(14, 19, 0, 0.95); border: 2.5px solid var(--w-lime);
-  box-shadow: 0 0 32px rgba(199, 243, 3, 0.4);
-  font-family: var(--mono); font-size: 22px; font-weight: 900;
-}
-.cf-domain { color: #ffffff; }
-.cf-sep { color: var(--w-cyan-bright); }
-.cf-cta { color: var(--w-lime); }
-
-.vs-badge-circle {
-  align-self: center; margin: -18px 0; z-index: 25;
-  width: 64px; height: 64px; border-radius: 50%;
-  background: radial-gradient(circle, #c7f303 0%, #84cc16 100%);
-  color: #0e1300; font-family: var(--mono); font-size: 24px; font-weight: 900;
-  display: flex; align-items: center; justify-content: center;
-  border: 3px solid #ffffff; box-shadow: 0 0 28px rgba(199, 243, 3, 0.8);
-}
-.tenshi-terminal-strip {
-  padding: 16px 22px; border-radius: 22px;
-  background: rgba(7, 16, 32, 0.95); border: 2px solid rgba(45, 212, 191, 0.65);
-  display: flex; align-items: center; gap: 16px;
-}
-.tt-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: contain; border: 2px solid var(--w-cyan-bright); background: #000; }
-.tt-body { flex: 1; text-align: left; }
-.tt-label { font-family: var(--mono); font-size: 14px; font-weight: 900; color: var(--w-cyan-bright); letter-spacing: 0.08em; }
-.tt-text { font-size: 21px; font-weight: 700; color: #f1f5f9; margin-top: 2px; }
-.tt-status {
-  padding: 6px 14px; border-radius: 999px; background: rgba(199,243,3,0.2);
-  border: 1.5px solid var(--w-lime); font-family: var(--mono); font-size: 15px; font-weight: 900; color: var(--w-lime);
-}
-.pill-svg-wrap { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
-
-/* MEGA-DOCK SUPERIOR DE ECOSISTEMA WAPPY (MODO MÓVIL XL) */
-#wappy-mega-dock {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  display: inline-flex; align-items: center; gap: 12px;
-  padding: 6px 20px; border-radius: 999px;
-  background: rgba(5, 10, 22, 0.92); border: 1.8px solid rgba(199, 243, 3, 0.6);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.78), 0 0 20px rgba(199, 243, 3, 0.22);
-  z-index: 42; pointer-events: none;
-}
-.mdock-pill {
-  font-family: var(--mono); font-size: 13px; font-weight: 900;
-  color: var(--w-lime); letter-spacing: 0.06em; text-transform: uppercase;
-}
-.mdock-sep { color: rgba(255,255,255,0.28); font-weight: 900; }
-.mdock-arch {
-  font-family: var(--mono); font-size: 13px; font-weight: 800;
-  color: #38bdf8; letter-spacing: 0.04em;
-}
-
-/* SUBTÍTULOS KARAOKE MÓVIL XL (#sub-box) */
-#wappy-live-sub-overlay {
-  position: absolute; left: 36px; right: 320px; bottom: 32px;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 32; pointer-events: none;
-}
-#sub-box {
-  background: rgba(5, 10, 22, 0.92);
-  border: 2px solid rgba(34, 211, 238, 0.55);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.88);
-  border-radius: 24px;
-  padding: 14px 24px;
-  font-size: clamp(24px, 4.8vw, 44px);
-  font-weight: 900;
-  line-height: 1.15;
-  color: #ffffff;
-  text-align: center;
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
-  max-width: 100%;
-  transition: opacity 0.18s ease;
-}
-.sub-word {
-  display: inline-block; padding: 2px 8px; border-radius: 10px;
-  color: #e2e8f0;
-}
-.sub-word.active {
-  background: var(--w-lime);
-  color: #0e1300;
-  box-shadow: 0 0 18px rgba(199, 243, 3, 0.65);
-  transform: scale(1.06);
-}
-
-/* ESQUINA SEGURA INFERIOR DERECHA — AVATAR 3D PRESENTADOR (NUNCA TAPA EL CENTRO NI USA FILLRECT) */
-#avatar-host-container {
-  position: absolute;
-  left: auto;
-  right: 26px;
-  bottom: 24px;
-  top: auto;
-  transform: none;
-  width: 285px;
-  height: 325px;
-  pointer-events: none;
-  z-index: 28;
-  background: transparent;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.avatar-3d-dock {
-  position: relative; width: 100%; height: 100%;
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-}
-.avatar-voice-halo {
-  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
-  width: 230px; height: 230px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(199,243,3,0.32) 0%, rgba(34,211,238,0.18) 52%, transparent 72%);
-  border: 2.5px solid rgba(199, 243, 3, 0.65);
-  box-shadow: 0 0 36px rgba(199, 243, 3, 0.45);
-  pointer-events: none; z-index: 1;
-}
-.avatar-render-layer {
-  position: relative; width: 265px; height: 295px; z-index: 2;
-  display: flex; align-items: flex-end; justify-content: center;
-}
-.avatar-render-img {
-  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 100%; height: 100%; object-fit: contain; object-position: bottom center;
-  filter: drop-shadow(0 14px 24px rgba(0,0,0,0.88));
-  transition: opacity 0.22s ease;
-}
-.avatar-dock-pill {
-  position: relative; z-index: 4; margin-top: -8px;
-  padding: 5px 16px; border-radius: 999px;
-  background: rgba(5, 10, 22, 0.95); border: 1.5px solid var(--w-lime);
-  font-family: var(--mono); font-size: 13px; font-weight: 900; color: var(--w-lime);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.85);
-  display: inline-flex; align-items: center; gap: 6px;
-}
-
-/* ADAPTACIÓN HORIZONTAL 16:9 (1920x1080) */
-html[data-aspect-ratio="16:9"] .header-box {
-  top: 42px; left: 60px; right: 380px; align-items: flex-start; text-align: left;
-}
-html[data-aspect-ratio="16:9"] .title-hero {
-  font-size: 52px; max-width: 1380px;
-}
-html[data-aspect-ratio="16:9"] .sub-hero {
-  font-size: 24px; max-width: 1320px; -webkit-line-clamp: 1;
-}
-html[data-aspect-ratio="16:9"] .middle-container {
-  top: 220px; left: 60px; right: 380px; height: 800px;
-}
-html[data-aspect-ratio="16:9"] .cover-layout {
-  inset: 52px 60px 28px 60px;
-}
-html[data-aspect-ratio="16:9"] .cover-hero-stage {
-  gap: 44px; transform: scale(0.84); margin: -24px 0;
-}
-html[data-aspect-ratio="16:9"] #avatar-host-container {
-  left: auto; right: 28px; bottom: 24px; top: auto; transform: none; width: 310px; height: 355px;
-}
-${customCssBlock}
-</style>
-</head>
-<body>
-<div id="viewport">
-  <div id="stage" data-wappy-master-reel="true" data-aspect-ratio="${aspectRatio}">
-    ${hasBaseVideo ? '' : '<div class="bg-cyber-grid"></div><canvas id="particles-canvas"></canvas><div class="ambient-orb orb-teal"></div><div class="ambient-orb orb-cyan"></div><div class="ambient-orb orb-lime"></div>'}
-    <div id="top-progress-bar"></div>
-    <div id="hud-top-bar">
-      <div class="hud-top-left">
-        <span class="dot-live"></span>
-        <span>ECOSISTEMA IA · SG-SST</span>
-      </div>
-      <div class="hud-top-right">WAPPY.CLUB</div>
-    </div>
-    <div id="wappy-mega-dock">
-      <span class="dot-live"></span>
-      <span class="mdock-pill" id="mdock-scene-label">PORTADA HERO XL</span>
-      <span class="mdock-sep">·</span>
-      <span class="mdock-arch" id="mdock-arch-label">MODO MÓVIL XL 60 FPS</span>
-    </div>
-    <div class="scanline-beam" id="scanline"></div>
-
-    <div class="eq-container">
-      <div class="eq-bar" id="eq1" style="height: 14px;"></div>
-      <div class="eq-bar" id="eq2" style="height: 22px;"></div>
-      <div class="eq-bar" id="eq3" style="height: 18px;"></div>
-      <div class="eq-bar" id="eq4" style="height: 26px;"></div>
-    </div>
-
-    <svg id="bg-radar" viewBox="0 0 100 100" fill="none">
-      <circle cx="50" cy="50" r="46" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4 3"/>
-      <circle cx="50" cy="50" r="32" stroke="#2dd4bf" stroke-width="1" stroke-dasharray="2 2"/>
-      <circle cx="50" cy="50" r="16" stroke="#c7f303" stroke-width="1"/>
-      <line x1="50" y1="4" x2="50" y2="96" stroke="#22d3ee" stroke-width="0.8" opacity="0.4"/>
-      <line x1="4" y1="50" x2="96" y2="50" stroke="#22d3ee" stroke-width="0.8" opacity="0.4"/>
-      <line id="radar-sweep" x1="50" y1="50" x2="50" y2="6" stroke="#c7f303" stroke-width="2.5" stroke-linecap="round" style="transform-origin: 50px 50px;"/>
-    </svg>
-
-    <div id="digital-zoom-hud">
-      <div class="reticle-box">
-        <div class="reticle-corner rc-tl"></div>
-        <div class="reticle-corner rc-tr"></div>
-        <div class="reticle-corner rc-bl"></div>
-        <div class="reticle-corner rc-br"></div>
-        <div class="reticle-crosshair"></div>
-      </div>
-    </div>
-
-    ${scenesMarkup}
-
-    <div id="wappy-live-sub-overlay">
-      <div id="sub-box"></div>
-    </div>
-
-    <div id="avatar-host-container"></div>
-  </div>
-</div>
-
-<script id="wappy-voxel-avatar-engine">
-${voxelAvatarJs}
-</script>
-
-<script id="wappy-antigravity-master-60fps">
-(function() {
-  'use strict';
-
-  function clamp(v, min, max) {
-    if (min === undefined) min = 0;
-    if (max === undefined) max = 1;
-    return Math.max(min, Math.min(max, v));
-  }
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
-  var E = {
-    lin: function(t) { return t; },
-    out3: function(t) { return 1 - Math.pow(1 - t, 3); },
-    in3: function(t) { return t * t * t; },
-    io3: function(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; },
-    spring: function(t) {
-      if (t <= 0) return 0;
-      if (t >= 1) return 1;
-      var c1 = 1.28;
-      var c3 = c1 + 1;
-      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-    }
-  };
-
-  var STAGE_W = ${stageW};
-  var STAGE_H = ${stageH};
-
-  // Sintetizador WebAudio para efectos de sonido discretos (-16 dB) en transiciones de escena
-  var sfxCtx = null;
-  var lastSfxSceneIdx = -1;
-  function playWappySfx(kind) {
-    if (!window.__wappyVoicePlaying) return;
-    try {
-      var AudioContextCls = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextCls) return;
-      if (!sfxCtx) sfxCtx = new AudioContextCls();
-      if (sfxCtx.state === 'suspended') sfxCtx.resume();
-      var now = sfxCtx.currentTime;
-      var osc = sfxCtx.createOscillator();
-      var gain = sfxCtx.createGain();
-      osc.connect(gain);
-      gain.connect(sfxCtx.destination);
-      if (kind === 'barrido') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(190, now);
-        osc.frequency.exponentialRampToValueAtTime(520, now + 0.14);
-        gain.gain.setValueAtTime(0.045, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.16);
-      } else if (kind === 'golpe-corto') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(125, now);
-        osc.frequency.exponentialRampToValueAtTime(48, now + 0.12);
-        gain.gain.setValueAtTime(0.065, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
-        osc.start(now);
-        osc.stop(now + 0.14);
-      } else {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, now);
-        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.06);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-        osc.start(now);
-        osc.stop(now + 0.08);
-      }
-    } catch (e) {}
-  }
-
-  // Constelación de partículas conectadas estilo WAPPY_IA_Plataforma_40s_SinSubtitulos
-  var pCanvas = document.getElementById('particles-canvas');
-  var pCtx = pCanvas ? pCanvas.getContext('2d') : null;
-  var particles = [];
-  if (pCanvas) {
-    pCanvas.width = STAGE_W;
-    pCanvas.height = STAGE_H;
-    for (var pi = 0; pi < 56; pi++) {
-      particles.push({
-        x: ((pi * 197) % STAGE_W),
-        y: ((pi * 311) % STAGE_H),
-        vx: ((pi % 2 === 0 ? 1 : -1) * (14 + (pi % 15))),
-        vy: ((pi % 3 === 0 ? -1 : 1) * (10 + (pi % 12))),
-        r: 2 + (pi % 3),
-        lime: pi % 3 === 0
+function compileAntigravityMasterReelHtml(scenePlan = [], timelineMap = {}, options = {}) {
+  const introDuration = Number(timelineMap.introDurationSeconds ?? 2.0);
+  const totalDur = Math.max(
+    8,
+    Number(timelineMap.totalDurationSeconds || 24),
+  );
+  const scenes = Array.isArray(scenePlan) && scenePlan.length > 0
+    ? scenePlan
+    : buildSmartScenePlanFromScript(options.scriptText || 'Automatiza tu SG-SST con WAPPY IA', timelineMap.beats, options);
+
+  // Construir páginas de subtítulos karaoke Modo Móvil XL (56px ExtraBold, 4-5 palabras por página)
+  const rawWords = Array.isArray(timelineMap.wordTimings) ? timelineMap.wordTimings : [];
+  const subPages = [];
+  const wordsPerPage = 5;
+  for (let i = 0; i < rawWords.length; i += wordsPerPage) {
+    const chunk = rawWords.slice(i, i + wordsPerPage);
+    if (chunk.length > 0) {
+      subPages.push({
+        t0: Number(chunk[0].startSec || 0),
+        t1: Number(chunk[chunk.length - 1].endSec || chunk[0].startSec + 1.2),
+        words: chunk.map((w) => ({
+          w: String(w.word || w.text || '').trim(),
+          t0: Number(w.startSec || 0),
+          t1: Number(w.endSec || 0),
+        })),
       });
     }
   }
-  function renderConstellationAt(t) {
-    if (!pCtx || !pCanvas) return;
-    pCtx.clearRect(0, 0, STAGE_W, STAGE_H);
-    var pos = [];
-    for (var i = 0; i < particles.length; i++) {
-      var pt = particles[i];
-      var px = (pt.x + pt.vx * t) % STAGE_W;
-      var py = (pt.y + pt.vy * t) % STAGE_H;
-      if (px < 0) px += STAGE_W;
-      if (py < 0) py += STAGE_H;
-      pos.push({ x: px, y: py, r: pt.r, lime: pt.lime });
-      pCtx.beginPath();
-      pCtx.arc(px, py, pt.r, 0, Math.PI * 2);
-      pCtx.fillStyle = pt.lime ? 'rgba(199, 243, 3, 0.65)' : 'rgba(34, 211, 238, 0.55)';
-      pCtx.fill();
-    }
-    pCtx.lineWidth = 1.2;
-    for (var a = 0; a < pos.length; a++) {
-      for (var b = a + 1; b < pos.length; b++) {
-        var dx = pos[a].x - pos[b].x;
-        var dy = pos[a].y - pos[b].y;
-        var distSq = dx * dx + dy * dy;
-        if (distSq < 26000) {
-          var alpha = (1 - distSq / 26000) * 0.24;
-          pCtx.strokeStyle = 'rgba(34, 211, 238, ' + alpha.toFixed(3) + ')';
-          pCtx.beginPath();
-          pCtx.moveTo(pos[a].x, pos[a].y);
-          pCtx.lineTo(pos[b].x, pos[b].y);
-          pCtx.stroke();
-        }
-      }
+
+  const vozData = Array.isArray(timelineMap.vozData) ? timelineMap.vozData : [];
+  const audioDataUri = options.audioDataUri || timelineMap.audioDataUri || '';
+  const coverTitleTop = String(options.headlineText || scenes[0]?.titleBefore || 'AUTOMATIZA TU SST').toUpperCase();
+  const coverTitleBot = String(scenes[0]?.titleHighlight || 'CON +50 IA WAPPY').toUpperCase();
+  const coverBadge = String(options.badgeText || '⚡ ECOSISTEMA WAPPY IA · SG-SST').toUpperCase();
+
+  return `<!DOCTYPE html>
+<html lang="es" data-wappy-template="true" data-wappy-master-reel="true" data-aspect-ratio="9:16">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WAPPY IA · Reel Full-Screen Modo Móvil XL (1080×1920 · 60 FPS)</title>
+<style>
+  :root {
+    --lime: #C7F303;
+    --teal: #2DD4BF;
+    --teal-dark: #0D9488;
+    --ink: #0E1300;
+    --bg: #06080D;
+    --card-bg: #0D131F;
+    --text: #F8FAFC;
+    --muted: #94A3B8;
+    --ok: #22C55E;
+    --warn: #F59E0B;
+    --err: #EF4444;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Plus Jakarta Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #04060A;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  #viewport {
+    position: relative;
+    width: 1080px;
+    height: 1920px;
+    transform-origin: center center;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 18%, rgba(199, 243, 3, 0.13) 0%, rgba(13, 148, 136, 0.09) 36%, #06080D 74%);
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.85);
+    cursor: pointer;
+  }
+
+  #bgGrid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1.5px, transparent 1.5px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1.5px, transparent 1.5px);
+    background-size: 64px 64px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  #ambientOrb1 {
+    position: absolute;
+    width: 760px;
+    height: 760px;
+    left: 160px;
+    top: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(199, 243, 3, 0.15) 0%, transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  #ambientOrb2 {
+    position: absolute;
+    width: 820px;
+    height: 820px;
+    left: 130px;
+    top: 900px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(45, 212, 191, 0.13) 0%, transparent 70%);
+    filter: blur(50px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ===== PERMANENT MEGA-DOCK SUPERIOR (y: 72..236, width: 1016px) ===== */
+  #topDockHost {
+    position: absolute;
+    left: 32px;
+    top: 72px;
+    width: 1016px;
+    height: 166px;
+    z-index: 8;
+    pointer-events: none;
+  }
+
+  .mega-dock {
+    width: 100%;
+    height: 164px;
+    background: rgba(10, 15, 24, 0.94);
+    border: 2.5px solid rgba(255, 255, 255, 0.16);
+    border-radius: 30px;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65);
+  }
+
+  .mega-dock-item {
+    position: relative;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 4px;
+  }
+
+  .mega-dock-logo {
+    width: 66px;
+    height: 66px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.22);
+    background: #0B0F17;
+    flex-shrink: 0;
+  }
+
+  .mega-dock-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .mega-dock-num {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    padding: 2px 9px;
+    border-radius: 8px;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.1;
+  }
+
+  .mega-dock-lbl {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  /* ===== MAIN FULL-SCREEN STAGE (y: 256..1480, 1016x1224) ===== */
+  #stageHost {
+    position: absolute;
+    left: 32px;
+    top: 256px;
+    width: 1016px;
+    height: 1224px;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* ===== KARAOKE SUBTITLES MODO MÓVIL XL (y: 1512..1722, 56px EXTRABOLD 900) ===== */
+  #subHost {
+    position: absolute;
+    left: 28px;
+    top: 1512px;
+    width: 1024px;
+    height: 210px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9;
+    pointer-events: none;
+  }
+
+  .sub-pill-xl {
+    background: linear-gradient(180deg, rgba(10, 15, 25, 0.96) 0%, rgba(6, 9, 15, 0.98) 100%);
+    border: 3px solid rgba(199, 243, 3, 0.45);
+    border-radius: 28px;
+    padding: 18px 36px 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 32px rgba(199, 243, 3, 0.14);
+    max-width: 1020px;
+    text-align: center;
+  }
+
+  .sub-line-xl {
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: #FFFFFF;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+  }
+
+  .sub-w-xl {
+    display: inline-block;
+    padding: 0 4px;
+  }
+
+  /* ===== FOOTER BRAND WATERMARK (y: 1765..1855) ===== */
+  #footerBrand {
+    position: absolute;
+    left: 32px;
+    right: 32px;
+    bottom: 48px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 26px;
+    border-radius: 999px;
+    background: rgba(10, 15, 24, 0.88);
+    border: 2px solid rgba(255, 255, 255, 0.14);
+    z-index: 6;
+  }
+
+  .scene-card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(14, 21, 33, 0.96) 0%, rgba(8, 12, 20, 0.98) 100%);
+    border: 3.5px solid rgba(255, 255, 255, 0.18);
+    border-radius: 38px;
+    padding: 28px 30px;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.68);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hero-tool-head {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 22px;
+    flex-shrink: 0;
+  }
+
+  .hero-logo-180 {
+    width: 180px;
+    height: 180px;
+    border-radius: 36px;
+    background: #0B0F17;
+    border: 4px solid var(--lime);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.60), 0 0 32px rgba(199, 243, 3, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .hero-logo-180 img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .hero-title-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 20px;
+    border-radius: 999px;
+    background: rgba(199, 243, 3, 0.18);
+    border: 2px solid var(--lime);
+    color: var(--lime);
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .hero-h1-72 {
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    color: #FFFFFF;
+    text-transform: uppercase;
+  }
+
+  .hero-sub-34 {
+    font-size: 32px;
+    font-weight: 800;
+    color: #CBD5E1;
+    line-height: 1.18;
+  }
+
+  #playPrompt {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6, 8, 13, 0.30);
+    transition: opacity 0.2s ease;
+  }
+  #playPrompt.hidden { opacity: 0; pointer-events: none; }
+  .play-cta-pill {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: rgba(10, 14, 21, 0.96);
+    border: 3px solid var(--lime);
+    border-radius: 999px;
+    padding: 22px 40px 22px 24px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.80);
+    color: #FFFFFF;
+    font-size: 34px;
+    font-weight: 900;
+  }
+  .play-circle {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: var(--lime);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 900;
+  }
+
+  #scrubWrap {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 32px;
+    z-index: 22;
+    display: flex;
+    align-items: flex-end;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: auto;
+  }
+  #viewport:hover #scrubWrap { opacity: 1; }
+  body.capture-mode #playPrompt, body.capture-mode #scrubWrap { display: none !important; }
+  #scrubTrack { width: 100%; height: 12px; background: rgba(255, 255, 255, 0.18); }
+  #scrubFill { height: 100%; width: 0%; background: var(--lime); }
+</style>
+</head>
+<body>
+  <div id="viewport">
+    <div id="bgGrid"></div>
+    <div id="ambientOrb1"></div>
+    <div id="ambientOrb2"></div>
+
+    <audio id="bgAudio" preload="auto"${audioDataUri ? ` src="${audioDataUri}"` : ''}></audio>
+
+    <div id="topDockHost"></div>
+    <div id="stageHost"></div>
+    <div id="subHost"></div>
+
+    <div id="footerBrand">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <span style="width:16px;height:16px;border-radius:50%;background:#C7F303;box-shadow:0 0 14px #C7F303;"></span>
+        <span style="font-size:26px;font-weight:900;color:#FFFFFF;letter-spacing:0.02em;">WAPPY IA · SOMOS SST</span>
+      </div>
+      <div style="font-size:26px;font-weight:900;color:#C7F303;letter-spacing:0.03em;">
+        🌐 wappy.club · MODO MÓVIL XL
+      </div>
+    </div>
+
+    <div id="playPrompt">
+      <div class="play-cta-pill">
+        <div class="play-circle">▶</div>
+        <div>Toca para reproducir Reel Full-Screen (${totalDur.toFixed(1)}s)</div>
+      </div>
+    </div>
+
+    <div id="scrubWrap" title="Haz clic para saltar a cualquier segundo">
+      <div id="scrubTrack"><div id="scrubFill"></div></div>
+    </div>
+  </div>
+
+<script>
+const LOGOS = ${JSON.stringify(OFFICIAL_LOGOS)};
+const INTRO_DURATION = ${introDuration.toFixed(2)};
+let TOTAL_DURATION = ${totalDur.toFixed(2)};
+const SCENES = ${JSON.stringify(scenes)};
+const SUB_PAGES = ${JSON.stringify(subPages)};
+const VOZ_DATA = ${JSON.stringify(vozData)};
+const COVER_META = {
+  badge: ${JSON.stringify(coverBadge)},
+  titleTop: ${JSON.stringify(coverTitleTop)},
+  titleBot: ${JSON.stringify(coverTitleBot)},
+};
+
+const TOOLS_META = [
+  { idx: 1, num: "#1", short: "Antigravity", logo: LOGOS.antigravity, bg: "#FFFFFF", pad: "8px", imgSt: "" },
+  { idx: 2, num: "#2", short: "Google Flow", logo: LOGOS.flow,        bg: "#000000", pad: "0px", imgSt: "" },
+  { idx: 3, num: "#3", short: "NotebookLM",  logo: LOGOS.notebooklm,  bg: "#070A10", pad: "8px", imgSt: "" },
+  { idx: 4, num: "#4", short: "Suri IA 3D",  logo: LOGOS.suri,        bg: "#E6FFFA", pad: "0px", imgSt: "object-fit:cover;object-position:center 6%;transform:scale(1.14);" },
+  { idx: 5, num: "#5", short: "WAPPY n8n",   logo: LOGOS.wappyCircle, bg: "#FFFFFF", pad: "6px", imgSt: "" }
+];
+
+const topDockHost = document.getElementById("topDockHost");
+const stageHost = document.getElementById("stageHost");
+const subHost = document.getElementById("subHost");
+const footerBrand = document.getElementById("footerBrand");
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function smoothstep(a, b, x) {
+  const t = clamp((x - a) / Math.max(0.0001, b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+function spring(dt, damping = 17, stiffness = 190) {
+  if (dt <= 0) return 0;
+  if (dt >= 0.85) return 1;
+  const w0 = Math.sqrt(stiffness);
+  const zeta = damping / (2 * w0);
+  const wd = w0 * Math.sqrt(Math.max(0.001, 1 - zeta * zeta));
+  return 1 - Math.exp(-zeta * w0 * dt) * (Math.cos(wd * dt) + (zeta * w0 / wd) * Math.sin(wd * dt));
+}
+
+function getVoiceLevel(t) {
+  if (VOZ_DATA.length > 0) {
+    const idx = clamp(Math.floor(t * 60), 0, VOZ_DATA.length - 1);
+    return VOZ_DATA[idx] || 0.25;
+  }
+  return 0.3 + 0.45 * Math.abs(Math.sin(t * 11.5)) * Math.abs(Math.cos(t * 4.3));
+}
+
+function getTransitionStyle(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const rem = Math.max(0, sc.endSec - t);
+  const sIn = spring(dt);
+  const opIn = clamp(dt / 0.24, 0, 1);
+  const pOut = rem < 0.28 ? smoothstep(0.28, 0.0, rem) : 0;
+  const op = clamp(opIn * (1 - pOut), 0, 1);
+  const scale = lerp(0.92 + 0.08 * sIn, 1.12, pOut);
+  const ty = lerp((1 - sIn) * 42, -28 * pOut, pOut);
+  return \`opacity:\${op.toFixed(3)};transform:translate3d(0,\${ty.toFixed(1)}px,0) scale(\${scale.toFixed(3)});\`;
+}
+
+// ============================================================================
+// PORTADA HERO 0.00s - 2.00s (MODO MÓVIL XL 1080x1920 + ZOOM-THROUGH)
+// ============================================================================
+function renderCoverHero(t) {
+  topDockHost.innerHTML = "";
+  subHost.innerHTML = "";
+  footerBrand.style.opacity = "0";
+  stageHost.style.top = "56px";
+  stageHost.style.height = "1808px";
+
+  const sBadge = spring(t - 0.04);
+  const sH1 = spring(t - 0.10);
+  const sYellow = spring(t - 0.18);
+  const sVisual = spring(t - 0.24);
+  const zoomOutP = t > INTRO_DURATION - 0.34 ? smoothstep(INTRO_DURATION - 0.34, INTRO_DURATION, t) : 0;
+  const coverScale = lerp(1.0, 1.32, zoomOutP);
+  const coverOp = clamp(1 - zoomOutP * 0.95, 0, 1);
+
+  const dockCards = TOOLS_META.map((tm, i) => {
+    const sc = spring(t - (0.14 + i * 0.05));
+    const is5 = tm.idx === 5;
+    return \`
+      <div style="padding:14px 10px;border-radius:26px;background:\${is5?'rgba(199,243,3,0.18)':'rgba(15,23,42,0.92)'};border:3px solid \${is5?'#C7F303':'rgba(255,255,255,0.22)'};display:flex;flex-direction:column;align-items:center;gap:10px;transform:scale(\${(0.85+0.15*sc).toFixed(3)});box-shadow:\${is5?'0 0 32px rgba(199,243,3,0.45)':'0 14px 32px rgba(0,0,0,0.6)'};">
+        <div style="width:110px;height:110px;border-radius:26px;background:\${tm.bg};padding:\${tm.pad};border:3px solid \${is5?'#C7F303':'rgba(255,255,255,0.28)'};overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          <img src="\${tm.logo}" style="width:100%;height:100%;object-fit:contain;\${tm.imgSt}" />
+        </div>
+        <div style="font-size:25px;font-weight:900;color:\${is5?'#C7F303':'#FFFFFF'};white-space:nowrap;">\${tm.short}</div>
+      </div>\`;
+  }).join("");
+
+  stageHost.innerHTML = \`
+    <div style="width:100%;height:100%;border-radius:44px;background:radial-gradient(circle at 50% 24%, rgba(199,243,3,0.22) 0%, rgba(13,148,136,0.16) 42%, #070B12 85%);border:4px solid #C7F303;padding:42px 34px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 32px 90px rgba(0,0,0,0.85), 0 0 60px rgba(199,243,3,0.24);transform:scale(\${coverScale.toFixed(3)});opacity:\${coverOp.toFixed(3)};overflow:hidden;">
+      <div style="text-align:center;">
+        <div style="display:inline-flex;align-items:center;gap:12px;padding:12px 32px;border-radius:999px;background:rgba(10,15,25,0.92);border:3px solid #C7F303;color:#C7F303;font-size:32px;font-weight:900;letter-spacing:0.05em;transform:scale(\${sBadge.toFixed(3)});">
+          \${COVER_META.badge}
+        </div>
+        <div style="margin-top:24px;font-size:84px;font-weight:900;line-height:0.98;letter-spacing:-0.035em;color:#FFFFFF;text-transform:uppercase;text-shadow:0 14px 36px rgba(0,0,0,0.85);transform:scale(\${(0.9+0.1*sH1).toFixed(3)});">
+          \${COVER_META.titleTop}
+        </div>
+        <div style="display:inline-block;margin-top:18px;padding:16px 40px;border-radius:26px;background:#C7F303;color:#0E1300;font-size:78px;font-weight:900;line-height:0.98;letter-spacing:-0.035em;text-transform:uppercase;box-shadow:0 20px 55px rgba(199,243,3,0.50);transform:rotate(-1deg) scale(\${(0.88+0.12*sYellow).toFixed(3)});">
+          \${COVER_META.titleBot}
+        </div>
+      </div>
+
+      <!-- Centro Visual 3D Suri + Tenshi + Nodos -->
+      <div style="position:relative;height:690px;border-radius:36px;background:linear-gradient(180deg, rgba(15,23,42,0.94) 0%, rgba(7,11,18,0.98) 100%);border:3.5px solid rgba(45,212,191,0.55);padding:28px;display:flex;flex-direction:column;justify-content:space-between;transform:scale(\${(0.92+0.08*sVisual).toFixed(3)});box-shadow:inset 0 0 50px rgba(199,243,3,0.12);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="padding:8px 24px;border-radius:999px;background:rgba(45,212,191,0.20);border:2px solid #2DD4BF;color:#2DD4BF;font-size:28px;font-weight:900;">● PLATAFORMA SG-SST EN VIVO</span>
+          <span style="padding:8px 24px;border-radius:999px;background:#C7F303;color:#0E1300;font-size:28px;font-weight:900;">DECRETO 1072 · RES. 0312 · GTC 45</span>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-around;gap:24px;my:auto;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+            <div style="width:250px;height:250px;border-radius:50%;background:radial-gradient(circle, #E6FFFA 0%, #2DD4BF 100%);border:6px solid #C7F303;box-shadow:0 0 50px rgba(199,243,3,0.5);overflow:hidden;">
+              <img src="\${LOGOS.suri}" style="width:100%;height:100%;object-fit:cover;object-position:center 6%;transform:scale(1.14);" />
+            </div>
+            <span style="font-size:32px;font-weight:900;color:#FFFFFF;">Suri 3D · Voz 24kHz</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+            <div style="width:250px;height:250px;border-radius:44px;background:#D1FAE5;border:6px solid #2DD4BF;box-shadow:0 0 50px rgba(45,212,191,0.45);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+              <img src="\${LOGOS.tenshi}" style="width:230px;height:230px;object-fit:contain;" />
+            </div>
+            <span style="font-size:32px;font-weight:900;color:#C7F303;">Agente Tenshi · n8n</span>
+          </div>
+        </div>
+
+        <div style="padding:18px 28px;border-radius:24px;background:rgba(199,243,3,0.14);border:2.5px solid #C7F303;text-align:center;font-size:34px;font-weight:900;color:#FFFFFF;">
+          🚀 +50 Herramientas IA · Cero Alucinaciones · Automatización Total
+        </div>
+      </div>
+
+      <!-- Dock 5 Logos Oficiales XL -->
+      <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:14px;">
+        \${dockCards}
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// MEGA-DOCK SUPERIOR PERMANENTE (y: 72..236)
+// ============================================================================
+function renderTopMegaDock(activeIdx) {
+  const itemsHtml = TOOLS_META.map((tm, i) => {
+    const isActive = (activeIdx % 5) === i;
+    const isPassed = i < (activeIdx % 5);
+    const borderCol = isActive ? "#C7F303" : isPassed ? "rgba(45,212,191,0.55)" : "rgba(255,255,255,0.14)";
+    const bgCol = isActive ? "linear-gradient(180deg, rgba(199,243,3,0.26) 0%, rgba(13,148,136,0.24) 100%)" : isPassed ? "rgba(15,23,42,0.9)" : "rgba(255,255,255,0.03)";
+    const numBg = isActive ? "#C7F303" : isPassed ? "#2DD4BF" : "rgba(255,255,255,0.14)";
+    const numCol = (isActive || isPassed) ? "#0E1300" : "#CBD5E1";
+    const lblCol = isActive ? "#C7F303" : isPassed ? "#F8FAFC" : "#94A3B8";
+    const scaleVal = isActive ? 1.06 : 1.0;
+
+    return \`
+      <div class="mega-dock-item" style="border-color:\${borderCol};background:\${bgCol};transform:scale(\${scaleVal});">
+        <div class="mega-dock-num" style="background:\${numBg};color:\${numCol};">\${tm.num}</div>
+        <div class="mega-dock-logo" style="background:\${tm.bg};padding:\${tm.pad};border-color:\${isActive?'#C7F303':'rgba(255,255,255,0.2)'};">
+          <img src="\${tm.logo}" style="\${tm.imgSt}" />
+        </div>
+        <div class="mega-dock-lbl" style="color:\${lblCol};">\${tm.short}</div>
+      </div>\`;
+  }).join("");
+
+  topDockHost.innerHTML = \`<div class="mega-dock">\${itemsHtml}</div>\`;
+}
+
+// ============================================================================
+// ESCENA ARQUETIPO 1: HOOK-VS-WALL (FX08HeadlineWall + Ruleta 3D 5 IA)
+// ============================================================================
+function renderSceneHookRoulette(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const trStyle = getTransitionStyle(t, sc);
+  const hlProg = clamp(spring(dt - 0.35), 0, 1);
+  const crazyActive = dt >= sc.durationSec * 0.45;
+  const wallShift1 = (t * 95) % 600;
+  const wallShift2 = (t * -110) % 600;
+
+  const cx = 478, cy = 255, rx = 365, ry = 95;
+  const baseAngle = t * 1.25;
+
+  const sats = TOOLS_META.map((tm, i) => {
+    const theta = baseAngle + (i * Math.PI * 2) / 5;
+    const sinT = Math.sin(theta);
+    const cosT = Math.cos(theta);
+    const depth = (sinT + 1) / 2;
+    return { tm, sinT, cosT, depth };
+  }).sort((a, b) => a.depth - b.depth);
+
+  const rouletteHtml = sats.map((item) => {
+    const { tm, cosT, sinT, depth } = item;
+    const is5 = tm.idx === 5;
+    const x = cx + cosT * rx;
+    const y = cy + sinT * ry;
+    const scVal = lerp(0.74, 1.18, depth) * (is5 && crazyActive ? 1.12 : 1.0);
+    const op = lerp(0.55, 1.0, depth);
+    const borderCol = is5 ? "#C7F303" : (depth > 0.65 ? "#2DD4BF" : "rgba(255,255,255,0.28)");
+
+    return \`
+      <div style="position:absolute;left:\${x.toFixed(1)}px;top:\${y.toFixed(1)}px;transform:translate(-50%,-50%) scale(\${scVal.toFixed(3)});opacity:\${op.toFixed(3)};z-index:\${Math.round(depth*20)};display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <div style="width:164px;height:164px;border-radius:38px;background:\${tm.bg};padding:\${tm.pad};border:4.5px solid \${borderCol};box-shadow:0 22px 48px rgba(0,0,0,0.75)\${is5?', 0 0 42px rgba(199,243,3,0.65)':''};overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          <img src="\${tm.logo}" style="width:100%;height:100%;object-fit:contain;\${tm.imgSt}" />
+        </div>
+        <div style="padding:6px 20px;border-radius:999px;background:\${is5?'#C7F303':'rgba(10,15,25,0.95)'};color:\${is5?'#0E1300':'#FFFFFF'};border:2px solid \${borderCol};font-size:28px;font-weight:900;white-space:nowrap;">
+          \${tm.num} · \${tm.short}
+        </div>
+      </div>\`;
+  }).join("");
+
+  stageHost.innerHTML = \`
+    <div class="scene-card" style="border-color:rgba(199,243,3,0.55);justify-content:space-between;\${trStyle}">
+      <div style="position:absolute;left:-120px;right:-120px;top:24px;opacity:0.13;pointer-events:none;transform:rotate(-2.5deg);">
+        <div style="font-size:54px;font-weight:900;color:#C7F303;white-space:nowrap;transform:translateX(\${wallShift1.toFixed(1)}px);">
+          AUTOMATIZACIÓN SG-SST CON IA · WAPPY IA · DECRETO 1072 · GTC 45 · RES 0312
+        </div>
+        <div style="font-size:54px;font-weight:900;color:#2DD4BF;white-space:nowrap;transform:translateX(\${wallShift2.toFixed(1)}px);margin-top:8px;">
+          ANTIGRAVITY · GOOGLE FLOW · NOTEBOOKLM · SURI 3D · TENSHI N8N WORKFLOWS
+        </div>
+      </div>
+
+      <div style="position:relative;z-index:4;text-align:center;padding-top:6px;">
+        <div style="display:inline-flex;align-items:center;gap:12px;padding:8px 26px;border-radius:999px;background:rgba(45,212,191,0.18);border:2px solid #2DD4BF;color:#2DD4BF;font-size:29px;font-weight:900;margin-bottom:14px;">
+          <span>🚀 \${sc.eyebrow}</span>
+        </div>
+        <div style="font-size:66px;font-weight:900;line-height:1.04;letter-spacing:-0.035em;color:#FFFFFF;text-transform:uppercase;">
+          \${sc.titleBefore}
+        </div>
+        <div style="position:relative;display:inline-block;margin-top:12px;padding:10px 30px 12px;border-radius:22px;overflow:hidden;border:2.5px solid #C7F303;">
+          <div style="position:absolute;inset:0;background:#C7F303;transform-origin:left center;transform:scaleX(\${hlProg.toFixed(3)});"></div>
+          <span style="position:relative;z-index:1;font-size:62px;font-weight:900;color:\${hlProg>0.45?'#0E1300':'#FFFFFF'};letter-spacing:-0.03em;text-transform:uppercase;">
+            \${sc.titleHighlight}
+          </span>
+        </div>
+      </div>
+
+      <div style="position:relative;width:100%;height:510px;z-index:5;">
+        <svg viewBox="0 0 956 510" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+          <ellipse cx="\${cx}" cy="\${cy}" rx="\${rx}" ry="\${ry}" fill="none" stroke="rgba(199,243,3,0.32)" stroke-width="3.5" stroke-dasharray="14 10" />
+        </svg>
+        \${rouletteHtml}
+      </div>
+
+      <div style="position:relative;z-index:6;padding:24px 30px;border-radius:28px;background:\${crazyActive?'linear-gradient(90deg, rgba(199,243,3,0.26), rgba(45,212,191,0.22))':'rgba(15,23,42,0.92)'};border:3.5px solid \${crazyActive?'#C7F303':'rgba(255,255,255,0.22)'};display:flex;align-items:center;justify-content:space-between;transform:scale(\${(crazyActive ? 1.0 + 0.025*Math.sin(t*8) : 0.98).toFixed(3)});">
+        <div style="display:flex;align-items:center;gap:18px;">
+          <div style="width:76px;height:76px;border-radius:20px;background:#C7F303;color:#0E1300;font-size:38px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            ⚡IA
+          </div>
+          <div>
+            <div style="font-size:38px;font-weight:900;color:\${crazyActive?'#C7F303':'#FFFFFF'};line-height:1.1;">
+              \${sc.step1} · \${sc.step2}
+            </div>
+            <div style="font-size:30px;font-weight:800;color:#E2E8F0;margin-top:4px;">
+              \${sc.subtitle}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// ESCENA ARQUETIPO 2: BENTO-KPI / AGENTIC WORKSPACE (fxZoomThrough + 3 Pasos)
+// ============================================================================
+function renderSceneBentoAgentic(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const trStyle = getTransitionStyle(t, sc);
+  const p1 = spring(dt - sc.durationSec * 0.12);
+  const p2 = spring(dt - sc.durationSec * 0.36);
+  const p3 = spring(dt - sc.durationSec * 0.60);
+  const progPct = Math.round(clamp(dt / Math.max(1.2, sc.durationSec * 0.78), 0, 1) * 100);
+  const logoSrc = LOGOS[sc.toolKey] || LOGOS.antigravity;
+
+  stageHost.innerHTML = \`
+    <div class="scene-card" style="border-color:#2DD4BF;\${trStyle}">
+      <div class="hero-tool-head">
+        <div class="hero-logo-180" style="background:#FFFFFF;padding:14px;border-color:#2DD4BF;">
+          <img src="\${logoSrc}" />
+        </div>
+        <div class="hero-title-col">
+          <div class="hero-eyebrow" style="border-color:#2DD4BF;color:#2DD4BF;background:rgba(45,212,191,0.16);">
+            \${sc.eyebrow}
+          </div>
+          <div class="hero-h1-72">\${sc.titleBefore} <span style="color:#C7F303;">\${sc.titleHighlight}</span></div>
+          <div class="hero-sub-34">\${sc.subtitle}</div>
+        </div>
+      </div>
+
+      <div style="flex:1;border-radius:30px;background:#080D16;border:3px solid rgba(45,212,191,0.45);padding:22px 24px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:inset 0 0 40px rgba(45,212,191,0.08);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid rgba(255,255,255,0.10);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:18px;height:18px;border-radius:50%;background:#EF4444;"></span>
+            <span style="width:18px;height:18px;border-radius:50%;background:#F59E0B;"></span>
+            <span style="width:18px;height:18px;border-radius:50%;background:#22C55E;"></span>
+            <span style="margin-left:12px;font-size:30px;font-weight:900;color:#E2E8F0;">sgsst-automatizado-wappy.agy</span>
+          </div>
+          <div style="padding:6px 20px;border-radius:999px;background:#C7F303;color:#0E1300;font-size:28px;font-weight:900;">
+            AVANCE IA: \${progPct}%
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:16px 0;">
+          <div style="padding:22px;border-radius:24px;background:rgba(15,23,42,0.95);border:2.5px solid rgba(45,212,191,0.40);">
+            <div style="font-size:28px;font-weight:900;color:#2DD4BF;margin-bottom:12px;">⚡ AGENTE IA EJECUTANDO</div>
+            <div style="font-size:31px;font-weight:800;color:#FFFFFF;line-height:1.42;">
+              ✓ \${sc.step1}<br/>
+              ✓ \${sc.step2}<br/>
+              ✓ \${sc.step3}
+            </div>
+            <div style="margin-top:16px;height:16px;border-radius:999px;background:rgba(255,255,255,0.10);overflow:hidden;">
+              <div style="height:100%;width:\${progPct}%;background:linear-gradient(90deg,#2DD4BF,#C7F303);"></div>
+            </div>
+          </div>
+
+          <div style="padding:22px;border-radius:24px;background:rgba(15,23,42,0.95);border:2.5px solid rgba(199,243,3,0.45);display:flex;flex-direction:column;justify-content:space-between;">
+            <div style="font-size:28px;font-weight:900;color:#C7F303;">📊 IMPACTO OPERATIVO SST</div>
+            <div style="display:flex;justify-content:space-between;font-size:30px;font-weight:900;color:#FFFFFF;">
+              <span>🏢 Matriz GTC 45</span><span style="color:#4ADE80;">100% ✓</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:30px;font-weight:900;color:#FFFFFF;">
+              <span>📋 Estándares 0312</span><span style="color:#4ADE80;">98% ✓</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:30px;font-weight:900;color:#FFFFFF;">
+              <span>⚡ Ahorro Papeleo</span><span style="color:#C7F303;">-85% ✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:16px;">
+          <div style="padding:22px 16px;border-radius:24px;background:\${p1>0.05?'rgba(45,212,191,0.18)':'rgba(255,255,255,0.04)'};border:3px solid \${p1>0.05?'#2DD4BF':'rgba(255,255,255,0.14)'};text-align:center;transform:scale(\${(0.92+0.08*p1).toFixed(3)});">
+            <div style="font-size:50px;margin-bottom:8px;">📁</div>
+            <div style="font-size:31px;font-weight:900;color:#FFFFFF;">1. \${sc.step1}</div>
+            <div style="font-size:25px;font-weight:800;color:#2DD4BF;margin-top:4px;">Automático</div>
+          </div>
+          <div style="padding:22px 16px;border-radius:24px;background:\${p2>0.05?'rgba(45,212,191,0.18)':'rgba(255,255,255,0.04)'};border:3px solid \${p2>0.05?'#2DD4BF':'rgba(255,255,255,0.14)'};text-align:center;transform:scale(\${(0.92+0.08*p2).toFixed(3)});">
+            <div style="font-size:50px;margin-bottom:8px;">🛡️</div>
+            <div style="font-size:31px;font-weight:900;color:#FFFFFF;">2. \${sc.step2}</div>
+            <div style="font-size:25px;font-weight:800;color:#2DD4BF;margin-top:4px;">Verificado</div>
+          </div>
+          <div style="padding:22px 16px;border-radius:24px;background:\${p3>0.05?'rgba(199,243,3,0.22)':'rgba(255,255,255,0.04)'};border:3px solid \${p3>0.05?'#C7F303':'rgba(255,255,255,0.14)'};text-align:center;transform:scale(\${(0.92+0.08*p3).toFixed(3)});">
+            <div style="font-size:50px;margin-bottom:8px;">⚡</div>
+            <div style="font-size:31px;font-weight:900;color:#C7F303;">3. \${sc.step3}</div>
+            <div style="font-size:25px;font-weight:800;color:#FFFFFF;margin-top:4px;">En Segundos</div>
+          </div>
+        </div>
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// ESCENA ARQUETIPO 3: FLOW-SPLIT-BEFORE-AFTER (Escáner Láser + Antes/Después)
+// ============================================================================
+function renderSceneFlowSplit(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const trStyle = getTransitionStyle(t, sc);
+  const befOn = spring(dt - 0.12);
+  const aftOn = spring(dt - sc.durationSec * 0.38);
+  const scanY = ((dt * 0.58) % 1) * 100;
+
+  let waveBars = "";
+  for (let i = 0; i < 24; i++) {
+    const h = 18 + Math.abs(Math.sin(t * 7 + i * 0.55)) * 42;
+    waveBars += \`<div style="width:12px;height:\${h.toFixed(1)}px;border-radius:6px;background:\${i%2===0?'#C7F303':'#2DD4BF'};"></div>\`;
+  }
+
+  stageHost.innerHTML = \`
+    <div class="scene-card" style="border-color:#C7F303;\${trStyle}">
+      <div class="hero-tool-head">
+        <div class="hero-logo-180" style="background:#000000;padding:0px;border-color:#C7F303;">
+          <img src="\${LOGOS.flow}" />
+        </div>
+        <div class="hero-title-col">
+          <div class="hero-eyebrow">\${sc.eyebrow}</div>
+          <div class="hero-h1-72">\${sc.titleBefore} <span style="color:#C7F303;">\${sc.titleHighlight}</span></div>
+          <div class="hero-sub-34">\${sc.subtitle}</div>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;display:flex;flex-direction:column;gap:18px;overflow:hidden;border-radius:30px;">
+        <div style="position:absolute;left:0;right:0;top:\${scanY.toFixed(1)}%;height:6px;background:#C7F303;box-shadow:0 0 28px #C7F303, 0 0 56px #2DD4BF;z-index:10;"></div>
+
+        <div style="flex:1;border-radius:28px;background:linear-gradient(135deg, rgba(239,68,68,0.24) 0%, rgba(15,23,42,0.96) 100%);border:3.5px solid #EF4444;padding:22px 28px;display:flex;align-items:center;justify-content:space-between;transform:scale(\${(0.94 + 0.06*befOn).toFixed(3)});">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:inline-flex;align-self:flex-start;padding:6px 20px;border-radius:999px;background:#EF4444;color:#FFFFFF;font-size:28px;font-weight:900;">
+              ❌ ANTES: GESTIÓN MANUAL LENTA
+            </div>
+            <div style="font-size:42px;font-weight:900;color:#FFFFFF;line-height:1.1;">
+              Reprocesos en Excel, formatos sueltos y riesgo de hallazgos
+            </div>
+            <div style="font-size:29px;font-weight:800;color:#FCA5A5;">
+              ⚠️ Horas perdidas · Sin alertas preventivas en tiempo real
+            </div>
+          </div>
+          <div style="width:164px;height:164px;border-radius:28px;background:rgba(239,68,68,0.22);border:3px solid #EF4444;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+            <div style="font-size:66px;">🚨</div>
+            <div style="font-size:26px;font-weight:900;color:#FCA5A5;">RIESGO</div>
+          </div>
+        </div>
+
+        <div style="flex:1;border-radius:28px;background:linear-gradient(135deg, rgba(34,197,94,0.24) 0%, rgba(15,23,42,0.96) 100%);border:3.5px solid \${aftOn>0.1?'#C7F303':'#22C55E'};padding:22px 28px;display:flex;align-items:center;justify-content:space-between;transform:scale(\${(0.94 + 0.06*aftOn).toFixed(3)});box-shadow:\${aftOn>0.1?'0 0 36px rgba(199,243,3,0.25)':'none'};">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:inline-flex;align-self:flex-start;padding:6px 20px;border-radius:999px;background:#C7F303;color:#0E1300;font-size:28px;font-weight:900;">
+              ✅ AHORA CON WAPPY IA: \${sc.titleHighlight}
+            </div>
+            <div style="font-size:42px;font-weight:900;color:#FFFFFF;line-height:1.1;">
+              \${sc.subtitle}
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;margin-top:4px;">
+              <span style="font-size:28px;font-weight:900;color:#4ADE80;">⚡ IA ACTIVA:</span>
+              <div style="display:flex;align-items:center;gap:6px;height:52px;">\${waveBars}</div>
+            </div>
+          </div>
+          <div style="width:164px;height:164px;border-radius:28px;background:rgba(34,197,94,0.22);border:3px solid #C7F303;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">
+            <div style="font-size:66px;">🛡️</div>
+            <div style="font-size:26px;font-weight:900;color:#C7F303;">CONTROL OK</div>
+          </div>
+        </div>
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// ESCENA ARQUETIPO 4: VISOR-NORMATIVO-REAL (Resaltador Flúor + Mapa Mental SVG)
+// ============================================================================
+function renderSceneVisorNorma(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const trStyle = getTransitionStyle(t, sc);
+  const dur = Math.max(2.0, sc.durationSec);
+  const hl1 = clamp((dt - dur * 0.08) / (dur * 0.25), 0, 1);
+  const hl2 = clamp((dt - dur * 0.28) / (dur * 0.25), 0, 1);
+  const hl3 = clamp((dt - dur * 0.48) / (dur * 0.25), 0, 1);
+
+  const n1 = spring(dt - dur * 0.35);
+  const n2 = spring(dt - dur * 0.52);
+  const n3 = spring(dt - dur * 0.68);
+
+  stageHost.innerHTML = \`
+    <div class="scene-card" style="border-color:#2DD4BF;justify-content:space-between;\${trStyle}">
+      <div class="hero-tool-head">
+        <div class="hero-logo-180" style="background:#070A10;padding:18px;border-color:#C7F303;">
+          <img src="\${LOGOS.notebooklm}" />
+        </div>
+        <div class="hero-title-col">
+          <div class="hero-eyebrow">\${sc.eyebrow}</div>
+          <div class="hero-h1-72">\${sc.titleBefore} <span style="color:#C7F303;">\${sc.titleHighlight}</span></div>
+          <div class="hero-sub-34">\${sc.subtitle}</div>
+        </div>
+      </div>
+
+      <div style="position:relative;border-radius:28px;background:#FBFBF9;border:4px solid #CBD5E1;padding:22px 28px;color:#0F172A;box-shadow:0 18px 40px rgba(0,0,0,0.55);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:2.5px solid #E2E8F0;padding-bottom:10px;">
+          <span style="font-size:29px;font-weight:900;color:#0F172A;">📜 BIBLIOTECA LEGAL OFICIAL · NOTEBOOKLM & WAPPY IA</span>
+          <span style="padding:6px 18px;border-radius:999px;background:#0E1300;color:#C7F303;font-size:25px;font-weight:900;">✓ 0% ALUCINACIONES</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="position:relative;padding:10px 16px;border-radius:14px;background:#F1F5F9;overflow:hidden;">
+            <div style="position:absolute;inset:0;background:rgba(199,243,3,0.68);transform-origin:left center;transform:scaleX(\${hl1.toFixed(3)});"></div>
+            <div style="position:relative;z-index:1;font-size:32px;font-weight:900;color:#0F172A;">
+              ✓ Decreto 1072 de 2015 · Cap. 6 SG-SST: \${sc.step1}
+            </div>
+          </div>
+          <div style="position:relative;padding:10px 16px;border-radius:14px;background:#F1F5F9;overflow:hidden;">
+            <div style="position:absolute;inset:0;background:rgba(45,212,191,0.52);transform-origin:left center;transform:scaleX(\${hl2.toFixed(3)});"></div>
+            <div style="position:relative;z-index:1;font-size:32px;font-weight:900;color:#0F172A;">
+              ✓ Resolución 0312 de 2019 · Estándares Mínimos: \${sc.step2}
+            </div>
+          </div>
+          <div style="position:relative;padding:10px 16px;border-radius:14px;background:#F1F5F9;overflow:hidden;">
+            <div style="position:absolute;inset:0;background:rgba(199,243,3,0.68);transform-origin:left center;transform:scaleX(\${hl3.toFixed(3)});"></div>
+            <div style="position:relative;z-index:1;font-size:32px;font-weight:900;color:#0F172A;">
+              ✓ Guía Técnica GTC 45 · Matriz IPEVR: \${sc.step3}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <svg viewBox="0 0 956 68" style="width:100%;height:68px;overflow:visible;">
+        <path d="M 478 0 C 478 34, 160 34, 160 66" fill="none" stroke="#C7F303" stroke-width="5" />
+        <path d="M 478 0 L 478 66" fill="none" stroke="#2DD4BF" stroke-width="5" />
+        <path d="M 478 0 C 478 34, 796 34, 796 66" fill="none" stroke="#C7F303" stroke-width="5" />
+      </svg>
+
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:18px;">
+        <div style="padding:22px 16px;border-radius:26px;background:\${n1>0.05?'rgba(199,243,3,0.20)':'rgba(15,23,42,0.92)'};border:3.5px solid \${n1>0.05?'#C7F303':'rgba(255,255,255,0.16)'};text-align:center;transform:scale(\${(0.90+0.10*n1).toFixed(3)});">
+          <div style="font-size:54px;margin-bottom:8px;">🎙️</div>
+          <div style="font-size:34px;font-weight:900;color:#FFFFFF;">Wappy Podcast</div>
+          <div style="font-size:26px;font-weight:800;color:#C7F303;margin-top:6px;">Audio Estudio 24kHz</div>
+        </div>
+
+        <div style="padding:22px 16px;border-radius:26px;background:\${n2>0.05?'rgba(45,212,191,0.20)':'rgba(15,23,42,0.92)'};border:3.5px solid \${n2>0.05?'#2DD4BF':'rgba(255,255,255,0.16)'};text-align:center;transform:scale(\${(0.90+0.10*n2).toFixed(3)});">
+          <div style="font-size:54px;margin-bottom:8px;">🧠</div>
+          <div style="font-size:34px;font-weight:900;color:#FFFFFF;">Mapa Mental</div>
+          <div style="font-size:26px;font-weight:800;color:#2DD4BF;margin-top:6px;">Fuentes Verificadas</div>
+        </div>
+
+        <div style="padding:22px 16px;border-radius:26px;background:\${n3>0.05?'rgba(199,243,3,0.20)':'rgba(15,23,42,0.92)'};border:3.5px solid \${n3>0.05?'#C7F303':'rgba(255,255,255,0.16)'};text-align:center;transform:scale(\${(0.90+0.10*n3).toFixed(3)});">
+          <div style="font-size:54px;margin-bottom:8px;">✅</div>
+          <div style="font-size:34px;font-weight:900;color:#FFFFFF;">Auditoría ARL</div>
+          <div style="font-size:26px;font-weight:800;color:#C7F303;margin-top:6px;">Respaldo Legal 100%</div>
+        </div>
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// ESCENA ARQUETIPO 5: SURI-VOICE-LIVE-HUD (iPhone 16 Pro + Suri 260px + Onda)
+// ============================================================================
+function renderSceneSuriHud(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const trStyle = getTransitionStyle(t, sc);
+  const dur = Math.max(2.0, sc.durationSec);
+  const voiceLvl = getVoiceLevel(t);
+  const suriBounce = 1 + voiceLvl * 0.08;
+
+  const a1 = spring(dt - dur * 0.16);
+  const a2 = spring(dt - dur * 0.40);
+  const a3 = spring(dt - dur * 0.64);
+
+  let waveHtml = "";
+  for (let i = 0; i < 18; i++) {
+    const barH = 16 + (0.25 + voiceLvl) * 58 * Math.abs(Math.sin(t * 9 + i * 0.6));
+    waveHtml += \`<div style="width:11px;height:\${barH.toFixed(1)}px;border-radius:999px;background:#C7F303;"></div>\`;
+  }
+
+  stageHost.innerHTML = \`
+    <div class="scene-card" style="border-color:#2DD4BF;\${trStyle}">
+      <div class="hero-tool-head">
+        <div class="hero-logo-180" style="background:#E6FFFA;padding:0px;border-color:#2DD4BF;">
+          <img src="\${LOGOS.suri}" style="object-fit:cover;object-position:center 6%;transform:scale(1.14);" />
+        </div>
+        <div class="hero-title-col">
+          <div class="hero-eyebrow" style="border-color:#2DD4BF;color:#2DD4BF;background:rgba(45,212,191,0.16);">
+            \${sc.eyebrow}
+          </div>
+          <div class="hero-h1-72">\${sc.titleBefore} <span style="color:#C7F303;">\${sc.titleHighlight}</span></div>
+          <div class="hero-sub-34">\${sc.subtitle}</div>
+        </div>
+      </div>
+
+      <div style="flex:1;border-radius:44px;background:linear-gradient(180deg, #0B1320 0%, #070B12 100%);border:5px solid #334155;padding:20px 28px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:inset 0 0 40px rgba(45,212,191,0.12), 0 24px 60px rgba(0,0,0,0.75);">
+        <div style="align-self:center;padding:10px 34px;border-radius:999px;background:#000000;border:2px solid rgba(199,243,3,0.55);display:flex;align-items:center;gap:16px;">
+          <span style="width:16px;height:16px;border-radius:50%;background:#C7F303;box-shadow:0 0 14px #C7F303;"></span>
+          <span style="font-size:28px;font-weight:900;color:#FFFFFF;letter-spacing:0.03em;">SURI 3D & TENSHI · ASISTENTE SG-SST EN VIVO</span>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:center;gap:34px;margin:8px 0;">
+          <div style="position:relative;width:250px;height:250px;border-radius:50%;background:radial-gradient(circle, #E6FFFA 0%, #2DD4BF 100%);border:5px solid #C7F303;box-shadow:0 0 50px rgba(199,243,3,0.45);overflow:hidden;transform:scale(\${suriBounce.toFixed(3)});flex-shrink:0;">
+            <img src="\${LOGOS.suri}" style="width:100%;height:100%;object-fit:cover;object-position:center 6%;transform:scale(1.14);" />
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px;flex:1;">
+            <div style="font-size:34px;font-weight:900;color:#C7F303;">🎙️ «Hola, actualicé tu SG-SST hoy:»</div>
+            <div style="display:flex;align-items:center;gap:8px;height:76px;padding:10px 20px;border-radius:22px;background:rgba(255,255,255,0.05);border:2px solid rgba(199,243,3,0.35);">
+              \${waveHtml}
+            </div>
+            <div style="font-size:28px;font-weight:800;color:#CBD5E1;">\${sc.subtitle}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="padding:18px 24px;border-radius:24px;background:\${a1>0.05?'rgba(245,158,11,0.20)':'rgba(255,255,255,0.04)'};border:3px solid \${a1>0.05?'#F59E0B':'rgba(255,255,255,0.12)'};display:flex;align-items:center;justify-content:space-between;transform:scale(\${(0.95+0.05*a1).toFixed(3)});">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <span style="font-size:42px;">📊</span>
+              <span style="font-size:34px;font-weight:900;color:#FFFFFF;">\${sc.step1}</span>
+            </div>
+            <span style="padding:8px 20px;border-radius:999px;background:#F59E0B;color:#0E1300;font-size:26px;font-weight:900;">EN VIVO</span>
+          </div>
+
+          <div style="padding:18px 24px;border-radius:24px;background:\${a2>0.05?'rgba(34,197,94,0.20)':'rgba(255,255,255,0.04)'};border:3px solid \${a2>0.05?'#22C55E':'rgba(255,255,255,0.12)'};display:flex;align-items:center;justify-content:space-between;transform:scale(\${(0.95+0.05*a2).toFixed(3)});">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <span style="font-size:42px;">🩺</span>
+              <span style="font-size:34px;font-weight:900;color:#FFFFFF;">\${sc.step2}</span>
+            </div>
+            <span style="padding:8px 20px;border-radius:999px;background:#22C55E;color:#0E1300;font-size:26px;font-weight:900;">✓ LISTO</span>
+          </div>
+
+          <div style="padding:18px 24px;border-radius:24px;background:\${a3>0.05?'rgba(199,243,3,0.20)':'rgba(255,255,255,0.04)'};border:3px solid \${a3>0.05?'#C7F303':'rgba(255,255,255,0.12)'};display:flex;align-items:center;justify-content:space-between;transform:scale(\${(0.95+0.05*a3).toFixed(3)});">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <span style="font-size:42px;">🚨</span>
+              <span style="font-size:34px;font-weight:900;color:#FFFFFF;">\${sc.step3}</span>
+            </div>
+            <span style="padding:8px 20px;border-radius:999px;background:#C7F303;color:#0E1300;font-size:26px;font-weight:900;">AL DÍA 100%</span>
+          </div>
+        </div>
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// ESCENA ARQUETIPO 6: WAPPY-N8N-WORKFLOW (Lienzo Blanco n8n + Cámara 3D)
+// ============================================================================
+function renderSceneWappyN8n(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const dur = Math.max(2.5, sc.durationSec);
+  const trStyle = getTransitionStyle(t, sc);
+  const prog = clamp(dt / dur, 0, 1);
+  const numTools = Math.min(50, Math.max(1, Math.round(lerp(1, 50, clamp(prog * 1.6, 0, 1)))));
+
+  let camScale = 1.0, camX = 0, camY = 0, focusLabel = "LIENZO n8n · +50 IA SST";
+  if (prog >= 0.18 && prog < 0.44) {
+    const p = smoothstep(0.18, 0.28, prog);
+    camScale = lerp(1.0, 1.15, p);
+    camX = lerp(0, 145, p);
+    camY = lerp(0, 14, p);
+    focusLabel = "PASO 1 · CRON SST (LUNES 7:00 AM)";
+  } else if (prog >= 0.44 && prog < 0.70) {
+    const p = smoothstep(0.44, 0.54, prog);
+    camScale = lerp(1.15, 1.14, p);
+    camX = lerp(145, 0, p);
+    camY = lerp(14, -12, p);
+    focusLabel = "PASO 2 · AGENTE TENSHI + GEMINI";
+  } else if (prog >= 0.70 && prog < 0.88) {
+    const p = smoothstep(0.70, 0.78, prog);
+    camScale = lerp(1.14, 1.15, p);
+    camX = lerp(0, -145, p);
+    camY = lerp(-12, 14, p);
+    focusLabel = "PASO 3 · DESPACHO AUTOMÁTICO";
+  } else if (prog >= 0.88) {
+    const p = smoothstep(0.88, 0.96, prog);
+    camScale = lerp(1.15, 1.0, p);
+    camX = lerp(-145, 0, p);
+    camY = lerp(14, 0, p);
+    focusLabel = "★ FLUJO COMPLETO AUTOMATIZADO";
+  }
+
+  const u1 = (t * 1.45) % 1;
+  const u2 = (t * 1.45 + 0.45) % 1;
+  const p1X = lerp(250, 345, u1);
+  const p2X = lerp(615, 706, u2);
+
+  stageHost.innerHTML = \`
+    <div class="scene-card" style="border-color:#C7F303;box-shadow:0 28px 70px rgba(0,0,0,0.75), 0 0 50px rgba(199,243,3,0.22);\${trStyle}">
+      <div class="hero-tool-head">
+        <div class="hero-logo-180" style="background:#FFFFFF;padding:10px;border-radius:50%;border-color:#C7F303;">
+          <img src="\${LOGOS.wappyCircle}" />
+        </div>
+        <div class="hero-title-col">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div class="hero-eyebrow" style="background:#C7F303;color:#0E1300;white-space:nowrap;">
+              \${sc.eyebrow}
+            </div>
+            <div style="padding:7px 22px;border-radius:999px;background:#0E1300;border:3px solid #C7F303;color:#C7F303;font-size:30px;font-weight:900;white-space:nowrap;">
+              +\${numTools} IA SST
+            </div>
+          </div>
+          <div class="hero-h1-72">\${sc.titleBefore} <span style="color:#C7F303;">\${sc.titleHighlight}</span></div>
+          <div class="hero-sub-34">\${sc.subtitle}</div>
+        </div>
+      </div>
+
+      <div style="position:relative;flex:1;border-radius:32px;background:#F8FAFC;border:4px solid #C7F303;overflow:hidden;box-shadow:inset 0 0 36px rgba(15,23,42,0.12);">
+        <div style="position:absolute;inset:0;background-image:radial-gradient(#94A3B8 2.2px, transparent 2.2px);background-size:28px 28px;opacity:0.55;"></div>
+
+        <div style="position:absolute;top:16px;left:20px;right:20px;display:flex;align-items:center;justify-content:space-between;z-index:10;">
+          <div style="padding:10px 24px;border-radius:999px;background:#0F172A;border:2.5px solid #C7F303;color:#C7F303;font-size:27px;font-weight:900;white-space:nowrap;">
+            🎥 \${focusLabel}
+          </div>
+          <div style="padding:10px 22px;border-radius:999px;background:#059669;color:#FFFFFF;font-size:27px;font-weight:900;white-space:nowrap;">
+            ● FLUJO ACTIVO
+          </div>
+        </div>
+
+        <div style="position:absolute;inset:0;transform-origin:center center;transform:translate3d(\${camX.toFixed(1)}px, \${camY.toFixed(1)}px, 0) scale(\${camScale.toFixed(3)});">
+          <svg viewBox="0 0 956 880" style="position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible;">
+            <path d="M 248 295 C 295 295, 300 295, 344 295" fill="none" stroke="#0EA5E9" stroke-width="8" />
+            <path d="M 612 295 C 660 295, 665 295, 708 295" fill="none" stroke="#10B981" stroke-width="8" />
+            <path d="M 430 435 L 300 545" fill="none" stroke="#7C3AED" stroke-width="5" stroke-dasharray="10 8" />
+            <path d="M 530 435 L 660 545" fill="none" stroke="#059669" stroke-width="5" stroke-dasharray="10 8" />
+            <circle cx="\${p1X.toFixed(1)}" cy="295" r="14" fill="#C7F303" stroke="#0E1300" stroke-width="3" />
+            <circle cx="\${p2X.toFixed(1)}" cy="295" r="14" fill="#C7F303" stroke="#0E1300" stroke-width="3" />
+          </svg>
+
+          <div style="position:absolute;left:28px;top:165px;width:220px;height:255px;border-radius:32px;background:#FFFFFF;border:4px solid #0EA5E9;box-shadow:0 20px 44px rgba(15,23,42,0.16);padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:4;">
+            <div style="padding:4px 16px;border-radius:999px;background:#E0F2FE;color:#0369A1;font-size:24px;font-weight:900;">1 · TRIGGER</div>
+            <div style="font-size:60px;">⚡</div>
+            <div style="font-size:34px;font-weight:900;color:#0F172A;text-align:center;line-height:1.05;">Cron SST</div>
+            <div style="font-size:25px;font-weight:800;color:#0284C7;text-align:center;line-height:1.15;white-space:nowrap;">Lunes 7:00 AM</div>
+          </div>
+
+          <div style="position:absolute;left:344px;top:150px;width:268px;height:285px;border-radius:36px;background:#FFFFFF;border:5px solid #14B8A6;box-shadow:0 0 0 8px rgba(20,184,166,0.20), 0 24px 50px rgba(15,23,42,0.20);padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:5;">
+            <div style="padding:4px 16px;border-radius:999px;background:#F3E8FF;color:#6B21A8;font-size:24px;font-weight:900;white-space:nowrap;">ORQUESTADOR IA</div>
+            <div style="width:140px;height:140px;border-radius:28px;background:#D1FAE5;border:3px solid #10B981;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+              <img src="\${LOGOS.tenshi}" style="width:132px;height:132px;object-fit:contain;" />
+            </div>
+            <div style="font-size:33px;font-weight:900;color:#0F172A;line-height:1;white-space:nowrap;">Agente Tenshi</div>
+          </div>
+
+          <div style="position:absolute;left:708px;top:165px;width:220px;height:255px;border-radius:32px;background:#FFFFFF;border:4px solid #10B981;box-shadow:0 20px 44px rgba(15,23,42,0.16);padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:4;">
+            <div style="padding:4px 16px;border-radius:999px;background:#DCFCE7;color:#15803D;font-size:24px;font-weight:900;">3 · ACCIÓN</div>
+            <div style="font-size:60px;">✉️</div>
+            <div style="font-size:32px;font-weight:900;color:#0F172A;text-align:center;line-height:1.05;">Gmail / WA</div>
+            <div style="font-size:25px;font-weight:800;color:#15803D;text-align:center;line-height:1.15;white-space:nowrap;">Informe & Alerta</div>
+          </div>
+
+          <div style="position:absolute;left:95px;top:545px;width:365px;padding:16px 20px;border-radius:26px;background:#FFFFFF;border:4px solid #7C3AED;box-shadow:0 16px 36px rgba(15,23,42,0.15);display:flex;align-items:center;gap:14px;z-index:4;">
+            <span style="font-size:42px;">✦</span>
+            <div>
+              <div style="font-size:29px;font-weight:900;color:#0F172A;white-space:nowrap;">Google Gemini 3.8</div>
+              <div style="font-size:24px;font-weight:800;color:#6D28D9;white-space:nowrap;">Cerebro Pericial SST</div>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:485px;top:545px;width:395px;padding:16px 20px;border-radius:26px;background:#FFFFFF;border:4px solid #059669;box-shadow:0 16px 36px rgba(15,23,42,0.15);display:flex;align-items:center;gap:14px;z-index:4;">
+            <span style="font-size:42px;">🛡️</span>
+            <div>
+              <div style="font-size:29px;font-weight:900;color:#0F172A;white-space:nowrap;">ARL · SENA · GTC 45</div>
+              <div style="font-size:24px;font-weight:800;color:#059669;white-space:nowrap;">Memoria +50 Herramientas</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// ESCENA ARQUETIPO 7: PENTAGON-ORBITAL / FXOrbit 3D + CTA WAPPY.CLUB
+// ============================================================================
+function renderSceneFinalOrbit(t, sc) {
+  const dt = Math.max(0, t - sc.startSec);
+  const trStyle = getTransitionStyle(t, sc);
+
+  const ORBIT_SATS = [
+    { name: "Antigravity", logo: LOGOS.antigravity, bg: "#FFFFFF", pad: "10px", st: "" },
+    { name: "Google Flow", logo: LOGOS.flow,        bg: "#000000", pad: "0px",  st: "" },
+    { name: "NotebookLM",  logo: LOGOS.notebooklm,  bg: "#070A10", pad: "10px", st: "" },
+    { name: "Suri 3D",     logo: LOGOS.suri,        bg: "#E6FFFA", pad: "0px",  st: "object-fit:cover;object-position:center 6%;transform:scale(1.14);" },
+    { name: "Tenshi 3D",   logo: LOGOS.tenshi,      bg: "#D1FAE5", pad: "4px",  st: "" }
+  ];
+
+  const cx = 478, cy = 285, rx = 380, ry = 122;
+  const baseAngle = t * 1.25;
+
+  const sorted = ORBIT_SATS.map((sat, i) => {
+    const theta = baseAngle + (i * Math.PI * 2) / ORBIT_SATS.length;
+    const sinT = Math.sin(theta);
+    const cosT = Math.cos(theta);
+    const depth = (sinT + 1) / 2;
+    return { sat, sinT, cosT, depth };
+  }).sort((a, b) => a.depth - b.depth);
+
+  let satsBack = "", satsFront = "";
+  for (const item of sorted) {
+    const { sat, cosT, sinT, depth } = item;
+    const x = cx + cosT * rx;
+    const y = cy + sinT * ry;
+    const scVal = lerp(0.74, 1.15, depth);
+    const op = lerp(0.60, 1.0, depth);
+    const el = \`
+      <div style="position:absolute;left:\${x.toFixed(1)}px;top:\${y.toFixed(1)}px;transform:translate(-50%,-50%) scale(\${scVal.toFixed(3)});opacity:\${op.toFixed(3)};display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="width:132px;height:132px;border-radius:32px;background:\${sat.bg};padding:\${sat.pad};border:3.5px solid #C7F303;box-shadow:0 18px 40px rgba(0,0,0,0.75);overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          <img src="\${sat.logo}" style="width:100%;height:100%;object-fit:contain;\${sat.st}" />
+        </div>
+        <div style="padding:4px 16px;border-radius:999px;background:#0E1300;border:2px solid #C7F303;color:#FFFFFF;font-size:25px;font-weight:900;white-space:nowrap;">
+          \${sat.name}
+        </div>
+      </div>\`;
+    if (sinT < 0) satsBack += el;
+    else satsFront += el;
+  }
+
+  const word = "WAPPY";
+  const typeP = clamp((dt - 0.35) / 0.85, 0, 1);
+  const nChars = Math.max(1, Math.min(word.length, Math.ceil(typeP * word.length)));
+  const typed = word.slice(0, nChars);
+  const clicked = dt >= 1.35;
+  const pulseBtn = 1 + 0.028 * Math.sin(t * 8);
+
+  stageHost.innerHTML = \`
+    <div class="scene-card" style="border-color:#C7F303;justify-content:space-between;background:radial-gradient(circle at 50% 42%, rgba(199,243,3,0.18) 0%, rgba(10,15,25,0.98) 70%);\${trStyle}">
+      <div style="text-align:center;">
+        <div style="display:inline-block;padding:7px 24px;border-radius:999px;background:#C7F303;color:#0E1300;font-size:28px;font-weight:900;letter-spacing:0.04em;margin-bottom:10px;">
+          \${sc.eyebrow}
+        </div>
+        <div style="font-size:74px;font-weight:900;line-height:1.0;letter-spacing:-0.035em;color:#FFFFFF;text-transform:uppercase;">
+          \${sc.titleBefore} <span style="color:#C7F303;">\${sc.titleHighlight}</span>
+        </div>
+      </div>
+
+      <div style="position:relative;width:100%;height:560px;">
+        <svg viewBox="0 0 956 560" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+          <ellipse cx="\${cx}" cy="\${cy}" rx="\${rx}" ry="\${ry}" fill="none" stroke="rgba(199,243,3,0.45)" stroke-width="4" stroke-dasharray="14 10" />
+        </svg>
+        <div style="position:absolute;inset:0;z-index:2;">\${satsBack}</div>
+
+        <div style="position:absolute;left:\${cx}px;top:\${cy}px;transform:translate(-50%,-50%) scale(\${pulseBtn.toFixed(3)});z-index:5;display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <div style="width:240px;height:240px;border-radius:50%;background:#FFFFFF;border:7px solid #C7F303;padding:10px;box-shadow:0 0 65px rgba(199,243,3,0.75), 0 24px 50px rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+            <img src="\${LOGOS.wappyCircle}" style="width:100%;height:100%;object-fit:contain;" />
+          </div>
+          <div style="padding:8px 28px;border-radius:999px;background:#C7F303;color:#0E1300;font-size:32px;font-weight:900;box-shadow:0 10px 24px rgba(0,0,0,0.7);">
+            WAPPY IA · NÚCLEO
+          </div>
+        </div>
+
+        <div style="position:absolute;inset:0;z-index:8;">\${satsFront}</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;z-index:10;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-radius:26px;background:#0B111D;border:3px solid rgba(45,212,191,0.65);">
+          <span style="font-size:35px;font-weight:900;color:#CBD5E1;">💬 Comenta o entra hoy:</span>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <span style="font-size:58px;font-weight:900;color:#C7F303;letter-spacing:0.05em;">"\${typed}"</span>
+            <span style="padding:12px 26px;border-radius:18px;background:\${clicked?'#22C55E':'#C7F303'};color:#0E1300;font-size:30px;font-weight:900;">
+              \${clicked ? 'ACTIVO ✓' : 'ENTRAR'}
+            </span>
+          </div>
+        </div>
+
+        <div style="height:146px;border-radius:34px;background:#C7F303;box-shadow:0 20px 55px rgba(199,243,3,0.48);display:flex;align-items:center;justify-content:center;gap:18px;padding:0 28px;transform:scale(\${pulseBtn.toFixed(3)});">
+          <span style="font-size:50px;font-weight:900;color:#0E1300;letter-spacing:-0.025em;text-align:center;line-height:1.05;">
+            🚀 ENTRA HOY A WAPPY.CLUB · SOMOS SST
+          </span>
+        </div>
+      </div>
+    </div>\`;
+}
+
+// ============================================================================
+// SUBTÍTULOS KARAOKE MODO MÓVIL XL (y: 1512..1722, 56px EXTRABOLD 900)
+// ============================================================================
+function renderSubtitles(t) {
+  if (t < INTRO_DURATION) {
+    subHost.innerHTML = "";
+    return;
+  }
+  const page = SUB_PAGES.find((p) => t >= p.t0 - 0.08 && t <= p.t1 + 0.14);
+  if (!page) {
+    subHost.innerHTML = "";
+    return;
+  }
+
+  const wordsHtml = page.words.map((item) => {
+    const active = t >= item.t0 - 0.04 && t <= item.t1 + 0.08;
+    const passed = t > item.t1 + 0.08;
+    const st = active
+      ? "color:#C7F303; transform:translateY(-5px) scale(1.09); text-shadow:0 6px 20px rgba(199,243,3,0.45);"
+      : passed
+        ? "color:#FFFFFF;"
+        : "color:rgba(203,213,225,0.55);";
+    return \`<span class="sub-w-xl" style="\${st}">\${item.w}</span>\`;
+  }).join("");
+
+  subHost.innerHTML = \`<div class="sub-pill-xl"><div class="sub-line-xl">\${wordsHtml}</div></div>\`;
+}
+
+// ============================================================================
+// MASTER RENDER DISPATCHER DETERMINISTA (0% TEMBLOR)
+// ============================================================================
+function renderAt(rawT) {
+  const t = clamp(Number(rawT) || 0, 0, TOTAL_DURATION);
+  const scrubFill = document.getElementById("scrubFill");
+  if (scrubFill) {
+    scrubFill.style.width = \`\${clamp((t / TOTAL_DURATION) * 100, 0, 100).toFixed(2)}%\`;
+  }
+
+  if (t < INTRO_DURATION) {
+    renderCoverHero(t);
+    return;
+  }
+
+  stageHost.style.top = "256px";
+  stageHost.style.height = "1224px";
+  footerBrand.style.opacity = "1";
+
+  let activeIdx = 0;
+  for (let i = 0; i < SCENES.length; i++) {
+    if (t >= SCENES[i].startSec && (t < SCENES[i].endSec || i === SCENES.length - 1)) {
+      activeIdx = i;
+      break;
     }
   }
 
-  // Escalar el escenario automáticamente al viewport de cualquier pantalla o iframe sin franjas negras
-  function fitStageToViewport() {
-    var vp = document.getElementById('viewport');
-    var st = document.getElementById('stage');
-    if (!vp || !st) return;
-    var w = vp.clientWidth || window.innerWidth || STAGE_W;
-    var h = vp.clientHeight || window.innerHeight || STAGE_H;
-    var vpRatio = w / Math.max(1, h);
-    var baseRatio = STAGE_W / STAGE_H;
-    st.style.scale = '';
-    if (STAGE_H > STAGE_W && vpRatio > baseRatio * 1.02) {
-      var adaptH = vpRatio > 0.78 ? 1640 : 1760;
-      var adaptW = Math.max(STAGE_W, Math.round(adaptH * vpRatio));
-      st.style.width = adaptW + 'px';
-      st.style.height = adaptH + 'px';
-      var sAdapt = h / adaptH;
-      st.style.transform = 'scale(' + sAdapt.toFixed(5) + ')';
-    } else if (vpRatio > baseRatio * 1.01) {
-      var dynW = Math.round(STAGE_H * vpRatio);
-      st.style.width = dynW + 'px';
-      st.style.height = STAGE_H + 'px';
-      var sH = h / STAGE_H;
-      st.style.transform = 'scale(' + sH.toFixed(5) + ')';
-    } else if (vpRatio < baseRatio * 0.99) {
-      var dynH = Math.round(STAGE_W / Math.max(0.1, vpRatio));
-      st.style.width = STAGE_W + 'px';
-      st.style.height = dynH + 'px';
-      var sW = w / STAGE_W;
-      st.style.transform = 'scale(' + sW.toFixed(5) + ')';
-    } else {
-      st.style.width = STAGE_W + 'px';
-      st.style.height = STAGE_H + 'px';
-      var scale = Math.min(w / STAGE_W, h / STAGE_H);
-      st.style.transform = 'scale(' + scale.toFixed(5) + ')';
-    }
-  }
-  window.addEventListener('resize', fitStageToViewport);
-  fitStageToViewport();
+  const sc = SCENES[activeIdx] || SCENES[0];
+  renderTopMegaDock(activeIdx);
+  renderSubtitles(t);
 
-  var TOTAL_DUR = ${totalDur};
-  var scenes = ${scenesTimingJson};
-  var vozData = window.VOZ || [];
-  var wordTimings = window.__wappyWordTimings || [];
-
-  // Inicializar Avatar 3D de Alta Resolución del Brandbook en #avatar-host-container (CERO muñecos 2D fillRect)
-  var avatarHost = document.getElementById('avatar-host-container');
-  var avatarHaloEl = null;
-  var avatarRenderLayer = null;
-  var imgTalkEl = null;
-  var imgPointEl = null;
-
-  function initAvatar3D() {
-    if (!avatarHost) return;
-    avatarHost.innerHTML =
-      '<div class="avatar-3d-dock">' +
-        '<div class="avatar-voice-halo" id="avatar-voice-ring"></div>' +
-        '<div class="avatar-render-layer" id="avatar-render-layer">' +
-          '<img id="avatar-img-talk" class="avatar-render-img" src="/assets/brandbook/avatar2_mauricio_camisa_cuadros_amarilla.png" alt="Avatar 3D">' +
-          '<img id="avatar-img-point" class="avatar-render-img" src="/assets/brandbook/avatar_mauricio_voxel_cuerpo_completo.png" alt="Avatar Voxel 3D" style="opacity:0;">' +
-        '</div>' +
-        '<div class="avatar-dock-pill"><span class="dot-live"></span> AVATAR 3D · IA</div>' +
-      '</div>';
-    avatarHaloEl = document.getElementById('avatar-voice-ring');
-    avatarRenderLayer = document.getElementById('avatar-render-layer');
-    imgTalkEl = document.getElementById('avatar-img-talk');
-    imgPointEl = document.getElementById('avatar-img-point');
-  }
-  initAvatar3D();
-
-  // Si hay un elemento <audio id="wappy-capsule-audio"> con WAV en Base64, extraer automáticamente la envolvente PCM16 a 60 FPS y las pausas de silencio reales
-  function analyzeEmbeddedWavIfNeeded() {
-    if (vozData && vozData.length > 30) return;
-    var audioEl = document.getElementById('wappy-capsule-audio');
-    if (!audioEl || !audioEl.src || audioEl.src.indexOf('data:audio/wav;base64,') !== 0) return;
-    try {
-      var b64 = audioEl.src.split(',')[1];
-      var bin = atob(b64);
-      var len = bin.length;
-      var bytes = new Uint8Array(len);
-      for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-      var view = new DataView(bytes.buffer);
-      var numCh = view.getUint16(22, true) || 1;
-      var sRate = view.getUint32(24, true) || 24000;
-      var bits = view.getUint16(34, true) || 16;
-      var bps = Math.max(2, Math.floor(bits / 8));
-      var dataOff = 44;
-      var dataLen = len - 44;
-      var totalS = Math.floor(dataLen / (numCh * bps));
-      var realDur = totalS / sRate;
-      if (realDur > 1.5) TOTAL_DUR = realDur;
-
-      var fps = 60;
-      var totF = Math.ceil(realDur * fps);
-      var spf = Math.max(1, Math.floor(sRate / fps));
-      var rmsArr = new Array(totF);
-      var maxR = 0.01;
-      for (var f = 0; f < totF; f++) {
-        var s0 = f * spf;
-        var s1 = Math.min(totalS, s0 + spf);
-        var sum = 0, cnt = 0;
-        for (var s = s0; s < s1; s += 2) {
-          var idx = dataOff + s * numCh * bps;
-          if (idx + 1 < len) {
-            var v = view.getInt16(idx, true) / 32768;
-            sum += v * v;
-            cnt++;
-          }
-        }
-        var r = cnt > 0 ? Math.sqrt(sum / cnt) : 0;
-        if (r > maxR) maxR = r;
-        rmsArr[f] = r;
-      }
-      vozData = rmsArr.map(function(v) { return Math.min(1, v / (maxR * 0.65)); });
-      window.VOZ = vozData;
-    } catch (e) {}
-  }
-  window.addEventListener('DOMContentLoaded', analyzeEmbeddedWavIfNeeded);
-  setTimeout(analyzeEmbeddedWavIfNeeded, 80);
-
-  function getVoiceLevel(t) {
-    if (vozData && vozData.length > 0) {
-      var idx = Math.min(Math.max(0, Math.floor(t * 60)), vozData.length - 1);
-      return vozData[idx] || 0;
-    }
-    if (window.__wappyVoicePlaying === false) return 0;
-    return 0.28 + 0.45 * Math.abs(Math.sin(t * 14.5) * Math.cos(t * 6.2));
-  }
-
-  function isPointingMoment(t, activeSceneIdx) {
-    if (activeSceneIdx <= 0 || activeSceneIdx >= scenes.length) return false;
-    var sc = scenes[activeSceneIdx];
-    var dt = t - sc.start;
-    return dt >= 0.45 && dt <= Math.min(sc.end - sc.start - 0.3, 3.6);
-  }
-
-  function updateAvatarAt(t, activeSceneIdx) {
-    if (!avatarHost) return;
-    var coverEnd = scenes[0] && scenes[0].archetype === 'magnetic-cover-2s' ? scenes[0].end : 0;
-    if (t < coverEnd - 0.18) {
-      avatarHost.style.opacity = '0';
-      return;
-    }
-    var nv = getVoiceLevel(t);
-    var isTalking = nv > 0.045;
-    var isPointing = isPointingMoment(t, activeSceneIdx);
-    var pEnter = clamp((t - (coverEnd - 0.18)) / 0.45);
-    var spEnter = E.spring(pEnter);
-
-    var floatY = Math.sin(t * 3.4) * 5.5 - (isTalking ? nv * 6 : 0);
-    var tiltDeg = Math.sin(t * 2.1) * 1.8 + (isPointing ? -2.2 : 0);
-    var talkScale = 1 + (isTalking ? nv * 0.045 : 0);
-
-    avatarHost.style.opacity = clamp(pEnter * 1.8).toFixed(3);
-    avatarHost.style.transform =
-      'translateY(' + ((1 - spEnter) * 45 + floatY).toFixed(1) + 'px) scale(' + (lerp(0.85, 1, spEnter) * talkScale).toFixed(4) + ')';
-
-    if (avatarRenderLayer) {
-      avatarRenderLayer.style.transform = 'rotate(' + tiltDeg.toFixed(2) + 'deg)';
-    }
-    if (avatarHaloEl) {
-      var hScale = 0.94 + nv * 0.26 + Math.sin(t * 5) * 0.04;
-      avatarHaloEl.style.transform = 'translateX(-50%) scale(' + hScale.toFixed(3) + ')';
-      avatarHaloEl.style.borderColor = isTalking ? '#c7f303' : '#22d3ee';
-    }
-    if (imgTalkEl && imgPointEl) {
-      imgTalkEl.style.opacity = isPointing ? '0' : '1';
-      imgPointEl.style.opacity = isPointing ? '1' : '0';
-    }
-  }
-
-  function updateMegaDockAndKaraoke(t, activeSceneIdx) {
-    var sc = scenes[activeSceneIdx] || scenes[0];
-    var mdScene = document.getElementById('mdock-scene-label');
-    var mdArch = document.getElementById('mdock-arch-label');
-    if (mdScene && sc) {
-      mdScene.textContent = sc.eyebrow || ('ESCENA 0' + sc.num);
-    }
-    if (mdArch && sc) {
-      mdArch.textContent = String(sc.archetype || 'MODO MÓVIL XL').toUpperCase();
-    }
-    if (activeSceneIdx !== lastSfxSceneIdx) {
-      if (lastSfxSceneIdx >= 0) {
-        playWappySfx(activeSceneIdx % 2 === 1 ? 'barrido' : 'golpe-corto');
-      }
-      lastSfxSceneIdx = activeSceneIdx;
-    }
-
-    var subBox = document.getElementById('sub-box');
-    if (!subBox) return;
-    if (!sc || sc.archetype === 'magnetic-cover-2s') {
-      subBox.style.opacity = '0';
-      return;
-    }
-
-    // Si hay wordTimings reales sincronizados, renderizar ventana de 5 palabras con karaoke activo
-    if (wordTimings && wordTimings.length > 0) {
-      var activeWIdx = -1;
-      for (var wi = 0; wi < wordTimings.length; wi++) {
-        var wt = wordTimings[wi];
-        var ws = Number(wt.start !== undefined ? wt.start : wt.startSec) || 0;
-        var we = Number(wt.end !== undefined ? wt.end : wt.endSec) || (ws + 0.35);
-        if (t >= ws && t <= we + 0.15) {
-          activeWIdx = wi;
-          break;
-        }
-      }
-      if (activeWIdx >= 0) {
-        var chunkStart = Math.floor(activeWIdx / 5) * 5;
-        var chunkEnd = Math.min(wordTimings.length, chunkStart + 5);
-        var htmlWords = [];
-        for (var k = chunkStart; k < chunkEnd; k++) {
-          var wTxt = String(wordTimings[k].word || wordTimings[k].text || '').trim();
-          if (!wTxt) continue;
-          var cls = k === activeWIdx ? 'sub-word active' : 'sub-word';
-          htmlWords.push('<span class="' + cls + '">' + wTxt + '</span>');
-        }
-        subBox.innerHTML = htmlWords.join(' ');
-        subBox.style.opacity = '1';
-        return;
-      }
-    }
-
-    // Fallback determinista de karaoke por frase de la escena activa
-    var phrase = String(sc.subheadline || sc.headline || '').trim();
-    if (!phrase) {
-      subBox.style.opacity = '0';
-      return;
-    }
-    var words = phrase.split(/\\s+/).filter(Boolean).slice(0, 7);
-    if (!words.length) {
-      subBox.style.opacity = '0';
-      return;
-    }
-    var scDur = Math.max(0.5, (sc.end || TOTAL_DUR) - (sc.start || 0));
-    var relP = clamp((t - (sc.start || 0)) / scDur, 0, 0.999);
-    var actIdx = Math.min(words.length - 1, Math.floor(relP * words.length));
-    var outHtml = [];
-    for (var j = 0; j < words.length; j++) {
-      outHtml.push('<span class="sub-word' + (j === actIdx ? ' active' : '') + '">' + words[j] + '</span>');
-    }
-    subBox.innerHTML = outHtml.join(' ');
-    subBox.style.opacity = '1';
-  }
-
-  function renderFrame(t) {
-    var safeT = clamp(t, 0, TOTAL_DUR);
-
-    // 0. Constelación de partículas 60 FPS
-    renderConstellationAt(safeT);
-
-    // 1. Barra de progreso superior
-    var pBar = document.getElementById('top-progress-bar');
-    if (pBar) pBar.style.width = Math.min(100, (safeT / TOTAL_DUR) * 100).toFixed(2) + '%';
-
-    // 2. Haz láser de escaneo vertical
-    var scanline = document.getElementById('scanline');
-    if (scanline) {
-      var scanPos = (safeT % 3.8) / 3.8;
-      scanline.style.top = (scanPos * 100).toFixed(1) + '%';
-      scanline.style.opacity = (Math.sin(scanPos * Math.PI) * 0.65).toFixed(2);
-    }
-
-    // 3. Radar holográfico giratorio
-    var sweep = document.getElementById('radar-sweep');
-    if (sweep) {
-      var deg = (safeT * 65) % 360;
-      sweep.style.transform = 'rotate(' + deg.toFixed(1) + 'deg)';
-    }
-
-    // 4. Ecualizador reactivo a la voz
-    var nv = getVoiceLevel(safeT);
-    var eq1 = document.getElementById('eq1');
-    var eq2 = document.getElementById('eq2');
-    var eq3 = document.getElementById('eq3');
-    var eq4 = document.getElementById('eq4');
-    if (eq1) eq1.style.height = (8 + nv * 22).toFixed(1) + 'px';
-    if (eq2) eq2.style.height = (12 + nv * 28).toFixed(1) + 'px';
-    if (eq3) eq3.style.height = (10 + nv * 24).toFixed(1) + 'px';
-    if (eq4) eq4.style.height = (14 + nv * 26).toFixed(1) + 'px';
-
-    // 5. Retícula Digital Zoom HUD en el arranque y en cambios clave
-    var zoomHud = document.getElementById('digital-zoom-hud');
-    if (zoomHud) {
-      if (safeT < 1.45) {
-        var pz = clamp(safeT / 1.45);
-        zoomHud.style.opacity = (1 - E.io3(pz)).toFixed(2);
-        var sHud = 1.14 - E.out3(pz) * 0.14;
-        zoomHud.style.transform = 'scale(' + sHud.toFixed(3) + ')';
-      } else {
-        zoomHud.style.opacity = '0';
-      }
-    }
-
-    // 6. Coreografía 60 FPS por Escena
-    var activeSceneIdx = 0;
-    for (var i = 0; i < scenes.length; i++) {
-      var sc = scenes[i];
-      var el = document.querySelector(sc.id);
-      if (!el) continue;
-
-      var inWindow = (safeT >= sc.start && (safeT < sc.end || (sc.isLast && safeT <= TOTAL_DUR + 0.5)));
-      if (inWindow) {
-        activeSceneIdx = i;
-        el.style.visibility = 'visible';
-        var dt = Math.max(0, safeT - sc.start);
-        var num = sc.num;
-
-        var op = 1;
-        var sceneScale = 1;
-        if (i > 0 && dt < 0.34) {
-          var inP = E.out3(dt / 0.34);
-          op = inP;
-          sceneScale = lerp(0.94, 1.0, inP);
-        } else if (!sc.isLast && safeT > sc.end - 0.34) {
-          var outP = E.in3((safeT - (sc.end - 0.34)) / 0.34);
-          sceneScale = 1 + outP * (sc.archetype === 'magnetic-cover-2s' ? 0.55 : 0.28);
-          op = 1 - outP;
-        }
-        el.style.opacity = clamp(op).toFixed(3);
-        el.style.transform = Math.abs(sceneScale - 1) > 0.002 ? 'scale(' + sceneScale.toFixed(3) + ')' : 'none';
-
-        if (sc.archetype === 'magnetic-cover-2s') {
-          var s0Hero = document.getElementById('s0-hero');
-          var s0Badges = document.getElementById('s0-badges');
-          if (s0Hero) {
-            var floatCover = Math.sin(safeT * 3.2) * 5;
-            s0Hero.style.transform = 'translateY(' + floatCover.toFixed(1) + 'px)';
-          }
-          if (s0Badges) {
-            var pB = clamp(dt / 0.38);
-            s0Badges.style.transform = 'scale(' + lerp(0.94, 1.0, E.out3(pB)).toFixed(3) + ')';
-          }
-          continue;
-        }
-
-        // Animación del Header de la escena
-        var hBox = document.getElementById('s' + num + '-header');
-        if (hBox) {
-          var pH = clamp(dt / 0.45);
-          hBox.style.opacity = clamp(pH * 1.8).toFixed(2);
-          hBox.style.transform = 'translateY(' + ((1 - E.spring(pH)) * -42).toFixed(1) + 'px)';
-        }
-
-        if (sc.archetype === 'wappy-n8n-workflow') {
-          var n8nCam = document.getElementById('s' + num + '-n8n-cam');
-          var n8nTerm = document.getElementById('s' + num + '-n8n-term');
-          if (n8nCam) {
-            var panX = Math.sin(dt * 1.1) * 14;
-            var tiltX = 4 + Math.cos(dt * 0.9) * 2.5;
-            n8nCam.style.transform = 'rotateX(' + tiltX.toFixed(2) + 'deg) translateX(' + panX.toFixed(1) + 'px)';
-          }
-          for (var ndI = 1; ndI <= 3; ndI++) {
-            var ndEl = document.getElementById('s' + num + '-n8n-node-' + ndI);
-            if (ndEl) {
-              var pNd = clamp((dt - (0.08 + (ndI - 1) * 0.22)) / 0.48);
-              var spNd = E.spring(pNd);
-              ndEl.style.opacity = clamp(pNd * 2.2).toFixed(2);
-              ndEl.style.transform = 'translateY(' + ((1 - spNd) * 55).toFixed(1) + 'px) scale(' + spNd.toFixed(3) + ')';
-            }
-          }
-          var wire1 = document.getElementById('s' + num + '-n8n-wire-1');
-          var wire2 = document.getElementById('s' + num + '-n8n-wire-2');
-          if (wire1) wire1.style.strokeDashoffset = '-' + (safeT * 64).toFixed(1);
-          if (wire2) wire2.style.strokeDashoffset = '-' + (safeT * 64).toFixed(1);
-          if (n8nTerm) {
-            var pTm = clamp((dt - 0.45) / 0.50);
-            n8nTerm.style.opacity = clamp(pTm * 2.2).toFixed(2);
-            n8nTerm.style.transform = 'translateY(' + ((1 - E.spring(pTm)) * 35).toFixed(1) + 'px)';
-          }
-        }
-
-        else if (sc.archetype === 'visor-normativo-real') {
-          var sheetEl = document.getElementById('s' + num + '-norma-sheet');
-          var hl1 = document.getElementById('s' + num + '-norma-hl-1');
-          var hl2 = document.getElementById('s' + num + '-norma-hl-2');
-          var stampEl = document.getElementById('s' + num + '-norma-stamp');
-          var callEl = document.getElementById('s' + num + '-norma-callout');
-          if (sheetEl) {
-            var pSh = clamp(dt / 0.50);
-            sheetEl.style.opacity = clamp(pSh * 2.2).toFixed(2);
-            sheetEl.style.transform = 'rotate(-0.8deg) scale(' + lerp(0.92, 1.0, E.spring(pSh)).toFixed(3) + ')';
-          }
-          if (hl1) {
-            var pHl1 = E.out3(clamp((dt - 0.35) / 0.65));
-            hl1.style.backgroundSize = (pHl1 * 100).toFixed(1) + '% 100%';
-          }
-          if (hl2) {
-            var pHl2 = E.out3(clamp((dt - 0.85) / 0.65));
-            hl2.style.backgroundSize = (pHl2 * 100).toFixed(1) + '% 100%';
-          }
-          if (stampEl) {
-            var pSt = clamp((dt - 0.55) / 0.42);
-            stampEl.style.opacity = clamp(pSt * 2.2).toFixed(2);
-            stampEl.style.transform = 'rotate(-4deg) scale(' + lerp(1.45, 1.0, E.spring(pSt)).toFixed(3) + ')';
-          }
-          if (callEl) {
-            var pCl = clamp((dt - 0.42) / 0.48);
-            callEl.style.opacity = clamp(pCl * 2.2).toFixed(2);
-            callEl.style.transform = 'translateY(' + ((1 - E.spring(pCl)) * 38).toFixed(1) + 'px)';
-          }
-        }
-
-        else if (sc.archetype === 'flow-split-before-after') {
-          var bPanel = document.getElementById('s' + num + '-split-before');
-          var aPanel = document.getElementById('s' + num + '-split-after');
-          var mPill = document.getElementById('s' + num + '-split-metric');
-          var pBp = clamp((dt - 0.08) / 0.50);
-          var pAp = clamp((dt - 0.32) / 0.54);
-          if (bPanel) {
-            bPanel.style.opacity = clamp(pBp * 2.2).toFixed(2);
-            bPanel.style.transform = 'translateX(' + ((1 - E.spring(pBp)) * -280).toFixed(1) + 'px)';
-          }
-          if (aPanel) {
-            aPanel.style.opacity = clamp(pAp * 2.2).toFixed(2);
-            aPanel.style.transform = 'translateX(' + ((1 - E.spring(pAp)) * 280).toFixed(1) + 'px)';
-          }
-          if (mPill) {
-            var pMp = clamp((dt - 0.52) / 0.45);
-            mPill.style.opacity = clamp(pMp * 2.2).toFixed(2);
-            mPill.style.transform = 'scale(' + E.spring(pMp).toFixed(3) + ')';
-          }
-        }
-
-        else if (sc.archetype === 'suri-voice-live-hud') {
-          var sCard = document.getElementById('s' + num + '-suri-card');
-          var sPrompts = document.getElementById('s' + num + '-suri-prompts');
-          if (sCard) {
-            var pSc2 = clamp(dt / 0.52);
-            sCard.style.opacity = clamp(pSc2 * 2.2).toFixed(2);
-            sCard.style.transform = 'scale(' + E.spring(pSc2).toFixed(3) + ')';
-          }
-          for (var wvI = 1; wvI <= 24; wvI++) {
-            var wvBar = document.getElementById('s' + num + '-swbar-' + wvI);
-            if (wvBar) {
-              var waveH = 18 + (nv * 74) * Math.abs(Math.sin(safeT * 12 + wvI * 0.55));
-              wvBar.style.height = Math.min(98, waveH).toFixed(1) + '%';
-            }
-          }
-          if (sPrompts) {
-            var pPr = clamp((dt - 0.35) / 0.48);
-            sPrompts.style.opacity = clamp(pPr * 2.2).toFixed(2);
-            sPrompts.style.transform = 'translateY(' + ((1 - E.spring(pPr)) * 36).toFixed(1) + 'px)';
-          }
-        }
-
-        else if (sc.archetype === 'cuadricula-50-herramientas') {
-          var g50 = document.getElementById('s' + num + '-tools-grid');
-          var r50 = document.getElementById('s' + num + '-tools-ring');
-          if (g50) {
-            var pG50 = clamp(dt / 0.50);
-            g50.style.opacity = clamp(pG50 * 2.2).toFixed(2);
-          }
-          for (var tcI = 1; tcI <= 9; tcI++) {
-            var tcEl = document.getElementById('s' + num + '-tchip-' + tcI);
-            if (tcEl) {
-              var pTc = clamp((dt - (0.06 + tcI * 0.05)) / 0.42);
-              tcEl.style.opacity = clamp(pTc * 2.2).toFixed(2);
-              tcEl.style.transform = 'scale(' + E.spring(pTc).toFixed(3) + ')';
-            }
-          }
-          if (r50) {
-            var pR50 = clamp((dt - 0.35) / 0.52);
-            r50.style.opacity = clamp(pR50 * 2.2).toFixed(2);
-            r50.style.transform = 'translateY(' + ((1 - E.spring(pR50)) * 35).toFixed(1) + 'px)';
-          }
-        }
-
-        else if (sc.archetype === 'hook-vs-wall') {
-          var c1 = document.getElementById('s' + num + '-card-1');
-          var c2 = document.getElementById('s' + num + '-card-2');
-          var trk = document.getElementById('s' + num + '-track');
-          if (trk) trk.style.transform = 'translateX(-' + ((safeT * 68) % 620).toFixed(1) + 'px)';
-
-          var p1 = clamp((dt - 0.08) / 0.55);
-          if (c1) {
-            c1.style.opacity = clamp(p1 * 2.2).toFixed(2);
-            c1.style.transform = 'translateX(' + ((1 - E.spring(p1)) * -360).toFixed(1) + 'px)';
-          }
-          var p2 = clamp((dt - 0.38) / 0.58);
-          if (c2) {
-            c2.style.opacity = clamp(p2 * 2.2).toFixed(2);
-            c2.style.transform = 'translateX(' + ((1 - E.spring(p2)) * 360).toFixed(1) + 'px)';
-          }
-        }
-
-        else if (sc.archetype === 'iphone-split-showcase') {
-          var ph = document.getElementById('s' + num + '-phone');
-          var las = document.getElementById('s' + num + '-laser');
-          var pPh = clamp(dt / 0.60);
-          if (ph) {
-            ph.style.opacity = clamp(pPh * 2.2).toFixed(2);
-            ph.style.transform = 'scale(' + E.spring(pPh).toFixed(3) + ')';
-          }
-          if (las) {
-            var lPos = (safeT * 0.95) % 1.0;
-            las.style.top = (lPos * 100).toFixed(1) + '%';
-          }
-          for (var ppI = 1; ppI <= 4; ppI++) {
-            var ppEl = document.getElementById('s' + num + '-pp-' + ppI);
-            if (ppEl) {
-              var pP = clamp((dt - (0.18 + ppI * 0.14)) / 0.45);
-              ppEl.style.opacity = clamp(pP * 2).toFixed(2);
-              ppEl.style.transform = 'translateY(' + ((1 - E.spring(pP)) * 35).toFixed(1) + 'px)';
-            }
-          }
-          for (var scI2 = 1; scI2 <= 3; scI2++) {
-            var scCard = document.getElementById('s' + num + '-sc-' + scI2);
-            if (scCard) {
-              var pSc = clamp((dt - (0.20 + (scI2 - 1) * 0.22)) / 0.55);
-              scCard.style.opacity = clamp(pSc * 2.2).toFixed(2);
-              scCard.style.transform = 'translateX(' + ((1 - E.spring(pSc)) * 250).toFixed(1) + 'px)';
-            }
-          }
-        }
-
-        else if (sc.archetype === 'signature-pad-live') {
-          var phS = document.getElementById('s' + num + '-phone');
-          var lasS = document.getElementById('s' + num + '-laser');
-          var pPhS = clamp(dt / 0.58);
-          if (phS) {
-            phS.style.opacity = clamp(pPhS * 2.2).toFixed(2);
-            phS.style.transform = 'scale(' + E.spring(pPhS).toFixed(3) + ')';
-          }
-          if (lasS) {
-            lasS.style.top = (((safeT * 0.9) % 1.0) * 100).toFixed(1) + '%';
-          }
-          for (var sgI = 1; sgI <= 3; sgI++) {
-            var sgCard = document.getElementById('s' + num + '-sig-' + sgI);
-            var sgPath = document.getElementById('s' + num + '-sigpath-' + sgI);
-            var dly = 0.18 + (sgI - 1) * 0.28;
-            var pSg = clamp((dt - dly) / 0.52);
-            if (sgCard) {
-              sgCard.style.opacity = clamp(pSg * 2.2).toFixed(2);
-              sgCard.style.transform = 'translateX(' + ((1 - E.spring(pSg)) * 230).toFixed(1) + 'px)';
-            }
-            if (sgPath) {
-              var pDraw = E.io3(clamp((dt - (dly + 0.25)) / 0.95));
-              sgPath.style.strokeDashoffset = (420 * (1 - pDraw)).toFixed(1);
-            }
-          }
-        }
-
-        else if (sc.archetype === 'chart-grow-math') {
-          var formEl = document.getElementById('s' + num + '-formula');
-          var phC = document.getElementById('s' + num + '-phone');
-          var lasC = document.getElementById('s' + num + '-laser');
-          if (formEl) {
-            var pFm = clamp(dt / 0.50);
-            formEl.style.opacity = clamp(pFm * 2).toFixed(2);
-            formEl.style.transform = 'scale(' + E.spring(pFm).toFixed(3) + ')';
-          }
-          if (phC) {
-            var pPhC = clamp((dt - 0.1) / 0.55);
-            phC.style.opacity = clamp(pPhC * 2.2).toFixed(2);
-            phC.style.transform = 'scale(' + E.spring(pPhC).toFixed(3) + ')';
-          }
-          if (lasC) {
-            lasC.style.top = (((safeT * 0.95) % 1.0) * 100).toFixed(1) + '%';
-          }
-          var colHeights = [68, 88, 100, 74, 96, 62, 100];
-          for (var bI = 1; bI <= 7; bI++) {
-            var cbEl = document.getElementById('s' + num + '-cb-' + bI);
-            if (cbEl) {
-              var pCb = clamp((dt - 0.25 - bI * 0.06) / 0.70);
-              cbEl.style.height = (colHeights[bI - 1] * E.out3(pCb)).toFixed(1) + '%';
-            }
-          }
-          for (var rI = 1; rI <= 3; rI++) {
-            var rkCard = document.getElementById('s' + num + '-rk-' + rI);
-            var rkBar = document.getElementById('s' + num + '-rkbar-' + rI);
-            var rkNum = document.getElementById('s' + num + '-rknum-' + rI);
-            var rDelay = 0.20 + (rI - 1) * 0.22;
-            var pRk = clamp((dt - rDelay) / 0.52);
-            var pBarR = E.out3(clamp((dt - (rDelay + 0.18)) / 0.85));
-            if (rkCard) {
-              rkCard.style.opacity = clamp(pRk * 2.2).toFixed(2);
-              rkCard.style.transform = 'translateX(' + ((1 - E.spring(pRk)) * 230).toFixed(1) + 'px)';
-            }
-            if (rkBar) {
-              var targetW = parseFloat(rkBar.getAttribute('data-width') || '90');
-              rkBar.style.width = (targetW * pBarR).toFixed(1) + '%';
-            }
-            if (rkNum) {
-              var targetV = parseFloat(rkNum.getAttribute('data-target') || '100');
-              var pref = rkNum.getAttribute('data-prefix') || '';
-              var unit = rkNum.getAttribute('data-unit') || '%';
-              rkNum.textContent = pref + ' ' + Math.round(targetV * pBarR) + unit;
-            }
-          }
-        }
-
-        else if (sc.archetype === 'pentagon-orbital') {
-          var coreEl = document.getElementById('s' + num + '-core');
-          var r1El = document.getElementById('s' + num + '-ring-1');
-          var r2El = document.getElementById('s' + num + '-ring-2');
-          var pCore = clamp((dt - 0.05) / 0.55);
-          if (coreEl) {
-            coreEl.style.transform = 'translate(-50%, -50%) scale(' + E.spring(pCore).toFixed(3) + ')';
-          }
-          if (r1El) r1El.style.transform = 'translate(-50%, -50%) rotate(' + (safeT * 10).toFixed(1) + 'deg)';
-          if (r2El) r2El.style.transform = 'translate(-50%, -50%) rotate(-' + (safeT * 6).toFixed(1) + 'deg)';
-
-          var nodeOffsets = [
-            { dx: 0,    dy: -350, delay: 0.18 },
-            { dx: 307,  dy: -185, delay: 0.28 },
-            { dx: 240,  dy: 300,  delay: 0.38 },
-            { dx: -240, dy: 300,  delay: 0.48 },
-            { dx: -307, dy: -185, delay: 0.58 }
-          ];
-          for (var nI = 1; nI <= 5; nI++) {
-            var nEl = document.getElementById('s' + num + '-node-' + nI);
-            var lEl = document.getElementById('s' + num + '-laser-' + nI);
-            var cfg = nodeOffsets[nI - 1];
-            if (nEl) {
-              var pN = clamp((dt - cfg.delay) / 0.56);
-              var spN = E.spring(pN);
-              var cx = cfg.dx * (spN - 1);
-              var cy = cfg.dy * (spN - 1);
-              nEl.style.opacity = clamp(pN * 2.2).toFixed(2);
-              nEl.style.transform = 'translate(-50%, -50%) translate(' + cx.toFixed(1) + 'px, ' + cy.toFixed(1) + 'px) scale(' + spN.toFixed(3) + ')';
-            }
-            if (lEl) {
-              lEl.style.strokeDashoffset = '-' + (safeT * 38).toFixed(1);
-            }
-          }
-        }
-
-        else if (sc.archetype === 'tenshi-specialists-grid') {
-          var tBar = document.getElementById('s' + num + '-topbar');
-          if (tBar) {
-            var pTb = clamp(dt / 0.52);
-            tBar.style.opacity = clamp(pTb * 2).toFixed(2);
-            tBar.style.transform = 'translateY(' + ((1 - E.spring(pTb)) * -65).toFixed(1) + 'px)';
-          }
-          for (var spI = 1; spI <= 4; spI++) {
-            var spEl = document.getElementById('s' + num + '-sp-' + spI);
-            if (spEl) {
-              var dir = spI % 2 === 1 ? -1 : 1;
-              var pSp = clamp((dt - (0.18 + (spI - 1) * 0.14)) / 0.52);
-              var tx = (1 - E.spring(pSp)) * 220 * dir;
-              spEl.style.opacity = clamp(pSp * 2.2).toFixed(2);
-              spEl.style.transform = 'translateX(' + tx.toFixed(1) + 'px)';
-            }
-          }
-        }
-
-        else if (sc.archetype === 'cta-viral-bubbles') {
-          var ctaCard = document.getElementById('s' + num + '-cta-card');
-          var ctaGlow = document.getElementById('s' + num + '-cta-glow');
-          var ctaBtn = document.getElementById('s' + num + '-cta-btn');
-          if (ctaCard) {
-            var pCta = clamp(dt / 0.58);
-            ctaCard.style.opacity = clamp(pCta * 2.2).toFixed(2);
-            ctaCard.style.transform = 'scale(' + E.spring(pCta).toFixed(3) + ')';
-          }
-          if (ctaGlow) {
-            var gScale = 1 + Math.sin(safeT * 2.6) * 0.03;
-            ctaGlow.style.transform = 'scale(' + gScale.toFixed(3) + ')';
-          }
-          if (ctaBtn) {
-            var bScale = 1 + Math.cos(safeT * 2.6) * 0.024;
-            ctaBtn.style.transform = 'scale(' + bScale.toFixed(3) + ')';
-          }
-          var bubRots = [-4, 3, 5, -3];
-          for (var bbI = 1; bbI <= 4; bbI++) {
-            var bbEl = document.getElementById('s' + num + '-bub-' + bbI);
-            if (bbEl) {
-              var pBb = clamp((dt - (0.22 + (bbI - 1) * 0.18)) / 0.48);
-              var sBb = E.spring(pBb);
-              bbEl.style.opacity = clamp(pBb * 2.2).toFixed(2);
-              bbEl.style.transform = 'rotate(' + bubRots[bbI - 1] + 'deg) scale(' + sBb.toFixed(3) + ')';
-            }
-          }
-        }
-      } else {
-        el.style.visibility = 'hidden';
-        el.style.opacity = '0';
-      }
-    }
-
-    // 7. Actualizar Mega-Dock Superior y Subtítulos Karaoke Móvil XL
-    updateMegaDockAndKaraoke(safeT, activeSceneIdx);
-
-    // 8. Actualizar Avatar 3D Minecraft Voxel en el tercio inferior
-    updateAvatarAt(safeT, activeSceneIdx);
-  }
-
-  window.renderFrame = renderFrame;
-  window.render = renderFrame;
-  window.__render = renderFrame;
-  window.seekTo = renderFrame;
-  window.__wappySeekTo = renderFrame;
-  window.__wappyFitViewport = fitStageToViewport;
-  window.__wappyRenderTick = function(timeSec, totalDurOverride) {
-    if (typeof totalDurOverride === 'number' && totalDurOverride > 1) {
-      TOTAL_DUR = totalDurOverride;
-    }
-    if (window.mainTimeline && typeof window.mainTimeline.pause === 'function') {
-      window.mainTimeline.pause();
-    }
-    renderFrame(timeSec);
-  };
-
-  // Integración con GSAP window.mainTimeline para compatibilidad total con Studio Player, Cápsula LMS y Render MP4
-  function setupMasterTimeline() {
-    if (typeof window.gsap === 'undefined') return;
-    var tl = window.gsap.timeline({ repeat: 0 });
-    tl.to({}, {
-      duration: TOTAL_DUR,
-      ease: 'none',
-      onUpdate: function() {
-        renderFrame(tl.time());
-      }
-    }, 0);
-    window.mainTimeline = tl;
-    renderFrame(0);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupMasterTimeline);
+  if (sc.archetype === "hook-vs-wall") {
+    renderSceneHookRoulette(t, sc);
+  } else if (sc.archetype === "bento-kpi" || sc.archetype === "checklist-steps" || sc.archetype === "iphone-split-showcase") {
+    renderSceneBentoAgentic(t, sc);
+  } else if (sc.archetype === "flow-split-before-after" || sc.archetype === "before-after") {
+    renderSceneFlowSplit(t, sc);
+  } else if (sc.archetype === "visor-normativo-real" || sc.archetype === "signature-pad-live") {
+    renderSceneVisorNorma(t, sc);
+  } else if (sc.archetype === "suri-voice-live-hud" || sc.archetype === "tenshi-specialists-grid") {
+    renderSceneSuriHud(t, sc);
+  } else if (sc.archetype === "wappy-n8n-workflow" || sc.archetype === "cuadricula-50-herramientas") {
+    renderSceneWappyN8n(t, sc);
   } else {
-    setupMasterTimeline();
+    renderSceneFinalOrbit(t, sc);
   }
+}
 
-  // Escuchar mensajes del reproductor de WAPPY Studio
-  window.addEventListener('message', function(e) {
-    if (!e.data) return;
-    var d = e.data;
-    if (d.type === 'STUDIO_PLAY') {
-      window.__wappyVoicePlaying = true;
-      if (window.mainTimeline) window.mainTimeline.play();
-    } else if (d.type === 'STUDIO_PAUSE') {
-      window.__wappyVoicePlaying = false;
-      if (window.mainTimeline) window.mainTimeline.pause();
-    } else if (d.type === 'STUDIO_RESTART') {
-      window.__wappyVoicePlaying = true;
-      if (window.mainTimeline) window.mainTimeline.restart();
-    } else if (d.type === 'STUDIO_SEEK' && typeof d.progress === 'number') {
-      var targetT = clamp(d.progress, 0, 1) * TOTAL_DUR;
-      if (window.mainTimeline) window.mainTimeline.time(targetT, false).pause();
-      renderFrame(targetT);
-    } else if (d.type === 'STUDIO_SYNC_TIME' && typeof d.currentTime === 'number') {
-      if (typeof d.duration === 'number' && d.duration > 1) TOTAL_DUR = d.duration;
-      window.__wappyVoicePlaying = Boolean(d.playing);
-      if (window.mainTimeline) window.mainTimeline.time(clamp(d.currentTime, 0, TOTAL_DUR), false);
-      renderFrame(d.currentTime);
+const viewport = document.getElementById("viewport");
+const bgAudio = document.getElementById("bgAudio");
+const playPrompt = document.getElementById("playPrompt");
+
+function fitViewport() {
+  const s = Math.min(window.innerWidth / 1080, window.innerHeight / 1920);
+  viewport.style.transform = \`scale(\${s.toFixed(5)})\`;
+}
+window.addEventListener("resize", fitViewport);
+fitViewport();
+
+if (new URLSearchParams(window.location.search).get("capture") === "1") {
+  document.body.classList.add("capture-mode");
+}
+
+let manualCaptureMode = false;
+let simPlaying = false;
+let simStartWall = 0;
+let simOffsetSec = 0;
+let lastRenderedT = -1;
+
+function tick() {
+  if (!manualCaptureMode) {
+    let t = 0;
+    if (bgAudio && bgAudio.getAttribute("src")) {
+      t = bgAudio.currentTime || 0;
+      if (!bgAudio.paused || Math.abs(t - lastRenderedT) > 0.004) {
+        renderAt(t);
+        lastRenderedT = t;
+      }
+    } else if (simPlaying) {
+      t = simOffsetSec + (performance.now() - simStartWall) / 1000;
+      if (t >= TOTAL_DURATION) {
+        t = 0;
+        simPlaying = false;
+        playPrompt.classList.remove("hidden");
+      }
+      renderAt(t);
+      lastRenderedT = t;
     }
-  });
-})();
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+viewport.addEventListener("click", (e) => {
+  if (e.target.closest("#scrubWrap")) return;
+  if (bgAudio && bgAudio.getAttribute("src")) {
+    if (bgAudio.paused) {
+      bgAudio.play().then(() => playPrompt.classList.add("hidden")).catch(() => {});
+    } else {
+      bgAudio.pause();
+      playPrompt.classList.remove("hidden");
+    }
+  } else {
+    simPlaying = !simPlaying;
+    if (simPlaying) {
+      simStartWall = performance.now();
+      playPrompt.classList.add("hidden");
+    } else {
+      simOffsetSec = lastRenderedT > 0 ? lastRenderedT : 0;
+      playPrompt.classList.remove("hidden");
+    }
+  }
+});
+
+document.getElementById("scrubWrap").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const ratio = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+  const targetT = ratio * TOTAL_DURATION;
+  if (bgAudio && bgAudio.getAttribute("src")) {
+    bgAudio.currentTime = targetT;
+  } else {
+    simOffsetSec = targetT;
+    simStartWall = performance.now();
+  }
+  renderAt(targetT);
+});
+
+function deterministicSeek(t, totalDurOverride) {
+  manualCaptureMode = true;
+  simPlaying = false;
+  document.body.classList.add("capture-mode");
+  if (typeof totalDurOverride === "number" && totalDurOverride > 1) {
+    TOTAL_DURATION = totalDurOverride;
+  }
+  if (bgAudio && !bgAudio.paused) {
+    try { bgAudio.pause(); } catch (_) {}
+  }
+  renderAt(t);
+  return true;
+}
+
+window.seekPreview = deterministicSeek;
+window.seekTo = deterministicSeek;
+window.__wappySeekTo = deterministicSeek;
+window.renderFrame = deterministicSeek;
+window.render = deterministicSeek;
+window.__render = deterministicSeek;
+window.__wappyRenderTick = deterministicSeek;
+window.__wappyFitViewport = fitViewport;
+
+window.addEventListener("message", (e) => {
+  if (!e.data) return;
+  const d = e.data;
+  if (d.type === "STUDIO_PLAY") {
+    manualCaptureMode = false;
+    if (bgAudio && bgAudio.getAttribute("src")) bgAudio.play().catch(() => {});
+    else { simPlaying = true; simStartWall = performance.now(); }
+    playPrompt.classList.add("hidden");
+  } else if (d.type === "STUDIO_PAUSE") {
+    if (bgAudio) bgAudio.pause();
+    simPlaying = false;
+  } else if (d.type === "STUDIO_RESTART") {
+    manualCaptureMode = false;
+    if (bgAudio && bgAudio.getAttribute("src")) { bgAudio.currentTime = 0; bgAudio.play().catch(() => {}); }
+    else { simOffsetSec = 0; simStartWall = performance.now(); simPlaying = true; }
+  } else if (d.type === "STUDIO_SEEK" && typeof d.progress === "number") {
+    deterministicSeek(clamp(d.progress, 0, 1) * TOTAL_DURATION);
+  } else if (d.type === "STUDIO_SYNC_TIME" && typeof d.currentTime === "number") {
+    deterministicSeek(d.currentTime, d.duration);
+  }
+});
+
+renderAt(0.45);
 </script>
 </body>
 </html>`;

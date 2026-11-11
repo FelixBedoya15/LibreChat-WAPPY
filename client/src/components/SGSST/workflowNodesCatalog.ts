@@ -2601,275 +2601,3451 @@ export interface WorkflowPresetDef {
  */
 export const WORKFLOW_PRESETS: WorkflowPresetDef[] = [
   {
-    presetKey: 'preset_drive_trabajadores_sync',
-    presetCategory: 'drive_sincronizacion',
-    name: '📁 Sincronización Viva de Trabajadores y Soportes desde Google Drive',
-    description:
-      'Explora carpetas de trabajadores en Google Drive, valida soportes por cédula y actualiza el Perfil Sociodemográfico y Condiciones de Salud sin duplicar registros.',
-    scheduleType: 'daily',
+    presetKey: "preset_vencimientos_emo_epp",
+    presetCategory: "salud_vencimientos",
+    name: "🩺 Alerta Temprana de Vencimientos: Exámenes Médicos (EMO), Alturas y EPP",
+    description: "Audita diariamente los expedientes del Hito 2 y Hito 3 para detectar Exámenes Médicos Ocupacionales, cursos de Trabajo en Alturas (Res. 4272) y entregas de EPP vencidos o próximos a vencer (<= 30 días). Si hay vencimientos escala a ACPM + Calendar + Gmail; si todo está vigente registra bitácora limpia en WAPPY.",
+    scheduleType: "daily",
     hour: 7,
     minute: 0,
     workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_drive', 'extract_sst_workers'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      includeIfNode: true,
-      inputs: ['google_drive', 'somos_sst_empresa', 'somos_sst_trabajadores'],
-      hitos: ['hito2_perfil_socio', 'hito2_condiciones_salud'],
-      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_trabajadores",
+                "somos_sst_examenes",
+                "somos_sst_epp"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_perfil_socio",
+                "hito3_epp",
+                "hito3_alturas"
+          ],
+          "outputs": [
+                "acpm_task",
+                "google_calendar",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿EMO / Alturas / EPP <= 30d?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_perfil_socio, hito3_epp, hito3_alturas): \"¿EMO / Alturas / EPP <= 30d?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, google_calendar, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_calendar": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
     }),
   },
   {
-    presetKey: 'preset_centinela_emo_alturas',
-    presetCategory: 'salud_vencimientos',
-    name: '🩺 Centinela de Vencimientos: Exámenes Médicos (EMO), Alturas y EPP',
-    description:
-      'Cruza trabajadores activos con exámenes médicos ocupacionales, certificados de Trabajo Seguro en Alturas (Res. 4272) en MinTrabajo/SENA y entregas de EPP.',
-    scheduleType: 'weekly',
-    daysOfWeek: [1],
-    hour: 7,
+    presetKey: "preset_ergonomia_owas_medlineplus",
+    presetCategory: "salud_vencimientos",
+    name: "🦴 Vigilancia Osteomuscular (OWAS / Estudio de Puesto) y Guías MedlinePlus NIH",
+    description: "Revisa evaluaciones posturales OWAS, Estudios de Puesto de Trabajo (EPT) y restricciones médicas osteomusculares, integrando guías clínicas de MedlinePlus (NIH) para readaptación laboral.",
+    scheduleType: "weekly",
+    hour: 8,
     minute: 30,
-    workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_sst_workers', 'scraper_agy_alto_riesgo'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
-      inputs: ['somos_sst_trabajadores', 'somos_sst_examenes', 'somos_sst_epp'],
-      hitos: ['hito2_condiciones_salud', 'hito3_alturas', 'hito3_epp', 'hito7_acpm'],
-      outputs: ['acpm_task', 'email_report', 'wappy_notification'],
-    }),
-  },
-  {
-    presetKey: 'preset_verificacion_arl_seguridad_social',
-    presetCategory: 'salud_vencimientos',
-    name: '🛡️ Auditoría Directa de Certificados ARL y Antecedentes por Cédula',
-    description:
-      'Consulta en portales oficiales ARL y Rama Judicial/Procuraduría/Contraloría/Policía por cédula vía Antigravity, descargando los certificados PDF y PNG en bandeja dedicada.',
-    scheduleType: 'weekly',
-    daysOfWeek: [2],
-    hour: 8,
-    minute: 0,
-    workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_sst_workers', 'scraper_agy_arl_directo', 'scraper_agy_antecedentes'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      includeIfNode: true,
-      inputs: ['somos_sst_empresa', 'somos_sst_trabajadores', 'google_antigravity'],
-      hitos: ['hito2_perfil_socio', 'hito5_contratistas', 'hito7_acpm'],
-      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
-    }),
-  },
-  {
-    presetKey: 'preset_investigacion_atel_1401',
-    presetCategory: 'atel_inspecciones',
-    name: '🚨 Alerta e Investigación Temprana ATEL (Resolución 1401 de 2007)',
-    description:
-      'Detecta reportes de incidentes/accidentes en Gmail y Somos SST, controla el plazo legal de 15 días y estructura el pre-análisis causal (5 Porqués / Ishikawa).',
-    scheduleType: 'daily',
-    hour: 8,
-    minute: 0,
-    workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'trigger_email',
-      triggers: ['trigger_email', 'schedule_cron'],
-      extractors: ['extract_gmail', 'extract_sst_app'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.8-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
-      inputs: ['google_gmail', 'somos_sst_empresa', 'somos_sst_trabajadores', 'matriz_ipevar'],
-      hitos: ['hito7_investigacion_atel', 'hito7_estadisticas_atel', 'hito7_acpm'],
-      outputs: ['canvas_doc', 'acpm_task', 'email_report', 'wappy_notification'],
-    }),
-  },
-  {
-    presetKey: 'preset_radar_matriz_legal',
-    presetCategory: 'legal_cumplimiento',
-    name: '⚖️ Radar Normativo MinTrabajo: Políticas, Reglamento Interno y Estándares 0312',
-    description:
-      'Rastrea nuevas resoluciones, decretos y circulares laborales en Colombia aplicables al CIIU y riesgo ARL de la empresa, actualizando Políticas, RIT y Diagnóstico 0312.',
-    scheduleType: 'weekly',
     daysOfWeek: [3],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "consultar_medlineplus_rehabilitacion",
+                "somos_sst_trabajadores",
+                "somos_sst_examenes"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_owas",
+                "hito3_estudio_puesto",
+                "hito2_condiciones_salud"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "canvas_doc",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Casos OWAS >= 3 o Restricción >= 1?",
+                            "ifConditionType": "numeric_threshold",
+                            "ifRuleExpression": ">= 1",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_owas, hito3_estudio_puesto, hito2_condiciones_salud): \"¿Casos OWAS >= 3 o Restricción >= 1?\" [modo: numeric_threshold]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (canvas_doc, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_psicosocial_ccl_bienestar",
+    presetCategory: "salud_vencimientos",
+    name: "🧠 Vigilancia de Riesgo Psicosocial (Res. 2764), Pulso Anímico y Comité de Convivencia",
+    description: "Analiza indicadores agregados de batería psicosocial (Res. 2764 de 2022), analítica de clima laboral y gestión del Comité de Convivencia Laboral (Ley 1010 / Res. 652), protegiendo estrictamente la reserva legal.",
+    scheduleType: "monthly",
     hour: 8,
-    minute: 30,
-    workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_web_search', 'extract_sst_app'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
-      inputs: ['web_search', 'somos_sst_empresa'],
-      hitos: ['hito1_politica_objetivos', 'hito1_rit', 'hito1_diagnostico_0312'],
-      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
-    }),
-  },
-  {
-    presetKey: 'preset_pesv_flota_vial',
-    presetCategory: 'riesgos_vial_quimico',
-    name: '🚗 Control de Flota PESV: SIMIT, RUNT (SOAT / RTM / Licencias) y Riesgo Vial',
-    description:
-      'Verifica conductores y vehículos por cédula y placa en SIMIT y RUNT Ciudadano (Res. 20223040040595), descargando soportes PDF/PNG y creando alertas preventivas.',
-    scheduleType: 'weekly',
-    daysOfWeek: [1, 4],
-    hour: 6,
-    minute: 30,
-    workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_sst_workers', 'scraper_agy_vial_pesv'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
-      inputs: ['somos_sst_empresa', 'matriz_pesv', 'pronostico_clima_sst'],
-      hitos: ['hito3_vehiculos', 'hito3_matriz_pesv', 'hito7_acpm'],
-      outputs: ['acpm_task', 'email_report', 'wappy_notification'],
-    }),
-  },
-  {
-    presetKey: 'preset_quimicos_sga_pubchem',
-    presetCategory: 'riesgos_vial_quimico',
-    name: '🧪 Auditoría Química SGA (Decreto 1496) + Fichas FDS en PubChem NIH',
-    description:
-      'Valida el inventario de productos químicos, cruza datos toxicológicos en PubChem NIH, detecta incompatibilidades de almacenamiento ONU y FDS mayores a 5 años.',
-    scheduleType: 'monthly',
+    minute: 0,
     dayOfMonth: 5,
-    hour: 9,
-    minute: 0,
     workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_sst_app'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
-      inputs: ['somos_sst_empresa', 'matriz_compatibilidad', 'consultar_pubchem_quimico'],
-      hitos: ['hito5_registro_quimico', 'hito3_quimicos_sga', 'hito3_epp'],
-      outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "consultar_analitica_psicosocial",
+                "somos_sst_empresa",
+                "rule_reserva_legal"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito4_psicosocial",
+                "hito3_cocolab"
+          ],
+          "outputs": [
+                "acpm_task",
+                "canvas_doc",
+                "email_report",
+                "google_docs",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Riesgo Alto/Muy Alto o Caso CCL?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito4_psicosocial, hito3_cocolab): \"¿Riesgo Alto/Muy Alto o Caso CCL?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, canvas_doc, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_docs, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_docs": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
     }),
   },
   {
-    presetKey: 'preset_cierre_actos_inseguros_qr',
-    presetCategory: 'atel_inspecciones',
-    name: '📱 Gestión Inmediata de Reportes QR de Actos y Condiciones Inseguras',
-    description:
-      'Procesa reportes enviados por trabajadores en campo vía código QR, clasifica peligros bajo GTC-45 y genera acciones correctivas inmediatas en el tablero ACPM.',
-    scheduleType: 'daily',
-    hour: 17,
-    minute: 0,
+    presetKey: "preset_verificacion_arl_antecedentes_ingreso",
+    presetCategory: "salud_vencimientos",
+    name: "🛡️ Verificación en Vivo de Certificados ARL y Antecedentes en Contratación / Ingreso",
+    description: "Consulta por cédula de trabajadores activos o nuevos ingresos en portales ARL y antecedentes públicos vía Google Antigravity, descargando certificados PDF/PNG reales.",
+    scheduleType: "weekly",
+    hour: 7,
+    minute: 30,
+    daysOfWeek: [2],
     workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'trigger_qr_worker',
-      triggers: ['trigger_qr_worker', 'schedule_cron'],
-      extractors: ['extract_sst_app'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company'],
-      includeIfNode: true,
-      inputs: ['somos_sst_empresa', 'consultar_analitica_actos_condiciones', 'matriz_ipevar'],
-      hitos: ['hito4_actos_condiciones', 'hito2_matriz_ipevar', 'hito7_acpm'],
-      outputs: ['acpm_task', 'wappy_notification', 'email_report'],
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_antigravity"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "scraper_agy_arl_directo",
+                "scraper_agy_antecedentes"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_trabajadores",
+                "google_antigravity"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_perfil_socio",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Trabajador Inactivo o Sin ARL?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_perfil_socio, hito7_acpm): \"¿Trabajador Inactivo o Sin ARL?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_loop_arl_cedulas": {
+                            "batchSize": 25,
+                            "customInstruction": "Recorre trabajador por trabajador cruzando certificado ARL y antecedentes."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_loop_arl_cedulas",
+                            "logicType": "loop",
+                            "title": "Iterar (Loop)",
+                            "subtitle": "Por cada Cédula"
+                      }
+                ]
+          }
     }),
   },
   {
-    presetKey: 'preset_psicosocial_cocolab',
-    presetCategory: 'salud_vencimientos',
-    name: '🧠 Vigilancia Psicosocial (Res. 2764) y Comité de Convivencia (Res. 3461)',
-    description:
-      'Analiza indicadores grupales de clima y estado de ánimo con reserva legal estricta (Res. 2346 / Ley 1581), proponiendo intervenciones preventivas para el CCL.',
-    scheduleType: 'monthly',
-    dayOfMonth: 15,
+    presetKey: "preset_seguimiento_recomendaciones_medicas",
+    presetCategory: "salud_vencimientos",
+    name: "🏥 Seguimiento de Restricciones, Recomendaciones Médicas y Reintegro Laboral",
+    description: "Monitorea trabajadores con recomendaciones médicas temporales o permanentes, reintegros post-incapacidad y compatibilidad con las demandas físicas y mentales del Perfil de Cargo.",
+    scheduleType: "weekly",
     hour: 8,
     minute: 0,
+    daysOfWeek: [1],
     workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_sst_app'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
-      inputs: ['somos_sst_empresa', 'consultar_analitica_psicosocial'],
-      hitos: ['hito4_psicosocial', 'hito3_cocolab'],
-      outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_examenes",
+                "somos_sst_perfiles_cargo",
+                "consultar_medlineplus_rehabilitacion"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_condiciones_salud",
+                "hito2_perfiles_cargo",
+                "hito3_estudio_puesto"
+          ],
+          "outputs": [
+                "acpm_task",
+                "google_calendar",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Recomendación Vencida o Sin Seguimiento?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_condiciones_salud, hito2_perfiles_cargo, hito3_estudio_puesto): \"¿Recomendación Vencida o Sin Seguimiento?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, google_calendar, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_calendar": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
     }),
   },
   {
-    presetKey: 'preset_lms_induccion_capacitaciones',
-    presetCategory: 'drive_sincronizacion',
-    name: '🎓 Seguimiento de Inducción, Reinducción y Escuela Virtual SST (LMS)',
-    description:
-      'Cruza ingresos recientes y cargos críticos contra el avance en cursos LMS y cronograma de capacitaciones, agendando sesiones pendientes.',
-    scheduleType: 'weekly',
-    daysOfWeek: [5],
-    hour: 9,
+    presetKey: "preset_oraculo_ausentismo_morbilidad",
+    presetCategory: "salud_vencimientos",
+    name: "🔮 Oráculo de Salud y Tendencias de Ausentismo / Morbilidad Sentida (Hito 2 + Hito 8)",
+    description: "Cruza diagnósticos CIE-10 agrupados, incapacidades por origen común/laboral y variables demográficas para anticipar focos de ausentismo y alimentar los PVE.",
+    scheduleType: "monthly",
+    hour: 7,
+    minute: 30,
+    dayOfMonth: 10,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_trabajadores",
+                "somos_sst_examenes",
+                "subagent_analista_ausentismo"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito2_oraculo_predictivo",
+                "hito2_condiciones_salud",
+                "hito8_predictivo"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_sheets",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_riesgo_biologico_vacunacion_bioipevar",
+    presetCategory: "salud_vencimientos",
+    name: "🧬 Control de Exposición a Riesgo Biológico (Bio-IPEVAR), Esquemas de Vacunación y EPP",
+    description: "Audita cargos expuestos a agentes biológicos (fluidos, residuos, atención en salud, alimentos o saneamiento), validando matriz Bio-IPEVAR, vacunación (Tétanos/Hepatitis B) y bioseguridad.",
+    scheduleType: "monthly",
+    hour: 8,
     minute: 0,
+    dayOfMonth: 12,
     workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_sst_workers'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company'],
-      includeIfNode: true,
-      inputs: ['somos_sst_trabajadores', 'cursos_lms', 'notebooklm'],
-      hitos: ['hito5_capacitaciones', 'hito6_ruta_aprendizaje'],
-      outputs: ['google_calendar', 'email_report', 'wappy_notification'],
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_trabajadores",
+                "somos_sst_epp",
+                "somos_sst_examenes"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito4_bio_ipevar",
+                "hito3_epp",
+                "hito2_condiciones_salud"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_docs",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Esquema Incompleto o Bio-Riesgo Alto?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito4_bio_ipevar, hito3_epp, hito2_condiciones_salud): \"¿Esquema Incompleto o Bio-Riesgo Alto?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_docs, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_docs": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
     }),
   },
   {
-    presetKey: 'preset_antigravity_cloud_bridge',
-    presetCategory: 'drive_sincronizacion',
-    name: '🛰️ Puente Multi-Nube: Google Drive + Carpeta PC + Antigravity',
-    description:
-      'Unifica documentos de Google Drive y carpetas locales en PC vía Google Antigravity con la base de datos de Somos SST y hojas de control en Google Sheets.',
-    scheduleType: 'daily',
+    presetKey: "preset_auditoria_dotacion_reposicion_epp",
+    presetCategory: "salud_vencimientos",
+    name: "🦺 Control Cuatrimestral de Dotación Legal (CST Art. 230) y Reposición Técnica de EPP",
+    description: "Verifica las entregas legales de dotación y la vida útil técnica de los Elementos de Protección Personal (cascos, dieléctricos, protección respiratoria, auditiva y visual) frente a los peligros del cargo.",
+    scheduleType: "monthly",
+    hour: 7,
+    minute: 45,
+    dayOfMonth: 15,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_qr_worker"
+          ],
+          "extractors": [
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_epp",
+                "somos_sst_perfiles_cargo",
+                "matriz_ipevar"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_epp",
+                "hito2_perfiles_cargo",
+                "hito5_compras_sst"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Trabajador Sin EPP del Cargo o Vencido?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_epp, hito2_perfiles_cargo, hito5_compras_sst): \"¿Trabajador Sin EPP del Cargo o Vencido?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_examenes_ingreso_egreso_periodicos",
+    presetCategory: "salud_vencimientos",
+    name: "📋 Conciliación de Profesiograma: Exámenes de Ingreso, Periódicos, Cambio de Ocupación y Egreso",
+    description: "Verifica que todo nuevo ingreso tenga concepto de aptitud previo al inicio de labores, que los cambios de cargo cuenten con valoración médica y que los retiros tengan orden de examen de egreso.",
+    scheduleType: "weekly",
+    hour: 7,
+    minute: 15,
+    daysOfWeek: [4],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_email"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "extract_gmail"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_trabajadores",
+                "somos_sst_examenes",
+                "somos_sst_perfiles_cargo"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_perfil_socio",
+                "hito2_perfiles_cargo",
+                "hito5_gestion_cambio"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Ingreso/Cambio Sin EMO Registrado?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_perfil_socio, hito2_perfiles_cargo, hito5_gestion_cambio): \"¿Ingreso/Cambio Sin EMO Registrado?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_drive_sociodemografico_emo",
+    presetCategory: "drive_sincronizacion",
+    name: "📂 Sincronizar Carpeta Google Drive ➔ Perfil Sociodemográfico y Conceptos Médicos",
+    description: "Vigila la carpeta de Talento Humano / SST en Google Drive, detecta encuestas sociodemográficas o PDFs de conceptos de aptitud médica nuevos e inyecta las actualizaciones en Somos SST sin duplicar cédulas.",
+    scheduleType: "daily",
     hour: 18,
     minute: 0,
     workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'trigger_antigravity',
-      triggers: ['trigger_antigravity', 'schedule_cron'],
-      extractors: ['extract_drive', 'extract_pc_folder', 'extract_sst_workers'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.6-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      includeIfNode: true,
-      inputs: ['google_drive', 'google_antigravity', 'somos_sst_empresa', 'somos_sst_trabajadores'],
-      hitos: ['hito2_perfil_socio', 'hito7_acpm'],
-      outputs: ['google_sheets', 'somos_sst_update', 'wappy_notification'],
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi",
+                "trigger_email"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "google_drive",
+                "google_sheets",
+                "somos_sst_trabajadores"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_perfil_socio",
+                "hito2_condiciones_salud"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Archivos Nuevos en Carpeta Drive?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_perfil_socio, hito2_condiciones_salud): \"¿Archivos Nuevos en Carpeta Drive?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
     }),
   },
   {
-    presetKey: 'preset_gerencia_auditoria_0312',
-    presetCategory: 'gerencia_auditoria',
-    name: '📊 Informe Gerencial Mensual: Autoevaluación Res. 0312 y Alta Dirección',
-    description:
-      'Consolida el cumplimiento de Estándares Mínimos Res. 0312, estadísticas ATEL (Art. 30), avance Kanban ACPM y genera informe ejecutivo para la Alta Dirección.',
-    scheduleType: 'monthly',
-    dayOfMonth: 28,
+    presetKey: "preset_antigravity_cloud_bridge",
+    presetCategory: "drive_sincronizacion",
+    name: "🚀 Puente Antigravity + Carpeta Local Mac/PC & Drive ➔ Auditoría Integral 7 Hitos",
+    description: "Conecta documentos locales del computador (vía Google Antigravity) y carpetas de Google Drive para conciliar soportes masivos contra los aplicativos de Gobernanza, Sociodemográfico y ACPM.",
+    scheduleType: "weekly",
+    hour: 17,
+    minute: 0,
+    daysOfWeek: [5],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "trigger_antigravity",
+          "triggers": [
+                "trigger_antigravity",
+                "schedule_cron"
+          ],
+          "extractors": [
+                "extract_pc_folder",
+                "extract_drive",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "google_antigravity",
+                "google_drive",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito1_diagnostico_0312",
+                "hito2_perfil_socio",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "google_sheets",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Soportes Locales Pendientes de Cargar?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito1_diagnostico_0312, hito2_perfil_socio, hito7_acpm): \"¿Soportes Locales Pendientes de Cargar?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, google_sheets, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_merge_local_drive_sst": {
+                            "customInstruction": "Unifica soportes de Carpeta Local Mac/PC, Google Drive y Somos SST."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_merge_local_drive_sst",
+                            "logicType": "merge",
+                            "title": "Unir Ramas",
+                            "subtitle": "PC + Drive + SST"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_drive_hito1_gobernanza_import",
+    presetCategory: "drive_sincronizacion",
+    name: "🏛️ Importador Inteligente Drive ➔ Gobernanza Hito 1 (Política, Objetivos, RHS y RIT)",
+    description: "Lee documentos maestros firmados en Google Drive (Política SST, Objetivos, Reglamento de Higiene y Seguridad Industrial y Reglamento Interno de Trabajo) y mantiene al día los aplicativos del Hito 1.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 0,
+    dayOfMonth: 2,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "google_drive",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito1_politica_objetivos",
+                "hito1_objetivos",
+                "hito1_rhs",
+                "hito1_rit"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "acpm_task",
+                "email_report",
+                "google_docs",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Versión Anual Vencida o Sin Firma?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito1_politica_objetivos, hito1_objetivos, hito1_rhs, hito1_rit): \"¿Versión Anual Vencida o Sin Firma?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_docs, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_docs": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_gmail_incapacidades_radicacion_eps_arl",
+    presetCategory: "drive_sincronizacion",
+    name: "📧 Triaje de Correos Gmail ➔ Radicación de Incapacidades Médicas (EPS / ARL) y Ausentismo",
+    description: "Escanea correos entrantes en Gmail con asuntos de incapacidades médicas, licencias o transcripciones EPS/ARL, extrae días y código CIE-10 y actualiza Condiciones de Salud y Estadísticas.",
+    scheduleType: "daily",
+    hour: 9,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "trigger_email",
+          "triggers": [
+                "trigger_email",
+                "schedule_cron"
+          ],
+          "extractors": [
+                "extract_gmail",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "google_gmail",
+                "somos_sst_trabajadores",
+                "somos_sst_examenes"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_condiciones_salud",
+                "hito7_estadisticas_atel"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "google_sheets",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Nuevas Incapacidades >= 1?",
+                            "ifConditionType": "numeric_threshold",
+                            "ifRuleExpression": ">= 1",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_condiciones_salud, hito7_estadisticas_atel): \"¿Nuevas Incapacidades >= 1?\" [modo: numeric_threshold]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, google_sheets, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_drive_fds_quimicos_sincronizacion",
+    presetCategory: "drive_sincronizacion",
+    name: "🧪 Sincronización Carpeta Drive \"FDS Químicos\" ➔ Inventario SGA y Registro Químico",
+    description: "Detecta nuevas Fichas de Datos de Seguridad (FDS de 16 secciones en PDF) subidas a Google Drive, extrae CAS, pictogramas SGA y controles, y actualiza los aplicativos químicos de Hito 3 y Hito 5.",
+    scheduleType: "weekly",
+    hour: 10,
+    minute: 0,
+    daysOfWeek: [2],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "google_drive",
+                "matriz_compatibilidad",
+                "consultar_pubchem_quimico"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_quimicos_sga",
+                "hito5_registro_quimico"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "acpm_task",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Nueva FDS PDF o FDS > 5 Años?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_quimicos_sga, hito5_registro_quimico): \"¿Nueva FDS PDF o FDS > 5 Años?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_drive_contratistas_seguridad_social_pila",
+    presetCategory: "drive_sincronizacion",
+    name: "👷 Recepción en Drive/Gmail de Planillas PILA y Soportes SST de Contratistas (Hito 5)",
+    description: "Revisa mensualmente las carpetas de contratistas y proveedores críticos en Drive/Gmail verificando pago de seguridad social (ARL, EPS, AFP), certificados de alturas e inducción SST antes de autorizar ingreso.",
+    scheduleType: "monthly",
+    hour: 7,
+    minute: 30,
+    dayOfMonth: 3,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_email"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_gmail"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "google_drive",
+                "google_gmail",
+                "subagent_validador_seguridad_social"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito5_contratistas",
+                "hito5_compras_sst"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Contratista Con Mora o Soporte Faltante?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito5_contratistas, hito5_compras_sst): \"¿Contratista Con Mora o Soporte Faltante?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_merge_contratistas_pila": {
+                            "customInstruction": "Unifica planillas PILA y soportes recibidos por Google Drive y Gmail."
+                      },
+                      "logic_approval_bloqueo_contratista": {
+                            "approverEmail": "lider.sst@empresa.com",
+                            "customInstruction": "Solicita confirmación humana antes de bloquear ingreso de contratista en mora."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_merge_contratistas_pila",
+                            "logicType": "merge",
+                            "title": "Unir Ramas",
+                            "subtitle": "Drive + Gmail PILA"
+                      },
+                      {
+                            "key": "logic_approval_bloqueo_contratista",
+                            "logicType": "human_approval",
+                            "title": "Aprobación",
+                            "subtitle": "Visto Bueno SST"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_drive_actas_copasst_cocolab_archivo",
+    presetCategory: "drive_sincronizacion",
+    name: "🗂️ Consolidación Mensual de Actas Firmadas COPASST y COCOLAB ➔ Archivo Documental Drive",
+    description: "Verifica las reuniones mensuales del COPASST (Dec. 614 / Res. 2013 de 1986) y trimestrales del COCOLAB, generando acta ejecutiva y respaldo automático en Google Docs y Sheets.",
+    scheduleType: "monthly",
+    hour: 16,
+    minute: 0,
+    dayOfMonth: 25,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "google_drive",
+                "subagent_redactor_actas",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito4_comites",
+                "hito3_cocolab",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_docs",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_sheets_maestro_indicadores_sgsst",
+    presetCategory: "drive_sincronizacion",
+    name: "📊 Exportación Semanal de Tablero Maestro de Indicadores SG-SST ➔ Google Sheets",
+    description: "Extrae cada viernes el avance real de estructura, proceso y resultado del SG-SST y actualiza automáticamente el libro gerencial en Google Sheets.",
+    scheduleType: "weekly",
+    hour: 17,
+    minute: 30,
+    daysOfWeek: [5],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company"
+          ],
+          "inputs": [
+                "google_sheets",
+                "somos_sst_empresa",
+                "somos_sst_trabajadores"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito1_diagnostico_0312",
+                "hito1_objetivos",
+                "hito7_estadisticas_atel",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_webhook_erp_novedades_nomina_sst",
+    presetCategory: "drive_sincronizacion",
+    name: "🔗 Webhook / Integración Nómina & Talento Humano ➔ Altas, Retiros y Perfil de Cargo SST",
+    description: "Recibe eventos automáticos por Webhook desde sistemas externos de RRHH/ERP (ingresos, traslados de sede, ascensos o retiros) y sincroniza trabajadores, perfiles e inducciones SST.",
+    scheduleType: "daily",
+    hour: 19,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "trigger_webhook",
+          "triggers": [
+                "trigger_webhook",
+                "schedule_cron"
+          ],
+          "extractors": [
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "webhook_api",
+                "somos_sst_trabajadores",
+                "somos_sst_perfiles_cargo"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_perfil_socio",
+                "hito2_perfiles_cargo",
+                "hito5_capacitaciones"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "acpm_task",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Nuevo Ingreso Sin Inducción SST?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_perfil_socio, hito2_perfiles_cargo, hito5_capacitaciones): \"¿Nuevo Ingreso Sin Inducción SST?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_voz_tenshi_furat_investigacion_atel_360",
+    presetCategory: "atel_inspecciones",
+    name: "🎙️ Orden por Voz a Tenshi ➔ FURAT en Drive ➔ Investigación de Accidente ATEL 360° (Res. 1401)",
+    description: "Al pedirle por voz a Tenshi investigar un accidente laboral, descarga el FURAT de Google Drive, cruza Matriz GTC-45, ATS, Actos/Condiciones, Capacitaciones, Perfil de Cargo, EPP y EMO, aplica 5 Porqués + Ishikawa en Investigación ATEL y entrega informe completo.",
+    scheduleType: "daily",
+    hour: 8,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "trigger_tenshi",
+          "triggers": [
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_perfiles_cargo",
+                "somos_sst_epp",
+                "somos_sst_examenes"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito2_matriz_ipevar",
+                "hito3_ats",
+                "hito4_actos_condiciones",
+                "hito5_capacitaciones",
+                "hito7_investigacion_atel"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "acpm_task",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_drive_atel_inspecciones",
+    presetCategory: "atel_inspecciones",
+    name: "🚨 Triaje de Reportes ATEL (FURAT), Inspecciones de Campo y Actos Inseguros",
+    description: "Revisa reportes nuevos de accidentes/incidentes laborales (FURAT) y checklists de inspecciones en Google Drive, Gmail o QR de trabajadores, registrándolos en ATEL (Hito 7) y ACPM.",
+    scheduleType: "daily",
     hour: 7,
     minute: 30,
     workflowNodes: sanitizeWorkflowNodesForActiveUse({
-      trigger: 'schedule_cron',
-      triggers: ['schedule_cron'],
-      extractors: ['extract_sst_app'],
-      aiEngine: 'wappy',
-      aiModel: 'gemini-3.8-flash',
-      memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
-      inputs: ['somos_sst_empresa', 'matriz_ipevar'],
-      hitos: ['hito1_diagnostico_0312', 'hito7_estadisticas_atel', 'hito7_auditoria', 'hito7_alta_direccion'],
-      outputs: ['canvas_doc', 'google_slides', 'email_report', 'wappy_notification'],
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_email",
+                "trigger_qr_worker"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_gmail"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "google_drive",
+                "google_gmail",
+                "consultar_analitica_actos_condiciones"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito7_investigacion_atel",
+                "hito4_actos_condiciones",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "acpm_task",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Palabra FURAT / Accidente / Grave?",
+                            "ifConditionType": "keyword_match",
+                            "ifRuleExpression": "furat, accidente, incidente, grave, mortal, insegur",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito7_investigacion_atel, hito4_actos_condiciones, hito7_acpm): \"¿Palabra FURAT / Accidente / Grave?\" [modo: keyword_match]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_qr_actos_condiciones_cierre_acpm",
+    presetCategory: "atel_inspecciones",
+    name: "📱 Recepción Instantánea QR en Terreno: Actos y Condiciones Inseguras ➔ Clasificación GTC-45",
+    description: "Procesa los reportes ciudadanos enviados desde celular vía código QR por operarios y visitantes, clasifica severidad según GTC-45 y escala condiciones de alto potencial.",
+    scheduleType: "daily",
+    hour: 12,
+    minute: 0,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "trigger_qr_worker",
+          "triggers": [
+                "trigger_qr_worker",
+                "schedule_cron"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "consultar_analitica_actos_condiciones",
+                "matriz_ipevar"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito4_actos_condiciones",
+                "hito2_matriz_ipevar",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Condición Severidad Alta / Grave?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito4_actos_condiciones, hito2_matriz_ipevar, hito7_acpm): \"¿Condición Severidad Alta / Grave?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_plazo_legal_15dias_res1401_arl",
+    presetCategory: "atel_inspecciones",
+    name: "⏱️ Centinela Legal de 15 Días Calendario (Res. 1401 Art. 4): Investigaciones ATEL y Remisión ARL",
+    description: "Vigila el contador regresivo de 15 días calendario posteriores a cualquier accidente de trabajo o incidente grave para evitar sanciones por extemporaneidad en la investigación y remisión a la ARL.",
+    scheduleType: "daily",
+    hour: 7,
+    minute: 15,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "google_calendar"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito7_investigacion_atel",
+                "hito4_comites",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "acpm_task",
+                "google_calendar",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Casos Abiertos >= 1 Próximos a 15d?",
+                            "ifConditionType": "numeric_threshold",
+                            "ifRuleExpression": ">= 1",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito7_investigacion_atel, hito4_comites, hito7_acpm): \"¿Casos Abiertos >= 1 Próximos a 15d?\" [modo: numeric_threshold]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, google_calendar, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_calendar": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_approval_radicar_arl_1401": {
+                            "approverEmail": "lider.sst@empresa.com",
+                            "customInstruction": "Requiere visto bueno del Representante Legal / Líder SST antes de radicar investigación Res. 1401."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_approval_radicar_arl_1401",
+                            "logicType": "human_approval",
+                            "title": "Aprobación",
+                            "subtitle": "Firma Rep. Legal"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_inspeccion_equipos_alturas_certificados",
+    presetCategory: "atel_inspecciones",
+    name: "🧗 Auditoría de Equipos de Protección Contra Caídas, Eslingas, Arneses y Permisos de Alturas",
+    description: "Inspecciona la hoja de vida y certificación anual por persona competente/fabricante de arneses, eslingas, líneas de vida y anclajes conforme a la Resolución 4272 de 2021.",
+    scheduleType: "weekly",
+    hour: 6,
+    minute: 45,
+    daysOfWeek: [1],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_qr_worker"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "scraper_agy_alto_riesgo"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_trabajadores",
+                "somos_sst_epp"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito5_equipos_alturas",
+                "hito3_alturas",
+                "hito3_ats"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Equipo Sin Inspección Anual o Rechazado?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito5_equipos_alturas, hito3_alturas, hito3_ats): \"¿Equipo Sin Inspección Anual o Rechazado?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_validacion_ats_tareas_alto_riesgo",
+    presetCategory: "atel_inspecciones",
+    name: "⚡ Auditoría de Calidad de ATS (Análisis de Trabajo Seguro) y Controles Operacionales en Campo",
+    description: "Verifica que las tareas no rutinarias y de alto riesgo (alturas, espacios confinados, energías peligrosas, caliente, izajes) cuenten con ATS completo, firmas y controles alineados con GTC-45.",
+    scheduleType: "weekly",
+    hour: 7,
+    minute: 30,
+    daysOfWeek: [3],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_qr_worker"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "matriz_ipevar",
+                "somos_sst_epp"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_ats",
+                "hito2_matriz_ipevar",
+                "hito3_alturas"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿ATS Incompleto o Peligro Sin Control?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_ats, hito2_matriz_ipevar, hito3_alturas): \"¿ATS Incompleto o Peligro Sin Control?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_estadisticas_atel_art30_res0312",
+    presetCategory: "atel_inspecciones",
+    name: "📈 Cálculo Mensual de Los 6 Indicadores Mínimos ATEL (Res. 0312 Art. 30): Frecuencia, Severidad y Mortalidad",
+    description: "Calcula mensualmente Frecuencia de Accidentalidad, Severidad, Proporción de Accidentes Mortales, Prevalencia e Incidencia de Enfermedad Laboral y Ausentismo por Causa Médica.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 0,
+    dayOfMonth: 4,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "somos_sst_trabajadores",
+                "subagent_analista_ausentismo"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito7_estadisticas_atel",
+                "hito7_investigacion_atel",
+                "hito1_objetivos"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "google_sheets",
+                "canvas_doc",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_lecciones_aprendidas_atel_difusion",
+    presetCategory: "atel_inspecciones",
+    name: "📣 Generador de Lecciones Aprendidas \"En 1 Página\" Post-Incidente / ATEL ➔ Charla 5 Minutos",
+    description: "Transforma las investigaciones ATEL cerradas en boletines pedagógicos de Lección Aprendida (Qué pasó, Por qué pasó, Qué nunca debemos repetir) sin exponer datos personales del accidentado.",
+    scheduleType: "monthly",
+    hour: 9,
+    minute: 0,
+    dayOfMonth: 18,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "rule_reserva_legal",
+                "subagent_chat_capacitaciones",
+                "cursos_lms"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito7_investigacion_atel",
+                "hito5_capacitaciones"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_slides",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_participacion_trabajadores_peligros_ipevar",
+    presetCategory: "atel_inspecciones",
+    name: "🗣️ Buzón Participativo de Peligros Reportados por Trabajadores (Hito 1) ➔ Matriz GTC-45",
+    description: "Conecta los peligros y sugerencias de mejora reportados directamente por los trabajadores (Estándar 2.11.1 / Art. 2.2.4.6.15 Dec. 1072) con la Matriz IPEVAR y las Oportunidades de Mejora SST.",
+    scheduleType: "weekly",
+    hour: 11,
+    minute: 0,
+    daysOfWeek: [4],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "trigger_qr_worker",
+          "triggers": [
+                "trigger_qr_worker",
+                "schedule_cron"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "matriz_ipevar",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito1_participacion_ipevar",
+                "hito2_matriz_ipevar",
+                "hito1_oportunidades_sst"
+          ],
+          "outputs": [
+                "somos_sst_update",
+                "acpm_task",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Reporte Participativo Sin Respuesta?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito1_participacion_ipevar, hito2_matriz_ipevar, hito1_oportunidades_sst): \"¿Reporte Participativo Sin Respuesta?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (somos_sst_update, acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_radar_matriz_legal",
+    presetCategory: "legal_cumplimiento",
+    name: "⚖️ Radar Normativo Semanal MinTrabajo / SUIN-Juriscol ➔ Reglamentos (RIT / RHS) y Estándares 0312",
+    description: "Busca en vivo en la web nuevas leyes, decretos, resoluciones y circulares del Ministerio del Trabajo aplicables al código CIIU y nivel de riesgo de tu empresa.",
+    scheduleType: "weekly",
+    hour: 8,
+    minute: 0,
+    daysOfWeek: [1],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_web_search",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "web_search",
+                "somos_sst_empresa",
+                "skill_auditoria_normativa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito1_rit",
+                "hito1_rhs",
+                "hito1_diagnostico_0312"
+          ],
+          "outputs": [
+                "acpm_task",
+                "google_docs",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Decreto / Resolución / Circular Nueva?",
+                            "ifConditionType": "keyword_match",
+                            "ifRuleExpression": "decreto, resolución, ley, circular, mintrabajo, obligatorio",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito1_rit, hito1_rhs, hito1_diagnostico_0312): \"¿Decreto / Resolución / Circular Nueva?\" [modo: keyword_match]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, google_docs, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_docs": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_licencia_responsable_sgsst_curso50h",
+    presetCategory: "legal_cumplimiento",
+    name: "🎓 Vigilancia de Licencia SST Vigente y Curso Virtual 50h / Reentrenamiento 20h del Responsable SG-SST",
+    description: "Audita el cumplimiento de los artículos 4, 10 y 17 de la Resolución 0312 de 2019 y Resolución 4927 / Circular 0093 sobre perfil, licencia ocupacional y actualización de 20 horas cada 3 años del líder SG-SST.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 15,
+    dayOfMonth: 1,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "skill_auditoria_normativa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito1_responsable",
+                "hito1_diagnostico_0312"
+          ],
+          "outputs": [
+                "acpm_task",
+                "google_calendar",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Licencia o Curso 50h/20h Por Vencer?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito1_responsable, hito1_diagnostico_0312): \"¿Licencia o Curso 50h/20h Por Vencer?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, google_calendar, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_calendar": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_autoevaluacion_0312_plan_anual_arl",
+    presetCategory: "legal_cumplimiento",
+    name: "📋 Semáforo Mensual de Autoevaluación de Estándares Mínimos (Res. 0312: <60% Crítico, 60–85% Moderado, >85% Aceptable)",
+    description: "Evalúa el puntaje real de los Estándares Mínimos Res. 0312 de 2019 y verifica que todo ítem en \"No Cumple\" tenga Plan de Mejoramiento vinculado en ACPM para reporte anual MinTrabajo / ARL.",
+    scheduleType: "monthly",
+    hour: 7,
+    minute: 30,
+    dayOfMonth: 20,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "skill_auditoria_normativa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito1_diagnostico_0312",
+                "hito1_objetivos",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "acpm_task",
+                "canvas_doc",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Ítems No Cumple Res. 0312 >= 1?",
+                            "ifConditionType": "numeric_threshold",
+                            "ifRuleExpression": ">= 1",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito1_diagnostico_0312, hito1_objetivos, hito7_acpm): \"¿Ítems No Cumple Res. 0312 >= 1?\" [modo: numeric_threshold]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, canvas_doc, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_approval_plan_0312_arl": {
+                            "approverEmail": "lider.sst@empresa.com",
+                            "customInstruction": "Solicita visto bueno antes de emitir Plan de Mejoramiento Res. 0312."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_approval_plan_0312_arl",
+                            "logicType": "human_approval",
+                            "title": "Aprobación",
+                            "subtitle": "Aval Plan ARL 0312"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_vigencia_eleccion_copasst_cocolab_2anos",
+    presetCategory: "legal_cumplimiento",
+    name: "🗳️ Control Legal de Período Bianual (2 Años) de Elección de COPASST / Vigía y COCOLAB",
+    description: "Audita la fecha de conformación y elección de representantes del empleador y de los trabajadores en COPASST (Dec. 1295 Art. 63) y COCOLAB (Res. 652 y 1356 de 2012) anticipando la convocatoria electoral.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 30,
+    dayOfMonth: 7,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "somos_sst_trabajadores"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito4_comites",
+                "hito3_cocolab"
+          ],
+          "outputs": [
+                "acpm_task",
+                "google_calendar",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Período Bianual <= 45d o Vacante?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito4_comites, hito3_cocolab): \"¿Período Bianual <= 45d o Vacante?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, google_calendar, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_calendar": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_gestion_del_cambio_art26_dec1072",
+    presetCategory: "legal_cumplimiento",
+    name: "🔄 Auditoría de Gestión del Cambio (Dec. 1072 Art. 2.2.4.6.26): Nuevos Procesos, Maquinaria, Sedes o Normas",
+    description: "Evalúa todos los cambios internos (nuevos cargos, equipos, horarios, remodelaciones) o externos (legislación, evolución del conocimiento SST) verificando su impacto en IPEVAR y capacitación.",
+    scheduleType: "monthly",
+    hour: 9,
+    minute: 0,
+    dayOfMonth: 14,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "matriz_ipevar",
+                "somos_sst_perfiles_cargo"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito5_gestion_cambio",
+                "hito2_matriz_ipevar",
+                "hito5_capacitaciones"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "google_docs",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Cambio Abierto Sin Evaluar Riesgos?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito5_gestion_cambio, hito2_matriz_ipevar, hito5_capacitaciones): \"¿Cambio Abierto Sin Evaluar Riesgos?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_docs, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_docs": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_compras_adquisiciones_criterios_sst_art27",
+    presetCategory: "legal_cumplimiento",
+    name: "🛒 Auditoría de Adquisiciones y Compras Críticas con Especificaciones SST (Dec. 1072 Art. 2.2.4.6.27)",
+    description: "Garantiza que las compras de maquinaria, sustancias químicas, equipos de alturas y EPP cumplan especificaciones normativas SST antes de su puesta en operación.",
+    scheduleType: "monthly",
+    hour: 10,
+    minute: 0,
+    dayOfMonth: 16,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_epp",
+                "matriz_compatibilidad"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito5_compras_sst",
+                "hito5_equipos_alturas",
+                "hito5_registro_quimico"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Compra Crítica Sin Aval Técnico SST?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito5_compras_sst, hito5_equipos_alturas, hito5_registro_quimico): \"¿Compra Crítica Sin Aval Técnico SST?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_conservacion_documental_20anos_art13",
+    presetCategory: "legal_cumplimiento",
+    name: "🗄️ Auditoría de Conservación Documental por 20 Años (Dec. 1072 Art. 2.2.4.6.13)",
+    description: "Verifica la integridad de los 4 grupos documentales de conservación obligatoria mínima por 20 años a partir del retiro del trabajador (conceptos EMO, EPP, mediciones/IPEVAR y capacitación).",
+    scheduleType: "monthly",
+    hour: 11,
+    minute: 0,
+    dayOfMonth: 22,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_drive",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "google_drive",
+                "somos_sst_trabajadores",
+                "somos_sst_examenes",
+                "somos_sst_epp"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_perfil_socio",
+                "hito3_epp",
+                "hito5_capacitaciones"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Expediente Incompleto en Retirados/Activos?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_perfil_socio, hito3_epp, hito5_capacitaciones): \"¿Expediente Incompleto en Retirados/Activos?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_auditoria_reglamento_interno_rit_rhs_ley2101",
+    presetCategory: "legal_cumplimiento",
+    name: "📜 Revisión Jurídica de RIT y Reglamento de Higiene (RHS): Jornada Laboral (Ley 2101), Acoso y Desconexión",
+    description: "Audita cláusulas del Reglamento Interno de Trabajo (RIT) y Reglamento de Higiene y Seguridad Industrial (RHS) frente a reducción gradual de jornada (Ley 2101), desconexión laboral (Ley 2191) y riesgos vigentes.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 45,
+    dayOfMonth: 9,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_web_search"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "web_search",
+                "somos_sst_empresa",
+                "subagent_chat_abogado_laboral"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito1_rit",
+                "hito1_rhs",
+                "hito2_matriz_ipevar"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_docs",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {},
+                "extraAgents": [
+                      {
+                            "key": "agent_extra_auditor_rit",
+                            "agentId": "agent_consultor_sg_sst",
+                            "agentName": "Auditor Interno Calidad SST",
+                            "roleLabel": "2da IA Revisora Normativa",
+                            "prompt": "Revisa el borrador jurídico generado por el Agente #1 y valida que cada cláusula propuesta para el RIT y RHS sea 100% consistente con la Resolución 0312 de 2019 y la Matriz GTC-45 de la empresa."
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_contexto_dofa_partes_interesadas_objetivos",
+    presetCategory: "legal_cumplimiento",
+    name: "🧭 Alineación Estratégica Contexto DOFA + Partes Interesadas ➔ Política y Objetivos SG-SST",
+    description: "Cruza las fortalezas, debilidades, oportunidades, amenazas (DOFA/CAME) y expectativas de stakeholders con los Objetivos del SG-SST y Oportunidades de Mejora.",
+    scheduleType: "monthly",
+    hour: 9,
+    minute: 30,
+    dayOfMonth: 6,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito1_dofa",
+                "hito1_politica_objetivos",
+                "hito1_objetivos",
+                "hito1_oportunidades_sst"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_slides",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_pesv_parque_automotor",
+    presetCategory: "riesgos_vial_quimico",
+    name: "🚗 Control Preoperacional PESV y Vencimientos de SOAT / Tecnomecánica / Licencias (RUNT + SIMIT)",
+    description: "Audita la Matriz PESV (Res. 20223040040595), el Parque Automotor (Hito 3) y consultas RUNT/SIMIT vía Antigravity para detectar SOAT, RTM, licencias vencidas o comparendos activos.",
+    scheduleType: "weekly",
+    hour: 7,
+    minute: 0,
+    daysOfWeek: [1,5],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_qr_worker",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "scraper_agy_vial_pesv"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "matriz_pesv",
+                "somos_sst_trabajadores"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_matriz_pesv",
+                "hito3_vehiculos"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿SOAT/RTM/Licencia <= 30d o Comparendo?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_matriz_pesv, hito3_vehiculos): \"¿SOAT/RTM/Licencia <= 30d o Comparendo?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_loop_placas_pesv": {
+                            "batchSize": 25,
+                            "customInstruction": "Itera cada vehículo y conductor validando SOAT, RTM y SIMIT."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_loop_placas_pesv",
+                            "logicType": "loop",
+                            "title": "Iterar (Loop)",
+                            "subtitle": "Por Placa / Licencia"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_quimicos_sga_pubchem",
+    presetCategory: "riesgos_vial_quimico",
+    name: "⚗️ Auditoría de Inventario Químico SGA, Fichas FDS (16 Secciones) y Compatibilidad PubChem NIH",
+    description: "Cruza el inventario de sustancias químicas (Hito 3 y Hito 5) con PubChem (NIH) y el Decreto 1496 de 2018 (SGA) para detectar productos sin FDS, sin etiquetado o con incompatibilidades de almacenamiento.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 30,
+    dayOfMonth: 8,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "matriz_compatibilidad",
+                "consultar_pubchem_quimico"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_quimicos_sga",
+                "hito5_registro_quimico",
+                "hito2_matriz_ipevar"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "canvas_doc",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Incompatibilidad SGA o Sustancia Sin FDS?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_quimicos_sga, hito5_registro_quimico, hito2_matriz_ipevar): \"¿Incompatibilidad SGA o Sustancia Sin FDS?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (canvas_doc, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_clima_emergencias_alturas",
+    presetCategory: "riesgos_vial_quimico",
+    name: "🌦️ Pronóstico Climático SST Matutino (OpenWeather) y Alerta Operativa para Alturas / Campo",
+    description: "Consulta cada mañana el clima real (lluvia, tormenta eléctrica, ráfagas de viento, índice UV y estrés térmico) en la ciudad de la empresa y emite controles para Trabajo en Alturas e izajes.",
+    scheduleType: "daily",
+    hour: 6,
+    minute: 30,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company"
+          ],
+          "inputs": [
+                "pronostico_clima_sst",
+                "buscar_centros_emergencia",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_alturas",
+                "hito3_ats",
+                "hito6_vulnerabilidad"
+          ],
+          "outputs": [
+                "email_report",
+                "acpm_task",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Tormenta / Viento Fuerte / UV Extremo?",
+                            "ifConditionType": "keyword_match",
+                            "ifRuleExpression": "tormenta, rayo, lluvia, viento, extremo, alerta",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_alturas, hito3_ats, hito6_vulnerabilidad): \"¿Tormenta / Viento Fuerte / UV Extremo?\" [modo: keyword_match]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (email_report, acpm_task). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_vulnerabilidad_plan_emergencias_medevac",
+    presetCategory: "riesgos_vial_quimico",
+    name: "🚒 Revisión de Análisis de Amenazas y Vulnerabilidad (Diamante de Riesgo) + Plan de Emergencias y MEDEVAC",
+    description: "Evalúa amenazas naturales, tecnológicas y sociales en el aplicativo de Vulnerabilidad (Hito 6) y sincroniza rutas de evacuación, PONs y centros asistenciales cercanos en el Plan de Emergencias (Hito 1).",
+    scheduleType: "monthly",
+    hour: 9,
+    minute: 0,
+    dayOfMonth: 11,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "buscar_centros_emergencia",
+                "pronostico_clima_sst",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito6_vulnerabilidad",
+                "hito1_plan_emergencias"
+          ],
+          "outputs": [
+                "acpm_task",
+                "somos_sst_update",
+                "email_report",
+                "canvas_doc",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Amenaza Diamante Alta Sin PON Vigente?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito6_vulnerabilidad, hito1_plan_emergencias): \"¿Amenaza Diamante Alta Sin PON Vigente?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, somos_sst_update, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (canvas_doc, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_somos_sst_update": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_matriz_gtc45_controles_criticos",
+    presetCategory: "riesgos_vial_quimico",
+    name: "🎯 Auditoría de Matriz de Peligros GTC-45 (IPEVAR): Riesgos Nivel I (No Aceptables) y Controles de Ingeniería",
+    description: "Inspecciona la Matriz IPEVAR (GTC-45:2012) identificando peligros con Nivel de Riesgo I (No Aceptable) o Nivel II (Aceptable con Control Específico) que carezcan de intervención en la fuente o medio.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 0,
+    dayOfMonth: 13,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "matriz_ipevar",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito2_matriz_ipevar",
+                "hito1_participacion_ipevar",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "acpm_task",
+                "canvas_doc",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Peligro Nivel I / Crítico Sin Control?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito2_matriz_ipevar, hito1_participacion_ipevar, hito7_acpm): \"¿Peligro Nivel I / Crítico Sin Control?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, canvas_doc, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_pesv_fatiga_velocidad_rutas_seguras",
+    presetCategory: "riesgos_vial_quimico",
+    name: "🛣️ Programa de Gestión de Velocidad Segura y Prevención de la Fatiga (PESV Paso 8 / Res. 20223040040595)",
+    description: "Cruza jornadas de conducción, condiciones climáticas en corredores viales y riesgos críticos de la Matriz PESV para emitir boletín semanal de seguridad vial a conductores.",
+    scheduleType: "weekly",
+    hour: 6,
+    minute: 30,
+    daysOfWeek: [1],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company"
+          ],
+          "inputs": [
+                "matriz_pesv",
+                "pronostico_clima_sst",
+                "buscar_centros_emergencia"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito3_matriz_pesv",
+                "hito3_vehiculos",
+                "hito5_capacitaciones"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_vigilancia_carcinogenos_quimicos_res773",
+    presetCategory: "riesgos_vial_quimico",
+    name: "☣️ Vigilancia de Agentes Químicos Carcinógenos, Mutágenos y Tóxicos Crónicos (Res. 773 de 2021 + EMO)",
+    description: "Cruza las frases H (H340, H350, H360, H372) del inventario químico SGA con los trabajadores expuestos por cargo y sus exámenes médicos periódicos específicos (espirometría, biomarcadores).",
+    scheduleType: "monthly",
+    hour: 9,
+    minute: 15,
+    dayOfMonth: 17,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "matriz_compatibilidad",
+                "consultar_pubchem_quimico",
+                "somos_sst_examenes"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_quimicos_sga",
+                "hito2_condiciones_salud",
+                "hito3_epp"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_docs",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Sustancia CMR (H340/H350/H360)?",
+                            "ifConditionType": "keyword_match",
+                            "ifRuleExpression": "carcinógeno, mutágeno, H340, H350, H360, tóxico, sin examen",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_quimicos_sga, hito2_condiciones_salud, hito3_epp): \"¿Sustancia CMR (H340/H350/H360)?\" [modo: keyword_match]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_docs, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_docs": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_certificacion_tareas_alto_riesgo_mintrabajo",
+    presetCategory: "riesgos_vial_quimico",
+    name: "🏗️ Verificación Oficial de Certificados de Trabajo en Alturas en Portal MinTrabajo / SENA por Cédula",
+    description: "Consulta mediante Antigravity la validez real de los certificados de formación y reentrenamiento en Trabajo Seguro en Alturas de la cuadrilla operativa y descarga evidencias PDF/PNG.",
+    scheduleType: "monthly",
+    hour: 7,
+    minute: 0,
+    dayOfMonth: 6,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_antigravity"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "scraper_agy_alto_riesgo"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_trabajadores",
+                "google_antigravity"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito3_alturas",
+                "hito5_capacitaciones",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Operario Sin Certificado Alturas Vigente?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito3_alturas, hito5_capacitaciones, hito7_acpm): \"¿Operario Sin Certificado Alturas Vigente?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_loop_cuadrilla_alturas": {
+                            "batchSize": 25,
+                            "customInstruction": "Verifica cédula por cédula el certificado de Trabajo Seguro en Alturas."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_loop_cuadrilla_alturas",
+                            "logicType": "loop",
+                            "title": "Iterar (Loop)",
+                            "subtitle": "Por Operario Alturas"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_simulacion_emergencia_gabinete_medevac",
+    presetCategory: "riesgos_vial_quimico",
+    name: "🆘 Ejercicio Mensual de Gabinete y Actualización de Cadena de Socorro MEDEVAC por Sede",
+    description: "Genera mensualmente un escenario práctico de escritorio (incendio, sismo, derrame químico o emergencia médica grave) adaptado a los peligros reales de la empresa para entrenar líderes de evacuación.",
+    scheduleType: "monthly",
+    hour: 10,
+    minute: 30,
+    dayOfMonth: 24,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "buscar_centros_emergencia",
+                "subagent_chat_primer_respondiente",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito1_plan_emergencias",
+                "hito6_vulnerabilidad",
+                "hito5_capacitaciones"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_docs",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_capacitaciones_lms_notebooklm",
+    presetCategory: "gerencia_auditoria",
+    name: "🎓 Avance del Plan Anual de Capacitación SST, Rutas LMS y Material Pedagógico con NotebookLM",
+    description: "Monitorea el progreso de cursos obligatorios en el LMS de WAPPY y el Plan de Capacitaciones (Hito 5 / Hito 6), generando cápsulas de refuerzo y recordatorios a trabajadores rezagados.",
+    scheduleType: "weekly",
+    hour: 9,
+    minute: 0,
+    daysOfWeek: [2],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "cursos_lms",
+                "notebooklm",
+                "somos_sst_trabajadores"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito5_capacitaciones",
+                "hito6_ruta_aprendizaje"
+          ],
+          "outputs": [
+                "acpm_task",
+                "google_calendar",
+                "email_report",
+                "canvas_doc",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Cobertura de Capacitación < 85%?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito5_capacitaciones, hito6_ruta_aprendizaje): \"¿Cobertura de Capacitación < 85%?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, google_calendar, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (canvas_doc, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_calendar": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_auditoria_0312_alta_direccion",
+    presetCategory: "gerencia_auditoria",
+    name: "🏛️ Informe Ejecutivo Mensual para Revisión por la Alta Dirección (Dec. 1072 Art. 2.2.4.6.31)",
+    description: "Consolida las 24 entradas normativas de la Revisión por la Alta Dirección, resultados de Auditoría Interna, cumplimiento Res. 0312 y accidentalidad ATEL en informe ejecutivo y presentación.",
+    scheduleType: "monthly",
+    hour: 7,
+    minute: 30,
+    dayOfMonth: 28,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "subagent_sintetizador_gerencia",
+                "matriz_ipevar"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito1_diagnostico_0312",
+                "hito7_estadisticas_atel",
+                "hito7_auditoria",
+                "hito7_alta_direccion"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_slides",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "logic_approval_alta_direccion": {
+                            "approverEmail": "lider.sst@empresa.com",
+                            "customInstruction": "Solicita visto bueno del Líder SG-SST antes de enviar el informe oficial a Alta Dirección."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_approval_alta_direccion",
+                            "logicType": "human_approval",
+                            "title": "Aprobación",
+                            "subtitle": "Visto Bueno Gerencia"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_cierre_acciones_acpm_vencidas_kanban",
+    presetCategory: "gerencia_auditoria",
+    name: "📌 Control Semanal de Acciones Preventivas, Correctivas y de Mejora (ACPM — Art. 2.2.4.6.33 y 34)",
+    description: "Rastrea todas las tareas abiertas en el tablero Kanban ACPM (Hito 7) originadas por inspecciones, ATEL, auditorías o Res. 0312, escalando acciones vencidas sin evidencia de cierre eficaz.",
+    scheduleType: "weekly",
+    hour: 8,
+    minute: 0,
+    daysOfWeek: [1],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.5-flash-lite",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "google_calendar"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito7_acpm",
+                "hito7_auditoria",
+                "hito1_oportunidades_sst"
+          ],
+          "outputs": [
+                "email_report",
+                "google_calendar",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Acciones ACPM Vencidas Sin Cierre?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito7_acpm, hito7_auditoria, hito1_oportunidades_sst): \"¿Acciones ACPM Vencidas Sin Cierre?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (email_report, google_calendar). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_calendar": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_programa_auditoria_interna_anual_copasst",
+    presetCategory: "gerencia_auditoria",
+    name: "🔍 Preparación y Seguimiento de Auditoría Interna Anual del SG-SST con Participación del COPASST",
+    description: "Verifica el alcance completo de la Auditoría Interna anual (Art. 2.2.4.6.29 y 30 Dec. 1072), idoneidad e independencia del auditor, participación del COPASST y cierre de No Conformidades.",
+    scheduleType: "monthly",
+    hour: 9,
+    minute: 30,
+    dayOfMonth: 19,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "skill_auditoria_normativa",
+                "subagent_auditor_calidad",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito7_auditoria",
+                "hito4_comites",
+                "hito7_acpm"
+          ],
+          "outputs": [
+                "acpm_task",
+                "canvas_doc",
+                "email_report",
+                "google_docs",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿No Conformidad Mayor o Auditoría >12m?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito7_auditoria, hito4_comites, hito7_acpm): \"¿No Conformidad Mayor o Auditoría >12m?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, canvas_doc, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_docs, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_docs": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_inteligencia_predictiva_hito8_riesgo_360",
+    presetCategory: "gerencia_auditoria",
+    name: "🧠 Motor Predictivo 360° (Hito 8): Cruce Preventivo de Peligros, Actos Inseguros, Salud y ATEL",
+    description: "Correlaciona patrones de condiciones inseguras recurrentes, ausentismo, vencimientos y riesgos altos para predecir en qué proceso o sede podría ocurrir el próximo evento ATEL.",
+    scheduleType: "weekly",
+    hour: 7,
+    minute: 0,
+    daysOfWeek: [1],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "consultar_analitica_actos_condiciones",
+                "consultar_analitica_psicosocial",
+                "matriz_ipevar"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito8_predictivo",
+                "hito2_oraculo_predictivo",
+                "hito4_actos_condiciones",
+                "hito7_estadisticas_atel"
+          ],
+          "outputs": [
+                "acpm_task",
+                "canvas_doc",
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Foco Predictivo de Alto Riesgo Detectado?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito8_predictivo, hito2_oraculo_predictivo, hito4_actos_condiciones, hito7_estadisticas_atel): \"¿Foco Predictivo de Alto Riesgo Detectado?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, canvas_doc, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_canvas_doc": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      },
+                      "logic_merge_predictivo_4hitos": {
+                            "customInstruction": "Unifica indicadores predictivos, salud, actos inseguros y ATEL antes de evaluar."
+                      }
+                },
+                "logicNodes": [
+                      {
+                            "key": "logic_merge_predictivo_4hitos",
+                            "logicType": "merge",
+                            "title": "Unir Ramas",
+                            "subtitle": "4 Señales SST"
+                      }
+                ]
+          }
+    }),
+  },
+  {
+    presetKey: "preset_induccion_reinduccion_anual_art11",
+    presetCategory: "gerencia_auditoria",
+    name: "🔄 Control de Inducción de Ingreso y Reinducción Anual Obligatoria a Todos los Trabajadores (Art. 2.2.4.6.11 Par. 2)",
+    description: "Audita que el 100% de trabajadores (independiente de su forma de contratación o antigüedad) haya recibido inducción inicial y reinducción anual en SG-SST con evaluación aprobada.",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 30,
+    dayOfMonth: 10,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_workers",
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_antiduplicate"
+          ],
+          "inputs": [
+                "cursos_lms",
+                "somos_sst_trabajadores"
+          ],
+          "includeIfNode": true,
+          "hitos": [
+                "hito5_capacitaciones",
+                "hito6_ruta_aprendizaje",
+                "hito5_contratistas"
+          ],
+          "outputs": [
+                "acpm_task",
+                "email_report",
+                "google_sheets",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {
+                      "if_router": {
+                            "ifConditionLabel": "¿Trabajador Sin Reinducción en >12 Meses?",
+                            "ifConditionType": "critical_findings",
+                            "ifRuleExpression": "vencido, crítico, brecha, alerta, incumplimiento, hallazgo",
+                            "customInstruction": "Evalúa sobre los resultados de los aplicativos conectados (hito5_capacitaciones, hito6_ruta_aprendizaje, hito5_contratistas): \"¿Trabajador Sin Reinducción en >12 Meses?\" [modo: critical_findings]. Si SÍ se cumple la condición de alerta, dispara la Rama SÍ (acpm_task, email_report). Si NO hay novedades críticas (100% al día), dispara únicamente la Rama NO (google_sheets, wappy_notification) dejando constancia silenciosa de cumplimiento."
+                      },
+                      "out_acpm_task": {
+                            "ifBranch": "yes"
+                      },
+                      "out_email_report": {
+                            "ifBranch": "yes"
+                      },
+                      "out_google_sheets": {
+                            "ifBranch": "no"
+                      },
+                      "out_wappy_notification": {
+                            "ifBranch": "no"
+                      }
+                }
+          }
+    }),
+  },
+  {
+    presetKey: "preset_briefing_ejecutivo_lunes_tenshi",
+    presetCategory: "gerencia_auditoria",
+    name: "☀️ Briefing Ejecutivo de los Lunes 7:00 AM: Prioridades de la Semana en SG-SST + Agenda Calendar",
+    description: "Entrega cada lunes a primera hora el resumen ejecutivo de la semana: vencimientos próximos, tareas ACPM críticas, capacitaciones agendadas, clima operativo y reuniones de comités.",
+    scheduleType: "weekly",
+    hour: 7,
+    minute: 0,
+    daysOfWeek: [1],
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company"
+          ],
+          "inputs": [
+                "google_calendar",
+                "pronostico_clima_sst",
+                "somos_sst_empresa"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito7_acpm",
+                "hito5_capacitaciones",
+                "hito4_comites"
+          ],
+          "outputs": [
+                "email_report",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_campana_audiovisual_mensual_autocuidado_flow",
+    presetCategory: "gerencia_auditoria",
+    name: "🎬 Diseño Mensual de Campaña Visual y Cápsula de Autocuidado SST (Google Flow + NotebookLM + Slides)",
+    description: "Diseña cada mes la campaña preventiva enfocada en el principal riesgo o tendencia de actos inseguros de la empresa, creando guion, presentación y piezas pedagógicas.",
+    scheduleType: "monthly",
+    hour: 10,
+    minute: 0,
+    dayOfMonth: 1,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.6-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_rag_documental"
+          ],
+          "inputs": [
+                "google_flow",
+                "notebooklm",
+                "consultar_analitica_actos_condiciones"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito6_ruta_aprendizaje",
+                "hito5_capacitaciones",
+                "hito4_actos_condiciones"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_slides",
+                "wappy_notification"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
+    }),
+  },
+  {
+    presetKey: "preset_rendicion_cuentas_anual_responsables_art8",
+    presetCategory: "gerencia_auditoria",
+    name: "🏆 Evaluación Semestral de Rendición de Cuentas en SST por Roles y Jefaturas (Dec. 1072 Art. 2.2.4.6.8 Num. 3)",
+    description: "Evalúa la rendición de cuentas interna de todos aquellos a quienes se les hayan delegado responsabilidades en el SG-SST (líderes de proceso, COPASST, brigada, coordinador SST).",
+    scheduleType: "monthly",
+    hour: 8,
+    minute: 0,
+    dayOfMonth: 27,
+    workflowNodes: sanitizeWorkflowNodesForActiveUse({
+          "trigger": "schedule_cron",
+          "triggers": [
+                "schedule_cron",
+                "trigger_tenshi"
+          ],
+          "extractors": [
+                "extract_sst_app",
+                "extract_sst_workers"
+          ],
+          "aiEngine": "wappy",
+          "aiModel": "gemini-3.8-flash",
+          "memoryNode": "wappy_memory_company",
+          "memories": [
+                "wappy_memory_company",
+                "wappy_memory_procedural"
+          ],
+          "inputs": [
+                "somos_sst_empresa",
+                "somos_sst_perfiles_cargo"
+          ],
+          "includeIfNode": false,
+          "hitos": [
+                "hito1_responsable",
+                "hito2_perfiles_cargo",
+                "hito7_acpm",
+                "hito7_alta_direccion"
+          ],
+          "outputs": [
+                "canvas_doc",
+                "google_docs",
+                "email_report"
+          ],
+          "canvasLayout": {
+                "nodeConfigs": {}
+          }
     }),
   },
 ];

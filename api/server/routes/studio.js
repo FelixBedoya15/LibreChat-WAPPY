@@ -3674,10 +3674,12 @@ function inlineWappyPublicAssetsInHtml(rawHtml, { inlineVendorScripts = false } 
 
 /**
  * Calcula el mapa exacto de tiempos (Beats + Palabras ponderadas por sílabas y pausas)
- * para que las escenas visuales y los subtítulos sincronicen al milisegundo con la voz.
+ * reservando los primeros 2.00s para la Portada Hero de Wappy Studio y alineando las escenas habladas a partir de 2.00s.
  */
-function computeServerScriptTimelineMap(scriptText, totalDurationSeconds = 30) {
-  const safeTotal = Math.max(4, Number(totalDurationSeconds) || 30);
+function computeServerScriptTimelineMap(scriptText, totalDurationSeconds = 30, introDurationSeconds = 2.0) {
+  const safeIntro = Math.max(0, Math.min(4.0, Number(introDurationSeconds) || 2.0));
+  const safeTotal = Math.max(safeIntro + 4.0, Number(totalDurationSeconds) || 30);
+  const spokenSpan = Math.max(2.0, safeTotal - safeIntro);
   const raw = String(scriptText || '')
     .replace(/^(Alex|Sam|Hablante\s*\d+|Speaker\s*\d+):\s*/gim, '')
     .trim();
@@ -3686,6 +3688,7 @@ function computeServerScriptTimelineMap(scriptText, totalDurationSeconds = 30) {
     .split(/(?<=[.!?…])\s+|\n+|<breath>/gi)
     .map((s) =>
       s
+        .replace(/\[pausa[^\]]*\]/gi, '')
         .replace(/<[^>]+>/g, '')
         .replace(/\|[^|]+\|/g, '')
         .trim(),
@@ -3744,21 +3747,27 @@ function computeServerScriptTimelineMap(scriptText, totalDurationSeconds = 30) {
   let accWeight = 0;
   for (let i = 0; i < tempBeats.length; i++) {
     const b = tempBeats[i];
-    const startPct = accWeight / Math.max(1, totalWeight);
-    const endPct = (accWeight + b.beatWeight) / Math.max(1, totalWeight);
-    const startSec = Number((startPct * safeTotal).toFixed(2));
-    const endSec = Number((endPct * safeTotal).toFixed(2));
+    const relStartPct = accWeight / Math.max(1, totalWeight);
+    const relEndPct = (accWeight + b.beatWeight) / Math.max(1, totalWeight);
+    const startSec = Number((safeIntro + relStartPct * spokenSpan).toFixed(2));
+    const endSec = Number((safeIntro + relEndPct * spokenSpan).toFixed(2));
     const durationSec = Number(Math.max(0.8, endSec - startSec).toFixed(2));
+    const startPct = Number((startSec / safeTotal).toFixed(4));
+    const endPct = Number((endSec / safeTotal).toFixed(4));
 
     let wordAcc = accWeight;
     for (const wItem of b.wList) {
-      const wStartPct = wordAcc / Math.max(1, totalWeight);
+      const wRelStart = wordAcc / Math.max(1, totalWeight);
       wordAcc += wItem.weight;
-      const wEndPct = wordAcc / Math.max(1, totalWeight);
+      const wRelEnd = wordAcc / Math.max(1, totalWeight);
+      const wStartSec = Number((safeIntro + wRelStart * spokenSpan).toFixed(2));
+      const wEndSec = Number((safeIntro + wRelEnd * spokenSpan).toFixed(2));
       wordTimings.push({
         word: wItem.word,
-        startPct: Number(wStartPct.toFixed(4)),
-        endPct: Number(wEndPct.toFixed(4)),
+        startSec: wStartSec,
+        endSec: wEndSec,
+        startPct: Number((wStartSec / safeTotal).toFixed(4)),
+        endPct: Number((wEndSec / safeTotal).toFixed(4)),
         beatIndex: i,
       });
     }
@@ -3770,15 +3779,149 @@ function computeServerScriptTimelineMap(scriptText, totalDurationSeconds = 30) {
       startSec,
       endSec,
       durationSec,
-      startPct: Number(startPct.toFixed(4)),
-      endPct: Number(endPct.toFixed(4)),
+      startPct,
+      endPct,
     });
   }
 
-  return { beats: beatObjects, wordTimings, totalDurationSeconds: safeTotal };
+  return {
+    introDurationSeconds: safeIntro,
+    beats: beatObjects,
+    wordTimings,
+    totalDurationSeconds: safeTotal,
+  };
+}
+
+/**
+ * Genera efectos sonoros sutiles de estudio en PCM16 24kHz (golpe-corto, barrido, tick-suave)
+ * y los mezcla sobre el buffer PCM16 principal sin saturar.
+ */
+function mixProceduralStudioSfxPcm(targetPcm, timeSec, type = 'tick-suave', sampleRate = 24000, gainDb = -16) {
+  if (!Buffer.isBuffer(targetPcm) || targetPcm.length < 4) return;
+  const startSample = Math.max(0, Math.floor(Number(timeSec || 0) * sampleRate));
+  const totalSamples = Math.floor(targetPcm.length / 2);
+  if (startSample >= totalSamples) return;
+
+  const amp = Math.pow(10, gainDb / 20) * 32767;
+  let durSamples = Math.floor(0.06 * sampleRate);
+  if (type === 'golpe-corto') durSamples = Math.floor(0.28 * sampleRate);
+  else if (type === 'barrido') durSamples = Math.floor(0.22 * sampleRate);
+
+  for (let i = 0; i < durSamples; i++) {
+    const idx = startSample + i;
+    if (idx >= totalSamples) break;
+    const t = i / sampleRate;
+    const u = i / durSamples;
+    let sfxVal = 0;
+    if (type === 'golpe-corto') {
+      const freq = 115 * Math.exp(-t * 9.5) + 42;
+      const env = Math.sin(Math.min(1, u * 12) * (Math.PI / 2)) * Math.exp(-u * 5.2);
+      sfxVal = Math.sin(2 * Math.PI * freq * t) * env * amp;
+    } else if (type === 'barrido') {
+      const freq = 180 + 520 * Math.pow(u, 1.4);
+      const env = Math.sin(Math.PI * u) * 0.65;
+      sfxVal = Math.sin(2 * Math.PI * freq * t) * env * amp;
+    } else {
+      const freq = 1450 * Math.exp(-t * 28) + 480;
+      const env = Math.exp(-u * 9.5);
+      sfxVal = Math.sin(2 * Math.PI * freq * t) * env * amp;
+    }
+    const existing = targetPcm.readInt16LE(idx * 2);
+    const mixed = Math.max(-32767, Math.min(32767, Math.round(existing + sfxVal)));
+    targetPcm.writeInt16LE(mixed, idx * 2);
+  }
+}
+
+/**
+ * Sintetiza la locución continua del Reel con Gemini 3.8 Flash TTS (24 kHz) en una sola toma orgánica,
+ * reserva los primeros 2.00s para la Portada Hero, detecta los valles acústicos reales entre oraciones,
+ * mezcla los SFX discretos de estudio y devuelve el timelineMap milimétrico + envolvente vozData a 60 FPS.
+ */
+async function synthesizeAlignedReelAudioAndTimeline({
+  beats = [],
+  voiceName = 'Orus',
+  model = 'gemini-3.8-flash-tts',
+  keys = [],
+  introDurationSeconds = 2.0,
+}) {
+  if (!Array.isArray(beats) || beats.length === 0 || !Array.isArray(keys) || keys.length === 0) {
+    return null;
+  }
+
+  const sampleRate = 24000;
+  const safeIntro = Math.max(1.5, Math.min(3.0, Number(introDurationSeconds) || 2.0));
+  const introPcm = createPcmSilence(Math.round(safeIntro * 1000), sampleRate);
+  const tailOutPcm = createPcmSilence(350, sampleRate);
+
+  const cleanSentences = beats
+    .map((b) =>
+      String(b?.text || '')
+        .replace(/\[pausa[^\]]*\]/gi, '')
+        .replace(/<[^>]+>/g, '')
+        .trim(),
+    )
+    .filter(Boolean);
+
+  if (cleanSentences.length === 0) return null;
+
+  const fullNarrationText = cleanSentences.join('\n\n');
+  const synthRes = await synthesizeSingleVoiceTurn({
+    text: fullNarrationText,
+    voiceName,
+    model,
+    keys,
+    preferredKeyOffset: 0,
+  });
+
+  const usedVoiceModel = synthRes.usedModel || model;
+  let speechPcm = synthRes.pcmBuffer;
+  if (speechPcm.length % 2 !== 0) {
+    speechPcm = speechPcm.slice(0, speechPcm.length - 1);
+  }
+
+  let masterPcm = Buffer.concat([introPcm, speechPcm, tailOutPcm]);
+  if (masterPcm.length % 2 !== 0) {
+    masterPcm = masterPcm.slice(0, masterPcm.length - 1);
+  }
+
+  const rawHeader = createWavHeader(masterPcm.length, sampleRate, 1, 16);
+  const rawWavBuffer = Buffer.concat([rawHeader, masterPcm]);
+
+  const seedTimeline = computeServerScriptTimelineMap(
+    cleanSentences.join('\n'),
+    Number((masterPcm.length / (sampleRate * 2)).toFixed(2)),
+    safeIntro,
+  );
+  const alignedTimeline = alignTimelineMapWithWavBuffer(seedTimeline, rawWavBuffer);
+
+  // Mezclar SFX discretos de estudio (golpe en portada, barrido en transición y tick en pasos)
+  mixProceduralStudioSfxPcm(masterPcm, 0.04, 'golpe-corto', sampleRate, -15);
+  for (let i = 0; i < alignedTimeline.beats.length; i++) {
+    const b = alignedTimeline.beats[i];
+    mixProceduralStudioSfxPcm(masterPcm, Math.max(0, b.startSec - 0.04), 'barrido', sampleRate, -17);
+    if (b.durationSec > 1.8) {
+      mixProceduralStudioSfxPcm(masterPcm, b.startSec + 0.55, 'tick-suave', sampleRate, -18);
+    }
+  }
+
+  masterPcm = applyFinalTailFade(masterPcm, sampleRate, 35);
+  const wavHeader = createWavHeader(masterPcm.length, sampleRate, 1, 16);
+  const wavBuffer = Buffer.concat([wavHeader, masterPcm]);
+  const audioBase64 = wavBuffer.toString('base64');
+
+  return {
+    wavBuffer,
+    audioBase64,
+    audioDataUri: `data:audio/wav;base64,${audioBase64}`,
+    usedVoiceModel,
+    timelineMap: alignedTimeline,
+  };
 }
 
 function postProcessGeneratedVideoHtml(rawHtml, timelineMap) {
+  if (typeof rawHtml === 'string' && rawHtml.includes('data-wappy-master-reel="true"')) {
+    return rawHtml;
+  }
   let html = inlineWappyPublicAssetsInHtml(rawHtml, { inlineVendorScripts: true });
   // Corregir bug común de LLMs: subtitles.reverse() muta el arreglo en cada frame de GSAP onUpdate
   html = html.replace(/subtitles\.reverse\(\)/g, 'subtitles.slice().reverse()');
@@ -5571,6 +5714,7 @@ async function runMultiAgentVideoSquadPlan({
   hasBaseVideo,
   showSubtitles,
   accentColor,
+  audioDataUri = '',
   aiGeneratorFn,
 }) {
   const starEffectsPool = [
@@ -5649,6 +5793,9 @@ async function runMultiAgentVideoSquadPlan({
     theme: effectiveTheme,
     selectedArtDirection: effectiveTheme,
     accentColor,
+    audioDataUri,
+    headlineText,
+    badgeText,
   });
   htmlCode = postProcessGeneratedVideoHtml(htmlCode, timelineMap);
 
@@ -5732,6 +5879,8 @@ async function handleGenerateMasterReelHtml(req, res) {
       headlineText = '',
       subtitleText = '',
       accentColor = '',
+      voiceName = 'Orus',
+      synthesizeAudio = false,
       modelName,
       audioBase64,
       delegateToAntigravity = false,
@@ -5745,7 +5894,7 @@ async function handleGenerateMasterReelHtml(req, res) {
     );
     const preferredTextModel = modelsToTry[0] || 'gemini-3.5-flash-lite';
 
-    const safeDuration = Math.max(6, Math.min(180, Number(durationSeconds) || 30));
+    const safeDuration = Math.max(8, Math.min(180, Number(durationSeconds) || 30));
     const stepsScript = Array.isArray(scriptSteps) && scriptSteps.length > 0
       ? scriptSteps.map((s) => (typeof s === 'string' ? s : s?.voiceover || s?.narration || s?.text || '')).filter(Boolean).join('\n\n')
       : '';
@@ -5756,16 +5905,39 @@ async function handleGenerateMasterReelHtml(req, res) {
       superPrompt ||
       'La prevención y la inteligencia artificial transforman la seguridad en el trabajo con WAPPY IA.';
 
-    let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration);
+    let timelineMap = computeServerScriptTimelineMap(effectiveScript, safeDuration, 2.0);
+    const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
+    let effectiveAudioDataUri = '';
+    let generatedAudioBase64 = '';
 
-    // Si el cliente envió el audio WAV sintetizado, detectar silencios reales y extraer envolvente RMS 60-FPS
+    // 1. Si el cliente envió el audio WAV sintetizado, detectar silencios reales y extraer envolvente RMS 60-FPS
     if (audioBase64 && typeof audioBase64 === 'string') {
       try {
         const cleanB64 = audioBase64.replace(/^data:audio\/[^;]+;base64,/, '');
         const wavBuf = Buffer.from(cleanB64, 'base64');
         timelineMap = alignTimelineMapWithWavBuffer(timelineMap, wavBuf);
+        generatedAudioBase64 = cleanB64;
+        effectiveAudioDataUri = `data:audio/wav;base64,${cleanB64}`;
       } catch (wavErr) {
         logger.debug('[WappyStudio Video] WAV alignment fallback:', wavErr.message);
+      }
+    } else if (Boolean(synthesizeAudio) && allKeys.length > 0) {
+      // 2. Si se solicitó síntesis automática de locución oración por oración (24 kHz + SFX + alineación milimétrica)
+      try {
+        const synthAligned = await synthesizeAlignedReelAudioAndTimeline({
+          beats: timelineMap.beats,
+          voiceName: voiceName || 'Orus',
+          model: 'gemini-3.8-flash-tts',
+          keys: allKeys,
+          introDurationSeconds: 2.0,
+        });
+        if (synthAligned && synthAligned.timelineMap) {
+          timelineMap = synthAligned.timelineMap;
+          generatedAudioBase64 = synthAligned.audioBase64;
+          effectiveAudioDataUri = synthAligned.audioDataUri;
+        }
+      } catch (synthErr) {
+        logger.warn('[WappyStudio Video] Auto TTS alignment fallback:', synthErr.message);
       }
     }
 
@@ -5782,7 +5954,6 @@ async function handleGenerateMasterReelHtml(req, res) {
       resolvedTarget.userId,
     );
 
-    const { allKeys } = await getCombinedKeysForRequest(req, customKeys || apiKeys);
     const keysToUse = allKeys.slice(0, 4);
     let usedModel = preferredTextModel;
 
@@ -5848,6 +6019,7 @@ async function handleGenerateMasterReelHtml(req, res) {
       hasBaseVideo,
       showSubtitles,
       accentColor,
+      audioDataUri: effectiveAudioDataUri,
       aiGeneratorFn,
     });
 
@@ -5899,6 +6071,7 @@ async function handleGenerateMasterReelHtml(req, res) {
       engine: 'antigravity-master-reel-60fps',
       usedModel,
       htmlCode,
+      audioBase64: generatedAudioBase64 || undefined,
       timelineMap,
       scenePlan,
       scenesBreakdown: scenePlan,

@@ -37,6 +37,8 @@ import {
   Wand2,
   Paperclip,
   FileText,
+  Search,
+  X,
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useAuthContext } from '~/hooks';
@@ -169,6 +171,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const [logs, setLogs] = useState<AutomationLog[]>([]);
   const [activeTab, setActiveTab] = useState<'list' | 'presets' | 'logs'>(defaultTab);
   const [selectedPresetCategory, setSelectedPresetCategory] = useState<string>('all');
+  const [presetSearchQuery, setPresetSearchQuery] = useState<string>('');
   const [showDashboard, setShowDashboard] = useState(true);
 
   useEffect(() => {
@@ -574,9 +577,34 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   }, [automations, logs]);
 
   const filteredPresets = useMemo(() => {
-    if (selectedPresetCategory === 'all') return presets;
-    return presets.filter((p) => (p.presetCategory || 'general') === selectedPresetCategory);
-  }, [presets, selectedPresetCategory]);
+    const normalizeText = (val?: string) =>
+      (val?.trim() || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    const query = normalizeText(presetSearchQuery);
+
+    return presets.filter((p) => {
+      const matchesCat =
+        selectedPresetCategory === 'all' ||
+        (p.presetCategory || 'general') === selectedPresetCategory;
+      if (!matchesCat) return false;
+      if (!query) return true;
+
+      const catObj = PRESET_CATEGORIES.find((c) => c.id === p.presetCategory);
+      const searchable = [
+        p.name,
+        p.presetDescription,
+        p.agentName,
+        p.presetCategory,
+        catObj?.label,
+      ]
+        .map(normalizeText)
+        .join(' ');
+
+      return searchable.includes(query);
+    });
+  }, [presets, selectedPresetCategory, presetSearchQuery]);
 
   // Handle open modal for create
   const handleCreateOpen = () => {
@@ -628,7 +656,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_procedural'],
-      includeIfNode: true,
+      includeIfNode: false,
       inputs: ['somos_sst_empresa'],
       hitos: ['hito1_diagnostico_0312'],
       outputs: ['email_report', 'wappy_notification'],
@@ -1397,7 +1425,15 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             disabled={loading || logsLoading || presetsLoading}
             icon={<RefreshCw className={`w-3.5 h-3.5 ${(loading || logsLoading || presetsLoading) ? 'animate-spin' : ''}`} />}
             label="Actualizar"
-            onClick={activeTab === 'list' ? fetchAutomations : activeTab === 'presets' ? fetchPresets : fetchLogs}
+            onClick={() => {
+              if (activeTab === 'list') {
+                void fetchAutomations();
+              } else if (activeTab === 'presets') {
+                void fetchPresets();
+              } else {
+                void fetchLogs();
+              }
+            }}
           />
         </div>
       </div>
@@ -1689,37 +1725,62 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               )}
             </div>
 
-            {/* Filtro de categorías */}
-            <div className="flex flex-wrap items-center gap-2.5 mb-5 py-1 px-1">
-              {PRESET_CATEGORIES.map((cat, cIdx) => {
-                const catVariants = [
-                  'teal',
-                  'purple',
-                  'amber',
-                  'cyan',
-                  'emerald',
-                  'indigo',
-                  'fuchsia',
-                  'blue',
-                ] as const;
-                const countInCat =
-                  cat.id === 'all'
-                    ? presets.length
-                    : presets.filter((p) => p.presetCategory === cat.id).length;
-                return (
-                  <ExpandableButton
-                    key={cat.id}
+            {/* Filtro de categorías + Buscador instantáneo */}
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-5 py-1 px-1">
+              <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                {PRESET_CATEGORIES.map((cat, cIdx) => {
+                  const catVariants = [
+                    'teal',
+                    'purple',
+                    'amber',
+                    'cyan',
+                    'emerald',
+                    'indigo',
+                    'fuchsia',
+                    'blue',
+                  ] as const;
+                  const countInCat =
+                    cat.id === 'all'
+                      ? presets.length
+                      : presets.filter((p) => p.presetCategory === cat.id).length;
+                  return (
+                    <ExpandableButton
+                      key={cat.id}
+                      type="button"
+                      size="sm"
+                      variant={catVariants[cIdx % catVariants.length]}
+                      isActive={selectedPresetCategory === cat.id}
+                      icon={<span className="text-xs leading-none">{cat.icon}</span>}
+                      badge={countInCat}
+                      label={cat.label}
+                      onClick={() => setSelectedPresetCategory(cat.id)}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="relative w-full xl:w-80 shrink-0">
+                <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={presetSearchQuery}
+                  onChange={(e) => setPresetSearchQuery(e.target.value)}
+                  placeholder="Buscar flujo, agente, hito o categoría..."
+                  aria-label="Buscar flujos preestablecidos"
+                  className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium bg-white dark:bg-gray-900 border border-border-medium/40 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all shadow-xs"
+                />
+                {presetSearchQuery.trim().length > 0 && (
+                  <button
                     type="button"
-                    size="sm"
-                    variant={catVariants[cIdx % catVariants.length]}
-                    isActive={selectedPresetCategory === cat.id}
-                    icon={<span className="text-xs leading-none">{cat.icon}</span>}
-                    badge={countInCat}
-                    label={cat.label}
-                    onClick={() => setSelectedPresetCategory(cat.id)}
-                  />
-                );
-              })}
+                    onClick={() => setPresetSearchQuery('')}
+                    title="Limpiar búsqueda"
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {presetsLoading ? (
@@ -1727,28 +1788,64 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 <Loader2 className="w-10 h-10 text-teal-600 animate-spin mb-4" />
                 <p className="text-gray-500 dark:text-gray-400 text-sm">Cargando catálogo de flujos preestablecidos...</p>
               </div>
+            ) : filteredPresets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
+                <Search className="w-9 h-9 text-teal-500/70 mb-3" />
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-1">
+                  No se encontraron flujos con ese criterio
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mb-4">
+                  Prueba buscando otro término (ej. EMO, EPP, PESV, COPASST, ATEL) o cambia la categoría activa.
+                </p>
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="teal"
+                  icon={<X className="w-3.5 h-3.5" />}
+                  label="Limpiar filtros"
+                  onClick={() => {
+                    setPresetSearchQuery('');
+                    setSelectedPresetCategory('all');
+                  }}
+                />
+              </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {presets
-                  .filter((p) => selectedPresetCategory === 'all' || p.presetCategory === selectedPresetCategory)
-                  .map((preset) => {
-                    const alreadyInstalled = automations.some(
-                      (a) => (preset.presetKey && a.presetKey === preset.presetKey) || a.name === preset.name
-                    );
-                    const catObj = PRESET_CATEGORIES.find((c) => c.id === preset.presetCategory);
-                    return (
-                      <div
-                        key={preset._id}
-                        className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-teal-400 dark:hover:border-teal-700 rounded-2xl shadow-sm transition-all duration-300 p-5 relative"
-                      >
-                        {/* Top category badge & admin actions */}
-                        <div className="flex items-center justify-between gap-2 mb-3">
+                {filteredPresets.map((preset) => {
+                  const alreadyInstalled = automations.some(
+                    (a) => (preset.presetKey && a.presetKey === preset.presetKey) || a.name === preset.name
+                  );
+                  const catObj = PRESET_CATEGORIES.find((c) => c.id === preset.presetCategory);
+                  const usesIfRouter = Boolean(preset.workflowNodes?.includeIfNode);
+                  return (
+                    <div
+                      key={preset._id}
+                      className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-teal-400 dark:hover:border-teal-700 rounded-2xl shadow-sm transition-all duration-300 p-5 relative"
+                    >
+                      {/* Top category badge, routing mode badge & admin actions */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
                             <span>{catObj?.icon || '⚡'}</span>
                             <span>{catObj?.label || 'Flujo Oficial SG-SST'}</span>
                           </span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-tight border ${
+                              usesIfRouter
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/80'
+                                : 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800/80'
+                            }`}
+                            title={
+                              usesIfRouter
+                                ? 'Este flujo evalúa una Condición Sí/No después de auditar los Hitos SST antes de despachar las salidas'
+                                : 'Este flujo ejecuta y entrega sus salidas de forma directa sin bifurcación condicional'
+                            }
+                          >
+                            {usesIfRouter ? '🔀 Condición Sí/No' : '⚡ Flujo Directo'}
+                          </span>
+                        </div>
 
-                          <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5">
                             {alreadyInstalled && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                 <CheckCircle className="w-3 h-3" /> En Mis Tareas

@@ -18,6 +18,72 @@ const {
 } = require('~/server/services/workflowNodeInspectorService');
 const { normalizeAnyDateYmd } = require('~/server/routes/sgsst/birthDateHelper');
 
+/**
+ * Resuelve determinísticamente a qué rama ('yes' | 'no') pertenece un nodo de salida
+ * cuando el flujo tiene `includeIfNode: true`, 100% alineado con `resolveOutputIfBranch`
+ * en `WappyWorkflowCanvas.tsx`.
+ */
+function resolveOutputBranchForIfRouter(outNodeId, idx, allOutIds, nodeConfigs, edges) {
+  const outKey = `out_${outNodeId}`;
+  if (Array.isArray(edges) && edges.length > 0) {
+    const explicitIfEdges = edges.filter(
+      (ed) =>
+        (ed.from === 'if_router' || ed.from === 'if_condition') &&
+        (ed.to === outKey || ed.to === outNodeId),
+    );
+    if (explicitIfEdges.length > 0) {
+      const hasFalse = explicitIfEdges.some(
+        (ed) => ed.kind === 'branch_false' || ed.label === 'no',
+      );
+      const hasTrue = explicitIfEdges.some(
+        (ed) => ed.kind !== 'branch_false' && ed.label !== 'no',
+      );
+      if (hasFalse && !hasTrue) return 'no';
+      if (hasTrue && !hasFalse) return 'yes';
+    }
+  }
+
+  const explicit = nodeConfigs?.[outKey]?.ifBranch || nodeConfigs?.[outNodeId]?.ifBranch;
+  if (explicit === 'yes' || explicit === 'no') {
+    return explicit;
+  }
+
+  const urgentYesIds = [
+    'acpm_task',
+    'email_report',
+    'google_calendar',
+    'somos_sst_update',
+    'antigravity_local_report',
+    'antigravity_cloud_report',
+  ];
+  const calmNoIds = [
+    'wappy_notification',
+    'google_sheets',
+    'canvas_doc',
+    'google_docs',
+    'google_slides',
+  ];
+  const classifyDefault = (id) => {
+    if (urgentYesIds.includes(id)) return 'yes';
+    if (calmNoIds.includes(id)) return 'no';
+    return 'yes';
+  };
+
+  const list = Array.isArray(allOutIds) ? allOutIds : [];
+  if (list.length >= 2) {
+    const hasAnyExplicit = list.some((id) => {
+      const b = nodeConfigs?.[`out_${id}`]?.ifBranch || nodeConfigs?.[id]?.ifBranch;
+      return b === 'yes' || b === 'no';
+    });
+    if (!hasAnyExplicit) {
+      const defaults = list.map((id) => classifyDefault(id));
+      if (defaults.every((b) => b === 'yes') && idx === list.length - 1) return 'no';
+      if (defaults.every((b) => b === 'no') && idx === 0) return 'yes';
+    }
+  }
+  return classifyDefault(outNodeId);
+}
+
 let schedulerInterval = null;
 let isCheckingAutomations = false; // Evita que dos ticks del intervalo se solapen
 let drainTimer = null; // Re-disparo inmediato de drenaje continuo al liberarse ventanilla
@@ -1419,20 +1485,16 @@ async function runAutomation(automation, isManual = false) {
     }
 
     const isOutputAllowedByIfBranch = (outNodeId) => {
-      if (!automation.workflowNodes?.includeIfNode) return true;
-      const outKey = `out_${outNodeId}`;
-      const explicitIfEdges = postEdges.filter(
-        (ed) =>
-          (ed.from === 'if_router' || ed.from === 'if_condition') &&
-          (ed.to === outKey || ed.to === outNodeId),
+      if (!Boolean(automation.workflowNodes?.includeIfNode)) return true;
+      const outIdx = Math.max(0, configuredOutputs.indexOf(outNodeId));
+      const branch = resolveOutputBranchForIfRouter(
+        outNodeId,
+        outIdx,
+        configuredOutputs,
+        postNodeConfigs,
+        postEdges,
       );
-      if (explicitIfEdges.length > 0) {
-        return explicitIfEdges.some((ed) => {
-          if (ed.kind === 'branch_false' || ed.label === 'no') return !ifConditionPassed;
-          return ifConditionPassed;
-        });
-      }
-      return true;
+      return branch === 'no' ? !ifConditionPassed : ifConditionPassed;
     };
 
     const humanApprovalNode = postLogicNodes.find((ln) => ln && ln.logicType === 'human_approval');
@@ -3745,24 +3807,20 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       nodeId: agentId || 'agent_root',
       category: 'agent',
     });
-    const extraAgentsFallback = Array.isArray(wf?.canvasLayout?.extraAgents)
-      ? wf.canvasLayout.extraAgents.filter(Boolean).slice(0, 2)
-      : [];
-    extraAgentsFallback.forEach((ea, idx) => {
+    configuredHitos.forEach((hId) => {
       executionPlan.push({
-        nodeKey: ea.key || `extra_agent_${idx + 1}`,
-        nodeId: ea.agentId || ea.key || `extra_agent_${idx + 1}`,
-        category: 'agent',
+        nodeKey: `hito_${hId}`,
+        nodeId: hId,
+        category: 'hito',
       });
     });
-    if (wf.includeIfNode !== false) {
-      executionPlan.push({
-        nodeKey: 'if_router',
-        nodeId: 'if_condition',
-        category: 'condition',
-      });
-    }
-    configuredLogicNodes.forEach((ln, idx) => {
+    const preIfLogicFallback = configuredLogicNodes.filter(
+      (ln) => String(ln?.logicType || '').toLowerCase() !== 'human_approval',
+    );
+    const postApprovalLogicFallback = configuredLogicNodes.filter(
+      (ln) => String(ln?.logicType || '').toLowerCase() === 'human_approval',
+    );
+    preIfLogicFallback.forEach((ln, idx) => {
       const lKey = ln.key || `logic_${ln.logicType || 'step'}_${idx + 1}`;
       executionPlan.push({
         nodeKey: lKey,
@@ -3771,11 +3829,30 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         title: ln.title || `Nodo Lógico (${ln.logicType || 'step'})`,
       });
     });
-    configuredHitos.forEach((hId) => {
+    if (Boolean(wf.includeIfNode)) {
       executionPlan.push({
-        nodeKey: `hito_${hId}`,
-        nodeId: hId,
-        category: 'hito',
+        nodeKey: 'if_router',
+        nodeId: 'if_condition',
+        category: 'condition',
+      });
+    }
+    postApprovalLogicFallback.forEach((ln, idx) => {
+      const lKey = ln.key || `logic_human_approval_${idx + 1}`;
+      executionPlan.push({
+        nodeKey: lKey,
+        nodeId: 'logic_human_approval',
+        category: 'logic',
+        title: ln.title || 'Aprobación Humana',
+      });
+    });
+    const extraAgentsFallback = Array.isArray(wf?.canvasLayout?.extraAgents)
+      ? wf.canvasLayout.extraAgents.filter(Boolean).slice(0, 2)
+      : [];
+    extraAgentsFallback.forEach((ea, idx) => {
+      executionPlan.push({
+        nodeKey: ea.key || `extra_agent_${idx + 1}`,
+        nodeId: ea.agentId || ea.key || `extra_agent_${idx + 1}`,
+        category: 'agent',
       });
     });
     configuredOutputs.forEach((outId) => {
@@ -5682,7 +5759,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       continue;
     }
 
-    // 7. NODO DE SALIDA / BITÁCORA (output — Bloqueado en Modo Sandbox)
+    // 7. NODO DE SALIDA / BITÁCORA (output — Respeta rama activa de Condición Si/No y Bloquea envío en Modo Sandbox)
     if (category === 'output') {
       await emitProgress({
         type: 'step_start',
@@ -5692,6 +5769,55 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       });
       await pauseStep(160);
       const outCfg = resolveNodeConfig(nodeKey, nodeId);
+      const outIdx = Math.max(0, configuredOutputs.indexOf(nodeId));
+      const simEdges = Array.isArray(wf?.canvasLayout?.edges) ? wf.canvasLayout.edges : [];
+      const expectedBranch = Boolean(wf.includeIfNode)
+        ? resolveOutputBranchForIfRouter(nodeId, outIdx, configuredOutputs, nodeConfigs, simEdges)
+        : null;
+      const isBranchActive =
+        !ifHasEvaluated ||
+        !expectedBranch ||
+        (expectedBranch === 'yes' && ifEvaluation.branchTaken === 'SI') ||
+        (expectedBranch === 'no' && ifEvaluation.branchTaken === 'NO');
+
+      if (!isBranchActive) {
+        const expectedLabel = expectedBranch === 'no' ? 'NO' : 'SÍ';
+        const skippedStep = {
+          stepIndex: ++stepCounter,
+          nodeKey,
+          nodeId,
+          category: 'output',
+          title: `⏭️ ${stepCustomTitle || outputTitleMap[nodeId] || `Salida: ${nodeId}`} (Omitido — Rama ${expectedLabel})`,
+          status: 'skipped',
+          durationMs: 4,
+          recordsCount: 0,
+          surgicalFields: [],
+          inputSummary: `Conectado a la Rama [${expectedLabel}] de Condición Si/No (rama activa en esta corrida: [${ifEvaluation.branchTaken}])`,
+          inputContext: `Conectado a la Rama [${expectedLabel}] de Condición Si/No (rama activa en esta corrida: [${ifEvaluation.branchTaken}])`,
+          outputPreview: `⏭️ [RAMA ${expectedLabel} NO ACTIVA]: Condición Si/No tomó la Rama [${ifEvaluation.branchTaken}], por lo que esta salida de la Rama [${expectedLabel}] se omite limpiamente.`,
+          sourceNodeKey: 'if_router',
+          sourceNodeTitle: 'Condición Si/No',
+          inputItems: [],
+          outputItems: [],
+          logs: [
+            {
+              timestamp: new Date().toISOString(),
+              level: 'info',
+              message: `Salida omitida porque pertenece a la Rama [${expectedLabel}] y Condición Si/No evaluó [${ifEvaluation.branchTaken}].`,
+            },
+          ],
+          error: null,
+        };
+        nodeTrace.push(skippedStep);
+        await emitProgress({
+          type: 'step_done',
+          nodeKey,
+          nodeId,
+          step: skippedStep,
+        });
+        continue;
+      }
+
       const outIncomingItems = currentPipelineItems.slice(0, 300);
       const outSource = { ...lastProducerNode };
       const currentShortSummary = String(finalResponse || previousAgentResponse || '')
