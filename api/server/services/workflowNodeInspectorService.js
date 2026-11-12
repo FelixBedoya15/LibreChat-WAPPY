@@ -8266,8 +8266,8 @@ async function inspectWorkflowNodeLive(arg1 = {}, arg2 = {}) {
 
 /**
  * Resuelve determinísticamente el rol causal de un aplicativo Hito dentro del DAG:
- * - `'source_read'`: Fuente de lectura en Etapa 2 (a la izquierda de IF y del Agente IA).
- * - `'target_write_report'`: Destino de escritura / generación de Informe Oficial HTML (a la derecha del Agente IA / Rama SÍ).
+ * - `'source_read'`: Fuente de lectura en Etapa 2 (a la izquierda de Condición Si/No y del Agente IA).
+ * - `'agent_tool'` (o alias legado `'target_write_report'`): Aplicativo conectado en el puerto `Herramienta +` debajo del Agente IA (habilita herramientas MCP reales de Somos SST y, si aplica, adjunta Informe Oficial HTML en rama SÍ / directa).
  */
 function resolveWorkflowHitoRole(nodeConfigs = {}, hitoId = '') {
   const safeConfigs = nodeConfigs && typeof nodeConfigs === 'object' ? nodeConfigs : {};
@@ -8275,24 +8275,31 @@ function resolveWorkflowHitoRole(nodeConfigs = {}, hitoId = '') {
   const canonical = rawId ? normalizeInspectorNodeId(rawId) : '';
   const cfg =
     safeConfigs[`tool_hitos_${rawId}`] ||
+    safeConfigs[`sub_tool_${rawId}`] ||
     safeConfigs[`hito_${rawId}`] ||
     safeConfigs[rawId] ||
     (canonical && canonical !== rawId
       ? safeConfigs[`tool_hitos_${canonical}`] ||
+        safeConfigs[`sub_tool_${canonical}`] ||
         safeConfigs[`hito_${canonical}`] ||
         safeConfigs[canonical]
       : null) ||
     {};
 
-  if (cfg.hitoRole === 'source_read' || cfg.hitoRole === 'target_write_report') {
+  if (cfg.hitoRole === 'source_read') {
+    return 'source_read';
+  }
+  if (cfg.hitoRole === 'agent_tool' || cfg.hitoRole === 'target_write_report') {
     return cfg.hitoRole;
   }
   if (
-    ['write_and_report', 'write_and_update', 'generate_report'].includes(cfg.appActionMode) ||
+    ['write_and_report', 'write_and_update', 'generate_report', 'tool_only', 'agent_tool'].includes(
+      cfg.appActionMode,
+    ) ||
     cfg.generateAppReport === true ||
-    ['write_register', 'audit_and_update'].includes(cfg.hitoOperationMode)
+    ['write_register', 'audit_and_update', 'agent_tool'].includes(cfg.hitoOperationMode)
   ) {
-    return 'target_write_report';
+    return 'agent_tool';
   }
   return 'source_read';
 }

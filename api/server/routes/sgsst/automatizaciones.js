@@ -263,7 +263,7 @@ async function getActiveCompanyId(userId, explicitCompanyId = null, userRole = '
   return active ? active._id.toString() : null;
 }
 
-// Catálogo oficial auditado de 54 Tareas Preestablecidas del Sistema (Flujos Autónomos de WAPPY IA)
+// Catálogo oficial auditado de 15 Flujos Maestros del Sistema (Arquitectura DAG n8n de WAPPY IA)
 const {
   SYSTEM_WORKFLOW_PRESETS_VERSION,
   SYSTEM_WORKFLOW_PRESETS_CATALOG: DEFAULT_SYSTEM_PRESETS,
@@ -337,9 +337,16 @@ async function ensureDefaultSystemPresets() {
       if (ops.length > 0) {
         await Automation.bulkWrite(ops, { ordered: false });
       }
+      const validPresetKeys = DEFAULT_SYSTEM_PRESETS.map((p) => p.presetKey).filter(Boolean);
+      if (validPresetKeys.length > 0) {
+        await Automation.deleteMany({
+          isSystemPreset: true,
+          presetKey: { $nin: validPresetKeys },
+        });
+      }
       _syncedPresetsVersion = SYSTEM_WORKFLOW_PRESETS_VERSION;
     } catch (err) {
-      console.error('[API Automatizaciones] Error asegurando 54 Tareas Preestablecidas del Sistema:', err);
+      console.error('[API Automatizaciones] Error asegurando los 15 Flujos Maestros del Sistema:', err);
     } finally {
       _syncPresetsPromise = null;
     }
@@ -347,17 +354,40 @@ async function ensureDefaultSystemPresets() {
 
   return _syncPresetsPromise;
 }
+
+const ADMIN_SAMPLE_AUTOMATIONS_VERSION = '2026-11-12-n8n-v2';
+const ADMIN_SAMPLE_PRESET_KEYS = ['admin_sample_n8n_v2_emo', 'admin_sample_n8n_v2_atel'];
+
 async function ensureAdminSampleAutomations(user, companyId, force = false) {
   if (!user || user.role !== 'ADMIN' || !companyId) return;
   if (!force) {
-    const existingCount = await Automation.countDocuments({ companyId });
-    if (existingCount > 0) return;
+    const legacySamples = await Automation.find({
+      companyId,
+      isSystemPreset: { $ne: true },
+      name: /^\[Ejemplo Admin\]/i,
+      presetKey: { $nin: ADMIN_SAMPLE_PRESET_KEYS },
+    })
+      .select('_id')
+      .lean();
+    if (legacySamples.length > 0) {
+      const legacyIds = legacySamples.map((s) => s._id);
+      await AutomationLog.deleteMany({ automation: { $in: legacyIds } });
+      await Automation.deleteMany({ _id: { $in: legacyIds } });
+    } else {
+      const existingCount = await Automation.countDocuments({
+        companyId,
+        isSystemPreset: { $ne: true },
+      });
+      if (existingCount > 0) return;
+    }
   } else {
     // Si fuerza recarga desde el botón Admin, reemplazamos los ejemplos previos [Ejemplo Admin]
     const oldSamples = await Automation.find({
       companyId,
       name: /^\[Ejemplo Admin\]/i,
-    }).select('_id').lean();
+    })
+      .select('_id')
+      .lean();
     if (oldSamples.length > 0) {
       const oldIds = oldSamples.map((s) => s._id);
       await AutomationLog.deleteMany({ automation: { $in: oldIds } });
@@ -366,8 +396,12 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
   }
 
   try {
-    const medicoAgent = await Agent.findOne({ name: /Médico Laboral|Consultor SG-SST/i }).select('id name').lean();
-    const consultorAgent = await Agent.findOne({ name: /Consultor SG-SST/i }).select('id name').lean();
+    const medicoAgent = await Agent.findOne({ name: /Médico Laboral|Consultor SG-SST/i })
+      .select('id name')
+      .lean();
+    const consultorAgent = await Agent.findOne({ name: /Consultor SG-SST/i })
+      .select('id name')
+      .lean();
 
     const agent1Id = medicoAgent?.id || 'agent_medico_laboral';
     const agent1Name = medicoAgent?.name || 'Médico Laboral';
@@ -378,40 +412,40 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
     const sample1RunAt = new Date(Date.now() - 2 * 3600 * 1000);
     const sample2RunAt = new Date(Date.now() - 14 * 3600 * 1000);
 
-    const sample1Result = `### 📂 Sincronización Google Drive → Perfil Sociodemográfico y Exámenes Médicos (Somos SST)
+    const sample1Result = `### 📂 Sincronización Google Drive → Extractor IA de Documentos → Perfil Sociodemográfico y Condiciones de Salud
 
-**Carpeta vigilada en Google Drive:** \`SG-SST / Perfil Sociodemográfico y EMO\`
-**Herramientas ejecutadas:** \`google_drive\` (\`list_files_and_folders\`, \`read_document_content\`) → \`somos_sst\` (\`alimentar_sociodemografico_masivo\`, \`actualizar_examen_medico\`)
+**Carpeta vigilada en Google Drive:** \`Examenes Medicos EMO\`
+**Secuencia ejecutada (${ADMIN_SAMPLE_AUTOMATIONS_VERSION}):** Google Drive → Condición Si/No (Pre-Agente) → ✨ Extractor IA de Documentos → Agente IA con Herramienta + (Perfil Sociodemográfico y Condiciones de Salud)
 
-| Archivo Detectado en Drive | Novedad Identificada | Aplicativo Alimentado en WAPPY | Estado de Sincronización |
+| Archivo Nuevo en Google Drive | Campos Extraídos con IA + OCR | Aplicativo Actualizado en Somos SST | Estado |
 | :--- | :--- | :--- | :---: |
-| \`Actualizacion_Sociodemografica_Octubre.xlsx\` | 4 colaboradores actualizaron dirección, EPS, turno de trabajo y contacto de emergencia | **Hito 2: Perfil Sociodemográfico y Condiciones de Salud** | ✅ Sincronizado (4 perfiles actualizados) |
-| \`Concepto_Aptitud_Carlos_Ramirez.pdf\` | Examen médico periódico con recomendación ergonómica postural | **Hito 2: Seguimiento de Exámenes Médicos Ocupacionales** | ✅ Registrado + Alerta en Centro de Control |
+| \`Actualizacion_Sociodemografica_Octubre.xlsx\` | 4 colaboradores con actualización de EPS, cargo, turno y contacto de emergencia | **Hito 2: Perfil Sociodemográfico y Condiciones de Salud** | ✅ Sincronizado (4 perfiles actualizados) |
+| \`Concepto_Aptitud_Carlos_Ramirez.pdf\` | Cédula, concepto de aptitud y recomendación ergonómica postural | **Hito 2: Perfil Sociodemográfico y Condiciones de Salud** | ✅ Registrado + Reporte enviado |
 
-> **Dictamen del Agente:** Se compararon las marcas de tiempo y cédulas contra la base de datos de **Somos SST**. Los 4 expedientes modificados en el archivo de Drive y el concepto médico ocupacional ya quedaron asentados automáticamente en los aplicativos correspondientes sin duplicar registros.`;
+> **Dictamen Ejecutivo:** La compuerta condicional verificó archivos nuevos no procesados en la ventana anti-duplicados, el Extractor IA de Documentos estructuró los campos exactos y el Agente IA actualizó los expedientes reales en **Somos SST** mediante su aplicativo conectado en **Herramienta +**.`;
 
-    const sample2Result = `### 🚨 Vigilancia de Carpeta Drive → Aplicativos de Accidentes (ATEL), Inspecciones y Actos Inseguros
+    const sample2Result = `### 🚨 Vigilancia Google Drive → Extractor IA de Documentos → Investigación de Accidentes ATEL y Actos Inseguros
 
-**Carpeta vigilada en Google Drive:** \`SG-SST / Reportes de Campo, Inspecciones y ATEL\`
-**Herramientas ejecutadas:** \`google_drive\` (\`list_files_and_folders\`, \`read_document_content\`) → \`somos_sst\` (\`registrar_accidente_atel\`, \`editar_cualquier_aplicativo\`, \`crear_actividad_acpm\`)
+**Carpeta vigilada en Google Drive:** \`Accidentes\`
+**Secuencia ejecutada (${ADMIN_SAMPLE_AUTOMATIONS_VERSION}):** Google Drive → Condición Si/No (Pre-Agente) → ✨ Extractor IA de Documentos → Agente IA con Herramienta + (Investigación ATEL + Actos y Condiciones Inseguras)
 
-* **1. Reporte de Accidente / Incidente detectado:** \`FURAT_Preliminar_Bodega_Norte.pdf\`
-  * **Acción ejecutada en WAPPY:** Se extrajo la información del suceso (lesión leve en mano derecha por manipulación de estiba, 2 días de incapacidad) y se alimentó automáticamente el **Aplicativo de Investigación de Accidentes e Incidentes (ATEL — Hito 7)** mediante \`registrar_accidente_atel\`.
-* **2. Reporte de Actos y Condiciones Inseguras:** \`Inspeccion_Locativa_y_Actos_Semana42.xlsx\`
-  * **Acción ejecutada en WAPPY:** Se identificaron 2 condiciones locativas (cableado expuesto en pasillo 3 y extintor multipropósito despresurizado) y se inyectaron en el **Aplicativo de Reporte de Actos y Condiciones Inseguras (Hito 4)** y **Plan de Acción ACPM (Centro de Control)**.
+* **1. Reporte Preliminar de Accidente de Trabajo:** \`FURAT_Preliminar_Bodega_Norte.pdf\`
+  * **Gestión en Somos SST:** El Extractor IA de Documentos obtuvo fecha, cédula, área, descripción de la lesión y 2 días de incapacidad; el Agente IA registró el caso en **Investigación de Accidentes e Incidentes ATEL (Hito 7)** y emitió su Informe Oficial HTML.
+* **2. Inspección de Seguridad en Campo:** \`Inspeccion_Locativa_y_Actos_Semana42.xlsx\`
+  * **Gestión en Somos SST:** Se registraron 2 condiciones locativas prioritarias en **Reporte de Actos y Condiciones Inseguras (Hito 4)** y se creó la tarea correctiva en el **Centro de Control ACPM**.
 
 \`\`\`wappy-card
 {
-  "title": "Automatización Drive → Aplicativos WAPPY Completada",
-  "subtitle": "2 archivos nuevos procesados e inyectados en Somos SST",
+  "title": "Flujo Documental Drive → Somos SST Completado",
+  "subtitle": "2 documentos nuevos extraídos con IA + OCR y asentados en Herramienta +",
   "items": [
     {
-      "title": "Aplicativo ATEL (Hito 7)",
-      "description": "1 nuevo caso de accidente de trabajo registrado desde FURAT_Preliminar_Bodega_Norte.pdf."
+      "title": "Investigación de Accidentes e Incidentes ATEL (Hito 7)",
+      "description": "1 nuevo expediente registrado con Informe Oficial HTML adjunto desde FURAT_Preliminar_Bodega_Norte.pdf."
     },
     {
-      "title": "Aplicativo Actos y Condiciones + ACPM (Hito 4)",
-      "description": "2 hallazgos locativos cargados desde Inspeccion_Locativa_y_Actos_Semana42.xlsx con tarea correctiva asignada."
+      "title": "Actos y Condiciones Inseguras + Tarea ACPM (Hito 4)",
+      "description": "2 hallazgos locativos registrados desde Inspeccion_Locativa_y_Actos_Semana42.xlsx con acción correctiva asignada."
     }
   ]
 }
@@ -420,33 +454,90 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
     const auto1 = await Automation.create({
       user: user.id,
       companyId,
-      name: '[Ejemplo Admin] Vigilar Drive y Alimentar Perfil Sociodemográfico y Exámenes en Somos SST',
+      presetKey: 'admin_sample_n8n_v2_emo',
+      presetCategory: 'salud_vencimientos',
+      presetDescription:
+        'Vigila conceptos médicos ocupacionales o nóminas nuevas en Google Drive, detiene en Rama NO con 0 tokens IA si no hay archivos nuevos, extrae campos exactos con el Extractor IA de Documentos y actualiza el Perfil Sociodemográfico y Condiciones de Salud conectado en Herramienta +.',
+      name: '[Ejemplo Admin] Vigilar Google Drive (EMO / Sociodemográfico) y Actualizar Perfil Sociodemográfico',
       agentId: agent1Id,
       agentName: agent1Name,
       prompt:
-        'Conéctate a mi Google Drive usando la herramienta google_drive (list_files_and_folders y read_document_content) y revisa la carpeta o archivos recientes de "Perfil Sociodemográfico" y "Condiciones de Salud / Exámenes Médicos". Si Google Drive no está vinculado a esta empresa o no existen archivos nuevos reales, infórmalo de inmediato y detén el proceso sin simular ni inventar datos. Si existen documentos reales nuevos o actualizados (Excel, Google Sheets o PDF), identifica qué trabajadores tienen información nueva o modificada y ejecuta la herramienta somos_sst (acciones alimentar_sociodemografico_masivo, importar_sociodemografico_drive o actualizar_examen_medico) exclusivamente para esta empresa. Al finalizar, entrégame un resumen en Markdown de los archivos reales leídos y los trabajadores actualizados.',
+        'Con base en las filas estructuradas obtenidas por el Extractor IA de Documentos desde los archivos nuevos de Google Drive ("Examenes Medicos EMO"), valida cada colaborador identificado y actualiza su expediente real en el aplicativo de Perfil Sociodemográfico y Condiciones de Salud conectado en tus herramientas. Si Google Drive no está vinculado o no existen archivos nuevos verificables, infórmalo con total transparencia sin inventar ni simular datos. Entrega un informe ejecutivo en Markdown con los colaboradores actualizados, concepto de aptitud, recomendaciones médicas y fecha del examen.',
       scheduleType: 'daily',
       scheduleConfig: { hour: 18, minute: 0 },
       workflowNodes: {
         trigger: 'schedule_cron',
         triggers: ['schedule_cron', 'trigger_tenshi'],
-        extractors: ['extract_drive', 'extract_sst_workers'],
+        extractors: ['extract_drive', 'extract_ai_doc_ocr'],
         aiEngine: 'wappy',
         aiModel: 'gemini-3.6-flash',
         memoryNode: 'wappy_memory_company',
         memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-        inputs: ['google_drive', 'somos_sst_trabajadores', 'somos_sst_examenes'],
+        inputs: [],
         includeIfNode: true,
-        hitos: ['hito2_perfil_socio', 'hito2_examenes_medicos'],
-        outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
+        hitos: ['hito2_perfil_socio'],
+        outputs: ['email_report', 'wappy_notification'],
         canvasLayout: {
           nodeConfigs: {
-            if_router: {
-              ifConditionLabel: '¿Hay Archivos Nuevos de EMO / Sociodemográfico en Drive?',
-              ifConditionType: 'critical_findings',
-              ifRuleExpression: 'actualizado, nuevo, concepto, restricción, examen',
+            extractor_extract_drive: {
+              driveFolderName: 'Examenes Medicos EMO',
+              fileTypeFilter: 'pdf,xlsx,docx',
             },
-            out_somos_sst_update: { ifBranch: 'yes' },
+            if_router: {
+              ifPlacement: 'pre_agent',
+              ifConditionLabel: '¿Existen Archivos Nuevos de EMO o Sociodemográfico en Google Drive?',
+              ifConditionType: 'new_external_items',
+              ifRuleExpression: '>= 1',
+            },
+            extractor_extract_ai_doc_ocr: {
+              aiModel: 'gemini-3.6-flash',
+              aiExtractionRowMode: 'multiple_rows',
+              upstreamSourceType: 'drive',
+              aiExtractionSchema: [
+                {
+                  name: 'Cédula',
+                  type: 'string',
+                  description: 'Número de documento de identidad del trabajador',
+                },
+                {
+                  name: 'Nombre Completo',
+                  type: 'string',
+                  description: 'Nombres y apellidos completos del colaborador',
+                },
+                {
+                  name: 'Cargo',
+                  type: 'string',
+                  description: 'Cargo u ocupación desempeñada',
+                },
+                {
+                  name: 'Concepto de Aptitud',
+                  type: 'string',
+                  description: 'Concepto médico ocupacional (Apto, Apto con restricciones o Aplazado)',
+                },
+                {
+                  name: 'Recomendaciones o Restricciones',
+                  type: 'string',
+                  description: 'Recomendaciones médicas ocupacionales o restricciones laborales vigentes',
+                },
+                {
+                  name: 'Fecha Examen Médico',
+                  type: 'date',
+                  description: 'Fecha de realización del examen médico ocupacional (YYYY-MM-DD)',
+                },
+              ],
+            },
+            tool_hitos_hito2_perfil_socio: {
+              hitoRole: 'agent_tool',
+              hitoOperationMode: 'audit_and_update',
+              appActionMode: 'write_and_update',
+              generateAppReport: false,
+            },
+            hito_hito2_perfil_socio: {
+              hitoRole: 'agent_tool',
+              hitoOperationMode: 'audit_and_update',
+              appActionMode: 'write_and_update',
+              generateAppReport: false,
+            },
             out_email_report: { ifBranch: 'yes' },
             out_wappy_notification: { ifBranch: 'no' },
           },
@@ -463,36 +554,107 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
     const auto2 = await Automation.create({
       user: user.id,
       companyId,
-      name: '[Ejemplo Admin] Vigilar Drive y Registrar Accidentes ATEL, Inspecciones y Actos Inseguros',
+      presetKey: 'admin_sample_n8n_v2_atel',
+      presetCategory: 'accidentes_campo',
+      presetDescription:
+        'Vigila reportes nuevos de accidentes laborales (FURAT) o inspecciones en Google Drive, detiene en Rama NO con 0 tokens IA si no hay archivos nuevos, estructura los datos con el Extractor IA de Documentos y registra el caso en Investigación ATEL y Actos/Condiciones Inseguras.',
+      name: '[Ejemplo Admin] Vigilar Google Drive (FURAT / Inspecciones) y Registrar Investigación ATEL',
       agentId: agent2Id,
       agentName: agent2Name,
       prompt:
-        'Revisa en Google Drive (usando google_drive: list_files_and_folders y read_document_content) los archivos o carpetas donde se suban reportes de Accidentes/Incidentes de Trabajo (FURAT/ATEL), Inspecciones de Seguridad o Reportes de Actos y Condiciones Inseguras. Si Google Drive no está vinculado a esta empresa o no existen archivos nuevos reales, infórmalo con total transparencia y detén el proceso sin simular ni inventar datos ni crear nuevas tareas programadas. Solo cuando detectes un archivo real nuevo o actualizado en Drive: 1) Si contiene un accidente o incidente laboral nuevo, extrae los datos reales del evento y regístralo en el aplicativo de Accidentes ATEL de Somos SST usando somos_sst (acción registrar_accidente_atel). 2) Si contiene actos/condiciones inseguras o hallazgos reales de inspecciones, aliméntalos en el aplicativo correspondiente de Somos SST. Genera un informe en Markdown únicamente con los archivos reales procesados.',
+        'Revisa las filas estructuradas obtenidas por el Extractor IA de Documentos a partir de los archivos nuevos detectados en la carpeta "Accidentes" de Google Drive. 1) Si el documento corresponde a un reporte de accidente o incidente de trabajo (FURAT), registra el expediente completo con sus datos exactos en el aplicativo de Investigación de Accidentes e Incidentes ATEL conectado en tus herramientas. 2) Si incluye hallazgos de inspecciones o condiciones inseguras en campo, regístralos en el aplicativo de Reporte de Actos y Condiciones Inseguras conectado en tus herramientas. Jamás inventes ni simules sucesos que no provengan de los archivos nuevos reales y entrega un resumen ejecutivo en Markdown con los casos registrados y las medidas correctivas.',
       scheduleType: 'daily',
       scheduleConfig: { hour: 7, minute: 30 },
       workflowNodes: {
         trigger: 'schedule_cron',
         triggers: ['schedule_cron', 'trigger_tenshi'],
-        extractors: ['extract_drive', 'extract_sst_workers'],
+        extractors: ['extract_drive', 'extract_ai_doc_ocr'],
         aiEngine: 'wappy',
         aiModel: 'gemini-3.8-flash',
         memoryNode: 'wappy_memory_company',
         memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-        inputs: ['google_drive', 'somos_sst_trabajadores', 'consultar_analitica_actos_condiciones'],
+        inputs: [],
         includeIfNode: true,
-        hitos: ['hito7_investigacion_atel', 'hito4_actos_condiciones', 'hito7_acpm'],
-        outputs: ['somos_sst_update', 'canvas_doc', 'acpm_task', 'email_report', 'wappy_notification'],
+        hitos: ['hito7_investigacion_atel', 'hito4_actos_condiciones'],
+        outputs: ['acpm_task', 'email_report', 'wappy_notification'],
         canvasLayout: {
           nodeConfigs: {
-            extractor_extract_drive: { driveFolderName: 'Accidentes' },
-            hito_hito7_investigacion_atel: { hitoOperationMode: 'write_register' },
-            if_router: {
-              ifConditionLabel: '¿Hay FURAT o Inspección Nueva en Drive?',
-              ifConditionType: 'critical_findings',
-              ifRuleExpression: 'furat, accidente, incidente, hallazgo, condición insegura',
+            extractor_extract_drive: {
+              driveFolderName: 'Accidentes',
+              fileTypeFilter: 'pdf,xlsx,docx',
             },
-            out_somos_sst_update: { ifBranch: 'yes' },
-            out_canvas_doc: { ifBranch: 'yes' },
+            if_router: {
+              ifPlacement: 'pre_agent',
+              ifConditionLabel: '¿Hay FURAT o Inspección Nueva sin Procesar en Google Drive?',
+              ifConditionType: 'new_external_items',
+              ifRuleExpression: '>= 1',
+            },
+            extractor_extract_ai_doc_ocr: {
+              aiModel: 'gemini-3.6-flash',
+              aiExtractionRowMode: 'multiple_rows',
+              upstreamSourceType: 'drive',
+              aiExtractionSchema: [
+                {
+                  name: 'Tipo de Evento',
+                  type: 'string',
+                  description: 'Accidente de Trabajo, Incidente o Condición Insegura',
+                },
+                {
+                  name: 'Cédula Trabajador',
+                  type: 'string',
+                  description: 'Número de documento de identidad del trabajador involucrado',
+                },
+                {
+                  name: 'Nombre Trabajador',
+                  type: 'string',
+                  description: 'Nombre completo del colaborador afectado o reportante',
+                },
+                {
+                  name: 'Fecha del Evento',
+                  type: 'date',
+                  description: 'Fecha exacta del accidente, incidente o inspección (YYYY-MM-DD)',
+                },
+                {
+                  name: 'Área o Lugar',
+                  type: 'string',
+                  description: 'Planta, bodega, sede o frente de trabajo donde ocurrió',
+                },
+                {
+                  name: 'Descripción y Lesión o Hallazgo',
+                  type: 'string',
+                  description: 'Descripción objetiva del evento, lesión sufrida o condición insegura detectada',
+                },
+                {
+                  name: 'Días de Incapacidad',
+                  type: 'number',
+                  description: 'Cantidad de días de incapacidad médica inicial (0 si no aplica)',
+                },
+              ],
+            },
+            tool_hitos_hito7_investigacion_atel: {
+              hitoRole: 'agent_tool',
+              hitoOperationMode: 'write_register',
+              appActionMode: 'write_and_report',
+              generateAppReport: true,
+            },
+            hito_hito7_investigacion_atel: {
+              hitoRole: 'agent_tool',
+              hitoOperationMode: 'write_register',
+              appActionMode: 'write_and_report',
+              generateAppReport: true,
+            },
+            tool_hitos_hito4_actos_condiciones: {
+              hitoRole: 'agent_tool',
+              hitoOperationMode: 'write_register',
+              appActionMode: 'write_and_update',
+              generateAppReport: false,
+            },
+            hito_hito4_actos_condiciones: {
+              hitoRole: 'agent_tool',
+              hitoOperationMode: 'write_register',
+              appActionMode: 'write_and_update',
+              generateAppReport: false,
+            },
             out_acpm_task: { ifBranch: 'yes' },
             out_email_report: { ifBranch: 'yes' },
             out_wappy_notification: { ifBranch: 'no' },
@@ -1445,6 +1607,15 @@ router.get('/', async (req, res) => {
 
     if (req.user?.role === 'ADMIN') {
       await ensureSimpleAdminFlow(req.user, companyId);
+      const hasLegacyAdminSamples = await Automation.exists({
+        companyId,
+        isSystemPreset: { $ne: true },
+        name: /^\[Ejemplo Admin\]/i,
+        presetKey: { $nin: ADMIN_SAMPLE_PRESET_KEYS },
+      });
+      if (hasLegacyAdminSamples) {
+        await ensureAdminSampleAutomations(req.user, companyId, false);
+      }
     }
 
     // Auto-recuperar tareas bloqueadas en 'running' por más de 10 minutos

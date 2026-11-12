@@ -312,8 +312,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           _id: p.presetKey,
           name: p.name,
           agentId: 'tenshi_avatar_orchestrator',
-          agentName: 'Consultor SG-SST',
-          prompt: buildPromptFromWorkflowNodes(p.name, 'Consultor SG-SST', sanitizedNodes),
+          agentName: p.agentName || 'Consultor SG-SST',
+          prompt:
+            p.prompt ||
+            buildPromptFromWorkflowNodes(p.name, p.agentName || 'Consultor SG-SST', sanitizedNodes),
           scheduleType: p.scheduleType,
           scheduleConfig: {
             hour: p.hour,

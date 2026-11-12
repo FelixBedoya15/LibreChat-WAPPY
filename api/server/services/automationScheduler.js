@@ -488,8 +488,86 @@ function hasCronTrigger(automation) {
 }
 
 /**
+ * Reconoce de forma equivalente tanto el nuevo rol canónico `'agent_tool'` (conectado en el puerto
+ * `Herramienta +` del Agente IA estilo n8n) como el alias legado `'target_write_report'`.
+ */
+function isAgentToolHitoRole(role) {
+  return role === 'agent_tool' || role === 'target_write_report';
+}
+
+const HUMAN_WORKFLOW_NODE_TITLES = {
+  schedule_cron: 'Programación Horaria',
+  trigger_tenshi: 'Orden por Voz o Chat de Tenshi',
+  trigger_email: 'Correo Entrante en Gmail',
+  trigger_webhook: 'Disparador Webhook Externo',
+  trigger_qr_worker: 'Reporte QR de Trabajadores en Campo',
+  trigger_antigravity: 'Evento Local Google Antigravity',
+  trigger_antigravity_cloud: 'Evento Google Antigravity Cloud',
+  extract_drive: 'Google Drive',
+  extract_gmail: 'Bandeja de Gmail',
+  extract_pc_folder: 'Carpeta Local del Computador',
+  extract_ai_doc_ocr: 'Extractor IA de Documentos',
+  extract_sst_workers: 'Padrón de Trabajadores SG-SST',
+  extract_sst_app: 'Aplicativo Fuente de Somos SST',
+  extract_web_search: 'Búsqueda Normativa en la Web',
+  if_router: 'Condición Si/No',
+  if_condition: 'Condición Si/No',
+  agent_root: 'Agente IA Principal',
+  wappy_memory_company: 'Memoria de Contexto de Empresa',
+  wappy_memory_antiduplicate: 'Filtro Anti-Duplicados',
+  wappy_rag_documental: 'Base Documental de la Empresa',
+  wappy_memory_procedural: 'Memoria Normativa SG-SST',
+  hito1_dofa: 'Contexto Organizacional DOFA (Hito 1)',
+  hito1_diagnostico_0312: 'Diagnóstico Estándares Mínimos Res. 0312 (Hito 1)',
+  hito1_responsable: 'Designación de Responsable SG-SST (Hito 1)',
+  hito1_politica_objetivos: 'Política y Objetivos SG-SST (Hito 1)',
+  hito1_plan_trabajo: 'Plan de Trabajo Anual SG-SST (Hito 1)',
+  hito1_perfiles_cargo: 'Perfiles de Cargo y Profesiograma (Hito 1)',
+  hito2_perfil_socio: 'Perfil Sociodemográfico y Condiciones de Salud (Hito 2)',
+  hito2_examenes_medicos: 'Exámenes Médicos Ocupacionales (Hito 2)',
+  hito2_matriz_ipevar: 'Matriz de Peligros IPEVR GTC-45 (Hito 2)',
+  hito2_perfiles_cargo: 'Perfiles de Cargo y Profesiograma (Hito 2)',
+  hito3_matriz_pesv: 'Matriz de Riesgos Viales PESV (Hito 3)',
+  hito3_vehiculos: 'Control de Flota Vehicular PESV (Hito 3)',
+  hito3_quimicos_sga: 'Matriz de Compatibilidad Química SGA (Hito 3)',
+  hito3_epp: 'Entrega y Control de EPP (Hito 3)',
+  hito3_alturas: 'Trabajo Seguro en Alturas (Hito 3)',
+  hito4_psicosocial: 'Vigilancia y Analítica Psicosocial (Hito 4)',
+  hito4_actos_condiciones: 'Reporte de Actos y Condiciones Inseguras (Hito 4)',
+  hito5_registro_quimico: 'Inventario de Sustancias Químicas (Hito 5)',
+  hito5_copasst_cocola: 'Comités COPASST y Convivencia Laboral (Hito 5)',
+  hito6_capacitaciones: 'Cronograma de Capacitaciones y LMS (Hito 6)',
+  hito7_investigacion_atel: 'Investigación de Accidentes e Incidentes ATEL (Hito 7)',
+  hito7_auditoria: 'Auditorías Internas SG-SST (Hito 7)',
+  hito7_acpm: 'Plan de Mejoramiento y Acciones ACPM (Hito 7)',
+  hito8_revision_direccion: 'Revisión por la Alta Dirección (Hito 8)',
+  email_report: 'Reporte Ejecutivo por Correo Electrónico',
+  wappy_notification: 'Notificación en WAPPY y Chat de Tenshi',
+  acpm_task: 'Tarea en Centro de Control ACPM',
+  canvas_doc: 'Documento en Editor en Vivo WAPPY',
+  somos_sst_update: 'Actualización en Somos SST',
+};
+
+function formatHumanWorkflowNodeTitle(rawKeyOrId = '') {
+  const cleanRaw = String(rawKeyOrId || '').trim();
+  if (!cleanRaw) return 'Paso del Flujo';
+  if (HUMAN_WORKFLOW_NODE_TITLES[cleanRaw]) {
+    return HUMAN_WORKFLOW_NODE_TITLES[cleanRaw];
+  }
+  const canonical = normalizeInspectorNodeId(cleanRaw);
+  if (canonical && HUMAN_WORKFLOW_NODE_TITLES[canonical]) {
+    return HUMAN_WORKFLOW_NODE_TITLES[canonical];
+  }
+  return (canonical || cleanRaw)
+    .replace(/^(trigger_|extractor_|ext_|tool_hitos_|sub_tool_|hito_|tool_inputs_|sub_memory_|out_|output_)/i, '')
+    .replace(/^hito(\d+)_/i, 'Hito $1 · ')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
  * Mapea dinámicamente los nodos activos del lienzo (`triggers`, `extractors`, `inputs`, `hitos`, `outputs`, `customNodes`)
- * hacia los nombres exactos de herramientas registradas en `handleTools.js`, sin duplicados.
+ * hacia los nombres exactos de herramientas registradas en `handleTools.js`, sin duplicados ni herramientas fantasma.
  */
 function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
   const wf = workflowNodes && typeof workflowNodes === 'object' ? workflowNodes : {};
@@ -525,12 +603,17 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
     }
   }
 
+  const canonicalHitos = hitos
+    .filter(Boolean)
+    .map((h) => normalizeInspectorNodeId(String(h).trim()));
+
   const allTokens = new Set(
     [
       ...triggers,
       ...extractors,
       ...inputs,
       ...hitos,
+      ...canonicalHitos,
       ...outputs,
       ...resolvedSstAppTargets,
       ...customNodes.flatMap((cn) =>
@@ -550,17 +633,28 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
     return false;
   };
 
-  if (
+  const requiresSomosSstTool =
     hitos.length > 0 ||
-    resolvedSstAppTargets.some((t) => t.startsWith('hito')) ||
+    resolvedSstAppTargets.some((t) => t.startsWith('hito') || t.startsWith('extract_sst_')) ||
+    hasAnyStartsWith('hito') ||
     hasAnyStartsWith('somos_sst_') ||
     hasAnyStartsWith('extract_sst_') ||
-    allTokens.has('somos_sst')
-  ) {
+    allTokens.has('cursos_lms') ||
+    outputs.includes('acpm_task') ||
+    outputs.includes('somos_sst_update') ||
+    outputs.includes('canvas_doc') ||
+    allTokens.has('somos_sst');
+
+  if (requiresSomosSstTool) {
     requiredTools.add('somos_sst');
   }
 
-  if (allTokens.has('hito2_matriz_ipevar') || allTokens.has('matriz_ipevar')) {
+  if (
+    allTokens.has('hito2_matriz_ipevar') ||
+    allTokens.has('hito3_gtc45_ipvr') ||
+    allTokens.has('extract_gtc45_risks') ||
+    allTokens.has('matriz_ipevar')
+  ) {
     requiredTools.add('matriz_ipevar');
   }
   if (allTokens.has('hito3_matriz_pesv') || allTokens.has('matriz_pesv')) {
@@ -584,7 +678,8 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
   if (
     allTokens.has('extract_gmail') ||
     allTokens.has('google_gmail') ||
-    allTokens.has('trigger_email')
+    allTokens.has('trigger_email') ||
+    allTokens.has('trigger_email_in')
   ) {
     requiredTools.add('google_gmail');
   }
@@ -605,6 +700,12 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
   }
   if (allTokens.has('extract_web_search') || allTokens.has('web_search')) {
     requiredTools.add('web_search');
+  }
+  if (allTokens.has('google_antigravity')) {
+    requiredTools.add('google_antigravity');
+  }
+  if (allTokens.has('google_flow')) {
+    requiredTools.add('google_flow');
   }
 
   return Array.from(requiredTools);
@@ -3821,7 +3922,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           parts.push(`Instrucción del nodo: "${String(cfg.customInstruction).trim()}"`);
         }
         if (parts.length > 0) {
-          cfgLines.push(`  • Nodo [${nKey}]: ${parts.join(' | ')}`);
+          cfgLines.push(`  • Módulo "${formatHumanWorkflowNodeTitle(nKey)}": ${parts.join(' | ')}`);
         }
       }
       extraAgents.forEach((ea, idx) => {
@@ -3842,12 +3943,12 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         if (!cn) return;
         if (isUnderConstructionNode(cn.key || cn.id || '', cn.nodeType || cn.id || '', cn)) {
           cfgLines.push(
-            `  • 🚧 Nodo Omitido (En Construcción): "${cn.title || cn.key || cn.id}" — Omitido limpiamente sin demorar ni afectar el flujo.`,
+            `  • 🚧 Nodo Omitido (En Construcción): "${cn.title || formatHumanWorkflowNodeTitle(cn.key || cn.id)}" — Omitido limpiamente sin demorar ni afectar el flujo.`,
           );
           return;
         }
         const cnParts = [
-          `Nodo Especial [${cn.nodeType || 'custom'} — "${cn.title || cn.key}"]: ${cn.content || cn.subtitle || ''}`,
+          `Nodo Especial "${cn.title || formatHumanWorkflowNodeTitle(cn.key || cn.id)}": ${cn.content || cn.subtitle || ''}`,
         ];
         if (cn.targetUrl && String(cn.targetUrl).trim()) {
           cnParts.push(`URL Objetivo: "${String(cn.targetUrl).trim()}"`);
@@ -3866,7 +3967,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       logicNodes.forEach((ln) => {
         if (!ln) return;
         cfgLines.push(
-          `  • Nodo Lógico [${ln.logicType || 'logic'} — "${ln.title || ln.key}"]: ${ln.subtitle || 'Control lógico del flujo'}`,
+          `  • Nodo Lógico "${ln.title || formatHumanWorkflowNodeTitle(ln.key || ln.logicType)}": ${ln.subtitle || 'Control lógico del flujo'}`,
         );
       });
       const legacyCheckIds = [
@@ -3877,7 +3978,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       for (const lid of legacyCheckIds) {
         if (isUnderConstructionNode(lid, lid, null)) {
           cfgLines.push(
-            `  • 🚧 Conector Omitido (En Construcción): [${lid}] — Omitido limpiamente sin demorar ni afectar el flujo.`,
+            `  • 🚧 Conector Omitido (En Construcción): "${formatHumanWorkflowNodeTitle(lid)}" — Omitido limpiamente sin demorar ni afectar el flujo.`,
           );
         }
       }
@@ -4148,7 +4249,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         let preNoResultText =
           `### ✅ Constancia de Verificación Automática SG-SST — Rama NO Activa (0 Tokens IA)\n\n` +
           `- **Empresa Auditada:** ${compDisplay}${automationCompany?.nit ? ` (NIT: ${automationCompany.nit})` : ''}\n` +
-          `- **Compuerta Evaluada (\`pre_agent\`):** ${ifConditionLabelStr || 'Detección determinista de brechas nuevas'}\n` +
+          `- **Compuerta Evaluada (Pre-Agente):** ${ifConditionLabelStr || 'Detección determinista de brechas nuevas'}\n` +
           `- **Total de Registros Verificados:** ${totalAuditedRecordsCount}\n` +
           `- **Brechas Críticas Nuevas Detectadas:** 0\n` +
           (totalDedupSkipped > 0
@@ -4352,6 +4453,61 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         ? `\n\n🔀 [CONTRATO OBLIGATORIO DE COMPUERTA CONDICIONAL POST-AGENTE]: Evalúa estrictamente la condición "${ifConditionLabelStr || '¿Existen hallazgos críticos que requieran escalamiento?'}" y escribe en la ÚLTIMA LÍNEA de tu respuesta exactamente [VEREDICTO_IF: SI] (si se cumple) o [VEREDICTO_IF: NO] (si NO se cumple / todo está al día / es observación menor).`
         : '';
 
+    // Construir directiva explícita de aplicativos conectados en `Herramienta +` (`agent_tool` / `target_write_report`)
+    const wfHitosForTools = Array.isArray(automation.workflowNodes?.hitos)
+      ? automation.workflowNodes.hitos.filter(Boolean)
+      : [];
+    const connectedAgentToolHitos = wfHitosForTools.filter((hId) =>
+      isAgentToolHitoRole(resolveWorkflowHitoRole(allNodeCfg, hId)),
+    );
+    let agentToolsConnectedDirective = '';
+    if (connectedAgentToolHitos.length > 0 || Number(preExtractionTraceMeta?.aiDocOcrRowsCount || 0) > 0) {
+      const toolBulletLines = connectedAgentToolHitos.map((rawHId) => {
+        const canonH = normalizeInspectorNodeId(rawHId);
+        const hTitle = formatHumanWorkflowNodeTitle(canonH || rawHId);
+        const hCfg =
+          allNodeCfg[`tool_hitos_${rawHId}`] ||
+          allNodeCfg[`sub_tool_${rawHId}`] ||
+          allNodeCfg[`hito_${rawHId}`] ||
+          allNodeCfg[rawHId] ||
+          (canonH && canonH !== rawHId
+            ? allNodeCfg[`tool_hitos_${canonH}`] ||
+              allNodeCfg[`sub_tool_${canonH}`] ||
+              allNodeCfg[`hito_${canonH}`] ||
+              allNodeCfg[canonH]
+            : null) ||
+          {};
+        let mcpHint = 'herramienta MCP de gestión operativa Somos SST';
+        if (canonH === 'hito2_matriz_ipevar' || canonH === 'hito3_gtc45_ipvr') {
+          mcpHint = 'herramienta MCP de Matriz de Peligros IPEVR GTC-45 (`matriz_ipevar`) y gestión Somos SST';
+        } else if (canonH === 'hito3_matriz_pesv') {
+          mcpHint = 'herramienta MCP de Matriz de Riesgos Viales PESV (`matriz_pesv`) y gestión Somos SST';
+        } else if (canonH === 'hito3_quimicos_sga') {
+          mcpHint = 'herramienta MCP de Compatibilidad Química SGA (`matriz_compatibilidad`) y gestión Somos SST';
+        }
+        const reportNote =
+          hCfg.generateAppReport === true ||
+          hCfg.appActionMode === 'generate_report' ||
+          hCfg.appActionMode === 'write_and_report'
+            ? ' (incluye emisión automática de Informe Oficial HTML hacia las salidas)'
+            : '';
+        return `  • Aplicativo en Herramienta +: "${hTitle}" -> Tienes habilitada la ${mcpHint} para consultar, crear o actualizar registros reales en Somos SST${reportNote}.`;
+      });
+
+      const ocrSyncNote =
+        Number(preExtractionTraceMeta?.aiDocOcrRowsCount || 0) > 0
+          ? `  • ✨ Integración con Extractor IA de Documentos: Recibiste ${preExtractionTraceMeta.aiDocOcrRowsCount} fila(s) estructurada(s) reales extraídas previamente con IA + OCR. Cuando invoques tus herramientas conectadas en Herramienta + para guardar o actualizar en Somos SST, utiliza EXACTAMENTE esos campos y valores extraídos sin inventar, omitir ni alterar datos.\n`
+          : '';
+
+      agentToolsConnectedDirective =
+        `- [HERRAMIENTAS + CONECTADAS AL AGENTE IA PARA OPERAR EN SOMOS SST]:\n` +
+        (toolBulletLines.length > 0 ? `${toolBulletLines.join('\n')}\n` : '') +
+        ocrSyncNote;
+    }
+
+    const cleanExecutiveLanguageDirective =
+      `- REGLA DE LENGUAJE EJECUTIVO LIMPIO (CERO IDs TÉCNICOS CRUDOS): En el texto final para el usuario usa SIEMPRE los nombres ejecutivos en español de los aplicativos, conectores y canales (por ejemplo: "Google Drive", "Extractor IA de Documentos", "Perfil Sociodemográfico y Condiciones de Salud", "Investigación de Accidentes ATEL"). ESTÁ ESTRICTAMENTE PROHIBIDO escribir identificadores técnicos internos de código (como \`extract_drive\`, \`extract_ai_doc_ocr\`, \`hito2_perfil_socio\`, \`hito7_investigacion_atel\`, \`somos_sst_update\`, \`wappy_notification\`, \`if_router\`, \`pre_agent\` o nombres crudos de funciones internas) en tu informe final.\n`;
+
     const realTimeEventHeader = eventPayload
       ? `🚨 [EVENTO DISPARADOR EN TIEMPO REAL (${String(triggerSource || 'event').toUpperCase()}) — PRIORIDAD #1]:\n` +
         `${typeof eventPayload === 'string' ? eventPayload : JSON.stringify(eventPayload, null, 2).slice(0, 8000)}\n\n`
@@ -4366,15 +4522,17 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         ragDocumentalMemoryBlock +
         proceduralNormativeMemoryBlock +
         canvasNodesContextBlock +
+        agentToolsConnectedDirective +
         liveDatabaseSurgicalBlock +
         livePreExtractionBlock +
         liveAntigravityScraperBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
+        cleanExecutiveLanguageDirective +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : `${realTimeEventHeader}${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${liveDatabaseSurgicalBlock}${livePreExtractionBlock}${liveAntigravityScraperBlock}`;
+      : `${realTimeEventHeader}${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${agentToolsConnectedDirective}${liveDatabaseSurgicalBlock}${livePreExtractionBlock}${liveAntigravityScraperBlock}${cleanExecutiveLanguageDirective}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}${postAgentIfContractDirective}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
@@ -4386,10 +4544,22 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       };
     }
 
-    // Inyección Dinámica de Herramientas del Lienzo sin duplicados
+    // Inyección Dinámica de Herramientas del Lienzo sin duplicados ni herramientas fantasma
     const dynamicWorkflowTools = resolveRequiredToolsForWorkflow(automation.workflowNodes);
+    const wfCanvasObj =
+      automation.workflowNodes && typeof automation.workflowNodes === 'object'
+        ? automation.workflowNodes
+        : {};
+    const hasExplicitCanvasGraph =
+      Boolean(wfCanvasObj.canvasLayout) ||
+      (Array.isArray(wfCanvasObj.extractors) && wfCanvasObj.extractors.length > 0) ||
+      (Array.isArray(wfCanvasObj.inputs) && wfCanvasObj.inputs.length > 0) ||
+      (Array.isArray(wfCanvasObj.hitos) && wfCanvasObj.hitos.length > 0) ||
+      (Array.isArray(wfCanvasObj.outputs) && wfCanvasObj.outputs.length > 0);
     const existingAgentTools = Array.isArray(agent.tools) ? agent.tools.filter(Boolean) : [];
-    agent.tools = Array.from(new Set([...existingAgentTools, ...dynamicWorkflowTools]));
+    agent.tools = hasExplicitCanvasGraph
+      ? dynamicWorkflowTools
+      : Array.from(new Set([...existingAgentTools, ...dynamicWorkflowTools]));
 
     // Build mock request & response with explicit companyId, isAutomation flag, and app reports collector
     const req = {
@@ -4643,7 +4813,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       ifEvaluationReason = postIfRes.reason;
     }
 
-    // 9.8. Puente Universal de Informes Oficiales HTML (`req._generatedAppReports`) SOLO para Hitos `target_write_report` y SOLO en Rama SÍ / Flujo Directo (JAMÁS en Rama NO)
+    // 9.8. Puente Universal de Informes Oficiales HTML (`req._generatedAppReports`) para Hitos conectados en `Herramienta +` (`agent_tool` / `target_write_report`) SOLO cuando pidan informe oficial y SOLO en Rama SÍ / Flujo Directo (JAMÁS en Rama NO)
     const workflowHitosList = Array.isArray(automation.workflowNodes?.hitos)
       ? automation.workflowNodes.hitos.filter(Boolean)
       : [];
@@ -4654,14 +4824,22 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           const hitoNodeId = sstAppSourceAliasMap[rawHitoId] || rawHitoId;
           const cfg =
             postNodeConfigs[`tool_hitos_${rawHitoId}`] ||
+            postNodeConfigs[`sub_tool_${rawHitoId}`] ||
             postNodeConfigs[`hito_${rawHitoId}`] ||
             postNodeConfigs[rawHitoId] ||
             postNodeConfigs[`tool_hitos_${hitoNodeId}`] ||
+            postNodeConfigs[`sub_tool_${hitoNodeId}`] ||
             postNodeConfigs[`hito_${hitoNodeId}`] ||
             postNodeConfigs[hitoNodeId] ||
             {};
           const hitoRole = resolveWorkflowHitoRole(postNodeConfigs, rawHitoId);
-          if (hitoRole !== 'target_write_report' && cfg.includeLatestReport !== true) {
+          const shouldGenerateOfficialReport =
+            isAgentToolHitoRole(hitoRole) &&
+            (cfg.generateAppReport === true ||
+              cfg.appActionMode === 'generate_report' ||
+              cfg.appActionMode === 'write_and_report');
+
+          if (!shouldGenerateOfficialReport && cfg.includeLatestReport !== true) {
             continue;
           }
 
@@ -4677,15 +4855,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           if (alreadyCollected) continue;
 
           try {
-            if (
-              hitoRole === 'target_write_report' &&
-              (cfg.generateAppReport === true ||
-                cfg.appActionMode === 'generate_report' ||
-                cfg.appActionMode === 'write_and_report' ||
-                cfg.appActionMode === 'write_and_update' ||
-                cfg.hitoOperationMode === 'write_register' ||
-                cfg.hitoOperationMode === 'audit_and_update')
-            ) {
+            if (shouldGenerateOfficialReport) {
               if (typeof pipeline.generateOrExtractOfficialAppReport === 'function') {
                 await pipeline.generateOrExtractOfficialAppReport({
                   userId: automation.user.toString(),
@@ -7253,15 +7423,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
   if (executionPlan.length === 0) {
     // Fallback causal DAG estilo n8n:
-    // triggers ➔ extractors + source_read Hitos ➔ preIfLogic (merge/loop) ➔ [if_router si pre_agent] ➔ sub_model + memories + tools + customNodes + agent_root ➔ [if_router si !pre_agent] ➔ target_write_report Hitos ➔ human_approval ➔ extraAgents ➔ outputs
+    // triggers ➔ extractors + source_read Hitos ➔ preIfLogic (merge/loop) ➔ [if_router + extract_ai_doc_ocr si pre_agent] ➔ sub_model + memories + tools + agent_tool Hitos (Herramienta +) + customNodes + agent_root ➔ [if_router si !pre_agent] ➔ human_approval ➔ extraAgents ➔ outputs
     const fallbackIfCfg = nodeConfigs.if_router || nodeConfigs.if_condition || {};
     const isPreAgentIfFallback =
       Boolean(wf.includeIfNode) && String(fallbackIfCfg.ifPlacement || '').trim() === 'pre_agent';
     const sourceReadHitosFallback = configuredHitos.filter(
       (hId) => resolveWorkflowHitoRole(nodeConfigs, hId) === 'source_read',
     );
-    const targetWriteHitosFallback = configuredHitos.filter(
-      (hId) => resolveWorkflowHitoRole(nodeConfigs, hId) === 'target_write_report',
+    const agentToolHitosFallback = configuredHitos.filter((hId) =>
+      isAgentToolHitoRole(resolveWorkflowHitoRole(nodeConfigs, hId)),
     );
     const preIfLogicFallback = configuredLogicNodes.filter(
       (ln) => String(ln?.logicType || '').toLowerCase() !== 'human_approval',
@@ -7361,6 +7531,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'tool',
       });
     });
+    agentToolHitosFallback.forEach((hId) => {
+      executionPlan.push({
+        nodeKey: `tool_hitos_${hId}`,
+        nodeId: hId,
+        category: 'hito',
+      });
+    });
     agentClusterCustomFallback.forEach((cn, i) => {
       const cnKey = cn.key || cn.id || `custom_${i + 1}`;
       executionPlan.push({
@@ -7381,13 +7558,6 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'condition',
       });
     }
-    targetWriteHitosFallback.forEach((hId) => {
-      executionPlan.push({
-        nodeKey: `hito_${hId}`,
-        nodeId: hId,
-        category: 'hito',
-      });
-    });
     postApprovalLogicFallback.forEach((ln, idx) => {
       const lKey = ln.key || `logic_human_approval_${idx + 1}`;
       executionPlan.push({
@@ -7663,7 +7833,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     const isExternalGmailStep =
       canonicalStepId === 'extract_gmail' || canonicalStepId === 'google_gmail';
     const isTargetWriteHitoStep =
-      category === 'hito' && resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'target_write_report';
+      category === 'hito' && isAgentToolHitoRole(resolveWorkflowHitoRole(nodeConfigs, nodeId));
 
     let stepDedupSkipped = 0;
     let critCount = 0;
@@ -7996,14 +8166,14 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         inputSummaryText = `🤖 Solicitud enviada por Agente IA (${agent.name} · ${selectedAiEngine === 'wappy' ? effectiveAiModel : 'Google Antigravity'}) ➔ Ejecutando en Antigravity (${agyMode.toUpperCase()}) y devolviendo respuesta al Agente IA`;
       }
       if (category === 'hito') {
-        const hitoMode = String(cfg?.hitoOperationMode || 'extract_only');
-        if (hitoMode === 'write_register' || hitoMode === 'audit_and_update') {
+        const hitoMode = String(cfg?.hitoOperationMode || (isTargetWriteHitoStep ? 'audit_and_update' : 'extract_only'));
+        if (isTargetWriteHitoStep || hitoMode === 'write_register' || hitoMode === 'audit_and_update') {
           const modeLabel =
             hitoMode === 'write_register'
               ? 'ESCRITURA / REGISTRO NUEVO'
-              : 'AUDITORÍA Y ACTUALIZACIÓN DE REGISTROS';
+              : 'HERRAMIENTA + · CONSULTA Y ACTUALIZACIÓN EN SOMOS SST';
           previewLines.push(
-            `🛡️ [MODO OPERATIVO EN HITO (${modeLabel} — SIMULADO EN SANDBOX)]: En ejecución real se impactará "${resolvedTitle}" a partir de ${incomingItems.length} item(s) entrantes sin alterar la base de datos durante esta prueba (dryRun: true).`,
+            `🔧 [HERRAMIENTA + CONECTADA AL AGENTE IA (${modeLabel} — SIMULADO EN SANDBOX)]: Habilita la herramienta MCP de "${resolvedTitle}" para ${agent.name} a partir de ${incomingItems.length} item(s) entrantes sin alterar la base de datos durante esta prueba (dryRun: true).`,
           );
           if (nodeId === 'hito7_investigacion_atel') {
             const atelStages = [
@@ -8049,7 +8219,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           }
           addStepLog(
             'info',
-            `Modo Hito "${modeLabel}" validado en Sandbox (${incomingItems.length} item(s) evaluados; escritura bloqueada por dryRun: true)`,
+            `Herramienta + "${modeLabel}" validada en Sandbox (${incomingItems.length} item(s) evaluados; escritura bloqueada por dryRun: true)`,
           );
         }
       }
@@ -8097,18 +8267,22 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       error: stepError,
     };
 
+    const preserveUpstreamItemsBeforeAgent =
+      isTargetWriteHitoStep && agentOutputs.length === 0 && incomingItems.length > 0;
+
     if (
-      category === 'extractor' ||
-      category === 'hito' ||
-      category === 'tool' ||
-      currentPipelineItems.length <= 1
+      !preserveUpstreamItemsBeforeAgent &&
+      (category === 'extractor' ||
+        category === 'hito' ||
+        category === 'tool' ||
+        currentPipelineItems.length <= 1)
     ) {
       currentPipelineItems = stepOutputItems;
       lastProducerNode = { nodeKey, title: stepItem.title };
     }
     stepOutputsByKey.set(nodeKey, {
       title: stepItem.title,
-      category,
+      category: isTargetWriteHitoStep && agentOutputs.length === 0 ? 'tool' : category,
       outputItems: stepOutputItems,
       evidences: stepEvidences,
     });
@@ -8489,7 +8663,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     ) {
       if (
         ((category === 'hito' &&
-          resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'target_write_report') ||
+          isAgentToolHitoRole(resolveWorkflowHitoRole(nodeConfigs, nodeId))) ||
           (category === 'extractor' &&
             normalizeInspectorNodeId(nodeId) === 'extract_ai_doc_ocr')) &&
         ifHasEvaluated &&
@@ -8506,7 +8680,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           nodeKey,
           nodeId,
           category,
-          title: `${stepCustomTitle || nodeId} (⏭️ Omitido — Rama SÍ no activa · 0 tokens IA)`,
+          title: `${stepCustomTitle || formatHumanWorkflowNodeTitle(nodeId)} (⏭️ Omitido — Rama SÍ no activa · 0 tokens IA)`,
           status: 'skipped',
           durationMs: 2,
           recordsCount: 0,
@@ -8515,8 +8689,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           inputContext: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
           outputPreview:
             category === 'extractor'
-              ? '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: El Extractor IA + OCR no consume tokens cuando la compuerta pre_agent toma la Rama NO.'
-              : '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: Este aplicativo Hito tiene rol de destino (target_write_report) en la Rama SÍ y la compuerta condicional tomó la Rama NO.',
+              ? '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: El Extractor IA de Documentos no consume tokens cuando la compuerta condicional previa toma la Rama NO.'
+              : '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: Este aplicativo conectado en Herramienta + del Agente IA no se ejecuta cuando la compuerta condicional toma la Rama NO.',
           sourceNodeKey: lastProducerNode.nodeKey,
           sourceNodeTitle: lastProducerNode.title,
           inputItems: [],
@@ -9561,6 +9735,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           : '') +
         `[INSTRUCCIÓN PARA ${currentAgentName.toUpperCase()} (${currentAgentRole}) EN EL PASO #${stepCounter + 1}]:\n` +
         `${baseInstructionForAgent}\n\n` +
+        `REGLA DE LENGUAJE EJECUTIVO LIMPIO: Usa SIEMPRE los nombres ejecutivos en español de los módulos y conectores. ESTÁ PROHIBIDO mostrar identificadores técnicos internos crudos (como \`extract_drive\`, \`extract_ai_doc_ocr\`, \`hito2_perfil_socio\`, \`hito7_investigacion_atel\`, \`somos_sst_update\`, \`if_router\` o \`pre_agent\`) en el texto final.\n` +
         `Entrega una respuesta ejecutiva en Markdown clara, concisa y estructurada que RESPONDA DIRECTAMENTE a la entrada recibida usando fielmente el orden y los datos extraídos en los pasos conectados de este flujo.${simPostAgentIfDirective}`;
 
       if (isPrimaryAgent) {
@@ -10015,6 +10190,7 @@ module.exports = {
   calculateNextRun,
   stopAutomation,
   hasCronTrigger,
+  isAgentToolHitoRole,
   resolveRequiredToolsForWorkflow,
   sstAppSourceAliasMap,
   dispatchQrWorkerAutomations,

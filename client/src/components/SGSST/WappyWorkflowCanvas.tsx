@@ -681,7 +681,7 @@ interface VisualNodeInstance {
   removable?: boolean;
   group?: 'triggers' | 'extractors' | 'memories' | 'inputs' | 'hitos' | 'outputs';
   customNodeType?: 'skill' | 'subagent' | 'rule' | 'web_scraper' | 'web_search';
-  hitoRole?: 'source_read' | 'target_write_report';
+  hitoRole?: 'source_read' | 'agent_tool' | 'target_write_report';
   ifPlacement?: 'pre_agent' | 'post_agent';
 }
 
@@ -694,8 +694,11 @@ export function resolveCanvasHitoRole(
     ...(nodeConfigsMap?.[`hito_${hitoId}`] || {}),
     ...(nodeConfigsMap?.[`tool_hitos_${hitoId}`] || {}),
   };
-  if (cfg.hitoRole === 'source_read' || cfg.hitoRole === 'target_write_report') {
-    return cfg.hitoRole;
+  if (cfg.hitoRole === 'source_read') {
+    return 'source_read';
+  }
+  if (cfg.hitoRole === 'agent_tool' || cfg.hitoRole === 'target_write_report') {
+    return 'target_write_report';
   }
   if (
     ['write_and_report', 'write_and_update', 'generate_report'].includes(cfg.appActionMode) ||
@@ -708,11 +711,15 @@ export function resolveCanvasHitoRole(
 }
 
 function resolveEffectiveNodeCfg(
-  node: { key: string; nodeId: string; shape?: string },
+  node: { key: string; nodeId: string; shape?: string; group?: string },
   nodeConfigsMap?: Record<string, CanvasNodeConfig>,
 ): CanvasNodeConfig {
   if (!nodeConfigsMap) return {};
-  if (node.shape === 'square_hito' || node.key.startsWith('tool_hitos_')) {
+  if (
+    node.shape === 'square_hito' ||
+    node.group === 'hitos' ||
+    node.key.startsWith('tool_hitos_')
+  ) {
     return {
       ...(nodeConfigsMap[node.nodeId] || {}),
       ...(nodeConfigsMap[`hito_${node.nodeId}`] || {}),
@@ -823,8 +830,13 @@ export default function WappyWorkflowCanvas({
     | 'outputs'
   >('triggers');
   const [selectedToolSubgroup, setSelectedToolSubgroup] = useState<
-    'all_tools' | 'wappy_tools' | 'google_tools' | 'api_tools' | 'mcp_tools'
+    'all_tools' | 'wappy_tools' | 'google_tools' | 'api_tools' | 'mcp_tools' | 'sgsst_hitos'
   >('all_tools');
+  const [toolPortPickerOpen, setToolPortPickerOpen] = useState<boolean>(false);
+  const [toolPortPickerSearch, setToolPortPickerSearch] = useState<string>('');
+  const [toolPortPickerFilter, setToolPortPickerFilter] = useState<'all' | 'connectors' | 'hitos'>(
+    'all',
+  );
   const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
 
   // Nodo actualmente abierto en el Inspector de Configuración por Nodo de 3 Columnas estilo n8n (al hacer clic sobre cualquier nodo)
@@ -1259,8 +1271,8 @@ export default function WappyWorkflowCanvas({
     const sourceHitosList = hitosList.filter(
       (hitoId) => resolveCanvasHitoRole(hitoId, nodeConfigsMap) === 'source_read',
     );
-    const targetHitosList = hitosList.filter(
-      (hitoId) => resolveCanvasHitoRole(hitoId, nodeConfigsMap) === 'target_write_report',
+    const agentToolHitosList = hitosList.filter(
+      (hitoId) => resolveCanvasHitoRole(hitoId, nodeConfigsMap) !== 'source_read',
     );
 
     const rawOutputs = Array.isArray(workflowNodes?.outputs)
@@ -1333,13 +1345,12 @@ export default function WappyWorkflowCanvas({
     let ifBaseX = 0;
     let aiExtractorBaseX = 0;
     let agentDefaultX = 0;
-    let targetHitoBaseX = 0;
     let postApprovalBaseX = 0;
     let extraAgentBaseX = 0;
     let computedOutBaseX = 0;
 
     if (isPreAgentIf) {
-      // Topología A (pre_agent IF): Triggers -> Stage2 -> [Merge/Loop] -> IF --(sí)--> [✨ Extractor IA Docs] -> Agente IA -> [targetHitos] -> [Approval] -> [ExtraAgents] -> Salidas
+      // Topología A (pre_agent IF): Triggers -> Stage2 -> [Merge/Loop] -> IF --(sí)--> [✨ Extractor IA Docs] -> Agente IA -> [Approval] -> [ExtraAgents] -> Salidas
       ifBaseX = nextColX;
       if (hasAiDocExtractor) {
         aiExtractorBaseX = ifBaseX + 152;
@@ -1348,10 +1359,6 @@ export default function WappyWorkflowCanvas({
         agentDefaultX = ifBaseX + 158;
       }
       nextColX = agentDefaultX + 284;
-      if (targetHitosList.length > 0) {
-        targetHitoBaseX = nextColX;
-        nextColX += 148;
-      }
       if (postIfApprovalNodes.length > 0) {
         postApprovalBaseX = nextColX;
         nextColX += 148;
@@ -1362,7 +1369,7 @@ export default function WappyWorkflowCanvas({
       }
       computedOutBaseX = nextColX;
     } else {
-      // Topología B (post_agent IF o flujo directo): Triggers -> [Stage2] -> [Merge/Loop] -> [✨ Extractor IA Docs] -> Agente IA -> [IF post_agent] -> [targetHitos] -> [Approval] -> [ExtraAgents] -> Salidas
+      // Topología B (post_agent IF o flujo directo): Triggers -> [Stage2] -> [Merge/Loop] -> [✨ Extractor IA Docs] -> Agente IA -> [IF post_agent] -> [Approval] -> [ExtraAgents] -> Salidas
       if (hasAiDocExtractor) {
         aiExtractorBaseX = stage2Total > 0 && preIfLogicNodes.length === 0 ? 308 : nextColX;
         agentDefaultX = aiExtractorBaseX + 148;
@@ -1373,10 +1380,6 @@ export default function WappyWorkflowCanvas({
       if (includeIfNode) {
         ifBaseX = nextColX;
         nextColX += 158;
-      }
-      if (targetHitosList.length > 0) {
-        targetHitoBaseX = nextColX;
-        nextColX += 148;
       }
       if (postIfApprovalNodes.length > 0) {
         postApprovalBaseX = nextColX;
@@ -1408,7 +1411,11 @@ export default function WappyWorkflowCanvas({
 
     // Precalcular fila horizontal de Sub-Nodos Circulares debajo del Agente IA
     const totalSubCount =
-      1 + activeMemories.length + toolInputs.length + customNodesList.length;
+      1 +
+      activeMemories.length +
+      toolInputs.length +
+      agentToolHitosList.length +
+      customNodesList.length;
     const minSubLeftBound = hasAiDocExtractor
       ? aiExtractorBaseX + 92
       : isPreAgentIf
@@ -1567,11 +1574,7 @@ export default function WappyWorkflowCanvas({
         return { x: ifBaseX, y: defaultIfY };
       }
       const maxPostIfX =
-        targetHitosList.length > 0
-          ? targetHitoBaseX - 40
-          : postIfApprovalNodes.length > 0
-            ? postApprovalBaseX - 40
-            : outBaseX - 40;
+        postIfApprovalNodes.length > 0 ? postApprovalBaseX - 40 : outBaseX - 40;
       if (savedIf.x >= agentPos.x + 200 && savedIf.x <= maxPostIfX) {
         return savedIf;
       }
@@ -1683,13 +1686,6 @@ export default function WappyWorkflowCanvas({
         x: effectiveAiExtractorPos.x,
         width: 72,
         bottom: effectiveAiExtractorPos.y + 72 + 38,
-      });
-    }
-    if (targetHitosList.length > 0) {
-      mainColumns.push({
-        x: targetHitoBaseX,
-        width: 72,
-        bottom: calcStackedY(targetHitosList.length, targetHitosList.length - 1) + 72 + 38,
       });
     }
     if (postIfApprovalNodes.length > 0) {
@@ -1813,6 +1809,38 @@ export default function WappyWorkflowCanvas({
       });
     });
 
+    agentToolHitosList.forEach((hitoId, hIdx) => {
+      const def = getNodeDefById(hitoId);
+      if (!def) return;
+      const key = `tool_hitos_${hitoId}`;
+      const cfg = resolveEffectiveNodeCfg(
+        { key, nodeId: hitoId, shape: 'circle_tool', group: 'hitos' },
+        nodeConfigsMap,
+      );
+      const defaultX = subStartX + (toolOffsetIndex + toolInputs.length + hIdx) * 112;
+      const pos = resolveSubPos(key, defaultX);
+      const dynamicHitoToolSubtitle =
+        cfg.appActionMode === 'generate_report'
+          ? 'Informe HTML IA'
+          : cfg.appActionMode === 'read_only'
+            ? 'Consultar App'
+            : 'Guardar / Consultar';
+      list.push({
+        key,
+        nodeId: hitoId,
+        shape: 'circle_tool',
+        title: def.shortLabel,
+        subtitle: dynamicHitoToolSubtitle,
+        x: pos.x,
+        y: pos.y,
+        width: 62,
+        height: 62,
+        removable: true,
+        group: 'hitos',
+        hitoRole: 'target_write_report',
+      });
+    });
+
     // Si es Topología B (`post_agent` IF), insertar `if_router` justo después de `agent_root`
     if (includeIfNode && !isPreAgentIf && effectiveIfPos) {
       const ifCustomSubtitle = mergedIfCfg?.ifConditionLabel || '¿Veredicto IA = SÍ?';
@@ -1831,47 +1859,14 @@ export default function WappyWorkflowCanvas({
       });
     }
 
-    // HITOS DE DESTINO (`target_write_report` — Escritura / Informe Oficial HTML, a la derecha del Agente IA y dentro de Rama SÍ)
-    const minTargetHitoX =
+    // COMPUERTA DE APROBACIÓN HUMANA (Visto Bueno en Rama SÍ antes de salidas críticas)
+    const minApprX =
       includeIfNode && !isPreAgentIf && effectiveIfPos
         ? effectiveIfPos.x + 92
         : agentPos.x + 240;
-    const maxTargetHitoX =
-      postIfApprovalNodes.length > 0 ? postApprovalBaseX - 40 : outBaseX - 40;
-
-    targetHitosList.forEach((hitoId, idx) => {
-      const def = getNodeDefById(hitoId);
-      if (!def) return;
-      const key = `tool_hitos_${hitoId}`;
-      const defaultY = calcStackedY(targetHitosList.length, idx);
-      const savedTarget = customPositions[key];
-      const isSavedTargetValid =
-        Boolean(savedTarget) &&
-        savedTarget.x >= minTargetHitoX &&
-        savedTarget.x <= maxTargetHitoX;
-      const pos = isSavedTargetValid ? savedTarget : { x: targetHitoBaseX, y: defaultY };
-      list.push({
-        key,
-        nodeId: hitoId,
-        shape: 'square_hito',
-        title: def.shortLabel,
-        subtitle: 'Escritura / Informe',
-        x: pos.x,
-        y: pos.y,
-        width: 72,
-        height: 72,
-        removable: true,
-        group: 'hitos',
-        hitoRole: 'target_write_report',
-      });
-    });
-
-    // COMPUERTA DE APROBACIÓN HUMANA (Visto Bueno en Rama SÍ antes de salidas críticas)
     postIfApprovalNodes.forEach((ln, idx) => {
       const defaultY = calcStackedY(postIfApprovalNodes.length, idx);
       const savedAppr = customPositions[ln.key];
-      const minApprX =
-        targetHitosList.length > 0 ? targetHitoBaseX + 80 : minTargetHitoX;
       const pos =
         savedAppr && savedAppr.x >= minApprX && savedAppr.x <= outBaseX - 40
           ? savedAppr
@@ -2000,7 +1995,7 @@ export default function WappyWorkflowCanvas({
     }
 
     // NODOS PERSONALIZADOS DE SKILLS, SUB-AGENTES, REGLAS, WEB SCRAPING (ANTIGRAVITY SCRIPT) Y BÚSQUEDA WEB
-    const customOffsetIndex = toolOffsetIndex + toolInputs.length;
+    const customOffsetIndex = toolOffsetIndex + toolInputs.length + agentToolHitosList.length;
     customNodesList.forEach((cn, idx) => {
       const defaultCustomX = subStartX + (customOffsetIndex + idx) * 112;
       const pos = resolveSubPos(cn.key, defaultCustomX);
@@ -2050,12 +2045,8 @@ export default function WappyWorkflowCanvas({
     const aiDocExtractorNodes = extractorNodes.filter(
       (n) => n.key === 'extractor_extract_ai_doc_ocr',
     );
-    const sourceHitoNodes = visualNodes.filter(
-      (n) => n.shape === 'square_hito' && n.hitoRole !== 'target_write_report',
-    );
-    const targetHitoNodes = visualNodes.filter(
-      (n) => n.shape === 'square_hito' && n.hitoRole === 'target_write_report',
-    );
+    const sourceHitoNodes = visualNodes.filter((n) => n.shape === 'square_hito');
+    const targetHitoNodes: VisualNodeInstance[] = [];
     const rawStage2Nodes = [...rawExtractorNodes, ...sourceHitoNodes];
     const agentNode = map.get('agent_root');
     const ifNode = map.get('if_router');
@@ -2612,7 +2603,7 @@ export default function WappyWorkflowCanvas({
         case 'square_extractor':
           return node.key === 'extractor_extract_ai_doc_ocr' ? 45 : 20;
         case 'square_hito':
-          return node.hitoRole === 'target_write_report' ? 60 : 22;
+          return 22;
         case 'logic':
           return node.nodeId === 'logic_human_approval' ? 70 : 30;
         case 'if':
@@ -2694,7 +2685,7 @@ export default function WappyWorkflowCanvas({
         | 'custom_node';
       title: string;
       isConnected: boolean;
-      hitoRole?: 'source_read' | 'target_write_report';
+      hitoRole?: 'source_read' | 'agent_tool' | 'target_write_report';
       ifPlacement?: 'pre_agent' | 'post_agent';
     }> = [];
     const emittedKeys = new Set<string>();
@@ -2714,6 +2705,7 @@ export default function WappyWorkflowCanvas({
             category: mapShapeToCategory(sub.shape),
             title: sub.title,
             isConnected: true,
+            ...(sub.hitoRole ? { hitoRole: sub.hitoRole } : {}),
           });
         });
       }
@@ -2816,11 +2808,9 @@ export default function WappyWorkflowCanvas({
       [nodeKey]: nextConfig,
     };
     if (hitoRawId) {
+      syncedConfigs[hitoRawId] = nextConfig;
       if (prevConfigs[`hito_${hitoRawId}`]) {
         syncedConfigs[`hito_${hitoRawId}`] = nextConfig;
-      }
-      if (prevConfigs[hitoRawId]) {
-        syncedConfigs[hitoRawId] = nextConfig;
       }
     }
     if ((nodeKey === 'if_router' || nodeKey === 'if_condition') && prevConfigs['if_condition']) {
@@ -2847,6 +2837,7 @@ export default function WappyWorkflowCanvas({
           if (
             pk.startsWith('sub_memory') ||
             pk.startsWith('tool_inputs_') ||
+            pk.startsWith('tool_hitos_') ||
             pk.startsWith('out_') ||
             pk.startsWith('custom_') ||
             pk.startsWith('logic_')
@@ -3339,6 +3330,14 @@ export default function WappyWorkflowCanvas({
       nodeKey: string,
       allNodeCfgs: Record<string, CanvasNodeConfig>,
     ): CanvasNodeConfig | undefined => {
+      if (nodeKey.startsWith('tool_hitos_')) {
+        const rawHitoId = nodeKey.replace(/^tool_hitos_/, '');
+        return {
+          ...(allNodeCfgs[rawHitoId] || {}),
+          ...(allNodeCfgs[`hito_${rawHitoId}`] || {}),
+          ...(allNodeCfgs[nodeKey] || {}),
+        };
+      }
       const baseCfg = allNodeCfgs[nodeKey];
       if (nodeKey !== 'extractor_extract_ai_doc_ocr') {
         return baseCfg;
@@ -4168,9 +4167,17 @@ export default function WappyWorkflowCanvas({
         } else if (vn.shape === 'circle_memory') {
           nextMemories = nextMemories.filter((id) => id !== vn.nodeId);
         } else if (vn.shape === 'circle_tool') {
-          nextInputs = nextInputs.filter((id) => id !== vn.nodeId);
+          if (vn.group === 'hitos' || vn.key.startsWith('tool_hitos_')) {
+            nextHitos = nextHitos.filter((id) => id !== vn.nodeId);
+            delete nextNodeConfigs[vn.nodeId];
+            delete nextNodeConfigs[`hito_${vn.nodeId}`];
+          } else {
+            nextInputs = nextInputs.filter((id) => id !== vn.nodeId);
+          }
         } else if (vn.shape === 'square_hito') {
           nextHitos = nextHitos.filter((id) => id !== vn.nodeId);
+          delete nextNodeConfigs[vn.nodeId];
+          delete nextNodeConfigs[`hito_${vn.nodeId}`];
         } else if (vn.shape === 'square_output') {
           nextOutputs = nextOutputs.filter((id) => id !== vn.nodeId);
         } else if (vn.shape === 'if' || vn.key === 'if_router') {
@@ -4301,6 +4308,10 @@ export default function WappyWorkflowCanvas({
         setPreviewEvidence(null);
         return;
       }
+      if (ev.key === 'Escape' && toolPortPickerOpen) {
+        setToolPortPickerOpen(false);
+        return;
+      }
       if (ev.key === 'Escape' && activeConfigNodeKey) {
         setActiveConfigNodeKey(null);
         return;
@@ -4320,6 +4331,7 @@ export default function WappyWorkflowCanvas({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     previewEvidence,
+    toolPortPickerOpen,
     activeConfigNodeKey,
     isCanvasFullscreen,
     readOnly,
@@ -4465,7 +4477,9 @@ export default function WappyWorkflowCanvas({
         }
         if (wiringFrom.portType === 'diamond_tool') {
           setPaletteTab('connectors');
-          setActiveConfigNodeKey(wiringFrom.sourceKey);
+          setToolPortPickerSearch('');
+          setToolPortPickerFilter('all');
+          setToolPortPickerOpen(true);
           setWiringFrom(null);
           return;
         }
@@ -4561,6 +4575,7 @@ export default function WappyWorkflowCanvas({
     group: 'trigger' | 'extractors' | 'memories' | 'inputs' | 'hitos' | 'outputs',
     nodeId: string,
     dropPos?: { x: number; y: number },
+    preferredHitoRole?: 'source_read' | 'target_write_report',
   ) => {
     if (!onChange || readOnly) return;
 
@@ -4762,6 +4777,10 @@ export default function WappyWorkflowCanvas({
     if (exists) {
       delete nextPositions[key];
       delete nextNodeConfigs[key];
+      if (group === 'hitos') {
+        delete nextNodeConfigs[nodeId];
+        delete nextNodeConfigs[`hito_${nodeId}`];
+      }
       nextEdges = nextEdges.filter(
         (ed: any) => ed.from !== key && ed.to !== key && ed.source !== key && ed.target !== key,
       );
@@ -4772,6 +4791,30 @@ export default function WappyWorkflowCanvas({
           x: Math.max(20, Math.round(dropPos.x - 32)),
           y: Math.max(20, Math.round(dropPos.y - 32)),
         };
+      }
+      if (group === 'hitos') {
+        const effectiveHitoRole =
+          preferredHitoRole ||
+          (paletteTab === 'extractors' ? 'source_read' : 'target_write_report');
+        const initialHitoCfg: CanvasNodeConfig =
+          effectiveHitoRole === 'source_read'
+            ? {
+                ...(nextNodeConfigs[nodeId] || {}),
+                ...(nextNodeConfigs[key] || {}),
+                hitoRole: 'source_read',
+                appActionMode: 'read_only',
+                hitoOperationMode: 'read_only',
+                generateAppReport: false,
+              }
+            : {
+                ...(nextNodeConfigs[nodeId] || {}),
+                ...(nextNodeConfigs[key] || {}),
+                hitoRole: 'target_write_report' as any,
+                appActionMode: 'write_and_update',
+                hitoOperationMode: 'write_register',
+              };
+        nextNodeConfigs[key] = initialHitoCfg;
+        nextNodeConfigs[nodeId] = initialHitoCfg;
       }
       if (group === 'outputs' && pendingOutputIfBranchRef.current) {
         nextNodeConfigs[key] = {
@@ -4798,6 +4841,70 @@ export default function WappyWorkflowCanvas({
     } else if (activeConfigNodeKey === key) {
       setActiveConfigNodeKey(null);
     }
+  };
+
+  // Conectar o desconectar un Aplicativo de Somos SST directamente debajo de «Herramienta +» del Agente IA (estilo n8n)
+  const connectHitoAsAgentTool = (hitoId: string) => {
+    if (!onChange || readOnly) return;
+    const candidateNode = getNodeDefById(hitoId);
+    if (isWorkflowNodeUnderConstruction(candidateNode, disabledSgsstApps)) {
+      setConstructionNotice(
+        `🚧 «${candidateNode?.label || hitoId}» se encuentra en modo Construcción en Somos SST.`,
+      );
+      return;
+    }
+    setConstructionNotice(null);
+
+    const currentHitos = Array.isArray(workflowNodes.hitos) ? workflowNodes.hitos : [];
+    const key = `tool_hitos_${hitoId}`;
+    const nextPositions = { ...(workflowNodes?.canvasLayout?.positions || {}) };
+    const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
+    let nextEdges = [...(workflowNodes?.canvasLayout?.edges || [])];
+    let nextRemovedWires = [...(workflowNodes?.canvasLayout?.removedWires || [])];
+
+    const alreadyInHitos = currentHitos.includes(hitoId);
+    const currentRole = alreadyInHitos ? resolveCanvasHitoRole(hitoId, nextNodeConfigs) : null;
+    const isAlreadyConnectedAsTool = alreadyInHitos && currentRole !== 'source_read';
+
+    let nextHitos: string[];
+    if (isAlreadyConnectedAsTool) {
+      nextHitos = currentHitos.filter((id) => id !== hitoId);
+      delete nextPositions[key];
+      delete nextNodeConfigs[key];
+      delete nextNodeConfigs[hitoId];
+      delete nextNodeConfigs[`hito_${hitoId}`];
+      nextEdges = nextEdges.filter(
+        (ed: any) => ed.from !== key && ed.to !== key && ed.source !== key && ed.target !== key,
+      );
+      nextRemovedWires = nextRemovedWires.filter((rw) => !rw.includes(key));
+    } else {
+      nextHitos = alreadyInHitos ? currentHitos : [...currentHitos, hitoId];
+      delete nextPositions[key];
+      const toolHitoCfg: CanvasNodeConfig = {
+        ...(nextNodeConfigs[hitoId] || {}),
+        ...(nextNodeConfigs[key] || {}),
+        hitoRole: 'target_write_report' as any,
+        appActionMode: 'write_and_update',
+        hitoOperationMode: 'write_register',
+      };
+      nextNodeConfigs[key] = toolHitoCfg;
+      nextNodeConfigs[hitoId] = toolHitoCfg;
+      if (nextNodeConfigs[`hito_${hitoId}`]) {
+        nextNodeConfigs[`hito_${hitoId}`] = toolHitoCfg;
+      }
+    }
+
+    onChange({
+      ...workflowNodes,
+      hitos: nextHitos,
+      canvasLayout: {
+        ...(workflowNodes?.canvasLayout || {}),
+        positions: nextPositions,
+        nodeConfigs: nextNodeConfigs,
+        edges: nextEdges,
+        removedWires: nextRemovedWires,
+      },
+    });
   };
 
   // Cambiar Motor IA (WAPPY Rotación de Claves vs Antigravity Local vs Antigravity Cloud 24/7) y Modelo
@@ -4862,7 +4969,29 @@ export default function WappyWorkflowCanvas({
               ? activeExtractors
               : workflowNodes[parsed.group as 'inputs' | 'hitos' | 'outputs'] || [];
           if (!arr.includes(parsed.nodeId)) {
-            toggleOrAddCatalogNode(parsed.group, parsed.nodeId, dropPos);
+            toggleOrAddCatalogNode(
+              parsed.group,
+              parsed.nodeId,
+              dropPos,
+              parsed.hitoRole as 'source_read' | 'target_write_report' | undefined,
+            );
+          } else if (parsed.group === 'hitos' && parsed.hitoRole) {
+            const key = `tool_hitos_${parsed.nodeId}`;
+            handleUpdateNodeConfig(
+              key,
+              parsed.hitoRole === 'source_read'
+                ? {
+                    hitoRole: 'source_read',
+                    appActionMode: 'read_only',
+                    hitoOperationMode: 'read_only',
+                    generateAppReport: false,
+                  }
+                : {
+                    hitoRole: 'target_write_report' as any,
+                    appActionMode: 'write_and_update',
+                    hitoOperationMode: 'write_register',
+                  },
+            );
           } else if (dropPos) {
             const key =
               parsed.group === 'extractors'
@@ -5237,8 +5366,15 @@ export default function WappyWorkflowCanvas({
                 },
                 {
                   id: 'connectors',
-                  label: '5. Herramientas (WAPPY · Google · APIs · MCP)',
-                  badge: `5 · ${(workflowNodes.inputs || []).length}`,
+                  label: '5. Herramientas (WAPPY · Google · APIs · MCP · Somos SST)',
+                  badge: `5 · ${
+                    (workflowNodes.inputs || []).length +
+                    (workflowNodes.hitos || []).filter(
+                      (hid) =>
+                        resolveCanvasHitoRole(hid, workflowNodes?.canvasLayout?.nodeConfigs) !==
+                        'source_read',
+                    ).length
+                  }`,
                   variant: 'cyan' as const,
                   icon: <Sliders className="w-3.5 h-3.5" />,
                 },
@@ -5335,7 +5471,7 @@ export default function WappyWorkflowCanvas({
               </span>
             ) : paletteTab === 'connectors' ? (
               <span>
-                🔧 <strong>Etapa 5 — Herramientas del Agente discriminadas por grupo:</strong> Filtra entre <strong>🟢 Herramientas WAPPY</strong>, <strong>🔵 Google Workspace</strong>, <strong>🟠 APIs Externas</strong> y <strong>🟣 Conectores MCP</strong> (OneDrive 🚧 En Construcción).
+                🔧 <strong>Etapa 5 — Herramientas del Agente («Herramienta +» estilo n8n):</strong> Filtra entre <strong>🟢 Herramientas WAPPY</strong>, <strong>🔵 Google Workspace</strong>, <strong>🟠 APIs Externas</strong>, <strong>🟣 Conectores MCP</strong> y <strong>🛡️ Aplicativos de Somos SST (Hitos 1–8)</strong> para colgarlos debajo del Agente IA.
               </span>
             ) : paletteTab === 'skills_rules' ? (
               <span>
@@ -5351,7 +5487,7 @@ export default function WappyWorkflowCanvas({
               </span>
             ) : paletteTab === 'hitos' ? (
               <span>
-                🛡️ <strong>Etapa 9 — Todos los 50 Aplicativos de los 8 Hitos de Somos SST:</strong> Elige en qué aplicativo de los <strong>8 Hitos</strong> el Agente debe guardar o modificar registros. Los aplicativos en modo <strong>🚧 En Construcción</strong> aparecen visibles pero bloqueados hasta que se activen.
+                🛡️ <strong>Etapa 9 — Aplicativos de Somos SST en «Herramienta +» (Hitos 1 al 8):</strong> Conecta cualquier aplicativo activo en <strong>Herramienta +</strong> debajo del Agente IA para consultar, guardar o actualizar registros reales (o cámbialo a <strong>📥 Fuente de Lectura</strong> en su inspector).
               </span>
             ) : paletteTab === 'outputs' ? (
               <span>
@@ -6093,21 +6229,29 @@ export default function WappyWorkflowCanvas({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {/* Barra de sub-grupos discriminados para 5. Herramientas (WAPPY · Google · APIs · MCP) */}
+              {/* Barra de sub-grupos discriminados para 5. Herramientas (WAPPY · Google · APIs · MCP · Somos SST) */}
               {paletteTab === 'connectors' && (
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
                   <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
                     {TOOL_SUBGROUP_TABS.map((tTab) => {
                       const isActive = selectedToolSubgroup === tTab.id;
+                      const activeHitoAppsForTools = HITO_APP_NODES.filter(
+                        (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
+                      );
                       const toolsInSubgroup =
                         tTab.id === 'all_tools'
-                          ? INPUT_CONNECTOR_NODES
+                          ? [...INPUT_CONNECTOR_NODES, ...activeHitoAppsForTools]
                           : INPUT_CONNECTOR_NODES.filter((n) => n.category === tTab.id);
                       const activeInputs = workflowNodes.inputs || [];
+                      const activeToolHitoIds = (workflowNodes.hitos || []).filter(
+                        (hid) =>
+                          resolveCanvasHitoRole(hid, workflowNodes?.canvasLayout?.nodeConfigs) !==
+                          'source_read',
+                      );
                       const activeCountInSubgroup = toolsInSubgroup.filter(
                         (n) =>
                           !isWorkflowNodeUnderConstruction(n, disabledSgsstApps) &&
-                          activeInputs.includes(n.id),
+                          (activeInputs.includes(n.id) || activeToolHitoIds.includes(n.id)),
                       ).length;
                       const variantMap: Record<string, any> = {
                         all_tools: 'cyan',
@@ -6145,6 +6289,37 @@ export default function WappyWorkflowCanvas({
                         />
                       );
                     })}
+                    {(() => {
+                      const activeHitoApps = HITO_APP_NODES.filter(
+                        (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
+                      );
+                      const connectedHitoToolsCount = activeHitoApps.filter(
+                        (h) =>
+                          (workflowNodes.hitos || []).includes(h.id) &&
+                          resolveCanvasHitoRole(h.id, workflowNodes?.canvasLayout?.nodeConfigs) !==
+                            'source_read',
+                      ).length;
+                      return (
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="emerald"
+                          isActive={selectedToolSubgroup === 'sgsst_hitos'}
+                          icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                          badge={
+                            connectedHitoToolsCount > 0
+                              ? `${activeHitoApps.length} · ✓${connectedHitoToolsCount}`
+                              : activeHitoApps.length
+                          }
+                          label="🛡️ Apps Somos SST (8 Hitos)"
+                          title="Conectar cualquier Aplicativo activo de Somos SST en «Herramienta +» debajo del Agente IA"
+                          onClick={() => {
+                            setSelectedToolSubgroup('sgsst_hitos');
+                            setConstructionNotice(null);
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -6177,7 +6352,18 @@ export default function WappyWorkflowCanvas({
                           ? HITO_APP_NODES
                           : HITO_APP_NODES.filter((n) => n.hitoId === hTab.id);
                       const activeListForCurrentPalette =
-                        paletteTab === 'extractors' ? activeExtractors : workflowNodes.hitos || [];
+                        paletteTab === 'extractors'
+                          ? [
+                              ...activeExtractors,
+                              ...(workflowNodes.hitos || []).filter(
+                                (hid) =>
+                                  resolveCanvasHitoRole(
+                                    hid,
+                                    workflowNodes?.canvasLayout?.nodeConfigs,
+                                  ) === 'source_read',
+                              ),
+                            ]
+                          : workflowNodes.hitos || [];
                       const activeInTabCount = hitoNodesForTab.filter(
                         (n) =>
                           !isWorkflowNodeUnderConstruction(n, disabledSgsstApps) &&
@@ -6249,9 +6435,18 @@ export default function WappyWorkflowCanvas({
                       ? [...EXTRACTOR_NODES, ...HITO_APP_NODES]
                       : HITO_APP_NODES.filter((h) => h.hitoId === selectedHitoFilter)
                   : paletteTab === 'connectors'
-                    ? selectedToolSubgroup === 'all_tools'
-                      ? INPUT_CONNECTOR_NODES
-                      : INPUT_CONNECTOR_NODES.filter((n) => n.category === selectedToolSubgroup)
+                    ? selectedToolSubgroup === 'sgsst_hitos'
+                      ? HITO_APP_NODES.filter(
+                          (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
+                        )
+                      : selectedToolSubgroup === 'all_tools'
+                        ? [
+                            ...INPUT_CONNECTOR_NODES,
+                            ...HITO_APP_NODES.filter(
+                              (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
+                            ),
+                          ]
+                        : INPUT_CONNECTOR_NODES.filter((n) => n.category === selectedToolSubgroup)
                     : paletteTab === 'hitos'
                       ? selectedHitoFilter === 'all' || selectedHitoFilter === 'external'
                         ? HITO_APP_NODES
@@ -6260,16 +6455,18 @@ export default function WappyWorkflowCanvas({
                         ? TRIGGER_NODES
                         : OUTPUT_ACTION_NODES
                 ).map((node) => {
-                  const groupKey =
-                    paletteTab === 'extractors'
+                  const isHitoCatalogTile = HITO_APP_NODES.some((h) => h.id === node.id);
+                  const groupKey = isHitoCatalogTile
+                    ? 'hitos'
+                    : paletteTab === 'extractors'
                       ? 'extractors'
                       : paletteTab === 'connectors'
                         ? 'inputs'
-                        : paletteTab === 'hitos'
-                          ? 'hitos'
-                          : paletteTab === 'triggers'
-                            ? 'trigger'
-                            : 'outputs';
+                        : paletteTab === 'triggers'
+                          ? 'trigger'
+                          : 'outputs';
+                  const desiredHitoRole: 'source_read' | 'target_write_report' =
+                    paletteTab === 'extractors' ? 'source_read' : 'target_write_report';
                   const isUnderConstruction = isWorkflowNodeUnderConstruction(node, disabledSgsstApps);
                   const isSelected =
                     !isUnderConstruction &&
@@ -6277,7 +6474,20 @@ export default function WappyWorkflowCanvas({
                       ? activeTriggers.includes(node.id)
                       : groupKey === 'extractors'
                         ? activeExtractors.includes(node.id)
-                        : (workflowNodes[groupKey] || []).includes(node.id));
+                        : groupKey === 'hitos'
+                          ? (workflowNodes.hitos || []).includes(node.id) &&
+                            (paletteTab === 'hitos'
+                              ? true
+                              : paletteTab === 'extractors'
+                                ? resolveCanvasHitoRole(
+                                    node.id,
+                                    workflowNodes?.canvasLayout?.nodeConfigs,
+                                  ) === 'source_read'
+                                : resolveCanvasHitoRole(
+                                    node.id,
+                                    workflowNodes?.canvasLayout?.nodeConfigs,
+                                  ) !== 'source_read')
+                          : (workflowNodes[groupKey] || []).includes(node.id));
                   const canvasKeyForTile =
                     groupKey === 'trigger'
                       ? activeTriggers.indexOf(node.id) === 0
@@ -6303,10 +6513,26 @@ export default function WappyWorkflowCanvas({
                         }
                         e.dataTransfer.setData(
                           'application/wappy-flow-node',
-                          JSON.stringify({ kind: 'node', group: groupKey, nodeId: node.id }),
+                          JSON.stringify({
+                            kind: 'node',
+                            group: groupKey,
+                            nodeId: node.id,
+                            ...(groupKey === 'hitos' ? { hitoRole: desiredHitoRole } : {}),
+                          }),
                         );
                       }}
-                      onClick={() => toggleOrAddCatalogNode(groupKey, node.id)}
+                      onClick={() => {
+                        if (groupKey === 'hitos' && paletteTab === 'connectors') {
+                          connectHitoAsAgentTool(node.id);
+                          return;
+                        }
+                        toggleOrAddCatalogNode(
+                          groupKey,
+                          node.id,
+                          undefined,
+                          groupKey === 'hitos' ? desiredHitoRole : undefined,
+                        );
+                      }}
                       title={
                         isUnderConstruction
                           ? `🚧 ${node.label} — Aplicativo en Construcción en Somos SST (No seleccionable)`
@@ -7177,7 +7403,9 @@ export default function WappyWorkflowCanvas({
                         e.stopPropagation();
                         if (!readOnly && !wiringFrom) {
                           setPaletteTab('connectors');
-                          setActiveConfigNodeKey(node.key);
+                          setToolPortPickerSearch('');
+                          setToolPortPickerFilter('all');
+                          setToolPortPickerOpen(true);
                         }
                       }}
                       style={{ left: 168 }}
@@ -7663,6 +7891,8 @@ export default function WappyWorkflowCanvas({
               // 5. FIGURA SUB-NODOS CIRCULARES (Modelo IA *, Memoria y Herramienta con Rombo superior ◆)
               const isModelCircle = node.shape === 'circle_model';
               const isMemoryCircle = node.shape === 'circle_memory';
+              const isHitoCircleTool =
+                node.group === 'hitos' || node.key.startsWith('tool_hitos_');
 
               return (
                 <div
@@ -7703,7 +7933,9 @@ export default function WappyWorkflowCanvas({
                             : 'border-indigo-500 ring-2 ring-indigo-500/20'
                         : isMemoryCircle
                           ? 'border-pink-400 dark:border-pink-700 hover:border-pink-500'
-                          : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
+                          : isHitoCircleTool
+                            ? 'border-teal-400 dark:border-teal-600 hover:border-teal-500'
+                            : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
                     }`}
                   >
                     {renderOfficialNodeSvg(node.nodeId, 'w-7 h-7')}
@@ -7731,8 +7963,17 @@ export default function WappyWorkflowCanvas({
                     <div className="text-[10px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
                       {node.title}
                     </div>
-                    <div className="text-[8.5px] font-semibold text-slate-400 truncate">
-                      {buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                    <div
+                      className={`text-[8.5px] font-semibold truncate ${
+                        isHitoCircleTool
+                          ? 'text-teal-600 dark:text-teal-400'
+                          : 'text-slate-400'
+                      }`}
+                      title={buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                    >
+                      {isHitoCircleTool
+                        ? node.subtitle
+                        : buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
                     {showAntigravityBadge && (
                       <div className="mt-0.5 flex justify-center">
@@ -8229,7 +8470,10 @@ export default function WappyWorkflowCanvas({
 
         // ─── 3. Construir `resolvedInputItems` y `resolvedInputSourceTitle` ───
         const buildNodeLiveOutputItems = (targetNode: VisualNodeInstance): Array<Record<string, any>> => {
-          const targetCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[targetNode.key] || {};
+          const targetCfg = resolveEffectiveNodeCfg(
+            targetNode,
+            workflowNodes?.canvasLayout?.nodeConfigs,
+          );
           const targetTrace = findTraceForNode(targetNode);
 
           // 1) Para nodos de tabla de datos de MongoDB (`square_extractor`, `square_hito`, `circle_memory` y `circle_tool` de datos SST),
@@ -8490,7 +8734,10 @@ export default function WappyWorkflowCanvas({
               selectedUpstreamNode.shape === 'circle_memory' ||
               selectedUpstreamNode.shape === 'circle_tool')
           ) {
-            const upCfg = workflowNodes?.canvasLayout?.nodeConfigs?.[selectedUpstreamNode.key];
+            const upCfg = resolveEffectiveNodeCfg(
+              selectedUpstreamNode,
+              workflowNodes?.canvasLayout?.nodeConfigs,
+            );
             const projected = projectRecordsForNode(
               upstreamLiveRecordsCache[selectedUpstreamNode.key].records,
               upCfg,
@@ -10001,6 +10248,8 @@ export default function WappyWorkflowCanvas({
                                   {((Array.isArray(nodeLiveInspectorData.latestReports) &&
                                     nodeLiveInspectorData.latestReports.length > 0) ||
                                     activeNode.shape === 'square_hito' ||
+                                    activeNode.group === 'hitos' ||
+                                    activeNode.key.startsWith('tool_hitos_') ||
                                     activeNode.nodeId.includes('extract_sst_app')) && (
                                     <ExpandableButton
                                       type="button"
