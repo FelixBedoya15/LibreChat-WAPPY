@@ -1381,8 +1381,41 @@ function buildScraperEvidencesPromptBlock(evidences = []) {
 /**
  * Formatea Markdown enriquecido a HTML limpio con tablas, encabezados, enlaces, imágenes y negritas para clientes de correo.
  */
+function escapeHtmlEmailAttr(str = '') {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function decorateEmailStatusCell(html, rawText) {
+  const txt = String(rawText || '').trim();
+  if (!txt || txt.length > 65) return html;
+  const pill = (bg, fg, brd) =>
+    `<span style="display:inline-block;padding:2px 9px;border-radius:9999px;font-size:11px;font-weight:800;background:${bg};color:${fg};border:1px solid ${brd};white-space:nowrap;">${html}</span>`;
+  if (/❌|🔴|vencid|crític|no apto|incumpl/i.test(txt)) {
+    return pill('#fff1f2', '#be123c', '#fda4af');
+  }
+  if (/⚠️|🟠|🟡|por vencer|próxim|pendiente|restricci/i.test(txt)) {
+    return pill('#fffbeb', '#b45309', '#fcd34d');
+  }
+  if (/✅|🟢|vigente|apto|cumple|al día|\bok\b/i.test(txt)) {
+    return pill('#ecfdf5', '#047857', '#6ee7b7');
+  }
+  return html;
+}
+
 function formatMarkdownToEmailHtml(text) {
-  if (!text) return '';
+  const safeInput = String(text || '').trim();
+  if (!safeInput) return '';
+  if (
+    safeInput.startsWith('<') &&
+    (safeInput.includes('<div') || safeInput.includes('<table') || safeInput.includes('<h1'))
+  ) {
+    return safeInput;
+  }
+
   const baseDomain = String(process.env.DOMAIN_CLIENT || 'https://wappy.club').replace(/\/+$/, '');
   const toAbsUrl = (rawUrl = '') => {
     const u = String(rawUrl || '').trim();
@@ -1391,135 +1424,235 @@ function formatMarkdownToEmailHtml(text) {
     if (u.startsWith('/')) return `${baseDomain}${u}`;
     return u;
   };
-  
-  // 1. Manejo y embellecimiento de bloques ```wappy-card
-  let formatted = text.replace(/```wappy-card[\s\S]*?```/gi, (match) => {
+
+  const formatInlineEmail = (escapedLine = '') => {
+    const tokens = [];
+    const stash = (snippet) => {
+      const idx = tokens.length;
+      tokens.push(snippet);
+      return `\u0000EMLTOK_${idx}\u0000`;
+    };
+    let out = String(escapedLine || '')
+      .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, rawUrl) => {
+        const abs = escapeHtmlEmailAttr(toAbsUrl(String(rawUrl || '').replace(/&amp;/g, '&')));
+        const safeAlt = escapeHtmlEmailAttr(alt || 'Certificado / Evidencia');
+        return stash(
+          `<div style="margin:10px 0;"><a href="${abs}" target="_blank" rel="noopener noreferrer"><img src="${abs}" alt="${safeAlt}" style="max-width:100%;max-height:280px;height:auto;border-radius:10px;border:1px solid #cbd5e1;display:block;" /></a></div>`,
+        );
+      })
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, rawUrl) => {
+        const abs = escapeHtmlEmailAttr(toAbsUrl(String(rawUrl || '').replace(/&amp;/g, '&')));
+        return stash(
+          `<a href="${abs}" target="_blank" rel="noopener noreferrer" style="color:#0f766e;font-weight:700;text-decoration:underline;">${label}</a>`,
+        );
+      })
+      .replace(
+        /`([^`]+)`/g,
+        '<code style="padding:1px 5px;border-radius:5px;background:#f1f5f9;color:#0f172a;font-size:11.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">$1</code>',
+      )
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong style="color:#0f172a;"><em>$1</em></strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#0f172a;font-weight:800;">$1</strong>')
+      .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>');
+    return out.replace(/\u0000EMLTOK_(\d+)\u0000/g, (_, i) => tokens[Number(i)] || '');
+  };
+
+  // 1. Extraer bloques ```wappy-card
+  const cardBlocks = [];
+  const withoutCards = safeInput.replace(/```wappy-card[\s\S]*?```/gi, (match) => {
     try {
-      const jsonStr = match.replace(/```wappy-card/i, '').replace(/```/, '').trim();
+      const jsonStr = match.replace(/```wappy-card/i, '').replace(/```$/, '').trim();
       const card = JSON.parse(jsonStr);
-      let itemsHtml = '';
-      if (Array.isArray(card.items)) {
-        itemsHtml = card.items.map(it => `<li><strong>${it.title || ''}</strong>: ${it.description || it.subtitle || ''}</li>`).join('');
-      }
-      return `
-        <div style="border: 1px solid #9333ea; background: rgba(147, 51, 234, 0.1); border-radius: 10px; padding: 14px; margin: 15px 0;">
-          <h4 style="color: #c084fc; margin: 0 0 6px 0; font-size: 15px;">${card.title || 'Resumen de Gestión'}</h4>
-          <p style="margin: 0 0 8px 0; font-size: 13px; color: #e2e8f0;">${card.subtitle || card.description || ''}</p>
-          ${itemsHtml ? `<ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1;">${itemsHtml}</ul>` : ''}
-        </div>
-      `;
-    } catch (e) {
+      const itemsHtml = Array.isArray(card.items)
+        ? card.items
+            .map((it) => {
+              const t = escapeHtmlEmailAttr(typeof it === 'string' ? it : it?.title || '');
+              const d = escapeHtmlEmailAttr(
+                typeof it === 'string' ? '' : it?.description || it?.subtitle || '',
+              );
+              return `<li style="margin:4px 0;color:#334155;"><strong style="color:#0f172a;">${t}</strong>${d ? `: ${d}` : ''}</li>`;
+            })
+            .join('')
+        : '';
+      const idx = cardBlocks.length;
+      cardBlocks.push(
+        `<div style="margin:14px 0;padding:14px 16px;border-radius:14px;border:1px solid rgba(13,148,136,0.3);background:linear-gradient(135deg,#f0fdfa 0%,#f8fafc 100%);">` +
+          `<div style="font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.04em;color:#0f766e;margin:0 0 6px 0;">● ${escapeHtmlEmailAttr(card.title || 'Resumen de Gestión')}</div>` +
+          `${card.subtitle || card.description ? `<p style="margin:0 0 8px 0;font-size:12.5px;color:#475569;">${escapeHtmlEmailAttr(card.subtitle || card.description)}</p>` : ''}` +
+          `${itemsHtml ? `<ul style="margin:0;padding-left:18px;font-size:12.5px;">${itemsHtml}</ul>` : ''}` +
+          `</div>`,
+      );
+      return `\n@@EMLCARD_${idx}@@\n`;
+    } catch (_) {
       return '';
     }
   });
 
-  // Limpiar triples comillas
-  formatted = formatted.replace(/"""/g, '"');
+  // 2. Extraer bloques ```code
+  const codeBlocks = [];
+  const withoutCode = withoutCards
+    .replace(/"""/g, '"')
+    .replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push(
+        `<div style="margin:12px 0;border-radius:10px;overflow:hidden;border:1px solid #334155;background:#0f172a;">` +
+          `<div style="padding:5px 12px;background:#1e293b;color:#5eead4;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;">${escapeHtmlEmailAttr(lang || 'dato')}</div>` +
+          `<pre style="margin:0;padding:12px;color:#f1f5f9;font-size:11.5px;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;">${escapeHtmlEmailAttr(String(code || '').trimEnd())}</pre>` +
+          `</div>`,
+      );
+      return `\n@@EMLCODE_${idx}@@\n`;
+    });
 
-  // 2. Procesar Tablas de Markdown
-  const lines = formatted.split('\n');
-  const processedLines = [];
-  let inTable = false;
+  const escaped = withoutCode.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = escaped.split('\n');
+  const htmlOut = [];
+  let listType = null;
+  let olCounter = 0;
   let tableRows = [];
+  let bannerTitle = '';
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.startsWith('|') && line.endsWith('|')) {
-      inTable = true;
-      // Omitir fila separadora |---|---|
-      if (line.replace(/[\s|:-]/g, '').length === 0) {
-        continue;
-      }
-      const cells = line.split('|').slice(1, -1).map(c => c.trim());
-      tableRows.push(cells);
-    } else {
-      if (inTable) {
-        if (tableRows.length > 0) {
-          const headerRow = tableRows[0];
-          const bodyRows = tableRows.slice(1);
-          let tableHtml = '<table><thead><tr>';
-          headerRow.forEach(cell => {
-            tableHtml += `<th>${cell}</th>`;
-          });
-          tableHtml += '</tr></thead><tbody>';
-          bodyRows.forEach(row => {
-            tableHtml += '<tr>';
-            row.forEach(cell => {
-              tableHtml += `<td>${cell}</td>`;
-            });
-            tableHtml += '</tr>';
-          });
-          tableHtml += '</tbody></table>';
-          processedLines.push(tableHtml);
-        }
-        tableRows = [];
-        inTable = false;
-      }
-      processedLines.push(lines[i]);
-    }
-  }
-  if (inTable && tableRows.length > 0) {
+  const closeList = () => {
+    if (listType === 'ul') htmlOut.push('</ul>');
+    else if (listType === 'ol') htmlOut.push('</ol>');
+    listType = null;
+    olCounter = 0;
+  };
+
+  const flushTable = () => {
+    if (tableRows.length === 0) return;
     const headerRow = tableRows[0];
     const bodyRows = tableRows.slice(1);
-    let tableHtml = '<table><thead><tr>';
-    headerRow.forEach(cell => {
-      tableHtml += `<th>${cell}</th>`;
+    let tbl =
+      '<div style="overflow-x:auto;margin:14px 0;border-radius:14px;border:1px solid #e2e8f0;background:#ffffff;">' +
+      '<table style="width:100%;border-collapse:separate;border-spacing:0;font-size:12px;"><thead><tr style="background:linear-gradient(90deg,#0f766e 0%,#0d9488 65%,#0ea5e9 100%);">';
+    headerRow.forEach((cell) => {
+      tbl += `<th style="padding:10px 12px;text-align:left;font-weight:800;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:#ffffff;border-bottom:2px solid #0f766e;">${formatInlineEmail(cell)}</th>`;
     });
-    tableHtml += '</tr></thead><tbody>';
-    bodyRows.forEach(row => {
-      tableHtml += '<tr>';
-      row.forEach(cell => {
-        tableHtml += `<td>${cell}</td>`;
+    tbl += '</tr></thead><tbody>';
+    bodyRows.forEach((row, rIdx) => {
+      const bg = rIdx % 2 === 0 ? '#ffffff' : '#f8fafc';
+      tbl += `<tr style="background:${bg};">`;
+      row.forEach((cell) => {
+        tbl += `<td style="padding:9px 12px;border-bottom:1px solid #e2e8f0;color:#334155;vertical-align:middle;line-height:1.4;">${decorateEmailStatusCell(formatInlineEmail(cell), cell)}</td>`;
       });
-      tableHtml += '</tr>';
+      tbl += '</tr>';
     });
-    tableHtml += '</tbody></table>';
-    processedLines.push(tableHtml);
+    tbl += '</tbody></table></div>';
+    htmlOut.push(tbl);
+    tableRows = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.startsWith('|') && line.endsWith('|') && line.length > 2) {
+      closeList();
+      if (line.replace(/[\s|:-]/g, '').length === 0) continue;
+      tableRows.push(line.split('|').slice(1, -1).map((c) => c.trim()));
+      continue;
+    }
+    flushTable();
+    if (!line) {
+      closeList();
+      continue;
+    }
+    const cardM = line.match(/^@@EMLCARD_(\d+)@@$/);
+    if (cardM) {
+      closeList();
+      htmlOut.push(cardBlocks[Number(cardM[1])] || '');
+      continue;
+    }
+    const codeM = line.match(/^@@EMLCODE_(\d+)@@$/);
+    if (codeM) {
+      closeList();
+      htmlOut.push(codeBlocks[Number(codeM[1])] || '');
+      continue;
+    }
+    const ordM = line.match(/^(\d+)[.)]\s+(.+)$/);
+    if (/^-{3,}$/.test(line)) {
+      closeList();
+      htmlOut.push('<hr style="margin:16px 0;border:none;border-top:1px solid #cbd5e1;" />');
+    } else if (line.startsWith('#### ')) {
+      closeList();
+      htmlOut.push(
+        `<h4 style="margin:14px 0 6px 0;font-size:11.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:#0f766e;">${formatInlineEmail(line.slice(5))}</h4>`,
+      );
+    } else if (line.startsWith('### ')) {
+      closeList();
+      htmlOut.push(
+        `<h3 style="margin:18px 0 8px 0;padding-left:10px;border-left:4px solid #0d9488;font-size:14px;font-weight:800;color:#0f172a;">${formatInlineEmail(line.slice(4))}</h3>`,
+      );
+    } else if (line.startsWith('## ')) {
+      closeList();
+      htmlOut.push(
+        `<h2 style="margin:20px 0 10px 0;padding:8px 12px;border-radius:10px;border-bottom:2px solid rgba(13,148,136,0.35);background:linear-gradient(90deg,rgba(15,118,110,0.10),rgba(14,165,233,0.03));font-size:14.5px;font-weight:900;color:#115e59;">${formatInlineEmail(line.slice(3))}</h2>`,
+      );
+    } else if (line.startsWith('# ')) {
+      closeList();
+      const rawH = line.slice(2).trim();
+      if (!bannerTitle) {
+        bannerTitle = rawH;
+      } else {
+        htmlOut.push(
+          `<h1 style="margin:18px 0 10px 0;padding:10px 14px;border-radius:12px;background:linear-gradient(90deg,#0f766e,#0d9488,#0ea5e9);color:#ffffff;font-size:16px;font-weight:900;">${formatInlineEmail(rawH)}</h1>`,
+        );
+      }
+    } else if (line.startsWith('&gt; ')) {
+      closeList();
+      const q = line.slice(5);
+      const isDanger = /🚨|❌|crític|vencid|urgente|incumpl/i.test(q);
+      const isWarn = !isDanger && /⚠️|próxim|atención|alerta|pendiente/i.test(q);
+      const st = isDanger
+        ? 'border-left:4px solid #e11d48;background:#fff1f2;color:#881337;'
+        : isWarn
+          ? 'border-left:4px solid #d97706;background:#fffbeb;color:#78350f;'
+          : 'border-left:4px solid #0d9488;background:#f0fdfa;color:#134e4a;';
+      htmlOut.push(
+        `<blockquote style="margin:12px 0;padding:10px 14px;border-radius:10px;font-size:12.5px;line-height:1.5;${st}">${formatInlineEmail(q)}</blockquote>`,
+      );
+    } else if (ordM) {
+      if (listType !== 'ol') {
+        closeList();
+        htmlOut.push('<ol style="margin:10px 0;padding-left:22px;color:#334155;">');
+        listType = 'ol';
+        olCounter = 0;
+      }
+      olCounter += 1;
+      htmlOut.push(
+        `<li style="margin:5px 0;line-height:1.55;color:#334155;">${formatInlineEmail(ordM[2])}</li>`,
+      );
+    } else if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
+      if (listType !== 'ul') {
+        closeList();
+        htmlOut.push('<ul style="margin:8px 0;padding-left:20px;color:#334155;">');
+        listType = 'ul';
+      }
+      htmlOut.push(
+        `<li style="margin:4px 0;line-height:1.55;color:#334155;">${formatInlineEmail(line.slice(2))}</li>`,
+      );
+    } else {
+      closeList();
+      htmlOut.push(
+        `<p style="margin:8px 0;line-height:1.6;color:#334155;font-size:13px;">${formatInlineEmail(line)}</p>`,
+      );
+    }
   }
 
-  formatted = processedLines.join('\n');
+  flushTable();
+  closeList();
 
-  // 3. Encabezados
-  formatted = formatted.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
-  formatted = formatted.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-  formatted = formatted.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-  formatted = formatted.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  const safeBannerTitle = escapeHtmlEmailAttr(
+    (bannerTitle || 'Informe Ejecutivo SG-SST').replace(/\*+/g, '').replace(/`/g, '').trim(),
+  );
+  const topBanner =
+    `<div data-wappy-canva-banner="1" style="background:linear-gradient(135deg,#0f766e 0%,#0d9488 52%,#0ea5e9 100%);border-radius:16px;padding:16px 18px;color:#ffffff;margin-bottom:16px;">` +
+    `<div style="font-size:10px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#d1fae5;margin-bottom:4px;">WAPPY IA · INFORME EJECUTIVO SG-SST</div>` +
+    `<div style="font-size:17px;font-weight:900;line-height:1.25;color:#ffffff;">${safeBannerTitle}</div>` +
+    `</div>`;
 
-  // 3.5. Imágenes y Enlaces Markdown (convirtiendo rutas relativas /api/... a URLs absolutas para clientes de correo)
-  formatted = formatted.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, rawUrl) => {
-    const abs = toAbsUrl(rawUrl);
-    const safeAlt = String(alt || 'Certificado / Evidencia').replace(/"/g, '&quot;');
-    return `\n\n<div style="margin: 12px 0;"><a href="${abs}" target="_blank" rel="noopener noreferrer"><img src="${abs}" alt="${safeAlt}" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #334155; display: block;" /></a></div>\n\n`;
-  });
-  formatted = formatted.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, rawUrl) => {
-    const abs = toAbsUrl(rawUrl);
-    return `<a href="${abs}" target="_blank" rel="noopener noreferrer" style="color: #2dd4bf; font-weight: 600; text-decoration: underline;">${label}</a>`;
-  });
-
-  // 4. Negritas y Cursivas
-  formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>');
-  formatted = formatted.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-  formatted = formatted.replace(/\*(.*?)\*/gim, '<em>$1</em>');
-
-  // 5. Citas / Blockquotes
-  formatted = formatted.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
-
-  // 6. Listas con viñetas
-  formatted = formatted.replace(/^\s*[\-\*]\s+(.*$)/gim, '<li>$1</li>');
-  formatted = formatted.replace(/(<li>.*<\/li>(\s*<li>.*<\/li>)*)/gim, '<ul>$1</ul>');
-
-  // 7. Párrafos
-  const blocks = formatted.split(/\n{2,}/);
-  formatted = blocks.map(block => {
-    block = block.trim();
-    if (!block) return '';
-    if (block.startsWith('<h') || block.startsWith('<table') || block.startsWith('<ul') || block.startsWith('<ol') || block.startsWith('<blockquote') || block.startsWith('<div')) {
-      return block;
-    }
-    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
-  }).filter(Boolean).join('\n');
-
-  return formatted;
+  return (
+    `<div style="background:#ffffff;color:#0f172a;border-radius:16px;padding:18px 20px;border:1px solid #cbd5e1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;line-height:1.6;">` +
+    `${topBanner}\n${htmlOut.join('\n')}` +
+    `</div>`
+  );
 }
 
 /**
@@ -7230,6 +7363,39 @@ async function executeRealAntigravityScraperVerification({
  * Ejecuta un Agente IA individual dentro del Escenario de Desarrollo (Sandbox) con rotación de claves WAPPY.
  * Cero llamadas a servidores externos innecesarios (Ollama/Firecrawl/Reranker/MCP) y cero efectos secundarios sobre salidas.
  */
+function buildSandboxExecutiveSystemInstruction(agentDoc) {
+  const agentName = String(agentDoc?.name || 'Consultor SG-SST').trim();
+  const rawInstr = String(agentDoc?.instructions || '').trim();
+  // Filtrar mandatos de chat interactivo / invocación de herramientas MCP (causan MALFORMED_FUNCTION_CALL e inflan tokens)
+  const sanitizedLines = rawInstr
+    .split('\n')
+    .filter((line) => {
+      const low = line.toLowerCase();
+      if (
+        /llamar a la herramienta|invoca de inmediato|herramienta\s+[`']?(canvas|matriz_ipevar|gestor_automatizaciones|somos_sst|google_drive|google_gmail|web_search|notebooklm)/i.test(
+          low,
+        ) ||
+        /\bmcp_|wappy_renderizar_widget|preguntas clave|saludo personalizado|¿deseas que/i.test(low)
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .join('\n')
+    .trim()
+    .slice(0, 1200);
+
+  return (
+    `Eres ${agentName}, Consultor Especialista en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la normativa colombiana vigente (Decreto 1072/2015, Resolución 0312/2019, Res. 4272/2021, GTC-45, Res. 2764/2022 y Dec. 1496/2018).\n` +
+    (sanitizedLines ? `Perfil del especialista:\n${sanitizedLines}\n\n` : '') +
+    `REGLA ESTRICTA DE EJECUCIÓN EN SIMULACIÓN (CERO HERRAMIENTAS / CERO NARRADOR DE NODOS):\n` +
+    `1. Todos los datos reales de los módulos conectados ya fueron extraídos previamente y aparecen en el mensaje del usuario.\n` +
+    `2. Está TERMINANTEMENTE PROHIBIDO emitir llamadas a funciones/herramientas externas o bloques JSON de herramientas.\n` +
+    `3. Redacta directamente el INFORME EJECUTIVO final en Markdown limpio (titular #, resumen ejecutivo, tabla de hallazgos/vencimientos con estados ✅/⚠️/❌ si aplica y plan de acción numerado), listo para enviarse por correo electrónico y chat a gerencia/SG-SST.\n` +
+    `4. NO narres la arquitectura del flujo ni enumeres pasos internos tipo "Paso #1", "Paso #6", "Memoria Bitácora" o "Condición Si/No".`
+  );
+}
+
 async function executeSandboxAgentCall({
   reqUser,
   agentDoc,
@@ -7240,10 +7406,8 @@ async function executeSandboxAgentCall({
   const startedAt = Date.now();
   const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
   const preferredModel = String(agentDoc?.model || 'gemini-3.6-flash').trim() || 'gemini-3.6-flash';
-  const systemInstruction =
-    agentDoc?.instructions ||
-    'Actúas como Consultor Especialista en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la normativa colombiana vigente (Decreto 1072 de 2015 y Resolución 0312 de 2019).';
-  const effectiveTimeoutMs = Math.max(25000, Math.min(Number(timeoutMs) || 70000, 90000));
+  const systemInstruction = buildSandboxExecutiveSystemInstruction(agentDoc);
+  const perAttemptMs = Math.max(20000, Math.min(Number(timeoutMs) || 45000, 45000));
 
   const extractVisibleText = (res) => {
     let raw = '';
@@ -7267,15 +7431,13 @@ async function executeSandboxAgentCall({
 
   const invokeModel = async (
     modelId,
-    { fastFallback = false, callTimeoutMs = effectiveTimeoutMs } = {},
+    { fastFallback = true, callTimeoutMs = perAttemptMs, allowWebSearch = Boolean(useWebSearch), thinkingBudget = 512 } = {},
   ) => {
     const isLite = modelId.includes('lite');
     const generationConfig = {
       temperature: 0.15,
-      // Los modelos Gemini 3.x consumen presupuesto en pensamiento interno;
-      // acotarlo a 1024 con 32768 de salida evita respuestas vacías (MAX_TOKENS) y timeouts largos.
-      maxOutputTokens: 32768,
-      ...(!isLite ? { thinkingConfig: { thinkingBudget: 1024 } } : {}),
+      maxOutputTokens: 16384,
+      ...(!isLite ? { thinkingConfig: { thinkingBudget } } : {}),
     };
     const res = await generateWithKeyRotation(
       modelId,
@@ -7283,7 +7445,7 @@ async function executeSandboxAgentCall({
       fullPrompt,
       {
         systemInstruction,
-        useWebSearch: Boolean(useWebSearch),
+        useWebSearch: allowWebSearch,
         timeoutMs: callTimeoutMs,
         fastFallback,
         generationConfig,
@@ -7296,55 +7458,49 @@ async function executeSandboxAgentCall({
     };
   };
 
-  let primaryError = null;
-  let lastFinishReason = 'desconocido';
-  try {
-    const primary = await invokeModel(preferredModel, {
-      fastFallback: !preferredModel.includes('lite'),
-      callTimeoutMs: Math.min(effectiveTimeoutMs, 65000),
-    });
-    lastFinishReason = primary.finishReason;
-    if (primary.cleanText) {
-      return {
-        text: primary.cleanText,
-        durationMs: Math.max(1, Date.now() - startedAt),
-        error: null,
-      };
-    }
-    console.warn(
-      `[Sandbox Play] Modelo primario ${preferredModel} sin texto visible (finishReason=${primary.finishReason}).`,
-    );
-  } catch (err) {
-    primaryError = err;
-    console.warn(`[Sandbox Play] Falló modelo primario ${preferredModel}:`, err?.message || err);
-  }
+  const altModel = preferredModel.includes('gemini-3.5-flash-lite')
+    ? 'gemini-3.6-flash'
+    : 'gemini-3.5-flash-lite';
+  const attemptPlan = [
+    { modelId: preferredModel, callTimeoutMs: perAttemptMs, allowWebSearch: Boolean(useWebSearch), thinkingBudget: 512 },
+    { modelId: altModel, callTimeoutMs: 35000, allowWebSearch: false, thinkingBudget: 512 },
+    // Tercer intento acotado sobre gemini-3.6-flash (geminiPoolManager entrega la siguiente clave sana)
+    { modelId: 'gemini-3.6-flash', callTimeoutMs: 35000, allowWebSearch: false, thinkingBudget: 256 },
+  ];
 
-  // Rescate rápido con modelo lite verificado (.env) si el primario agotó tiempo o devolvió vacío
-  if (!preferredModel.includes('gemini-3.5-flash-lite')) {
+  let lastError = null;
+  let lastFinishReason = 'desconocido';
+  for (let i = 0; i < attemptPlan.length; i++) {
+    const step = attemptPlan[i];
     try {
-      const rescue = await invokeModel('gemini-3.5-flash-lite', {
-        fastFallback: false,
-        callTimeoutMs: 65000,
+      const out = await invokeModel(step.modelId, {
+        fastFallback: true,
+        callTimeoutMs: step.callTimeoutMs,
+        allowWebSearch: step.allowWebSearch,
+        thinkingBudget: step.thinkingBudget,
       });
-      lastFinishReason = rescue.finishReason;
-      if (rescue.cleanText) {
+      lastFinishReason = out.finishReason;
+      if (out.cleanText) {
         return {
-          text: rescue.cleanText,
+          text: out.cleanText,
           durationMs: Math.max(1, Date.now() - startedAt),
           error: null,
         };
       }
       console.warn(
-        `[Sandbox Play] Rescate gemini-3.5-flash-lite también sin texto visible (finishReason=${rescue.finishReason}).`,
+        `[Sandbox Play] Intento #${i + 1} (${step.modelId}) sin texto visible (finishReason=${out.finishReason}).`,
       );
-    } catch (rescueErr) {
-      console.warn('[Sandbox Play] Falló rescate gemini-3.5-flash-lite:', rescueErr?.message || rescueErr);
-      primaryError = rescueErr;
+    } catch (err) {
+      lastError = err;
+      console.warn(
+        `[Sandbox Play] Intento #${i + 1} (${step.modelId}) falló:`,
+        err?.message || err,
+      );
     }
   }
 
-  const fallbackErrMsg = primaryError?.message
-    ? primaryError.message
+  const fallbackErrMsg = lastError?.message
+    ? lastError.message
     : `Modelo sin texto visible (finishReason=${lastFinishReason}).`;
   return {
     text: '',
@@ -9705,14 +9861,17 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       const upstreamDataFormatted =
         upstreamSteps.length > 0
           ? upstreamSteps
+              .filter((st) => st.category !== 'model' && st.category !== 'trigger' && st.category !== 'condition')
               .map(
                 (st) =>
-                  `### 🔹 Paso #${st.stepIndex}: ${st.title} (\`${st.category}\`)\n` +
-                  `- Resumen de Entrada: ${st.inputSummary}\n` +
-                  `- Datos / Resultados Entregados al Flujo:\n${st.outputPreview}`,
+                  `### 🔹 Fuente: ${st.title}\n` +
+                  `${String(st.outputPreview || '').slice(0, 3200)}`,
               )
-              .join('\n\n')
-          : 'Este Agente IA se encuentra al inicio del flujo sin extractores previos.';
+              .join('\n\n') ||
+            upstreamSteps
+              .map((st) => `- ${st.title}: ${st.inputSummary}`)
+              .join('\n')
+          : 'Sin extractores previos conectados.';
 
       let connectedMemoriesPromptBlock = '';
       if (connectedNodeIds.has('wappy_memory_company') && automationCompany) {
@@ -9749,12 +9908,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       const cleanMockInput = mockTriggerInput ? String(mockTriggerInput).trim() : '';
 
       const dynamicFlowDirective =
-        `[ORDEN CONSECUTIVO OBLIGATORIO DEL FLUJO CONECTADO EN EL LIENZO (${executionPlan.length} PASOS ACTIVOS)]\n` +
+        `[CONTEXTO DEL FLUJO CONECTADO EN EL LIENZO (${executionPlan.length} MÓDULOS)]\n` +
         `${flowSequenceFormatted}\n\n` +
-        `[REGLA INQUEBRANTABLE DE EJECUCIÓN CONSECUTIVA]:\n` +
-        `1. Responde y analiza ÚNICAMENTE con base en los nodos que están CONECTADOS y que se han ejecutado hasta este punto (${connectedDataTitles || 'Disparador inicial'}).\n` +
-        `2. PROHIBIDO inventar o mencionar datos de nodos que NO estén en la lista de pasos conectados de arriba (si un nodo como Extraer Trabajadores, Hito o Correo fue desconectado del flujo, NO lo menciones ni lo incluyas).\n` +
-        `3. Estructura tu respuesta siguiendo el orden exacto de los pasos conectados de este flujo y preparando la salida para los pasos siguientes (${downstreamTitles || 'Cierre del flujo'}).\n\n`;
+        `[REGLAS ESTRICTAS PARA EL INFORME EJECUTIVO FINAL]:\n` +
+        `1. Analiza ÚNICAMENTE la información real extraída de los módulos conectados hasta este punto (${connectedDataTitles || 'Disparador inicial'}).\n` +
+        `2. PROHIBIDO inventar, suponer o mencionar datos de módulos que NO estén conectados.\n` +
+        `3. Este informe es exactamente el reporte ejecutivo que llegará a correo electrónico, chat de Tenshi y Centro de Control de "${companyName}". Redáctalo de forma gerencial (Titular \`#\`, Resumen Ejecutivo, Tabla de hallazgos/vencimientos con estados ✅/⚠️/❌ si hay registros, y Plan de Acción numerado).\n` +
+        `4. PROHIBIDO narrar cómo funcionan los nodos del lienzo o dividir el informe en subtítulos tipo "Paso #1", "Paso #6: Memoria WAPPY", "Paso #7: Memoria Bitácora" o "Condición Si/No".\n\n`;
 
       const baseInstructionForAgent =
         customNodePrompt ||
@@ -9810,7 +9970,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         `[INSTRUCCIÓN PARA ${currentAgentName.toUpperCase()} (${currentAgentRole}) EN EL PASO #${stepCounter + 1}]:\n` +
         `${baseInstructionForAgent}\n\n` +
         `REGLA DE LENGUAJE EJECUTIVO LIMPIO: Usa SIEMPRE los nombres ejecutivos en español de los módulos y conectores. ESTÁ PROHIBIDO mostrar identificadores técnicos internos crudos (como \`extract_drive\`, \`extract_ai_doc_ocr\`, \`hito2_perfil_socio\`, \`hito7_investigacion_atel\`, \`somos_sst_update\`, \`if_router\` o \`pre_agent\`) en el texto final.\n` +
-        `Entrega una respuesta ejecutiva en Markdown clara, concisa y estructurada que RESPONDA DIRECTAMENTE a la entrada recibida usando fielmente el orden y los datos extraídos en los pasos conectados de este flujo.${simPostAgentIfDirective}`;
+        `Entrega una respuesta ejecutiva en Markdown clara, concisa y estructurada (con titular \`#\`, resumen ejecutivo, tabla de datos/hallazgos si aplica y plan de acción numerado) apta para enviarse directamente a correo electrónico, chat de Tenshi y Centro de Control, usando fielmente los datos reales extraídos y SIN explicar el funcionamiento ni los pasos internos de cada nodo del flujo.${simPostAgentIfDirective}`;
 
       if (isPrimaryAgent) {
         effectiveUserPrompt = baseInstructionForAgent;
@@ -9877,21 +10037,63 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
       let agentResponseText = agentExec.text;
       if (!agentResponseText) {
-        const traceSummaryRows = upstreamSteps
-          .map(
-            (n) =>
-              `| **Paso #${n.stepIndex}: ${n.title}** | \`${n.category.toUpperCase()}\` | ${n.recordsCount} reg. | ${n.surgicalFields.length > 0 ? n.surgicalFields.join(', ') : ' Completo '} |`,
-          )
-          .join('\n');
+        const criticalSample = agentInputItems
+          .filter((it) => {
+            const rawStr = JSON.stringify(it || {}).toLowerCase();
+            return /vencid|crític|próxim|por vencer|pendiente|restric|no apto|incumpl|hallazgo/i.test(
+              rawStr,
+            );
+          })
+          .slice(0, 15);
+        const rowsForFallback = (criticalSample.length > 0 ? criticalSample : agentInputItems).slice(
+          0,
+          12,
+        );
+        const contingencyTable =
+          rowsForFallback.length > 0
+            ? `| Trabajador / Elemento | Detalle / Cargo | Estado / Hallazgo |\n` +
+              `| :--- | :--- | :--- |\n` +
+              rowsForFallback
+                .map((r) => {
+                  const name =
+                    r.nombre ||
+                    r.trabajador ||
+                    r.archivo ||
+                    r.documento ||
+                    r.elemento ||
+                    r.vehiculo ||
+                    r.empresa ||
+                    'Registro';
+                  const detail =
+                    r.cargo ||
+                    r.area ||
+                    r.fechaVencimiento ||
+                    r.fecha ||
+                    r.motivo ||
+                    r.tipo ||
+                    '—';
+                  const st =
+                    r.estado ||
+                    r.estadoEmo ||
+                    r.estadoAlturas ||
+                    r.estadoPortal ||
+                    r.nivelRiesgo ||
+                    r.hallazgo ||
+                    'Revisar en módulo';
+                  return `| ${String(name).replace(/\|/g, '/').slice(0, 50)} | ${String(detail).replace(/\|/g, '/').slice(0, 50)} | ${String(st).replace(/\|/g, '/').slice(0, 60)} |`;
+                })
+                .join('\n')
+            : '';
+
         agentResponseText =
-          `### 🧪 Dictamen Ejecutivo del Flujo Conectado (${currentAgentName}) — ${companyName}\n\n` +
-          `> **Secuencia Conectada Ejecutada:** ${connectedDataTitles || 'Disparador'} ➔ **${currentAgentName}** ➔ ${downstreamTitles || 'Fin'}\n\n` +
-          `| Paso Consecutivo | Categoría | Registros en Vivo | Filtro Quirúrgico |\n` +
-          `| :--- | :---: | :---: | :--- |\n` +
-          `${traceSummaryRows}\n\n` +
-          upstreamSteps
-            .map((n) => `#### 🔹 Paso #${n.stepIndex}: ${n.title}\n${n.outputPreview}`)
-            .join('\n\n');
+          `# Informe de Contingencia SG-SST — ${companyName}\n\n` +
+          `> ⚠️ **Aviso de Contingencia del Modelo IA:** El modelo de IA no devolvió respuesta narrativa en esta corrida de prueba (${agentExec.error || 'sobrecarga temporal en Google API'}). Se presenta el consolidado directo de los **${totalExtractedRecords} registros** y **${totalCriticalRecords} hallazgos críticos** auditados. Puedes ver el detalle técnico de cada nodo en la sección **PASOS DEL FLUJO** inferior.\n\n` +
+          `## Resumen Ejecutivo de Registros Auditados\n\n` +
+          `- **Empresa:** ${companyName}\n` +
+          `- **Registros inspeccionados:** ${totalExtractedRecords}\n` +
+          `- **Hallazgos / alertas detectadas:** ${totalCriticalRecords}\n` +
+          `- **Módulos consultados:** ${connectedDataTitles || 'Disparador'}\n\n` +
+          (contingencyTable ? `## Muestras de Registros y Hallazgos\n\n${contingencyTable}\n` : '');
       }
 
       if (upstreamEvidences.length > 0) {

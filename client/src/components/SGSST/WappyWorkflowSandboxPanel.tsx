@@ -2854,7 +2854,7 @@ export default function WappyWorkflowSandboxPanel({
                   onClick={(e) =>
                     handleEvidenceContainerClick(e, capturedEvidences, onOpenEvidence)
                   }
-                  className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 max-h-[260px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none"
+                  className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 max-h-[340px] overflow-y-auto max-w-none text-slate-800 dark:text-slate-100"
                   dangerouslySetInnerHTML={{
                     __html: renderWorkflowMarkdownToInteractiveHtml(
                       emailPreview.htmlBody || finalHtml,
