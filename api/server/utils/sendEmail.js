@@ -46,6 +46,7 @@ const sendEmailViaMailgun = async ({ to, from, subject, html, attachments }) => 
 
   try {
     const response = await axios.post(`${mailgunHost}/v3/${mailgunDomain}/messages`, formData, {
+      timeout: 20000,
       headers: {
         ...formData.getHeaders(),
         Authorization: `Basic ${Buffer.from(`api:${mailgunApiKey}`).toString('base64')}`,
@@ -59,7 +60,7 @@ const sendEmailViaMailgun = async ({ to, from, subject, html, attachments }) => 
 };
 
 /**
- * Sends an email using SMTP via Nodemailer.
+ * Sends an email using SMTP via Nodemailer (con timeout duro para no bloquear tareas en background).
  *
  * @async
  * @function sendEmailViaSMTP
@@ -69,8 +70,28 @@ const sendEmailViaMailgun = async ({ to, from, subject, html, attachments }) => 
  * @returns {Promise<Object>} - A promise that resolves to the info object of the sent email.
  */
 const sendEmailViaSMTP = async ({ transporterOptions, mailOptions }) => {
-  const transporter = nodemailer.createTransport(transporterOptions);
-  return await transporter.sendMail(mailOptions);
+  const transporter = nodemailer.createTransport({
+    connectionTimeout: 12000,
+    greetingTimeout: 12000,
+    socketTimeout: 20000,
+    ...transporterOptions,
+  });
+  let smtpTimer = null;
+  try {
+    return await Promise.race([
+      transporter.sendMail(mailOptions),
+      new Promise((_, reject) => {
+        smtpTimer = setTimeout(() => {
+          reject(new Error('Tiempo límite SMTP superado (25s) enviando correo.'));
+        }, 25000);
+      }),
+    ]);
+  } finally {
+    if (smtpTimer) clearTimeout(smtpTimer);
+    try {
+      if (typeof transporter.close === 'function') transporter.close();
+    } catch (_) {}
+  }
 };
 
 /**

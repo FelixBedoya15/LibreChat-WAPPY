@@ -39,6 +39,8 @@ import {
   FileText,
   Search,
   X,
+  History,
+  Activity,
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useAuthContext } from '~/hooks';
@@ -104,6 +106,8 @@ interface Automation {
     | 'awaiting_approval'
     | 'rejected';
   lastRunResult?: string;
+  lastRunLogId?: string;
+  isActivelyRunningInProcess?: boolean;
   evidenceFiles?: ScraperCapturedEvidence[];
   evidences?: ScraperCapturedEvidence[];
   nextRunAt?: string;
@@ -117,7 +121,7 @@ interface AutomationLog {
   agentName: string;
   prompt: string;
   runAt: string;
-  status: 'running' | 'success' | 'failed' | 'awaiting_approval' | 'rejected';
+  status: 'running' | 'success' | 'failed' | 'stopped' | 'awaiting_approval' | 'rejected';
   result?: string;
   error?: string;
   conversationId?: string;
@@ -215,6 +219,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
   const [isPresetModalMode, setIsPresetModalMode] = useState(false);
+  const [initialCanvasMonitorMode, setInitialCanvasMonitorMode] = useState<'none' | 'live' | 'sandbox'>('none');
+  const [initialCanvasRunId, setInitialCanvasRunId] = useState<string | null>(null);
   const [viewResultModal, setViewResultModal] = useState<{
     title: string;
     agentName: string;
@@ -533,7 +539,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           }
         }
       } catch (err) {}
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [hasActiveRunningJob, activeTab]);
@@ -642,6 +648,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
     setIsPresetModalMode(false);
     setEditingAutomation(null);
+    setInitialCanvasMonitorMode('none');
+    setInitialCanvasRunId(null);
     setFormName('');
     setFormAgentId(agents[0]?.id || '');
     setFormPrompt('');
@@ -681,6 +689,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const handleCreatePresetOpen = () => {
     setIsPresetModalMode(true);
     setEditingAutomation(null);
+    setInitialCanvasMonitorMode('none');
+    setInitialCanvasRunId(null);
     setFormName('');
     setFormAgentId(agents[0]?.id || '');
     setFormPrompt('');
@@ -717,9 +727,26 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   // Handle open modal for edit (normal task or global preset)
-  const handleEditOpen = (automation: Automation, isPreset = false) => {
+  const handleEditOpen = (
+    automation: Automation,
+    isPreset = false,
+    monitorOpts?: { monitorMode?: 'none' | 'live' | 'sandbox'; runId?: string | null },
+  ) => {
     setIsPresetModalMode(isPreset);
     setEditingAutomation(automation);
+    setInitialCanvasMonitorMode(
+      isPreset
+        ? 'none'
+        : monitorOpts?.monitorMode ||
+            (automation.lastRunStatus === 'running' ? 'live' : 'none'),
+    );
+    setInitialCanvasRunId(
+      isPreset
+        ? null
+        : monitorOpts?.runId !== undefined
+          ? monitorOpts.runId
+          : automation.lastRunLogId || null,
+    );
     setFormName(automation.name);
     setFormAgentId(automation.agentId);
     setFormPrompt(automation.prompt);
@@ -759,6 +786,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const handleCustomizeFromPreset = (preset: Automation) => {
     setIsPresetModalMode(false);
     setEditingAutomation(null);
+    setInitialCanvasMonitorMode('none');
+    setInitialCanvasRunId(null);
     setFormName(preset.name);
     const matchingAgent =
       agents.find((a) => a.id === preset.agentId) ||
@@ -1043,19 +1072,39 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const handleRunNow = async (id: string) => {
     setActionLoadingId(id);
     try {
-      await axios.post(`/api/sgsst/automatizaciones/${id}/run`);
+      const compId =
+        typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      const res = await axios.post(
+        `/api/sgsst/automatizaciones/${id}/run${q}`,
+        compId ? { companyId: compId } : {},
+      );
+      const returnedLogId = res.data?.logId;
+      setAutomations((prev) =>
+        prev.map((a) =>
+          a._id === id
+            ? {
+                ...a,
+                lastRunStatus: 'running',
+                lastRunAt: new Date().toISOString(),
+                lastRunLogId: returnedLogId || a.lastRunLogId,
+                isActivelyRunningInProcess: true,
+              }
+            : a,
+        ),
+      );
       showToast({
-        message: 'Ejecución autónoma iniciada en segundo plano.',
-        status: 'success'
+        message: res.data?.message || 'Ejecución autónoma iniciada en segundo plano.',
+        status: 'success',
       });
       setTimeout(() => {
-        fetchAutomations();
-        if (activeTab === 'logs') fetchLogs();
-      }, 3000);
+        void fetchAutomations(true);
+        if (activeTab === 'logs') void fetchLogs(true);
+      }, 1500);
     } catch (err) {
       showToast({
         message: 'Error al iniciar la ejecución manual.',
-        status: 'error'
+        status: 'error',
       });
     } finally {
       setActionLoadingId(null);
@@ -1575,8 +1624,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     </div>
                   </div>
 
-                  {/* Visual Workflow Pipeline */}
-                  {renderWorkflowPipeline(auto.workflowNodes, auto.agentName)}
+                  {/* Visual Workflow Pipeline (Clic para abrir lienzo y monitor en vivo / histórico) */}
+                  <div
+                    onClick={() =>
+                      handleEditOpen(auto, false, {
+                        monitorMode:
+                          auto.lastRunStatus === 'running' || auto.lastRunAt ? 'live' : 'none',
+                        runId: auto.lastRunLogId || null,
+                      })
+                    }
+                    className="cursor-pointer group/pipeline rounded-2xl transition-all hover:ring-2 hover:ring-teal-500/40"
+                    title={
+                      auto.lastRunStatus === 'running'
+                        ? 'Haz clic para entrar al flujo y ver su progreso en vivo'
+                        : 'Haz clic para abrir el flujo, editar nodos o ver su histórico real'
+                    }
+                  >
+                    {renderWorkflowPipeline(auto.workflowNodes, auto.agentName)}
+                  </div>
 
                   {/* Prompt Details */}
                   <div className="bg-surface-secondary/20 dark:bg-gray-800/40 rounded-xl p-3.5 mb-4 flex-1">
@@ -1614,9 +1679,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-800 pt-3.5">
                     <div className="flex items-center gap-2">
                       {auto.lastRunStatus === 'running' ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Corriendo
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleEditOpen(auto, false, {
+                              monitorMode: 'live',
+                              runId: auto.lastRunLogId || null,
+                            })
+                          }
+                          title="Haz clic para entrar al flujo y ver su progreso en vivo"
+                          className="cursor-pointer inline-flex items-center gap-1.5 text-[10px] bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-800 dark:text-cyan-300 font-black px-2.5 py-0.5 rounded-xl uppercase tracking-wider transition"
+                        >
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                          </span>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Corriendo · Ver en Vivo
+                        </button>
                       ) : auto.lastRunStatus === 'awaiting_approval' ? (
                         <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-bold px-2.5 py-0.5 rounded-xl uppercase tracking-wider">
                           ⏳ Esperando Visto Bueno Humano
@@ -1652,6 +1732,40 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
                     {/* Actions */}
                     <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
+                      {auto.lastRunStatus === 'running' && (
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="cyan"
+                          icon={<Activity className="w-3.5 h-3.5 animate-pulse" />}
+                          label="Ver en Vivo"
+                          title="Abrir el lienzo del flujo y monitorear paso a paso en vivo"
+                          onClick={() =>
+                            handleEditOpen(auto, false, {
+                              monitorMode: 'live',
+                              runId: auto.lastRunLogId || null,
+                            })
+                          }
+                        />
+                      )}
+
+                      {auto.lastRunAt && (
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="indigo"
+                          icon={<History className="w-3.5 h-3.5" />}
+                          label="Histórico y Respuesta"
+                          title="Abrir historial completo de corridas reales y respuesta HTML Canva"
+                          onClick={() =>
+                            handleEditOpen(auto, false, {
+                              monitorMode: 'live',
+                              runId: auto.lastRunLogId || null,
+                            })
+                          }
+                        />
+                      )}
+
                       {auto.lastRunResult && (
                         <ExpandableButton
                           type="button"
@@ -2476,6 +2590,23 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 onChangeIntervalHours={setFormIntervalHours}
                 emailsStr={formEmailsStr}
                 onChangeEmailsStr={setFormEmailsStr}
+                initialMonitorMode={
+                  isPresetModalMode || !editingAutomation ? 'none' : initialCanvasMonitorMode
+                }
+                initialRunId={
+                  isPresetModalMode || !editingAutomation ? null : initialCanvasRunId
+                }
+                lastRunStatus={
+                  isPresetModalMode || !editingAutomation
+                    ? undefined
+                    : editingAutomation.lastRunStatus
+                }
+                onAutomationStateChange={() => {
+                  void fetchAutomations(true);
+                  if (activeTab === 'logs') {
+                    void fetchLogs(true);
+                  }
+                }}
               />
 
               {/* Pie del Modal: Resumen en vivo + Botones Oficiales WAPPY (ExpandableButton) */}

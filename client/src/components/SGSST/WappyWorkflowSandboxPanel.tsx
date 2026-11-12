@@ -37,6 +37,13 @@ import {
   LayoutGrid,
   List,
   Paperclip,
+  Radio,
+  History,
+  RefreshCw,
+  Square,
+  XCircle,
+  Activity,
+  UserCheck,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import { getRotatedAgentAvatar } from './workflowNodesCatalog';
@@ -60,12 +67,17 @@ export interface ScraperCapturedEvidence {
 export interface SandboxNodeTraceStep {
   nodeKey?: string;
   nodeId: string;
+  stepNumber?: number;
+  stepOrder?: number;
   title: string;
   category?: string;
   stage?: string;
   status: 'ok' | 'simulated_blocked' | 'skipped' | 'warning' | 'error' | string;
   durationMs: number;
   recordsCount?: number;
+  inputCount?: number;
+  outputCount?: number;
+  branchTaken?: string | null;
   surgicalFields?: string[];
   inputContext?: string;
   inputSummary?: string;
@@ -84,6 +96,7 @@ export interface SandboxNodeTraceStep {
     detail?: string;
   }>;
   error?: string | null;
+  timestamp?: string;
 }
 
 export interface SandboxAgentOutput {
@@ -172,6 +185,39 @@ export interface SandboxSimulationResponse {
   evidences?: ScraperCapturedEvidence[];
 }
 
+export interface RealAutomationRunLog {
+  _id: string;
+  automation: string;
+  agentId?: string;
+  agentName?: string;
+  modelUsed?: string;
+  companyName?: string;
+  prompt?: string;
+  runAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  heartbeatAt?: string;
+  durationMs?: number;
+  triggerSource?: string;
+  status: 'running' | 'success' | 'failed' | 'stopped' | 'awaiting_approval' | 'rejected';
+  currentStageLabel?: string;
+  activeStepNodeKey?: string | null;
+  completedNodeKeys?: string[];
+  blockedNodeKeys?: string[];
+  skippedNodeKeys?: string[];
+  liveSteps?: SandboxNodeTraceStep[];
+  executionTrace?: any[];
+  result?: string;
+  error?: string;
+  conversationId?: string;
+  evidenceFiles?: ScraperCapturedEvidence[];
+  evidences?: ScraperCapturedEvidence[];
+  humanApprovalPending?: boolean;
+  humanApprovalPayload?: any;
+  pendingApprovalPayload?: any;
+  isActivelyRunningInProcess?: boolean;
+}
+
 export interface WappyWorkflowSandboxPanelProps {
   open: boolean;
   running: boolean;
@@ -189,6 +235,19 @@ export interface WappyWorkflowSandboxPanelProps {
   totalPlannedSteps?: number;
   activeStepTitle?: string | null;
   onOpenEvidence?: (evidence: ScraperCapturedEvidence, preferredMode?: 'image' | 'pdf') => void;
+  monitorSourceMode?: 'sandbox' | 'real';
+  onChangeMonitorSourceMode?: (mode: 'sandbox' | 'real') => void;
+  automationId?: string | null;
+  realRuns?: RealAutomationRunLog[];
+  realRunsLoading?: boolean;
+  selectedRealRunId?: string | null;
+  onSelectRealRunId?: (logId: string) => void;
+  onRefreshRealRuns?: () => void;
+  onTriggerRealRunNow?: () => void;
+  onStopRealRun?: () => void;
+  onApproveRealRun?: (logId: string) => void;
+  onRejectRealRun?: (logId: string) => void;
+  onInspectNode?: (nodeIdOrKey: string) => void;
 }
 
 export const QUICK_MOCK_SCENARIOS: Array<{
@@ -1190,6 +1249,153 @@ export function handleEvidenceContainerClick(
   }
 }
 
+function formatRealRunDateTime(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${mi}:${ss}`;
+}
+
+function formatTriggerSourceLabel(source?: string): string {
+  const s = (source || '').trim().toLowerCase();
+  if (!s) return 'Automático';
+  if (s === 'manual') return 'Manual';
+  if (s === 'cron' || s === 'schedule') return 'Cron';
+  if (s.includes('tenshi')) return 'Tenshi IA';
+  if (s.includes('webhook')) return 'Webhook';
+  if (s.includes('gmail') || s.includes('email')) return 'Gmail';
+  if (s.includes('qr')) return 'Código QR';
+  if (s.includes('drive')) return 'Google Drive';
+  return source!.trim();
+}
+
+function formatElapsedClock(totalSec: number): string {
+  const safe = Math.max(0, Math.floor(totalSec));
+  if (safe < 60) return `${safe}s`;
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${mins}m ${String(secs).padStart(2, '0')}s`;
+}
+
+function getRealRunStatusMeta(status?: string): {
+  label: string;
+  badgeClass: string;
+  dotClass: string;
+} {
+  const s = (status || '').toLowerCase();
+  if (s === 'running') {
+    return {
+      label: 'CORRIENDO',
+      badgeClass:
+        'bg-cyan-500/15 border-cyan-500/50 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-500/30',
+      dotClass: 'bg-cyan-500 animate-ping',
+    };
+  }
+  if (s === 'success') {
+    return {
+      label: 'EXITOSA',
+      badgeClass: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300',
+      dotClass: 'bg-emerald-500',
+    };
+  }
+  if (s === 'failed') {
+    return {
+      label: 'FALLIDA',
+      badgeClass: 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300',
+      dotClass: 'bg-rose-500',
+    };
+  }
+  if (s === 'awaiting_approval') {
+    return {
+      label: 'ESPERANDO APROBACIÓN',
+      badgeClass: 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300',
+      dotClass: 'bg-amber-500 animate-pulse',
+    };
+  }
+  if (s === 'rejected') {
+    return {
+      label: 'RECHAZADA',
+      badgeClass: 'bg-rose-500/10 border-rose-400/40 text-rose-700 dark:text-rose-300',
+      dotClass: 'bg-rose-400',
+    };
+  }
+  if (s === 'stopped') {
+    return {
+      label: 'DETENIDA',
+      badgeClass: 'bg-slate-500/15 border-slate-400/40 text-slate-700 dark:text-slate-300',
+      dotClass: 'bg-slate-400',
+    };
+  }
+  return {
+    label: status ? String(status).toUpperCase() : 'PENDIENTE',
+    badgeClass: 'bg-slate-500/10 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300',
+    dotClass: 'bg-slate-400',
+  };
+}
+
+function normalizeRealRunTraceSteps(run: RealAutomationRunLog | null): SandboxNodeTraceStep[] {
+  if (!run) return [];
+  if (Array.isArray(run.liveSteps) && run.liveSteps.length > 0) {
+    return run.liveSteps.map((step, idx) => ({
+      ...step,
+      nodeKey: step?.nodeKey || step?.nodeId || `step_${idx}`,
+      nodeId: step?.nodeId || step?.nodeKey || `step_${idx}`,
+      title: step?.title || `Paso #${idx + 1}`,
+      status: step?.status || 'done',
+      durationMs: Number(step?.durationMs || 0),
+      recordsCount:
+        typeof step?.recordsCount === 'number'
+          ? step.recordsCount
+          : typeof step?.outputCount === 'number'
+            ? step.outputCount
+            : undefined,
+      inputContext: step?.inputContext || step?.inputSummary || '',
+    }));
+  }
+  if (Array.isArray(run.executionTrace) && run.executionTrace.length > 0) {
+    return run.executionTrace.map((entry: any, idx: number) => ({
+      nodeKey: entry?.nodeKey || entry?.nodeId || `trace_${idx}`,
+      nodeId: entry?.nodeId || entry?.nodeKey || `trace_${idx}`,
+      stepNumber: entry?.stepNumber ?? entry?.stepOrder ?? idx + 1,
+      title: String(
+        entry?.title || entry?.label || entry?.stage || entry?.toolName || `Paso #${idx + 1}`,
+      ),
+      category: entry?.category || entry?.stage || 'step',
+      stage: entry?.stage || entry?.category || 'step',
+      status: entry?.status || (entry?.error ? 'error' : 'done'),
+      durationMs: Number(entry?.durationMs || 0),
+      recordsCount:
+        typeof entry?.recordsCount === 'number'
+          ? entry.recordsCount
+          : typeof entry?.outputCount === 'number'
+            ? entry.outputCount
+            : undefined,
+      inputCount: typeof entry?.inputCount === 'number' ? entry.inputCount : undefined,
+      outputCount: typeof entry?.outputCount === 'number' ? entry.outputCount : undefined,
+      branchTaken: entry?.branchTaken ?? null,
+      surgicalFields: Array.isArray(entry?.surgicalFields) ? entry.surgicalFields : [],
+      inputContext: entry?.inputContext || entry?.inputSummary || '',
+      outputPreview:
+        entry?.outputPreview ||
+        entry?.details ||
+        entry?.summary ||
+        (typeof entry?.output === 'string' ? entry.output : ''),
+      error: entry?.error || null,
+      timestamp: entry?.timestamp || entry?.createdAt || undefined,
+      inputItems: Array.isArray(entry?.inputItems) ? entry.inputItems : undefined,
+      outputItems: Array.isArray(entry?.outputItems) ? entry.outputItems : undefined,
+      evidenceFiles: Array.isArray(entry?.evidenceFiles) ? entry.evidenceFiles : undefined,
+      evidences: Array.isArray(entry?.evidences) ? entry.evidences : undefined,
+    }));
+  }
+  return [];
+}
+
 export default function WappyWorkflowSandboxPanel({
   open,
   running,
@@ -1207,7 +1413,27 @@ export default function WappyWorkflowSandboxPanel({
   totalPlannedSteps = 0,
   activeStepTitle = '',
   onOpenEvidence,
+  monitorSourceMode,
+  onChangeMonitorSourceMode,
+  automationId = null,
+  realRuns,
+  realRunsLoading = false,
+  selectedRealRunId = null,
+  onSelectRealRunId,
+  onRefreshRealRuns,
+  onTriggerRealRunNow,
+  onStopRealRun,
+  onApproveRealRun,
+  onRejectRealRun,
+  onInspectNode,
 }: WappyWorkflowSandboxPanelProps) {
+  const [internalMonitorMode, setInternalMonitorMode] = useState<'sandbox' | 'real'>(
+    monitorSourceMode || 'sandbox',
+  );
+  const effectiveMonitorMode: 'sandbox' | 'real' = monitorSourceMode ?? internalMonitorMode;
+  const isRealMode = effectiveMonitorMode === 'real';
+  const showMonitorModeSwitcher = Boolean(automationId || onChangeMonitorSourceMode);
+
   const [activeTab, setActiveTab] = useState<'response' | 'files' | 'trace' | 'outputs' | 'mock'>(
     'response',
   );
@@ -1221,6 +1447,63 @@ export default function WappyWorkflowSandboxPanel({
   const [selectedAgentIdx, setSelectedAgentIdx] = useState<number>(-1); // -1 = Consolidada
   const [selectedTraceIdx, setSelectedTraceIdx] = useState<number>(0);
   const [copiedResponse, setCopiedResponse] = useState<boolean>(false);
+  const [liveElapsedSec, setLiveElapsedSec] = useState<number>(0);
+
+  const safeRealRuns = useMemo<RealAutomationRunLog[]>(
+    () => (Array.isArray(realRuns) ? realRuns : []),
+    [realRuns],
+  );
+
+  const hasAnyRunningRealRun = useMemo(
+    () => safeRealRuns.some((r) => r?.status === 'running'),
+    [safeRealRuns],
+  );
+
+  const selectedRealRun = useMemo<RealAutomationRunLog | null>(() => {
+    if (safeRealRuns.length === 0) return null;
+    if (selectedRealRunId) {
+      const exact = safeRealRuns.find((r) => r._id === selectedRealRunId);
+      if (exact) return exact;
+    }
+    return safeRealRuns.find((r) => r.status === 'running') || safeRealRuns[0] || null;
+  }, [safeRealRuns, selectedRealRunId]);
+
+  useEffect(() => {
+    if (isRealMode && (activeTab === 'outputs' || activeTab === 'mock')) {
+      setActiveTab('response');
+    }
+  }, [isRealMode, activeTab]);
+
+  useEffect(() => {
+    setSelectedTraceIdx(0);
+    setSelectedAgentIdx(-1);
+  }, [selectedRealRun?._id, effectiveMonitorMode]);
+
+  useEffect(() => {
+    if (!isRealMode || selectedRealRun?.status !== 'running') {
+      setLiveElapsedSec(0);
+      return;
+    }
+    const rawStart = selectedRealRun.runAt || selectedRealRun.createdAt;
+    const startMs = rawStart ? new Date(rawStart).getTime() : Date.now();
+    const safeStartMs = Number.isNaN(startMs) ? Date.now() : startMs;
+    const updateElapsed = () => {
+      setLiveElapsedSec(Math.max(0, Math.floor((Date.now() - safeStartMs) / 1000)));
+    };
+    updateElapsed();
+    const timer = setInterval(updateElapsed, 1000);
+    return () => clearInterval(timer);
+  }, [isRealMode, selectedRealRun?._id, selectedRealRun?.status, selectedRealRun?.runAt, selectedRealRun?.createdAt]);
+
+  const handleModeSwitch = (mode: 'sandbox' | 'real') => {
+    if (monitorSourceMode === undefined) {
+      setInternalMonitorMode(mode);
+    }
+    onChangeMonitorSourceMode?.(mode);
+    if (mode === 'real' && (activeTab === 'outputs' || activeTab === 'mock')) {
+      setActiveTab('response');
+    }
+  };
 
   const activeScenarioId = useMemo(() => {
     const trimmed = (mockTriggerInput || '').trim();
@@ -1229,6 +1512,9 @@ export default function WappyWorkflowSandboxPanel({
   }, [mockTriggerInput]);
 
   const nodeTrace = useMemo<SandboxNodeTraceStep[]>(() => {
+    if (isRealMode) {
+      return normalizeRealRunTraceSteps(selectedRealRun);
+    }
     if (!result) return [];
     const raw = Array.isArray(result.nodeTrace)
       ? result.nodeTrace
@@ -1236,9 +1522,22 @@ export default function WappyWorkflowSandboxPanel({
         ? (result as any).trace
         : [];
     return raw;
-  }, [result]);
+  }, [isRealMode, selectedRealRun, result]);
 
   const capturedEvidences = useMemo<ScraperCapturedEvidence[]>(() => {
+    if (isRealMode) {
+      const topRealEvidences: Array<ScraperCapturedEvidence | Record<string, any>> = [
+        ...(Array.isArray(selectedRealRun?.evidenceFiles) ? selectedRealRun!.evidenceFiles! : []),
+        ...(Array.isArray(selectedRealRun?.evidences) ? selectedRealRun!.evidences! : []),
+      ];
+      const rawRealMd = String(selectedRealRun?.result || '');
+      if (rawRealMd.includes('/api/sgsst/automatizaciones/evidencias/')) {
+        const fallbackEv = extractEvidenceFromRow({ certificado: rawRealMd });
+        if (fallbackEv) topRealEvidences.push(fallbackEv);
+      }
+      return collectUniqueScraperEvidences(nodeTrace, topRealEvidences);
+    }
+
     const combinedSteps: SandboxNodeTraceStep[] = [
       ...nodeTrace,
       ...(Array.isArray(liveSteps) ? liveSteps : []),
@@ -1257,7 +1556,7 @@ export default function WappyWorkflowSandboxPanel({
     }
 
     return collectUniqueScraperEvidences(combinedSteps, topEvidences);
-  }, [nodeTrace, liveSteps, result]);
+  }, [isRealMode, selectedRealRun, nodeTrace, liveSteps, result]);
 
   const filteredEvidences = useMemo<ScraperCapturedEvidence[]>(() => {
     const q = evidenceSearchQuery.trim().toLowerCase();
@@ -1270,16 +1569,19 @@ export default function WappyWorkflowSandboxPanel({
   }, [capturedEvidences, evidenceSearchQuery]);
 
   const agentOutputs = useMemo<SandboxAgentOutput[]>(() => {
-    if (!result) return [];
+    if (isRealMode || !result) return [];
     const raw = Array.isArray(result.agentOutputs)
       ? result.agentOutputs
       : Array.isArray((result as any).agents)
         ? (result as any).agents
         : [];
     return raw;
-  }, [result]);
+  }, [isRealMode, result]);
 
   const finalMarkdown = useMemo(() => {
+    if (isRealMode) {
+      return selectedRealRun?.result?.trim() || '';
+    }
     if (!result) return '';
     return (
       result.finalResponseMarkdown?.trim() ||
@@ -1288,24 +1590,53 @@ export default function WappyWorkflowSandboxPanel({
       agentOutputs[agentOutputs.length - 1]?.responseMarkdown?.trim() ||
       ''
     );
-  }, [result, agentOutputs]);
+  }, [isRealMode, selectedRealRun, result, agentOutputs]);
 
   const htmlBannerOpts = useMemo<WorkflowHtmlRenderOptions>(
-    () => ({
-      title:
-        agentOutputs[0]?.roleLabel ||
-        agentOutputs[0]?.agentName ||
-        'Informe Ejecutivo del Agente IA',
-      subtitle: result?.company?.name
-        ? `${result.company.name}${result.company.nit ? ` · NIT ${result.company.nit}` : ''} · Sistema de Gestión SST`
-        : 'Sistema de Gestión de la Seguridad y Salud en el Trabajo · WAPPY IA',
-      badge: result?.outputsBlocked ? 'Simulación Controlada' : 'Informe IA Verificado',
-      modelLabel: result?.modelUsed || agentOutputs[0]?.modelUsed || undefined,
-    }),
-    [agentOutputs, result],
+    () =>
+      isRealMode
+        ? {
+            title:
+              selectedRealRun?.agentName?.trim() ||
+              'Informe Ejecutivo del Flujo Autónomo',
+            subtitle: selectedRealRun?.companyName
+              ? `${selectedRealRun.companyName} · Sistema de Gestión SST`
+              : 'Sistema de Gestión de la Seguridad y Salud en el Trabajo · WAPPY IA',
+            badge:
+              selectedRealRun?.status === 'running'
+                ? 'En Vivo'
+                : selectedRealRun?.status === 'awaiting_approval'
+                  ? 'Esperando Aprobación'
+                  : selectedRealRun?.status === 'failed'
+                    ? 'Ejecución con Error'
+                    : 'Ejecución Real Verificada',
+            modelLabel: selectedRealRun?.modelUsed || undefined,
+          }
+        : {
+            title:
+              agentOutputs[0]?.roleLabel ||
+              agentOutputs[0]?.agentName ||
+              'Informe Ejecutivo del Agente IA',
+            subtitle: result?.company?.name
+              ? `${result.company.name}${result.company.nit ? ` · NIT ${result.company.nit}` : ''} · Sistema de Gestión SST`
+              : 'Sistema de Gestión de la Seguridad y Salud en el Trabajo · WAPPY IA',
+            badge: result?.outputsBlocked ? 'Simulación Controlada' : 'Informe IA Verificado',
+            modelLabel: result?.modelUsed || agentOutputs[0]?.modelUsed || undefined,
+          },
+    [isRealMode, selectedRealRun, agentOutputs, result],
   );
 
   const finalHtml = useMemo(() => {
+    if (isRealMode) {
+      if (finalMarkdown) {
+        const cleaned =
+          capturedEvidences.length > 0
+            ? stripNoiseEvidencesFromAgentResponse(finalMarkdown)
+            : finalMarkdown;
+        return renderWorkflowMarkdownToInteractiveHtml(cleaned, htmlBannerOpts);
+      }
+      return '<p>Sin contenido generado todavía.</p>';
+    }
     if (!result) return '';
     if (finalMarkdown) {
       return renderWorkflowMarkdownToInteractiveHtml(finalMarkdown, htmlBannerOpts);
@@ -1314,7 +1645,7 @@ export default function WappyWorkflowSandboxPanel({
       return renderWorkflowMarkdownToInteractiveHtml(result.finalResponseHtml, htmlBannerOpts);
     }
     return '<p>Sin contenido generado.</p>';
-  }, [result, finalMarkdown, htmlBannerOpts]);
+  }, [isRealMode, result, finalMarkdown, htmlBannerOpts, capturedEvidences.length]);
 
   const emailPreview = useMemo<SandboxEmailPreview>(() => {
     const raw = result?.interceptedOutputs?.emailPreview || result?.emailPreview;
@@ -1394,233 +1725,617 @@ export default function WappyWorkflowSandboxPanel({
 
   if (!open) return null;
 
-  const totalSec = result?.totalDurationMs
-    ? (result.totalDurationMs / 1000).toFixed(1)
-    : '0.0';
+  const totalSec = isRealMode
+    ? selectedRealRun?.status === 'running'
+      ? String(liveElapsedSec)
+      : selectedRealRun?.durationMs
+        ? (selectedRealRun.durationMs / 1000).toFixed(1)
+        : '0.0'
+    : result?.totalDurationMs
+      ? (result.totalDurationMs / 1000).toFixed(1)
+      : '0.0';
   const branchTaken = result?.ifEvaluation?.branchTaken || 'SÍ';
+  const selectedRealStatusMeta = getRealRunStatusMeta(selectedRealRun?.status);
+  const approvalPayload =
+    selectedRealRun?.humanApprovalPayload || selectedRealRun?.pendingApprovalPayload;
+  const completedTraceCount = nodeTrace.filter((s) => s.status !== 'running').length;
+  const plannedStepTotal = Math.max(totalPlannedSteps || 0, nodeTrace.length);
 
-  return (
-    <div
-      id="wappy-workflow-sandbox-panel"
-      className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/70 dark:border-[#C7F303]/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl transition-all min-w-0 max-w-full"
-    >
-      {/* Luces ambientales WAPPY */}
-      <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-emerald-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-teal-500/10 blur-3xl" />
-
-      {/* ─── 1. CABECERA EJECUTIVA DEL ESCENARIO DE DESARROLLO ─── */}
-      <div className="relative z-10 p-4 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-700 dark:text-[#C7F303] shrink-0 shadow-xs">
-              <Terminal className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-[#C7F303] dark:to-teal-300 bg-clip-text text-transparent">
-                  🧪 ESCENARIO DE DESARROLLO & SIMULACIÓN EN VIVO (MODO SANDBOX)
-                </h3>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold bg-emerald-500/15 border border-emerald-500/40 text-emerald-800 dark:text-[#C7F303]">
-                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                  🛡️ SALIDAS BLOQUEADAS: 0 correos enviados · 0 alertas disparadas
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                Prueba tu flujo completo con datos reales de tu empresa o escenarios simulados y verifica la respuesta exacta del Agente IA sin enviar correos ni notificaciones externas.
-              </p>
-            </div>
-          </div>
-
-          {/* Botonera WAPPY (ExpandableButton sin alwaysExpanded) */}
-          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-            <ExpandableButton
-              size="sm"
-              variant="emerald"
-              disabled={running}
-              icon={
-                running ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                )
-              }
-              label={running ? 'Ejecutando Simulación...' : 'Dar Play al Flujo (Sin Enviar Salidas)'}
-              title="Dar Play al Flujo en Modo Desarrollo (Sin Enviar Salidas)"
-              onClick={() => {
-                setActiveTab('response');
-                onRunSimulation();
-              }}
-            />
-
-            {result && (
-              <ExpandableButton
-                size="sm"
-                variant="teal"
-                icon={
-                  copiedResponse ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )
-                }
-                label={copiedResponse ? '¡Respuesta Copiada!' : 'Copiar Respuesta Final'}
-                title="Copiar Respuesta Final al portapapeles"
-                onClick={handleCopyFinalResponse}
-              />
-            )}
-
-            {(result || error || mockTriggerInput) && (
-              <ExpandableButton
-                size="sm"
-                variant="amber"
-                disabled={running}
-                icon={<RotateCcw className="w-3.5 h-3.5" />}
-                label="Limpiar Simulación"
-                title="Limpiar resultado de la simulación actual"
-                onClick={() => {
-                  setSelectedAgentIdx(-1);
-                  setSelectedTraceIdx(0);
-                  onClearSimulation();
-                }}
-              />
-            )}
-
-            <ExpandableButton
-              size="sm"
-              variant="neutral"
-              icon={<X className="w-3.5 h-3.5" />}
-              label="Cerrar Escenario"
-              title="Cerrar Escenario de Desarrollo"
-              onClick={onClose}
-            />
-          </div>
-        </div>
-
-        {/* Resumen de métricas cuando hay resultado */}
-        {result && (
-          <div className="mt-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-800/80 flex flex-wrap items-center gap-2 text-[11px] font-bold">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-              <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              ⏱️ Tiempo total: <strong>{totalSec}s</strong>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
-              <Cpu className="w-3.5 h-3.5" />
-              🧠 Motor / Modelo: <strong>{result.modelUsed || 'gemini-3.6-flash'}</strong>
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
-              <Building2 className="w-3.5 h-3.5" />
-              🏢 Empresa: <strong>{result.company?.name || 'Empresa Activa'}</strong>
-            </span>
-            <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${
-                String(branchTaken).toUpperCase().includes('NO')
-                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-              }`}
-            >
-              <GitFork className="w-3.5 h-3.5" />
-              🔀 Condición Si/No: <strong>Rama {branchTaken}</strong>
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* ─── 2. BARRA DE ESCENARIOS RÁPIDOS DE PRUEBA (INPUT MOCK EN 1 CLIC) ─── */}
-      <div className="relative z-10 px-4 py-3 bg-slate-50/90 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-amber-500" />
-            Escenarios Rápidos de Prueba (Elige un disparador en 1 clic antes de pulsar ▶ Dar Play):
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowCustomMockBox((v) => !v)}
-            className="text-[10.5px] font-extrabold text-purple-600 dark:text-[#C7F303] hover:underline flex items-center gap-1"
-          >
-            {showCustomMockBox ? (
-              <>
-                <ChevronUp className="w-3.5 h-3.5" /> Ocultar entrada personalizada
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-3.5 h-3.5" /> Personalizar dato de entrada (Mock)
-              </>
-            )}
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {QUICK_MOCK_SCENARIOS.map((sc) => {
-            const isSelected = activeScenarioId === sc.id;
-            return (
-              <button
-                key={sc.id}
-                type="button"
-                onClick={() => {
-                  onChangeMockTriggerInput(sc.mockInput);
-                  if (sc.id !== 'live_company') {
-                    setShowCustomMockBox(true);
-                  }
-                }}
-                className={`px-2.5 py-1.5 rounded-xl text-[10.5px] font-bold transition text-left border ${
-                  isSelected
-                    ? 'bg-emerald-500/15 dark:bg-[#C7F303]/20 border-emerald-500 dark:border-[#C7F303] text-emerald-900 dark:text-[#C7F303] shadow-2xs'
-                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
-                }`}
-              >
-                {sc.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {showCustomMockBox && (
-          <div className="mt-2.5">
-            <textarea
-              rows={2}
-              value={mockTriggerInput}
-              onChange={(e) => onChangeMockTriggerInput(e.target.value)}
-              placeholder="Escribe aquí un evento simulado (ej. reporte QR, correo entrante, alerta de vencimiento) o déjalo vacío para probar solo con los datos reales actuales de tu empresa..."
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* ─── 3. BARRA DE PESTAÑAS DEL ESCENARIO DE DESARROLLO ─── */}
-      <div className="relative z-10 px-4 pt-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
-        {[
-          {
-            id: 'response' as const,
-            label: '✨ 1. Respuesta Final del Flujo',
-            badge: agentOutputs.length > 1 ? `${agentOutputs.length} Agentes IA` : 'Consolidada',
-            highlightBadge: false,
-          },
-          {
-            id: 'files' as const,
-            label: '📎 Archivos / Certificados',
-            badge: `${capturedEvidences.length}`,
-            highlightBadge: capturedEvidences.length > 0,
-          },
-          {
-            id: 'trace' as const,
-            label: `🔗 2. Traza Nodo por Nodo (${nodeTrace.length} pasos)`,
-            badge: `${nodeTrace.length}`,
-            highlightBadge: false,
-          },
+  const visibleTabs = [
+    {
+      id: 'response' as const,
+      label: '✨ 1. Respuesta Final del Flujo',
+      badge: isRealMode
+        ? selectedRealRun
+          ? selectedRealStatusMeta.label
+          : 'Sin corridas'
+        : agentOutputs.length > 1
+          ? `${agentOutputs.length} Agentes IA`
+          : 'Consolidada',
+      highlightBadge: false,
+    },
+    {
+      id: 'files' as const,
+      label: '📎 2. Archivos / Certificados',
+      badge: `${capturedEvidences.length}`,
+      highlightBadge: capturedEvidences.length > 0,
+    },
+    {
+      id: 'trace' as const,
+      label: `🔗 3. Traza Nodo por Nodo (${nodeTrace.length} pasos)`,
+      badge: `${nodeTrace.length}`,
+      highlightBadge: false,
+    },
+    ...(!isRealMode
+      ? [
           {
             id: 'outputs' as const,
-            label: '🛡️ 3. Salidas Interceptadas (Sin Enviar)',
+            label: '🛡️ 4. Salidas Interceptadas (Sin Enviar)',
             badge: '0 Enviadas',
             highlightBadge: false,
           },
           {
             id: 'mock' as const,
-            label: '🧪 4. Entrada de Prueba (Mock)',
+            label: '🧪 5. Entrada de Prueba (Mock)',
             badge: mockTriggerInput.trim() ? 'Mock Activo' : 'BD en Vivo',
             highlightBadge: false,
           },
-        ].map((tab) => {
+        ]
+      : []),
+  ];
+
+  return (
+    <div
+      id="wappy-workflow-sandbox-panel"
+      className={`relative overflow-hidden rounded-2xl border-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl transition-all min-w-0 max-w-full ${
+        isRealMode
+          ? hasAnyRunningRealRun || selectedRealRun?.status === 'running'
+            ? 'border-cyan-500/80 dark:border-cyan-400/80'
+            : 'border-teal-500/70 dark:border-teal-400/70'
+          : 'border-emerald-500/70 dark:border-[#C7F303]/80'
+      }`}
+    >
+      {/* Luces ambientales WAPPY */}
+      <div
+        className={`pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl ${
+          isRealMode ? 'bg-cyan-500/10' : 'bg-emerald-500/10'
+        }`}
+      />
+      <div className="pointer-events-none absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-teal-500/10 blur-3xl" />
+
+      {/* ─── 0. SELECTOR SUPERIOR DE MODO (MONITOR EN VIVO E HISTÓRICO VS SANDBOX) ─── */}
+      {showMonitorModeSwitcher && (
+        <div className="relative z-10 px-4 py-2.5 border-b border-slate-200/80 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/80 flex flex-wrap items-center justify-between gap-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('real')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 border cursor-pointer ${
+                isRealMode
+                  ? 'bg-gradient-to-r from-teal-500/15 via-cyan-500/15 to-emerald-500/15 border-teal-500/70 dark:border-cyan-400/70 text-teal-800 dark:text-cyan-200 shadow-xs'
+                  : 'bg-white/80 dark:bg-slate-900/70 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-teal-400'
+              }`}
+            >
+              <Radio className={`w-3.5 h-3.5 shrink-0 ${hasAnyRunningRealRun ? 'text-cyan-500 animate-pulse' : ''}`} />
+              <span>📡 Monitor en Vivo e Histórico ({safeRealRuns.length})</span>
+              {hasAnyRunningRealRun && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9.5px] font-black bg-cyan-500/20 border border-cyan-500/40 text-cyan-700 dark:text-cyan-200">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                  </span>
+                  EN VIVO
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('sandbox')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 border cursor-pointer ${
+                !isRealMode
+                  ? 'bg-emerald-500/15 dark:bg-[#C7F303]/15 border-emerald-500 dark:border-[#C7F303] text-emerald-800 dark:text-[#C7F303] shadow-xs'
+                  : 'bg-white/80 dark:bg-slate-900/70 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-emerald-400'
+              }`}
+            >
+              <Terminal className="w-3.5 h-3.5 shrink-0" />
+              <span>🧪 Escenario de Desarrollo (Sandbox)</span>
+            </button>
+          </div>
+
+          {!isRealMode && (
+            <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 truncate">
+              Simulación aislada: 0 correos o alertas reales enviadas
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ─── 1. CABECERA EJECUTIVA (MONITOR EN VIVO VS SANDBOX) ─── */}
+      {isRealMode ? (
+        <div className="relative z-10 p-4 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-transparent min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-700 dark:text-cyan-300 shrink-0 shadow-xs">
+                <Activity className={`w-5 h-5 ${selectedRealRun?.status === 'running' ? 'animate-pulse' : ''}`} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider bg-gradient-to-r from-teal-600 via-cyan-600 to-emerald-600 dark:from-cyan-300 dark:to-[#C7F303] bg-clip-text text-transparent">
+                    📡 MONITOR EN VIVO E HISTÓRICO DE EJECUCIÓN REAL
+                  </h3>
+                  {selectedRealRun && (
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl text-[10px] font-black border ${selectedRealStatusMeta.badgeClass}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${selectedRealStatusMeta.dotClass}`} />
+                      {selectedRealStatusMeta.label}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                  Inspecciona paso a paso las corridas reales en producción, historial de respuestas HTML, certificados y aprobaciones pendientes.
+                </p>
+              </div>
+            </div>
+
+            {/* Botonera ejecutiva WAPPY (compacta en reposo, sin alwaysExpanded ni w-full) */}
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              {(selectedRealRun?.status === 'running' || hasAnyRunningRealRun) && onStopRealRun ? (
+                <ExpandableButton
+                  size="sm"
+                  variant="rose"
+                  icon={<Square className="w-3.5 h-3.5 fill-current" />}
+                  label="Detener Ejecución"
+                  title="Detener la corrida en curso de este flujo"
+                  onClick={onStopRealRun}
+                />
+              ) : (
+                onTriggerRealRunNow && (
+                  <ExpandableButton
+                    size="sm"
+                    variant="emerald"
+                    disabled={realRunsLoading}
+                    icon={<Play className="w-3.5 h-3.5 fill-current" />}
+                    label="Ejecutar Flujo Real Ahora"
+                    title="Disparar una ejecución real inmediata en producción"
+                    onClick={() => {
+                      setActiveTab('response');
+                      onTriggerRealRunNow();
+                    }}
+                  />
+                )
+              )}
+
+              {onRefreshRealRuns && (
+                <ExpandableButton
+                  size="sm"
+                  variant="cyan"
+                  disabled={realRunsLoading}
+                  icon={<RefreshCw className={`w-3.5 h-3.5 ${realRunsLoading ? 'animate-spin' : ''}`} />}
+                  label="Actualizar"
+                  title="Recargar historial y estado en vivo"
+                  onClick={onRefreshRealRuns}
+                />
+              )}
+
+              {selectedRealRun?.conversationId && (
+                <ExpandableButton
+                  size="sm"
+                  variant="violet"
+                  icon={<ExternalLink className="w-3.5 h-3.5" />}
+                  label="Abrir Chat Completo"
+                  title="Abrir conversación completa del Agente en LibreChat"
+                  onClick={() => {
+                    window.location.href = `/c/${selectedRealRun.conversationId}`;
+                  }}
+                />
+              )}
+
+              {finalMarkdown && (
+                <ExpandableButton
+                  size="sm"
+                  variant="teal"
+                  icon={
+                    copiedResponse ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )
+                  }
+                  label={copiedResponse ? '¡Respuesta Copiada!' : 'Copiar Respuesta'}
+                  title="Copiar Respuesta Final al portapapeles"
+                  onClick={handleCopyFinalResponse}
+                />
+              )}
+
+              <ExpandableButton
+                size="sm"
+                variant="neutral"
+                icon={<X className="w-3.5 h-3.5" />}
+                label="Cerrar"
+                title="Cerrar panel de Monitor e Histórico"
+                onClick={onClose}
+              />
+            </div>
+          </div>
+
+          {/* Métricas de la corrida real seleccionada */}
+          {selectedRealRun && (
+            <div className="mt-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-800/80 flex flex-wrap items-center gap-2 text-[11px] font-bold">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                ⏱️ Duración:{' '}
+                <strong>
+                  {selectedRealRun.status === 'running'
+                    ? formatElapsedClock(liveElapsedSec)
+                    : `${totalSec}s`}
+                </strong>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-800 dark:text-cyan-200 border border-cyan-500/30">
+                <Zap className="w-3.5 h-3.5" />
+                ⚡ Origen: <strong>{formatTriggerSourceLabel(selectedRealRun.triggerSource)}</strong>
+              </span>
+              {selectedRealRun.modelUsed && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                  <Cpu className="w-3.5 h-3.5" />
+                  🧠 Modelo: <strong>{selectedRealRun.modelUsed}</strong>
+                </span>
+              )}
+              {selectedRealRun.companyName && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+                  <Building2 className="w-3.5 h-3.5" />
+                  🏢 Empresa: <strong>{selectedRealRun.companyName}</strong>
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                📅 Inicio: <strong>{formatRealRunDateTime(selectedRealRun.runAt)}</strong>
+              </span>
+            </div>
+          )}
+
+          {/* Franja de Histórico por Flujo (Selector de Corridas Recientes) */}
+          <div className="mt-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-800/80 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400" />
+                Histórico de Corridas Recientes ({safeRealRuns.length})
+              </span>
+              {realRunsLoading && (
+                <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-300 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...
+                </span>
+              )}
+            </div>
+
+            {safeRealRuns.length === 0 ? (
+              <div className="px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400">
+                {realRunsLoading
+                  ? 'Cargando historial de ejecuciones reales...'
+                  : 'Este flujo aún no registra corridas en producción.'}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 min-w-0 max-w-full">
+                {safeRealRuns.map((run) => {
+                  const isSel = selectedRealRun?._id === run._id;
+                  const meta = getRealRunStatusMeta(run.status);
+                  const runDurationLabel =
+                    run.status === 'running'
+                      ? 'En vivo'
+                      : typeof run.durationMs === 'number' && run.durationMs > 0
+                        ? `${(run.durationMs / 1000).toFixed(1)}s`
+                        : '—';
+                  return (
+                    <button
+                      key={run._id}
+                      type="button"
+                      onClick={() => onSelectRealRunId?.(run._id)}
+                      className={`shrink-0 px-3 py-2 rounded-xl border text-left transition cursor-pointer flex flex-col gap-1 min-w-[185px] ${
+                        isSel
+                          ? 'bg-teal-500/15 dark:bg-cyan-500/15 border-teal-500 dark:border-cyan-400 shadow-xs'
+                          : 'bg-white/90 dark:bg-slate-900/90 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10.5px] font-black text-slate-800 dark:text-slate-100 whitespace-nowrap">
+                          {formatRealRunDateTime(run.runAt)}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-black border ${meta.badgeClass}`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${meta.dotClass}`} />
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        <span className="truncate">{formatTriggerSourceLabel(run.triggerSource)}</span>
+                        <span className="shrink-0 font-mono text-slate-700 dark:text-slate-300">
+                          ⏱️ {runDurationLabel}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="relative z-10 p-4 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-700 dark:text-[#C7F303] shrink-0 shadow-xs">
+                <Terminal className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-[#C7F303] dark:to-teal-300 bg-clip-text text-transparent">
+                    🧪 ESCENARIO DE DESARROLLO & SIMULACIÓN EN VIVO (MODO SANDBOX)
+                  </h3>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold bg-emerald-500/15 border border-emerald-500/40 text-emerald-800 dark:text-[#C7F303]">
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                    🛡️ SALIDAS BLOQUEADAS: 0 correos enviados · 0 alertas disparadas
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                  Prueba tu flujo completo con datos reales de tu empresa o escenarios simulados y verifica la respuesta exacta del Agente IA sin enviar correos ni notificaciones externas.
+                </p>
+              </div>
+            </div>
+
+            {/* Botonera WAPPY (ExpandableButton sin alwaysExpanded) */}
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              <ExpandableButton
+                size="sm"
+                variant="emerald"
+                disabled={running}
+                icon={
+                  running ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                  )
+                }
+                label={running ? 'Ejecutando Simulación...' : 'Dar Play al Flujo (Sin Enviar Salidas)'}
+                title="Dar Play al Flujo en Modo Desarrollo (Sin Enviar Salidas)"
+                onClick={() => {
+                  setActiveTab('response');
+                  onRunSimulation();
+                }}
+              />
+
+              {result && (
+                <ExpandableButton
+                  size="sm"
+                  variant="teal"
+                  icon={
+                    copiedResponse ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )
+                  }
+                  label={copiedResponse ? '¡Respuesta Copiada!' : 'Copiar Respuesta Final'}
+                  title="Copiar Respuesta Final al portapapeles"
+                  onClick={handleCopyFinalResponse}
+                />
+              )}
+
+              {(result || error || mockTriggerInput) && (
+                <ExpandableButton
+                  size="sm"
+                  variant="amber"
+                  disabled={running}
+                  icon={<RotateCcw className="w-3.5 h-3.5" />}
+                  label="Limpiar Simulación"
+                  title="Limpiar resultado de la simulación actual"
+                  onClick={() => {
+                    setSelectedAgentIdx(-1);
+                    setSelectedTraceIdx(0);
+                    onClearSimulation();
+                  }}
+                />
+              )}
+
+              <ExpandableButton
+                size="sm"
+                variant="neutral"
+                icon={<X className="w-3.5 h-3.5" />}
+                label="Cerrar Escenario"
+                title="Cerrar Escenario de Desarrollo"
+                onClick={onClose}
+              />
+            </div>
+          </div>
+
+          {/* Resumen de métricas cuando hay resultado */}
+          {result && (
+            <div className="mt-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-800/80 flex flex-wrap items-center gap-2 text-[11px] font-bold">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                ⏱️ Tiempo total: <strong>{totalSec}s</strong>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                <Cpu className="w-3.5 h-3.5" />
+                🧠 Motor / Modelo: <strong>{result.modelUsed || 'gemini-3.6-flash'}</strong>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+                <Building2 className="w-3.5 h-3.5" />
+                🏢 Empresa: <strong>{result.company?.name || 'Empresa Activa'}</strong>
+              </span>
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${
+                  String(branchTaken).toUpperCase().includes('NO')
+                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                }`}
+              >
+                <GitFork className="w-3.5 h-3.5" />
+                🔀 Condición Si/No: <strong>Rama {branchTaken}</strong>
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── 2. BARRA EN VIVO / APROBACIÓN (REAL) O ESCENARIOS RÁPIDOS (SANDBOX) ─── */}
+      {isRealMode && selectedRealRun?.status === 'running' && (
+        <div className="relative z-10 px-4 py-3 bg-gradient-to-r from-cyan-500/10 via-emerald-500/5 to-transparent border-b border-cyan-500/30 space-y-2 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Loader2 className="w-4 h-4 text-cyan-600 dark:text-cyan-300 animate-spin shrink-0" />
+              <span className="text-xs font-black text-cyan-900 dark:text-cyan-100 truncate">
+                {selectedRealRun.currentStageLabel ||
+                  activeStepTitle ||
+                  'Ejecutando flujo autónomo paso a paso...'}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[10.5px] font-bold text-cyan-800 dark:text-cyan-200 shrink-0">
+              <span className="px-2 py-0.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 font-mono">
+                ⏱️ {formatElapsedClock(liveElapsedSec)}
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
+                Pasos: {completedTraceCount}
+                {plannedStepTotal > 0 ? ` / ${plannedStepTotal}` : ''}
+              </span>
+              {(selectedRealRun.heartbeatAt || selectedRealRun.updatedAt) && (
+                <span className="text-slate-600 dark:text-slate-300">
+                  💓 Latido: {formatRealRunDateTime(selectedRealRun.heartbeatAt || selectedRealRun.updatedAt)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {nodeTrace.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {nodeTrace.map((st, idx) => (
+                <span
+                  key={`${st.nodeKey || st.nodeId}_${idx}`}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border flex items-center gap-1 ${
+                    st.status === 'running'
+                      ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-800 dark:text-cyan-200 animate-pulse'
+                      : st.status === 'error'
+                        ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                        : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-800 dark:text-[#C7F303]'
+                  }`}
+                >
+                  <span>
+                    {st.status === 'running' ? '⏳' : st.status === 'error' ? '✕' : '✓'} #
+                    {st.stepNumber || st.stepOrder || idx + 1}: {st.title}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isRealMode && selectedRealRun?.status === 'awaiting_approval' && (
+        <div className="relative z-10 px-4 py-3 bg-amber-500/10 border-b border-amber-500/40 flex flex-wrap items-center justify-between gap-3 min-w-0">
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <UserCheck className="w-5 h-5 text-amber-600 dark:text-amber-300 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <div className="text-xs font-black text-amber-900 dark:text-amber-200">
+                ⏸️ Flujo pausado esperando aprobación humana (Compuerta Humano en el Bucle)
+              </div>
+              <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 mt-0.5 break-words">
+                {approvalPayload?.summary ||
+                  approvalPayload?.reason ||
+                  'Revisa la respuesta generada abajo y decide si apruebas el despacho final de correos, notificaciones o actualizaciones en Hitos.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {onApproveRealRun && (
+              <ExpandableButton
+                size="sm"
+                variant="emerald"
+                icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                label="Aprobar y Despachar Salidas"
+                title="Aprobar ejecución y despachar salidas configuradas"
+                onClick={() => onApproveRealRun(selectedRealRun._id)}
+              />
+            )}
+            {onRejectRealRun && (
+              <ExpandableButton
+                size="sm"
+                variant="danger"
+                icon={<XCircle className="w-3.5 h-3.5" />}
+                label="Rechazar"
+                title="Rechazar ejecución y cancelar salidas"
+                onClick={() => onRejectRealRun(selectedRealRun._id)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {!isRealMode && (
+        <div className="relative z-10 px-4 py-3 bg-slate-50/90 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              Escenarios Rápidos de Prueba (Elige un disparador en 1 clic antes de pulsar ▶ Dar Play):
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowCustomMockBox((v) => !v)}
+              className="text-[10.5px] font-extrabold text-purple-600 dark:text-[#C7F303] hover:underline flex items-center gap-1"
+            >
+              {showCustomMockBox ? (
+                <>
+                  <ChevronUp className="w-3.5 h-3.5" /> Ocultar entrada personalizada
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3.5 h-3.5" /> Personalizar dato de entrada (Mock)
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {QUICK_MOCK_SCENARIOS.map((sc) => {
+              const isSelected = activeScenarioId === sc.id;
+              return (
+                <button
+                  key={sc.id}
+                  type="button"
+                  onClick={() => {
+                    onChangeMockTriggerInput(sc.mockInput);
+                    if (sc.id !== 'live_company') {
+                      setShowCustomMockBox(true);
+                    }
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[10.5px] font-bold transition text-left border ${
+                    isSelected
+                      ? 'bg-emerald-500/15 dark:bg-[#C7F303]/20 border-emerald-500 dark:border-[#C7F303] text-emerald-900 dark:text-[#C7F303] shadow-2xs'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
+                  }`}
+                >
+                  {sc.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {showCustomMockBox && (
+            <div className="mt-2.5">
+              <textarea
+                rows={2}
+                value={mockTriggerInput}
+                onChange={(e) => onChangeMockTriggerInput(e.target.value)}
+                placeholder="Escribe aquí un evento simulado (ej. reporte QR, correo entrante, alerta de vencimiento) o déjalo vacío para probar solo con los datos reales actuales de tu empresa..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── 3. BARRA DE PESTAÑAS DEL PANEL (UNIFICADA MONITOR REAL / SANDBOX) ─── */}
+      <div className="relative z-10 px-4 pt-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
@@ -1629,7 +2344,9 @@ export default function WappyWorkflowSandboxPanel({
               onClick={() => setActiveTab(tab.id)}
               className={`px-3 py-2 rounded-t-xl text-xs font-extrabold transition flex items-center gap-2 border-b-2 cursor-pointer ${
                 isActive
-                  ? 'border-emerald-500 dark:border-[#C7F303] text-emerald-700 dark:text-[#C7F303] bg-emerald-500/10 dark:bg-[#C7F303]/10'
+                  ? isRealMode
+                    ? 'border-cyan-500 dark:border-cyan-400 text-teal-700 dark:text-cyan-300 bg-cyan-500/10'
+                    : 'border-emerald-500 dark:border-[#C7F303] text-emerald-700 dark:text-[#C7F303] bg-emerald-500/10 dark:bg-[#C7F303]/10'
                   : tab.highlightBadge
                     ? 'border-transparent text-teal-700 dark:text-teal-300 bg-teal-500/5 hover:bg-teal-500/10'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -1641,7 +2358,9 @@ export default function WappyWorkflowSandboxPanel({
                   tab.highlightBadge
                     ? 'bg-[#C7F303] text-[#0E1300] ring-1 ring-emerald-500/40 shadow-2xs'
                     : isActive
-                      ? 'bg-emerald-500/20 text-emerald-800 dark:text-[#C7F303]'
+                      ? isRealMode
+                        ? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200'
+                        : 'bg-emerald-500/20 text-emerald-800 dark:text-[#C7F303]'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}
               >
@@ -1652,10 +2371,10 @@ export default function WappyWorkflowSandboxPanel({
         })}
       </div>
 
-      {/* ─── 4. CUERPO DE LAS 4 PESTAÑAS ─── */}
+      {/* ─── 4. CUERPO DE LAS PESTAÑAS ─── */}
       <div className="relative z-10 p-4">
-        {/* Estado de error */}
-        {error && (
+        {/* Estado de error (Sandbox o Ejecución Real) */}
+        {!isRealMode && error && (
           <div className="mb-3 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
             <div className="flex items-start gap-2.5 text-xs">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
@@ -1674,8 +2393,34 @@ export default function WappyWorkflowSandboxPanel({
           </div>
         )}
 
-        {/* Estado ejecutando en vivo paso por paso */}
-        {running && (
+        {isRealMode && (selectedRealRun?.error || selectedRealRun?.status === 'failed') && (
+          <div className="mb-3 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 text-xs min-w-0 flex-1">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+              <div className="min-w-0">
+                <div className="font-extrabold">La ejecución real registró un error</div>
+                <p className="mt-0.5 text-[11px] opacity-90 break-words whitespace-pre-wrap">
+                  {selectedRealRun?.error || 'Error inesperado durante la ejecución autónoma del flujo.'}
+                </p>
+              </div>
+            </div>
+            {onTriggerRealRunNow && selectedRealRun?.status !== 'running' && (
+              <ExpandableButton
+                size="sm"
+                variant="emerald"
+                icon={<Play className="w-3.5 h-3.5" />}
+                label="Reintentar Ejecución Real"
+                onClick={() => {
+                  setActiveTab('response');
+                  onTriggerRealRunNow();
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Estado ejecutando en vivo paso por paso (Sandbox) */}
+        {!isRealMode && running && (
           <div className="py-6 px-4 rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/5 flex flex-col items-center justify-center text-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-[#C7F303]">
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -1712,8 +2457,8 @@ export default function WappyWorkflowSandboxPanel({
           </div>
         )}
 
-        {/* Galería en vivo si algún paso scraper ya capturó certificados mientras termina la corrida */}
-        {running && capturedEvidences.length > 0 && (
+        {/* Galería en vivo Sandbox si algún paso scraper ya capturó certificados */}
+        {!isRealMode && running && capturedEvidences.length > 0 && (
           <div className="mt-3 rounded-2xl border border-[#0D9488]/50 bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-transparent p-3.5 space-y-2.5 min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-black text-teal-800 dark:text-teal-200 flex items-center gap-1.5">
@@ -1767,8 +2512,41 @@ export default function WappyWorkflowSandboxPanel({
           </div>
         )}
 
-        {/* Estado inicial sin probar aún */}
-        {!running && !result && !error && activeTab !== 'mock' && activeTab !== 'files' && (
+        {/* Estado inicial sin corridas reales aún (Monitor Real) */}
+        {isRealMode && !selectedRealRun && activeTab !== 'files' && (
+          <div className="py-8 px-4 rounded-2xl border border-dashed border-cyan-500/40 bg-cyan-500/5 flex flex-col items-center justify-center text-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-300">
+              {realRunsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Radio className="w-6 h-6" />}
+            </div>
+            <div>
+              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                {realRunsLoading
+                  ? 'Cargando histórico de ejecuciones reales...'
+                  : 'Este flujo aún no tiene ejecuciones reales registradas'}
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-lg mt-1">
+                {realRunsLoading
+                  ? 'Consultando bitácora y estado en tiempo real desde MongoDB...'
+                  : 'Pulsa el botón para disparar una corrida real inmediata o cambia al Escenario de Desarrollo (Sandbox) para probar sin enviar salidas.'}
+              </p>
+            </div>
+            {!realRunsLoading && onTriggerRealRunNow && (
+              <ExpandableButton
+                size="md"
+                variant="emerald"
+                icon={<Play className="w-4 h-4 fill-current" />}
+                label="Ejecutar Flujo Real Ahora"
+                onClick={() => {
+                  setActiveTab('response');
+                  onTriggerRealRunNow();
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Estado inicial sin probar aún (Sandbox) */}
+        {!isRealMode && !running && !result && !error && activeTab !== 'mock' && activeTab !== 'files' && (
           <div className="py-8 px-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center text-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-[#C7F303]">
               <Play className="w-6 h-6 fill-current" />
@@ -1791,20 +2569,77 @@ export default function WappyWorkflowSandboxPanel({
           </div>
         )}
 
-        {/* ─── PESTAÑA 1: RESPUESTA FINAL DEL FLUJO (VISTA PREVIA) ─── */}
-        {!running && result && activeTab === 'response' && (
+        {/* Estado en curso sin respuesta final todavía (Monitor Real · Pestaña 1) */}
+        {isRealMode && selectedRealRun && !finalMarkdown && activeTab === 'response' && (
+          <div className="py-7 px-4 rounded-2xl border border-dashed border-cyan-500/40 bg-cyan-500/5 flex flex-col items-center justify-center text-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-300">
+              {selectedRealRun.status === 'running' ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <FileText className="w-6 h-6" />
+              )}
+            </div>
+            <div className="max-w-xl">
+              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                {selectedRealRun.status === 'running'
+                  ? selectedRealRun.currentStageLabel || 'Ejecución en curso... generando respuesta ejecutiva'
+                  : `Corrida finalizada en estado: ${selectedRealStatusMeta.label}`}
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {selectedRealRun.status === 'running'
+                  ? 'La respuesta HTML estilizada aparecerá automáticamente aquí apenas el Agente IA concluya. Mientras tanto puedes abrir la pestaña «3. Traza Nodo por Nodo» para ver cada paso en vivo.'
+                  : 'Esta ejecución no generó texto de respuesta final (puede haber sido detenida, rechazada o cerrada por una condición Si/No). Revisa la pestaña «3. Traza Nodo por Nodo» para ver el detalle.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <ExpandableButton
+                size="sm"
+                variant="cyan"
+                icon={<Terminal className="w-3.5 h-3.5" />}
+                label={`Ver Traza Nodo por Nodo (${nodeTrace.length})`}
+                onClick={() => setActiveTab('trace')}
+              />
+              {capturedEvidences.length > 0 && (
+                <ExpandableButton
+                  size="sm"
+                  variant="teal"
+                  icon={<Paperclip className="w-3.5 h-3.5" />}
+                  label={`Ver Certificados (${capturedEvidences.length})`}
+                  onClick={() => setActiveTab('files')}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── PESTAÑA 1: RESPUESTA FINAL DEL FLUJO (VISTA PREVIA CANVA HTML) ─── */}
+        {((!isRealMode && !running && result) ||
+          (isRealMode && selectedRealRun && Boolean(finalMarkdown))) &&
+          activeTab === 'response' && (
           <div className="space-y-3 min-w-0">
-            {/* Banner superior obligatorio de confirmación */}
-            <div className="px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+            {/* Banner superior de confirmación */}
+            <div
+              className={`px-3.5 py-2.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs font-bold ${
+                isRealMode
+                  ? 'bg-cyan-500/10 border-cyan-500/30 text-teal-900 dark:text-cyan-100'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
+              }`}
+            >
               <span className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-[#C7F303] shrink-0" />
-                ✅ Esta es la respuesta exacta que producirá tu flujo al final. Ningún correo ni notificación externa fue enviado.
+                <CheckCircle2
+                  className={`w-4 h-4 shrink-0 ${
+                    isRealMode ? 'text-cyan-600 dark:text-cyan-300' : 'text-emerald-600 dark:text-[#C7F303]'
+                  }`}
+                />
+                {isRealMode
+                  ? `✅ Respuesta ejecutiva real generada el ${formatRealRunDateTime(selectedRealRun?.runAt)} · Origen: ${formatTriggerSourceLabel(selectedRealRun?.triggerSource)}`
+                  : '✅ Esta es la respuesta exacta que producirá tu flujo al final. Ningún correo ni notificación externa fue enviado.'}
               </span>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setShowRawMarkdown((v) => !v)}
-                  className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-800 border border-emerald-500/30 text-[10.5px] font-extrabold text-emerald-800 dark:text-[#C7F303] flex items-center gap-1 hover:bg-white transition"
+                  className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-800 border border-emerald-500/30 text-[10.5px] font-extrabold text-emerald-800 dark:text-[#C7F303] flex items-center gap-1 hover:bg-white transition cursor-pointer"
                 >
                   <Code2 className="w-3.5 h-3.5" />
                   {showRawMarkdown ? 'Ver Vista Formateada' : 'Ver Markdown Puro'}
@@ -2175,7 +3010,7 @@ export default function WappyWorkflowSandboxPanel({
                             </span>
                           </div>
                           <div className="text-[10px] font-bold text-purple-600 dark:text-purple-400 truncate">
-                            {ag.roleLabel || avatarInfo.roleHint} · {ag.modelUsed || result.modelUsed}
+                            {ag.roleLabel || avatarInfo.roleHint} · {ag.modelUsed || result?.modelUsed || ''}
                           </div>
                         </div>
                       </button>
@@ -2218,7 +3053,7 @@ export default function WappyWorkflowSandboxPanel({
                     : '<p>Sin respuesta disponible.</p>'
                 : activeMarkdown
                   ? renderWorkflowMarkdownToInteractiveHtml(activeMarkdown, activeBannerOpts)
-                  : result?.finalResponseHtml?.trim()
+                  : !isRealMode && result?.finalResponseHtml?.trim()
                     ? renderWorkflowMarkdownToInteractiveHtml(
                         capturedEvidences.length > 0
                           ? stripNoiseEvidencesFromAgentResponse(result.finalResponseHtml)
@@ -2249,7 +3084,7 @@ export default function WappyWorkflowSandboxPanel({
         )}
 
         {/* ─── PESTAÑA DEDICADA: ARCHIVOS / CERTIFICADOS DESCARGADOS ─── */}
-        {!running && activeTab === 'files' && (
+        {(isRealMode || !running) && activeTab === 'files' && (
           <div className="space-y-3 min-w-0 max-w-full">
             {capturedEvidences.length === 0 ? (
               <div className="py-10 px-4 rounded-2xl border border-dashed border-teal-500/40 bg-teal-500/5 flex flex-col items-center justify-center text-center gap-3">
@@ -2264,16 +3099,43 @@ export default function WappyWorkflowSandboxPanel({
                     Cuando tu flujo ejecute nodos de Web Scraping oficial (como <strong>MinTrabajo Alturas y Confinados</strong>, <strong>SENA SOFIA Plus</strong>, <strong>ARL</strong>, <strong>Contraloría</strong>, <strong>Procuraduría</strong>, <strong>SIMIT</strong> o <strong>Porvenir</strong>) y encuentre certificados vigentes, aparecerán aquí separados del mensaje del Agente IA listos para ver en HD o descargar en PDF.
                   </p>
                 </div>
-                {!result && (
-                  <ExpandableButton
-                    size="sm"
-                    variant="emerald"
-                    icon={<Play className="w-3.5 h-3.5 fill-current" />}
-                    label="Dar Play al Flujo para Buscar Certificados"
-                    onClick={onRunSimulation}
-                  />
+                {isRealMode ? (
+                  onTriggerRealRunNow &&
+                  selectedRealRun?.status !== 'running' && (
+                    <ExpandableButton
+                      size="sm"
+                      variant="emerald"
+                      icon={<Play className="w-3.5 h-3.5 fill-current" />}
+                      label="Ejecutar Flujo Real Ahora"
+                      onClick={() => {
+                        setActiveTab('response');
+                        onTriggerRealRunNow();
+                      }}
+                    />
+                  )
+                ) : (
+                  !result && (
+                    <ExpandableButton
+                      size="sm"
+                      variant="emerald"
+                      icon={<Play className="w-3.5 h-3.5 fill-current" />}
+                      label="Dar Play al Flujo para Buscar Certificados"
+                      onClick={onRunSimulation}
+                    />
+                  )
                 )}
               </div>
+            ) : isRealMode && onOpenEvidence ? (
+              <WorkflowEvidenceTray
+                evidences={capturedEvidences}
+                onOpenEvidence={onOpenEvidence}
+                defaultLayout="cards"
+                title={`📎 ${capturedEvidences.length} ${
+                  capturedEvidences.length === 1
+                    ? 'Certificado / Archivo Oficial Capturado en Ejecución Real'
+                    : 'Certificados y Archivos Oficiales Capturados en Ejecución Real'
+                }`}
+              />
             ) : (
               <div className="space-y-3 min-w-0 max-w-full">
                 {/* Barra superior de la pestaña Archivos: Resumen + Buscador rápido (> 4 ítems) + Selector Galería/Lista */}
@@ -2593,17 +3455,40 @@ export default function WappyWorkflowSandboxPanel({
           </div>
         )}
 
-        {/* ─── PESTAÑA 2: TRAZA NODO POR NODO ─── */}
-        {!running && result && activeTab === 'trace' && (
+        {/* ─── PESTAÑA 3: TRAZA NODO POR NODO ─── */}
+        {((!isRealMode && !running && result) || (isRealMode && selectedRealRun)) &&
+          activeTab === 'trace' && (
+          nodeTrace.length === 0 ? (
+            <div className="py-8 px-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center text-center gap-2">
+              <Terminal className="w-6 h-6 text-slate-400" />
+              <div className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                {selectedRealRun?.status === 'running'
+                  ? 'Esperando el registro del primer paso en vivo...'
+                  : 'Esta corrida histórica no tiene traza paso a paso registrada.'}
+              </div>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             {/* Columna izquierda: Lista de pasos ejecutados */}
             <div className="lg:col-span-5 space-y-1.5 max-h-[440px] overflow-y-auto pr-1">
               {nodeTrace.map((step, idx) => {
                 const isSelected = selectedTraceIdx === idx;
                 const isBlockedOutput =
-                  step.status === 'simulated_blocked' ||
-                  step.category === 'output' ||
-                  step.stage === 'outputs';
+                  !isRealMode &&
+                  (step.status === 'simulated_blocked' ||
+                    step.category === 'output' ||
+                    step.stage === 'outputs');
+                const isRunningStep = step.status === 'running';
+                const isErrorStep = step.status === 'error';
+                const isSkippedStep = step.status === 'skipped';
+                const countValue =
+                  typeof step.recordsCount === 'number'
+                    ? step.recordsCount
+                    : typeof step.outputCount === 'number'
+                      ? step.outputCount
+                      : Array.isArray(step.outputItems)
+                        ? step.outputItems.length
+                        : undefined;
                 return (
                   <button
                     key={`${step.nodeKey || step.nodeId}_${idx}`}
@@ -2612,24 +3497,29 @@ export default function WappyWorkflowSandboxPanel({
                       setSelectedTraceIdx(idx);
                       onSelectStepNode(step.nodeKey || step.nodeId);
                     }}
-                    className={`w-full p-2.5 rounded-xl border text-left transition flex items-center justify-between gap-2 ${
+                    className={`w-full p-2.5 rounded-xl border text-left transition flex items-center justify-between gap-2 cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-500/15 dark:bg-[#C7F303]/15 border-emerald-500 dark:border-[#C7F303] shadow-xs'
+                        ? isRealMode
+                          ? 'bg-cyan-500/15 border-cyan-500 dark:border-cyan-400 shadow-xs'
+                          : 'bg-emerald-500/15 dark:bg-[#C7F303]/15 border-emerald-500 dark:border-[#C7F303] shadow-xs'
                         : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className="w-6 h-6 rounded-lg bg-slate-900 text-white dark:bg-[#C7F303] dark:text-[#0E1300] text-[10px] font-black flex items-center justify-center shrink-0">
-                        {idx + 1}
+                        {step.stepNumber || step.stepOrder || idx + 1}
                       </span>
                       <div className="min-w-0">
                         <div className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
                           {step.title}
                         </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
                           <span>⏱️ {step.durationMs || 0} ms</span>
-                          {typeof step.recordsCount === 'number' && (
-                            <span>· 📊 {step.recordsCount} reg.</span>
+                          {typeof countValue === 'number' && (
+                            <span>· 📊 {countValue} ítems</span>
+                          )}
+                          {step.branchTaken && (
+                            <span>· 🔀 Rama {step.branchTaken}</span>
                           )}
                         </div>
                       </div>
@@ -2637,12 +3527,28 @@ export default function WappyWorkflowSandboxPanel({
 
                     <span
                       className={`px-2 py-0.5 rounded-lg text-[9.5px] font-extrabold shrink-0 border ${
-                        isBlockedOutput
-                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300'
-                          : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                        isRunningStep
+                          ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-700 dark:text-cyan-300 animate-pulse'
+                          : isErrorStep
+                            ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                            : isSkippedStep
+                              ? 'bg-slate-500/15 border-slate-400/40 text-slate-600 dark:text-slate-300'
+                              : isBlockedOutput
+                                ? 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300'
+                                : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
                       }`}
                     >
-                      {isBlockedOutput ? '🛡️ Simulado' : '✓ Listo'}
+                      {isRunningStep
+                        ? '⏳ En curso'
+                        : isErrorStep
+                          ? '✕ Error'
+                          : isSkippedStep
+                            ? '⊘ Omitido'
+                            : isBlockedOutput
+                              ? '🛡️ Simulado'
+                              : isRealMode && (step.category === 'output' || step.stage === 'outputs')
+                                ? '✓ Despachado'
+                                : '✓ Listo'}
                     </span>
                   </button>
                 );
@@ -2654,18 +3560,38 @@ export default function WappyWorkflowSandboxPanel({
               {currentTraceStep ? (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200 dark:border-slate-800">
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-[#C7F303]">
-                        Paso #{selectedTraceIdx + 1} · {currentTraceStep.stage || currentTraceStep.category || 'Nodo del Flujo'}
+                        Paso #{currentTraceStep.stepNumber || currentTraceStep.stepOrder || selectedTraceIdx + 1} · {currentTraceStep.stage || currentTraceStep.category || 'Nodo del Flujo'}
                       </span>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
                         {currentTraceStep.title}
                       </h4>
                     </div>
-                    <span className="px-2.5 py-1 rounded-xl bg-slate-200/70 dark:bg-slate-800 text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                      ⏱️ Duración ({currentTraceStep.durationMs || 0} ms)
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                      <span className="px-2.5 py-1 rounded-xl bg-slate-200/70 dark:bg-slate-800 text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                        ⏱️ Duración ({currentTraceStep.durationMs || 0} ms)
+                      </span>
+                      {onInspectNode && (
+                        <ExpandableButton
+                          size="sm"
+                          variant="indigo"
+                          icon={<ExternalLink className="w-3.5 h-3.5" />}
+                          label="Inspector 3 Columnas (n8n)"
+                          title="Abrir el Inspector de 3 columnas (INPUT | Configuración | OUTPUT) de este nodo en el lienzo"
+                          onClick={() =>
+                            onInspectNode(currentTraceStep.nodeKey || currentTraceStep.nodeId)
+                          }
+                        />
+                      )}
+                    </div>
                   </div>
+
+                  {currentTraceStep.error && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-700 dark:text-rose-300 font-semibold whitespace-pre-wrap break-words">
+                      ⚠️ Error del paso: {currentTraceStep.error}
+                    </div>
+                  )}
 
                   {/* Entrada */}
                   <div>
@@ -2780,6 +3706,10 @@ export default function WappyWorkflowSandboxPanel({
                       const rawPreviewText =
                         currentTraceStep.outputPreview?.trim() ||
                         currentTraceStep.details?.trim() ||
+                        (Array.isArray(currentTraceStep.outputItems) &&
+                        currentTraceStep.outputItems.length > 0
+                          ? JSON.stringify(currentTraceStep.outputItems.slice(0, 5), null, 2)
+                          : '') ||
                         'Paso completado y transmitido al siguiente nodo.';
                       const hasRichMarkdown =
                         rawPreviewText.includes('/api/sgsst/automatizaciones/evidencias/') ||
@@ -2811,10 +3741,11 @@ export default function WappyWorkflowSandboxPanel({
               )}
             </div>
           </div>
+          )
         )}
 
         {/* ─── PESTAÑA 3: SALIDAS INTERCEPTADAS (SIN ENVIAR) ─── */}
-        {!running && result && activeTab === 'outputs' && (
+        {!isRealMode && !running && result && activeTab === 'outputs' && (
           <div className="space-y-4">
             {/* 1. Vista Previa de Correo (Bitácora a Gmail) */}
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden shadow-xs">
@@ -2935,7 +3866,7 @@ export default function WappyWorkflowSandboxPanel({
         )}
 
         {/* ─── PESTAÑA 4: ENTRADA DE PRUEBA (MOCK) ─── */}
-        {activeTab === 'mock' && (
+        {!isRealMode && activeTab === 'mock' && (
           <div className="space-y-3">
             <div className="text-xs text-slate-600 dark:text-slate-300">
               Personaliza aquí el mensaje, evento o payload JSON/texto con el que deseas poner a prueba tu flujo antes de volver a pulsar <strong>▶ Dar Play</strong>. Si lo dejas en blanco, el flujo se probará únicamente con los registros reales actuales de tu empresa en MongoDB.

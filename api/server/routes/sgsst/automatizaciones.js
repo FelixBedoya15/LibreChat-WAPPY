@@ -22,6 +22,8 @@ const {
   getTriggerNodeConfig,
   extractAutomationTriggerConfigs,
   resolveAutomationByVoiceOrQuery,
+  getActiveRunningSnapshot,
+  reconcileOrphanedRunningRuns,
 } = require('~/server/services/automationScheduler');
 const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
 
@@ -1674,12 +1676,8 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // Auto-recuperar tareas bloqueadas en 'running' por más de 10 minutos
-    const staleRunningCutoff = new Date(Date.now() - 10 * 60 * 1000);
-    await Automation.updateMany(
-      { companyId, isSystemPreset: { $ne: true }, lastRunStatus: 'running', updatedAt: { $lt: staleRunningCutoff } },
-      { $set: { lastRunStatus: 'failed', lastRunResult: 'Tiempo de ejecución límite agotado.' } }
-    );
+    // Auto-recuperar tareas bloqueadas o huérfanas sin heartbeat activo
+    await reconcileOrphanedRunningRuns({ companyId });
 
     const findQuery = {
       companyId,
@@ -1687,9 +1685,16 @@ router.get('/', async (req, res) => {
       ...(req.user?.role !== 'ADMIN' ? { adminOnly: { $ne: true } } : {}),
     };
 
-    const automations = await Automation.find(findQuery)
+    const { activeAutomationIds } = getActiveRunningSnapshot();
+    const activeSet = new Set(activeAutomationIds);
+
+    const rawAutomations = await Automation.find(findQuery)
       .sort({ adminOnly: -1, createdAt: -1 })
       .lean();
+    const automations = rawAutomations.map((a) => ({
+      ...a,
+      isActivelyRunningInProcess: a.lastRunStatus === 'running' && activeSet.has(String(a._id)),
+    }));
     res.json(automations);
   } catch (error) {
     console.error('[API Automatizaciones] Error listing:', error);
@@ -2000,23 +2005,76 @@ router.post('/:id/run', async (req, res) => {
       return res.status(404).json({ error: 'Automatización no encontrada.' });
     }
 
-    if (automation.lastRunStatus === 'running') {
-      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
-      if (automation.updatedAt && automation.updatedAt > twoMinAgo) {
-        return res.status(400).json({ error: 'Esta automatización ya se encuentra ejecutándose en segundo plano.' });
-      }
-      console.log(`[API Run Manual] Forzando ejecución para "${automation.name}" tras detectar estado previo no concluido.`);
+    await reconcileOrphanedRunningRuns({
+      automationId: automation._id,
+      companyId: automation.companyId || companyId || null,
+    });
+    automation = await Automation.findById(automation._id);
+    if (!automation) {
+      return res.status(404).json({ error: 'Automatización no encontrada.' });
     }
 
-    // Marcar como corriendo
-    await Automation.updateOne({ _id: automation._id }, { $set: { lastRunStatus: 'running' } });
+    const { activeAutomationIds } = getActiveRunningSnapshot();
+    const isActivelyRunningInProcess = activeAutomationIds.includes(String(automation._id));
+    if (automation.lastRunStatus === 'running') {
+      const fifteenSecAgo = new Date(Date.now() - 15 * 1000);
+      if (isActivelyRunningInProcess || (automation.updatedAt && automation.updatedAt > fifteenSecAgo)) {
+        return res.status(400).json({ error: 'Esta automatización ya se encuentra ejecutándose en segundo plano.' });
+      }
+      console.log(`[API Run Manual] Reemplazando estado 'running' huérfano para "${automation.name}".`);
+    }
 
-    // Ejecutar en background de forma inmediata
-    runAutomation(automation, true).catch(err => {
+    const initialLog = await AutomationLog.create({
+      automation: automation._id,
+      user: automation.user || req.user.id,
+      companyId: automation.companyId || companyId,
+      agentId: automation.agentId,
+      agentName: automation.agentName,
+      prompt: automation.prompt,
+      status: 'running',
+      triggerSource: 'manual',
+      heartbeatAt: new Date(),
+      durationMs: 0,
+      currentStageLabel: 'Iniciando disparador del flujo...',
+      activeStepNodeKey: 'trigger_root',
+      liveSteps: [
+        {
+          stepOrder: 1,
+          nodeKey: 'trigger_root',
+          nodeType: 'trigger',
+          title: 'Disparador Manual / Inmediato',
+          status: 'running',
+          durationMs: 0,
+          details: 'Iniciando ejecución manual solicitada desde /tareas.',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      completedNodeKeys: [],
+      blockedNodeKeys: [],
+      skippedNodeKeys: [],
+    });
+
+    // Marcar como corriendo y vincular al log activo
+    await Automation.updateOne(
+      { _id: automation._id },
+      { $set: { lastRunStatus: 'running', lastRunAt: new Date(), lastRunLogId: initialLog._id } },
+    );
+
+    // Ejecutar en background de forma inmediata hidratando el log pre-creado
+    runAutomation(automation, {
+      isManual: true,
+      triggerSource: 'manual',
+      existingLogId: initialLog._id,
+    }).catch((err) => {
       console.error('[API Run Manual] Error en corrida background:', err);
     });
 
-    res.json({ success: true, message: 'Ejecución iniciada correctamente en segundo plano.' });
+    res.json({
+      success: true,
+      logId: initialLog._id,
+      automationId: automation._id,
+      message: 'Ejecución iniciada correctamente en segundo plano.',
+    });
   } catch (error) {
     console.error('[API Automatizaciones] Error triggering run:', error);
     res.status(500).json({ error: 'Error al iniciar la ejecución manual.' });
@@ -2082,6 +2140,38 @@ router.post('/seed-admin-examples', async (req, res) => {
   }
 });
 
+function normalizeAutomationLogRun(logDoc, activeLogIdsSet = new Set()) {
+  if (!logDoc) return null;
+  const files =
+    Array.isArray(logDoc.evidenceFiles) && logDoc.evidenceFiles.length > 0
+      ? logDoc.evidenceFiles
+      : Array.isArray(logDoc.evidences)
+        ? logDoc.evidences
+        : [];
+  const liveSteps = Array.isArray(logDoc.liveSteps) ? logDoc.liveSteps : [];
+  const completedNodeKeys = Array.isArray(logDoc.completedNodeKeys)
+    ? logDoc.completedNodeKeys
+    : [];
+  const blockedNodeKeys = Array.isArray(logDoc.blockedNodeKeys)
+    ? logDoc.blockedNodeKeys
+    : [];
+  const skippedNodeKeys = Array.isArray(logDoc.skippedNodeKeys)
+    ? logDoc.skippedNodeKeys
+    : [];
+  const logIdStr = String(logDoc._id || '');
+  return {
+    ...logDoc,
+    evidenceFiles: files,
+    evidences: files,
+    liveSteps,
+    completedNodeKeys,
+    blockedNodeKeys,
+    skippedNodeKeys,
+    isActivelyRunningInProcess:
+      logDoc.status === 'running' && activeLogIdsSet.has(logIdStr),
+  };
+}
+
 /**
  * GET /api/sgsst/automatizaciones/logs
  * Obtiene el historial completo de ejecuciones para la empresa activa (incluyendo bandeja estructurada evidenceFiles / evidences).
@@ -2093,41 +2183,140 @@ router.get('/logs', async (req, res) => {
       return res.json([]);
     }
 
-    // Auto-recuperar logs bloqueados en 'running' por más de 10 minutos
-    const staleRunningCutoff = new Date(Date.now() - 10 * 60 * 1000);
-    await AutomationLog.updateMany(
-      { companyId, status: 'running', createdAt: { $lt: staleRunningCutoff } },
-      { $set: { status: 'failed', error: 'Tiempo de ejecución límite superado.' } }
-    );
+    // Reconciliar logs huérfanos sin latido activo
+    await reconcileOrphanedRunningRuns({ companyId });
 
     const logFilter = { companyId };
     if (req.query?.automationId && mongoose.Types.ObjectId.isValid(String(req.query.automationId))) {
       logFilter.automation = String(req.query.automationId);
     }
 
+    const { activeLogIds } = getActiveRunningSnapshot();
+    const activeLogIdsSet = new Set(activeLogIds);
+
     const rawLogs = await AutomationLog.find(logFilter)
-      .sort({ runAt: -1 })
+      .sort({ runAt: -1, createdAt: -1 })
       .limit(50) // Capped a las últimas 50 corridas
       .lean();
 
-    const logs = rawLogs.map((l) => {
-      const files =
-        Array.isArray(l.evidenceFiles) && l.evidenceFiles.length > 0
-          ? l.evidenceFiles
-          : Array.isArray(l.evidences)
-            ? l.evidences
-            : [];
-      return {
-        ...l,
-        evidenceFiles: files,
-        evidences: files,
-      };
-    });
+    const logs = rawLogs.map((l) => normalizeAutomationLogRun(l, activeLogIdsSet));
 
     res.json(logs);
   } catch (error) {
     console.error('[API Automatizaciones Logs] Error listing logs:', error);
     res.status(500).json({ error: 'Error al obtener el historial de ejecuciones.' });
+  }
+});
+
+/**
+ * GET /api/sgsst/automatizaciones/runs/:logId
+ * Consulta el estado en vivo y los pasos detallados de una corrida individual (para polling paso a paso).
+ */
+router.get('/runs/:logId', async (req, res) => {
+  try {
+    const { logId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(logId || ''))) {
+      return res.status(400).json({ error: 'ID de corrida inválido.' });
+    }
+
+    const prelimLog = await AutomationLog.findById(logId)
+      .select('_id automation user companyId status')
+      .lean();
+    if (!prelimLog) {
+      return res.status(404).json({ error: 'Corrida de automatización no encontrada.' });
+    }
+
+    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
+    const hasAccess =
+      req.user?.role === 'ADMIN' ||
+      String(prelimLog.user || '') === String(req.user.id || '') ||
+      (companyId && String(prelimLog.companyId || '') === String(companyId));
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'No tienes permiso para consultar esta ejecución.' });
+    }
+
+    if (prelimLog.status === 'running') {
+      await reconcileOrphanedRunningRuns({
+        automationId: prelimLog.automation || null,
+        companyId: prelimLog.companyId || companyId || null,
+      });
+    }
+
+    const { activeLogIds } = getActiveRunningSnapshot();
+    const activeLogIdsSet = new Set(activeLogIds);
+    const freshLog = await AutomationLog.findById(logId).lean();
+    if (!freshLog) {
+      return res.status(404).json({ error: 'Corrida de automatización no encontrada.' });
+    }
+
+    res.json(normalizeAutomationLogRun(freshLog, activeLogIdsSet));
+  } catch (error) {
+    console.error('[API Automatizaciones Runs] Error getting live run:', error);
+    res.status(500).json({ error: 'Error al consultar el estado de la corrida.' });
+  }
+});
+
+/**
+ * GET /api/sgsst/automatizaciones/:id/runs
+ * Devuelve el resumen actualizado de la automatización y su histórico completo por flujo (hasta 30 corridas con pasos en vivo y respuesta HTML).
+ */
+router.get('/:id/runs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de automatización inválido.' });
+    }
+
+    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
+    let automation = await Automation.findOne({ _id: id, companyId, isSystemPreset: { $ne: true } }).lean();
+    if (!automation) {
+      automation = await Automation.findOne({
+        _id: id,
+        ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
+        isSystemPreset: { $ne: true },
+      }).lean();
+    }
+    if (!automation) {
+      return res.status(404).json({ error: 'Automatización no encontrada.' });
+    }
+
+    await reconcileOrphanedRunningRuns({
+      automationId: automation._id,
+      companyId: automation.companyId || companyId || null,
+    });
+
+    const refreshedAutomation = await Automation.findById(automation._id)
+      .select(
+        'name isActive lastRunStatus lastRunAt lastRunResult lastRunLogId agentId agentName cronExpression humanScheduleDescription companyId createdAt updatedAt',
+      )
+      .lean();
+
+    const parsedLimit = Number.parseInt(String(req.query?.limit || '30'), 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 30;
+
+    const { activeAutomationIds, activeLogIds } = getActiveRunningSnapshot();
+    const activeAutoSet = new Set(activeAutomationIds);
+    const activeLogIdsSet = new Set(activeLogIds);
+
+    const rawLogs = await AutomationLog.find({ automation: automation._id })
+      .sort({ runAt: -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({
+      automation: refreshedAutomation
+        ? {
+            ...refreshedAutomation,
+            isActivelyRunningInProcess:
+              refreshedAutomation.lastRunStatus === 'running' &&
+              activeAutoSet.has(String(refreshedAutomation._id)),
+          }
+        : null,
+      runs: rawLogs.map((l) => normalizeAutomationLogRun(l, activeLogIdsSet)),
+    });
+  } catch (error) {
+    console.error('[API Automatizaciones Runs] Error listing flow runs:', error);
+    res.status(500).json({ error: 'Error al obtener el histórico de ejecuciones del flujo.' });
   }
 });
 

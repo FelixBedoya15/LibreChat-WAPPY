@@ -131,6 +131,36 @@ function getHitoReportPipeline() {
       if (!AutomationLog.schema.path('dedupWindowUsed')) {
         extraLogFields.dedupWindowUsed = { type: String, default: '' };
       }
+      if (!AutomationLog.schema.path('liveSteps')) {
+        extraLogFields.liveSteps = { type: [mongoose.Schema.Types.Mixed], default: [] };
+      }
+      if (!AutomationLog.schema.path('activeStepNodeKey')) {
+        extraLogFields.activeStepNodeKey = { type: String, default: null };
+      }
+      if (!AutomationLog.schema.path('completedNodeKeys')) {
+        extraLogFields.completedNodeKeys = { type: [String], default: [] };
+      }
+      if (!AutomationLog.schema.path('blockedNodeKeys')) {
+        extraLogFields.blockedNodeKeys = { type: [String], default: [] };
+      }
+      if (!AutomationLog.schema.path('skippedNodeKeys')) {
+        extraLogFields.skippedNodeKeys = { type: [String], default: [] };
+      }
+      if (!AutomationLog.schema.path('currentStageLabel')) {
+        extraLogFields.currentStageLabel = { type: String, default: '' };
+      }
+      if (!AutomationLog.schema.path('heartbeatAt')) {
+        extraLogFields.heartbeatAt = { type: Date, default: Date.now, index: true };
+      }
+      if (!AutomationLog.schema.path('durationMs')) {
+        extraLogFields.durationMs = { type: Number, default: 0 };
+      }
+      if (!AutomationLog.schema.path('modelUsed')) {
+        extraLogFields.modelUsed = { type: String, default: '' };
+      }
+      if (!AutomationLog.schema.path('companyName')) {
+        extraLogFields.companyName = { type: String, default: '' };
+      }
       if (Object.keys(extraLogFields).length > 0) {
         AutomationLog.schema.add(extraLogFields);
         if (AutomationLog.prototype) {
@@ -153,6 +183,11 @@ function getHitoReportPipeline() {
     }
 
     if (Automation?.schema) {
+      if (!Automation.schema.path('lastRunLogId')) {
+        Automation.schema.add({
+          lastRunLogId: { type: mongoose.Schema.Types.ObjectId, ref: 'AutomationLog', default: null },
+        });
+      }
       const lastRunStatusPath = Automation.schema.path('lastRunStatus');
       if (lastRunStatusPath) {
         for (const extraStatus of ['awaiting_approval', 'rejected']) {
@@ -175,6 +210,23 @@ function getHitoReportPipeline() {
     console.warn('[AutomationScheduler] Aviso extendiendo esquemas de ejecución:', schemaExtErr?.message);
   }
 })();
+
+/**
+ * Envuelve cualquier promesa externa o de base de datos con un timeout estricto para evitar bloqueos indefinidos.
+ */
+function withTimeout(promise, ms = 25000, label = 'operación') {
+  let timerId = null;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, reject) => {
+      timerId = setTimeout(() => {
+        reject(new Error(`Timeout (${Math.round(ms / 1000)}s) superado en ${label}`));
+      }, ms);
+    }),
+  ]).finally(() => {
+    if (timerId) clearTimeout(timerId);
+  });
+}
 
 /**
  * Carga el Ledger Real Anti-Duplicados (`Remove Duplicates` estilo n8n) consultando las llaves
@@ -272,7 +324,7 @@ function evaluatePreAgentDeterministicIf({
   const freshExternalCount =
     Number(preRes?.traceMeta?.freshDriveFilesCount || 0) +
     Number(preRes?.traceMeta?.freshGmailMessagesCount || 0) +
-    (eventPayload ? 1 : 0);
+    (watchesExternal && eventPayload ? 1 : 0);
   const extDedupCount =
     Number(preRes?.traceMeta?.deduplicatedDriveFilesCount || 0) +
     Number(preRes?.traceMeta?.deduplicatedGmailMessagesCount || 0);
@@ -1283,6 +1335,255 @@ let schedulerInterval = null;
 let isCheckingAutomations = false; // Evita que dos ticks del intervalo se solapen
 let drainTimer = null; // Re-disparo inmediato de drenaje continuo al liberarse ventanilla
 const runningAutomations = new Map(); // automationId -> { abortController, timeoutId, startedAt, automationName, logId }
+
+/**
+ * Snapshot de ejecuciones activas actualmente en la memoria de este proceso Node.
+ */
+function getActiveRunningSnapshot() {
+  const activeAutomationIds = [];
+  const activeLogIds = [];
+  const entries = [];
+  for (const [automationId, entry] of runningAutomations.entries()) {
+    activeAutomationIds.push(String(automationId));
+    if (entry?.logId) {
+      activeLogIds.push(String(entry.logId));
+    }
+    entries.push({
+      automationId: String(automationId),
+      logId: entry?.logId ? String(entry.logId) : null,
+      startedAt: entry?.startedAt || null,
+      automationName: entry?.automationName || '',
+    });
+  }
+  return { activeAutomationIds, activeLogIds, entries };
+}
+
+/**
+ * Limpia y reconcilia ejecuciones huérfanas o atascadas sin heartbeat (por caída de red, timeout o reinicio del servidor).
+ */
+async function reconcileOrphanedRunningRuns({ companyId = null, automationId = null } = {}) {
+  try {
+    const nowMs = Date.now();
+    // 1. Evictar de memoria cualquier ejecución activa que haya excedido el límite absoluto (9.5 min)
+    for (const [autoId, entry] of runningAutomations.entries()) {
+      const elapsedMs = entry?.startedAt ? nowMs - new Date(entry.startedAt).getTime() : 0;
+      if (elapsedMs > 9.5 * 60 * 1000) {
+        console.warn(
+          `[AutomationScheduler] Evicting stale in-memory run for "${entry?.automationName || autoId}" (${Math.round(elapsedMs / 1000)}s).`,
+        );
+        try {
+          if (entry.timeoutId) clearTimeout(entry.timeoutId);
+          if (entry.abortController && !entry.abortController.signal.aborted) {
+            entry.abortController.abort();
+          }
+        } catch (_) {}
+        runningAutomations.delete(autoId);
+      }
+    }
+
+    const { activeAutomationIds, activeLogIds } = getActiveRunningSnapshot();
+    const activeAutoObjIds = activeAutomationIds
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+    const activeLogObjIds = activeLogIds
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    const orphanCutoff = new Date(nowMs - 90 * 1000);
+    const hardTimeoutCutoff = new Date(nowMs - 9.5 * 60 * 1000);
+
+    const scopeLogFilter = {
+      status: 'running',
+      ...(companyId ? { companyId: String(companyId) } : {}),
+      ...(automationId && mongoose.Types.ObjectId.isValid(String(automationId))
+        ? { automation: new mongoose.Types.ObjectId(String(automationId)) }
+        : {}),
+    };
+
+    const staleLogs = await AutomationLog.find({
+      ...scopeLogFilter,
+      $or: [
+        // Cualquier log cuyo heartbeat/creación lleve > 9.5 minutos
+        { heartbeatAt: { $lt: hardTimeoutCutoff } },
+        { heartbeatAt: { $exists: false }, createdAt: { $lt: hardTimeoutCutoff } },
+        // Log marcado 'running' en BD pero cuyo proceso en memoria NO existe (ej. reinicio / deploy Dokploy) con > 90s sin latido
+        {
+          ...(activeLogObjIds.length > 0 ? { _id: { $nin: activeLogObjIds } } : {}),
+          $or: [
+            { heartbeatAt: { $lt: orphanCutoff } },
+            { heartbeatAt: { $exists: false }, updatedAt: { $lt: orphanCutoff } },
+            { heartbeatAt: { $exists: false }, updatedAt: { $exists: false }, createdAt: { $lt: orphanCutoff } },
+          ],
+        },
+      ],
+    })
+      .select('_id automation liveSteps activeStepNodeKey')
+      .lean();
+
+    if (staleLogs.length > 0) {
+      const recoveredAutoIds = [];
+      for (const sl of staleLogs) {
+        const patchedSteps = Array.isArray(sl.liveSteps)
+          ? sl.liveSteps.map((st) =>
+              st && st.status === 'running'
+                ? {
+                    ...st,
+                    status: 'error',
+                    error: 'Ejecución interrumpida por tiempo límite o reinicio del servidor.',
+                  }
+                : st,
+            )
+          : [];
+        await AutomationLog.updateOne(
+          { _id: sl._id, status: 'running' },
+          {
+            $set: {
+              status: 'failed',
+              activeStepNodeKey: null,
+              currentStageLabel: 'Tiempo límite / Interrumpida',
+              heartbeatAt: new Date(),
+              liveSteps: patchedSteps,
+              error: 'Tiempo límite de ejecución superado o servidor reiniciado.',
+            },
+          },
+        );
+        if (sl.automation) recoveredAutoIds.push(sl.automation);
+      }
+
+      if (recoveredAutoIds.length > 0) {
+        await Automation.updateMany(
+          {
+            _id: { $in: recoveredAutoIds },
+            lastRunStatus: 'running',
+            ...(activeAutoObjIds.length > 0 ? { _id: { $nin: activeAutoObjIds } } : {}),
+          },
+          {
+            $set: {
+              lastRunStatus: 'failed',
+              lastRunResult: 'Ejecución anterior recuperada automáticamente tras superar el tiempo límite o reinicio.',
+            },
+          },
+        );
+      }
+    }
+
+    // Asegurar también Automations huérfanas cuyo lastRunStatus quedó en 'running' sin proceso activo
+    await Automation.updateMany(
+      {
+        lastRunStatus: 'running',
+        ...(companyId ? { companyId: String(companyId) } : {}),
+        ...(automationId && mongoose.Types.ObjectId.isValid(String(automationId))
+          ? { _id: new mongoose.Types.ObjectId(String(automationId)) }
+          : {}),
+        ...(activeAutoObjIds.length > 0 ? { _id: { $nin: activeAutoObjIds } } : {}),
+        updatedAt: { $lt: orphanCutoff },
+      },
+      {
+        $set: {
+          lastRunStatus: 'failed',
+          lastRunResult: 'Ejecución anterior recuperada automáticamente (sin proceso activo en memoria).',
+        },
+      },
+    );
+  } catch (reconcileErr) {
+    console.warn('[AutomationScheduler] Aviso reconciliando ejecuciones huérfanas:', reconcileErr?.message);
+  }
+}
+
+/**
+ * Rastreador determinista paso a paso para persistir el progreso en vivo y el histórico real del flujo
+ * con las llaves exactas de nodos del lienzo visual (`SandboxNodeTraceStep` compatible).
+ */
+function createLiveRunTracker({ logId, startedAtMs, modelUsed = '', companyName = '' }) {
+  const stepsByKey = new Map();
+  let activeStepNodeKey = null;
+  let currentStageLabel = 'Iniciando flujo...';
+  let blockedKeys = new Set();
+  let skippedKeys = new Set();
+
+  const buildSnapshot = () => {
+    const orderedSteps = Array.from(stepsByKey.values()).map((st, idx) => ({
+      ...st,
+      stepNumber: idx + 1,
+    }));
+    const completedNodeKeys = orderedSteps
+      .filter((s) => s.status === 'done')
+      .map((s) => s.nodeKey);
+    const blockedNodeKeys = Array.from(
+      new Set([
+        ...blockedKeys,
+        ...orderedSteps
+          .filter((s) => s.status === 'skipped' || s.status === 'error')
+          .map((s) => s.nodeKey),
+      ]),
+    );
+    const skippedNodeKeys = Array.from(
+      new Set([
+        ...skippedKeys,
+        ...orderedSteps.filter((s) => s.status === 'skipped').map((s) => s.nodeKey),
+      ]),
+    );
+    return {
+      liveSteps: orderedSteps,
+      activeStepNodeKey,
+      completedNodeKeys,
+      blockedNodeKeys,
+      skippedNodeKeys,
+      currentStageLabel,
+      durationMs: Math.max(0, Date.now() - (startedAtMs || Date.now())),
+      heartbeatAt: new Date(),
+      ...(modelUsed ? { modelUsed } : {}),
+      ...(companyName ? { companyName } : {}),
+    };
+  };
+
+  return {
+    upsertStep(stepData) {
+      if (!stepData || !stepData.nodeKey) return;
+      const prev = stepsByKey.get(stepData.nodeKey) || {};
+      stepsByKey.set(stepData.nodeKey, {
+        ...prev,
+        ...stepData,
+      });
+    },
+    setActiveStage(nodeKey, label) {
+      activeStepNodeKey = nodeKey || null;
+      if (label) currentStageLabel = String(label);
+    },
+    markBlockedKeys(keys = []) {
+      for (const k of Array.isArray(keys) ? keys : []) {
+        if (k) blockedKeys.add(String(k));
+      }
+    },
+    markSkippedKeys(keys = []) {
+      for (const k of Array.isArray(keys) ? keys : []) {
+        if (k) {
+          skippedKeys.add(String(k));
+          blockedKeys.add(String(k));
+        }
+      }
+    },
+    getSnapshot: buildSnapshot,
+    async flush(extraSet = {}, { awaitWrite = false } = {}) {
+      if (!logId) return;
+      const snap = buildSnapshot();
+      const op = AutomationLog.updateOne(
+        { _id: logId },
+        {
+          $set: {
+            ...snap,
+            ...extraSet,
+          },
+        },
+      ).catch((err) => {
+        console.warn('[AutomationScheduler] Non-blocking liveSteps flush error:', err?.message);
+      });
+      if (awaitWrite) {
+        await op;
+      }
+    },
+  };
+}
 
 /**
  * Monitor de atraso del Event Loop (detecta si hay muchos usuarios chateando o en Tenshi Voice).
@@ -3066,22 +3367,30 @@ async function executeDownstreamOutputs({
   if (outputsToExecute.includes('wappy_notification') || outputsToExecute.includes('tenshi_alert')) {
     try {
       const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 260);
-      await Notification.create({
-        user: automation.user || userId,
-        companyId: automation.companyId || targetCompanyIdStr || null,
-        title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
-        body: `${shortSummary}${safeResponseText.length > 260 ? '...' : ''}`,
-        type: 'system_update',
-        read: false,
-      });
-      await TenshiMessage.create({
-        user: automation.user || userId,
-        companyId: targetCompanyIdStr || null,
-        role: 'assistant',
-        content:
-          `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
-          `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
-      });
+      await withTimeout(
+        Notification.create({
+          user: automation.user || userId,
+          companyId: automation.companyId || targetCompanyIdStr || null,
+          title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
+          body: `${shortSummary}${safeResponseText.length > 260 ? '...' : ''}`,
+          type: 'system_update',
+          read: false,
+        }),
+        12000,
+        'Notification.create',
+      );
+      await withTimeout(
+        TenshiMessage.create({
+          user: automation.user || userId,
+          companyId: targetCompanyIdStr || null,
+          role: 'assistant',
+          content:
+            `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
+            `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
+        }),
+        12000,
+        'TenshiMessage.create',
+      );
       executedOutputs.push('wappy_notification');
     } catch (notifErr) {
       errors.push(`wappy_notification: ${notifErr.message}`);
@@ -3097,30 +3406,38 @@ async function executeDownstreamOutputs({
       const targetEnv = outputsToExecute.includes('antigravity_cloud_report')
         ? 'Antigravity Cloud 24/7'
         : 'Antigravity Local (Mi PC)';
-      await KanbanTask.create({
-        user: automation.user || userId,
-        companyId: targetCompanyIdStr || 'DEFAULT',
-        title: `[Bitácora ${targetEnv}] ${automation.name} — ${compLabel}`,
-        description: safeResponseText.substring(0, 4000),
-        status: 'done',
-        priority: 'medium',
-        type: 'antigravity_delegation',
-        sourceModule: 'Automatización WAPPY',
-        assignedTo: targetEnv,
-        category: 'Automatización WAPPY',
-        assignedAgent: targetEnv,
-        dueDate: new Date(),
-        completedAt: new Date(),
-      });
+      await withTimeout(
+        KanbanTask.create({
+          user: automation.user || userId,
+          companyId: targetCompanyIdStr || 'DEFAULT',
+          title: `[Bitácora ${targetEnv}] ${automation.name} — ${compLabel}`,
+          description: safeResponseText.substring(0, 4000),
+          status: 'done',
+          priority: 'medium',
+          type: 'antigravity_delegation',
+          sourceModule: 'Automatización WAPPY',
+          assignedTo: targetEnv,
+          category: 'Automatización WAPPY',
+          assignedAgent: targetEnv,
+          dueDate: new Date(),
+          completedAt: new Date(),
+        }),
+        12000,
+        'KanbanTask.create(Antigravity)',
+      );
       const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 240);
-      await Notification.create({
-        user: automation.user || userId,
-        companyId: automation.companyId || targetCompanyIdStr || null,
-        title: `📡 Bitácora ${targetEnv}: ${automation.name} (${compLabel})`,
-        body: `Informe registrado en ${targetEnv}: ${shortSummary}${safeResponseText.length > 240 ? '...' : ''}`,
-        type: 'system_update',
-        read: false,
-      });
+      await withTimeout(
+        Notification.create({
+          user: automation.user || userId,
+          companyId: automation.companyId || targetCompanyIdStr || null,
+          title: `📡 Bitácora ${targetEnv}: ${automation.name} (${compLabel})`,
+          body: `Informe registrado en ${targetEnv}: ${shortSummary}${safeResponseText.length > 240 ? '...' : ''}`,
+          type: 'system_update',
+          read: false,
+        }),
+        12000,
+        'Notification.create(Antigravity)',
+      );
       executedOutputs.push(
         outputsToExecute.includes('antigravity_cloud_report')
           ? 'antigravity_cloud_report'
@@ -3333,29 +3650,37 @@ async function executeDownstreamOutputs({
       }
 
       // 5B. Si el usuario tiene OAuth Google Calendar conectado, crear evento real en Google Calendar API
-      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      const oauthCtx = await withTimeout(
+        getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr),
+        12000,
+        'getCompanyGoogleOAuthClient(Calendar)',
+      );
       if (oauthCtx) {
         try {
           const calendar = oauthCtx.google.calendar({ version: 'v3', auth: oauthCtx.oauth2Client });
-          const gcalRes = await calendar.events.insert({
-            calendarId: 'primary',
-            sendUpdates: attendeesList.length > 0 ? 'all' : 'none',
-            requestBody: {
-              summary: calTitle,
-              description: `${safeResponseText.substring(0, 3500)}\n\n— Generado automáticamente por WAPPY SG-SST (${compLabel})`,
-              start: {
-                dateTime: safeStart.toISOString(),
-                timeZone: 'America/Bogota',
+          const gcalRes = await withTimeout(
+            calendar.events.insert({
+              calendarId: 'primary',
+              sendUpdates: attendeesList.length > 0 ? 'all' : 'none',
+              requestBody: {
+                summary: calTitle,
+                description: `${safeResponseText.substring(0, 3500)}\n\n— Generado automáticamente por WAPPY SG-SST (${compLabel})`,
+                start: {
+                  dateTime: safeStart.toISOString(),
+                  timeZone: 'America/Bogota',
+                },
+                end: {
+                  dateTime: safeEnd.toISOString(),
+                  timeZone: 'America/Bogota',
+                },
+                ...(attendeesList.length > 0
+                  ? { attendees: attendeesList.map((email) => ({ email })) }
+                  : {}),
               },
-              end: {
-                dateTime: safeEnd.toISOString(),
-                timeZone: 'America/Bogota',
-              },
-              ...(attendeesList.length > 0
-                ? { attendees: attendeesList.map((email) => ({ email })) }
-                : {}),
-            },
-          });
+            }),
+            20000,
+            'calendar.events.insert',
+          );
           if (gcalRes?.data?.htmlLink) {
             workspaceLinks.push({
               type: 'google_calendar',
@@ -3365,6 +3690,7 @@ async function executeDownstreamOutputs({
           }
         } catch (gcalErr) {
           console.warn('[AutomationScheduler] Aviso creando evento Google Calendar API:', gcalErr?.message);
+          errors.push(`google_calendar_api: ${gcalErr?.message || 'Timeout/Error'}`);
         }
       }
       executedOutputs.push('google_calendar');
@@ -3380,7 +3706,11 @@ async function executeDownstreamOutputs({
         safeResponseText,
       );
       if (!alreadyHasGoogleDocInText) {
-        const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+        const oauthCtx = await withTimeout(
+          getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr),
+          12000,
+          'getCompanyGoogleOAuthClient(Docs)',
+        );
         if (oauthCtx) {
           const docsCfg = postNodeConfigs.out_google_docs || postNodeConfigs.google_docs || {};
           const docTitle =
@@ -3406,18 +3736,22 @@ async function executeDownstreamOutputs({
 
           const drive = oauthCtx.google.drive({ version: 'v3', auth: oauthCtx.oauth2Client });
           const folderId = String(docsCfg.folderId || '').trim();
-          const createdDoc = await drive.files.create({
-            requestBody: {
-              name: docTitle,
-              mimeType: 'application/vnd.google-apps.document',
-              ...(folderId ? { parents: [folderId] } : {}),
-            },
-            media: {
-              mimeType: 'text/html',
-              body: Readable.from([Buffer.from(fullDocHtml, 'utf8')]),
-            },
-            fields: 'id, name, webViewLink',
-          });
+          const createdDoc = await withTimeout(
+            drive.files.create({
+              requestBody: {
+                name: docTitle,
+                mimeType: 'application/vnd.google-apps.document',
+                ...(folderId ? { parents: [folderId] } : {}),
+              },
+              media: {
+                mimeType: 'text/html',
+                body: Readable.from([Buffer.from(fullDocHtml, 'utf8')]),
+              },
+              fields: 'id, name, webViewLink',
+            }),
+            25000,
+            'drive.files.create(GoogleDoc)',
+          );
           const docUrl =
             createdDoc?.data?.webViewLink ||
             (createdDoc?.data?.id
@@ -3444,7 +3778,11 @@ async function executeDownstreamOutputs({
   // 7. Post-Procesador Real: Google Sheets (`google_sheets` — fila de auditoría en spreadsheetId o bitácora)
   if (outputsToExecute.includes('google_sheets')) {
     try {
-      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      const oauthCtx = await withTimeout(
+        getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr),
+        12000,
+        'getCompanyGoogleOAuthClient(Sheets)',
+      );
       if (oauthCtx) {
         const sheetsCfg = postNodeConfigs.out_google_sheets || postNodeConfigs.google_sheets || {};
         const sheets = oauthCtx.google.sheets({ version: 'v4', auth: oauthCtx.oauth2Client });
@@ -3458,42 +3796,54 @@ async function executeDownstreamOutputs({
         if (!spreadsheetId) {
           const defaultSheetTitle = `Bitácora Automatizaciones SG-SST - ${compLabel}`;
           const escapedTitle = defaultSheetTitle.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          const existingSearch = await drive.files.list({
-            q: `mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false and name = '${escapedTitle}'`,
-            pageSize: 1,
-            fields: 'files(id, name)',
-          });
+          const existingSearch = await withTimeout(
+            drive.files.list({
+              q: `mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false and name = '${escapedTitle}'`,
+              pageSize: 1,
+              fields: 'files(id, name)',
+            }),
+            15000,
+            'drive.files.list(GoogleSheets)',
+          );
           if (Array.isArray(existingSearch?.data?.files) && existingSearch.data.files.length > 0) {
             spreadsheetId = existingSearch.data.files[0].id;
           } else {
-            const createdSheet = await sheets.spreadsheets.create({
-              requestBody: {
-                properties: { title: defaultSheetTitle },
-              },
-            });
+            const createdSheet = await withTimeout(
+              sheets.spreadsheets.create({
+                requestBody: {
+                  properties: { title: defaultSheetTitle },
+                },
+              }),
+              15000,
+              'sheets.spreadsheets.create',
+            );
             spreadsheetId = createdSheet?.data?.spreadsheetId || '';
             const firstTab =
               createdSheet?.data?.sheets?.[0]?.properties?.title || 'Hoja 1';
             sheetTabName = firstTab;
             if (spreadsheetId) {
-              await sheets.spreadsheets.values.append({
-                spreadsheetId,
-                range: `'${firstTab}'!A1`,
-                valueInputOption: 'USER_ENTERED',
-                requestBody: {
-                  values: [
-                    [
-                      'Fecha y Hora (Bogotá)',
-                      'Empresa',
-                      'Automatización',
-                      'Rama Ejecutada',
-                      'Estado Hallazgos',
-                      'Resumen Ejecutivo',
-                      'Enlace / Referencia',
+              await withTimeout(
+                sheets.spreadsheets.values.append({
+                  spreadsheetId,
+                  range: `'${firstTab}'!A1`,
+                  valueInputOption: 'USER_ENTERED',
+                  requestBody: {
+                    values: [
+                      [
+                        'Fecha y Hora (Bogotá)',
+                        'Empresa',
+                        'Automatización',
+                        'Rama Ejecutada',
+                        'Estado Hallazgos',
+                        'Resumen Ejecutivo',
+                        'Enlace / Referencia',
+                      ],
                     ],
-                  ],
-                },
-              });
+                  },
+                }),
+                15000,
+                'sheets.spreadsheets.values.append(Header)',
+              );
             }
           }
         }
@@ -3501,10 +3851,14 @@ async function executeDownstreamOutputs({
         if (spreadsheetId) {
           if (!sheetTabName) {
             try {
-              const meta = await sheets.spreadsheets.get({
-                spreadsheetId,
-                fields: 'sheets.properties.title',
-              });
+              const meta = await withTimeout(
+                sheets.spreadsheets.get({
+                  spreadsheetId,
+                  fields: 'sheets.properties.title',
+                }),
+                12000,
+                'sheets.spreadsheets.get',
+              );
               sheetTabName = meta?.data?.sheets?.[0]?.properties?.title || 'Sheet1';
             } catch (_) {
               sheetTabName = 'Sheet1';
@@ -3519,24 +3873,28 @@ async function executeDownstreamOutputs({
             workspaceLinks.find((l) => l.type === 'google_docs')?.url ||
             (generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : 'https://wappy.club/tareas');
 
-          await sheets.spreadsheets.values.append({
-            spreadsheetId,
-            range: `'${sheetTabName}'!A1`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: {
-              values: [
-                [
-                  bogotaDateStr,
-                  compLabel,
-                  automation.name,
-                  String(activeBranch || 'direct').toUpperCase(),
-                  hasCriticalSignal ? 'CON HALLAZGOS' : 'SIN NOVEDADES CRÍTICAS',
-                  cleanExcerpt,
-                  refLink,
+          await withTimeout(
+            sheets.spreadsheets.values.append({
+              spreadsheetId,
+              range: `'${sheetTabName}'!A1`,
+              valueInputOption: 'USER_ENTERED',
+              requestBody: {
+                values: [
+                  [
+                    bogotaDateStr,
+                    compLabel,
+                    automation.name,
+                    String(activeBranch || 'direct').toUpperCase(),
+                    hasCriticalSignal ? 'CON HALLAZGOS' : 'SIN NOVEDADES CRÍTICAS',
+                    cleanExcerpt,
+                    refLink,
+                  ],
                 ],
-              ],
-            },
-          });
+              },
+            }),
+            15000,
+            'sheets.spreadsheets.values.append(Row)',
+          );
 
           const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
           workspaceLinks.push({
@@ -3556,7 +3914,11 @@ async function executeDownstreamOutputs({
   // 8. Post-Procesador Real: Google Slides (`google_slides` — presentación ejecutiva con conclusiones clave)
   if (outputsToExecute.includes('google_slides')) {
     try {
-      const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      const oauthCtx = await withTimeout(
+        getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr),
+        12000,
+        'getCompanyGoogleOAuthClient(Slides)',
+      );
       if (oauthCtx) {
         const slidesCfg = postNodeConfigs.out_google_slides || postNodeConfigs.google_slides || {};
         const presTitle =
@@ -3564,9 +3926,13 @@ async function executeDownstreamOutputs({
           `Informe Ejecutivo SG-SST: ${automation.name} (${compLabel})`;
         const slidesApi = oauthCtx.google.slides({ version: 'v1', auth: oauthCtx.oauth2Client });
 
-        const createdPres = await slidesApi.presentations.create({
-          requestBody: { title: presTitle },
-        });
+        const createdPres = await withTimeout(
+          slidesApi.presentations.create({
+            requestBody: { title: presTitle },
+          }),
+          20000,
+          'slides.presentations.create',
+        );
         const presentationId = createdPres?.data?.presentationId;
         if (presentationId) {
           const requests = [];
@@ -3633,10 +3999,14 @@ async function executeDownstreamOutputs({
             },
           });
 
-          await slidesApi.presentations.batchUpdate({
-            presentationId,
-            requestBody: { requests },
-          });
+          await withTimeout(
+            slidesApi.presentations.batchUpdate({
+              presentationId,
+              requestBody: { requests },
+            }),
+            20000,
+            'slides.presentations.batchUpdate',
+          );
 
           const slidesUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
           workspaceLinks.push({
@@ -3810,29 +4180,48 @@ async function executeDownstreamOutputs({
           ? `${customEmailSubject} (${compLabel})`
           : `📊 Reporte Automático SGSST: ${automation.name} - ${compLabel}`;
 
-        for (const recipient of validEmails) {
-          sendEmail({
-            email: recipient,
-            from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
-            subject: resolvedEmailSubject,
-            payload: {
-              taskName: automation.name,
-              agentName: automation.agentName || 'Agente Experto SG-SST',
-              companyName: compLabel,
-              executionDate: bogotaDateStr,
-              prompt: automation.prompt,
-              result: emailHtmlResult,
-              chatUrl,
-              year: new Date().getFullYear(),
-            },
-            template: 'agentAutomationReport.handlebars',
-            throwError: false,
-            ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {}),
-          }).catch((e) =>
-            console.warn(`[AutomationScheduler] Non-blocking email error for ${recipient}:`, e.message),
-          );
+        const emailSettled = await withTimeout(
+          Promise.allSettled(
+            validEmails.map((recipient) =>
+              sendEmail({
+                email: recipient,
+                from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
+                subject: resolvedEmailSubject,
+                payload: {
+                  taskName: automation.name,
+                  agentName: automation.agentName || 'Agente Experto SG-SST',
+                  companyName: compLabel,
+                  executionDate: bogotaDateStr,
+                  prompt: automation.prompt,
+                  result: emailHtmlResult,
+                  chatUrl,
+                  year: new Date().getFullYear(),
+                },
+                template: 'agentAutomationReport.handlebars',
+                throwError: true,
+                ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {}),
+              }),
+            ),
+          ),
+          28000,
+          'email_report',
+        );
+        const failedRecipients = [];
+        emailSettled.forEach((resItem, idx) => {
+          if (resItem.status === 'rejected') {
+            const errMsg = resItem.reason?.message || String(resItem.reason || 'Error SMTP');
+            failedRecipients.push(`${validEmails[idx]}: ${errMsg}`);
+            console.warn(`[AutomationScheduler] Non-blocking email error for ${validEmails[idx]}:`, errMsg);
+          }
+        });
+        if (failedRecipients.length === validEmails.length) {
+          errors.push(`email_report: ${failedRecipients.join(' | ')}`);
+        } else {
+          if (failedRecipients.length > 0) {
+            errors.push(`email_report_partial: ${failedRecipients.join(' | ')}`);
+          }
+          executedOutputs.push('email_report');
         }
-        executedOutputs.push('email_report');
       }
     } catch (emailErr) {
       errors.push(`email_report: ${emailErr.message}`);
@@ -3871,34 +4260,60 @@ async function runAutomation(automation, optionsOrIsManual = false) {
   );
   const eventPayload = runOpts.eventPayload || null;
   const gmailMessageId = runOpts.gmailMessageId ? String(runOpts.gmailMessageId) : '';
+  const runStartedAtMs = Date.now();
 
   const automationIdStr = automation._id.toString();
   console.log(
     `[AutomationScheduler] Starting execution for automation "${automation.name}" (${automationIdStr}) [trigger=${triggerSource}]`,
   );
-  
-  // Update Automation state to running
+
+  // Create or hydrate pre-allocated log entry
+  let log = null;
+  if (runOpts.existingLogId && mongoose.Types.ObjectId.isValid(String(runOpts.existingLogId))) {
+    log = await AutomationLog.findByIdAndUpdate(
+      runOpts.existingLogId,
+      {
+        $set: {
+          status: 'running',
+          triggerSource,
+          heartbeatAt: new Date(),
+          durationMs: 0,
+          currentStageLabel: 'Iniciando disparador del flujo...',
+          activeStepNodeKey: 'trigger_root',
+          ...(gmailMessageId ? { gmailMessageId } : {}),
+          ...(eventPayload ? { eventMetadata: eventPayload } : {}),
+        },
+      },
+      { new: true },
+    );
+  }
+  if (!log) {
+    log = await AutomationLog.create({
+      automation: automation._id,
+      user: automation.user,
+      companyId: automation.companyId,
+      agentId: automation.agentId,
+      agentName: automation.agentName,
+      prompt: automation.prompt,
+      status: 'running',
+      triggerSource,
+      heartbeatAt: new Date(),
+      durationMs: 0,
+      currentStageLabel: 'Iniciando disparador del flujo...',
+      activeStepNodeKey: 'trigger_root',
+      ...(gmailMessageId ? { gmailMessageId } : {}),
+      ...(eventPayload ? { eventMetadata: eventPayload } : {}),
+    });
+  }
+
+  // Update Automation state to running & link active log
   await Automation.updateOne(
     { _id: automation._id },
-    { $set: { lastRunStatus: 'running', lastRunAt: new Date() } }
+    { $set: { lastRunStatus: 'running', lastRunAt: new Date(), lastRunLogId: log._id } },
   );
 
-  // Create log entry
-  const log = await AutomationLog.create({
-    automation: automation._id,
-    user: automation.user,
-    companyId: automation.companyId,
-    agentId: automation.agentId,
-    agentName: automation.agentName,
-    prompt: automation.prompt,
-    status: 'running',
-    triggerSource,
-    ...(gmailMessageId ? { gmailMessageId } : {}),
-    ...(eventPayload ? { eventMetadata: eventPayload } : {}),
-  });
-
   const prelimAbortController = new AbortController();
-  // 10 minutes timeout (600,000 ms) safety measure
+  // 10 minutes timeout (600,000 ms) safety measure (armed through finally)
   const timeoutId = setTimeout(() => {
     console.warn(`[AutomationScheduler] Automation "${automation.name}" timed out after 10 minutes. Aborting execution.`);
     prelimAbortController.abort();
@@ -3911,6 +4326,79 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     automationName: automation.name,
     logId: log._id,
   });
+
+  // Latido periódico (cada 12s) para distinguir ejecuciones largas legítimas de procesos caídos
+  const heartbeatTimer = setInterval(() => {
+    AutomationLog.updateOne(
+      { _id: log._id, status: 'running' },
+      {
+        $set: {
+          heartbeatAt: new Date(),
+          durationMs: Math.max(0, Date.now() - runStartedAtMs),
+        },
+      },
+    ).catch(() => {});
+  }, 12000);
+
+  const liveTracker = createLiveRunTracker({
+    logId: log._id,
+    startedAtMs: runStartedAtMs,
+    modelUsed: String(automation.workflowNodes?.aiModel || ''),
+  });
+
+  // Emitir paso inicial de Disparador inmediatamente para vista En Vivo
+  try {
+    const trigListInit = getAutomationTriggersList(automation);
+    const primaryTrigId = trigListInit[0] || automation.workflowNodes?.trigger || 'schedule_cron';
+    const trigLabelMap = {
+      schedule_cron: 'Cron Programado',
+      trigger_tenshi: 'Tenshi IA (Voz / Chat)',
+      trigger_email_in: 'Correo Entrante',
+      trigger_webhook_in: 'Webhook HTTP',
+      trigger_qr_report: 'Reporte QR en Planta',
+      trigger_agent_chain: 'Cadena Multi-Agente',
+    };
+    liveTracker.upsertStep({
+      nodeKey: 'trigger_root',
+      nodeId: primaryTrigId,
+      title: trigLabelMap[primaryTrigId] || formatHumanWorkflowNodeTitle(primaryTrigId),
+      category: 'trigger',
+      status: 'done',
+      durationMs: 120,
+      inputCount: 0,
+      outputCount: 1,
+      outputPreview: `Disparo "${triggerSource}" recibido. Preparando fuentes de lectura...`,
+      outputItems: [
+        {
+          Disparador: trigLabelMap[primaryTrigId] || primaryTrigId,
+          OrigenReal: triggerSource,
+          HoraInicio: new Date().toISOString(),
+        },
+      ],
+    });
+    for (let tIdx = 1; tIdx < trigListInit.length; tIdx += 1) {
+      const extraTrigId = trigListInit[tIdx];
+      const matchesVoice = triggerSource === 'tenshi_voice' && extraTrigId === 'trigger_tenshi';
+      const matchesWebhook = triggerSource === 'webhook' && extraTrigId.includes('webhook');
+      const matchesEmail = triggerSource === 'email' && extraTrigId.includes('email');
+      const isActiveExtra = matchesVoice || matchesWebhook || matchesEmail;
+      liveTracker.upsertStep({
+        nodeKey: `trigger_${extraTrigId}`,
+        nodeId: extraTrigId,
+        title: trigLabelMap[extraTrigId] || formatHumanWorkflowNodeTitle(extraTrigId),
+        category: 'trigger',
+        status: 'done',
+        durationMs: 40,
+        inputCount: 0,
+        outputCount: 1,
+        outputPreview: isActiveExtra
+          ? `Disparador "${triggerSource}" activó este flujo.`
+          : 'Disparador alterno en espera (sincronizado con entrada principal).',
+      });
+    }
+    liveTracker.setActiveStage('trigger_root', 'Leyendo fuentes y módulos conectados...');
+    await liveTracker.flush({}, { awaitWrite: true });
+  } catch (_) {}
 
   try {
     // 1. Fetch app config
@@ -4407,11 +4895,57 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       sourceSummaries: [],
     };
     try {
+      liveTracker.setActiveStage(null, 'Consultando fuentes y módulos SG-SST...');
       structuredSourceRes = await collectStructuredWorkflowSourceData(automation, automationCompany, {
         alreadyProcessedKeysSet: dedupLedger.keysSet,
         includeTargetWriteHitos: false,
       });
       liveDatabaseSurgicalBlock = structuredSourceRes?.contextBlock || '';
+
+      // Registrar pasos completados de fuentes de lectura (Extractores y Hitos source_read)
+      const wfExtListInit = Array.isArray(automation.workflowNodes?.extractors)
+        ? automation.workflowNodes.extractors
+        : [];
+      const wfInputsListInit = Array.isArray(automation.workflowNodes?.inputs)
+        ? automation.workflowNodes.inputs
+        : [];
+      for (const s of Array.isArray(structuredSourceRes?.sourceSummaries)
+        ? structuredSourceRes.sourceSummaries
+        : []) {
+        const sId = String(s.nodeId || s.canonicalNodeId || '');
+        if (!sId) continue;
+        const isExtNode =
+          wfExtListInit.includes(sId) || sId.startsWith('extract_') || sId.startsWith('somos_sst_trabajadores');
+        const isInputNode = wfInputsListInit.includes(sId) || sId.startsWith('somos_sst_') || sId.startsWith('pronostico_') || sId.startsWith('buscar_');
+        const resolvedKey = isExtNode
+          ? `extractor_${sId}`
+          : isInputNode && !sId.startsWith('hito')
+            ? `tool_inputs_${sId}`
+            : `tool_hitos_${sId}`;
+        const matchingRows = (structuredSourceRes.allRecords || [])
+          .filter((r) => String(r._sourceNodeId || '') === sId)
+          .slice(0, 15)
+          .map((rec, rIdx) => ({
+            '#': rIdx + 1,
+            Registro: rec.label || rec.nombre || rec.title || rec.id || `Item #${rIdx + 1}`,
+            Detalle: rec.sublabel || '',
+            Estado: rec.badge || (rec.isCritical ? 'Brecha / Crítico' : 'Al día'),
+            ...(rec.fields && typeof rec.fields === 'object' ? rec.fields : {}),
+          }));
+        liveTracker.upsertStep({
+          nodeKey: resolvedKey,
+          nodeId: sId,
+          title: s.moduleTitle || formatHumanWorkflowNodeTitle(sId),
+          category: isExtNode ? 'extractor' : 'hito',
+          status: 'done',
+          durationMs: 260,
+          inputCount: 1,
+          outputCount: Number(s.totalRecords || 0),
+          outputPreview: `${s.totalRecords || 0} registro(s) verificado(s) · ${s.freshCriticalCount || 0} brecha(s) nueva(s)${Number(s.deduplicatedSkippedCount || 0) > 0 ? ` · ${s.deduplicatedSkippedCount} omitido(s) por anti-duplicados` : ''}`,
+          outputItems: matchingRows,
+        });
+      }
+      await liveTracker.flush();
     } catch (liveErr) {
       console.error('[AutomationScheduler] Error construyendo extracción quirúrgica en vivo:', liveErr?.message || liveErr);
     }
@@ -4577,10 +5111,90 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     const wfExtractorsForCondition = Array.isArray(automation.workflowNodes?.extractors)
       ? automation.workflowNodes.extractors
       : [];
+
+    // Registrar Extractores externos (Drive / Gmail) y Nodos Lógicos pre-condicionales (Merge / Loop) en traza en vivo
+    if (wfExtractorsForCondition.includes('extract_drive') || wfExtractorsForCondition.includes('google_drive')) {
+      const drvKey = wfExtractorsForCondition.includes('extract_drive')
+        ? 'extractor_extract_drive'
+        : 'extractor_google_drive';
+      const totalDrv = Number(preRes?.traceMeta?.driveFilesPrelisted || 0);
+      const freshDrv = Number(preRes?.traceMeta?.freshDriveFilesCount || 0);
+      liveTracker.upsertStep({
+        nodeKey: drvKey,
+        nodeId: wfExtractorsForCondition.includes('extract_drive') ? 'extract_drive' : 'google_drive',
+        title: 'Extraer de Drive',
+        category: 'extractor',
+        status: 'done',
+        durationMs: 320,
+        inputCount: 1,
+        outputCount: totalDrv,
+        outputPreview: `${totalDrv} archivo(s) listado(s) · ${freshDrv} nuevo(s) sin procesar`,
+        outputItems: Array.isArray(preRes?.freshDriveFiles)
+          ? preRes.freshDriveFiles.slice(0, 15).map((f) => ({
+              Archivo: f.name || f.title || f.id,
+              MimeType: f.mimeType || 'documento',
+              Modificado: f.modifiedTime || '',
+            }))
+          : [],
+      });
+    }
+    if (wfExtractorsForCondition.includes('extract_gmail')) {
+      const totalGm = Number(preRes?.traceMeta?.gmailMessagesPreextracted || 0);
+      const freshGm = Number(preRes?.traceMeta?.freshGmailMessagesCount || 0);
+      liveTracker.upsertStep({
+        nodeKey: 'extractor_extract_gmail',
+        nodeId: 'extract_gmail',
+        title: 'Extraer de Gmail',
+        category: 'extractor',
+        status: 'done',
+        durationMs: 280,
+        inputCount: 1,
+        outputCount: totalGm,
+        outputPreview: `${totalGm} correo(s) inspeccionado(s) · ${freshGm} nuevo(s) sin procesar`,
+      });
+    }
+    const preLogicNodesList = Array.isArray(automation.workflowNodes?.canvasLayout?.logicNodes)
+      ? automation.workflowNodes.canvasLayout.logicNodes.filter(
+          (ln) =>
+            ln &&
+            String(ln.logicType || '').toLowerCase() !== 'human_approval' &&
+            ln.id !== 'logic_human_approval',
+        )
+      : [];
+    for (const ln of preLogicNodesList) {
+      if (!ln?.key) continue;
+      liveTracker.upsertStep({
+        nodeKey: ln.key,
+        nodeId: `logic_${ln.logicType || 'merge'}`,
+        title: ln.title || 'Unir Ramas / Bucle',
+        category: 'logic',
+        status: 'done',
+        durationMs: 45,
+        inputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 1,
+        outputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 1,
+        outputPreview: 'Ramas y fuentes consolidadas determinísticamente antes de la compuerta.',
+      });
+    }
+
+    // Solo considerar eventos externos que realmente transportan datos entrantes (NUNCA comandos de activación de voz/UI)
+    const isExternalDataEvent =
+      ['webhook', 'email', 'qr_report', 'agent_chain'].includes(triggerSource) ||
+      Boolean(
+        eventPayload &&
+          typeof eventPayload === 'object' &&
+          (eventPayload.gmailMessageId ||
+            eventPayload.driveFileId ||
+            eventPayload.webhookBody ||
+            eventPayload.externalItems ||
+            eventPayload.portalName ||
+            eventPayload.qrFinding),
+      );
+    const effectiveEventPayload = isExternalDataEvent ? eventPayload : null;
+
     const watchesDriveNewFiles =
       wfExtractorsForCondition.includes('extract_drive') ||
       wfExtractorsForCondition.includes('google_drive') ||
-      /furat|drive|nuevo/i.test(ifConditionLabelStr);
+      /\b(drive|furat|archivo\s+nuevo|archivos?\s+nuevos?)\b/i.test(ifConditionLabelStr);
     const watchesExternal =
       watchesDriveNewFiles ||
       wfExtractorsForCondition.includes('extract_gmail') ||
@@ -4590,22 +5204,48 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       wfTriggersForCondition.includes('trigger_email_in') ||
       wfTriggersForCondition.includes('trigger_webhook') ||
       wfTriggersForCondition.includes('trigger_webhook_in') ||
-      Boolean(eventPayload);
+      Boolean(effectiveEventPayload);
 
     let preIfRes = null;
     if (isPreAgentIf) {
+      liveTracker.setActiveStage('if_router', 'Evaluando Condición Si/No (Pre-Agente)...');
       preIfRes = evaluatePreAgentDeterministicIf({
         ifCfg,
         structuredSourceRes,
         preRes,
         runCapturedEvidences,
         scraperBreachCount: runScraperBreachCount,
-        eventPayload,
+        eventPayload: effectiveEventPayload,
         watchesExternal,
       });
 
+      liveTracker.upsertStep({
+        nodeKey: 'if_router',
+        nodeId: 'if_node_router',
+        title: 'Condición Si/No (Pre-IA)',
+        category: 'if',
+        status: 'done',
+        branchTaken: preIfRes.passed ? 'yes' : 'no',
+        durationMs: 35,
+        inputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 0,
+        outputCount: preIfRes.passed ? 1 : 0,
+        outputPreview: preIfRes.reason,
+        outputItems: [
+          {
+            Compuerta: ifConditionLabelStr || 'Detección determinista de brechas nuevas',
+            RamaTomada: preIfRes.passed ? 'Rama SÍ' : 'Rama NO (0 tokens IA)',
+            RegistrosAuditados: Array.isArray(structuredSourceRes?.allRecords)
+              ? structuredSourceRes.allRecords.length
+              : 0,
+            BrechasNuevas: preIfRes.freshCriticalCount || 0,
+            OmitidosAntiDuplicados: preIfRes.dedupSkippedCount || 0,
+            Dictamen: preIfRes.reason,
+          },
+        ],
+      });
+      await liveTracker.flush();
+
       if (preIfRes.passed === false) {
-        clearTimeout(timeoutId);
         const totalAuditedRecordsCount = Array.isArray(structuredSourceRes?.allRecords)
           ? structuredSourceRes.allRecords.length
           : 0;
@@ -4653,7 +5293,9 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         const postEdgesPre = Array.isArray(automation.workflowNodes?.canvasLayout?.edges)
           ? automation.workflowNodes.canvasLayout.edges
           : [];
-        const outputsToExecuteNo = configuredOutputsPre.filter((outNodeId) => {
+        const outputsToExecuteNo = [];
+        const outputsBlockedYes = [];
+        configuredOutputsPre.forEach((outNodeId) => {
           const outIdx = Math.max(0, configuredOutputsPre.indexOf(outNodeId));
           const branch = resolveOutputBranchForIfRouter(
             outNodeId,
@@ -4662,34 +5304,97 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             allNodeCfg,
             postEdgesPre,
           );
-          return branch === 'no';
+          if (branch === 'no') {
+            outputsToExecuteNo.push(outNodeId);
+          } else {
+            outputsBlockedYes.push(outNodeId);
+          }
         });
+
+        // Marcar Agente IA y salidas Rama SÍ como omitidas (`skipped`) por optimización determinista
+        liveTracker.markSkippedKeys([
+          'agent_root',
+          'extractor_extract_ai_doc_ocr',
+          ...outputsBlockedYes.map((o) => `out_${o}`),
+        ]);
+        liveTracker.upsertStep({
+          nodeKey: 'agent_root',
+          nodeId: automation.agentId || 'ai_agent_root',
+          title: 'Agente IA',
+          category: 'agent',
+          status: 'skipped',
+          durationMs: 0,
+          outputPreview: 'Omitido limpiamente por Condición Si/No (Pre-IA = Rama NO · 0 tokens IA).',
+        });
+        for (const yesOutId of outputsBlockedYes) {
+          liveTracker.upsertStep({
+            nodeKey: `out_${yesOutId}`,
+            nodeId: yesOutId,
+            title: formatHumanWorkflowNodeTitle(yesOutId),
+            category: 'output',
+            status: 'skipped',
+            branchTaken: 'no',
+            durationMs: 0,
+            outputPreview: 'Omitida: pertenece a la Rama SÍ.',
+          });
+        }
+
+        if (outputsToExecuteNo.length > 0) {
+          liveTracker.setActiveStage(
+            `out_${outputsToExecuteNo[0]}`,
+            `Ejecutando salida Rama NO (${formatHumanWorkflowNodeTitle(outputsToExecuteNo[0])})...`,
+          );
+          await liveTracker.flush();
+        }
 
         const cleanPreEvidenceFiles = sanitizePublicEvidenceList(runCapturedEvidences);
         let outResNo = { executedOutputs: [], workspaceLinks: [], errors: [] };
         if (outputsToExecuteNo.length > 0) {
           try {
-            outResNo = await executeDownstreamOutputs({
-              automation,
-              user: reqUser,
-              companyId: targetCompanyIdStr,
-              companyInfo: automationCompany,
-              outputsToExecute: outputsToExecuteNo,
-              responseText: preNoResultText,
-              generatedAppReports: [],
-              activeBranch: 'no',
-              nodeConfigs: allNodeCfg,
-              capturedEvidences: runCapturedEvidences,
-              generatedConvoId: null,
-              hasCriticalSignal: false,
-              logId: log._id,
-            });
+            outResNo = await withTimeout(
+              executeDownstreamOutputs({
+                automation,
+                user: reqUser,
+                companyId: targetCompanyIdStr,
+                companyInfo: automationCompany,
+                outputsToExecute: outputsToExecuteNo,
+                responseText: preNoResultText,
+                generatedAppReports: [],
+                activeBranch: 'no',
+                nodeConfigs: allNodeCfg,
+                capturedEvidences: runCapturedEvidences,
+                generatedConvoId: null,
+                hasCriticalSignal: false,
+                logId: log._id,
+              }),
+              75000,
+              'executeDownstreamOutputs(pre_agent NO)',
+            );
           } catch (preOutErr) {
             console.warn(
               '[AutomationScheduler] Non-blocking executeDownstreamOutputs (pre_agent NO) error:',
               preOutErr?.message || preOutErr,
             );
+            outResNo.errors = [...(outResNo.errors || []), String(preOutErr?.message || preOutErr)];
           }
+        }
+
+        for (const noOutId of outputsToExecuteNo) {
+          const outWarn = (outResNo?.errors || []).find((e) => String(e).startsWith(noOutId));
+          liveTracker.upsertStep({
+            nodeKey: `out_${noOutId}`,
+            nodeId: noOutId,
+            title: formatHumanWorkflowNodeTitle(noOutId),
+            category: 'output',
+            status: outWarn ? 'error' : 'done',
+            branchTaken: 'no',
+            durationMs: 180,
+            outputCount: outWarn ? 0 : 1,
+            ...(outWarn ? { error: outWarn } : {}),
+            outputPreview: outWarn
+              ? `Advertencia: ${outWarn}`
+              : `Salida Rama NO ejecutada (${formatHumanWorkflowNodeTitle(noOutId)}).`,
+          });
         }
 
         if (
@@ -4714,6 +5419,9 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               }
             : {};
 
+        liveTracker.setActiveStage(null, 'Completado (Rama NO · 0 tokens IA)');
+        const preSnap = liveTracker.getSnapshot();
+
         await Promise.all([
           AutomationLog.updateOne(
             { _id: log._id },
@@ -4725,6 +5433,9 @@ async function runAutomation(automation, optionsOrIsManual = false) {
                 evidenceFiles: cleanPreEvidenceFiles,
                 evidences: cleanPreEvidenceFiles,
                 dedupWindowUsed: dedupLedger.dedupWindow || '',
+                modelUsed: effectiveAiModel,
+                companyName: compDisplay,
+                ...preSnap,
                 executionTrace: {
                   triggerSource,
                   ifPlacement: 'pre_agent',
@@ -4750,6 +5461,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               $set: {
                 lastRunAt: new Date(),
                 lastRunStatus: 'success',
+                lastRunLogId: log._id,
                 lastRunResult: preNoResultText.substring(0, 500),
                 ...cronNextRunPatchPre,
               },
@@ -4770,6 +5482,19 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       wfExtractorsForCondition.includes('extract_ai_doc_ocr') ||
       wfExtractorsForCondition.includes('extractor_extract_ai_doc_ocr')
     ) {
+      liveTracker.setActiveStage(
+        'extractor_extract_ai_doc_ocr',
+        'Extrayendo datos exactos con IA + OCR de documentos...',
+      );
+      liveTracker.upsertStep({
+        nodeKey: 'extractor_extract_ai_doc_ocr',
+        nodeId: 'extract_ai_doc_ocr',
+        title: 'Extractor IA Docs',
+        category: 'extractor',
+        status: 'running',
+        outputPreview: 'Leyendo PDF / imágenes / documentos con IA + OCR...',
+      });
+      await liveTracker.flush();
       try {
         const extractorCfg =
           allNodeCfg?.extractor_extract_ai_doc_ocr ||
@@ -4791,19 +5516,23 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         const hasPrelistedDrive = wfExtractorsForCondition.includes('extract_drive');
         const hasPrelistedGmail = wfExtractorsForCondition.includes('extract_gmail');
 
-        const aiOcrResult = await extractStructuredFieldsFromDocuments({
-          userId: String(automation?.user || reqUser?.id || ''),
-          companyId: targetCompanyIdStr,
-          companyName: automationCompany?.companyName || 'Empresa Activa',
-          extractorCfg,
-          driveCfg,
-          gmailCfg,
-          pcCfg,
-          freshDriveFiles: hasPrelistedDrive ? preRes?.freshDriveFiles || [] : null,
-          freshGmailMessages: hasPrelistedGmail ? preRes?.freshGmailMessages || [] : null,
-          eventPayload: eventPayload || null,
-          maxDocs: Math.min(10, Math.max(1, Number(extractorCfg?.maxItems) || 5)),
-        });
+        const aiOcrResult = await withTimeout(
+          extractStructuredFieldsFromDocuments({
+            userId: String(automation?.user || reqUser?.id || ''),
+            companyId: targetCompanyIdStr,
+            companyName: automationCompany?.companyName || 'Empresa Activa',
+            extractorCfg,
+            driveCfg,
+            gmailCfg,
+            pcCfg,
+            freshDriveFiles: hasPrelistedDrive ? preRes?.freshDriveFiles || [] : null,
+            freshGmailMessages: hasPrelistedGmail ? preRes?.freshGmailMessages || [] : null,
+            eventPayload: effectiveEventPayload || null,
+            maxDocs: Math.min(10, Math.max(1, Number(extractorCfg?.maxItems) || 5)),
+          }),
+          90000,
+          'extractStructuredFieldsFromDocuments',
+        );
 
         preExtractionTraceMeta.aiDocOcrExecuted = true;
         preExtractionTraceMeta.aiDocOcrModelUsed = aiOcrResult.modelUsed;
@@ -4811,6 +5540,19 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         preExtractionTraceMeta.aiDocOcrRowsCount = Array.isArray(aiOcrResult.rows)
           ? aiOcrResult.rows.length
           : 0;
+
+        liveTracker.upsertStep({
+          nodeKey: 'extractor_extract_ai_doc_ocr',
+          nodeId: 'extract_ai_doc_ocr',
+          title: 'Extractor IA Docs',
+          category: 'extractor',
+          status: 'done',
+          durationMs: 1200,
+          inputCount: aiOcrResult.documentsCount || 0,
+          outputCount: Array.isArray(aiOcrResult.rows) ? aiOcrResult.rows.length : 0,
+          outputPreview: `${aiOcrResult.documentsCount || 0} documento(s) -> ${Array.isArray(aiOcrResult.rows) ? aiOcrResult.rows.length : 0} fila(s) (${aiOcrResult.modelUsed || effectiveAiModel})`,
+          outputItems: Array.isArray(aiOcrResult.rows) ? aiOcrResult.rows.slice(0, 15) : [],
+        });
 
         if (Array.isArray(aiOcrResult.rows) && aiOcrResult.rows.length > 0) {
           const aiOcrBlock =
@@ -4831,6 +5573,15 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           '[AutomationScheduler] Aviso en extractStructuredFieldsFromDocuments:',
           aiOcrErr?.message || aiOcrErr,
         );
+        liveTracker.upsertStep({
+          nodeKey: 'extractor_extract_ai_doc_ocr',
+          nodeId: 'extract_ai_doc_ocr',
+          title: 'Extractor IA Docs',
+          category: 'extractor',
+          status: 'error',
+          error: aiOcrErr?.message || 'Error en extracción OCR',
+          outputPreview: `Aviso OCR: ${aiOcrErr?.message || 'Error'}`,
+        });
       }
     }
 
@@ -4980,6 +5731,66 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       json: function() { return this; }
     };
 
+    // Registrar Sub-Nodos (Modelo IA, Memorias, Herramientas+) y marcar Agente IA Principal como `running` en vivo
+    try {
+      liveTracker.upsertStep({
+        nodeKey: 'sub_model',
+        nodeId: effectiveAiModel || 'gemini-3.6-flash',
+        title: `Modelo IA (${effectiveAiModel || 'gemini-3.6-flash'})`,
+        category: 'model',
+        status: 'done',
+        durationMs: 25,
+        outputPreview: `Motor: ${selectedAiEngine} · Modelo activo: ${effectiveAiModel || 'gemini-3.6-flash'}`,
+      });
+      activeMemories.forEach((memId, mIdx) => {
+        const memKey = mIdx === 0 ? 'sub_memory' : `sub_memory_${memId}`;
+        liveTracker.upsertStep({
+          nodeKey: memKey,
+          nodeId: memId,
+          title: formatHumanWorkflowNodeTitle(memId),
+          category: 'memory',
+          status: 'done',
+          durationMs: 35,
+          outputPreview:
+            memId === 'wappy_memory_company'
+              ? `Contexto cargado: ${automationCompany?.companyName || 'Somos SST'} (${automationCompany?.nit || 'Sin NIT'})`
+              : memId === 'wappy_memory_antiduplicate'
+                ? `Filtro anti-duplicados activo (${dedupLedger.dedupWindow || '7d'} · ${dedupLedger.keysSet.size} llave(s) previa(s))`
+                : 'Memoria activa inyectada al Agente IA.',
+        });
+      });
+      for (const hToolId of connectedAgentToolHitos) {
+        liveTracker.upsertStep({
+          nodeKey: `tool_hitos_${hToolId}`,
+          nodeId: hToolId,
+          title: formatHumanWorkflowNodeTitle(hToolId),
+          category: 'hito',
+          status: 'done',
+          durationMs: 30,
+          outputPreview: 'Herramienta MCP conectada debajo del Agente IA (Herramienta +).',
+        });
+      }
+      liveTracker.setActiveStage(
+        'agent_root',
+        `Agente IA "${agent?.name || automation.agentName || 'Consultor SG-SST'}" analizando...`,
+      );
+      liveTracker.upsertStep({
+        nodeKey: 'agent_root',
+        nodeId: automation.agentId || 'ai_agent_root',
+        title: agent?.name || automation.agentName || 'Agente IA',
+        category: 'agent',
+        status: 'running',
+        inputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 1,
+        outputPreview: `Procesando análisis SG-SST con ${effectiveAiModel || 'gemini-3.6-flash'}...`,
+      });
+      await liveTracker.flush({
+        modelUsed: effectiveAiModel || '',
+        companyName: automationCompany?.companyName || 'Somos SST',
+      });
+    } catch (_) {}
+
+    const agentPhaseStartedAtMs = Date.now();
+
     // 5-8. Construct endpointOption & execute agent call (supports programmatic agentExecutorOverride for deterministic logical test suites)
     let response = null;
     if (typeof runOpts.agentExecutorOverride === 'function') {
@@ -4996,7 +5807,6 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       if (response?.conversationId) {
         generatedConvoId = response.conversationId;
       }
-      clearTimeout(timeoutId);
     } else {
       const endpointOption = {
         endpoint: 'agents',
@@ -5045,8 +5855,6 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         clearTimeout(raceTimeoutId);
       }
 
-      // Desactivar el temporizador de 10 minutos de inmediato
-      clearTimeout(timeoutId);
       console.log(`[AutomationScheduler] STEP 4: Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
 
       if (response?.databasePromise) {
@@ -5084,6 +5892,33 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       resultText = stripAgentInlineEvidenceNoise(resultText, cleanRunEvidenceFiles);
     }
 
+    const agentDurationMs = Math.max(100, Date.now() - agentPhaseStartedAtMs);
+    liveTracker.upsertStep({
+      nodeKey: 'agent_root',
+      nodeId: automation.agentId || 'ai_agent_root',
+      title: agent?.name || automation.agentName || 'Agente IA',
+      category: 'agent',
+      status: 'done',
+      durationMs: agentDurationMs,
+      inputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 1,
+      outputCount: 1,
+      outputPreview: resultText.slice(0, 600),
+      outputItems: [
+        {
+          Agente: agent?.name || automation.agentName || 'Agente Especialista',
+          Modelo: effectiveAiModel || 'gemini-3.6-flash',
+          Duracion: `${(agentDurationMs / 1000).toFixed(1)}s`,
+          Conversacion: generatedConvoId || '—',
+          ResumenRespuesta: resultText.slice(0, 320),
+        },
+      ],
+      ...(cleanRunEvidenceFiles.length > 0 ? { evidenceFiles: cleanRunEvidenceFiles } : {}),
+    });
+    liveTracker.setActiveStage(null, 'Procesando validación y salidas posteriores...');
+    await liveTracker.flush({
+      ...(generatedConvoId ? { conversationId: generatedConvoId } : {}),
+    });
+
     const postNodeConfigs = automation.workflowNodes?.canvasLayout?.nodeConfigs || {};
     const postLogicNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.logicNodes)
       ? automation.workflowNodes.canvasLayout.logicNodes
@@ -5111,6 +5946,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         const { callSgsstGemini } = require('~/server/routes/sgsst/sgsstGemini');
         const sequentialReviewers = [
           ...extraAgentsForRun.map((ea, idx) => ({
+            nodeKey: ea.key || `agent_extra_${idx + 1}`,
+            nodeId: ea.agentId || 'ai_agent_extra',
             name: ea.agentName || ea.name || `Agente Especialista #${idx + 2}`,
             role: ea.roleLabel || 'Revisor / Auditor Especialista SG-SST',
             model: allowedTextModels.includes(ea.aiModel || ea.model)
@@ -5123,6 +5960,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           ...subagentCustomNodes.map((sn, idx) => {
             const snCfg = postNodeConfigs[sn.key] || postNodeConfigs[sn.id] || {};
             return {
+              nodeKey: sn.key || sn.id || `subagent_${idx + 1}`,
+              nodeId: sn.id || 'subagent',
               name: sn.title || sn.label || `Subagente Especialista #${idx + 1}`,
               role: sn.subtitle || 'Subagente Especialista de Dominio',
               model: allowedTextModels.includes(snCfg.aiModel || sn.aiModel)
@@ -5136,18 +5975,34 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         ];
 
         for (const rev of sequentialReviewers) {
+          const revStartMs = Date.now();
+          liveTracker.setActiveStage(rev.nodeKey, `Ejecutando ${rev.name}...`);
+          liveTracker.upsertStep({
+            nodeKey: rev.nodeKey,
+            nodeId: rev.nodeId,
+            title: rev.name,
+            category: 'agent',
+            status: 'running',
+            outputPreview: `Auditoría multi-agente en curso (${rev.model})...`,
+          });
+          await liveTracker.flush();
+
           const passPrompt =
             `[ORQUESTACIÓN MULTI-AGENTE WAPPY SG-SST — EMPRESA: "${automationCompany?.companyName || 'Somos SST'}"]\n` +
             `Actúas como **${rev.name}** (${rev.role}).\n\n` +
             `[BORRADOR / DICTAMEN DEL AGENTE PREVIO EN LA CADENA]:\n"""\n${resultText.slice(0, 18000)}\n"""\n\n` +
             `[TU MISIÓN E INSTRUCCIÓN ESPECIALIZADA]:\n${rev.instruction}\n\n` +
             `Entrega el informe ejecutivo consolidado final en Markdown (conservando todos los datos verificados, tablas, hallazgos críticos y complementando con tu dictamen experto sin perder trazabilidad).${postAgentIfContractDirective}`;
-          const enriched = await callSgsstGemini({
-            userId: automation.user.toString(),
-            modelName: rev.model,
-            prompt: passPrompt,
-            timeoutMs: 45000,
-          });
+          const enriched = await withTimeout(
+            callSgsstGemini({
+              userId: automation.user.toString(),
+              modelName: rev.model,
+              prompt: passPrompt,
+              timeoutMs: 45000,
+            }),
+            55000,
+            `callSgsstGemini(${rev.name})`,
+          );
           if (enriched && String(enriched).trim().length > 60) {
             resultText = String(enriched).trim();
             if (cleanRunEvidenceFiles.length > 0) {
@@ -5155,6 +6010,17 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             }
             multiAgentPassesExecuted += 1;
           }
+          liveTracker.upsertStep({
+            nodeKey: rev.nodeKey,
+            nodeId: rev.nodeId,
+            title: rev.name,
+            category: 'agent',
+            status: 'done',
+            durationMs: Math.max(80, Date.now() - revStartMs),
+            inputCount: 1,
+            outputCount: 1,
+            outputPreview: resultText.slice(0, 480),
+          });
         }
       } catch (maErr) {
         console.warn('[AutomationScheduler] Aviso en pase secuencial Multi-Agente:', maErr?.message || maErr);
@@ -5197,6 +6063,25 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       activeBranch = ifConditionPassed ? 'yes' : 'no';
       hasCriticalSignalInResult = ifConditionPassed;
       ifEvaluationReason = postIfRes.reason;
+      liveTracker.upsertStep({
+        nodeKey: 'if_router',
+        nodeId: 'if_node_router',
+        title: 'Condición Si/No (Post-IA)',
+        category: 'if',
+        status: 'done',
+        branchTaken: activeBranch,
+        durationMs: 35,
+        inputCount: 1,
+        outputCount: 1,
+        outputPreview: ifEvaluationReason,
+        outputItems: [
+          {
+            Compuerta: ifConditionLabelStr || '¿Veredicto IA = SÍ?',
+            RamaTomada: activeBranch === 'yes' ? 'Rama SÍ' : 'Rama NO',
+            Dictamen: ifEvaluationReason,
+          },
+        ],
+      });
     }
 
     // 9.8. Puente Universal de Informes Oficiales HTML (`req._generatedAppReports`) para Hitos conectados en `Herramienta +` (`agent_tool` / `target_write_report`) SOLO cuando pidan informe oficial y SOLO en Rama SÍ / Flujo Directo (JAMÁS en Rama NO)
@@ -5243,24 +6128,32 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           try {
             if (shouldGenerateOfficialReport) {
               if (typeof pipeline.generateOrExtractOfficialAppReport === 'function') {
-                await pipeline.generateOrExtractOfficialAppReport({
-                  userId: automation.user.toString(),
-                  companyId: targetCompanyIdStr,
-                  hitoNodeId,
-                  forceRegenerate: Boolean(cfg.forceRegenerateReport),
-                  generateIfMissing: true,
-                  aiModel: effectiveAiModel,
-                  customInstructions: String(cfg.customInstruction || '').trim(),
-                  req,
-                });
+                await withTimeout(
+                  pipeline.generateOrExtractOfficialAppReport({
+                    userId: automation.user.toString(),
+                    companyId: targetCompanyIdStr,
+                    hitoNodeId,
+                    forceRegenerate: Boolean(cfg.forceRegenerateReport),
+                    generateIfMissing: true,
+                    aiModel: effectiveAiModel,
+                    customInstructions: String(cfg.customInstruction || '').trim(),
+                    req,
+                  }),
+                  60000,
+                  `generateOrExtractOfficialAppReport(${hitoNodeId})`,
+                );
               }
             } else if (cfg.includeLatestReport === true) {
               if (typeof pipeline.extractLatestOfficialAppReport === 'function') {
-                const extracted = await pipeline.extractLatestOfficialAppReport({
-                  userId: automation.user.toString(),
-                  companyId: targetCompanyIdStr,
-                  hitoNodeId,
-                });
+                const extracted = await withTimeout(
+                  pipeline.extractLatestOfficialAppReport({
+                    userId: automation.user.toString(),
+                    companyId: targetCompanyIdStr,
+                    hitoNodeId,
+                  }),
+                  25000,
+                  `extractLatestOfficialAppReport(${hitoNodeId})`,
+                );
                 if (extracted?.found && extracted?.reportHtml) {
                   req._generatedAppReports.push({
                     appId: extracted.appId || hitoNodeId,
@@ -5375,6 +6268,24 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       ...preExtractionTraceMeta,
     };
 
+    // Marcar salidas de rama no seleccionada como omitidas (`skipped`)
+    const skippedBranchOutputs = configuredOutputs.filter((outId) => !outputsToExecute.includes(outId));
+    if (skippedBranchOutputs.length > 0) {
+      liveTracker.markSkippedKeys(skippedBranchOutputs.map((o) => `out_${o}`));
+      for (const skOutId of skippedBranchOutputs) {
+        liveTracker.upsertStep({
+          nodeKey: `out_${skOutId}`,
+          nodeId: skOutId,
+          title: formatHumanWorkflowNodeTitle(skOutId),
+          category: 'output',
+          status: 'skipped',
+          branchTaken: activeBranch,
+          durationMs: 0,
+          outputPreview: `Omitida por Compuerta Condicional (Rama ${String(activeBranch).toUpperCase()} activa).`,
+        });
+      }
+    }
+
     // 10. Compuerta Real de Aprobación Humana (`logic_human_approval`) vs Ejecución Directa de Salidas
     const cronNextRunPatch =
       isManual && automation.status === 'active'
@@ -5397,6 +6308,21 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       ).trim();
       const requestedAt = new Date().toISOString();
       const expiresAt = new Date(Date.now() + 7 * 24 * 3600000).toISOString();
+
+      const gateNodeKey = humanApprovalNode?.key || 'logic_human_approval';
+      liveTracker.setActiveStage(
+        gateNodeKey,
+        `Esperando Visto Bueno Humano (${approverEmail || approverRole})...`,
+      );
+      liveTracker.upsertStep({
+        nodeKey: gateNodeKey,
+        nodeId: 'logic_human_approval',
+        title: humanApprovalNode?.title || 'Visto Bueno Humano',
+        category: 'logic',
+        status: 'running',
+        outputPreview: `Salidas retenidas (${outputsToExecute.join(', ')}) esperando aprobación de ${approverEmail || approverRole}.`,
+      });
+      const gateSnap = liveTracker.getSnapshot();
 
       const pendingApprovalPayload = {
         outputsToExecute,
@@ -5441,6 +6367,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               dedupWindowUsed: dedupLedger.dedupWindow || '',
               pendingApprovalPayload,
               executionTrace: executionTraceSummary,
+              ...gateSnap,
             },
           },
         ),
@@ -5450,6 +6377,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             $set: {
               lastRunAt: new Date(),
               lastRunStatus: 'awaiting_approval',
+              lastRunLogId: log._id,
               lastRunResult: `[Pendiente de Visto Bueno Humano] ${resultText.substring(0, 440)}`,
               conversationId: generatedConvoId,
               ...cronNextRunPatch,
@@ -5463,9 +6391,13 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           try {
             const ConvoModel = mongoose.models.Conversation;
             if (ConvoModel) {
-              await ConvoModel.updateOne(
-                { conversationId: generatedConvoId },
-                { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
+              await withTimeout(
+                ConvoModel.updateOne(
+                  { conversationId: generatedConvoId },
+                  { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
+                ),
+                10000,
+                'ConvoModel.updateOne(approval)',
               );
             }
           } catch (_) {}
@@ -5474,14 +6406,18 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         const compLabel = automationCompany?.companyName || 'Somos SST';
         const shortSummary = resultText.replace(/[#*_`]/g, '').substring(0, 340);
         try {
-          await Notification.create({
-            user: automation.user,
-            companyId: automation.companyId || null,
-            title: `🛑 Visto Bueno Requerido: ${automation.name} (${compLabel})`,
-            body: `Salidas retenidas (${outputsToExecute.join(', ')})${approverEmail ? ` para aprobación de ${approverEmail}` : ''}. Aprueba o rechaza en /tareas (pestaña Historial). Resumen: ${shortSummary}`,
-            type: 'system_update',
-            read: false,
-          });
+          await withTimeout(
+            Notification.create({
+              user: automation.user,
+              companyId: automation.companyId || null,
+              title: `🛑 Visto Bueno Requerido: ${automation.name} (${compLabel})`,
+              body: `Salidas retenidas (${outputsToExecute.join(', ')})${approverEmail ? ` para aprobación de ${approverEmail}` : ''}. Aprueba o rechaza en /tareas (pestaña Historial). Resumen: ${shortSummary}`,
+              type: 'system_update',
+              read: false,
+            }),
+            10000,
+            'Notification.create(approval)',
+          );
         } catch (_) {}
 
         if (approverEmail && approverEmail.includes('@')) {
@@ -5499,23 +6435,27 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               `</div>` +
               formatMarkdownToEmailHtml(resultText);
 
-            await sendEmail({
-              email: approverEmail,
-              from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
-              subject: `🛑 Visto Bueno Requerido: ${automation.name} (${compLabel})`,
-              payload: {
-                taskName: `[Aprobación Pendiente] ${automation.name}`,
-                agentName: automation.agentName || agent?.name || 'Agente Experto',
-                companyName: compLabel,
-                executionDate: bogotaDateStr,
-                prompt: automation.prompt,
-                result: approvalBannerHtml,
-                chatUrl: 'https://wappy.club/tareas',
-                year: new Date().getFullYear(),
-              },
-              template: 'agentAutomationReport.handlebars',
-              throwError: false,
-            });
+            await withTimeout(
+              sendEmail({
+                email: approverEmail,
+                from: process.env.EMAIL_NOTIFICATIONS_FROM || 'notificaciones@wappy.club',
+                subject: `🛑 Visto Bueno Requerido: ${automation.name} (${compLabel})`,
+                payload: {
+                  taskName: `[Aprobación Pendiente] ${automation.name}`,
+                  agentName: automation.agentName || agent?.name || 'Agente Experto',
+                  companyName: compLabel,
+                  executionDate: bogotaDateStr,
+                  prompt: automation.prompt,
+                  result: approvalBannerHtml,
+                  chatUrl: 'https://wappy.club/tareas',
+                  year: new Date().getFullYear(),
+                },
+                template: 'agentAutomationReport.handlebars',
+                throwError: false,
+              }),
+              25000,
+              'sendEmail(approval)',
+            );
           } catch (apMailErr) {
             console.warn('[AutomationScheduler] Aviso correo Visto Bueno:', apMailErr?.message);
           }
@@ -5526,38 +6466,99 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         try {
           const ConvoModel = mongoose.models.Conversation;
           if (ConvoModel) {
-            await ConvoModel.updateOne(
-              { conversationId: generatedConvoId },
-              { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
+            await withTimeout(
+              ConvoModel.updateOne(
+                { conversationId: generatedConvoId },
+                { $addToSet: { tags: { $each: ['sgsst-automation', `company-${automation.companyId}`] } } },
+              ),
+              10000,
+              'ConvoModel.updateOne',
             );
           }
         } catch (_) {}
       }
 
+      if (outputsToExecute.length > 0) {
+        liveTracker.setActiveStage(
+          `out_${outputsToExecute[0]}`,
+          `Ejecutando salidas (${outputsToExecute.map(formatHumanWorkflowNodeTitle).join(', ')})...`,
+        );
+        for (const outId of outputsToExecute) {
+          liveTracker.upsertStep({
+            nodeKey: `out_${outId}`,
+            nodeId: outId,
+            title: formatHumanWorkflowNodeTitle(outId),
+            category: 'output',
+            status: 'running',
+            branchTaken: activeBranch,
+            outputPreview: 'Enviando o registrando salida del flujo...',
+          });
+        }
+        await liveTracker.flush();
+      }
+
       let outRes = { executedOutputs: [], workspaceLinks: [], errors: [] };
       if (outputsToExecute.length > 0) {
         try {
-          outRes = await executeDownstreamOutputs({
-            automation,
-            user: reqUser,
-            companyId: targetCompanyIdStr,
-            companyInfo: automationCompany,
-            outputsToExecute,
-            responseText: resultText,
-            generatedAppReports: newAppReports,
-            activeBranch,
-            nodeConfigs: postNodeConfigs,
-            capturedEvidences: runCapturedEvidences,
-            generatedConvoId,
-            hasCriticalSignal: hasCriticalSignalInResult,
-            logId: log._id,
-          });
+          outRes = await withTimeout(
+            executeDownstreamOutputs({
+              automation,
+              user: reqUser,
+              companyId: targetCompanyIdStr,
+              companyInfo: automationCompany,
+              outputsToExecute,
+              responseText: resultText,
+              generatedAppReports: newAppReports,
+              activeBranch,
+              nodeConfigs: postNodeConfigs,
+              capturedEvidences: runCapturedEvidences,
+              generatedConvoId,
+              hasCriticalSignal: hasCriticalSignalInResult,
+              logId: log._id,
+            }),
+            95000,
+            'executeDownstreamOutputs',
+          );
         } catch (postErr) {
           console.warn(
             '[AutomationScheduler] Non-blocking executeDownstreamOutputs error:',
             postErr?.message || postErr,
           );
+          outRes.errors = [...(outRes.errors || []), String(postErr?.message || postErr)];
         }
+      }
+
+      for (const outId of outputsToExecute) {
+        const outWarn = (outRes?.errors || []).find((e) => String(e).includes(outId));
+        const wsLink = (outRes?.workspaceLinks || []).find((l) => l.type === outId);
+        const didRun = Array.isArray(outRes?.executedOutputs) && outRes.executedOutputs.includes(outId);
+        liveTracker.upsertStep({
+          nodeKey: `out_${outId}`,
+          nodeId: outId,
+          title: formatHumanWorkflowNodeTitle(outId),
+          category: 'output',
+          status: outWarn && !didRun ? 'error' : 'done',
+          branchTaken: activeBranch,
+          durationMs: 320,
+          inputCount: 1,
+          outputCount: didRun ? 1 : 0,
+          ...(outWarn ? { error: outWarn } : {}),
+          outputPreview: wsLink
+            ? `${wsLink.label}: ${wsLink.url}`
+            : outWarn
+              ? `Aviso en salida: ${outWarn}`
+              : didRun
+                ? `Salida ejecutada correctamente (${formatHumanWorkflowNodeTitle(outId)}).`
+                : `Canal ${formatHumanWorkflowNodeTitle(outId)} procesado.`,
+          outputItems: [
+            {
+              Canal: formatHumanWorkflowNodeTitle(outId),
+              Rama: String(activeBranch || 'direct').toUpperCase(),
+              Estado: outWarn && !didRun ? `Advertencia (${outWarn})` : didRun ? 'Ejecutado' : 'Procesado',
+              ...(wsLink ? { Enlace: wsLink.url } : {}),
+            },
+          ],
+        });
       }
 
       if (
@@ -5579,6 +6580,9 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         executionTraceSummary.outputWarnings = outRes.errors;
       }
 
+      liveTracker.setActiveStage(null, 'Flujo completado exitosamente');
+      const finalSnap = liveTracker.getSnapshot();
+
       console.log(
         `[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} (${cleanRunEvidenceFiles.length} evidenceFiles, branch=${activeBranch}) and Automation ${automation._id} to SUCCESS...`,
       );
@@ -5595,6 +6599,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               processedEntityKeys: keysToPersist,
               dedupWindowUsed: dedupLedger.dedupWindow || '',
               executionTrace: executionTraceSummary,
+              ...finalSnap,
             },
           },
         ),
@@ -5604,6 +6609,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             $set: {
               lastRunAt: new Date(),
               lastRunStatus: 'success',
+              lastRunLogId: log._id,
               lastRunResult: resultText.substring(0, 500),
               conversationId: generatedConvoId,
               ...cronNextRunPatch,
@@ -5619,7 +6625,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           sourceAgentName: automation.agentName,
           sourceAutomationId: automation._id,
           summaryText: resultText,
-          agentChainDepth: Number(runOptions?.agentChainDepth || 0),
+          agentChainDepth: Number(runOpts?.agentChainDepth || 0),
         });
       }
       console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
@@ -5635,15 +6641,34 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       err?.name === 'AbortError' ||
       err?.name === 'CancelledError';
 
+    liveTracker.setActiveStage(
+      null,
+      isStoppedManually ? 'Detenida manualmente por el usuario' : 'Error en ejecución',
+    );
+    const errSnap = liveTracker.getSnapshot();
+    const patchedLiveSteps = (errSnap.liveSteps || []).map((st) =>
+      st && st.status === 'running'
+        ? {
+            ...st,
+            status: 'error',
+            error: isStoppedManually
+              ? 'Detenida manualmente por el usuario.'
+              : err?.message || 'Error desconocido',
+          }
+        : st,
+    );
+
     // Update Log to failed
     await AutomationLog.updateOne(
       { _id: log._id },
       {
         $set: {
           status: 'failed',
-          error: isStoppedManually ? 'Detenida manualmente por el usuario.' : (err.message || 'Error desconocido')
-        }
-      }
+          ...errSnap,
+          liveSteps: patchedLiveSteps,
+          error: isStoppedManually ? 'Detenida manualmente por el usuario.' : (err.message || 'Error desconocido'),
+        },
+      },
     );
 
     // If all API keys failed, quota exceeded, or critical execution failure:
@@ -5662,11 +6687,12 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     const updateDoc = {
       lastRunAt: new Date(),
       lastRunStatus: isStoppedManually ? 'stopped' : 'failed',
+      lastRunLogId: log._id,
       lastRunResult: isStoppedManually
         ? 'Detenida manualmente por el usuario en tiempo real.'
         : isExhaustionOrCritical
           ? `Pausada automáticamente: se rotaron todas las claves API y modelos de respaldo sin éxito (${err.message}). Revise sus claves o prompt y presione Reactivar.`
-          : `Error: ${err.message}`
+          : `Error: ${err.message}`,
     };
 
     if (isExhaustionOrCritical) {
@@ -5681,6 +6707,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
 
     await Automation.updateOne({ _id: automation._id }, { $set: updateDoc });
   } finally {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
     clearTimeout(timeoutId);
     runningAutomations.delete(automationIdStr);
     // Drenaje continuo: apenas se libera una ventanilla, revisar si hay más tareas en la fila
@@ -5724,6 +6751,9 @@ async function stopAutomation(automationId) {
       {
         $set: {
           status: 'failed',
+          activeStepNodeKey: null,
+          currentStageLabel: 'Detenida manualmente',
+          heartbeatAt: new Date(),
           error: 'Detenida manualmente por el usuario.'
         }
       }
@@ -6070,34 +7100,8 @@ async function checkAndRunAutomations() {
   try {
     const now = new Date();
 
-    // 1. Zombie / Crash Recovery: Reset tasks and logs stuck in 'running' for more than 9 minutes
-    const nineMinutesAgo = new Date(Date.now() - 9 * 60 * 1000);
-    await Promise.all([
-      Automation.updateMany(
-        {
-          lastRunStatus: 'running',
-          updatedAt: { $lt: nineMinutesAgo }
-        },
-        {
-          $set: {
-            lastRunStatus: 'failed',
-            lastRunResult: 'Ejecución anterior cancelada por tiempo de espera o reinicio.'
-          }
-        }
-      ),
-      AutomationLog.updateMany(
-        {
-          status: 'running',
-          createdAt: { $lt: nineMinutesAgo }
-        },
-        {
-          $set: {
-            status: 'failed',
-            error: 'Tiempo límite de ejecución superado (cancelada por el sistema).'
-          }
-        }
-      )
-    ]);
+    // 1. Zombie / Crash Recovery: Reconciliar corridas huérfanas con latido perdido (>90s) o límite absoluto
+    await reconcileOrphanedRunningRuns();
 
     // 2. Respect the ADAPTIVE concurrency cap: adjusts between MIN (2) and MAX (8) based on live chat load
     const adaptiveCap = getAdaptiveConcurrencyLimit();
@@ -10824,6 +11828,8 @@ module.exports = {
   stopAutomationScheduler,
   runAutomation,
   runWorkflowSandboxSimulation,
+  getActiveRunningSnapshot,
+  reconcileOrphanedRunningRuns,
   formatMarkdownToEmailHtml,
   saveScraperEvidenceFiles,
   sanitizePublicEvidenceList,

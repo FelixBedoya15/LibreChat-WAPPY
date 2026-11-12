@@ -77,6 +77,10 @@ import {
   Layers,
   Settings2,
   Table2,
+  Radio,
+  History,
+  Square,
+  XCircle,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import WappyNodeCustomEditor from './WappyNodeCustomEditors';
@@ -84,6 +88,7 @@ import WappyWorkflowSandboxPanel, {
   type SandboxSimulationResponse,
   type SandboxNodeTraceStep,
   type ScraperCapturedEvidence,
+  type RealAutomationRunLog,
   collectUniqueScraperEvidences,
   extractEvidenceFromRow,
   normalizeEvidenceUrlForBrowser,
@@ -92,7 +97,7 @@ import WappyWorkflowSandboxPanel, {
   renderWorkflowMarkdownToInteractiveHtml,
   handleEvidenceContainerClick,
 } from './WappyWorkflowSandboxPanel';
-export type { SandboxNodeTraceStep, ScraperCapturedEvidence };
+export type { SandboxNodeTraceStep, ScraperCapturedEvidence, RealAutomationRunLog };
 import {
   TRIGGER_NODES,
   EXTRACTOR_NODES,
@@ -656,6 +661,10 @@ interface WappyWorkflowCanvasProps {
   automationId?: string | null;
   readOnly?: boolean;
   compact?: boolean;
+  initialMonitorMode?: 'none' | 'live' | 'sandbox';
+  initialRunId?: string | null;
+  lastRunStatus?: string;
+  onAutomationStateChange?: () => void;
 }
 
 interface VisualNodeInstance {
@@ -816,6 +825,10 @@ export default function WappyWorkflowCanvas({
   automationId = null,
   readOnly = false,
   compact = false,
+  initialMonitorMode = 'none',
+  initialRunId = null,
+  lastRunStatus,
+  onAutomationStateChange,
 }: WappyWorkflowCanvasProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -5031,9 +5044,302 @@ export default function WappyWorkflowCanvas({
   const [sandboxError, setSandboxError] = useState<string | null>(null);
   const [mockTriggerInput, setMockTriggerInput] = useState<string>('');
 
+  // ─── ESTADO DEL MONITOR EN VIVO E HISTÓRICO DE EJECUCIONES REALES (/runs) ───
+  const [monitorSourceMode, setMonitorSourceMode] = useState<'sandbox' | 'real'>(() =>
+    initialMonitorMode === 'live' || lastRunStatus === 'running' ? 'real' : 'sandbox',
+  );
+  const [realRuns, setRealRuns] = useState<RealAutomationRunLog[]>([]);
+  const [realRunsLoading, setRealRunsLoading] = useState<boolean>(false);
+  const [selectedRealRunId, setSelectedRealRunId] = useState<string | null>(initialRunId || null);
+  const [realRunElapsedSec, setRealRunElapsedSec] = useState<number>(0);
+
+  const onAutomationStateChangeRef = useRef(onAutomationStateChange);
+  useEffect(() => {
+    onAutomationStateChangeRef.current = onAutomationStateChange;
+  }, [onAutomationStateChange]);
+
+  const prevHadRunningRealRunRef = useRef<boolean>(false);
+
+  const getActiveCompanyIdSafe = useCallback((): string => {
+    try {
+      return typeof window !== 'undefined'
+        ? localStorage.getItem('wappy_active_company_id') || ''
+        : '';
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const scrollToMonitorPanel = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    setTimeout(() => {
+      const panelEl = document.getElementById('wappy-workflow-sandbox-panel');
+      if (panelEl) {
+        panelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 110);
+  }, []);
+
+  const fetchRealRuns = useCallback(
+    async (silent = false) => {
+      if (!automationId || compact || readOnly) return;
+      if (!silent) setRealRunsLoading(true);
+      try {
+        const companyId = getActiveCompanyIdSafe();
+        const params = new URLSearchParams({ limit: '30' });
+        if (companyId) params.set('companyId', companyId);
+        const res = await axios.get(
+          `/api/sgsst/automatizaciones/${automationId}/runs?${params.toString()}`,
+        );
+        const runs: RealAutomationRunLog[] = Array.isArray(res.data?.runs) ? res.data.runs : [];
+        setRealRuns(runs);
+
+        setSelectedRealRunId((prevSelected) => {
+          if (prevSelected && runs.some((r) => r._id === prevSelected)) {
+            return prevSelected;
+          }
+          if (initialRunId && runs.some((r) => r._id === initialRunId)) {
+            return initialRunId;
+          }
+          const runningRun = runs.find((r) => r.status === 'running');
+          if (runningRun) return runningRun._id;
+          return runs[0]?._id || null;
+        });
+
+        const nowHasRunning = runs.some((r) => r.status === 'running');
+        if (prevHadRunningRealRunRef.current && !nowHasRunning) {
+          onAutomationStateChangeRef.current?.();
+        }
+        prevHadRunningRealRunRef.current = nowHasRunning;
+      } catch (err) {
+        console.warn('[WappyWorkflowCanvas] Error cargando corridas reales:', err);
+      } finally {
+        if (!silent) setRealRunsLoading(false);
+      }
+    },
+    [automationId, compact, readOnly, getActiveCompanyIdSafe, initialRunId],
+  );
+
+  const selectedRealRun = useMemo<RealAutomationRunLog | null>(() => {
+    if (!Array.isArray(realRuns) || realRuns.length === 0) return null;
+    if (selectedRealRunId) {
+      const exact = realRuns.find((r) => r._id === selectedRealRunId);
+      if (exact) return exact;
+    }
+    return realRuns.find((r) => r.status === 'running') || realRuns[0] || null;
+  }, [realRuns, selectedRealRunId]);
+
+  const hasRunningRealRun = useMemo(
+    () =>
+      (Array.isArray(realRuns) && realRuns.some((r) => r.status === 'running')) ||
+      lastRunStatus === 'running',
+    [realRuns, lastRunStatus],
+  );
+
+  // Auto-carga y auto-apertura en modo Monitor en Vivo cuando el usuario entra desde la tarjeta o la corrida está corriendo
+  useEffect(() => {
+    if (!automationId || compact || readOnly) {
+      setRealRuns([]);
+      return;
+    }
+    prevHadRunningRealRunRef.current = lastRunStatus === 'running';
+    void fetchRealRuns(false);
+
+    if (initialMonitorMode === 'live' || lastRunStatus === 'running') {
+      setMonitorSourceMode('real');
+      setSandboxOpen(true);
+      if (initialRunId) setSelectedRealRunId(initialRunId);
+      scrollToMonitorPanel();
+    } else if (initialMonitorMode === 'sandbox') {
+      setMonitorSourceMode('sandbox');
+      setSandboxOpen(true);
+      scrollToMonitorPanel();
+    }
+  }, [
+    automationId,
+    compact,
+    readOnly,
+    initialMonitorMode,
+    initialRunId,
+    lastRunStatus,
+    fetchRealRuns,
+    scrollToMonitorPanel,
+  ]);
+
+  // Cronómetro transcurrido en vivo para la corrida real seleccionada
+  useEffect(() => {
+    if (selectedRealRun?.status !== 'running') {
+      setRealRunElapsedSec(0);
+      return;
+    }
+    const rawStart = selectedRealRun.runAt || selectedRealRun.createdAt;
+    const startMs = rawStart ? new Date(rawStart).getTime() : Date.now();
+    const safeStartMs = Number.isNaN(startMs) ? Date.now() : startMs;
+    const tick = () => {
+      setRealRunElapsedSec(Math.max(0, Math.floor((Date.now() - safeStartMs) / 1000)));
+    };
+    tick();
+    const intervalId = setInterval(tick, 1000);
+    return () => clearInterval(intervalId);
+  }, [selectedRealRun?._id, selectedRealRun?.status, selectedRealRun?.runAt, selectedRealRun?.createdAt]);
+
+  // Polling automático cada 2000ms mientras exista alguna corrida 'running' (pausa si la pestaña está oculta)
+  const shouldPollRealRuns = Boolean(
+    automationId &&
+      !compact &&
+      !readOnly &&
+      (selectedRealRun?.status === 'running' ||
+        realRuns.some((r) => r.status === 'running')),
+  );
+
+  useEffect(() => {
+    if (!shouldPollRealRuns || !automationId) return;
+
+    const pollOnce = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      try {
+        const companyId = getActiveCompanyIdSafe();
+        const targetRunning =
+          (selectedRealRun?.status === 'running' ? selectedRealRun : null) ||
+          realRuns.find((r) => r.status === 'running');
+
+        if (targetRunning?._id) {
+          const qp = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+          const res = await axios.get(
+            `/api/sgsst/automatizaciones/runs/${targetRunning._id}${qp}`,
+          );
+          const freshRun: RealAutomationRunLog | null = res.data?._id ? res.data : null;
+          if (freshRun) {
+            setRealRuns((prev) => {
+              const exists = prev.some((r) => r._id === freshRun._id);
+              if (!exists) return [freshRun, ...prev];
+              return prev.map((r) => (r._id === freshRun._id ? { ...r, ...freshRun } : r));
+            });
+            if (freshRun.status !== 'running') {
+              await fetchRealRuns(true);
+              onAutomationStateChangeRef.current?.();
+            }
+            return;
+          }
+        }
+        await fetchRealRuns(true);
+      } catch (err) {
+        console.warn('[WappyWorkflowCanvas] Error en polling en vivo /runs:', err);
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      void pollOnce();
+    }, 2000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void pollOnce();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      clearInterval(intervalId);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [shouldPollRealRuns, automationId, selectedRealRun, realRuns, getActiveCompanyIdSafe, fetchRealRuns]);
+
+  const handleTriggerRealRunNow = useCallback(async () => {
+    if (!automationId) return;
+    setMonitorSourceMode('real');
+    setSandboxOpen(true);
+    setRealRunsLoading(true);
+    try {
+      const companyId = getActiveCompanyIdSafe();
+      const qp = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const res = await axios.post(
+        `/api/sgsst/automatizaciones/${automationId}/run${qp}`,
+        companyId ? { companyId } : {},
+      );
+      const newLogId = res.data?.logId;
+      if (newLogId) {
+        setSelectedRealRunId(newLogId);
+        const optimisticRun: RealAutomationRunLog = {
+          _id: newLogId,
+          automation: automationId,
+          agentName,
+          runAt: new Date().toISOString(),
+          triggerSource: 'manual',
+          status: 'running',
+          currentStageLabel: 'Iniciando ejecución real del flujo...',
+          completedNodeKeys: [],
+          blockedNodeKeys: [],
+          skippedNodeKeys: [],
+          liveSteps: [],
+        };
+        setRealRuns((prev) => [optimisticRun, ...prev.filter((r) => r._id !== newLogId)]);
+      }
+      prevHadRunningRealRunRef.current = true;
+      onAutomationStateChangeRef.current?.();
+      setTimeout(() => {
+        void fetchRealRuns(true);
+      }, 900);
+    } catch (err: any) {
+      console.error('[WappyWorkflowCanvas] Error disparando ejecución real:', err);
+    } finally {
+      setRealRunsLoading(false);
+    }
+  }, [automationId, agentName, getActiveCompanyIdSafe, fetchRealRuns]);
+
+  const handleStopRealRun = useCallback(async () => {
+    if (!automationId) return;
+    try {
+      const companyId = getActiveCompanyIdSafe();
+      const qp = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      await axios.post(`/api/sgsst/automatizaciones/${automationId}/stop${qp}`);
+      await fetchRealRuns(true);
+      onAutomationStateChangeRef.current?.();
+    } catch (err) {
+      console.error('[WappyWorkflowCanvas] Error deteniendo ejecución real:', err);
+    }
+  }, [automationId, getActiveCompanyIdSafe, fetchRealRuns]);
+
+  const handleApproveRealRun = useCallback(
+    async (logId: string) => {
+      if (!logId) return;
+      try {
+        const companyId = getActiveCompanyIdSafe();
+        const qp = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+        await axios.post(`/api/sgsst/automatizaciones/logs/${logId}/approve${qp}`);
+        await fetchRealRuns(true);
+        onAutomationStateChangeRef.current?.();
+      } catch (err) {
+        console.error('[WappyWorkflowCanvas] Error aprobando corrida real:', err);
+      }
+    },
+    [getActiveCompanyIdSafe, fetchRealRuns],
+  );
+
+  const handleRejectRealRun = useCallback(
+    async (logId: string) => {
+      if (!logId) return;
+      try {
+        const companyId = getActiveCompanyIdSafe();
+        const qp = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+        await axios.post(`/api/sgsst/automatizaciones/logs/${logId}/reject${qp}`);
+        await fetchRealRuns(true);
+        onAutomationStateChangeRef.current?.();
+      } catch (err) {
+        console.error('[WappyWorkflowCanvas] Error rechazando corrida real:', err);
+      }
+    },
+    [getActiveCompanyIdSafe, fetchRealRuns],
+  );
+
   // Ejecutar simulación en Modo Desarrollo UNO A UNO en tiempo real (POST /api/sgsst/automatizaciones/test-sandbox?stream=1)
   const handleRunSandboxSimulation = useCallback(async () => {
     if (sandboxRunning) return;
+    setMonitorSourceMode('sandbox');
     setSandboxOpen(true);
     setSandboxRunning(true);
     setSandboxError(null);
@@ -5169,28 +5475,72 @@ export default function WappyWorkflowCanvas({
     mockTriggerInput,
   ]);
 
-  // Verificar si un nodo del lienzo corresponde al paso activo o seleccionado en el Escenario de Desarrollo
-  const isNodeSandboxHighlighted = useCallback(
-    (node: VisualNodeInstance): boolean => {
-      if (!sandboxActiveStepNodeId) return false;
-      if (sandboxActiveStepNodeId === node.key || sandboxActiveStepNodeId === node.nodeId) {
-        return true;
-      }
+  const doesCanvasNodeMatchKey = useCallback(
+    (node: VisualNodeInstance, targetKey?: string | null): boolean => {
+      const k = (targetKey || '').trim();
+      if (!k) return false;
+      if (k === node.key || k === node.nodeId) return true;
       if (
         node.key === 'agent_root' &&
-        (sandboxActiveStepNodeId === 'ai_agent_root' || sandboxActiveStepNodeId === 'agent_primary')
+        (k === 'ai_agent_root' || k === 'agent_primary' || k === 'agent_root')
       ) {
         return true;
       }
       if (
         node.key === 'if_router' &&
-        (sandboxActiveStepNodeId === 'if_condition' || sandboxActiveStepNodeId === 'if_node_router')
+        (k === 'if_condition' || k === 'if_node_router' || k === 'if_router')
       ) {
         return true;
       }
+      if (node.key === 'trigger_root' && (k === 'trigger_root' || k === 'trigger_cron')) {
+        return true;
+      }
+      if (node.shape === 'square_extractor' && k === `extractor_${node.nodeId}`) return true;
+      if (
+        node.shape === 'circle_tool' &&
+        (k === `tool_hitos_${node.nodeId}` || k === `tool_inputs_${node.nodeId}`)
+      ) {
+        return true;
+      }
+      if (node.shape === 'square_output' && k === `out_${node.nodeId}`) return true;
+      if (node.shape === 'logic' && k === `logic_${node.nodeId}`) return true;
       return false;
     },
-    [sandboxActiveStepNodeId],
+    [],
+  );
+
+  // Verificar si un nodo del lienzo corresponde al paso activo o seleccionado (Sandbox o Monitor en Vivo Real)
+  const isNodeSandboxHighlighted = useCallback(
+    (node: VisualNodeInstance): boolean => {
+      if (
+        automationId &&
+        !readOnly &&
+        !compact &&
+        monitorSourceMode === 'real' &&
+        selectedRealRun
+      ) {
+        if (
+          selectedRealRun.status === 'running' &&
+          doesCanvasNodeMatchKey(node, selectedRealRun.activeStepNodeKey)
+        ) {
+          return true;
+        }
+        if (sandboxActiveStepNodeId && doesCanvasNodeMatchKey(node, sandboxActiveStepNodeId)) {
+          return true;
+        }
+        return false;
+      }
+      return doesCanvasNodeMatchKey(node, sandboxActiveStepNodeId);
+    },
+    [
+      automationId,
+      readOnly,
+      compact,
+      monitorSourceMode,
+      selectedRealRun,
+      sandboxActiveStepNodeId,
+      doesCanvasNodeMatchKey,
+    ],
   );
 
   // Renderizar insignia de Orden Consecutivo (`Paso #1`, `Paso #2`... o `⚪ Sin conectar`) y Estado en Vivo UNO A UNO sobre cada nodo
@@ -5212,7 +5562,103 @@ export default function WappyWorkflowCanvas({
         );
       }
 
-      // 2. Si este paso exacto se está ejecutando ahora mismo en Dar Play
+      // 2A. MODO MONITOR EN VIVO / HISTÓRICO REAL (conectar directamente a `selectedRealRun`)
+      if (
+        automationId &&
+        !readOnly &&
+        !compact &&
+        monitorSourceMode === 'real' &&
+        selectedRealRun
+      ) {
+        const realSteps: any[] =
+          Array.isArray(selectedRealRun.liveSteps) && selectedRealRun.liveSteps.length > 0
+            ? selectedRealRun.liveSteps
+            : Array.isArray(selectedRealRun.executionTrace)
+              ? selectedRealRun.executionTrace
+              : [];
+        const matchedRealStep = realSteps.find((st) =>
+          doesCanvasNodeMatchKey(node, st?.nodeKey || st?.nodeId),
+        );
+        const isLiveActiveNode =
+          selectedRealRun.status === 'running' &&
+          (doesCanvasNodeMatchKey(node, selectedRealRun.activeStepNodeKey) ||
+            matchedRealStep?.status === 'running');
+
+        if (isLiveActiveNode) {
+          return (
+            <>
+              <span className="pointer-events-none absolute -top-3 -left-2 px-1.5 py-0.2 rounded-lg bg-cyan-600 text-white border border-white dark:border-slate-900 text-[8px] font-black shadow-md z-30 whitespace-nowrap">
+                Paso #{stepNum}
+              </span>
+              <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-cyan-600 text-white text-[8px] font-black uppercase tracking-wider shadow-md z-30 whitespace-nowrap flex items-center gap-1 animate-pulse">
+                <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                EJECUTANDO...
+              </span>
+            </>
+          );
+        }
+
+        const isBlockedReal =
+          (selectedRealRun.blockedNodeKeys || []).some((k) => doesCanvasNodeMatchKey(node, k)) ||
+          matchedRealStep?.status === 'error';
+        if (isBlockedReal) {
+          return (
+            <span
+              title={
+                matchedRealStep?.error ||
+                `Paso #${stepNum}: bloqueado o con error durante la ejecución real`
+              }
+              className="pointer-events-none absolute -top-3 -left-2 px-1.5 py-0.2 rounded-lg bg-rose-600 text-white border border-white dark:border-slate-900 text-[7.5px] font-black shadow-sm z-30 whitespace-nowrap"
+            >
+              ✕ Paso #{stepNum} · {matchedRealStep?.status === 'error' ? 'Error' : 'Bloqueado'}
+            </span>
+          );
+        }
+
+        const isSkippedReal =
+          (selectedRealRun.skippedNodeKeys || []).some((k) => doesCanvasNodeMatchKey(node, k)) ||
+          matchedRealStep?.status === 'skipped';
+        if (isSkippedReal) {
+          return (
+            <span
+              title={`Paso #${stepNum}: omitido por condición de rama en la ejecución real`}
+              className="pointer-events-none absolute -top-3 -left-2 px-1.5 py-0.2 rounded-lg bg-slate-500 text-white border border-white dark:border-slate-900 text-[7.5px] font-black shadow-sm z-30 whitespace-nowrap"
+            >
+              ⊘ Paso #{stepNum} · Omitido
+            </span>
+          );
+        }
+
+        const isDoneReal =
+          (selectedRealRun.completedNodeKeys || []).some((k) => doesCanvasNodeMatchKey(node, k)) ||
+          (matchedRealStep && matchedRealStep.status !== 'running');
+        if (isDoneReal) {
+          const itemCount =
+            typeof matchedRealStep?.outputCount === 'number'
+              ? matchedRealStep.outputCount
+              : typeof matchedRealStep?.recordsCount === 'number'
+                ? matchedRealStep.recordsCount
+                : Array.isArray(matchedRealStep?.outputItems)
+                  ? matchedRealStep.outputItems.length
+                  : null;
+          const durText =
+            typeof matchedRealStep?.durationMs === 'number' && matchedRealStep.durationMs > 0
+              ? ` · ${matchedRealStep.durationMs >= 1000 ? `${(matchedRealStep.durationMs / 1000).toFixed(1)}s` : `${matchedRealStep.durationMs}ms`}`
+              : '';
+          return (
+            <span
+              title={`Paso #${stepNum} completado en ejecución real${durText}`}
+              className="pointer-events-none absolute -top-3 -left-2 px-1.5 py-0.2 rounded-lg bg-emerald-600 text-white border border-white dark:border-slate-900 text-[7.5px] font-black shadow-sm z-30 whitespace-nowrap"
+            >
+              ✓ Paso #{stepNum}
+              {itemCount !== null ? ` · ${itemCount}` : ''}
+              {durText}
+            </span>
+          );
+        }
+      }
+
+      // 2. Si este paso exacto se está ejecutando ahora mismo en Dar Play (Sandbox)
       if (sandboxRunning && isHighlighted) {
         return (
           <>
@@ -5273,6 +5719,12 @@ export default function WappyWorkflowCanvas({
     [
       stepNumberByNodeKey,
       isNodeSandboxHighlighted,
+      automationId,
+      readOnly,
+      compact,
+      monitorSourceMode,
+      selectedRealRun,
+      doesCanvasNodeMatchKey,
       sandboxRunning,
       sandboxCompletedNodeKeys,
       sandboxBlockedNodeKeys,
@@ -6617,6 +7069,85 @@ export default function WappyWorkflowCanvas({
         </div>
       )}
 
+      {/* ─── FRANJA COMPACTA DE ESTADO EN VIVO / HISTÓRICO JUSTO ARRIBA DEL LIENZO ─── */}
+      {automationId && !compact && !readOnly && (selectedRealRun || monitorSourceMode === 'real') && (
+        <div
+          className={`mb-2 px-3.5 py-2 rounded-2xl border flex flex-wrap items-center justify-between gap-2.5 min-w-0 max-w-full ${
+            selectedRealRun?.status === 'running'
+              ? 'border-cyan-500/50 bg-gradient-to-r from-cyan-500/12 via-teal-500/8 to-transparent'
+              : selectedRealRun?.status === 'failed'
+                ? 'border-rose-500/40 bg-rose-500/10'
+                : selectedRealRun?.status === 'awaiting_approval'
+                  ? 'border-amber-500/40 bg-amber-500/10'
+                  : 'border-teal-500/35 bg-teal-500/8'
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+            {selectedRealRun?.status === 'running' ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-black bg-cyan-500/20 border border-cyan-500/40 text-cyan-800 dark:text-cyan-200 shrink-0">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                </span>
+                EN VIVO · {realRunElapsedSec}s
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-black bg-indigo-500/15 border border-indigo-500/30 text-indigo-800 dark:text-indigo-200 shrink-0">
+                <History className="w-3 h-3" />
+                HISTÓRICO ({realRuns.length})
+              </span>
+            )}
+            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate">
+              {selectedRealRun
+                ? selectedRealRun.status === 'running'
+                  ? selectedRealRun.currentStageLabel || 'Ejecutando flujo autónomo paso a paso...'
+                  : selectedRealRun.status === 'awaiting_approval'
+                    ? '⏸️ Esperando aprobación humana para despachar salidas'
+                    : selectedRealRun.status === 'failed'
+                      ? `❌ Última corrida con error: ${selectedRealRun.error || 'Error inesperado'}`
+                      : `✅ Última corrida: ${
+                          selectedRealRun.runAt
+                            ? new Date(selectedRealRun.runAt).toLocaleString('es-CO')
+                            : 'Reciente'
+                        }${
+                          typeof selectedRealRun.durationMs === 'number' &&
+                          selectedRealRun.durationMs > 0
+                            ? ` (${(selectedRealRun.durationMs / 1000).toFixed(1)}s)`
+                            : ''
+                        }`
+                : 'Sin ejecuciones reales registradas aún'}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            {selectedRealRun?.status === 'running' && (
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant="rose"
+                icon={<Square className="w-3.5 h-3.5 fill-current" />}
+                label="Detener"
+                title="Detener ejecución actual en vivo"
+                onClick={() => void handleStopRealRun()}
+              />
+            )}
+            <ExpandableButton
+              type="button"
+              size="sm"
+              variant="cyan"
+              icon={<Eye className="w-3.5 h-3.5" />}
+              label="Ver Respuesta e Histórico"
+              title="Abrir panel inferior con respuesta HTML Canva, certificados e histórico"
+              onClick={() => {
+                setMonitorSourceMode('real');
+                setSandboxOpen(true);
+                scrollToMonitorPanel();
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ─── LIENZO VISUAL INTERACTIVO WAPPY (FONDO PUNTEADO + MANITA + SELECCIÓN + NODOS + CABLES SVG) ─── */}
       <div className="relative w-full">
         <div
@@ -6779,6 +7310,54 @@ export default function WappyWorkflowCanvas({
                     onClick={handleResetLayout}
                   />
                 </>
+              )}
+
+              {!readOnly && automationId && (
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant={hasRunningRealRun ? 'cyan' : 'indigo'}
+                  isActive={sandboxOpen && monitorSourceMode === 'real'}
+                  icon={
+                    hasRunningRealRun ? (
+                      <Radio className="w-3.5 h-3.5 animate-pulse" />
+                    ) : (
+                      <History className="w-3.5 h-3.5" />
+                    )
+                  }
+                  badge={realRuns.length > 0 ? realRuns.length : undefined}
+                  label={hasRunningRealRun ? 'Monitor En Vivo' : 'Histórico / Vivo'}
+                  title="Ver ejecuciones reales en vivo, histórico y respuestas HTML Canva"
+                  onClick={() => {
+                    setMonitorSourceMode('real');
+                    setSandboxOpen(true);
+                    void fetchRealRuns(true);
+                    scrollToMonitorPanel();
+                  }}
+                />
+              )}
+
+              {!readOnly && (
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="emerald"
+                  isActive={sandboxOpen && monitorSourceMode === 'sandbox'}
+                  disabled={sandboxRunning}
+                  icon={
+                    sandboxRunning ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                    )
+                  }
+                  label={sandboxRunning ? 'Simulando...' : 'Simular Flujo'}
+                  title="Dar Play en Escenario de Desarrollo (Sandbox sin enviar salidas reales)"
+                  onClick={() => {
+                    setMonitorSourceMode('sandbox');
+                    void handleRunSandboxSimulation();
+                  }}
+                />
               )}
 
               <ExpandableButton
@@ -8029,8 +8608,22 @@ export default function WappyWorkflowCanvas({
           <div
             data-canvas-toolbar="true"
             onPointerDown={(e) => e.stopPropagation()}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 inline-flex items-center p-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-emerald-500/40 dark:border-[#C7F303]/50 shadow-lg"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-1.5 p-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-emerald-500/40 dark:border-[#C7F303]/50 shadow-lg"
           >
+            {automationId && !readOnly && hasRunningRealRun && (
+              <ExpandableButton
+                size="sm"
+                variant="cyan"
+                icon={<Radio className="w-3.5 h-3.5 animate-pulse" />}
+                label="Ver Monitor En Vivo"
+                title="Abrir Monitor en Vivo de la corrida real en curso"
+                onClick={() => {
+                  setMonitorSourceMode('real');
+                  setSandboxOpen(true);
+                  scrollToMonitorPanel();
+                }}
+              />
+            )}
             <ExpandableButton
               size="sm"
               variant="emerald"
@@ -8048,7 +8641,10 @@ export default function WappyWorkflowCanvas({
                   : 'Dar Play (Probar sin Enviar Salidas)'
               }
               title="Dar Play al Flujo en Modo Desarrollo (Probar sin Enviar Salidas)"
-              onClick={handleRunSandboxSimulation}
+              onClick={() => {
+                setMonitorSourceMode('sandbox');
+                void handleRunSandboxSimulation();
+              }}
             />
           </div>
         )}
@@ -8081,7 +8677,10 @@ export default function WappyWorkflowCanvas({
             error={sandboxError}
             mockTriggerInput={mockTriggerInput}
             onChangeMockTriggerInput={setMockTriggerInput}
-            onRunSimulation={handleRunSandboxSimulation}
+            onRunSimulation={() => {
+              setMonitorSourceMode('sandbox');
+              void handleRunSandboxSimulation();
+            }}
             onClearSimulation={() => {
               setSandboxResult(null);
               setSandboxError(null);
@@ -8097,9 +8696,33 @@ export default function WappyWorkflowCanvas({
             liveSteps={sandboxLiveSteps}
             totalPlannedSteps={connectedExecutionPlan.length}
             activeStepTitle={
-              visualNodes.find((n) => n.key === sandboxActiveStepNodeId)?.title || null
+              visualNodes.find((n) => doesCanvasNodeMatchKey(n, sandboxActiveStepNodeId))?.title ||
+              null
             }
             onOpenEvidence={handleOpenEvidencePreview}
+            monitorSourceMode={automationId && !readOnly ? monitorSourceMode : 'sandbox'}
+            onChangeMonitorSourceMode={(mode) => {
+              setMonitorSourceMode(mode);
+              if (mode === 'real') {
+                void fetchRealRuns(true);
+              }
+            }}
+            automationId={automationId}
+            realRuns={realRuns}
+            realRunsLoading={realRunsLoading}
+            selectedRealRunId={selectedRealRunId}
+            onSelectRealRunId={(logId) => setSelectedRealRunId(logId)}
+            onRefreshRealRuns={() => void fetchRealRuns(false)}
+            onTriggerRealRunNow={() => void handleTriggerRealRunNow()}
+            onStopRealRun={() => void handleStopRealRun()}
+            onApproveRealRun={(logId) => void handleApproveRealRun(logId)}
+            onRejectRealRun={(logId) => void handleRejectRealRun(logId)}
+            onInspectNode={(nodeKeyOrId) => {
+              const targetNode = visualNodes.find((n) => doesCanvasNodeMatchKey(n, nodeKeyOrId));
+              if (targetNode) {
+                setActiveConfigNodeKey(targetNode.key);
+              }
+            }}
           />
         </div>
       )}
@@ -8303,23 +8926,84 @@ export default function WappyWorkflowCanvas({
           });
         };
 
-        // ─── 1. Buscar paso ejecutado en Sandbox (`traceStep`) ───
-        const allTraceSteps: SandboxNodeTraceStep[] =
-          Array.isArray(sandboxResult?.nodeTrace) && sandboxResult!.nodeTrace.length > 0
+        // ─── 1. Buscar paso ejecutado en Sandbox o en Monitor en Vivo Real (`traceStep`) ───
+        const isRealInspectorMode = Boolean(
+          automationId && !readOnly && monitorSourceMode === 'real' && selectedRealRun,
+        );
+
+        const allTraceSteps: SandboxNodeTraceStep[] = isRealInspectorMode
+          ? Array.isArray(selectedRealRun?.liveSteps) && selectedRealRun!.liveSteps.length > 0
+            ? selectedRealRun!.liveSteps.map((s: any, idx: number) => ({
+                ...s,
+                nodeKey: s?.nodeKey || s?.nodeId || `step_${idx}`,
+                nodeId: s?.nodeId || s?.nodeKey || `step_${idx}`,
+                recordsCount:
+                  typeof s?.recordsCount === 'number'
+                    ? s.recordsCount
+                    : typeof s?.outputCount === 'number'
+                      ? s.outputCount
+                      : undefined,
+                inputContext: s?.inputContext || s?.inputSummary || '',
+              }))
+            : Array.isArray(selectedRealRun?.executionTrace)
+              ? selectedRealRun!.executionTrace.map((entry: any, idx: number) => ({
+                  nodeKey: entry?.nodeKey || entry?.nodeId || `trace_${idx}`,
+                  nodeId: entry?.nodeId || entry?.nodeKey || `trace_${idx}`,
+                  title: String(
+                    entry?.title ||
+                      entry?.label ||
+                      entry?.stage ||
+                      entry?.toolName ||
+                      `Paso #${idx + 1}`,
+                  ),
+                  category: entry?.category || entry?.stage || 'step',
+                  stage: entry?.stage || entry?.category || 'step',
+                  status: entry?.status || (entry?.error ? 'error' : 'done'),
+                  durationMs: Number(entry?.durationMs || 0),
+                  recordsCount:
+                    typeof entry?.recordsCount === 'number'
+                      ? entry.recordsCount
+                      : typeof entry?.outputCount === 'number'
+                        ? entry.outputCount
+                        : undefined,
+                  inputContext: entry?.inputContext || entry?.inputSummary || '',
+                  outputPreview:
+                    entry?.outputPreview ||
+                    entry?.details ||
+                    entry?.summary ||
+                    (typeof entry?.output === 'string' ? entry.output : ''),
+                  error: entry?.error || null,
+                  inputItems: Array.isArray(entry?.inputItems) ? entry.inputItems : undefined,
+                  outputItems: Array.isArray(entry?.outputItems) ? entry.outputItems : undefined,
+                  evidenceFiles: Array.isArray(entry?.evidenceFiles)
+                    ? entry.evidenceFiles
+                    : undefined,
+                  evidences: Array.isArray(entry?.evidences) ? entry.evidences : undefined,
+                }))
+              : []
+          : Array.isArray(sandboxResult?.nodeTrace) && sandboxResult!.nodeTrace.length > 0
             ? sandboxResult!.nodeTrace
             : sandboxLiveSteps;
+
+        const effectiveIsRunning = isRealInspectorMode
+          ? selectedRealRun?.status === 'running'
+          : sandboxRunning;
+        const effectiveError = isRealInspectorMode
+          ? selectedRealRun?.error || null
+          : sandboxError;
+        const effectiveFinalMarkdown = isRealInspectorMode
+          ? selectedRealRun?.result || ''
+          : sandboxResult?.finalResponseMarkdown || '';
+        const effectiveCompletedNodeKeys: string[] = isRealInspectorMode
+          ? Array.isArray(selectedRealRun?.completedNodeKeys)
+            ? selectedRealRun!.completedNodeKeys
+            : []
+          : sandboxCompletedNodeKeys;
 
         const findTraceForNode = (n: VisualNodeInstance): SandboxNodeTraceStep | undefined =>
           allTraceSteps.find(
             (s) =>
-              s.nodeKey === n.key ||
-              s.nodeId === n.nodeId ||
-              (n.key === 'if_router' &&
-                (s.nodeKey === 'if_condition' || s.nodeId === 'if_condition')) ||
-              (n.key === 'agent_root' &&
-                (s.nodeKey === 'agent_root' ||
-                  s.nodeId === 'ai_agent_root' ||
-                  s.nodeKey === 'agent_primary')),
+              doesCanvasNodeMatchKey(n, s.nodeKey) || doesCanvasNodeMatchKey(n, s.nodeId),
           );
 
         const traceStep = findTraceForNode(activeNode);
@@ -8663,24 +9347,40 @@ export default function WappyWorkflowCanvas({
           }
 
           if (targetNode.shape === 'agent') {
-            const agOut = (sandboxResult?.agentOutputs || []).find(
-              (ao) => ao.agentKey === targetNode.key || ao.agentId === targetNode.nodeId,
-            );
+            const agOut = isRealInspectorMode
+              ? null
+              : (sandboxResult?.agentOutputs || []).find(
+                  (ao) => ao.agentKey === targetNode.key || ao.agentId === targetNode.nodeId,
+                );
+            const realAgentResp = isRealInspectorMode ? effectiveFinalMarkdown : '';
             return [
               {
                 AgenteIA: targetNode.title,
                 Rol: targetNode.subtitle,
                 MotorIA: targetCfg.aiEngine || aiEngine,
-                Modelo: targetCfg.aiModel || aiModel,
+                Modelo:
+                  (isRealInspectorMode ? selectedRealRun?.modelUsed : undefined) ||
+                  targetCfg.aiModel ||
+                  aiModel,
                 SubNodosConectados: wires.filter(
                   (w) => w.isSub && w.sourceKey === targetNode.key,
                 ).length,
-                Estado: agOut ? 'Ejecutado en Sandbox' : 'Configurado y listo',
+                Estado: agOut
+                  ? 'Ejecutado en Sandbox'
+                  : isRealInspectorMode
+                    ? targetTrace?.status === 'running'
+                      ? 'Ejecutando en Vivo...'
+                      : targetTrace || realAgentResp
+                        ? 'Ejecutado en Producción'
+                        : 'Pendiente / En espera'
+                    : 'Configurado y listo',
                 ResumenRespuesta: agOut?.responseMarkdown
                   ? `${agOut.responseMarkdown.slice(0, 180)}...`
-                  : targetTrace?.outputPreview ||
-                    prompt?.slice(0, 160) ||
-                    'Procesa los registros recibidos del Extractor y los Sub-Nodos para emitir dictamen SST.',
+                  : realAgentResp
+                    ? `${realAgentResp.slice(0, 180)}...`
+                    : targetTrace?.outputPreview ||
+                      prompt?.slice(0, 160) ||
+                      'Procesa los registros recibidos del Extractor y los Sub-Nodos para emitir dictamen SST.',
               },
             ];
           }
@@ -8690,9 +9390,13 @@ export default function WappyWorkflowCanvas({
               {
                 NodoControl: targetNode.title,
                 Regla: targetCfg.customInstruction || targetNode.subtitle || 'Evaluación condicional Si/No',
-                RamaTomada: sandboxResult?.ifEvaluation?.branchTaken || 'SÍ (En espera de Play)',
+                RamaTomada:
+                  (targetTrace as any)?.branchTaken ||
+                  (!isRealInspectorMode ? sandboxResult?.ifEvaluation?.branchTaken : undefined) ||
+                  'SÍ (En espera de ejecución)',
                 Motivo:
-                  sandboxResult?.ifEvaluation?.reason ||
+                  targetTrace?.outputPreview ||
+                  (!isRealInspectorMode ? sandboxResult?.ifEvaluation?.reason : undefined) ||
                   'Evalúa si existen hallazgos o registros críticos en la entrada.',
               },
             ];
@@ -8714,7 +9418,9 @@ export default function WappyWorkflowCanvas({
           }
 
           if (targetNode.shape === 'square_output') {
-            const ep = sandboxResult?.interceptedOutputs?.emailPreview;
+            const ep = !isRealInspectorMode
+              ? sandboxResult?.interceptedOutputs?.emailPreview
+              : undefined;
             return [
               {
                 CanalSalida: targetNode.title,
@@ -8734,7 +9440,13 @@ export default function WappyWorkflowCanvas({
                     : 'Cuerpo HTML + Resumen Ejecutivo',
                 Estado: ep
                   ? '🛡️ Interceptado en Sandbox (Listo para envío real)'
-                  : 'Listo para despachar salida del Agente IA',
+                  : isRealInspectorMode && targetTrace
+                    ? targetTrace.status === 'skipped'
+                      ? '⊘ Salida omitida en ejecución real'
+                      : targetTrace.status === 'error'
+                        ? '✕ Error al despachar salida'
+                        : '✓ Salida despachada en ejecución real'
+                    : 'Listo para despachar salida del Agente IA',
               },
             ];
           }
@@ -8878,12 +9590,19 @@ export default function WappyWorkflowCanvas({
           if (traceStep?.outputPreview && traceStep.outputPreview.trim()) {
             return traceStep.outputPreview;
           }
-          if (activeNode.shape === 'agent' && sandboxResult?.finalResponseMarkdown) {
-            return sandboxResult.finalResponseMarkdown;
+          if (activeNode.shape === 'agent' && effectiveFinalMarkdown) {
+            return effectiveFinalMarkdown;
           }
-          if (activeNode.shape === 'square_output' && sandboxResult?.interceptedOutputs?.emailPreview) {
+          if (
+            !isRealInspectorMode &&
+            activeNode.shape === 'square_output' &&
+            sandboxResult?.interceptedOutputs?.emailPreview
+          ) {
             const ep = sandboxResult.interceptedOutputs.emailPreview;
             return `Asunto: ${ep.subject}\nPara: ${(ep.recipients || []).join(', ')}\n\n${ep.textBody || sandboxResult.finalResponseMarkdown || ''}`;
+          }
+          if (isRealInspectorMode && activeNode.shape === 'square_output' && effectiveFinalMarkdown) {
+            return effectiveFinalMarkdown;
           }
           if (resolvedOutputItems.length > 0) {
             const cols = Object.keys(resolvedOutputItems[0] || {});
@@ -8920,14 +9639,14 @@ export default function WappyWorkflowCanvas({
             second: '2-digit',
           });
 
-          if (traceStep?.error || sandboxError) {
+          if (traceStep?.error || effectiveError) {
             logsList.push({
               timestamp: nowTime,
               level: 'error',
               message: `Error detectado en «${activeNode.title}»`,
               detail:
                 traceStep?.error ||
-                sandboxError ||
+                effectiveError ||
                 'Se produjo una excepción durante la ejecución del paso.',
             });
           }
@@ -9012,7 +9731,7 @@ export default function WappyWorkflowCanvas({
 
         const hasNodeErrors = Boolean(
           traceStep?.error ||
-            sandboxError ||
+            effectiveError ||
             traceStep?.status === 'error' ||
             resolvedNodeLogs.some((l) => l.level === 'error'),
         );
@@ -9040,14 +9759,23 @@ export default function WappyWorkflowCanvas({
 
         // ─── Certificados / Evidencias capturadas en el nodo activo y en el flujo (`evidenceFiles` + `evidences`) ───
         const allKnownEvidences = collectUniqueScraperEvidences(
-          [...(sandboxResult?.nodeTrace || []), ...sandboxLiveSteps],
-          [
-            ...(Array.isArray(sandboxResult?.evidenceFiles) ? sandboxResult!.evidenceFiles! : []),
-            ...(Array.isArray(sandboxResult?.evidences) ? sandboxResult!.evidences! : []),
-            ...(Array.isArray((sandboxResult as any)?.capturedEvidences)
-              ? (sandboxResult as any).capturedEvidences
-              : []),
-          ],
+          allTraceSteps,
+          isRealInspectorMode
+            ? [
+                ...(Array.isArray(selectedRealRun?.evidenceFiles)
+                  ? selectedRealRun!.evidenceFiles!
+                  : []),
+                ...(Array.isArray(selectedRealRun?.evidences) ? selectedRealRun!.evidences! : []),
+              ]
+            : [
+                ...(Array.isArray(sandboxResult?.evidenceFiles)
+                  ? sandboxResult!.evidenceFiles!
+                  : []),
+                ...(Array.isArray(sandboxResult?.evidences) ? sandboxResult!.evidences! : []),
+                ...(Array.isArray((sandboxResult as any)?.capturedEvidences)
+                  ? (sandboxResult as any).capturedEvidences
+                  : []),
+              ],
         );
         const rowExtractedNodeEvidences = resolvedOutputItems
           .map((r) => extractEvidenceFromRow(r, activeNode.title))
@@ -9425,7 +10153,16 @@ export default function WappyWorkflowCanvas({
                         <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 px-1 max-w-[62vw]">
                           {connectedExecutionPlan.map((step) => {
                             const isCurrent = step.nodeKey === activeNode.key;
-                            const stepDone = sandboxCompletedNodeKeys.includes(step.nodeKey);
+                            const stepDone =
+                              effectiveCompletedNodeKeys.includes(step.nodeKey) ||
+                              allTraceSteps.some(
+                                (t) =>
+                                  (t.nodeKey === step.nodeKey ||
+                                    (step.nodeKey === 'if_router' &&
+                                      t.nodeKey === 'if_condition')) &&
+                                  t.status !== 'running' &&
+                                  t.status !== 'error',
+                              );
                             return (
                               <ExpandableButton
                                 key={`ndv_step_${step.nodeKey}`}
@@ -9503,49 +10240,57 @@ export default function WappyWorkflowCanvas({
                       </div>
                     </div>
 
-                    {(sandboxRunning || sandboxError || sandboxResult) && (
+                    {(effectiveIsRunning ||
+                      effectiveError ||
+                      (isRealInspectorMode ? Boolean(selectedRealRun) : Boolean(sandboxResult))) && (
                       <div
                         className={`mt-2 px-3.5 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 ${
-                          sandboxError
+                          effectiveError
                             ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
-                            : sandboxRunning
-                              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
+                            : effectiveIsRunning
+                              ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-300 dark:border-cyan-700 text-cyan-900 dark:text-cyan-200'
                               : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          {sandboxRunning ? (
+                          {effectiveIsRunning ? (
                             <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                          ) : sandboxError ? (
+                          ) : effectiveError ? (
                             <AlertTriangle className="w-4 h-4 shrink-0" />
                           ) : (
                             <CheckCircle2 className="w-4 h-4 shrink-0" />
                           )}
                           <span className="font-bold truncate">
-                            {sandboxRunning
-                              ? `Ejecutando simulación paso a paso (${sandboxCompletedNodeKeys.length}/${connectedExecutionPlan.length} pasos)...`
-                              : sandboxError
-                                ? sandboxError
-                                : `Simulación completada en vivo (${sandboxResult?.steps?.length || 0} pasos). Revisa OUTPUT / Logs a la derecha o abre el reporte final.`}
+                            {effectiveIsRunning
+                              ? isRealInspectorMode
+                                ? `${selectedRealRun?.currentStageLabel || 'Ejecución real en vivo'} (${effectiveCompletedNodeKeys.length}/${connectedExecutionPlan.length} pasos · ${realRunElapsedSec}s)...`
+                                : `Ejecutando simulación paso a paso (${sandboxCompletedNodeKeys.length}/${connectedExecutionPlan.length} pasos)...`
+                              : effectiveError
+                                ? effectiveError
+                                : isRealInspectorMode
+                                  ? `Ejecución real inspeccionada (${allTraceSteps.length} pasos · estado: ${selectedRealRun?.status}). Revisa INPUT, OUTPUT y Logs a los lados.`
+                                  : `Simulación completada en vivo (${allTraceSteps.length || (sandboxResult as any)?.steps?.length || 0} pasos). Revisa OUTPUT / Logs a la derecha o abre el reporte final.`}
                           </span>
                         </div>
-                        {!sandboxRunning && sandboxResult && (
-                          <ExpandableButton
-                            type="button"
-                            size="sm"
-                            variant="emerald"
-                            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                            label="Ver Reporte Completo"
-                            onClick={() => {
-                              setActiveConfigNodeKey(null);
-                              setTimeout(() => {
-                                document
-                                  .getElementById('wappy-workflow-sandbox-panel')
-                                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                              }, 80);
-                            }}
-                          />
-                        )}
+                        {!effectiveIsRunning &&
+                          (isRealInspectorMode ? Boolean(selectedRealRun) : Boolean(sandboxResult)) && (
+                            <ExpandableButton
+                              type="button"
+                              size="sm"
+                              variant="emerald"
+                              icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                              label="Ver Reporte Completo"
+                              onClick={() => {
+                                setActiveConfigNodeKey(null);
+                                setSandboxOpen(true);
+                                setTimeout(() => {
+                                  document
+                                    .getElementById('wappy-workflow-sandbox-panel')
+                                    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }, 80);
+                              }}
+                            />
+                          )}
                       </div>
                     )}
 

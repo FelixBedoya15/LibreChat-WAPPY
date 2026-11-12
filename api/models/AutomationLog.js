@@ -76,6 +76,55 @@ const automationLogSchema = new mongoose.Schema(
       type: [automationEvidenceFileSchema],
       default: [],
     },
+    triggerSource: {
+      type: String,
+      default: 'manual',
+    },
+    executionTrace: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    liveSteps: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    activeStepNodeKey: {
+      type: String,
+      default: null,
+    },
+    completedNodeKeys: {
+      type: [String],
+      default: [],
+    },
+    blockedNodeKeys: {
+      type: [String],
+      default: [],
+    },
+    skippedNodeKeys: {
+      type: [String],
+      default: [],
+    },
+    currentStageLabel: {
+      type: String,
+      default: '',
+    },
+    heartbeatAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+    durationMs: {
+      type: Number,
+      default: 0,
+    },
+    modelUsed: {
+      type: String,
+      default: '',
+    },
+    companyName: {
+      type: String,
+      default: '',
+    },
     processedEntityKeys: {
       type: [String],
       default: [],

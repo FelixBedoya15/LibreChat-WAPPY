@@ -98,7 +98,12 @@ const automationSchema = new mongoose.Schema(
     },
     lastRunStatus: {
       type: String,
-      enum: ['success', 'failed', 'running', 'stopped'],
+      enum: ['success', 'failed', 'running', 'stopped', 'awaiting_approval', 'rejected'],
+    },
+    lastRunLogId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AutomationLog',
+      default: null,
     },
     lastRunResult: {
       type: String,
