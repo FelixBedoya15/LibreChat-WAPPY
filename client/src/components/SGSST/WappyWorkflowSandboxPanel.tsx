@@ -836,22 +836,68 @@ function upgradeExistingEvidenceHtml(rawHtml: string): string {
   return html;
 }
 
+export interface WorkflowHtmlRenderOptions {
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  modelLabel?: string;
+}
+
+function buildCanvaDocumentBannerHtml(
+  titleText: string,
+  opts?: WorkflowHtmlRenderOptions,
+): string {
+  const safeTitle = escapeHtmlAttr(titleText || opts?.title || 'Informe Ejecutivo SG-SST');
+  const safeSubtitle = escapeHtmlAttr(
+    opts?.subtitle || 'Sistema de Gestión de la Seguridad y Salud en el Trabajo · WAPPY IA',
+  );
+  const safeBadge = escapeHtmlAttr(opts?.badge || 'Informe IA Verificado');
+  const modelPill = opts?.modelLabel
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:9999px;background:rgba(15,23,42,0.32);border:1px solid rgba(255,255,255,0.22);color:#e2e8f0;font-size:10px;font-weight:700;">✨ ${escapeHtmlAttr(opts.modelLabel)}</span>`
+    : '';
+
+  return `<div data-wappy-canva-banner="1" style="background:linear-gradient(135deg,#0f766e 0%,#0d9488 52%,#0ea5e9 100%);border-radius:18px;padding:18px 20px;color:#ffffff;box-shadow:0 12px 28px -10px rgba(13,148,136,0.38);margin-bottom:18px;position:relative;overflow:hidden;">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
+      <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.32);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;letter-spacing:-0.03em;color:#ffffff;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,0.25);">WP</div>
+      <div style="min-width:0;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#d1fae5;margin-bottom:2px;">WAPPY IA · REPORTE ESTILIZADO</div>
+        <h1 style="margin:0;font-size:17px;line-height:1.25;font-weight:900;color:#ffffff;letter-spacing:-0.01em;word-break:break-word;">${safeTitle}</h1>
+        <div style="margin-top:3px;font-size:11.5px;font-weight:500;color:#ecfeff;opacity:0.95;word-break:break-word;">${safeSubtitle}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0;">
+      <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:9999px;background:#C7F303;color:#0E1300;font-size:10.5px;font-weight:900;letter-spacing:0.02em;box-shadow:0 4px 10px -2px rgba(199,243,3,0.35);">● ${safeBadge}</span>
+      ${modelPill}
+    </div>
+  </div>
+</div>`;
+}
+
 /**
- * Renderiza Markdown o HTML de resultados de flujo y `outputPreview` soportando tablas,
- * tarjetas `wappy-card`, insignias clicables `[...](/api/sgsst/automatizaciones/evidencias/...)`
- * y miniaturas ampliables `![alt](/api/sgsst/automatizaciones/evidencias/...)`.
+ * Renderiza Markdown o HTML de resultados de flujo y `outputPreview` con estética corporativa tipo Canva / LiveEditor:
+ * cabecera degradada WP, bloques `wappy-card`, listas numeradas y viñetas estilizadas,
+ * tablas con encabezados degradados, insignias de estado y evidencias interactivas.
  */
-export function renderWorkflowMarkdownToInteractiveHtml(md: string): string {
+export function renderWorkflowMarkdownToInteractiveHtml(
+  md: string,
+  opts?: WorkflowHtmlRenderOptions,
+): string {
   const safe = String(md || '').trim();
   if (!safe) return '<p>Sin contenido generado.</p>';
   if (
     safe.startsWith('<') &&
     (safe.includes('<div') || safe.includes('<p') || safe.includes('<table') || safe.includes('<h'))
   ) {
-    return upgradeExistingEvidenceHtml(safe);
+    const upgraded = upgradeExistingEvidenceHtml(safe);
+    if (upgraded.includes('data-wappy-canva-banner')) {
+      return upgraded;
+    }
+    const banner = opts?.title ? buildCanvaDocumentBannerHtml(opts.title, opts) : '';
+    return `<div class="wappy-agent-report rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-sm text-[13px]">${banner}${upgraded}</div>`;
   }
 
-  // Extraer bloques ```wappy-card antes de escapar HTML
+  // 1. Extraer bloques ```wappy-card antes de escapar HTML
   const cardBlocks: string[] = [];
   const withoutCards = safe.replace(/```wappy-card[\s\S]*?```/gi, (match) => {
     try {
@@ -862,12 +908,12 @@ export function renderWorkflowMarkdownToInteractiveHtml(md: string): string {
         .map((it: any) => {
           const t = escapeHtmlAttr(typeof it === 'string' ? it : it?.title || '');
           const d = escapeHtmlAttr(typeof it === 'string' ? '' : it?.description || it?.subtitle || '');
-          return `<li class="mb-1"><strong>${t}</strong>${d ? `: ${d}` : ''}</li>`;
+          return `<li class="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-200 leading-relaxed"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0d9488] shrink-0"></span><span><strong class="text-slate-900 dark:text-white">${t}</strong>${d ? `: ${d}` : ''}</span></li>`;
         })
         .join('');
       const idx = cardBlocks.length;
       cardBlocks.push(
-        `<div class="my-3 p-3.5 rounded-2xl border border-teal-500/30 bg-teal-500/10"><h4 class="text-xs font-black text-teal-700 dark:text-teal-300 mb-1">${escapeHtmlAttr(card.title || 'Resumen de Gestión')}</h4>${card.subtitle || card.description ? `<p class="text-xs opacity-90 mb-2">${escapeHtmlAttr(card.subtitle || card.description)}</p>` : ''}${itemsHtml ? `<ul class="list-disc pl-5 text-xs">${itemsHtml}</ul>` : ''}</div>`,
+        `<div class="my-4 p-4 rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-50/90 via-white to-sky-50/70 dark:from-teal-950/35 dark:via-slate-900 dark:to-slate-900 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="inline-flex w-2.5 h-2.5 rounded-full bg-[#0d9488]"></span><h4 class="text-xs font-black uppercase tracking-wide text-teal-800 dark:text-teal-200 m-0">${escapeHtmlAttr(card.title || 'Resumen de Gestión')}</h4></div>${card.subtitle || card.description ? `<p class="text-xs text-slate-600 dark:text-slate-300 mb-2.5 leading-relaxed">${escapeHtmlAttr(card.subtitle || card.description)}</p>` : ''}${itemsHtml ? `<ul class="space-y-1.5 list-none p-0 m-0">${itemsHtml}</ul>` : ''}</div>`,
       );
       return `\n@@WAPPY_CARD_BLOCK_${idx}@@\n`;
     } catch (_) {
@@ -875,36 +921,54 @@ export function renderWorkflowMarkdownToInteractiveHtml(md: string): string {
     }
   });
 
-  const escaped = withoutCards
+  // 2. Extraer bloques de código con triple backtick ```lang ... ```
+  const codeBlocks: string[] = [];
+  const withoutCode = withoutCards.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const idx = codeBlocks.length;
+    const safeLang = escapeHtmlAttr(lang || 'dato');
+    const safeCode = escapeHtmlAttr(String(code || '').trimEnd());
+    codeBlocks.push(
+      `<div class="my-3.5 rounded-xl overflow-hidden border border-slate-700/80 bg-[#0f172a] shadow-sm"><div class="flex items-center justify-between px-3 py-1.5 bg-slate-800/90 border-b border-slate-700/80 text-[10px] font-bold uppercase tracking-wider text-teal-300"><span>${safeLang}</span></div><pre class="p-3 m-0 text-[11.5px] font-mono text-slate-100 overflow-x-auto leading-relaxed">${safeCode}</pre></div>`,
+    );
+    return `\n@@WAPPY_CODE_BLOCK_${idx}@@\n`;
+  });
+
+  const escaped = withoutCode
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
   const lines = escaped.split('\n');
   const htmlLines: string[] = [];
-  let inList = false;
+  let listType: 'ul' | 'ol' | null = null;
+  let olCounter = 0;
   let tableRows: string[][] = [];
+  let capturedBannerTitle = '';
 
   const closeList = () => {
-    if (inList) {
+    if (listType === 'ul') {
       htmlLines.push('</ul>');
-      inList = false;
+    } else if (listType === 'ol') {
+      htmlLines.push('</ol>');
     }
+    listType = null;
+    olCounter = 0;
   };
 
   const flushTable = () => {
     if (tableRows.length === 0) return;
     const headerRow = tableRows[0];
     const bodyRows = tableRows.slice(1);
-    let tbl = '<div class="overflow-x-auto my-3 rounded-xl border border-slate-200 dark:border-slate-800"><table class="w-full border-collapse text-xs"><thead><tr>';
+    let tbl =
+      '<div class="overflow-x-auto my-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-sm bg-white dark:bg-slate-900"><table style="width:100%;border-collapse:separate;border-spacing:0;" class="text-xs"><thead><tr style="background:linear-gradient(90deg,#0f766e 0%,#0d9488 65%,#0ea5e9 100%);">';
     headerRow.forEach((cell) => {
-      tbl += `<th class="p-2 text-left font-extrabold bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">${formatInlineMarkdownWithEvidences(cell)}</th>`;
+      tbl += `<th style="padding:10px 14px;text-align:left;font-weight:800;font-size:10.5px;letter-spacing:0.05em;text-transform:uppercase;color:#ffffff;border-bottom:2px solid #0f766e;white-space:nowrap;">${formatInlineMarkdownWithEvidences(cell)}</th>`;
     });
     tbl += '</tr></thead><tbody>';
-    bodyRows.forEach((row) => {
-      tbl += '<tr class="border-b border-slate-100 dark:border-slate-800/80 last:border-b-0">';
+    bodyRows.forEach((row, rIdx) => {
+      tbl += `<tr class="${rIdx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/90 dark:bg-slate-800/45'} hover:bg-teal-50/50 dark:hover:bg-teal-950/30 transition-colors">`;
       row.forEach((cell) => {
-        tbl += `<td class="p-2 align-middle">${formatInlineMarkdownWithEvidences(cell)}</td>`;
+        tbl += `<td class="px-3.5 py-2.5 align-middle border-b border-slate-200/75 dark:border-slate-800 text-slate-700 dark:text-slate-200 leading-snug">${decorateStatusCell(formatInlineMarkdownWithEvidences(cell), cell)}</td>`;
       });
       tbl += '</tr>';
     });
@@ -944,53 +1008,126 @@ export function renderWorkflowMarkdownToInteractiveHtml(md: string): string {
       continue;
     }
 
+    const codeMatch = line.match(/^@@WAPPY_CODE_BLOCK_(\d+)@@$/);
+    if (codeMatch) {
+      closeList();
+      htmlLines.push(codeBlocks[Number(codeMatch[1])] || '');
+      continue;
+    }
+
+    const orderedMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
+
     if (/^-{3,}$/.test(line)) {
       closeList();
-      htmlLines.push('<hr class="my-3 border-slate-200 dark:border-slate-800" />');
+      htmlLines.push(
+        '<hr class="my-5 border-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />',
+      );
     } else if (line.startsWith('#### ')) {
       closeList();
       htmlLines.push(
-        `<h4 class="text-xs font-extrabold mt-3 mb-1 text-teal-700 dark:text-teal-300">${formatInlineMarkdownWithEvidences(line.slice(5))}</h4>`,
+        `<h4 class="text-[11.5px] font-black mt-4 mb-1.5 text-teal-700 dark:text-teal-300 uppercase tracking-wider">${formatInlineMarkdownWithEvidences(line.slice(5))}</h4>`,
       );
     } else if (line.startsWith('### ')) {
       closeList();
       htmlLines.push(
-        `<h3 class="text-sm font-extrabold mt-3.5 mb-1.5 text-teal-700 dark:text-teal-300">${formatInlineMarkdownWithEvidences(line.slice(4))}</h3>`,
+        `<h3 class="flex items-center gap-2.5 text-[13.5px] font-extrabold mt-5 mb-2.5 text-slate-900 dark:text-white"><span style="width:5px;height:18px;border-radius:9999px;background:linear-gradient(180deg,#0d9488,#0ea5e9);display:inline-block;flex-shrink:0;"></span><span>${formatInlineMarkdownWithEvidences(line.slice(4))}</span></h3>`,
       );
     } else if (line.startsWith('## ')) {
       closeList();
       htmlLines.push(
-        `<h2 class="text-base font-extrabold mt-4 mb-2 text-slate-900 dark:text-white">${formatInlineMarkdownWithEvidences(line.slice(3))}</h2>`,
+        `<h2 class="flex items-center gap-2.5 text-[14.5px] font-black mt-6 mb-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0f766e]/12 via-[#0d9488]/6 to-transparent border-b-2 border-teal-500/35 text-teal-900 dark:text-teal-100"><span class="inline-block w-2 h-2 rounded-full bg-[#0d9488] shrink-0"></span><span>${formatInlineMarkdownWithEvidences(line.slice(3))}</span></h2>`,
       );
     } else if (line.startsWith('# ')) {
       closeList();
-      htmlLines.push(
-        `<h1 class="text-lg font-black mt-4 mb-2 text-slate-900 dark:text-white">${formatInlineMarkdownWithEvidences(line.slice(2))}</h1>`,
-      );
+      const rawHeading = line.slice(2).trim();
+      if (!capturedBannerTitle) {
+        // Promover el primer H1 al banner corporativo superior estilo Canva / LiveEditor
+        capturedBannerTitle = rawHeading;
+      } else {
+        htmlLines.push(
+          `<h1 class="text-base font-black mt-6 mb-3 px-4 py-3 rounded-xl text-white bg-gradient-to-r from-[#0f766e] via-[#0d9488] to-[#0ea5e9] shadow-sm">${formatInlineMarkdownWithEvidences(rawHeading)}</h1>`,
+        );
+      }
     } else if (line.startsWith('&gt; ')) {
       closeList();
+      const quoteBody = line.slice(5);
+      const isDanger = /🚨|❌|crític|vencid|urgente|incumpl/i.test(quoteBody);
+      const isWarn = !isDanger && /⚠️|próxim|atención|alerta|pendiente/i.test(quoteBody);
+      const calloutStyle = isDanger
+        ? 'border-l-4 border-rose-500 border-y border-r border-rose-200 dark:border-rose-900/60 bg-rose-50/90 text-rose-900 dark:bg-rose-950/35 dark:text-rose-100'
+        : isWarn
+          ? 'border-l-4 border-amber-500 border-y border-r border-amber-200 dark:border-amber-900/60 bg-amber-50/90 text-amber-950 dark:bg-amber-950/35 dark:text-amber-100'
+          : 'border-l-4 border-[#0d9488] border-y border-r border-teal-200 dark:border-teal-900/60 bg-gradient-to-r from-teal-50/90 to-sky-50/60 text-teal-950 dark:from-teal-950/40 dark:to-slate-900 dark:text-teal-100';
       htmlLines.push(
-        `<blockquote class="pl-3 py-1 my-2 border-l-3 border-teal-500/60 bg-teal-500/5 rounded-r-lg text-xs italic">${formatInlineMarkdownWithEvidences(line.slice(5))}</blockquote>`,
+        `<blockquote class="px-4 py-3 my-3.5 rounded-xl text-xs leading-relaxed shadow-xs ${calloutStyle}">${formatInlineMarkdownWithEvidences(quoteBody)}</blockquote>`,
+      );
+    } else if (orderedMatch) {
+      if (listType !== 'ol') {
+        closeList();
+        htmlLines.push('<ol class="my-3 space-y-2 list-none p-0">');
+        listType = 'ol';
+        olCounter = 0;
+      }
+      olCounter += 1;
+      const numLabel = Number(orderedMatch[1]) || olCounter;
+      htmlLines.push(
+        `<li class="flex items-start gap-2.5 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200"><span style="background:linear-gradient(135deg,#0f766e,#0ea5e9);" class="mt-0.5 w-5 h-5 rounded-full text-white text-[10.5px] font-black inline-flex items-center justify-center shrink-0 shadow-xs">${numLabel}</span><span class="min-w-0 flex-1">${formatInlineMarkdownWithEvidences(orderedMatch[2])}</span></li>`,
       );
     } else if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
-      if (!inList) {
-        htmlLines.push('<ul class="list-disc pl-5 my-2 space-y-1">');
-        inList = true;
+      if (listType !== 'ul') {
+        closeList();
+        htmlLines.push('<ul class="my-2.5 space-y-1.5 list-none p-0">');
+        listType = 'ul';
       }
       htmlLines.push(
-        `<li class="leading-relaxed">${formatInlineMarkdownWithEvidences(line.slice(2))}</li>`,
+        `<li class="flex items-start gap-2.5 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200"><span class="mt-[7px] w-2 h-2 rounded-full bg-[#0d9488] ring-2 ring-teal-500/20 shrink-0"></span><span class="min-w-0 flex-1">${formatInlineMarkdownWithEvidences(line.slice(2))}</span></li>`,
       );
     } else {
       closeList();
       htmlLines.push(
-        `<p class="my-1.5 leading-relaxed">${formatInlineMarkdownWithEvidences(line)}</p>`,
+        `<p class="my-2 leading-relaxed text-[13px] text-slate-700 dark:text-slate-200">${formatInlineMarkdownWithEvidences(line)}</p>`,
       );
     }
   }
 
   flushTable();
   closeList();
-  return htmlLines.join('\n');
+
+  const effectiveBannerTitle = (capturedBannerTitle || opts?.title || 'Informe Ejecutivo del Agente IA')
+    .replace(/\*+/g, '')
+    .replace(/`/g, '')
+    .trim();
+  const topBannerHtml = buildCanvaDocumentBannerHtml(effectiveBannerTitle, opts);
+  const footerHtml = `<div style="margin-top:20px;padding-top:12px;border-top:1px dashed rgba(13,148,136,0.28);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;font-size:10.5px;" class="text-slate-500 dark:text-slate-400">
+  <span style="font-weight:700;">🛡️ Documento generado en Escenario de Desarrollo · WAPPY IA SG-SST</span>
+  <span style="padding:2px 8px;border-radius:9999px;background:rgba(13,148,136,0.1);color:#0f766e;font-weight:800;" class="dark:text-teal-300">Formato Estilizado HTML</span>
+</div>`;
+
+  return `<div class="wappy-agent-report rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-sm text-[13px]">
+${topBannerHtml}
+${htmlLines.join('\n')}
+${footerHtml}
+</div>`;
+}
+
+/**
+ * Convierte celdas de estado (✅ Vigente, ⚠️ Por vencer, ❌ Vencido…) en chips de color.
+ */
+function decorateStatusCell(html: string, raw: string): string {
+  const txt = String(raw || '').trim();
+  if (!txt || txt.length > 60) return html;
+  const chip = (cls: string) =>
+    `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold border whitespace-nowrap ${cls}">${html}</span>`;
+  if (/❌|🔴|vencid|crític|no apto|incumpl/i.test(txt)) {
+    return chip('bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/45 dark:text-rose-200 dark:border-rose-800');
+  }
+  if (/⚠️|🟠|🟡|por vencer|próxim|pendiente|restricci/i.test(txt)) {
+    return chip('bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/45 dark:text-amber-200 dark:border-amber-800');
+  }
+  if (/✅|🟢|vigente|apto|cumple|al día|ok\b/i.test(txt)) {
+    return chip('bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/45 dark:text-emerald-200 dark:border-emerald-800');
+  }
+  return html;
 }
 
 /**
@@ -1153,16 +1290,31 @@ export default function WappyWorkflowSandboxPanel({
     );
   }, [result, agentOutputs]);
 
+  const htmlBannerOpts = useMemo<WorkflowHtmlRenderOptions>(
+    () => ({
+      title:
+        agentOutputs[0]?.roleLabel ||
+        agentOutputs[0]?.agentName ||
+        'Informe Ejecutivo del Agente IA',
+      subtitle: result?.company?.name
+        ? `${result.company.name}${result.company.nit ? ` · NIT ${result.company.nit}` : ''} · Sistema de Gestión SST`
+        : 'Sistema de Gestión de la Seguridad y Salud en el Trabajo · WAPPY IA',
+      badge: result?.outputsBlocked ? 'Simulación Controlada' : 'Informe IA Verificado',
+      modelLabel: result?.modelUsed || agentOutputs[0]?.modelUsed || undefined,
+    }),
+    [agentOutputs, result],
+  );
+
   const finalHtml = useMemo(() => {
     if (!result) return '';
     if (finalMarkdown) {
-      return renderWorkflowMarkdownToInteractiveHtml(finalMarkdown);
+      return renderWorkflowMarkdownToInteractiveHtml(finalMarkdown, htmlBannerOpts);
     }
     if (result.finalResponseHtml?.trim()) {
-      return renderWorkflowMarkdownToInteractiveHtml(result.finalResponseHtml);
+      return renderWorkflowMarkdownToInteractiveHtml(result.finalResponseHtml, htmlBannerOpts);
     }
     return '<p>Sin contenido generado.</p>';
-  }, [result, finalMarkdown]);
+  }, [result, finalMarkdown, htmlBannerOpts]);
 
   const emailPreview = useMemo<SandboxEmailPreview>(() => {
     const raw = result?.interceptedOutputs?.emailPreview || result?.emailPreview;
@@ -2039,6 +2191,13 @@ export default function WappyWorkflowSandboxPanel({
                 selectedAgentIdx >= 0 && agentOutputs[selectedAgentIdx]
                   ? agentOutputs[selectedAgentIdx]
                   : null;
+              const activeBannerOpts: WorkflowHtmlRenderOptions = selectedAgent
+                ? {
+                    ...htmlBannerOpts,
+                    title: selectedAgent.roleLabel || selectedAgent.agentName || htmlBannerOpts.title,
+                    modelLabel: selectedAgent.modelUsed || htmlBannerOpts.modelLabel,
+                  }
+                : htmlBannerOpts;
               const rawActiveMarkdown = selectedAgent
                 ? selectedAgent.responseMarkdown || finalMarkdown
                 : finalMarkdown;
@@ -2048,26 +2207,28 @@ export default function WappyWorkflowSandboxPanel({
                   : rawActiveMarkdown;
               const activeHtml = selectedAgent
                 ? activeMarkdown
-                  ? renderWorkflowMarkdownToInteractiveHtml(activeMarkdown)
+                  ? renderWorkflowMarkdownToInteractiveHtml(activeMarkdown, activeBannerOpts)
                   : selectedAgent.responseHtml?.trim()
                     ? renderWorkflowMarkdownToInteractiveHtml(
                         capturedEvidences.length > 0
                           ? stripNoiseEvidencesFromAgentResponse(selectedAgent.responseHtml)
                           : selectedAgent.responseHtml,
+                        activeBannerOpts,
                       )
                     : '<p>Sin respuesta disponible.</p>'
                 : activeMarkdown
-                  ? renderWorkflowMarkdownToInteractiveHtml(activeMarkdown)
+                  ? renderWorkflowMarkdownToInteractiveHtml(activeMarkdown, activeBannerOpts)
                   : result?.finalResponseHtml?.trim()
                     ? renderWorkflowMarkdownToInteractiveHtml(
                         capturedEvidences.length > 0
                           ? stripNoiseEvidencesFromAgentResponse(result.finalResponseHtml)
                           : result.finalResponseHtml,
+                        activeBannerOpts,
                       )
                     : '<p>Sin respuesta disponible.</p>';
 
               return (
-                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 sm:p-5 shadow-inner max-h-[520px] overflow-y-auto min-w-0 max-w-full">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950 p-3 sm:p-4 shadow-inner max-h-[580px] overflow-y-auto min-w-0 max-w-full">
                   {showRawMarkdown ? (
                     <pre className="text-xs font-mono whitespace-pre-wrap break-words text-slate-800 dark:text-slate-200 leading-relaxed">
                       {activeMarkdown || 'Sin respuesta disponible.'}
@@ -2077,7 +2238,7 @@ export default function WappyWorkflowSandboxPanel({
                       onClick={(e) =>
                         handleEvidenceContainerClick(e, capturedEvidences, onOpenEvidence)
                       }
-                      className="prose prose-sm dark:prose-invert max-w-none text-slate-800 dark:text-slate-100 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-slate-300 dark:[&_th]:border-slate-700 [&_th]:bg-slate-100 dark:[&_th]:bg-slate-800 [&_th]:p-2 [&_th]:text-left [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 [&_td]:p-2 [&_h1]:text-base [&_h1]:font-black [&_h2]:text-sm [&_h2]:font-extrabold [&_h3]:text-xs [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-5"
+                      className="max-w-none text-slate-800 dark:text-slate-100 [&_strong]:font-bold [&_strong]:text-slate-900 dark:[&_strong]:text-white [&_a]:break-words"
                       dangerouslySetInnerHTML={{ __html: activeHtml }}
                     />
                   )}

@@ -7235,48 +7235,122 @@ async function executeSandboxAgentCall({
   agentDoc,
   fullPrompt,
   useWebSearch = false,
+  timeoutMs = 70000,
 }) {
   const startedAt = Date.now();
-  try {
-    const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-    const preferredModel = agentDoc?.model || 'gemini-3.6-flash';
-    const systemInstruction =
-      agentDoc?.instructions ||
-      'Actúas como Consultor Especialista en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la normativa colombiana vigente (Decreto 1072 de 2015 y Resolución 0312 de 2019).';
+  const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+  const preferredModel = String(agentDoc?.model || 'gemini-3.6-flash').trim() || 'gemini-3.6-flash';
+  const systemInstruction =
+    agentDoc?.instructions ||
+    'Actúas como Consultor Especialista en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la normativa colombiana vigente (Decreto 1072 de 2015 y Resolución 0312 de 2019).';
+  const effectiveTimeoutMs = Math.max(25000, Math.min(Number(timeoutMs) || 70000, 90000));
 
-    const result = await generateWithKeyRotation(
-      preferredModel,
+  const extractVisibleText = (res) => {
+    let raw = '';
+    try {
+      raw =
+        (res?.response && typeof res.response.text === 'function'
+          ? res.response.text()
+          : res?.text || '') || '';
+    } catch (_) {
+      raw = '';
+    }
+    if (!String(raw).trim()) {
+      const parts = res?.response?.candidates?.[0]?.content?.parts || [];
+      raw = parts
+        .filter((p) => p && typeof p.text === 'string' && !p.thought)
+        .map((p) => p.text)
+        .join('\n');
+    }
+    return String(raw).trim();
+  };
+
+  const invokeModel = async (
+    modelId,
+    { fastFallback = false, callTimeoutMs = effectiveTimeoutMs } = {},
+  ) => {
+    const isLite = modelId.includes('lite');
+    const generationConfig = {
+      temperature: 0.15,
+      // Los modelos Gemini 3.x consumen presupuesto en pensamiento interno;
+      // acotarlo a 1024 con 32768 de salida evita respuestas vacías (MAX_TOKENS) y timeouts largos.
+      maxOutputTokens: 32768,
+      ...(!isLite ? { thinkingConfig: { thinkingBudget: 1024 } } : {}),
+    };
+    const res = await generateWithKeyRotation(
+      modelId,
       reqUser?.id || reqUser,
       fullPrompt,
       {
         systemInstruction,
         useWebSearch: Boolean(useWebSearch),
-        generationConfig: {
-          temperature: 0.15,
-          maxOutputTokens: 8192,
-        },
+        timeoutMs: callTimeoutMs,
+        fastFallback,
+        generationConfig,
       },
     );
-
-    const responseText =
-      (result?.response && typeof result.response.text === 'function'
-        ? result.response.text()
-        : result?.text || '') || '';
-
-    const cleanText = String(responseText).trim();
     return {
-      text: cleanText || '(Simulación completada por el agente en el Escenario de Desarrollo)',
-      durationMs: Math.max(1, Date.now() - startedAt),
-      error: null,
+      res,
+      cleanText: extractVisibleText(res),
+      finishReason: res?.response?.candidates?.[0]?.finishReason || 'desconocido',
     };
+  };
+
+  let primaryError = null;
+  let lastFinishReason = 'desconocido';
+  try {
+    const primary = await invokeModel(preferredModel, {
+      fastFallback: !preferredModel.includes('lite'),
+      callTimeoutMs: Math.min(effectiveTimeoutMs, 65000),
+    });
+    lastFinishReason = primary.finishReason;
+    if (primary.cleanText) {
+      return {
+        text: primary.cleanText,
+        durationMs: Math.max(1, Date.now() - startedAt),
+        error: null,
+      };
+    }
+    console.warn(
+      `[Sandbox Play] Modelo primario ${preferredModel} sin texto visible (finishReason=${primary.finishReason}).`,
+    );
   } catch (err) {
-    console.warn('[Sandbox Play] Aviso en executeSandboxAgentCall:', err?.message || err);
-    return {
-      text: '',
-      durationMs: Math.max(1, Date.now() - startedAt),
-      error: err?.message || 'Error ejecutando el Agente IA en el Escenario de Desarrollo.',
-    };
+    primaryError = err;
+    console.warn(`[Sandbox Play] Falló modelo primario ${preferredModel}:`, err?.message || err);
   }
+
+  // Rescate rápido con modelo lite verificado (.env) si el primario agotó tiempo o devolvió vacío
+  if (!preferredModel.includes('gemini-3.5-flash-lite')) {
+    try {
+      const rescue = await invokeModel('gemini-3.5-flash-lite', {
+        fastFallback: false,
+        callTimeoutMs: 65000,
+      });
+      lastFinishReason = rescue.finishReason;
+      if (rescue.cleanText) {
+        return {
+          text: rescue.cleanText,
+          durationMs: Math.max(1, Date.now() - startedAt),
+          error: null,
+        };
+      }
+      console.warn(
+        `[Sandbox Play] Rescate gemini-3.5-flash-lite también sin texto visible (finishReason=${rescue.finishReason}).`,
+      );
+    } catch (rescueErr) {
+      console.warn('[Sandbox Play] Falló rescate gemini-3.5-flash-lite:', rescueErr?.message || rescueErr);
+      primaryError = rescueErr;
+    }
+  }
+
+  const fallbackErrMsg = primaryError?.message
+    ? primaryError.message
+    : `Modelo sin texto visible (finishReason=${lastFinishReason}).`;
+  return {
+    text: '',
+    durationMs: Math.max(1, Date.now() - startedAt),
+    error: fallbackErrMsg,
+  };
 }
 
 /**
